@@ -38,12 +38,14 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'django.contrib.sites',
 
     'accounts.apps.AccountsConfig',
     'homework.apps.HomeworkConfig',
     'projects.apps.ProjectsConfig',
     'peer_reviews.apps.PeerReviewsConfig',
     'leaderboard.apps.LeaderboardConfig',
+
     'main',
 
     'allauth',
@@ -146,8 +148,7 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
 )
 
-
-SITE_ID = 1
+SITE_ID = int(os.getenv('SITE_ID', '2'))
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
