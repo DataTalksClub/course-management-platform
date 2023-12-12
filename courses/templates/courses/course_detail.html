@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>{{ course.title }}</h2>
+  <p>{{ course.description }}</p>
+
+  <h3>Homework Assignments</h3>
+  <ul>
+    {% for homework in course.homework_set.all %}
+      <li><a href="{% url 'homework_detail' homework.id %}">{{ homework.title }}</a></li>
+    {% endfor %}
+  </ul>
+{% endblock %}

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     'accounts.apps.AccountsConfig',
     'homework.apps.HomeworkConfig',
+    'courses.apps.CoursesConfig',
     'projects.apps.ProjectsConfig',
     'peer_reviews.apps.PeerReviewsConfig',
     'leaderboard.apps.LeaderboardConfig',

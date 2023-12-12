@@ -6,15 +6,28 @@
     <title>{% block title %}Course Management{% endblock %}</title>
 </head>
 <body>
+    <header>
+        <nav>
+            <ul>
+                {% if user.is_authenticated %}
+                    <li>Welcome, {{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</li>
+                    <li><a href="{% url 'course_list' %}">Courses</a></li>
+                    <!-- Add more navigation links as needed -->
+                {% else %}
+                    <li><a href="{% url 'login' %}">Login</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
     <div id="content" class="container">
-        {% if user.is_authenticated %}
-            <p>Welcome, {{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</p>
-        {% else %}
-            <p><a href="{% url 'login' %}">Login</a></p>
-        {% endif %}
-        
         {% block content %}
+        <!-- The specific content of each page will be inserted here -->
         {% endblock %}
     </div>
+
+    <footer>
+        <p>© 2023 Course Management System</p>
+    </footer>
 </body>
 </html>

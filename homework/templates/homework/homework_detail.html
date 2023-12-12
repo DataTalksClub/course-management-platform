@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>{{ homework.title }}</h2>
+  <p>{{ homework.description }}</p>
+
+  <h3>Questions</h3>
+  <ul>
+    {% for question in questions %}
+      <li>{{ question.text }}</li>
+      <!-- Display question details here -->
+    {% endfor %}
+  </ul>
+
+  <a href="{% url 'submit_homework' homework.id %}">Submit Homework</a>
+{% endblock %}
