@@ -40,9 +40,6 @@ class Question(models.Model):
     possible_answers = models.TextField(blank=True, null=True)
     correct_answer = models.TextField(blank=True, null=True)
 
-    def __str__(self):
-        return self.text
-
     def get_possible_answers(self):
         if not self.question.possible_answers:
             return []
@@ -55,6 +52,9 @@ class Question(models.Model):
             split = [float(a) for a in split]
 
         return split
+
+    def __str__(self):
+        return f"{self.homework.course.title} / {self.homework.title} - {self.text}"
 
 
 class Answer(models.Model):

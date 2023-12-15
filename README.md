@@ -74,6 +74,12 @@ python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000
 ```
 
+or 
+
+```bash
+make run
+```
+
 
 ### Authentication setup
 
