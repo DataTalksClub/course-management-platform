@@ -1,6 +1,36 @@
-# Course Management Platform
+# Course Management System
 
-A platform for hosting our courses
+A Django-based web application designed for managing and
+participating in DataTalks.Club courses. This platform allows
+instructors to create and manage courses, assignments, and
+peer reviews.
+
+Students can enroll in courses, submit homework, projects
+and engage in peer evaluations.
+
+
+## Features
+
+- **User Authentication**: Registration and login functionality for students and instructors.
+- **Course Management**: Instructors can create and manage courses.
+- **Homework and Projects**: Students can submit homework and projects; instructors can manage assignments.
+- **Peer Reviews**: Facilitates peer review process for project evaluations.
+- **Leaderboard**: Displays student rankings based on performance in courses.
+
+
+## Project Structure
+
+```
+├── accounts/ # Handles user accounts and authentication
+├── course_management/ # Main project folder with settings and root configurations
+├── courses/ # Manages course creation and information
+├── homework/ # Handles homework assignments and submissions
+├── leaderboard/ # Manages and displays user performance leaderboards
+├── main/ # The main app for handling core functionalities
+├── peer_reviews/ # Manages peer review functionalities
+├── projects/ # Handles project submissions and evaluations
+├── templates/ # Global templates directory for the project
+```
 
 ## Running it locally
 
