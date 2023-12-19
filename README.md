@@ -55,25 +55,28 @@ pipenv shell
 Make migrations:
 
 ```bash
-python manage.py migrate
+make migrations
+# python manage.py migrate
 ```
 
 Add an admin user:
 
 ```bash
-python manage.py createsuperuser
+make admin
+# python manage.py createsuperuser
+```
+
+Add some data:
+
+```bash
+make data
 ```
 
 ### Running the service
 
 ```bash
-python manage.py runserver 0.0.0.0:8000
-```
-
-or 
-
-```bash
 make run
+# python manage.py runserver 0.0.0.0:8000
 ```
 
 
