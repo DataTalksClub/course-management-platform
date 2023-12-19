@@ -23,12 +23,8 @@ and engage in peer evaluations.
 ```
 ├── accounts/ # Handles user accounts and authentication
 ├── course_management/ # Main project folder with settings and root configurations
-├── courses/ # Manages course creation and information
-├── homework/ # Handles homework assignments and submissions
-├── leaderboard/ # Manages and displays user performance leaderboards
+├── courses/ # Main logic is here (courses, homeworks, etc)
 ├── main/ # The main app for handling core functionalities
-├── peer_reviews/ # Manages peer review functionalities
-├── projects/ # Handles project submissions and evaluations
 ├── templates/ # Global templates directory for the project
 ```
 
@@ -82,6 +78,9 @@ make run
 
 
 ### Authentication setup
+
+If you want to authenticate with OAuth locally
+(not requeired for testing), do the following
 
 * Go to the admin panel (http://localhost:8000/admin)
 * Add a record to "Sites"
