@@ -1,3 +1,5 @@
+from enum import Enum
+
 from django.db import models
 
 from django.contrib.auth import get_user_model
@@ -8,12 +10,12 @@ User = get_user_model()
 
 
 class Course(models.Model):
+    slug = models.SlugField(unique=True, blank=False)
     title = models.CharField(max_length=200)
+
     description = models.TextField()
     students = models.ManyToManyField(User, through='Enrollment', related_name='courses_enrolled')
-
-    slug = models.SlugField(unique=True, blank=False)
-
+    
     def __str__(self):
         return self.title
 
@@ -31,13 +33,15 @@ class Enrollment(models.Model):
 
 
 class Homework(models.Model):
+    slug = models.SlugField(blank=False)
+
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     title = models.CharField(max_length=200)
     description = models.TextField()
     due_date = models.DateTimeField()
 
-    slug = models.SlugField(blank=False)
+    is_scored = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('course', 'slug')
@@ -46,23 +50,37 @@ class Homework(models.Model):
         return f"{self.course.title} - {self.title}"
 
 
+class QuestionTypes(Enum):
+    MULTIPLE_CHOICE = 'MC'
+    FREE_FORM = 'FF'
+    CHECKBOXES = 'CB'
+
+
+class AnswerTypes(Enum):
+    ANY = 'ANY'
+    FLOAT = 'FLT'
+    INTEGER = 'INT'
+    EXACT_STRING = 'EXS'
+    CONTAINS_STRING = 'CTS'
+
+
 class Question(models.Model):
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
     text = models.TextField()
 
     QUESTION_TYPES = (
-        ('MC', 'Multiple Choice'),
-        ('FF', 'Free Form'),
-        ('CB', 'Checkboxes'),
+        (QuestionTypes.MULTIPLE_CHOICE, 'Multiple Choice'),
+        (QuestionTypes.FREE_FORM, 'Free Form'),
+        (QuestionTypes.CHECKBOXES, 'Checkboxes'),
     )
     question_type = models.CharField(max_length=2, choices=QUESTION_TYPES)
 
     ANSWER_TYPES = (
-        ('ANY', 'Any'),
-        ('FLT', 'Float'),
-        ('INT', 'Integer'),
-        ('EXS', 'Exact String'),
-        ('CTS', 'Contains String'),
+        (AnswerTypes.ANY, 'Any'),
+        (AnswerTypes.FLOAT, 'Float'),
+        (AnswerTypes.INTEGER, 'Integer'),
+        (AnswerTypes.EXACT_STRING, 'Exact String'),
+        (AnswerTypes.CONTAINS_STRING, 'Contains String'),
     )
     answer_type = models.CharField(max_length=3, choices=ANSWER_TYPES)
 
@@ -70,23 +88,27 @@ class Question(models.Model):
     correct_answer = models.TextField(blank=True, null=True)
 
     def get_possible_answers(self):
-        if not self.question.possible_answers:
+        if not self.possible_answers:
             return []
         
-        split = self.question.possible_answers.split(',')
-
-        if self.answer_type == 'INT':
-            split = [int(a) for a in split]
-        elif self.answer_type == 'FLOAT':
-            split = [float(a) for a in split]
-
+        split = self.possible_answers.split(',')
         return split
 
     def __str__(self):
         return f"{self.homework.course.title} / {self.homework.title} - {self.text}"
 
 
+class Submission(models.Model):
+    homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    submitted_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student}'s submission for {self.homework.title}"
+
+
 class Answer(models.Model):
+    submission = models.ForeignKey(Submission, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     answer_text = models.TextField()

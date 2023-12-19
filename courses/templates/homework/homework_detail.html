@@ -1,16 +1,64 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
+<link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
+
+
 {% block content %}
   <h2>{{ homework.title }}</h2>
   <p>{{ homework.description }}</p>
 
   <h3>Questions</h3>
-  <ul>
-    {% for question in questions %}
-      <li>{{ question.text }}</li>
-      <!-- Display question details here -->
-    {% endfor %}
-  </ul>
 
-  <a href="{% url 'submit_homework' course.slug homework.slug %}">Submit Homework</a>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="infobox {{ message.tags }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post">
+    {% if is_authenticated %}
+      {% csrf_token %}
+    {% endif %}
+
+    <!-- Display homework questions and submission form -->
+    {% for question, answer in question_answers %}
+      <div>
+        <p>{{ question.text }}</p>
+
+        {% if question.question_type == 'MC' %}
+          <!-- Multiple Choice Question -->
+          {% for option in answer.options %}
+            <input type="radio" name="answer_{{ question.id }}" value="{{ option.value }}" {% if option.is_selected %} checked {% endif %}>
+            <label>{{ option.value }}</label><br>
+          {% endfor %}
+        
+        {% elif question.question_type == 'FF' %}
+          <!-- Free Form Question -->
+          <input type="text" name="answer_{{ question.id }}" value="{{ answer.text|default:'' }}">
+
+        {% elif question.question_type == 'CB' %}
+          <!-- Checkboxes Question -->
+          {% for option in answer.options %}
+            <input type="checkbox" name="answer_{{ question.id }}" value="{{ option.value }}" {% if option.is_selected %} checked {% endif %}>
+            <label>{{ option.value }}</label><br>
+          {% endfor %}
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    {% if is_authenticated %}
+      <input type="submit" value="Submit">
+    {% else %}  
+      <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+    {% endif %}
+
+  </form>
+
+  {% if submission %}
+    <p>Last submitted at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+  {% endif %}
 {% endblock %}
