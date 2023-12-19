@@ -12,5 +12,5 @@
     {% endfor %}
   </ul>
 
-  <a href="{% url 'submit_homework' homework.id %}">Submit Homework</a>
+  <a href="{% url 'submit_homework' course.slug homework.slug %}">Submit Homework</a>
 {% endblock %}

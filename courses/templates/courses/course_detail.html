@@ -7,7 +7,7 @@
   <h3>Homework Assignments</h3>
   <ul>
     {% for homework in course.homework_set.all %}
-      <li><a href="{% url 'homework_detail' homework.id %}">{{ homework.title }}</a></li>
+      <li><a href="{% url 'homework_detail' course.slug homework.slug %}">{{ homework.title }}</a></li>
     {% endfor %}
   </ul>
 {% endblock %}

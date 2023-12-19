@@ -8,13 +8,13 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'course_management.settings')
 django.setup()
 
 
-from courses.models import Course # noqa: E402
-from homework.models import Homework, Question # noqa: E402
+from courses.models import Course, Homework, Question # noqa: E402
 
 
 course = Course(
     title="Fake Course",
-    description="This is a fake course."
+    description="This is a fake course.",
+    slug="fake-course",
 )
 course.save()
 
@@ -25,6 +25,7 @@ homework1 = Homework(
     title="Homework 1",
     description="Description for Homework 1",
     due_date=ten_years_later,
+    slug="hw1",
 )
 homework1.save()
 
@@ -81,6 +82,7 @@ homework2 = Homework(
     title="Homework 2",
     description="Description for Homework 2",
     due_date=ten_years_later,
+    slug="hw2",
 )
 homework2.save()
 

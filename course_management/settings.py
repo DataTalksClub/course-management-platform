@@ -41,11 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
 
     'accounts.apps.AccountsConfig',
-    'homework.apps.HomeworkConfig',
     'courses.apps.CoursesConfig',
-    'projects.apps.ProjectsConfig',
-    'peer_reviews.apps.PeerReviewsConfig',
-    'leaderboard.apps.LeaderboardConfig',
 
     'main',
 

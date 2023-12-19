@@ -8,4 +8,8 @@ migrations:
 
 
 data:
-	pipenv run python manage.py loaddata initial_data.json
+	pipenv run python add_data.py
+
+
+admin:
+	pipenv run python manage.py createsuperuser
