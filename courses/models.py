@@ -87,6 +87,8 @@ class Question(models.Model):
     possible_answers = models.TextField(blank=True, null=True)
     correct_answer = models.TextField(blank=True, null=True)
 
+    scores_for_correct_answer = models.IntegerField(default=1)
+
     def get_possible_answers(self):
         if not self.possible_answers:
             return []
@@ -103,6 +105,13 @@ class Submission(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     submitted_at = models.DateTimeField(auto_now=True)
 
+    total_score = models.IntegerField(default=0)
+
+    @property
+    def answers_with_questions(self):
+        questions = self.answer_set.select_related('question').all()
+        return [(answer, answer.question) for answer in questions]
+
     def __str__(self):
         return f"{self.student}'s submission for {self.homework.title}"
 
@@ -112,6 +121,8 @@ class Answer(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     answer_text = models.TextField()
+
+    is_correct = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Answer by {self.student} for {self.question}"

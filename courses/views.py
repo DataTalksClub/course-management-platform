@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.utils import timezone
+
 
 from .models import Course
 from .models import Homework, Question, Answer, Submission
@@ -79,7 +81,10 @@ def homework_detail(request, course_slug, homework_slug):
 
         # Process the form submission
         # Create or update submission and answers
-        if not submission:
+        if submission:
+            submission.submitted_at = timezone.now()
+            submission.save()
+        else:
             submission = Submission.objects.create(homework=homework, student=user)
 
         for question in questions:
