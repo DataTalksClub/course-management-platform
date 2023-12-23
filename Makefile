@@ -7,6 +7,10 @@ migrations:
 	pipenv run python manage.py migrate
 
 
+tests:
+	pipenv run python manage.py test courses.tests
+
+
 data:
 	pipenv run python add_data.py
 

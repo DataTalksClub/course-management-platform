@@ -69,20 +69,20 @@ class Question(models.Model):
     text = models.TextField()
 
     QUESTION_TYPES = (
-        (QuestionTypes.MULTIPLE_CHOICE, 'Multiple Choice'),
-        (QuestionTypes.FREE_FORM, 'Free Form'),
-        (QuestionTypes.CHECKBOXES, 'Checkboxes'),
+        (QuestionTypes.MULTIPLE_CHOICE.value, 'Multiple Choice'),
+        (QuestionTypes.FREE_FORM.value, 'Free Form'),
+        (QuestionTypes.CHECKBOXES.value, 'Checkboxes'),
     )
     question_type = models.CharField(max_length=2, choices=QUESTION_TYPES)
 
     ANSWER_TYPES = (
-        (AnswerTypes.ANY, 'Any'),
-        (AnswerTypes.FLOAT, 'Float'),
-        (AnswerTypes.INTEGER, 'Integer'),
-        (AnswerTypes.EXACT_STRING, 'Exact String'),
-        (AnswerTypes.CONTAINS_STRING, 'Contains String'),
+        (AnswerTypes.ANY.value, 'Any'),
+        (AnswerTypes.FLOAT.value, 'Float'),
+        (AnswerTypes.INTEGER.value, 'Integer'),
+        (AnswerTypes.EXACT_STRING.value, 'Exact String'),
+        (AnswerTypes.CONTAINS_STRING.value, 'Contains String'),
     )
-    answer_type = models.CharField(max_length=3, choices=ANSWER_TYPES)
+    answer_type = models.CharField(max_length=3, choices=ANSWER_TYPES, blank=True, null=True)
 
     possible_answers = models.TextField(blank=True, null=True)
     correct_answer = models.TextField(blank=True, null=True)

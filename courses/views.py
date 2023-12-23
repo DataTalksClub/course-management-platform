@@ -21,29 +21,31 @@ def course_detail(request, course_slug):
 
 
 def process_question_options(question: Question, answer: Answer):
-    # Process the answer based on question type
-
-    if question.question_type == QuestionTypes.FREE_FORM:
+    if question.question_type == QuestionTypes.FREE_FORM.value:
         # this is text, so it's easy
-        return {"text": answer.answer_text}
-    
+        if not answer:
+            return {"text": ""}
+        else:
+            return {"text": answer.answer_text}
+
     # here we have MULTIPLE_CHOICE or CHECKBOXES
+    options = []
+
+    if answer:
+        selected_options = answer.answer_text.split(",")        
+    else:
+        # no answer yet, so we need to show just options 
+        selected_options = []
+
     possible_answers = question.get_possible_answers()
 
-    # multiple options - checkbox or radio
-    if not answer:
-        options = possible_answers
-    else:
-        options = []
-        selected_options = answer.answer_text.split(",")
+    for option in possible_answers:
+        options.append({
+            'value': option,
+            'is_selected': option in selected_options
+        })
 
-        for option in possible_answers:
-            options.append({
-                'value': option,
-                'is_selected': option in selected_options
-            })
-
-    return {"text": answer.answer_text, "options": options}
+    return {"options": options}
 
 
 def homework_detail(request, course_slug, homework_slug):
@@ -81,7 +83,7 @@ def homework_detail(request, course_slug, homework_slug):
 
         # Process the form submission
         # Create or update submission and answers
-        if submission:
+        if submission: # submission already exists
             submission.submitted_at = timezone.now()
             submission.save()
         else:
@@ -125,7 +127,10 @@ def homework_detail(request, course_slug, homework_slug):
         processed_answer = process_question_options(question, answer)
 
         pair = (question, processed_answer)
+        print("pair:", pair, "question_type:", question.question_type)
         question_answers.append(pair)
+
+    print("views.py 134: question_answers:", question_answers)
 
     context = {
         "homework": homework,
@@ -135,19 +140,3 @@ def homework_detail(request, course_slug, homework_slug):
     }
 
     return render(request, "homework/homework_detail.html", context)
-
-
-def submit_homework(request, homework_id):
-    if request.method == "POST":
-        # Process the submitted answers
-        # This is a simplification; you'll need to handle each question's answer
-        for question in Question.objects.filter(homework_id=homework_id):
-            answer_text = request.POST.get(f"answer_{question.id}")
-            Answer.objects.create(
-                question=question, student=request.user, answer_text=answer_text
-            )
-        return redirect("homework_detail", homework_id=homework_id)
-
-    # Show the form for submission
-    homework = get_object_or_404(Homework, pk=homework_id)
-    return render(request, "homework/submit_homework.html", {"homework": homework})
