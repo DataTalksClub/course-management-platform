@@ -4,6 +4,18 @@
 <h2>{{ course.title }}</h2>
 <p>{{ course.description }}</p>
 
+<p>
+  <a href="{% url 'leaderboard' course.slug %}">Course leaderboard</a>
+</p>
+
+{% if is_authenticated %}
+<p>
+  <a href="{% url 'enrollment_detail' course.slug %}">Edit course profile</a>
+</p>
+
+<p>Total score: {{ total_score }}</p>
+{% endif %}
+
 <h2>Homework</h2>
 
 {% for hw in homeworks %}
@@ -36,5 +48,6 @@
     {% endif %}
   </div>
 {% endfor %}
+
 
 {% endblock %}

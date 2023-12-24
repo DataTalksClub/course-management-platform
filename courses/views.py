@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Prefetch
+from django.contrib.auth.decorators import login_required
+
 
 from .models import (
     Course,
@@ -15,8 +17,7 @@ from .models import (
 )
 
 from .scoring import is_answer_correct, is_free_form_answer_correct
-
-from .forms import AnswerForm
+from .forms import AnswerForm, EnrollmentForm
 
 
 def course_list(request):
@@ -50,6 +51,8 @@ def course_detail(request, course_slug):
         .filter(course=course) \
         .prefetch_related(submissions_prefetch)
 
+    total_score = 0
+
     for hw in homeworks:
         # Initialize default values
         hw.days_until_due = 0
@@ -69,12 +72,15 @@ def course_detail(request, course_slug):
             hw.submitted = True
             if hw.is_scored:
                 hw.score = submission.total_score
+                total_score = total_score + submission.total_score
             else:
                 hw.submitted_at = submission.submitted_at
 
     context = {
         'course': course,
         'homeworks': homeworks,
+        'is_authenticated': is_user_authenticated,
+        'total_score': total_score,
     }
 
     return render(request, 'courses/course_detail.html', context)
@@ -248,8 +254,36 @@ def leaderboard_view(request, course_slug):
         .filter(course=course) \
         .order_by("-total_score")
 
+    print(enrollments)
+
     context = {
         "enrollments": enrollments,
     }
 
-    return render(request, "homework/leaderboard.html", context)
+    return render(request, "courses/leaderboard.html", context)
+
+
+@login_required
+def enrollment_detail(request, course_slug):
+    enrollment = get_object_or_404(
+        Enrollment,
+        student=request.user,
+        course__slug=course_slug
+    )
+
+    if request.method == 'POST':
+        form = EnrollmentForm(request.POST, instance=enrollment)
+        if form.is_valid():
+            form.save()
+            # Redirect to a success page or show a success message
+            return redirect('course_detail', course_slug=course_slug)
+    
+    form = EnrollmentForm(instance=enrollment)
+
+    context = {'form': form, 'course_slug': course_slug}
+
+    return render(
+        request, 
+        'courses/enrollment_detail.html',
+        context
+    )

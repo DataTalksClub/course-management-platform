@@ -155,7 +155,9 @@ SITE_ID = int(os.getenv('SITE_ID', '2'))
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_EMAIL_REQUIRED = True
+
 LOGIN_REDIRECT_URL = '/'
+LOGIN_URL = '/accounts/login' 
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 

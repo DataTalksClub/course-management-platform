@@ -34,7 +34,11 @@ class Enrollment(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     enrollment_date = models.DateTimeField(auto_now_add=True)
 
-    display_name = models.CharField(max_length=255, blank=True, default="Anonymous")
+    display_name = models.CharField(max_length=255, blank=True)
+    display_on_leaderboard = models.BooleanField(default=True)
+
+    certificate_name = models.CharField(max_length=255, blank=True, null=True)
+
     total_score = models.IntegerField(default=0)
 
     def calculate_total_score(self):

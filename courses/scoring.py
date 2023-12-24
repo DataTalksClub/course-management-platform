@@ -3,9 +3,19 @@ import logging
 from enum import Enum
 
 from django.utils import timezone
+from django.db.models import Subquery, OuterRef, Sum
 
-from .models import Homework, Submission, Question
-from .models import QuestionTypes, AnswerTypes
+from .models import (
+    Homework,
+    Submission,
+    Question,
+    Course,
+    QuestionTypes,
+    AnswerTypes,
+    Enrollment
+)
+
+
 
 
 logger = logging.getLogger(__name__)
@@ -89,6 +99,23 @@ def update_score(submission: Submission):
     submission.save()
 
 
+def update_leaderboard(course: Course):
+    scored_homeworks = Homework.objects \
+        .filter(course=course, is_scored=True)
+
+    aggregated_scores = Submission.objects \
+        .filter(homework__in=scored_homeworks) \
+        .values('enrollment') \
+        .annotate(total_score=Sum('total_score'))
+
+    # Update each enrollment with the aggregated score
+    for aggregated_score in aggregated_scores:
+        Enrollment.objects \
+            .filter(id=aggregated_score['enrollment']) \
+            .update(total_score=aggregated_score['total_score'])
+
+
+
 def score_homework_submissions(homework_id: str) -> tuple[HomeworkScoringStatus, str]:
     homework = Homework.objects.get(pk=homework_id)
 
@@ -108,6 +135,8 @@ def score_homework_submissions(homework_id: str) -> tuple[HomeworkScoringStatus,
 
     homework.is_scored = True
     homework.save()
+
+    update_leaderboard(homework.course)
 
     logger.info(f"Scored {len(submissions)} submissions for {homework}")
 
