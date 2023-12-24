@@ -38,19 +38,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django.contrib.sites',
-
-    'accounts.apps.AccountsConfig',
-    'courses.apps.CoursesConfig',
-
-    'main',
-
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.github',
-    'allauth.socialaccount.providers.slack',
+    "django.contrib.sites",
+    "accounts.apps.AccountsConfig",
+    "courses.apps.CoursesConfig",
+    "main",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
+    "allauth.socialaccount.providers.slack",
 ]
 
 MIDDLEWARE = [
@@ -68,7 +65,7 @@ ROOT_URLCONF = "course_management.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -92,6 +89,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        "TEST": {
+            "NAME":  BASE_DIR / "db-test.sqlite3",
+        },
     }
 }
 
@@ -146,34 +146,34 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # authentication
 
 AUTHENTICATION_BACKENDS = (
-    'allauth.account.auth_backends.AuthenticationBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    "allauth.account.auth_backends.AuthenticationBackend",
+    "django.contrib.auth.backends.ModelBackend",
 )
 
-SITE_ID = int(os.getenv('SITE_ID', '2'))
+SITE_ID = int(os.getenv("SITE_ID", "2"))
 
-ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_AUTHENTICATION_METHOD = "username_email"
 ACCOUNT_EMAIL_REQUIRED = True
 
-LOGIN_REDIRECT_URL = '/'
-LOGIN_URL = '/accounts/login' 
+LOGIN_REDIRECT_URL = "/"
+LOGIN_URL = "/accounts/login"
 
-AUTH_USER_MODEL = 'accounts.CustomUser'
+AUTH_USER_MODEL = "accounts.CustomUser"
 
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
         },
     },
-    'loggers': {
-        '': {  # root logger
-            'handlers': ['console'],
-            'level': 'INFO',
+    "loggers": {
+        "": {  # root logger
+            "handlers": ["console"],
+            "level": "INFO",
         },
     },
 }

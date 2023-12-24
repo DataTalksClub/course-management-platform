@@ -30,8 +30,6 @@ def course_detail(request, course_slug):
     user = request.user
     is_user_authenticated = user.is_authenticated
 
-    print(f"user={user}, is_user_authenticated={is_user_authenticated}")
-
     if is_user_authenticated:
         submissions_prefetch = Prefetch(
             'submission_set',
