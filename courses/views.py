@@ -1,3 +1,7 @@
+from typing import List
+
+from django.http import HttpRequest, HttpResponse
+
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
@@ -24,60 +28,66 @@ def course_list(request):
     return render(request, "courses/course_list.html", {"courses": courses})
 
 
-def course_detail(request, course_slug):
+def course_detail(request: HttpRequest, course_slug: str) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug)
 
     user = request.user
-    is_user_authenticated = user.is_authenticated
+    homeworks = get_homeworks_for_course(course, user)
 
-    if is_user_authenticated:
-        submissions_prefetch = Prefetch(
-            'submission_set',
-            queryset=Submission.objects.filter(student=user),
-            to_attr='submissions'
-        )
-    else:
-        submissions_prefetch = Prefetch(
-            'submission_set',
-            queryset=Submission.objects.none(),
-            to_attr='submissions'
-        )
+    total_score = sum(hw.score or 0 for hw in homeworks)
+
+    context = {
+        'course': course,
+        'homeworks': homeworks,
+        'is_authenticated': user.is_authenticated,
+        'total_score': total_score,
+    }
+
+    return render(request, 'courses/course_detail.html', context)
+
+
+def get_homeworks_for_course(course: Course, user) -> List[Homework]:
+    if user.is_authenticated:
+        queryset = Submission.objects.filter(student=user) 
+    else: 
+        queryset = Submission.objects.none()
+
+    submissions_prefetch = Prefetch(
+        'submission_set',
+        queryset=queryset,
+        to_attr='submissions'
+    )
 
     homeworks = Homework.objects \
         .filter(course=course) \
         .prefetch_related(submissions_prefetch)
 
-    total_score = 0
-
     for hw in homeworks:
-        # Initialize default values
-        hw.days_until_due = 0
-        hw.submitted = False
-        hw.score = None
+        update_homework_with_additional_info(hw)
 
-        # Calculate days until deadline
-        if hw.due_date > timezone.now():
-            hw.days_until_due = (hw.due_date - timezone.now()).days
+    return list(homeworks)
 
-        # Check submission status and score
-        if hw.submissions:
-            submission = hw.submissions[0]  # Get the first (and should be only) submission
 
-            hw.submitted = True
-            if hw.is_scored:
-                hw.score = submission.total_score
-                total_score = total_score + submission.total_score
-            else:
-                hw.submitted_at = submission.submitted_at
+def update_homework_with_additional_info(homework: Homework) -> None:
+    days_until_due = 0
 
-    context = {
-        'course': course,
-        'homeworks': homeworks,
-        'is_authenticated': is_user_authenticated,
-        'total_score': total_score,
-    }
+    if homework.due_date > timezone.now():
+        days_until_due = (homework.due_date - timezone.now()).days
 
-    return render(request, 'courses/course_detail.html', context)
+    homework.days_until_due = days_until_due 
+    homework.submitted = False
+    homework.score = None
+
+    if not homework.submissions:
+        return
+
+    submission = homework.submissions[0]
+
+    homework.submitted = True
+    if homework.is_scored:
+        homework.score = submission.total_score
+    else:
+        homework.submitted_at = submission.submitted_at
 
 
 def process_question_options(homework: Homework, question: Question, answer: Answer):
