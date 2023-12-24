@@ -1,13 +1,40 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <h2>{{ course.title }}</h2>
-  <p>{{ course.description }}</p>
+<h2>{{ course.title }}</h2>
+<p>{{ course.description }}</p>
 
-  <h3>Homework Assignments</h3>
-  <ul>
-    {% for homework in course.homework_set.all %}
-      <li><a href="{% url 'homework_detail' course.slug homework.slug %}">{{ homework.title }}</a></li>
-    {% endfor %}
-  </ul>
+<h2>Homework</h2>
+
+{% for hw in homeworks %}
+  <div>
+    <h3>
+      <a href="{% url 'homework_detail' course.slug hw.slug %}">
+        {{ hw.title }}
+      </a>
+    </h3>
+
+    <!-- Due date and days until deadline -->
+    {% if not hw.is_scored %}
+      <p>Due date: {{ hw.due_date }}</p>
+        {% if hw.days_until_due > 0 %}
+        <p>Days until deadline: {{ hw.days_until_due }}</p>
+      {% else %}
+        <p>Deadline has passed.</p>
+      {% endif %}
+    {% endif %}
+
+    <!-- Submission status -->
+    {% if hw.is_scored and hw.submitted %}
+      <p>Status: Scored (score: {{ hw.score }})</p>
+    {% elif hw.is_scored and not hw.submitted %}
+      <p>Status: Due date over (closed)</p>
+    {% elif not hw.is_scored and hw.submitted %}
+      <p>Status: Submitted at {{ hw.submitted_at|date:"F d, Y H:i" }}</p>
+    {% else %}
+      <p>Status: Not submitted yet</p>
+    {% endif %}
+  </div>
+{% endfor %}
+
 {% endblock %}

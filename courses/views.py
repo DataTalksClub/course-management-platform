@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Prefetch
 
 from .models import (
     Course,
@@ -23,9 +24,60 @@ def course_list(request):
     return render(request, "courses/course_list.html", {"courses": courses})
 
 
+
 def course_detail(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
-    return render(request, "courses/course_detail.html", {"course": course})
+
+    user = request.user
+    is_user_authenticated = user.is_authenticated
+
+    print(f"user={user}, is_user_authenticated={is_user_authenticated}")
+
+    if is_user_authenticated:
+        submissions_prefetch = Prefetch(
+            'submission_set',
+            queryset=Submission.objects.filter(student=user),
+            to_attr='submissions'
+        )
+    else:
+        submissions_prefetch = Prefetch(
+            'submission_set',
+            queryset=Submission.objects.none(),
+            to_attr='submissions'
+        )
+
+    homeworks = Homework.objects \
+        .filter(course=course) \
+        .prefetch_related(submissions_prefetch)
+
+    for hw in homeworks:
+        # Initialize default values
+        hw.days_until_due = 0
+        hw.submitted = False
+        hw.score = None
+
+        # Calculate days until deadline
+        if hw.due_date > timezone.now():
+            hw.days_until_due = (hw.due_date - timezone.now()).days
+
+        print(f"hw = {hw}, hw.submissions = {hw.submissions}")
+
+        # Check submission status and score
+        if hw.submissions:
+            submission = hw.submissions[0]  # Get the first (and should be only) submission
+
+            hw.submitted = True
+            if hw.is_scored:
+                hw.score = submission.total_score
+            else:
+                hw.submitted_at = submission.submitted_at
+
+    context = {
+        'course': course,
+        'homeworks': homeworks,
+    }
+
+    return render(request, 'courses/course_detail.html', context)
 
 
 def process_question_options(homework: Homework, question: Question, answer: Answer):
@@ -106,6 +158,7 @@ def homework_detail(request, course_slug, homework_slug):
             question_answers.append((question, options))
 
         context = {
+            "course": course,
             "homework": homework,
             "question_answers": question_answers,
             "is_authenticated": False,
@@ -122,8 +175,6 @@ def homework_detail(request, course_slug, homework_slug):
             if not answer_id.startswith("answer_"):
                 continue
             answers_dict[answer_id] = ",".join(answer)
-
-        print("answers_dict", answers_dict)
 
         if submission:  # submission already exists
             submission.submitted_at = timezone.now()
@@ -180,6 +231,7 @@ def homework_detail(request, course_slug, homework_slug):
         question_answers.append(pair)
 
     context = {
+        "course": course,
         "homework": homework,
         "question_answers": question_answers,
         "submission": submission,
@@ -192,7 +244,9 @@ def homework_detail(request, course_slug, homework_slug):
 def leaderboard_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
-    enrollments = Enrollment.objects.filter(course=course).order_by("-total_score")
+    enrollments = Enrollment.objects \
+        .filter(course=course) \
+        .order_by("-total_score")
 
     context = {
         "enrollments": enrollments,

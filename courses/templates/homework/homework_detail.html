@@ -3,7 +3,7 @@
 {% load static %}
 
 {% block content %}
-  <h2>{{ homework.title }}</h2>
+  <h2>{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
   <p>{{ homework.description }}</p>
 
   {% if messages %}
@@ -85,7 +85,7 @@
 
     {% if not homework.is_scored %}
       {% if is_authenticated %}
-        <input type="submit" value="Submit">
+        <input type="submit" value="Save">
       {% else %}  
         <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
       {% endif %}
