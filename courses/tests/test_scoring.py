@@ -13,6 +13,7 @@ from courses.models import (
     User,
     QuestionTypes,
     AnswerTypes,
+    Enrollment,
 )
 
 from courses.scoring import HomeworkScoringStatus, score_homework_submissions
@@ -100,12 +101,25 @@ class HomeworkScoringTestCase(TestCase):
         ]
 
         self.student1 = User.objects.create_user(username="student1")
-        self.student2 = User.objects.create_user(username="student2")
+        self.enrollment1 = Enrollment.objects.create(
+            course=self.course,
+            student=self.student1
+        )
         self.submission1 = Submission.objects.create(
-            homework=self.homework, student=self.student1
+            homework=self.homework,
+            student=self.student1,
+            enrollment=self.enrollment1,
+        )
+
+        self.student2 = User.objects.create_user(username="student2")
+        self.enrollment2 = Enrollment.objects.create(
+            course=self.course,
+            student=self.student2,
         )
         self.submission2 = Submission.objects.create(
-            homework=self.homework, student=self.student2
+            homework=self.homework,
+            student=self.student2,
+            enrollment=self.enrollment2,
         )
 
         answers_student1 = [
@@ -142,3 +156,9 @@ class HomeworkScoringTestCase(TestCase):
         self.assertEqual(self.homework.is_scored, True)
         self.assertEqual(self.submission1.total_score, 2 + 1 + 3)
         self.assertEqual(self.submission2.total_score, 2 + 1 + 2)
+
+        self.enrollment1 = Enrollment.objects.get(pk=self.enrollment1.id)
+        self.enrollment2 = Enrollment.objects.get(pk=self.enrollment2.id)
+
+        self.assertEqual(self.enrollment1.total_score, 6)
+        self.assertEqual(self.enrollment2.total_score, 5)
