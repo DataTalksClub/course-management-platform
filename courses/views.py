@@ -1,9 +1,9 @@
-from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
+from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Prefetch
-from django.contrib.auth.decorators import login_required
 
+from django.contrib.auth.decorators import login_required
 
 from .models import (
     Course,
@@ -13,17 +13,15 @@ from .models import (
     Submission,
     QuestionTypes,
     Enrollment,
-    AnswerTypes,
 )
 
-from .scoring import is_answer_correct, is_free_form_answer_correct
-from .forms import AnswerForm, EnrollmentForm
+from .scoring import is_free_form_answer_correct
+from .forms import EnrollmentForm
 
 
 def course_list(request):
     courses = Course.objects.all()
     return render(request, "courses/course_list.html", {"courses": courses})
-
 
 
 def course_detail(request, course_slug):
@@ -62,8 +60,6 @@ def course_detail(request, course_slug):
         # Calculate days until deadline
         if hw.due_date > timezone.now():
             hw.days_until_due = (hw.due_date - timezone.now()).days
-
-        print(f"hw = {hw}, hw.submissions = {hw.submissions}")
 
         # Check submission status and score
         if hw.submissions:
