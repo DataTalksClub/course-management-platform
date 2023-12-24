@@ -810,19 +810,3 @@ class HomeworkDetailViewTests(TestCase):
 
         answer6 = answers.get(question=self.question6)
         self.assertEquals(answer6.answer_text, "Blue,White")
-
-
-
-
-def p(self):
-    # Add test methods here
-
-    # Create answers for the submission
-    self.answers = [
-        Answer.objects.create(
-            submission=self.submission,
-            question=question,
-            answer_text="A",
-        )
-        for question in self.questions
-    ]
