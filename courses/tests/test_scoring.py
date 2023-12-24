@@ -16,7 +16,10 @@ from courses.models import (
     Enrollment,
 )
 
-from courses.scoring import HomeworkScoringStatus, score_homework_submissions
+from courses.scoring import (
+    HomeworkScoringStatus,
+    score_homework_submissions,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -102,8 +105,7 @@ class HomeworkScoringTestCase(TestCase):
 
         self.student1 = User.objects.create_user(username="student1")
         self.enrollment1 = Enrollment.objects.create(
-            course=self.course,
-            student=self.student1
+            course=self.course, student=self.student1
         )
         self.submission1 = Submission.objects.create(
             homework=self.homework,
@@ -141,24 +143,37 @@ class HomeworkScoringTestCase(TestCase):
             "2,5,7",  # Correct
         ]
 
-        self.create_answers_for_student(self.submission1, answers_student1)
-        self.create_answers_for_student(self.submission2, answers_student2)
+        self.create_answers_for_student(
+            self.submission1, answers_student1
+        )
+        self.create_answers_for_student(
+            self.submission2, answers_student2
+        )
 
     def test_homework_scoring(self):
         status, message = score_homework_submissions(self.homework.id)
-        logger.info(f"test_homework_scoring: status={status}, message={message}")
+
+        self.assertEquals(status, HomeworkScoringStatus.OK)
 
         self.homework = Homework.objects.get(pk=self.homework.id)
-        self.submission1 = Submission.objects.get(pk=self.submission1.id)
-        self.submission2 = Submission.objects.get(pk=self.submission2.id)
+        self.submission1 = Submission.objects.get(
+            pk=self.submission1.id
+        )
+        self.submission2 = Submission.objects.get(
+            pk=self.submission2.id
+        )
 
-        self.assertEqual(status, HomeworkScoringStatus.OK)
-        self.assertEqual(self.homework.is_scored, True)
-        self.assertEqual(self.submission1.total_score, 2 + 1 + 3)
-        self.assertEqual(self.submission2.total_score, 2 + 1 + 2)
+        self.assertEquals(status, HomeworkScoringStatus.OK)
+        self.assertEquals(self.homework.is_scored, True)
+        self.assertEquals(self.submission1.total_score, 2 + 1 + 3)
+        self.assertEquals(self.submission2.total_score, 2 + 1 + 2)
 
-        self.enrollment1 = Enrollment.objects.get(pk=self.enrollment1.id)
-        self.enrollment2 = Enrollment.objects.get(pk=self.enrollment2.id)
+        self.enrollment1 = Enrollment.objects.get(
+            pk=self.enrollment1.id
+        )
+        self.enrollment2 = Enrollment.objects.get(
+            pk=self.enrollment2.id
+        )
 
-        self.assertEqual(self.enrollment1.total_score, 6)
-        self.assertEqual(self.enrollment2.total_score, 5)
+        self.assertEquals(self.enrollment1.total_score, 6)
+        self.assertEquals(self.enrollment2.total_score, 5)

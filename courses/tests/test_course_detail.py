@@ -104,8 +104,6 @@ class CourseDetailViewTests(TestCase):
             self.assertFalse(hasattr(hw, 'submitted_at'))
 
 
-
-
     def test_course_detail_authenticated_user(self):
         # Test the view for an authenticated user
         self.client.login(username="testuser", password="12345")

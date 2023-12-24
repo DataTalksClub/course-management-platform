@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from django.http import HttpRequest, HttpResponse
@@ -21,6 +22,8 @@ from .models import (
 
 from .scoring import is_free_form_answer_correct
 from .forms import EnrollmentForm
+
+logger = logging.getLogger(__name__)
 
 
 def course_list(request):
