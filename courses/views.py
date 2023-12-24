@@ -2,10 +2,15 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
 
-
-from .models import Course
-from .models import Homework, Question, Answer, Submission
-from .models import QuestionTypes
+from .models import (
+    Course,
+    Homework,
+    Question,
+    Answer,
+    Submission,
+    QuestionTypes,
+    Enrollment,
+)
 
 from .forms import AnswerForm
 
@@ -32,18 +37,15 @@ def process_question_options(question: Question, answer: Answer):
     options = []
 
     if answer:
-        selected_options = answer.answer_text.split(",")        
+        selected_options = answer.answer_text.split(",")
     else:
-        # no answer yet, so we need to show just options 
+        # no answer yet, so we need to show just options
         selected_options = []
 
     possible_answers = question.get_possible_answers()
 
     for option in possible_answers:
-        options.append({
-            'value': option,
-            'is_selected': option in selected_options
-        })
+        options.append({"value": option, "is_selected": option in selected_options})
 
     return {"options": options}
 
@@ -70,7 +72,9 @@ def homework_detail(request, course_slug, homework_slug):
 
         return render(request, "homework/homework_detail.html", context)
 
-    submission = Submission.objects.filter(homework=homework, student=user).first()
+    submission = Submission.objects \
+        .filter(homework=homework, student=user) \
+        .first()
 
     if request.method == "POST":
         answers_dict = {}
@@ -83,11 +87,19 @@ def homework_detail(request, course_slug, homework_slug):
 
         # Process the form submission
         # Create or update submission and answers
-        if submission: # submission already exists
+        if submission:  # submission already exists
             submission.submitted_at = timezone.now()
             submission.save()
         else:
-            submission = Submission.objects.create(homework=homework, student=user)
+            enrollment, _ = Enrollment.objects.get_or_create(
+                student=user,
+                course=course,
+            )
+            submission = Submission.objects.create(
+                homework=homework,
+                student=user,
+                enrollment=enrollment,
+            )
 
         for question in questions:
             answer_text = answers_dict.get(f"answer_{question.id}")
@@ -111,9 +123,9 @@ def homework_detail(request, course_slug, homework_slug):
         )
 
     if submission:
-        answers = Answer.objects.filter(submission=submission).select_related(
-            "question"
-        )
+        answers = Answer.objects \
+            .filter(submission=submission) \
+            .select_related("question")
         question_answers_map = {answer.question.id: answer for answer in answers}
     else:
         question_answers_map = {}
@@ -127,10 +139,7 @@ def homework_detail(request, course_slug, homework_slug):
         processed_answer = process_question_options(question, answer)
 
         pair = (question, processed_answer)
-        print("pair:", pair, "question_type:", question.question_type)
         question_answers.append(pair)
-
-    print("views.py 134: question_answers:", question_answers)
 
     context = {
         "homework": homework,
@@ -140,3 +149,17 @@ def homework_detail(request, course_slug, homework_slug):
     }
 
     return render(request, "homework/homework_detail.html", context)
+
+
+def leaderboard_view(request, course_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+
+    enrollments = Enrollment.objects \
+        .filter(course=course) \
+        .order_by("-total_score")
+
+    context = {
+        "enrollments": enrollments,
+    }
+
+    return render(request, "homework/leaderboard.html", context)

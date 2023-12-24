@@ -2,36 +2,38 @@
 
 <!DOCTYPE html>
 <html>
+
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Course Management{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'courses.css' %}">
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Course Management{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'courses.css' %}">
 </head>
+
 <body>
-    <header>
-        <nav>
-            <ul>
-                {% if user.is_authenticated %}
-                    <li>Welcome, {{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</li>
-                    <li><a href="{% url 'course_list' %}">Courses</a></li>
-                    <!-- Add more navigation links as needed -->
-                {% else %}
-                    <li><a href="{% url 'login' %}">Login</a></li>
-                {% endif %}
-            </ul>
-        </nav>
-    </header>
+  <header>
+    <nav>
+      <ul>
+        {% if user.is_authenticated %}
+          <li>Welcome, {{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</li>
+          <li><a href="{% url 'course_list' %}">Courses</a></li>
+          <!-- Add more navigation links as needed -->
+        {% else %}
+          <li><a href="{% url 'login' %}">Login</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </header>
 
-    <div id="content" class="container">
-        {% block content %}
-        <!-- The specific content of each page will be inserted here -->
-        {% endblock %}
-    </div>
+  <div id="content" class="container">
+    {% block content %}
+    <!-- The specific content of each page will be inserted here -->
+    {% endblock %}
+  </div>
 
-    <footer>
-        <p>© 2023 Course Management System</p>
-    </footer>
+  <footer>
+    <p>© 2023 Course Management System</p>
+  </footer>
 </body>
+
 </html>

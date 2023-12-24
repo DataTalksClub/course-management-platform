@@ -4,11 +4,37 @@ import django
 from datetime import datetime, timedelta
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'course_management.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
 django.setup()
 
+from django.contrib.auth import get_user_model # noqa: E402
 
-from courses.models import Course, Homework, Question, AnswerTypes, QuestionTypes # noqa: E402
+# This will retrieve your 'CustomUser' model
+from courses.models import (  # noqa: E402
+    Course,
+    Enrollment,
+    Homework,
+    Question,
+    Submission,
+    Answer,
+    AnswerTypes,
+    QuestionTypes,
+)
+
+
+User = get_user_model()
+
+admin_user, created = User.objects.get_or_create(
+    username="admin",
+    defaults={'email': "admin@admin.com"}
+)
+
+if created:
+    admin_user.set_password("admin")
+    admin_user.is_superuser = True
+    admin_user.is_staff = True
+    admin_user.save()
+
 
 course = Course(
     title="Fake Course",
@@ -17,7 +43,7 @@ course = Course(
 )
 course.save()
 
-ten_years_later = datetime.now() + timedelta(days=365*10)
+ten_years_later = datetime.now() + timedelta(days=365 * 10)
 
 homework1 = Homework(
     course=course,
@@ -28,49 +54,106 @@ homework1 = Homework(
 )
 homework1.save()
 
+admin_enrollment = Enrollment(student=admin_user, course=course)
+admin_enrollment.save()
+
 # Questions for Homework 1
-Question(
+question11 = Question(
     homework=homework1,
     text="What is 2 + 2?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
     possible_answers="1,2,3,4",
     correct_answer="4",
-).save()
-Question(
+)
+question11.save()
+question12 = Question(
     homework=homework1,
     text="Explain the theory of relativity.",
     question_type=QuestionTypes.FREE_FORM.value,
     answer_type=AnswerTypes.ANY.value,
     correct_answer="",
-).save()
-Question(
+)
+question12.save()
+question13 = Question(
     homework=homework1,
     text="Which of these are prime numbers?",
     question_type=QuestionTypes.CHECKBOXES.value,
     possible_answers="2,3,4,5",
     correct_answer="2,3,5",
-).save()
-Question(
+)
+question13.save()
+question14 = Question(
     homework=homework1,
     text="What is the capital of France?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
     possible_answers="London,Paris,Berlin",
     correct_answer="Paris",
-).save()
-Question(
+)
+question14.save()
+question15 = Question(
     homework=homework1,
     text="Calculate the area of a circle with radius 5.",
     question_type=QuestionTypes.FREE_FORM.value,
     answer_type=AnswerTypes.FLOAT.value,
     correct_answer="78.54",
-).save()
-Question(
+)
+question15.save()
+question16 = Question(
     homework=homework1,
     text="Name a gas lighter than air.",
     question_type=QuestionTypes.FREE_FORM.value,
     answer_type=AnswerTypes.CONTAINS_STRING.value,
     correct_answer="Hydrogen",
+)
+question16.save()
+
+
+admin_submission = Submission(
+    homework=homework1,
+    student=admin_user, 
+    enrollment=admin_enrollment
+)
+admin_submission.save()
+
+
+Answer(
+    submission=admin_submission,
+    student=admin_user,
+    question=question11,
+    answer_text="4",
 ).save()
+Answer(
+    submission=admin_submission,
+    student=admin_user,
+    question=question12,
+    answer_text="E=mc^2",
+).save()
+Answer(
+    submission=admin_submission,
+    student=admin_user,
+    question=question13,
+    answer_text="2,3,5",
+).save()
+Answer(
+    submission=admin_submission,
+    student=admin_user,
+    question=question14,
+    answer_text="Paris",
+).save()
+Answer(
+    submission=admin_submission,
+    student=admin_user,
+    question=question15,
+    answer_text="78.54",
+).save()
+Answer(
+    submission=admin_submission,
+    student=admin_user,
+    question=question16,
+    answer_text="Helium",
+).save()
+
+
 
 
 homework2 = Homework(

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% for enrollment in enrollments %}
+  <div>
+    <p>Name: {{ enrollment.display_name }}</p>
+    <p>Total Score: {{ enrollment.total_score }}</p>
+    <!-- Additional logic to show/hide breakdown of scores -->
+  </div>
+{% endfor %}
+
+{% endblock %}
