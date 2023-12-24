@@ -4,3 +4,11 @@
     margin: 10px 0;
     background-color: #f9f9f9;
 }
+
+.option-answer-correct {
+    background-color: lightgreen;
+}
+
+.option-answer-incorrect {
+    background-color: lightcoral;
+}

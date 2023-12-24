@@ -4,7 +4,7 @@ from enum import Enum
 
 from django.utils import timezone
 
-from .models import Homework, Submission
+from .models import Homework, Submission, Question
 from .models import QuestionTypes, AnswerTypes
 
 
@@ -16,21 +16,42 @@ class HomeworkScoringStatus(Enum):
     FAIL = "Warning"
 
 
-def is_float_equal(value1, value2, tolerance=0.01):
+def is_float_equal(value1: str, value2: str, tolerance: float=0.01) -> bool:
     try:
         return abs(float(value1) - float(value2)) <= tolerance
     except ValueError:
         return False
 
 
-def is_integer_equal(value1, value2):
+def is_integer_equal(value1: str, value2: str) -> bool:
     try:
         return int(value1) == int(value2)
     except ValueError:
         return False
 
 
-def is_answer_correct(question, user_answer):
+def is_free_form_answer_correct(
+    user_answer: str, correct_answer: str, answer_type: str
+):
+    if answer_type == AnswerTypes.ANY.value:
+        return True
+
+    user_answer = (user_answer or "").strip().lower()
+    correct_answer = (correct_answer or "").strip().lower()
+
+    if answer_type == AnswerTypes.EXACT_STRING.value:
+        return user_answer == correct_answer
+    elif answer_type == AnswerTypes.CONTAINS_STRING.value:
+        return correct_answer in user_answer
+    elif answer_type == AnswerTypes.FLOAT.value:
+        return is_float_equal(user_answer, correct_answer, tolerance=0.01)
+    elif answer_type == AnswerTypes.INTEGER.value:
+        return is_integer_equal(user_answer, correct_answer)
+
+    return False
+
+
+def is_answer_correct(question: Question, user_answer: str) -> bool:
     if question.answer_type == AnswerTypes.ANY.value:
         return True
 
@@ -40,22 +61,14 @@ def is_answer_correct(question, user_answer):
         return user_answer == correct_answer
 
     elif question.question_type == QuestionTypes.CHECKBOXES.value:
-        selected_options = set(user_answer.split(','))
-        correct_options = set(correct_answer.split(','))
+        selected_options = set(user_answer.split(","))
+        correct_options = set(correct_answer.split(","))
         return selected_options == correct_options
 
     elif question.question_type == QuestionTypes.FREE_FORM.value:
-        user_answer = user_answer.strip().lower()
-        correct_answer = correct_answer.strip().lower()
-
-        if question.answer_type == AnswerTypes.EXACT_STRING.value:
-            return user_answer == correct_answer
-        elif question.answer_type == AnswerTypes.CONTAINS_STRING.value:
-            return correct_answer in user_answer
-        elif question.answer_type == AnswerTypes.FLOAT.value:
-            return is_float_equal(user_answer, correct_answer)
-        elif question.answer_type == AnswerTypes.INTEGER.value:
-            return is_integer_equal(user_answer, correct_answer)
+        return is_free_form_answer_correct(
+            user_answer, correct_answer, question.answer_type
+        )
 
     return False
 
@@ -80,7 +93,10 @@ def score_homework_submissions(homework_id: str) -> tuple[HomeworkScoringStatus,
     homework = Homework.objects.get(pk=homework_id)
 
     if homework.due_date > timezone.now():
-        return HomeworkScoringStatus.FAIL, f"The due date for {homework} is in the future. Update the due date to score."
+        return (
+            HomeworkScoringStatus.FAIL,
+            f"The due date for {homework} is in the future. Update the due date to score.",
+        )
 
     if homework.is_scored:
         return HomeworkScoringStatus.FAIL, f"Homework {homework} is already scored."

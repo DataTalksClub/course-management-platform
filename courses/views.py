@@ -10,7 +10,10 @@ from .models import (
     Submission,
     QuestionTypes,
     Enrollment,
+    AnswerTypes,
 )
+
+from .scoring import is_answer_correct, is_free_form_answer_correct
 
 from .forms import AnswerForm
 
@@ -25,9 +28,29 @@ def course_detail(request, course_slug):
     return render(request, "courses/course_detail.html", {"course": course})
 
 
-def process_question_options(question: Question, answer: Answer):
+def process_question_options(homework: Homework, question: Question, answer: Answer):
     if question.question_type == QuestionTypes.FREE_FORM.value:
         # this is text, so it's easy
+        if homework.is_scored:
+            if not answer:
+                return {"text": question.correct_answer}
+            else:
+                is_correct = is_free_form_answer_correct(
+                    user_answer=answer.answer_text,
+                    correct_answer=question.correct_answer,
+                    answer_type=question.answer_type,
+                )
+
+                if is_correct:
+                    correctly_selected = "option-answer-correct"
+                else:
+                    correctly_selected = "option-answer-incorrect"
+
+                return {
+                    "text": answer.answer_text,
+                    "correctly_selected_class": correctly_selected,
+                }
+
         if not answer:
             return {"text": ""}
         else:
@@ -44,8 +67,26 @@ def process_question_options(question: Question, answer: Answer):
 
     possible_answers = question.get_possible_answers()
 
+    if homework.is_scored:
+        correct_answers = (question.correct_answer or "").split(",")
+
     for option in possible_answers:
-        options.append({"value": option, "is_selected": option in selected_options})
+        is_selected = option in selected_options
+        processed_answer = {"value": option, "is_selected": is_selected}
+        if homework.is_scored:
+            is_correct = option in correct_answers
+
+            correctly_selected = "option-answer-none"
+            if is_selected and is_correct:
+                correctly_selected = "option-answer-correct"
+            if not is_selected and is_correct:
+                correctly_selected = "option-answer-correct"
+            if is_selected and not is_correct:
+                correctly_selected = "option-answer-incorrect"
+
+            processed_answer["correctly_selected_class"] = correctly_selected
+
+        options.append(processed_answer)
 
     return {"options": options}
 
@@ -61,7 +102,7 @@ def homework_detail(request, course_slug, homework_slug):
     if not user.is_authenticated:
         question_answers = []
         for question in questions:
-            options = process_question_options(question, None)
+            options = process_question_options(homework, question, None)
             question_answers.append((question, options))
 
         context = {
@@ -72,10 +113,9 @@ def homework_detail(request, course_slug, homework_slug):
 
         return render(request, "homework/homework_detail.html", context)
 
-    submission = Submission.objects \
-        .filter(homework=homework, student=user) \
-        .first()
+    submission = Submission.objects.filter(homework=homework, student=user).first()
 
+    # Process the form submission
     if request.method == "POST":
         answers_dict = {}
         for answer_id, answer in request.POST.lists():
@@ -85,8 +125,6 @@ def homework_detail(request, course_slug, homework_slug):
 
         print("answers_dict", answers_dict)
 
-        # Process the form submission
-        # Create or update submission and answers
         if submission:  # submission already exists
             submission.submitted_at = timezone.now()
             submission.save()
@@ -123,9 +161,9 @@ def homework_detail(request, course_slug, homework_slug):
         )
 
     if submission:
-        answers = Answer.objects \
-            .filter(submission=submission) \
-            .select_related("question")
+        answers = Answer.objects.filter(submission=submission).select_related(
+            "question"
+        )
         question_answers_map = {answer.question.id: answer for answer in answers}
     else:
         question_answers_map = {}
@@ -136,7 +174,7 @@ def homework_detail(request, course_slug, homework_slug):
 
     for question in questions:
         answer = question_answers_map.get(question.id)
-        processed_answer = process_question_options(question, answer)
+        processed_answer = process_question_options(homework, question, answer)
 
         pair = (question, processed_answer)
         question_answers.append(pair)
@@ -154,9 +192,7 @@ def homework_detail(request, course_slug, homework_slug):
 def leaderboard_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
-    enrollments = Enrollment.objects \
-        .filter(course=course) \
-        .order_by("-total_score")
+    enrollments = Enrollment.objects.filter(course=course).order_by("-total_score")
 
     context = {
         "enrollments": enrollments,

@@ -120,7 +120,7 @@ Answer(
     submission=admin_submission,
     student=admin_user,
     question=question11,
-    answer_text="4",
+    answer_text="3",
 ).save()
 Answer(
     submission=admin_submission,
@@ -132,7 +132,7 @@ Answer(
     submission=admin_submission,
     student=admin_user,
     question=question13,
-    answer_text="2,3,5",
+    answer_text="2,3,4,5",
 ).save()
 Answer(
     submission=admin_submission,

@@ -6,8 +6,6 @@
   <h2>{{ homework.title }}</h2>
   <p>{{ homework.description }}</p>
 
-  <h3>Questions</h3>
-
   {% if messages %}
     {% for message in messages %}
       <div class="infobox {{ message.tags }}">
@@ -15,6 +13,20 @@
       </div>
     {% endfor %}
   {% endif %}
+
+  {% if homework.is_scored %}
+    {% if submission %}
+      <div class="infobox success">
+        <p>This homework is already scored. Your score is {{ submission.total_score }}.</p>
+      </div>
+    {% else %}
+      <div class="infobox warning">
+        <p>This homework is already scored. You didn't submit your answers.</p>
+      </div>
+    {% endif %}
+  {% endif %}
+
+  <h3>Questions</h3>
 
   <form method="post">
     {% if is_authenticated %}
@@ -27,35 +39,61 @@
         <p>{{ question.text }}</p>
 
         {% if question.question_type == 'MC' %}
-          <!-- Multiple Choice Question -->
-          {% for option in answer.options %}
-            <input type="radio" name="answer_{{ question.id }}" value="{{ option.value }}" {% if option.is_selected %} checked {% endif %}>
-            <label>{{ option.value }}</label><br>
-          {% endfor %}
-        
-        {% elif question.question_type == 'FF' %}
-          <!-- Free Form Question -->
-          <input type="text" name="answer_{{ question.id }}" value="{{ answer.text|default:'' }}">
+          <div>
+            {% for option in answer.options %}
+              <div class="{{ option.correctly_selected_class }}">
+                <input
+                  type="radio" 
+                  name="answer_{{ question.id }}"
+                  value="{{ option.value }}"
+                  {% if option.is_selected %} checked {% endif %}
+                  {% if homework.is_scored %} disabled {% endif %}
+                />
+                <label>{{ option.value }}</label>
+              </div>
+            {% endfor %}
+          </div>
 
         {% elif question.question_type == 'CB' %}
-          <!-- Checkboxes Question -->
-          {% for option in answer.options %}
-            <input type="checkbox" name="answer_{{ question.id }}" value="{{ option.value }}" {% if option.is_selected %} checked {% endif %}>
-            <label>{{ option.value }}</label><br>
-          {% endfor %}
+          <div>
+            {% for option in answer.options %}
+              <div class="{{ option.correctly_selected_class }}">
+                <input
+                  type="checkbox"
+                  name="answer_{{ question.id }}"
+                  value="{{ option.value }}"
+                  {% if option.is_selected %} checked {% endif %}
+                  {% if homework.is_scored %} disabled {% endif %}
+                />
+                <label>{{ option.value }}</label>
+              </div>
+            {% endfor %}
+          </div>
+
+        {% elif question.question_type == 'FF' %}
+          <div class="{{ answer.correctly_selected_class }}">
+            <input
+              type="text"
+              name="answer_{{ question.id }}"
+              value="{{ answer.text|default:'' }}"
+              {% if homework.is_scored %} disabled {% endif %}
+            />
+          </div>
         {% endif %}
       </div>
     {% endfor %}
 
-    {% if is_authenticated %}
-      <input type="submit" value="Submit">
-    {% else %}  
-      <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+    {% if not homework.is_scored %}
+      {% if is_authenticated %}
+        <input type="submit" value="Submit">
+      {% else %}  
+        <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+      {% endif %}
     {% endif %}
-
   </form>
 
   {% if submission %}
-    <p>Last submitted at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+    <p>Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
+
 {% endblock %}
