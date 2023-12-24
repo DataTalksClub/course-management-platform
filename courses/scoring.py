@@ -1,9 +1,14 @@
+import logging
+
 from enum import Enum
 
 from django.utils import timezone
 
 from .models import Homework, Submission
 from .models import QuestionTypes, AnswerTypes
+
+
+logger = logging.getLogger(__name__)
 
 
 class HomeworkScoringStatus(Enum):
@@ -87,5 +92,7 @@ def score_homework_submissions(homework_id: str) -> tuple[HomeworkScoringStatus,
 
     homework.is_scored = True
     homework.save()
+
+    logger.info(f"Scored {len(submissions)} submissions for {homework}")
 
     return HomeworkScoringStatus.OK, f"Homework {homework} is scored"

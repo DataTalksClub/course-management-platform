@@ -15,7 +15,7 @@ class Course(models.Model):
 
     description = models.TextField()
     students = models.ManyToManyField(User, through='Enrollment', related_name='courses_enrolled')
-    
+
     def __str__(self):
         return self.title
 
