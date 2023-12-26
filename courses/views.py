@@ -1,5 +1,6 @@
 import logging
 from typing import List, Optional
+from urllib.parse import urlparse
 
 from django.http import HttpRequest, HttpResponse
 
@@ -9,6 +10,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Prefetch
 
 from django.contrib.auth.decorators import login_required
+
+from django.core.exceptions import ValidationError
 
 from .models import (
     Course,
@@ -24,6 +27,9 @@ from .scoring import is_free_form_answer_correct
 from .forms import EnrollmentForm
 
 logger = logging.getLogger(__name__)
+
+
+NONE_LIST = [None]
 
 
 def course_list(request):
@@ -146,6 +152,7 @@ def process_question_options_multiple_choice_or_checkboxes(
             "value": option,
             "is_selected": is_selected,
         }
+
         if homework.is_scored:
             is_correct = option in correct_answers
 
@@ -157,9 +164,7 @@ def process_question_options_multiple_choice_or_checkboxes(
             if is_selected and not is_correct:
                 correctly_selected = "option-answer-incorrect"
 
-            processed_answer[
-                "correctly_selected_class"
-            ] = correctly_selected
+            processed_answer["correctly_selected_class"] = correctly_selected
 
         options.append(processed_answer)
 
@@ -175,6 +180,13 @@ def process_question_options(
     return process_question_options_multiple_choice_or_checkboxes(
         homework, question, answer
     )
+
+
+def tryparsefloat(value: str) -> Optional[float]:
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 def process_homework_submission(
@@ -219,9 +231,29 @@ def process_homework_submission(
             defaults=values,
         )
 
+    homework_link = request.POST.get('homework_link')[0]
+    learning_in_public_links = request.POST.getlist('learning_in_public_links', default=[])
+    time_spent_lectures = request.POST.get('time_spent_lectures', NONE_LIST)[0]
+    time_spent_homework = request.POST.get('time_spent_homework', NONE_LIST)[0]
+    problems_comments = request.POST.get('problems_comments', NONE_LIST)[0]
+    faq_contribution = request.POST.get('faq_contribution', NONE_LIST)[0]
+
+    submission.homework_link = homework_link
+    submission.learning_in_public_links = learning_in_public_links
+    submission.time_spent_lectures = tryparsefloat(time_spent_lectures)
+    submission.time_spent_homework = tryparsefloat(time_spent_homework)
+    submission.problems_comments = problems_comments
+    submission.faq_contribution = faq_contribution
+
     messages.success(
         request,
         "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+    )
+
+    return redirect(
+        "homework_detail",
+        course_slug=course.slug,
+        homework_slug=homework.slug,
     )
 
 
@@ -255,6 +287,7 @@ def homework_detail_build_context_authenticated(
         answers = Answer.objects.filter(
             submission=submission
         ).select_related("question")
+    
         question_answers_map = {
             answer.question.id: answer for answer in answers
         }
@@ -309,7 +342,7 @@ def homework_detail(request: HttpRequest, course_slug, homework_slug):
 
     # Process the form submission
     if request.method == "POST":
-        process_homework_submission(
+        return process_homework_submission(
             request=request,
             course=course,
             homework=homework,
@@ -317,11 +350,7 @@ def homework_detail(request: HttpRequest, course_slug, homework_slug):
             submission=submission,
         )
 
-        return redirect(
-            "homework_detail",
-            course_slug=course.slug,
-            homework_slug=homework.slug,
-        )
+        
 
     context = homework_detail_build_context_authenticated(
         course=course,

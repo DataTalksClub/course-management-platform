@@ -9,7 +9,15 @@
   {% if messages %}
     {% for message in messages %}
       <div class="infobox {{ message.tags }}">
-        {{ message }}
+        <p>{{ message }}</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if errors %}
+    {% for error in errors %}
+      <div class="infobox error">
+        <p>{{ error }}</p>
       </div>
     {% endfor %}
   {% endif %}

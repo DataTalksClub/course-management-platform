@@ -3,6 +3,8 @@ from enum import Enum
 
 from django.db import models
 
+from django.core.validators import URLValidator
+
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.db.models import Sum
@@ -37,13 +39,17 @@ class Enrollment(models.Model):
     display_name = models.CharField(max_length=255, blank=True)
     display_on_leaderboard = models.BooleanField(default=True)
 
-    certificate_name = models.CharField(max_length=255, blank=True, null=True)
+    certificate_name = models.CharField(
+        max_length=255, blank=True, null=True
+    )
 
     total_score = models.IntegerField(default=0)
 
     def calculate_total_score(self):
         submissions = Submission.objects.filter(enrollment=self)
-        total_score_sum = submissions.aggregate(Sum("total_score"))["total_score__sum"]
+        total_score_sum = submissions.aggregate(Sum("total_score"))[
+            "total_score__sum"
+        ]
         self.total_score = total_score_sum or 0
         self.save()
 
@@ -64,6 +70,23 @@ class Homework(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     due_date = models.DateTimeField()
+
+    learning_in_public_cap = models.IntegerField(default=7)
+    time_spent_lectures_field = models.BooleanField(
+        default=True,
+        help_text="Include field for time spent on lectures",
+    )
+    time_spent_homework_field = models.BooleanField(
+        default=True,
+        help_text="Include field for time spent on homework",
+    )
+    problems_comments_field = models.BooleanField(
+        default=True,
+        help_text="Include field for problems and comments",
+    )
+    faq_contribution_field = models.BooleanField(
+        default=True, help_text="Include field for FAQ contributions"
+    )
 
     is_scored = models.BooleanField(default=False)
 
@@ -97,7 +120,9 @@ class Question(models.Model):
         (QuestionTypes.FREE_FORM.value, "Free Form"),
         (QuestionTypes.CHECKBOXES.value, "Checkboxes"),
     )
-    question_type = models.CharField(max_length=2, choices=QUESTION_TYPES)
+    question_type = models.CharField(
+        max_length=2, choices=QUESTION_TYPES
+    )
 
     ANSWER_TYPES = (
         (AnswerTypes.ANY.value, "Any"),
@@ -129,7 +154,40 @@ class Question(models.Model):
 class Submission(models.Model):
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
-    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
+    enrollment = models.ForeignKey(
+        Enrollment, on_delete=models.CASCADE
+    )
+
+    homework_link = models.URLField(
+        blank=False,
+        null=False,
+        validators=[
+            URLValidator(
+                schemes=["http", "https", "git"]
+            )
+        ],
+    )
+    learning_in_public_links = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Links where students talk about the course",
+    )
+    time_spent_lectures = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Time spent on lectures and reading (in hours)",
+    )
+    time_spent_homework = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Time spent on homework (in hours)",
+    )
+    problems_comments = models.TextField(
+        blank=True, help_text="Any problems, comments, or feedback"
+    )
+    faq_contribution = models.TextField(
+        blank=True, help_text="Contribution to FAQ"
+    )
 
     submitted_at = models.DateTimeField(auto_now=True)
     total_score = models.IntegerField(default=0)
@@ -140,11 +198,15 @@ class Submission(models.Model):
         return [(answer, answer.question) for answer in questions]
 
     def __str__(self):
-        return f"{self.student}'s submission for {self.homework.title}"
+        return (
+            f"{self.student}'s submission for {self.homework.title}"
+        )
 
 
 class Answer(models.Model):
-    submission = models.ForeignKey(Submission, on_delete=models.CASCADE)
+    submission = models.ForeignKey(
+        Submission, on_delete=models.CASCADE
+    )
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     answer_text = models.TextField()
