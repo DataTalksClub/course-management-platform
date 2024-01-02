@@ -91,6 +91,34 @@
       </div>
     {% endfor %}
 
+    {% if homework.time_spent_lectures_field %}
+      <div>
+        <label for="time_spent_lectures">Time Spent on Lectures (hours):</label>
+        <input type="number" name="time_spent_lectures" id="time_spent_lectures" min="0">
+      </div>
+    {% endif %}
+
+    {% if homework.time_spent_homework_field %}
+      <div>
+        <label for="time_spent_homework">Time Spent on Homework (hours):</label>
+        <input type="number" name="time_spent_homework" id="time_spent_homework" min="0">
+      </div>
+    {% endif %}
+
+    {% if homework.problems_comments_field %}
+      <div>
+        <label for="problems_comments">Problems or Comments:</label>
+        <textarea name="problems_comments" id="problems_comments"></textarea>
+      </div>
+    {% endif %}
+
+    {% if homework.faq_contribution_field %}
+      <div>
+        <label for="faq_contribution">FAQ Contribution:</label>
+        <textarea name="faq_contribution" id="faq_contribution"></textarea>
+      </div>
+    {% endif %}
+
     {% if not homework.is_scored %}
       {% if is_authenticated %}
         <input type="submit" value="Save">
@@ -103,5 +131,7 @@
   {% if submission %}
     <p>Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
+
+  <script src="{% static 'homework_detail.js' %}"></script>
 
 {% endblock %}
