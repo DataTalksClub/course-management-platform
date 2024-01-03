@@ -72,6 +72,11 @@ class Homework(models.Model):
     due_date = models.DateTimeField()
 
     learning_in_public_cap = models.IntegerField(default=7)
+
+    homework_url_field = models.BooleanField(
+        default=True,
+        help_text="Include field for homework URL"
+    )
     time_spent_lectures_field = models.BooleanField(
         default=True,
         help_text="Include field for time spent on lectures",
@@ -159,8 +164,8 @@ class Submission(models.Model):
     )
 
     homework_link = models.URLField(
-        blank=False,
-        null=False,
+        blank=True,
+        null=True,
         validators=[
             URLValidator(
                 schemes=["http", "https", "git"]

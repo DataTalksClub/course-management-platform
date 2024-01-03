@@ -1,4 +1,6 @@
+import json
 import logging
+
 from typing import List, Optional
 from urllib.parse import urlparse
 
@@ -206,7 +208,6 @@ def process_homework_submission(
 
     if submission:
         submission.submitted_at = timezone.now()
-        submission.save()
     else:
         enrollment, _ = Enrollment.objects.get_or_create(
             student=user,
@@ -231,19 +232,26 @@ def process_homework_submission(
             defaults=values,
         )
 
-    homework_link = request.POST.get('homework_link')[0]
-    learning_in_public_links = request.POST.getlist('learning_in_public_links', default=[])
-    time_spent_lectures = request.POST.get('time_spent_lectures', NONE_LIST)[0]
-    time_spent_homework = request.POST.get('time_spent_homework', NONE_LIST)[0]
-    problems_comments = request.POST.get('problems_comments', NONE_LIST)[0]
-    faq_contribution = request.POST.get('faq_contribution', NONE_LIST)[0]
+    if homework.homework_url_field:
+        submission.homework_link = request.POST.get('homework_url')
 
-    submission.homework_link = homework_link
-    submission.learning_in_public_links = learning_in_public_links
-    submission.time_spent_lectures = tryparsefloat(time_spent_lectures)
-    submission.time_spent_homework = tryparsefloat(time_spent_homework)
-    submission.problems_comments = problems_comments
-    submission.faq_contribution = faq_contribution
+    if homework.learning_in_public_cap > 0:
+        links = request.POST.getlist('learning_in_public_links[]')
+        submission.learning_in_public_links = json.dumps(links)
+
+    if homework.time_spent_lectures_field:
+        submission.time_spent_lectures = request.POST.get('time_spent_lectures', 0.0)
+
+    if homework.time_spent_homework_field:
+        submission.time_spent_homework = request.POST.get('time_spent_homework', 0.0)
+
+    if homework.problems_comments_field:
+        submission.problems_comments = request.POST.get('problems_comments', '')
+
+    if homework.faq_contribution_field:
+        submission.faq_contribution = request.POST.get('faq_contribution', '')
+
+    submission.save()
 
     messages.success(
         request,

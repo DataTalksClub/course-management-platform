@@ -1,7 +1,14 @@
 $(document).ready(function () {
-  $('#add-link').click(function () {
-    let html = '<input type="url" name="learning_in_public_links" class="url-input">';
-    $('#learning-in-public-links').append(html);
+  $('#add-learning-public-link').click(function () {
+    let currentLinkCount = $('#learning-in-public-links input[type="url"]').length;
+    let cap = global_learning_in_public_cap;
+    if (currentLinkCount < cap) {
+        let html = '<div><input type="url" name="learning_in_public_links[]" class="url-input"></div>';
+        $('#learning-in-public-links').append(html);
+    }
+    if (currentLinkCount + 1 >= cap) {
+        $(this).prop('disabled', true);
+    }
   });
 
   $('#submit-button').click(function (event) {

@@ -91,31 +91,100 @@
       </div>
     {% endfor %}
 
+    {% if homework.homework_url_field %}
+      <div>
+        <label for="homework_url">Homework URL:</label>
+        <input
+          type="url"
+          id="homework_url"
+          name="homework_url"
+          {% if homework.is_scored %} disabled {% endif %}
+        />
+      </div>
+    {% endif %}
+
+    {% if homework.learning_in_public_cap > 0 %}
+      <div id="learning-in-public-links-container">
+        <div id="learning-in-public-links">
+          <label for="learning_in_public_links[]">Learning in public links:</label>
+          {% for link in learning_in_public_links %}
+            <div>
+              <input
+                type="url"
+                name="learning_in_public_links[]"
+                value="{{ link }}"
+                {% if homework.is_scored %} disabled {% endif %}
+              />
+            </div>
+          {% endfor %}
+          {% if learning_in_public_links|length < homework.learning_in_public_cap %}
+            <div>
+              <input
+                type="url"
+                name="learning_in_public_links[]"
+                {% if homework.is_scored %} disabled {% endif %}
+              />
+            </div>
+          {% endif %}
+        </div>
+        {% if not homework.is_scored %}
+          <div>
+            <button
+                type="button"
+                id="add-learning-public-link"
+                {% if learning_in_public_links|length >= homework.learning_in_public_cap %} disabled {% endif %}>
+              Add Link
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
     {% if homework.time_spent_lectures_field %}
       <div>
         <label for="time_spent_lectures">Time Spent on Lectures (hours):</label>
-        <input type="number" name="time_spent_lectures" id="time_spent_lectures" min="0">
+        <input
+          type="number"
+          name="time_spent_lectures"
+          id="time_spent_lectures"
+          min="0"
+          {% if homework.is_scored %} disabled {% endif %}
+        />
       </div>
     {% endif %}
 
     {% if homework.time_spent_homework_field %}
       <div>
         <label for="time_spent_homework">Time Spent on Homework (hours):</label>
-        <input type="number" name="time_spent_homework" id="time_spent_homework" min="0">
+        <input
+          type="number"
+          name="time_spent_homework"
+          id="time_spent_homework"
+          min="0"
+          {% if homework.is_scored %} disabled {% endif %}
+        />
       </div>
     {% endif %}
 
     {% if homework.problems_comments_field %}
       <div>
         <label for="problems_comments">Problems or Comments:</label>
-        <textarea name="problems_comments" id="problems_comments"></textarea>
+        <textarea
+          name="problems_comments"
+          id="problems_comments"
+          {% if homework.is_scored %} disabled {% endif %}
+        ></textarea>
       </div>
     {% endif %}
 
     {% if homework.faq_contribution_field %}
       <div>
         <label for="faq_contribution">FAQ Contribution:</label>
-        <textarea name="faq_contribution" id="faq_contribution"></textarea>
+        <textarea
+          name="faq_contribution"
+          id="faq_contribution"
+          {% if homework.is_scored %} disabled {% endif %}
+        ></textarea>
       </div>
     {% endif %}
 
@@ -131,6 +200,10 @@
   {% if submission %}
     <p>Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
+
+  <script>
+    global_learning_in_public_cap = {{ homework.learning_in_public_cap }};
+  </script>
 
   <script src="{% static 'homework_detail.js' %}"></script>
 
