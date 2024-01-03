@@ -280,6 +280,7 @@ def homework_detail_build_context_not_authenticated(
         "homework": homework,
         "question_answers": question_answers,
         "is_authenticated": False,
+        "disabled": True
     }
 
     return context
@@ -315,12 +316,16 @@ def homework_detail_build_context_authenticated(
         pair = (question, processed_answer)
         question_answers.append(pair)
 
+    disabled = homework.is_scored
+    print("submission", submission.learning_in_public_links, type(submission.learning_in_public_links))
+
     context = {
         "course": course,
         "homework": homework,
         "question_answers": question_answers,
         "submission": submission,
         "is_authenticated": True,
+        "disabled": disabled
     }
 
     return context

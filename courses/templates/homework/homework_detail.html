@@ -22,7 +22,7 @@
     {% endfor %}
   {% endif %}
 
-  {% if homework.is_scored %}
+  {% if disabled %}
     {% if submission %}
       <div class="infobox success">
         <p>This homework is already scored. Your score is {{ submission.total_score }}.</p>
@@ -55,7 +55,7 @@
                   name="answer_{{ question.id }}"
                   value="{{ option.value }}"
                   {% if option.is_selected %} checked {% endif %}
-                  {% if homework.is_scored %} disabled {% endif %}
+                  {% if disabled %} disabled {% endif %}
                 />
                 <label>{{ option.value }}</label>
               </div>
@@ -71,7 +71,7 @@
                   name="answer_{{ question.id }}"
                   value="{{ option.value }}"
                   {% if option.is_selected %} checked {% endif %}
-                  {% if homework.is_scored %} disabled {% endif %}
+                  {% if disabled %} disabled {% endif %}
                 />
                 <label>{{ option.value }}</label>
               </div>
@@ -84,7 +84,7 @@
               type="text"
               name="answer_{{ question.id }}"
               value="{{ answer.text|default:'' }}"
-              {% if homework.is_scored %} disabled {% endif %}
+              {% if disabled %} disabled {% endif %}
             />
           </div>
         {% endif %}
@@ -98,7 +98,8 @@
           type="url"
           id="homework_url"
           name="homework_url"
-          {% if homework.is_scored %} disabled {% endif %}
+          value="{{ submission.homework_url|default:'' }}"
+          {% if disabled %} disabled {% endif %}
         />
       </div>
     {% endif %}
@@ -107,27 +108,27 @@
       <div id="learning-in-public-links-container">
         <div id="learning-in-public-links">
           <label for="learning_in_public_links[]">Learning in public links:</label>
-          {% for link in learning_in_public_links %}
+          {% for link in submission.learning_in_public_links %}
             <div>
               <input
                 type="url"
                 name="learning_in_public_links[]"
                 value="{{ link }}"
-                {% if homework.is_scored %} disabled {% endif %}
+                {% if disabled %} disabled {% endif %}
               />
             </div>
           {% endfor %}
-          {% if learning_in_public_links|length < homework.learning_in_public_cap %}
+          {% if submission.learning_in_public_links|length < homework.learning_in_public_cap %}
             <div>
               <input
                 type="url"
                 name="learning_in_public_links[]"
-                {% if homework.is_scored %} disabled {% endif %}
+                {% if disabled %} disabled {% endif %}
               />
             </div>
           {% endif %}
         </div>
-        {% if not homework.is_scored %}
+        {% if not homework.is_scored and not disabled %}
           <div>
             <button
                 type="button"
@@ -148,7 +149,8 @@
           name="time_spent_lectures"
           id="time_spent_lectures"
           min="0"
-          {% if homework.is_scored %} disabled {% endif %}
+          value="{{ submission.time_spent_lectures|default:'' }}"
+          {% if disabled %} disabled {% endif %}
         />
       </div>
     {% endif %}
@@ -161,7 +163,8 @@
           name="time_spent_homework"
           id="time_spent_homework"
           min="0"
-          {% if homework.is_scored %} disabled {% endif %}
+          value="{{ submission.time_spent_homework|default:'' }}"
+          {% if disabled %} disabled {% endif %}
         />
       </div>
     {% endif %}
@@ -172,7 +175,8 @@
         <textarea
           name="problems_comments"
           id="problems_comments"
-          {% if homework.is_scored %} disabled {% endif %}
+          value="{{ submission.problems_comments|default:'' }}"
+          {% if disabled %} disabled {% endif %}
         ></textarea>
       </div>
     {% endif %}
@@ -183,7 +187,8 @@
         <textarea
           name="faq_contribution"
           id="faq_contribution"
-          {% if homework.is_scored %} disabled {% endif %}
+          value="{{ submission.faq_contribution|default:'' }}"
+          {% if disabled %} disabled {% endif %}
         ></textarea>
       </div>
     {% endif %}
