@@ -1,14 +1,52 @@
-.infobox {
-    border: 1px solid #ccc;
-    padding: 10px;
-    margin: 10px 0;
-    background-color: #f9f9f9;
+/* Container */
+.form-container .container {
+  background-color: #f6f6f6; /* Light grey background */
+  border: 1px solid #e0e0e0; /* Solid border */
 }
 
-.option-answer-correct {
-    background-color: lightgreen;
+/* Typography */
+.form-container h2 {
+  font-size: 1.2rem; /* Smaller font size for headings */
+}
+.form-container p {
+  font-size: 0.9rem; /* Smaller font size for text */
 }
 
-.option-answer-incorrect {
-    background-color: lightcoral;
+/* Questions */
+.form-check-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #5f6368; /* Dark grey text similar to Google Forms */
+}
+
+/* Input Fields - Text, URL, Number */
+.form-control {
+  box-shadow: none; /* Remove Bootstrap's default shadow */
+  border-color: #e0e0e0; /* Light grey border color */
+  border-radius: 8px; /* Rounded corners */
+}
+
+/* Focused Inputs */
+.form-control:focus {
+  border-color: #a6c8ff; /* Highlight color when focused */
+  box-shadow: 0 0 0 0.2rem rgba(102, 175, 233, .25); /* Bootstrap's default focus shadow */
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: #1a73e8; /* Google's blue */
+  border-color: #1a73e8; /* Google's blue */
+  box-shadow: none; /* Remove Bootstrap's default shadow */
+}
+
+.btn-primary:hover {
+  background-color: #1669c7; /* Darker blue on hover */
+  border-color: #1669c7; /* Darker blue on hover */
+}
+
+/* Adjustments for smaller screens */
+@media (max-width: 576px) {
+  .container {
+    padding: 15px; /* Smaller padding on smaller screens */
+  }
 }

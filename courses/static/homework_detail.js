@@ -16,21 +16,24 @@ $(document).ready(function () {
     let errorMessage = '';
 
     // Validate homework link
-    const homeworkLink = $('#homework_link').val();
-    if (homeworkLink && !isValidUrl(homeworkLink)) {
+    const homeworkLink = $('#homework_url').val();
+    if (!homeworkLink) {
       isValid = false;
-      errorMessage += 'Invalid homework link URL.\n';
+      errorMessage += 'Homework link URL is missing.\n';
+    } else if (!isValidUrl(homeworkLink)) {
+      isValid = false;
+      errorMessage += 'Homework link URL is invalid.\n';
     }
-
+  
     // Validate learning in public links
-    $('.learning-url-input').each(function () {
+    $('input[name="learning_in_public_links[]"]').each(function () {
       const link = $(this).val();
       if (link && !isValidUrl(link)) {
         isValid = false;
         errorMessage += 'Invalid learning in public link URL.\n';
       }
     });
-
+  
     if (!isValid) {
       alert(errorMessage);
       event.preventDefault(); // Prevent form submission
@@ -39,8 +42,9 @@ $(document).ready(function () {
 
   function isValidUrl(urlString) {
     try {
-      new URL(urlString);
-      return true;
+      let url = new URL(urlString);
+      let validProtocol = url.protocol === "http:" || url.protocol === "https:";
+      return validProtocol;
     } catch (e) {
       return false;
     }

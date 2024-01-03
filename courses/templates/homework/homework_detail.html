@@ -3,12 +3,13 @@
 {% load static %}
 
 {% block content %}
-  <h2>{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
-  <p>{{ homework.description }}</p>
+<div class="form-container container mt-4 bg-light border rounded p-4">
+  <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
+  <p class="text-muted">{{ homework.description }}</p>
 
   {% if messages %}
     {% for message in messages %}
-      <div class="infobox {{ message.tags }}">
+      <div class="alert {{ message.tags }}">
         <p>{{ message }}</p>
       </div>
     {% endfor %}
@@ -16,7 +17,7 @@
 
   {% if errors %}
     {% for error in errors %}
-      <div class="infobox error">
+      <div class="alert alert-danger">
         <p>{{ error }}</p>
       </div>
     {% endfor %}
@@ -24,11 +25,11 @@
 
   {% if disabled %}
     {% if submission %}
-      <div class="infobox success">
+      <div class="alert alert-success">
         <p>This homework is already scored. Your score is {{ submission.total_score }}.</p>
       </div>
     {% else %}
-      <div class="infobox warning">
+      <div class="alert alert-warning">
         <p>This homework is already scored. You didn't submit your answers.</p>
       </div>
     {% endif %}
@@ -36,116 +37,100 @@
 
   <h3>Questions</h3>
 
-  <form method="post">
+  <form method="post" class="needs-validation" novalidate>
     {% if is_authenticated %}
       {% csrf_token %}
     {% endif %}
 
-    <!-- Display homework questions and submission form -->
     {% for question, answer in question_answers %}
-      <div>
+      <div class="mb-3">
         <p>{{ question.text }}</p>
 
         {% if question.question_type == 'MC' %}
-          <div>
-            {% for option in answer.options %}
-              <div class="{{ option.correctly_selected_class }}">
-                <input
-                  type="radio" 
-                  name="answer_{{ question.id }}"
-                  value="{{ option.value }}"
-                  {% if option.is_selected %} checked {% endif %}
-                  {% if disabled %} disabled {% endif %}
-                />
-                <label>{{ option.value }}</label>
-              </div>
-            {% endfor %}
-          </div>
+          {% for option in answer.options %}
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                id="radio-{{ question.id }}-{{ forloop.counter }}"
+                type="radio"
+                name="answer_{{ question.id }}"
+                value="{{ option.value }}"
+                {% if option.is_selected %} checked {% endif %}
+                {% if disabled %} disabled {% endif %}
+              />
+              <label class="form-check-label" for="radio-{{ question.id }}-{{ forloop.counter }}">{{ option.value }}</label>
+            </div>
+          {% endfor %}
 
         {% elif question.question_type == 'CB' %}
-          <div>
-            {% for option in answer.options %}
-              <div class="{{ option.correctly_selected_class }}">
-                <input
-                  type="checkbox"
-                  name="answer_{{ question.id }}"
-                  value="{{ option.value }}"
-                  {% if option.is_selected %} checked {% endif %}
-                  {% if disabled %} disabled {% endif %}
-                />
-                <label>{{ option.value }}</label>
-              </div>
-            {% endfor %}
-          </div>
+          {% for option in answer.options %}
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                id="checkbox-{{ question.id }}-{{ forloop.counter }}"
+                type="checkbox"
+                name="answer_{{ question.id }}"
+                value="{{ option.value }}"
+                {% if option.is_selected %} checked {% endif %}
+                {% if disabled %} disabled {% endif %}
+              />
+              <label class="form-check-label" for="checkbox-{{ question.id }}-{{ forloop.counter }}">{{ option.value }}</label>
+            </div>
+          {% endfor %}
 
         {% elif question.question_type == 'FF' %}
-          <div class="{{ answer.correctly_selected_class }}">
-            <input
-              type="text"
-              name="answer_{{ question.id }}"
-              value="{{ answer.text|default:'' }}"
-              {% if disabled %} disabled {% endif %}
-            />
-          </div>
+          <input
+            class="form-control"
+            type="text"
+            name="answer_{{ question.id }}"
+            value="{{ answer.text|default:'' }}"
+            {% if disabled %} disabled {% endif %}
+          />
         {% endif %}
       </div>
     {% endfor %}
 
     {% if homework.homework_url_field %}
-      <div>
+      <div class="mb-3">
         <label for="homework_url">Homework URL:</label>
         <input
           type="url"
+          class="form-control"
           id="homework_url"
           name="homework_url"
-          value="{{ submission.homework_url|default:'' }}"
+          value="{{ submission.homework_link|default:'' }}"
           {% if disabled %} disabled {% endif %}
+          required
         />
+        <div class="invalid-feedback">Please provide a valid URL.</div>
       </div>
     {% endif %}
 
     {% if homework.learning_in_public_cap > 0 %}
-      <div id="learning-in-public-links-container">
+      <div id="learning-in-public-links-container" class="mb-3">
+        <label for="learning_in_public_links[]">Learning in public links:</label>
         <div id="learning-in-public-links">
-          <label for="learning_in_public_links[]">Learning in public links:</label>
           {% for link in submission.learning_in_public_links %}
-            <div>
-              <input
-                type="url"
-                name="learning_in_public_links[]"
-                value="{{ link }}"
-                {% if disabled %} disabled {% endif %}
-              />
-            </div>
+            <input type="url" class="form-control" name="learning_in_public_links[]" value="{{ link }}" {% if disabled %} disabled {% endif %}>
           {% endfor %}
           {% if submission.learning_in_public_links|length < homework.learning_in_public_cap %}
-            <div>
-              <input
-                type="url"
-                name="learning_in_public_links[]"
-                {% if disabled %} disabled {% endif %}
-              />
-            </div>
+            <input type="url" class="form-control" name="learning_in_public_links[]" {% if disabled %} disabled {% endif %}>
           {% endif %}
         </div>
         {% if not homework.is_scored and not disabled %}
-          <div>
-            <button
-                type="button"
-                id="add-learning-public-link"
-                {% if learning_in_public_links|length >= homework.learning_in_public_cap %} disabled {% endif %}>
-              Add Link
-            </button>
-          </div>
+          <button type="button" id="add-learning-public-link" class="btn btn-outline-secondary mt-2">
+            Add Link
+          </button>
         {% endif %}
       </div>
     {% endif %}
 
     {% if homework.time_spent_lectures_field %}
-      <div>
+      <div class="mb-3">
         <label for="time_spent_lectures">Time Spent on Lectures (hours):</label>
         <input
           type="number"
+          class="form-control"
           name="time_spent_lectures"
           id="time_spent_lectures"
           min="0"
@@ -156,10 +141,11 @@
     {% endif %}
 
     {% if homework.time_spent_homework_field %}
-      <div>
+      <div class="mb-3">
         <label for="time_spent_homework">Time Spent on Homework (hours):</label>
         <input
           type="number"
+          class="form-control"
           name="time_spent_homework"
           id="time_spent_homework"
           min="0"
@@ -170,40 +156,42 @@
     {% endif %}
 
     {% if homework.problems_comments_field %}
-      <div>
+      <div class="mb-3">
         <label for="problems_comments">Problems or Comments:</label>
         <textarea
+          class="form-control"
           name="problems_comments"
           id="problems_comments"
-          value="{{ submission.problems_comments|default:'' }}"
           {% if disabled %} disabled {% endif %}
-        ></textarea>
+        >{{ submission.problems_comments|default:'' }}</textarea>
       </div>
     {% endif %}
 
     {% if homework.faq_contribution_field %}
-      <div>
+      <div class="mb-3">
         <label for="faq_contribution">FAQ Contribution:</label>
         <textarea
+          class="form-control"
           name="faq_contribution"
           id="faq_contribution"
-          value="{{ submission.faq_contribution|default:'' }}"
           {% if disabled %} disabled {% endif %}
-        ></textarea>
+        >{{ submission.faq_contribution|default:'' }}</textarea>
       </div>
     {% endif %}
 
     {% if not homework.is_scored %}
-      {% if is_authenticated %}
-        <input type="submit" value="Save">
-      {% else %}  
-        <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
-      {% endif %}
+      <div class="mt-4 text-center">
+        {% if is_authenticated %}
+          <button type="submit" class="btn btn-primary">Save</button>
+        {% else %}
+          <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+        {% endif %}
+      </div>
     {% endif %}
   </form>
 
   {% if submission %}
-    <p>Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+    <p class="text-info">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
 
   <script>
@@ -212,4 +200,5 @@
 
   <script src="{% static 'homework_detail.js' %}"></script>
 
+</div>
 {% endblock %}

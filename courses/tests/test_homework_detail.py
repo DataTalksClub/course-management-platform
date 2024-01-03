@@ -826,7 +826,6 @@ class HomeworkDetailViewTests(TestCase):
 
         self.client.login(**credentials)
 
-
         # the submission data
         post_data = {
             f"answer_{self.question1.id}": ["Paris"],
@@ -835,11 +834,11 @@ class HomeworkDetailViewTests(TestCase):
             f"answer_{self.question4.id}": ["7"],
             f"answer_{self.question5.id}": ["3.141516"],
             f"answer_{self.question6.id}": ["Blue", "White"],
-
             "homework_url": "http://example.com/homework",
             "learning_in_public_links[]": [
                 "http://example.com/link1",
                 "http://example.com/link2",
+                "",
             ],
             "time_spent_lectures": "5",
             "time_spent_homework": "3",
@@ -868,10 +867,16 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(
             submission.homework_link, post_data["homework_url"]
         )
+
+        expected_learning_in_public_links = [
+            "http://example.com/link1",
+            "http://example.com/link2",
+        ]
         self.assertEqual(
-            json.loads(submission.learning_in_public_links),
-            post_data["learning_in_public_links[]"],
+            submission.learning_in_public_links,
+            expected_learning_in_public_links,
         )
+
         self.assertEqual(
             submission.time_spent_lectures,
             float(post_data["time_spent_lectures"]),
@@ -887,4 +892,113 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(
             submission.faq_contribution,
             post_data["faq_contribution"],
+        )
+
+    def test_submit_homework_with_all_fields_optional_empty(self):
+        self.homework.homework_url_field = True
+        self.homework.learning_in_public_cap = 7
+        self.homework.time_spent_lectures_field = True
+        self.homework.time_spent_homework_field = True
+        self.homework.problems_comments_field = True
+        self.homework.faq_contribution_field = True
+
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        # the submission data
+        post_data = {
+            f"answer_{self.question1.id}": ["Paris"],
+            f"answer_{self.question2.id}": ["Some other text"],
+            f"answer_{self.question3.id}": ["2", "3", "5"],
+            f"answer_{self.question4.id}": ["7"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["Blue", "White"],
+            "homework_url": "http://example.com/homework",
+            "learning_in_public_links[]": [""],
+            "time_spent_lectures": "",
+            "time_spent_homework": "",
+            "problems_comments": "",
+            "faq_contribution": "",
+        }
+
+        url = reverse(
+            "homework_detail",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        self.client.login(**credentials)
+
+        self.client.post(url, post_data)
+
+        # Retrieve the updated submission object
+        submission = Submission.objects.get(
+            homework=self.homework, student=self.user
+        )
+
+        # Assertions to verify that the data is saved correctly
+        self.assertEqual(
+            submission.homework_link, post_data["homework_url"]
+        )
+
+        self.assertEqual(submission.learning_in_public_links, [])
+
+        self.assertEqual(submission.time_spent_lectures, None)
+        self.assertEqual(submission.time_spent_homework, None)
+        self.assertEqual(submission.problems_comments, "")
+        self.assertEqual(submission.faq_contribution, "")
+
+    def test_submit_homework_learning_in_public_empty_and_duplicates(
+        self,
+    ):
+        self.homework.learning_in_public_cap = 7
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        # the submission data
+        post_data = {
+            f"answer_{self.question1.id}": ["Paris"],
+            f"answer_{self.question2.id}": ["Some other text"],
+            f"answer_{self.question3.id}": ["2", "3", "5"],
+            f"answer_{self.question4.id}": ["7"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["Blue", "White"],
+            "learning_in_public_links[]": [
+                "http://example.com/link1",
+                "http://example.com/link2",
+                "http://example.com/link1",
+                "",
+                "",
+                "",
+            ],
+        }
+
+        url = reverse(
+            "homework_detail",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        self.client.login(**credentials)
+
+        self.client.post(url, post_data)
+
+        # Retrieve the updated submission object
+        submission = Submission.objects.get(
+            homework=self.homework, student=self.user
+        )
+
+        expected_learning_in_public_links = [
+            "http://example.com/link1",
+            "http://example.com/link2",
+        ]
+        self.assertEqual(
+            submission.learning_in_public_links,
+            expected_learning_in_public_links,
         )

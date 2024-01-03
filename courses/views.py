@@ -138,7 +138,8 @@ def process_question_options_multiple_choice_or_checkboxes(
     options = []
 
     if answer:
-        selected_options = answer.answer_text.split(",")
+        answer_text = answer.answer_text or ""
+        selected_options = answer_text.split(",")
     else:
         # no answer yet, so we need to show just options
         selected_options = []
@@ -191,6 +192,19 @@ def tryparsefloat(value: str) -> Optional[float]:
         return None
 
 
+def clean_learning_in_public_links(links: List[str]) -> List[str]:
+    cleaned_links = []
+
+    for link in links:
+        if len(link) == 0:
+            continue
+        if link in cleaned_links:
+            continue
+        cleaned_links.append(link)
+
+    return cleaned_links
+
+
 def process_homework_submission(
     request: HttpRequest,
     course: Course,
@@ -237,19 +251,26 @@ def process_homework_submission(
 
     if homework.learning_in_public_cap > 0:
         links = request.POST.getlist('learning_in_public_links[]')
-        submission.learning_in_public_links = json.dumps(links)
+        cleaned_links = clean_learning_in_public_links(links)
+        submission.learning_in_public_links = cleaned_links
 
     if homework.time_spent_lectures_field:
-        submission.time_spent_lectures = request.POST.get('time_spent_lectures', 0.0)
+        time_spent_lectures = request.POST.get('time_spent_lectures')
+        if time_spent_lectures is not None and time_spent_lectures != '':
+            submission.time_spent_lectures = float(time_spent_lectures)
 
     if homework.time_spent_homework_field:
-        submission.time_spent_homework = request.POST.get('time_spent_homework', 0.0)
+        time_spent_homework = request.POST.get('time_spent_homework')
+        if time_spent_homework is not None and time_spent_homework != '':
+            submission.time_spent_homework = float(time_spent_homework)
 
     if homework.problems_comments_field:
-        submission.problems_comments = request.POST.get('problems_comments', '')
+        problem_comments = request.POST.get('problems_comments', '')
+        submission.problems_comments = problem_comments.strip()
 
     if homework.faq_contribution_field:
-        submission.faq_contribution = request.POST.get('faq_contribution', '')
+        faq_contribution = request.POST.get('faq_contribution', '')
+        submission.faq_contribution = faq_contribution.strip()
 
     submission.save()
 
@@ -317,7 +338,6 @@ def homework_detail_build_context_authenticated(
         question_answers.append(pair)
 
     disabled = homework.is_scored
-    print("submission", submission.learning_in_public_links, type(submission.learning_in_public_links))
 
     context = {
         "course": course,

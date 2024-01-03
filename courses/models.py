@@ -214,7 +214,7 @@ class Answer(models.Model):
     )
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
-    answer_text = models.TextField()
+    answer_text = models.TextField(blank=True, null=True)
 
     is_correct = models.BooleanField(default=False)
 
