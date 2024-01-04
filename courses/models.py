@@ -24,6 +24,19 @@ class Course(models.Model):
         User, through="Enrollment", related_name="courses_enrolled"
     )
 
+    social_media_hashtag = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="The hashtag associated with the course for social media use."
+    )
+
+    # New field for the URL of the FAQ document
+    faq_document_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+        help_text="The URL of the FAQ document for the course."
+    )
+
     def __str__(self):
         return self.title
 

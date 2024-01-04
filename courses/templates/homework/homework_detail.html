@@ -3,7 +3,7 @@
 {% load static %}
 
 {% block content %}
-<div class="form-container container mt-4 bg-light border rounded p-4">
+<div class="form-container mt-4 bg-light border rounded">
   <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
   <p class="text-muted">{{ homework.description }}</p>
 
@@ -35,7 +35,7 @@
     {% endif %}
   {% endif %}
 
-  <h3>Questions</h3>
+  <h3 class="mb-3">Questions</h3>
 
   <form method="post" class="needs-validation" novalidate>
     {% if is_authenticated %}
@@ -43,8 +43,8 @@
     {% endif %}
 
     {% for question, answer in question_answers %}
-      <div class="mb-3">
-        <p>{{ question.text }}</p>
+      <div class="mb-3 question">
+        <p class="question-text">Question {{ forloop.counter }}. {{ question.text }}</p>
 
         {% if question.question_type == 'MC' %}
           {% for option in answer.options %}
@@ -91,8 +91,16 @@
     {% endfor %}
 
     {% if homework.homework_url_field %}
-      <div class="mb-3">
-        <label for="homework_url">Homework URL:</label>
+      <div class="mb-3 question">
+        <label for="homework_url" class="question-text">
+          Homework URL
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="Link to GitHub or other public code-hosting website">
+          </i>
+        </label>
         <input
           type="url"
           class="form-control"
@@ -107,8 +115,16 @@
     {% endif %}
 
     {% if homework.learning_in_public_cap > 0 %}
-      <div id="learning-in-public-links-container" class="mb-3">
-        <label for="learning_in_public_links[]">Learning in public links:</label>
+      <div id="learning-in-public-links-container" class="mb-3 question">
+        <label for="learning_in_public_links[]" class="question-text">
+          Learning in public links
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="Links to social media posts where you share your progress (LinkedIn, Twitter, etc). {% if course.social_media_hashtag %} Use {{ course.social_media_hashtag }} tag.{% endif %} The scores are capped at {{ homework.learning_in_public_cap }} point.">
+          </i>
+        </label>
         <div id="learning-in-public-links">
           {% for link in submission.learning_in_public_links %}
             <input type="url" class="form-control" name="learning_in_public_links[]" value="{{ link }}" {% if disabled %} disabled {% endif %}>
@@ -126,8 +142,16 @@
     {% endif %}
 
     {% if homework.time_spent_lectures_field %}
-      <div class="mb-3">
-        <label for="time_spent_lectures">Time Spent on Lectures (hours):</label>
+      <div class="mb-3 question">
+        <label for="time_spent_lectures" class="question-text">
+          Time spent on lectures (hours)
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="How much time (in hours) did you spend on watching lectures and reading?">
+          </i>
+        </label>
         <input
           type="number"
           class="form-control"
@@ -141,8 +165,16 @@
     {% endif %}
 
     {% if homework.time_spent_homework_field %}
-      <div class="mb-3">
-        <label for="time_spent_homework">Time Spent on Homework (hours):</label>
+      <div class="mb-3 question">
+        <label for="time_spent_homework" class="question-text">
+          Time spent on homework (hours)
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="How much time (in hours) did you spend on homework?">
+          </i>
+        </label>
         <input
           type="number"
           class="form-control"
@@ -156,8 +188,8 @@
     {% endif %}
 
     {% if homework.problems_comments_field %}
-      <div class="mb-3">
-        <label for="problems_comments">Problems or Comments:</label>
+      <div class="mb-3 question">
+        <label for="problems_comments" class="question-text">Problems or comments</label>
         <textarea
           class="form-control"
           name="problems_comments"
@@ -167,9 +199,17 @@
       </div>
     {% endif %}
 
-    {% if homework.faq_contribution_field %}
-      <div class="mb-3">
-        <label for="faq_contribution">FAQ Contribution:</label>
+    {% if course.faq_document_url and homework.faq_contribution_field %}
+      <div class="mb-3 question">
+        <label for="faq_contribution" class="question-text">
+          FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span>
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?">
+          </i>
+        </label>
         <textarea
           class="form-control"
           name="faq_contribution"
@@ -191,11 +231,15 @@
   </form>
 
   {% if submission %}
-    <p class="text-info">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+    <p class="text-muted question-text">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
 
   <script>
     global_learning_in_public_cap = {{ homework.learning_in_public_cap }};
+
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip()
+    });
   </script>
 
   <script src="{% static 'homework_detail.js' %}"></script>

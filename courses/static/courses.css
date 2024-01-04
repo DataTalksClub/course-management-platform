@@ -1,25 +1,24 @@
-/* Container */
-.form-container .container {
-  background-color: #f6f6f6; /* Light grey background */
-  border: 1px solid #e0e0e0; /* Solid border */
+.form-container {
+  max-width: 720px; 
+  margin: 20px auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  padding: 20px 20px 0px 20px;
 }
 
-/* Typography */
-.form-container h2 {
-  font-size: 1.2rem; /* Smaller font size for headings */
+.form-container .question {
+  padding-top: 1rem;
 }
-.form-container p {
-  font-size: 0.9rem; /* Smaller font size for text */
+
+.form-container .question .question-text {
+  margin-bottom: 0.5rem;
 }
 
 /* Questions */
 .form-check-label {
   display: block;
-  margin-bottom: 5px;
-  color: #5f6368; /* Dark grey text similar to Google Forms */
+  color: #5f6368;
 }
 
-/* Input Fields - Text, URL, Number */
 .form-control {
   box-shadow: none; /* Remove Bootstrap's default shadow */
   border-color: #e0e0e0; /* Light grey border color */
@@ -29,7 +28,7 @@
 /* Focused Inputs */
 .form-control:focus {
   border-color: #a6c8ff; /* Highlight color when focused */
-  box-shadow: 0 0 0 0.2rem rgba(102, 175, 233, .25); /* Bootstrap's default focus shadow */
+  box-shadow: 0 0 0 0.2rem rgba(102, 175, 233, .25);
 }
 
 /* Buttons */
@@ -46,7 +45,12 @@
 
 /* Adjustments for smaller screens */
 @media (max-width: 576px) {
-  .container {
-    padding: 15px; /* Smaller padding on smaller screens */
+  .form-container {
+    max-width: 100%;
+    padding: 15px 15px 0px 15px; /* Smaller padding on smaller screens */
   }
+}
+
+.text-muted a, .text-muted a:visited, .text-muted a:hover, .text-muted a:focus, .text-muted a:active {
+  color: inherit; /* This makes the link use the color of the parent .text-muted class */
 }

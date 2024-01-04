@@ -15,16 +15,19 @@ $(document).ready(function () {
     let isValid = true;
     let errorMessage = '';
 
-    // Validate homework link
-    const homeworkLink = $('#homework_url').val();
-    if (!homeworkLink) {
-      isValid = false;
-      errorMessage += 'Homework link URL is missing.\n';
-    } else if (!isValidUrl(homeworkLink)) {
-      isValid = false;
-      errorMessage += 'Homework link URL is invalid.\n';
+    // Validate homework link only if the field exists
+    const homeworkLinkField = $('#homework_url');
+    if (homeworkLinkField.length > 0) {
+      const homeworkLink = homeworkLinkField.val();
+      if (!homeworkLink) {
+        isValid = false;
+        errorMessage += 'Homework link URL is missing.\n';
+      } else if (!isValidUrl(homeworkLink)) {
+        isValid = false;
+        errorMessage += 'Homework link URL is invalid.\n';
+      }
     }
-  
+
     // Validate learning in public links
     $('input[name="learning_in_public_links[]"]').each(function () {
       const link = $(this).val();

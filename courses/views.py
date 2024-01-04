@@ -167,7 +167,9 @@ def process_question_options_multiple_choice_or_checkboxes(
             if is_selected and not is_correct:
                 correctly_selected = "option-answer-incorrect"
 
-            processed_answer["correctly_selected_class"] = correctly_selected
+            processed_answer[
+                "correctly_selected_class"
+            ] = correctly_selected
 
         options.append(processed_answer)
 
@@ -192,7 +194,9 @@ def tryparsefloat(value: str) -> Optional[float]:
         return None
 
 
-def clean_learning_in_public_links(links: List[str]) -> List[str]:
+def clean_learning_in_public_links(
+    links: List[str], cap: int
+) -> List[str]:
     cleaned_links = []
 
     for link in links:
@@ -200,6 +204,9 @@ def clean_learning_in_public_links(links: List[str]) -> List[str]:
             continue
         if link in cleaned_links:
             continue
+        if len(cleaned_links) >= cap:
+            break
+
         cleaned_links.append(link)
 
     return cleaned_links
@@ -247,29 +254,41 @@ def process_homework_submission(
         )
 
     if homework.homework_url_field:
-        submission.homework_link = request.POST.get('homework_url')
+        submission.homework_link = request.POST.get("homework_url")
 
     if homework.learning_in_public_cap > 0:
-        links = request.POST.getlist('learning_in_public_links[]')
-        cleaned_links = clean_learning_in_public_links(links)
+        links = request.POST.getlist("learning_in_public_links[]")
+        cleaned_links = clean_learning_in_public_links(
+            links, homework.learning_in_public_cap
+        )
         submission.learning_in_public_links = cleaned_links
 
     if homework.time_spent_lectures_field:
-        time_spent_lectures = request.POST.get('time_spent_lectures')
-        if time_spent_lectures is not None and time_spent_lectures != '':
-            submission.time_spent_lectures = float(time_spent_lectures)
+        time_spent_lectures = request.POST.get("time_spent_lectures")
+        if (
+            time_spent_lectures is not None
+            and time_spent_lectures != ""
+        ):
+            submission.time_spent_lectures = float(
+                time_spent_lectures
+            )
 
     if homework.time_spent_homework_field:
-        time_spent_homework = request.POST.get('time_spent_homework')
-        if time_spent_homework is not None and time_spent_homework != '':
-            submission.time_spent_homework = float(time_spent_homework)
+        time_spent_homework = request.POST.get("time_spent_homework")
+        if (
+            time_spent_homework is not None
+            and time_spent_homework != ""
+        ):
+            submission.time_spent_homework = float(
+                time_spent_homework
+            )
 
     if homework.problems_comments_field:
-        problem_comments = request.POST.get('problems_comments', '')
+        problem_comments = request.POST.get("problems_comments", "")
         submission.problems_comments = problem_comments.strip()
 
     if homework.faq_contribution_field:
-        faq_contribution = request.POST.get('faq_contribution', '')
+        faq_contribution = request.POST.get("faq_contribution", "")
         submission.faq_contribution = faq_contribution.strip()
 
     submission.save()
@@ -301,7 +320,7 @@ def homework_detail_build_context_not_authenticated(
         "homework": homework,
         "question_answers": question_answers,
         "is_authenticated": False,
-        "disabled": True
+        "disabled": True,
     }
 
     return context
@@ -317,7 +336,7 @@ def homework_detail_build_context_authenticated(
         answers = Answer.objects.filter(
             submission=submission
         ).select_related("question")
-    
+
         question_answers_map = {
             answer.question.id: answer for answer in answers
         }
@@ -345,7 +364,7 @@ def homework_detail_build_context_authenticated(
         "question_answers": question_answers,
         "submission": submission,
         "is_authenticated": True,
-        "disabled": disabled
+        "disabled": disabled,
     }
 
     return context
@@ -382,8 +401,6 @@ def homework_detail(request: HttpRequest, course_slug, homework_slug):
             questions=questions,
             submission=submission,
         )
-
-        
 
     context = homework_detail_build_context_authenticated(
         course=course,
