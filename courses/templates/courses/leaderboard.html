@@ -1,12 +1,15 @@
 {% extends 'base.html' %}
 
+{% block breadcrumbs %}
+  <li><a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
 {% block content %}
 
 {% for enrollment in enrollments %}
   <div>
     <p>Name: {{ enrollment.display_name }}</p>
     <p>Total Score: {{ enrollment.total_score }}</p>
-    <!-- Additional logic to show/hide breakdown of scores -->
   </div>
 {% endfor %}
 

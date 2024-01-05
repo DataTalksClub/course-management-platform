@@ -22,12 +22,13 @@
     <nav>
       <ul>
         {% if user.is_authenticated %}
-          <li>Welcome, {{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</li>
-          <li><a href="{% url 'course_list' %}">Courses</a></li>
-          <!-- Add more navigation links as needed -->
+          <li>{{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</li>
         {% else %}
           <li><a href="{% url 'login' %}">Login</a></li>
         {% endif %}
+        <li><a href="{% url 'course_list' %}">Courses</a></li>
+        {% block breadcrumbs %}
+        {% endblock %}
       </ul>
     </nav>
   </header>

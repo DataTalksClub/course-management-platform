@@ -2,10 +2,13 @@
 
 {% load static %}
 
+{% block breadcrumbs %}
+  <li><a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
 {% block content %}
 
   <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
-  <p class="text-muted">{{ homework.description }}</p>
 
   {% if messages %}
     {% for message in messages %}
@@ -34,6 +37,8 @@
       </div>
     {% endif %}
   {% endif %}
+
+  <p class="text-muted">{{ homework.description }}</p>
 
   <h3 class="mb-3">Questions</h3>
 
@@ -129,7 +134,7 @@
           {% for link in submission.learning_in_public_links %}
             <input type="url" class="form-control" name="learning_in_public_links[]" value="{{ link }}" {% if disabled %} disabled {% endif %}>
           {% endfor %}
-          {% if submission.learning_in_public_links|length < homework.learning_in_public_cap %}
+          {% if submission.learning_in_public_links|length < homework.learning_in_public_cap and not disabled %}
             <input type="url" class="form-control" name="learning_in_public_links[]" {% if disabled %} disabled {% endif %}>
           {% endif %}
         </div>
@@ -231,7 +236,7 @@
   </form>
 
   {% if submission %}
-    <p class="text-muted question-text">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+    <p class="text-muted question-text m-0">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
 
   <script>

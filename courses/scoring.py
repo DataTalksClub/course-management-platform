@@ -60,6 +60,13 @@ def is_free_form_answer_correct(
 
     return False
 
+def safe_split(value: str, delimiter: str=","):
+    if not value:
+        return []
+
+    value = value.strip()
+    return value.split(delimiter)
+
 
 def is_answer_correct(question: Question, user_answer: str) -> bool:
     if question.answer_type == AnswerTypes.ANY.value:
@@ -71,8 +78,8 @@ def is_answer_correct(question: Question, user_answer: str) -> bool:
         return user_answer == correct_answer
 
     elif question.question_type == QuestionTypes.CHECKBOXES.value:
-        selected_options = set(user_answer.split(","))
-        correct_options = set(correct_answer.split(","))
+        selected_options = set(safe_split(user_answer))
+        correct_options = set(safe_split(correct_answer))
         return selected_options == correct_options
 
     elif question.question_type == QuestionTypes.FREE_FORM.value:

@@ -370,7 +370,7 @@ def homework_detail_build_context_authenticated(
     return context
 
 
-def homework_detail(request: HttpRequest, course_slug, homework_slug):
+def homework_detail(request: HttpRequest, course_slug: str, homework_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
     homework = get_object_or_404(
@@ -412,7 +412,7 @@ def homework_detail(request: HttpRequest, course_slug, homework_slug):
     return render(request, "homework/homework_detail.html", context)
 
 
-def leaderboard_view(request, course_slug):
+def leaderboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
     enrollments = Enrollment.objects.filter(course=course).order_by(
@@ -423,6 +423,7 @@ def leaderboard_view(request, course_slug):
 
     context = {
         "enrollments": enrollments,
+        "course": course
     }
 
     return render(request, "courses/leaderboard.html", context)
@@ -430,6 +431,8 @@ def leaderboard_view(request, course_slug):
 
 @login_required
 def enrollment_detail(request, course_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+
     enrollment = get_object_or_404(
         Enrollment, student=request.user, course__slug=course_slug
     )
@@ -443,6 +446,9 @@ def enrollment_detail(request, course_slug):
 
     form = EnrollmentForm(instance=enrollment)
 
-    context = {"form": form, "course_slug": course_slug}
+    context = {
+        "form": form,
+        "course": course
+    }
 
     return render(request, "courses/enrollment_detail.html", context)
