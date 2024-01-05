@@ -62,3 +62,12 @@
 .alert p {
   margin-bottom: 0;
 }
+
+
+.option-answer-correct {
+  background-color: lightgreen;
+}
+
+.option-answer-incorrect {
+  background-color: lightcoral;
+}

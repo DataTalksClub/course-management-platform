@@ -53,7 +53,7 @@
 
         {% if question.question_type == 'MC' %}
           {% for option in answer.options %}
-            <div class="form-check">
+            <div class="form-check {{ option.correctly_selected_class }}">
               <input
                 class="form-check-input"
                 id="radio-{{ question.id }}-{{ forloop.counter }}"
