@@ -3,7 +3,7 @@ $(document).ready(function () {
     let currentLinkCount = $('#learning-in-public-links input[type="url"]').length;
     let cap = global_learning_in_public_cap;
     if (currentLinkCount < cap) {
-        let html = '<div><input type="url" name="learning_in_public_links[]" class="url-input"></div>';
+        let html = '<input type="url" class="form-control" name="learning_in_public_links[]">';
         $('#learning-in-public-links').append(html);
     }
     if (currentLinkCount + 1 >= cap) {

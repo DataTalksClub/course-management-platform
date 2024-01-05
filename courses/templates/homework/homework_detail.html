@@ -3,7 +3,7 @@
 {% load static %}
 
 {% block content %}
-<div class="form-container mt-4 bg-light border rounded">
+
   <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
   <p class="text-muted">{{ homework.description }}</p>
 
@@ -244,5 +244,5 @@
 
   <script src="{% static 'homework_detail.js' %}"></script>
 
-</div>
+
 {% endblock %}

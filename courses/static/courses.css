@@ -54,3 +54,7 @@
 .text-muted a, .text-muted a:visited, .text-muted a:hover, .text-muted a:focus, .text-muted a:active {
   color: inherit; /* This makes the link use the color of the parent .text-muted class */
 }
+
+#learning-in-public-links .form-control {
+  margin-bottom: 0.rem;
+}
