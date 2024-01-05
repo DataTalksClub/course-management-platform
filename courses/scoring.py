@@ -95,6 +95,12 @@ def update_score(submission: Submission):
         if is_correct:
             total_score += question.scores_for_correct_answer
 
+    if submission.learning_in_public_links:
+        total_score += len(submission.learning_in_public_links)
+
+    if submission.faq_contribution and len(submission.faq_contribution) >= 5:
+        total_score += 1
+
     submission.total_score = total_score
     submission.save()
 
