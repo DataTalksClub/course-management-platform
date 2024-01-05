@@ -30,32 +30,76 @@ User = get_user_model()
 # Fetch the existing course object by slug
 course = Course.objects.get(slug="fake-course")
 
-# Function to create questions for a given homework
-def create_questions_for_homework(homework: Homework, num_questions=3):
-    for i in range(num_questions):
-        Question.objects.create(
+
+def create_random_question(homework: Homework):
+    question_type = random.choice([QuestionTypes.FREE_FORM, QuestionTypes.MULTIPLE_CHOICE])
+    print(f"Creating question of type {question_type} for homework {homework}")
+    question_id = random.randint(1, 1000)
+
+    if question_type == QuestionTypes.MULTIPLE_CHOICE:
+        answers = "1,2,3,4"
+        correct_answer = random.choice(answers.split(","))
+        print(f"  Correct answer is {correct_answer}, possible answers are {answers}")
+
+        return Question.objects.create(
             homework=homework,
-            text=f"Question text {i+1}",
-            correct_answer="Example answer",  # Set the correct answer
-            question_type=QuestionTypes.FREE_FORM,
-            answer_type=AnswerTypes.EXACT_STRING,
+            text=f"Question text {question_id}",
+            correct_answer=correct_answer,
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            possible_answers=answers,
             scores_for_correct_answer=1,
         )
 
-# Function to create answers for a student
-def create_answers_for_student(submission):
-    for question in submission.homework.question_set.all():
-        is_correct = random.choice([True, False])  # Randomly decide if the answer is correct
-        student_answer = question.correct_answer if is_correct else "Incorrect answer"
-        Answer.objects.create(
-            submission=submission,
-            question=question,
-            student=submission.student,
-            answer_text=student_answer,
-            is_correct=is_correct  # Assuming Answer model has an is_correct field
+    elif question_type == QuestionTypes.FREE_FORM:
+        correct_answer = "Example answer"
+        print(f"  Correct answer is {correct_answer}")
+
+        return Question.objects.create(
+            homework=homework,
+            text=f"Question text {question_id}",
+            correct_answer=correct_answer,
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            scores_for_correct_answer=1,
         )
 
-# Create 5 homeworks with questions
+# Function to create questions for a given homework
+def create_questions_for_homework(homework: Homework):
+    num_questions = random.randint(3, 6)
+
+    for i in range(num_questions):
+        create_random_question(homework)
+
+
+def generate_answer(question: Question, submission: Submission) -> Answer:
+    is_correct = random.choice([True, False])
+    
+    student_answer = ""
+
+    if is_correct:
+        student_answer = question.correct_answer
+    else:    
+        if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
+            student_answer = random.choice(question.get_possible_answers())
+        elif question.question_type == QuestionTypes.FREE_FORM.value:
+            student_answer = "Incorrect answer"
+
+    print(f"  Answer is correct: {is_correct}, student answer: {student_answer}")
+
+    return Answer.objects.create(
+        submission=submission,
+        question=question,
+        student=submission.student,
+        answer_text=student_answer,
+    )
+
+
+def create_answers_for_student(submission):
+    for question in submission.homework.question_set.all():
+        generate_answer(question, submission)
+        
+
+
 for hw in range(1, 6):
     print(f"Creating homework {hw}")
     homework = Homework.objects.create(
@@ -66,8 +110,7 @@ for hw in range(1, 6):
         description=f"Description for homework {hw}"
     )
 
-    num_questions = random.randint(3, 5)
-    create_questions_for_homework(homework, num_questions)
+    create_questions_for_homework(homework)
 
 
 # Create 20 users and their submissions
@@ -81,7 +124,6 @@ for u in range(1, 21):
         student=user,
     )
 
-    # Each user makes a submission for each homework
     for homework in Homework.objects.filter(course=course):
         submission, created = Submission.objects.get_or_create(
             homework=homework,
