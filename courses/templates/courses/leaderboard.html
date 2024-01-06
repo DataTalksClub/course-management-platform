@@ -6,11 +6,22 @@
 
 {% block content %}
 
-{% for enrollment in enrollments %}
-  <div>
-    <p>Name: {{ enrollment.display_name }}</p>
-    <p>Total Score: {{ enrollment.total_score }}</p>
+  <div class="row font-weight-bold py-2 mx-2">
+    <div class="col-1">#</div>
+    <div class="col-8">Name</div>
+    <div class="col-3 text-right">Score</div>
   </div>
-{% endfor %}
+
+  {% for enrollment in enrollments %}
+    <div class="row py-2 mx-2 {% cycle 'bg-light' 'bg-white' %} {% if enrollment.id == current_student_enrollment_id %}bg-info {% endif %}">
+      <div class="col-1">{{ forloop.counter }}</div>
+      <div class="col-8">
+        <a href="{% url 'leaderboard_detail' course_slug=course.slug enrollment_id=enrollment.id %}">
+          {{ enrollment.display_name }}
+        </a>
+      </div>
+      <div class="col-3 text-right">{{ enrollment.total_score }}</div>
+    </div>
+  {% endfor %}
 
 {% endblock %}

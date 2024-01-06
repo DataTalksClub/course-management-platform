@@ -243,8 +243,6 @@ def process_homework_submission(
     for question in questions:
         answer_text = answers_dict.get(f"answer_{question.id}")
 
-        print(f"answer_{question.id}:", answer_text)
-
         values = {"answer_text": answer_text, "student": user}
 
         Answer.objects.update_or_create(
@@ -415,18 +413,43 @@ def homework_detail(request: HttpRequest, course_slug: str, homework_slug: str):
 def leaderboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
+    user = request.user
+    enrollment_id = None
+
+    if user.is_authenticated:
+        enrollment = get_object_or_404(
+            Enrollment, student=request.user, course__slug=course_slug
+        )
+        enrollment_id = enrollment.id
+
     enrollments = Enrollment.objects.filter(course=course).order_by(
         "-total_score"
     )
 
-    print(enrollments)
-
     context = {
         "enrollments": enrollments,
-        "course": course
+        "course": course,
+        "current_student_enrollment_id": enrollment_id
     }
 
     return render(request, "courses/leaderboard.html", context)
+
+
+
+def leaderboard_detail(request, course_slug: str, enrollment_id: int):
+    # course = get_object_or_404(Course, slug=course_slug)
+    # Get the specific enrollment
+    enrollment = get_object_or_404(Enrollment, id=enrollment_id, course__slug=course_slug)
+
+    # Get submissions related to the enrollment
+    submissions = Submission.objects.filter(enrollment=enrollment)
+
+    context = {
+        'enrollment': enrollment,
+        'submissions': submissions,
+    }
+
+    return render(request, 'courses/leaderboard_detail.html', context)
 
 
 @login_required
@@ -452,3 +475,5 @@ def enrollment_detail(request, course_slug):
     }
 
     return render(request, "courses/enrollment_detail.html", context)
+
+

@@ -71,3 +71,16 @@
 .option-answer-incorrect {
   background-color: lightcoral;
 }
+
+.container .row {
+  border-bottom: 1px solid #f8f8f8; /* subtle bottom border for each row */
+}
+
+.container .row:last-child {
+  border-bottom: none; /* remove border for the last row */
+}
+
+/* Highlighting for the current student's row */
+.bg-info {
+  background-color: #d1ecf1 !important; /* Adjust color as needed */
+}

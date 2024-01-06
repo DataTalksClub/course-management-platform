@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course_detail' enrollment.course.slug %}">{{ enrollment.course.title }}</a></li>
+  <li><a href="{% url 'leaderboard' enrollment.course.slug %}">Leaderboard</a></li>
+{% endblock %}
+
+{% block content %}
+  <h2>Leaderboard Detail for {{ enrollment.display_name }}</h2>
+  <h3>Course: {{ enrollment.course.title }}</h3>
+  <p>Total Score: {{ enrollment.total_score }}</p>
+
+  <h4>Submissions</h4>
+  <ul>
+    {% for submission in submissions %}
+      {% if submission.homework.is_scored %}
+      <li>
+        <strong>Homework:</strong> {{ submission.homework.title }}<br>
+        <strong>Questions Score:</strong> {{ submission.questions_score }}<br>
+        <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
+        <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
+        <strong>Total Score:</strong> {{ submission.total_score }}
+      </li>
+      {% else %}
+      <li>
+        <strong>Homework:</strong> {{ submission.homework.title }}<br>
+         Not scored yet
+      </li>
+      {% endif %}
+    {% empty %}
+    <li>No submissions found.</li>
+    {% endfor %}
+  </ul>
+
+{% endblock %}
