@@ -91,7 +91,7 @@ def is_answer_correct(question: Question, user_answer: str) -> bool:
 
 
 def update_score(submission: Submission):
-    total_score = 0
+    questions_score = 0
 
     for answer, question in submission.answers_with_questions:
         is_correct = is_answer_correct(question, answer.answer_text)
@@ -100,13 +100,23 @@ def update_score(submission: Submission):
         answer.save()
 
         if is_correct:
-            total_score += question.scores_for_correct_answer
+            questions_score += question.scores_for_correct_answer
+
+    submission.questions_score = questions_score
+
+    learning_in_public_score = 0
 
     if submission.learning_in_public_links:
-        total_score += len(submission.learning_in_public_links)
+        learning_in_public_score = len(submission.learning_in_public_links)
+        submission.learning_in_public_score = learning_in_public_score
+
+    faq_score = 0    
 
     if submission.faq_contribution and len(submission.faq_contribution) >= 5:
-        total_score += 1
+        faq_score = 1
+        submission.faq_score = faq_score
+    
+    total_score = questions_score + learning_in_public_score + faq_score
 
     submission.total_score = total_score
     submission.save()

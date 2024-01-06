@@ -169,14 +169,24 @@ class HomeworkScoringTestCase(TestCase):
 
         self.assertEquals(status, HomeworkScoringStatus.OK)
         self.assertEquals(self.homework.is_scored, True)
-        self.assertEquals(submission1.total_score, 2 + 1 + 3)
-        self.assertEquals(submission2.total_score, 2 + 1 + 2)
+
+        score1 = 2 + 1 + 3
+        self.assertEquals(submission1.total_score, score1)
+        self.assertEquals(submission1.questions_score, score1)
+        self.assertEquals(submission1.faq_score, 0)
+        self.assertEquals(submission1.learning_in_public_score, 0)        
+
+        score2 = 2 + 1 + 2
+        self.assertEquals(submission2.total_score, score2)
+        self.assertEquals(submission2.questions_score, score2)
+        self.assertEquals(submission2.faq_score, 0)
+        self.assertEquals(submission2.learning_in_public_score, 0)        
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
         self.enrollment2 = fetch_fresh(self.enrollment2)
 
-        self.assertEquals(self.enrollment1.total_score, 6)
-        self.assertEquals(self.enrollment2.total_score, 5)
+        self.assertEquals(self.enrollment1.total_score, score1)
+        self.assertEquals(self.enrollment2.total_score, score2)
 
     def test_homework_scoring_extra_fields(self):
         submission1 = Submission.objects.create(
@@ -216,10 +226,17 @@ class HomeworkScoringTestCase(TestCase):
         self.assertEquals(status, HomeworkScoringStatus.OK)
         self.assertEquals(self.homework.is_scored, True)
 
-        self.assertEquals(submission1.total_score, 2 + 1 + 3 + 1 + 3)
+        questions_score = 2 + 1 + 3
+        faq_score = 1
+        learning_in_public_score = 3
+        total_score = questions_score + faq_score + learning_in_public_score
+
+        self.assertEquals(submission1.total_score, total_score)
+        self.assertEquals(submission1.questions_score, questions_score)
+        self.assertEquals(submission1.faq_score, faq_score)
+        self.assertEquals(submission1.learning_in_public_score, learning_in_public_score)
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
-
         self.assertEquals(self.enrollment1.total_score, 10)
 
 

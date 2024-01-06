@@ -208,6 +208,10 @@ class Submission(models.Model):
     )
 
     submitted_at = models.DateTimeField(auto_now=True)
+
+    questions_score = models.IntegerField(default=0)
+    faq_score = models.IntegerField(default=0)
+    learning_in_public_score = models.IntegerField(default=0)
     total_score = models.IntegerField(default=0)
 
     @property
