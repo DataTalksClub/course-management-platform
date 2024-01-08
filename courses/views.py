@@ -30,7 +30,7 @@ from .models import (
 )
 
 from .scoring import is_free_form_answer_correct
-from .forms import EnrollmentForm, ProjectSubmissionForm
+from .forms import EnrollmentForm
 
 logger = logging.getLogger(__name__)
 
@@ -438,6 +438,7 @@ def homework_detail_build_context_authenticated(
         "submission": submission,
         "is_authenticated": True,
         "disabled": disabled,
+        "accepting_submissions": not homework.is_scored,
     }
 
     return context
@@ -562,50 +563,28 @@ def project_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    enrollment = None
-    project_submission = ProjectSubmission.objects.filter(
-        project=project, student=request.user
-    ).first()
+    # enrollment = None
+    # project_submission = ProjectSubmission.objects.filter(
+    #     project=project, student=request.user
+    # ).first()
+    # if project_submission:
+    #     enrollment = project_submission.enrollment
 
-    if project_submission:
-        enrollment = project_submission.enrollment
-
-    is_editable = (
+    accepting_submissions = (
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
     )
 
     if request.method == "POST":
-        form = ProjectSubmissionForm(
-            request.POST, instance=project_submission
-        )
-        if form.is_valid():
-            project_submission = form.save(commit=False)
-            project_submission.project = project
-            project_submission.student = request.user
+        raise NotImplementedError()
 
-            if not enrollment:
-                enrollment = Enrollment.objects.get_or_create(
-                    student=request.user,
-                    course=project.course,
-                )
-            project_submission.enrollment = enrollment
-            project_submission.save()
-
-            return redirect("some_success_url")
-
-    if project_submission:
-        form = ProjectSubmissionForm(instance=project_submission)
-    else:
-        form = ProjectSubmissionForm()
-
-    if not is_editable:
-        form.disable_fields()  # Disable form fields
+    disabled = not accepting_submissions
 
     context = {
-        "form": form,
+        "course": course,
         "project": project,
-        "submission": project_submission,
-        "is_editable": is_editable,
+        # "submission": project_submission,
+        "disabled": disabled,
+        "accepting_submissions": accepting_submissions,
     }
 
     return render(request, "projects/project_view.html", context)

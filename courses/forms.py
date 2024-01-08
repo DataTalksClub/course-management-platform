@@ -15,17 +15,17 @@ class EnrollmentForm(forms.ModelForm):
         fields = ["display_name", "certificate_name", "display_on_leaderboard"]
 
 
-class ProjectSubmissionForm(forms.ModelForm):
+# class ProjectSubmissionForm(forms.ModelForm):
 
-    def disable_fields(self):
-        for field in self.fields.values():
-            field.disabled = True
+#     def disable_fields(self):
+#         for field in self.fields.values():
+#             field.disabled = True
 
-    class Meta:
-        model = ProjectSubmission
-        fields = ['github_link', 'commit_id', 'learning_in_public_links', 'faq_contribution', 'time_spent', 'comment']
-        widgets = {
-            'learning_in_public_links': forms.Textarea(attrs={'rows': 4}),
-            'faq_contribution': forms.Textarea(attrs={'rows': 4}),
-            'comment': forms.Textarea(attrs={'rows': 4}),
-        }
+#     class Meta:
+#         model = ProjectSubmission
+#         fields = ['github_link', 'commit_id', 'learning_in_public_links', 'faq_contribution', 'time_spent', 'comment']
+#         widgets = {
+#             'learning_in_public_links': forms.Textarea(attrs={'rows': 4}),
+#             'faq_contribution': forms.Textarea(attrs={'rows': 4}),
+#             'comment': forms.Textarea(attrs={'rows': 4}),
+#         }

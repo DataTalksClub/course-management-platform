@@ -23,6 +23,8 @@ from courses.models import (  # noqa: E402
     QuestionTypes,
     Project,
     ProjectSubmission,
+    ReviewCriteria,
+    ReviewCriteriaTypes,
 )
 
 
@@ -213,7 +215,7 @@ Question(
 
 project = Project(
     course=course,
-    name="Fake Project",
+    title="Fake Project",
     slug="fake-project",
     submission_due_date=ten_years_later,
     peer_review_due_date=ten_years_later,
@@ -229,8 +231,8 @@ project_submission = ProjectSubmission(
     project=project,
     student=admin_user,
     enrollment=admin_enrollment,
-    github_link="https://github.com/fakeuser/fakeproject",
-    commit_id="123abc456def",
+    github_link="https://github.com/DataTalksClub/data-engineering-zoomcamp",
+    commit_id="8c45587",
     learning_in_public_links={
         "link1": "http://example.com",
         "link2": "http://example.org",
@@ -240,3 +242,138 @@ project_submission = ProjectSubmission(
     comment="This is a test submission.",
 )
 project_submission.save()
+
+
+criteria_data = [
+    {
+        "description": "Problem description",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {"criteria": "The problem is not described", "score": 0},
+            {
+                "criteria": "The problem is described but shortly or not clearly",
+                "score": 1,
+            },
+            {
+                "criteria": "The problem is well described and it's clear what the problem the project solves",
+                "score": 2,
+            },
+        ],
+    },
+    {
+        "description": "Cloud",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {
+                "criteria": "Cloud is not used, things run only locally",
+                "score": 0,
+            },
+            {
+                "criteria": "The project is developed on the cloud OR uses localstack (or similar tool) OR the project is deployed to Kubernetes or similar container management platforms",
+                "score": 2,
+            },
+            {
+                "criteria": "The project is developed on the cloud and IaC tools are used for provisioning the infrastructure",
+                "score": 4,
+            },
+        ],
+    },
+    {
+        "description": "Experiment tracking and model registry",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {
+                "criteria": "No experiment tracking or model registry",
+                "score": 0,
+            },
+            {
+                "criteria": "Experiments are tracked or models are registered in the registry",
+                "score": 2,
+            },
+            {
+                "criteria": "Both experiment tracking and model registry are used",
+                "score": 4,
+            },
+        ],
+    },
+    {
+        "description": "Workflow orchestration",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {"criteria": "No workflow orchestration", "score": 0},
+            {"criteria": "Basic workflow orchestration", "score": 2},
+            {"criteria": "Fully deployed workflow", "score": 4},
+        ],
+    },
+    {
+        "description": "Model deployment",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {"criteria": "Model is not deployed", "score": 0},
+            {
+                "criteria": "Model is deployed but only locally",
+                "score": 2,
+            },
+            {
+                "criteria": "The model deployment code is containerized and could be deployed to cloud or special tools for model deployment are used",
+                "score": 4,
+            },
+        ],
+    },
+    {
+        "description": "Model monitoring",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {"criteria": "No model monitoring", "score": 0},
+            {
+                "criteria": "Basic model monitoring that calculates and reports metrics",
+                "score": 2,
+            },
+            {
+                "criteria": "Comprehensive model monitoring that sends alerts or runs a conditional workflow (e.g. retraining, generating debugging dashboard, switching to a different model) if the defined metrics threshold is violated",
+                "score": 4,
+            },
+        ],
+    },
+    {
+        "description": "Reproducibility",
+        "type": ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        "options": [
+            {
+                "criteria": "No instructions on how to run the code at all, the data is missing",
+                "score": 0,
+            },
+            {
+                "criteria": "Some instructions are there, but they are not complete OR instructions are clear and complete, the code works, but the data is missing",
+                "score": 2,
+            },
+            {
+                "criteria": "Instructions are clear, it's easy to run the code, and it works. The versions for all the dependencies are specified",
+                "score": 4,
+            },
+        ],
+    },
+    {
+        "description": "Best practices",
+        "type": ReviewCriteriaTypes.CHECKBOXES.value,
+        "options": [
+            {"criteria": "There are unit tests", "score": 1},
+            {"criteria": "There is an integration test", "score": 1},
+            {
+                "criteria": "Linter and/or code formatter are used",
+                "score": 1,
+            },
+            {"criteria": "There's a Makefile", "score": 1},
+            {"criteria": "There are pre-commit hooks", "score": 1},
+            {"criteria": "There's a CI/CD pipeline", "score": 2},
+        ],
+    },
+]
+
+for criterion in criteria_data:
+    ReviewCriteria.objects.create(
+        course=course,
+        description=criterion["description"],
+        review_criteria_type=criterion["type"],
+        options=criterion["options"],
+    )

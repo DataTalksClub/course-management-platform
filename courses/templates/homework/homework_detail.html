@@ -119,32 +119,8 @@
       </div>
     {% endif %}
 
-    {% if homework.learning_in_public_cap > 0 %}
-      <div id="learning-in-public-links-container" class="mb-3 question">
-        <label for="learning_in_public_links[]" class="question-text">
-          Learning in public links
-          <i
-            class="fas fa-question-circle text-muted"
-            data-toggle="tooltip"
-            data-placement="top"
-            title="Links to social media posts where you share your progress (LinkedIn, Twitter, etc). {% if course.social_media_hashtag %} Use {{ course.social_media_hashtag }} tag.{% endif %} The scores are capped at {{ homework.learning_in_public_cap }} point.">
-          </i>
-        </label>
-        <div id="learning-in-public-links">
-          {% for link in submission.learning_in_public_links %}
-            <input type="url" class="form-control" name="learning_in_public_links[]" value="{{ link }}" {% if disabled %} disabled {% endif %}>
-          {% endfor %}
-          {% if submission.learning_in_public_links|length < homework.learning_in_public_cap and not disabled %}
-            <input type="url" class="form-control" name="learning_in_public_links[]" {% if disabled %} disabled {% endif %}>
-          {% endif %}
-        </div>
-        {% if not homework.is_scored and not disabled %}
-          <button type="button" id="add-learning-public-link" class="btn btn-outline-secondary mt-2">
-            Add Link
-          </button>
-        {% endif %}
-      </div>
-    {% endif %}
+    {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=homework.learning_in_public_cap learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+    <script src="{% static 'learning_in_public.js' %}"></script>
 
     {% if homework.time_spent_lectures_field %}
       <div class="mb-3 question">
@@ -240,14 +216,11 @@
   {% endif %}
 
   <script>
-    global_learning_in_public_cap = {{ homework.learning_in_public_cap }};
-
     $(function () {
       $('[data-toggle="tooltip"]').tooltip()
     });
   </script>
 
   <script src="{% static 'homework_detail.js' %}"></script>
-
 
 {% endblock %}

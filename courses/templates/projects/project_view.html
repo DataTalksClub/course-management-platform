@@ -1,18 +1,152 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
 {% block content %}
-  <h2>Project: {{ project.name }}</h2>
-  <form method="post" {% if not is_editable %} class="disabled" {% endif %}>
-    {% csrf_token %}
-    {{ form.as_p }}
-    
-    {% if is_editable %}
-      <button type="submit" class="btn btn-primary">Submit</button>
-    {% endif %}
-  
-  </form>
-  
-  {% if not is_editable %}
-    <p>This project is no longer accepting submissions.</p>
+
+<h2 class="mb-3 text-center">{{ project.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert {{ message.tags }}">
+      <p>{{ message }}</p>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if errors %}
+  {% for error in errors %}
+    <div class="alert alert-danger">
+      <p>{{ error }}</p>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- TODO! -->
+{% if disabled %}
+  {% if submission %}
+    <div class="alert alert-success">
+      <p>This project is already scored. Your score is {{ submission.total_score }}.</p>
+    </div>
+  {% else %}
+    <div class="alert alert-warning">
+      <p>This homework is already scored. You didn't submit your answers.</p>
+    </div>
   {% endif %}
+{% endif %}
+
+<p class="text-muted">{{ project.description }}</p>
+
+<h3 class="mb-3">Submission</h3>
+
+<form method="post" class="needs-validation" novalidate>
+  {% if is_authenticated %}
+    {% csrf_token %}
+  {% endif %}
+
+  {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+  <script src="{% static 'learning_in_public.js' %}"></script>
+
+  
+
+  {% if homework.time_spent_lectures_field %}
+    <div class="mb-3 question">
+      <label for="time_spent_lectures" class="question-text">
+        Time spent on lectures (hours)
+        <i
+          class="fas fa-question-circle text-muted"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="How much time (in hours) did you spend on watching lectures and reading?">
+        </i>
+      </label>
+      <input
+        type="number"
+        class="form-control"
+        name="time_spent_lectures"
+        id="time_spent_lectures"
+        min="0"
+        value="{{ submission.time_spent_lectures|default:'' }}"
+        {% if disabled %} disabled {% endif %}
+      />
+    </div>
+  {% endif %}
+
+  {% if homework.time_spent_homework_field %}
+    <div class="mb-3 question">
+      <label for="time_spent_homework" class="question-text">
+        Time spent on homework (hours)
+        <i
+          class="fas fa-question-circle text-muted"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="How much time (in hours) did you spend on homework?">
+        </i>
+      </label>
+      <input
+        type="number"
+        class="form-control"
+        name="time_spent_homework"
+        id="time_spent_homework"
+        min="0"
+        value="{{ submission.time_spent_homework|default:'' }}"
+        {% if disabled %} disabled {% endif %}
+      />
+    </div>
+  {% endif %}
+
+  {% if homework.problems_comments_field %}
+    <div class="mb-3 question">
+      <label for="problems_comments" class="question-text">Problems or comments</label>
+      <textarea
+        class="form-control"
+        name="problems_comments"
+        id="problems_comments"
+        {% if disabled %} disabled {% endif %}
+      >{{ submission.problems_comments|default:'' }}</textarea>
+    </div>
+  {% endif %}
+
+  {% if course.faq_document_url and homework.faq_contribution_field %}
+    <div class="mb-3 question">
+      <label for="faq_contribution" class="question-text">
+        FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span>
+        <i
+          class="fas fa-question-circle text-muted"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?">
+        </i>
+      </label>
+      <textarea
+        class="form-control"
+        name="faq_contribution"
+        id="faq_contribution"
+        {% if disabled %} disabled {% endif %}
+      >{{ submission.faq_contribution|default:'' }}</textarea>
+    </div>
+  {% endif %}
+
+  {% if not homework.is_scored %}
+    <div class="mt-4 text-center">
+      {% if is_authenticated %}
+        <button type="submit" class="btn btn-primary">Save</button>
+      {% else %}
+        <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</form>
+
+<script>
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip()
+  });
+</script>
+
+<script src="{% static 'homework_detail.js' %}"></script>
 {% endblock %}

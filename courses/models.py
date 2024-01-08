@@ -244,9 +244,11 @@ class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     slug = models.SlugField(blank=False)
 
-    name = models.CharField(max_length=200)
+    title = models.CharField(max_length=200)
+    description = models.TextField()
 
     submission_due_date = models.DateTimeField()
+
     learning_in_public_cap_project = models.IntegerField(default=14)
 
     peer_review_due_date = models.DateTimeField()
@@ -284,6 +286,8 @@ class ProjectSubmission(models.Model):
 
     time_spent = models.FloatField()
     comment = models.TextField(blank=True)
+
+    submitted_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.project.name} - {self.student.username}"
