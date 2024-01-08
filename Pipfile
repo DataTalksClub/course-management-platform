@@ -8,6 +8,7 @@ django = "*"
 django-allauth = {extras = ["slack"], version = "*"}
 
 [dev-packages]
+ipython = "*"
 
 [requires]
 python_version = "3.9"

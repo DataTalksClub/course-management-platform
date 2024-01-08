@@ -15,5 +15,9 @@ data:
 	pipenv run python add_data.py
 
 
+shell:
+	pipenv run python manage.py shell
+
+
 admin:
 	pipenv run python manage.py createsuperuser
