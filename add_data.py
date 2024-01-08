@@ -4,10 +4,12 @@ import django
 from datetime import datetime, timedelta
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE", "course_management.settings"
+)
 django.setup()
 
-from django.contrib.auth import get_user_model # noqa: E402
+from django.contrib.auth import get_user_model  # noqa: E402
 
 # This will retrieve your 'CustomUser' model
 from courses.models import (  # noqa: E402
@@ -19,14 +21,15 @@ from courses.models import (  # noqa: E402
     Answer,
     AnswerTypes,
     QuestionTypes,
+    Project,
+    ProjectSubmission,
 )
 
 
 User = get_user_model()
 
 admin_user, created = User.objects.get_or_create(
-    username="admin",
-    defaults={'email': "admin@admin.com"}
+    username="admin", defaults={"email": "admin@admin.com"}
 )
 
 if created:
@@ -110,8 +113,8 @@ question16.save()
 
 admin_submission = Submission(
     homework=homework1,
-    student=admin_user, 
-    enrollment=admin_enrollment
+    student=admin_user,
+    enrollment=admin_enrollment,
 )
 admin_submission.save()
 
@@ -152,8 +155,6 @@ Answer(
     question=question16,
     answer_text="Helium",
 ).save()
-
-
 
 
 homework2 = Homework(
@@ -208,3 +209,34 @@ Question(
     answer_type=AnswerTypes.CONTAINS_STRING.value,
     correct_answer="JavaScript",
 ).save()
+
+
+project = Project(
+    course=course,
+    name="Fake Project",
+    slug="fake-project",
+    submission_due_date=ten_years_later,
+    peer_review_due_date=ten_years_later,
+    learning_in_public_cap_project=14,
+    learning_in_public_cap_review=2,
+    number_of_peers_to_evaluate=3,
+    points_to_pass=10,
+)
+
+project.save()
+
+project_submission = ProjectSubmission(
+    project=project,
+    student=admin_user,
+    enrollment=admin_enrollment,
+    github_link="https://github.com/fakeuser/fakeproject",
+    commit_id="123abc456def",
+    learning_in_public_links={
+        "link1": "http://example.com",
+        "link2": "http://example.org",
+    },
+    faq_contribution="Contributed to the following FAQs...",
+    time_spent=10.0,
+    comment="This is a test submission.",
+)
+project_submission.save()

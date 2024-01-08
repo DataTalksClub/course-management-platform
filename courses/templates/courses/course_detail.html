@@ -53,5 +53,19 @@
   </div>
 {% endfor %}
 
+<h2>Projects</h2>
+  {% for project in projects %}
+    <div>
+      <a href="{% url 'project_view' course_slug=course.slug project_slug=project.slug %}">
+        {{ project.name }}
+      </a>
+      <p>Due Date: {{ project.submission_due_date }}</p>
+      <p>Peer Review Due Date: {{ project.peer_review_due_date }}</p>
+    </div>
+  {% empty %}
+    <div>
+      No projects available yet.
+    </div>
+  {% endfor %}
 
 {% endblock %}

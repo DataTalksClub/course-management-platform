@@ -3,8 +3,7 @@ from django.contrib import admin
 from django.contrib import messages
 
 
-from .models import Course
-from .models import Homework, Question
+from .models import Course, Homework, Question, Project
 
 from .scoring import score_homework_submissions
 
@@ -33,11 +32,18 @@ def score_selected_homeworks(modeladmin, request, queryset):
     for homework in queryset:
         status, message = score_homework_submissions(homework.id)
         if status:
-            modeladmin.message_user(request, message, level=messages.SUCCESS)
+            modeladmin.message_user(
+                request, message, level=messages.SUCCESS
+            )
         else:
-            modeladmin.message_user(request, message, level=messages.WARNING)
+            modeladmin.message_user(
+                request, message, level=messages.WARNING
+            )
 
-score_selected_homeworks.short_description = "Score selected homeworks"
+
+score_selected_homeworks.short_description = (
+    "Score selected homeworks"
+)
 
 
 class HomeworkAdmin(admin.ModelAdmin):
@@ -46,3 +52,5 @@ class HomeworkAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Homework, HomeworkAdmin)
+
+admin.site.register(Project)

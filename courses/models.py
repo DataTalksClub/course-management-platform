@@ -27,14 +27,14 @@ class Course(models.Model):
     social_media_hashtag = models.CharField(
         max_length=100,
         blank=True,
-        help_text="The hashtag associated with the course for social media use."
+        help_text="The hashtag associated with the course for social media use.",
     )
 
     # New field for the URL of the FAQ document
     faq_document_url = models.URLField(
         blank=True,
         validators=[URLValidator()],
-        help_text="The URL of the FAQ document for the course."
+        help_text="The URL of the FAQ document for the course.",
     )
 
     def __str__(self):
@@ -87,8 +87,7 @@ class Homework(models.Model):
     learning_in_public_cap = models.IntegerField(default=7)
 
     homework_url_field = models.BooleanField(
-        default=True,
-        help_text="Include field for homework URL"
+        default=True, help_text="Include field for homework URL"
     )
     time_spent_lectures_field = models.BooleanField(
         default=True,
@@ -179,11 +178,7 @@ class Submission(models.Model):
     homework_link = models.URLField(
         blank=True,
         null=True,
-        validators=[
-            URLValidator(
-                schemes=["http", "https", "git"]
-            )
-        ],
+        validators=[URLValidator(schemes=["http", "https", "git"])],
     )
     learning_in_public_links = models.JSONField(
         blank=True,
@@ -237,3 +232,116 @@ class Answer(models.Model):
 
     def __str__(self):
         return f"Answer by {self.student} for {self.question}"
+
+
+class ProjectState(Enum):
+    COLLECTING_SUBMISSIONS = "CS"
+    PEER_REVIEWING = "PR"
+    COMPLETED = "CO"
+
+
+class Project(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    slug = models.SlugField(blank=False)
+
+    name = models.CharField(max_length=200)
+
+    submission_due_date = models.DateTimeField()
+    learning_in_public_cap_project = models.IntegerField(default=14)
+
+    peer_review_due_date = models.DateTimeField()
+
+    learning_in_public_cap_review = models.IntegerField(default=2)
+    number_of_peers_to_evaluate = models.IntegerField(default=3)
+
+    points_to_pass = models.IntegerField(default=0)
+
+    state = models.CharField(
+        max_length=2,
+        choices=[(state.value, state.name) for state in ProjectState],
+        default=ProjectState.COLLECTING_SUBMISSIONS.value,
+    )
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        unique_together = ("course", "slug")
+
+
+class ProjectSubmission(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    enrollment = models.ForeignKey(
+        Enrollment, on_delete=models.CASCADE
+    )
+
+    github_link = models.URLField(validators=[URLValidator()])
+    commit_id = models.CharField(max_length=40)
+
+    learning_in_public_links = models.JSONField(blank=True, null=True)
+    faq_contribution = models.TextField(blank=True)
+
+    time_spent = models.FloatField()
+    comment = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.project.name} - {self.student.username}"
+
+
+class ReviewCriteriaTypes(Enum):
+    RADIO_BUTTONS = "RB"
+    CHECKBOXES = "CB"
+
+
+class ReviewCriteria(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    description = models.CharField(max_length=255)
+
+    options = models.JSONField()
+
+    max_score = models.IntegerField(default=4)
+
+    REVIEW_CRITERIA_TYPES = (
+        (ReviewCriteriaTypes.RADIO_BUTTONS.value, "Radio Buttons"),
+        (ReviewCriteriaTypes.CHECKBOXES.value, "Checkboxes"),
+    )
+
+    review_criteria_type = models.CharField(
+        max_length=2, choices=REVIEW_CRITERIA_TYPES
+    )
+
+    def __str__(self):
+        return self.description
+
+
+class PeerReview(models.Model):
+    submission_under_evaluation = models.ForeignKey(
+        ProjectSubmission, on_delete=models.CASCADE
+    )
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE)
+    note_to_peer = models.TextField()
+    learning_in_public_links = models.JSONField(blank=True, null=True)
+    time_spent_reviewing = models.FloatField()
+    comments = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Review by {self.reviewer.username} for {self.submission_under_evaluation.project.name}"
+
+    def get_criteria_responses(self):
+        return self.criteria_responses.all()
+
+
+class CriteriaResponse(models.Model):
+    review = models.ForeignKey(
+        PeerReview,
+        related_name="criteria_responses",
+        on_delete=models.CASCADE,
+    )
+    criteria = models.ForeignKey(
+        ReviewCriteria, on_delete=models.CASCADE
+    )
+    score = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.criteria.description}: {self.score}"

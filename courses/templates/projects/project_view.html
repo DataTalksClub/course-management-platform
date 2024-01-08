@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Project: {{ project.name }}</h2>
+  <form method="post" {% if not is_editable %} class="disabled" {% endif %}>
+    {% csrf_token %}
+    {{ form.as_p }}
+    
+    {% if is_editable %}
+      <button type="submit" class="btn btn-primary">Submit</button>
+    {% endif %}
+  
+  </form>
+  
+  {% if not is_editable %}
+    <p>This project is no longer accepting submissions.</p>
+  {% endif %}
+{% endblock %}

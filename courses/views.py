@@ -23,10 +23,14 @@ from .models import (
     Submission,
     QuestionTypes,
     Enrollment,
+    Project,
+    ProjectSubmission,
+    ProjectState,
+    User,
 )
 
 from .scoring import is_free_form_answer_correct
-from .forms import EnrollmentForm
+from .forms import EnrollmentForm, ProjectSubmissionForm
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,63 @@ def course_list(request):
     )
 
 
+def get_projects_for_course(
+    course: Course, user: User
+) -> List[Project]:
+    if user.is_authenticated:
+        queryset = ProjectSubmission.objects.filter(student=user)
+    else:
+        queryset = ProjectSubmission.objects.none()
+
+    submissions_prefetch = Prefetch(
+        "projectsubmission_set",
+        queryset=queryset,
+        to_attr="submissions",
+    )
+
+    projects = Project.objects.filter(course=course).prefetch_related(
+        submissions_prefetch
+    )
+
+    for project in projects:
+        update_project_with_additional_info(project)
+
+    return list(projects)
+
+
+def update_project_with_additional_info(project: Project) -> None:
+    days_until_due = 0
+
+    if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        if project.submission_due_date > timezone.now():
+            days_until_due = (
+                project.submission_due_date - timezone.now()
+            ).days
+
+        project.days_until_due = days_until_due
+        project.submitted = False
+        project.score = None
+    elif project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        pass
+    elif project.state == ProjectState.COMPLETED.value:
+        pass
+    else:
+        # log unknown state
+        pass
+
+    if not project.submissions:
+        return
+
+    submission = project.submissions[0]
+    project.submitted = True
+
+    if project.state == ProjectState.COMPLETED.value:
+        pass
+        # project.score = submission.total_score
+    else:
+        project.submitted_at = submission.submitted_at
+
+
 def course_detail(
     request: HttpRequest, course_slug: str
 ) -> HttpResponse:
@@ -49,11 +110,15 @@ def course_detail(
     user = request.user
     homeworks = get_homeworks_for_course(course, user)
 
-    total_score = sum(hw.score or 0 for hw in homeworks)
+    homework_score = sum(hw.score or 0 for hw in homeworks)
+    total_score = homework_score
+
+    projects = get_projects_for_course(course, user)
 
     context = {
         "course": course,
         "homeworks": homeworks,
+        "projects": projects,
         "is_authenticated": user.is_authenticated,
         "total_score": total_score,
     }
@@ -106,30 +171,32 @@ def update_homework_with_additional_info(homework: Homework) -> None:
 def process_quesion_free_form(
     homework: Homework, question: Question, answer: Answer
 ):
-    if homework.is_scored:
+    if not homework.is_scored:
         if not answer:
-            return {"text": question.correct_answer}
+            return {"text": ""}
         else:
-            is_correct = is_free_form_answer_correct(
-                user_answer=answer.answer_text,
-                correct_answer=question.correct_answer,
-                answer_type=question.answer_type,
-            )
-
-            if is_correct:
-                correctly_selected = "option-answer-correct"
-            else:
-                correctly_selected = "option-answer-incorrect"
-
-            return {
-                "text": answer.answer_text,
-                "correctly_selected_class": correctly_selected,
-            }
+            return {"text": answer.answer_text}
 
     if not answer:
-        return {"text": ""}
+        return {"text": question.correct_answer}
+
+    # the homework is scored and we want to show the answers
+
+    is_correct = is_free_form_answer_correct(
+        user_answer=answer.answer_text,
+        correct_answer=question.correct_answer,
+        answer_type=question.answer_type,
+    )
+
+    if is_correct:
+        correctly_selected = "option-answer-correct"
     else:
-        return {"text": answer.answer_text}
+        correctly_selected = "option-answer-incorrect"
+
+    return {
+        "text": answer.answer_text,
+        "correctly_selected_class": correctly_selected,
+    }
 
 
 def process_question_options_multiple_choice_or_checkboxes(
@@ -159,13 +226,9 @@ def process_question_options_multiple_choice_or_checkboxes(
         if homework.is_scored:
             is_correct = option in correct_answers
 
-            correctly_selected = "option-answer-none"
-            if is_selected and is_correct:
-                correctly_selected = "option-answer-correct"
-            if not is_selected and is_correct:
-                correctly_selected = "option-answer-correct"
-            if is_selected and not is_correct:
-                correctly_selected = "option-answer-incorrect"
+            correctly_selected = determine_answer_class(
+                is_selected, is_correct
+            )
 
             processed_answer[
                 "correctly_selected_class"
@@ -174,6 +237,18 @@ def process_question_options_multiple_choice_or_checkboxes(
         options.append(processed_answer)
 
     return {"options": options}
+
+
+def determine_answer_class(
+    is_selected: bool, is_correct: bool
+) -> str:
+    if is_selected and is_correct:
+        return "option-answer-correct"
+    if not is_selected and is_correct:
+        return "option-answer-correct"
+    if is_selected and not is_correct:
+        return "option-answer-incorrect"
+    return "option-answer-none"
 
 
 def process_question_options(
@@ -368,7 +443,9 @@ def homework_detail_build_context_authenticated(
     return context
 
 
-def homework_detail(request: HttpRequest, course_slug: str, homework_slug: str):
+def homework_detail(
+    request: HttpRequest, course_slug: str, homework_slug: str
+):
     course = get_object_or_404(Course, slug=course_slug)
 
     homework = get_object_or_404(
@@ -429,27 +506,28 @@ def leaderboard_view(request, course_slug: str):
     context = {
         "enrollments": enrollments,
         "course": course,
-        "current_student_enrollment_id": enrollment_id
+        "current_student_enrollment_id": enrollment_id,
     }
 
     return render(request, "courses/leaderboard.html", context)
 
 
-
 def leaderboard_detail(request, course_slug: str, enrollment_id: int):
     # course = get_object_or_404(Course, slug=course_slug)
     # Get the specific enrollment
-    enrollment = get_object_or_404(Enrollment, id=enrollment_id, course__slug=course_slug)
+    enrollment = get_object_or_404(
+        Enrollment, id=enrollment_id, course__slug=course_slug
+    )
 
     # Get submissions related to the enrollment
     submissions = Submission.objects.filter(enrollment=enrollment)
 
     context = {
-        'enrollment': enrollment,
-        'submissions': submissions,
+        "enrollment": enrollment,
+        "submissions": submissions,
     }
 
-    return render(request, 'courses/leaderboard_detail.html', context)
+    return render(request, "courses/leaderboard_detail.html", context)
 
 
 @login_required
@@ -464,16 +542,70 @@ def enrollment_detail(request, course_slug):
         form = EnrollmentForm(request.POST, instance=enrollment)
         if form.is_valid():
             form.save()
-            # Redirect to a success page or show a success message
             return redirect("course_detail", course_slug=course_slug)
+        else:
+            messages.error(
+                request, "There was an error updating your enrollment"
+            )
+            # TODO: add POST to form below
 
     form = EnrollmentForm(instance=enrollment)
 
-    context = {
-        "form": form,
-        "course": course
-    }
+    context = {"form": form, "course": course}
 
     return render(request, "courses/enrollment_detail.html", context)
 
 
+def project_view(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    enrollment = None
+    project_submission = ProjectSubmission.objects.filter(
+        project=project, student=request.user
+    ).first()
+
+    if project_submission:
+        enrollment = project_submission.enrollment
+
+    is_editable = (
+        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+    )
+
+    if request.method == "POST":
+        form = ProjectSubmissionForm(
+            request.POST, instance=project_submission
+        )
+        if form.is_valid():
+            project_submission = form.save(commit=False)
+            project_submission.project = project
+            project_submission.student = request.user
+
+            if not enrollment:
+                enrollment = Enrollment.objects.get_or_create(
+                    student=request.user,
+                    course=project.course,
+                )
+            project_submission.enrollment = enrollment
+            project_submission.save()
+
+            return redirect("some_success_url")
+
+    if project_submission:
+        form = ProjectSubmissionForm(instance=project_submission)
+    else:
+        form = ProjectSubmissionForm()
+
+    if not is_editable:
+        form.disable_fields()  # Disable form fields
+
+    context = {
+        "form": form,
+        "project": project,
+        "submission": project_submission,
+        "is_editable": is_editable,
+    }
+
+    return render(request, "projects/project_view.html", context)

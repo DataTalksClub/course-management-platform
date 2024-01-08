@@ -25,8 +25,14 @@ urlpatterns = [
         name="enrollment_detail",
     ),
     path(
-        "<slug:course_slug>/<slug:homework_slug>",
+        "<slug:course_slug>/project/<slug:project_slug>",
+        views.project_view,
+        name="project_view",
+    ),
+    path(
+        "<slug:course_slug>/homework/<slug:homework_slug>",
         views.homework_detail,
         name="homework_detail",
     ),
+
 ]
