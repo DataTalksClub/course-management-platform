@@ -24,7 +24,6 @@ and engage in peer evaluations.
 ├── accounts/ # Handles user accounts and authentication
 ├── course_management/ # Main project folder with settings and root configurations
 ├── courses/ # Main logic is here (courses, homeworks, etc)
-├── main/ # The main app for handling core functionalities
 ├── templates/ # Global templates directory for the project
 ```
 
