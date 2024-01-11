@@ -102,7 +102,7 @@ def update_project_with_additional_info(project: Project) -> None:
         project.submitted_at = submission.submitted_at
 
 
-def course_detail(
+def course_view(
     request: HttpRequest, course_slug: str
 ) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug)
@@ -123,7 +123,7 @@ def course_detail(
         "total_score": total_score,
     }
 
-    return render(request, "courses/course_detail.html", context)
+    return render(request, "courses/course.html", context)
 
 
 def get_homeworks_for_course(course: Course, user) -> List[Homework]:
@@ -372,7 +372,7 @@ def process_homework_submission(
     )
 
     return redirect(
-        "homework_detail",
+        "homework",
         course_slug=course.slug,
         homework_slug=homework.slug,
     )
@@ -444,7 +444,7 @@ def homework_detail_build_context_authenticated(
     return context
 
 
-def homework_detail(
+def homework_view(
     request: HttpRequest, course_slug: str, homework_slug: str
 ):
     course = get_object_or_404(Course, slug=course_slug)
@@ -461,7 +461,7 @@ def homework_detail(
             course=course, homework=homework, questions=questions
         )
         return render(
-            request, "homework/homework_detail.html", context
+            request, "homework/homework.html", context
         )
 
     submission = Submission.objects.filter(
@@ -485,7 +485,7 @@ def homework_detail(
         submission=submission,
     )
 
-    return render(request, "homework/homework_detail.html", context)
+    return render(request, "homework/homework.html", context)
 
 
 def leaderboard_view(request, course_slug: str):
@@ -513,7 +513,7 @@ def leaderboard_view(request, course_slug: str):
     return render(request, "courses/leaderboard.html", context)
 
 
-def leaderboard_detail(request, course_slug: str, enrollment_id: int):
+def leaderboard_score_breakdown_view(request, course_slug: str, enrollment_id: int):
     # course = get_object_or_404(Course, slug=course_slug)
     # Get the specific enrollment
     enrollment = get_object_or_404(
@@ -528,11 +528,11 @@ def leaderboard_detail(request, course_slug: str, enrollment_id: int):
         "submissions": submissions,
     }
 
-    return render(request, "courses/leaderboard_detail.html", context)
+    return render(request, "courses/leaderboard_score_breakdown.html", context)
 
 
 @login_required
-def enrollment_detail(request, course_slug):
+def enrollment_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     enrollment = get_object_or_404(
@@ -543,7 +543,7 @@ def enrollment_detail(request, course_slug):
         form = EnrollmentForm(request.POST, instance=enrollment)
         if form.is_valid():
             form.save()
-            return redirect("course_detail", course_slug=course_slug)
+            return redirect("course", course_slug=course_slug)
         else:
             messages.error(
                 request, "There was an error updating your enrollment"
@@ -554,7 +554,7 @@ def enrollment_detail(request, course_slug):
 
     context = {"form": form, "course": course}
 
-    return render(request, "courses/enrollment_detail.html", context)
+    return render(request, "courses/enrollment.html", context)
 
 
 def project_view(request, course_slug, project_slug):
@@ -628,7 +628,7 @@ def project_view(request, course_slug, project_slug):
         )
 
         return redirect(
-            "project_view",
+            "project",
             course_slug=course.slug,
             project_slug=project.slug,
         )
@@ -644,4 +644,4 @@ def project_view(request, course_slug, project_slug):
         "accepting_submissions": accepting_submissions,
     }
 
-    return render(request, "projects/project_view.html", context)
+    return render(request, "projects/project.html", context)

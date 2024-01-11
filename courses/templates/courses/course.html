@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block breadcrumbs %}
-  <li><a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,7 @@
 
 {% if is_authenticated %}
 <p>
-  <a href="{% url 'enrollment_detail' course.slug %}">Edit course profile</a>
+  <a href="{% url 'enrollment' course.slug %}">Edit course profile</a>
 </p>
 
 <p>Total score: {{ total_score }}</p>
@@ -25,7 +25,7 @@
 {% for hw in homeworks %}
   <div>
     <h3>
-      <a href="{% url 'homework_detail' course.slug hw.slug %}">
+      <a href="{% url 'homework' course.slug hw.slug %}">
         {{ hw.title }}
       </a>
     </h3>
@@ -56,7 +56,7 @@
 <h2>Projects</h2>
   {% for project in projects %}
     <div>
-      <a href="{% url 'project_view' course_slug=course.slug project_slug=project.slug %}">
+      <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
         {{ project.title }}
       </a>
       <p>Due Date: {{ project.submission_due_date }}</p>

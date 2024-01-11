@@ -3,12 +3,12 @@
 {% load static %}
 
 {% block breadcrumbs %}
-  <li><a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
 {% block content %}
 
-  <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course_detail' course.slug %}">{{ course.title }}</a></h2>
+  <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course' course.slug %}">{{ course.title }}</a></h2>
 
   {% if messages %}
     {% for message in messages %}
@@ -226,6 +226,6 @@
     });
   </script>
 
-  <script src="{% static 'homework_detail.js' %}"></script>
+  <script src="{% static 'homework.js' %}"></script>
 
 {% endblock %}

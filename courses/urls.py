@@ -6,8 +6,8 @@ urlpatterns = [
     path("", views.course_list, name="course_list"),
     path(
         "<slug:course_slug>/",
-        views.course_detail,
-        name="course_detail",
+        views.course_view,
+        name="course",
     ),
     path(
         "<slug:course_slug>/leaderboard",
@@ -16,23 +16,23 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/leaderboard/<int:enrollment_id>/",
-        views.leaderboard_detail,
-        name="leaderboard_detail",
+        views.leaderboard_score_breakdown_view,
+        name="leaderboard_score_breakdown",
     ),
     path(
         "<slug:course_slug>/enrollment",
-        views.enrollment_detail,
-        name="enrollment_detail",
+        views.enrollment_view,
+        name="enrollment",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>",
         views.project_view,
-        name="project_view",
+        name="project",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>",
-        views.homework_detail,
-        name="homework_detail",
+        views.homework_view,
+        name="homework",
     ),
 
 ]

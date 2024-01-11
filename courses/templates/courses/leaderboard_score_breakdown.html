@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block breadcrumbs %}
-  <li><a href="{% url 'course_detail' enrollment.course.slug %}">{{ enrollment.course.title }}</a></li>
+  <li><a href="{% url 'course' enrollment.course.slug %}">{{ enrollment.course.title }}</a></li>
   <li><a href="{% url 'leaderboard' enrollment.course.slug %}">Leaderboard</a></li>
 {% endblock %}
 
