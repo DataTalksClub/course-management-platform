@@ -239,7 +239,7 @@ project_submission = ProjectSubmission(
     },
     faq_contribution="Contributed to the following FAQs...",
     time_spent=10.0,
-    comment="This is a test submission.",
+    problems_comments="This is a test submission.",
 )
 project_submission.save()
 

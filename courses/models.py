@@ -253,7 +253,7 @@ class Project(models.Model):
     peer_review_due_date = models.DateTimeField()
     time_spent_project_field = models.BooleanField(default=True)
 
-    problem_comments_field = models.BooleanField(default=True)
+    problems_comments_field = models.BooleanField(default=True)
     faq_contribution_field = models.BooleanField(
         default=True, help_text="Include field for FAQ contributions"
     )
@@ -271,7 +271,7 @@ class Project(models.Model):
     )
 
     def __str__(self):
-        return self.name
+        return self.title
 
     class Meta:
         unique_together = ("course", "slug")
@@ -291,7 +291,7 @@ class ProjectSubmission(models.Model):
     faq_contribution = models.TextField(blank=True)
 
     time_spent = models.FloatField()
-    problem_comments = models.TextField(blank=True)
+    problems_comments = models.TextField(blank=True)
 
     submitted_at = models.DateTimeField(auto_now=True)
 

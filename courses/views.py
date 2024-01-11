@@ -357,8 +357,8 @@ def process_homework_submission(
             )
 
     if homework.problems_comments_field:
-        problem_comments = request.POST.get("problems_comments", "")
-        submission.problems_comments = problem_comments.strip()
+        problems_comments = request.POST.get("problems_comments", "")
+        submission.problems_comments = problems_comments.strip()
 
     if homework.faq_contribution_field:
         faq_contribution = request.POST.get("faq_contribution", "")
@@ -563,28 +563,82 @@ def project_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    # enrollment = None
-    # project_submission = ProjectSubmission.objects.filter(
-    #     project=project, student=request.user
-    # ).first()
-    # if project_submission:
-    #     enrollment = project_submission.enrollment
     user = request.user
     is_authenticated = user.is_authenticated
+
+    enrollment = None
+    project_submission = None
+
+    if is_authenticated:
+        project_submission = ProjectSubmission.objects.filter(
+            project=project, student=request.user
+        ).first()
+
+        if project_submission:
+            enrollment = project_submission.enrollment
 
     accepting_submissions = (
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
     )
 
     if request.method == "POST":
-        raise NotImplementedError()
+        if project_submission:
+            project_submission.submitted_at = timezone.now()
+        else:
+            enrollment, _ = Enrollment.objects.get_or_create(
+                student=user,
+                course=course,
+            )
+            project_submission = ProjectSubmission.objects.create(
+                project=project,
+                student=user,
+                enrollment=enrollment,
+            )
+
+        project_submission.github_link = request.POST.get("github_link")
+        project_submission.commit_id = request.POST.get("commit_id")
+
+        if project.learning_in_public_cap_project > 0:
+            links = request.POST.getlist("learning_in_public_links[]")
+            cleaned_links = clean_learning_in_public_links(
+                links, project.learning_in_public_cap_project
+            )
+            project_submission.learning_in_public_links = cleaned_links
+
+        if project.time_spent_project_field:
+            time_spent = request.POST.get("time_spent")
+            if (
+                time_spent is not None and time_spent != ""
+            ):
+                project_submission.time_spent = tryparsefloat(time_spent)
+
+        if project.problems_comments_field:
+            problems_comments = request.POST.get("problems_comments", "")
+            project_submission.problems_comments = problems_comments.strip()
+
+        if project.faq_contribution_field:
+            faq_contribution = request.POST.get("faq_contribution", "")
+            project_submission.faq_contribution = faq_contribution.strip()
+
+        project_submission.save()
+
+        messages.success(
+            request,
+            "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+        )
+
+        return redirect(
+            "project_view",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
 
     disabled = not accepting_submissions
 
     context = {
         "course": course,
         "project": project,
-        # "submission": project_submission,
+        "submission": project_submission,
         "is_authenticated": is_authenticated,
         "disabled": disabled,
         "accepting_submissions": accepting_submissions,

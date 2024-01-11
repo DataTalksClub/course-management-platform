@@ -63,7 +63,7 @@
       class="form-control"
       id="github_link"
       name="github_link"
-      value="{{ submission.time_spent|default:'' }}"
+      value="{{ submission.github_link|default:'' }}"
       required
       {% if disabled %} disabled {% endif %}
     />
@@ -76,7 +76,7 @@
         class="fas fa-question-circle text-muted"
         data-toggle="tooltip"
         data-placement="top"
-        title="The commit id of your latest commit in the project">
+        title="The commit id of your latest commit in the project. Should be a 7-character hex string">
       </i>
     </label>
     <img
@@ -89,7 +89,7 @@
       id="commit_id"
       class="form-control"
       name="commit_id"
-      value="{{ submission.time_spent|default:'' }}"
+      value="{{ submission.commit_id|default:'' }}"
       required
       {% if disabled %} disabled {% endif %}
     />
@@ -121,7 +121,7 @@
     </div>
   {% endif %}
 
-  {% if project.problem_comments_field %}
+  {% if project.problems_comments_field %}
     <div class="mb-3 question">
       <label for="problems_comments" class="question-text">Problems or comments</label>
       <textarea
@@ -168,6 +168,10 @@
     </div>
   {% endif %}
 </form>
+
+{% if submission %}
+  <p class="text-muted question-text m-0">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+{% endif %}
 
 <script>
   $(function () {
