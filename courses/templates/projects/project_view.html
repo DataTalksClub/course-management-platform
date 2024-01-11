@@ -41,65 +41,87 @@
 
 <p class="text-muted">{{ project.description }}</p>
 
-<h3 class="mb-3">Submission</h3>
+<h3 class="mb-3">Project submission</h3>
 
 <form method="post" class="needs-validation" novalidate>
   {% if is_authenticated %}
     {% csrf_token %}
   {% endif %}
 
+  <div class="mb-3 question">
+    <label for="github_link">
+      GitHub link to the project
+      <i
+        class="fas fa-question-circle text-muted"
+        data-toggle="tooltip"
+        data-placement="top"
+        title="Your project should be hosted on GitHub. Make sure your project is public">
+      </i>
+    </label>
+    <input
+      type="url"
+      class="form-control"
+      id="github_link"
+      name="github_link"
+      value="{{ submission.time_spent|default:'' }}"
+      required
+      {% if disabled %} disabled {% endif %}
+    />
+  </div>
+
+  <div class="mb-3 question">
+    <label for="commit_id">
+      Commit ID
+      <i
+        class="fas fa-question-circle text-muted"
+        data-toggle="tooltip"
+        data-placement="top"
+        title="The commit id of your latest commit in the project">
+      </i>
+    </label>
+    <img
+      class="question-image"
+      src="https://habrastorage.org/webt/kt/w0/-1/ktw0-1oe_azrkwrd4lnpod2mzuq.png"
+      alt="Commit Screenshot"
+    />
+    <input
+      type="text" 
+      id="commit_id"
+      class="form-control"
+      name="commit_id"
+      value="{{ submission.time_spent|default:'' }}"
+      required
+      {% if disabled %} disabled {% endif %}
+    />
+  </div>
+
   {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
   <script src="{% static 'learning_in_public.js' %}"></script>
 
-  
-
-  {% if homework.time_spent_lectures_field %}
+  {% if project.time_spent_project_field %}
     <div class="mb-3 question">
-      <label for="time_spent_lectures" class="question-text">
-        Time spent on lectures (hours)
+      <label for="time_spent" class="question-text">
+        Time spent on project (hours)
         <i
           class="fas fa-question-circle text-muted"
           data-toggle="tooltip"
           data-placement="top"
-          title="How much time (in hours) did you spend on watching lectures and reading?">
+          title="How much time (in hours) did you spend to work on the project?">
         </i>
       </label>
       <input
         type="number"
         class="form-control"
-        name="time_spent_lectures"
-        id="time_spent_lectures"
+        name="time_spent"
+        id="time_spent"
         min="0"
-        value="{{ submission.time_spent_lectures|default:'' }}"
+        value="{{ submission.time_spent|default:'' }}"
         {% if disabled %} disabled {% endif %}
       />
     </div>
   {% endif %}
 
-  {% if homework.time_spent_homework_field %}
-    <div class="mb-3 question">
-      <label for="time_spent_homework" class="question-text">
-        Time spent on homework (hours)
-        <i
-          class="fas fa-question-circle text-muted"
-          data-toggle="tooltip"
-          data-placement="top"
-          title="How much time (in hours) did you spend on homework?">
-        </i>
-      </label>
-      <input
-        type="number"
-        class="form-control"
-        name="time_spent_homework"
-        id="time_spent_homework"
-        min="0"
-        value="{{ submission.time_spent_homework|default:'' }}"
-        {% if disabled %} disabled {% endif %}
-      />
-    </div>
-  {% endif %}
-
-  {% if homework.problems_comments_field %}
+  {% if project.problem_comments_field %}
     <div class="mb-3 question">
       <label for="problems_comments" class="question-text">Problems or comments</label>
       <textarea
@@ -111,7 +133,7 @@
     </div>
   {% endif %}
 
-  {% if course.faq_document_url and homework.faq_contribution_field %}
+  {% if course.faq_document_url and project.faq_contribution_field %}
     <div class="mb-3 question">
       <label for="faq_contribution" class="question-text">
         FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span>
@@ -131,12 +153,17 @@
     </div>
   {% endif %}
 
-  {% if not homework.is_scored %}
+  {% if accepting_submissions %}
     <div class="mt-4 text-center">
       {% if is_authenticated %}
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button
+            id="submit-button"
+            type="submit"
+            class="btn btn-primary">
+          Save
+        </button>
       {% else %}
-        <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+        <p>Please <a href="{% url 'login' %}">log in</a> to submit your project.</p>
       {% endif %}
     </div>
   {% endif %}

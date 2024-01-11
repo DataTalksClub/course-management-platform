@@ -84,3 +84,15 @@
 .bg-info {
   background-color: #d1ecf1 !important; /* Adjust color as needed */
 }
+
+.tooltip-icon {
+  margin-left: 4px; /* Adjust as needed */
+}
+
+.question .question-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}

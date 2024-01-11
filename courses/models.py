@@ -250,11 +250,17 @@ class Project(models.Model):
     submission_due_date = models.DateTimeField()
 
     learning_in_public_cap_project = models.IntegerField(default=14)
-
     peer_review_due_date = models.DateTimeField()
+    time_spent_project_field = models.BooleanField(default=True)
+
+    problem_comments_field = models.BooleanField(default=True)
+    faq_contribution_field = models.BooleanField(
+        default=True, help_text="Include field for FAQ contributions"
+    )
 
     learning_in_public_cap_review = models.IntegerField(default=2)
     number_of_peers_to_evaluate = models.IntegerField(default=3)
+    time_spent_evaluation_field = models.BooleanField(default=True)
 
     points_to_pass = models.IntegerField(default=0)
 
@@ -285,7 +291,7 @@ class ProjectSubmission(models.Model):
     faq_contribution = models.TextField(blank=True)
 
     time_spent = models.FloatField()
-    comment = models.TextField(blank=True)
+    problem_comments = models.TextField(blank=True)
 
     submitted_at = models.DateTimeField(auto_now=True)
 

@@ -569,6 +569,8 @@ def project_view(request, course_slug, project_slug):
     # ).first()
     # if project_submission:
     #     enrollment = project_submission.enrollment
+    user = request.user
+    is_authenticated = user.is_authenticated
 
     accepting_submissions = (
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
@@ -583,6 +585,7 @@ def project_view(request, course_slug, project_slug):
         "course": course,
         "project": project,
         # "submission": project_submission,
+        "is_authenticated": is_authenticated,
         "disabled": disabled,
         "accepting_submissions": accepting_submissions,
     }
