@@ -83,11 +83,11 @@ class CourseDetailViewTests(TestCase):
 
     def test_course_detail_unauthenticated_user(self):
         # Test the view for an unauthenticated user
-        url = reverse("course_detail", kwargs={"course_slug": self.course.slug})
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
 
         response = self.client.get(url)
 
-        self.assertTemplateUsed(response, 'courses/course_detail.html')
+        self.assertTemplateUsed(response, 'courses/course.html')
         self.assertEqual(response.status_code, 200)
         
         context = response.context
@@ -108,7 +108,7 @@ class CourseDetailViewTests(TestCase):
         # Test the view for an authenticated user
         self.client.login(username="testuser", password="12345")
 
-        url = reverse("course_detail", kwargs={"course_slug": self.course.slug})
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)

@@ -114,7 +114,7 @@ class HomeworkDetailViewTests(TestCase):
 
     def test_homework_detail_unauthenticated(self):
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -124,7 +124,7 @@ class HomeworkDetailViewTests(TestCase):
 
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed(
-            response, "homework/homework_detail.html"
+            response, "homework/homework.html"
         )
 
         context = response.context
@@ -186,7 +186,7 @@ class HomeworkDetailViewTests(TestCase):
         self.client.login(**credentials)
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -196,7 +196,7 @@ class HomeworkDetailViewTests(TestCase):
 
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed(
-            response, "homework/homework_detail.html"
+            response, "homework/homework.html"
         )
 
         context = response.context
@@ -315,7 +315,7 @@ class HomeworkDetailViewTests(TestCase):
         self.client.login(**credentials)
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -326,7 +326,7 @@ class HomeworkDetailViewTests(TestCase):
 
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed(
-            response, "homework/homework_detail.html"
+            response, "homework/homework.html"
         )
 
         context = response.context
@@ -459,7 +459,7 @@ class HomeworkDetailViewTests(TestCase):
         self.client.login(**credentials)
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -470,7 +470,7 @@ class HomeworkDetailViewTests(TestCase):
 
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed(
-            response, "homework/homework_detail.html"
+            response, "homework/homework.html"
         )
 
         context = response.context
@@ -618,7 +618,7 @@ class HomeworkDetailViewTests(TestCase):
         }
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -636,7 +636,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # check that redict url is correct
         redirect_url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -759,7 +759,7 @@ class HomeworkDetailViewTests(TestCase):
         }
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -777,7 +777,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # check that redict url is correct
         redirect_url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -847,7 +847,7 @@ class HomeworkDetailViewTests(TestCase):
         }
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -923,7 +923,7 @@ class HomeworkDetailViewTests(TestCase):
         }
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
@@ -978,7 +978,7 @@ class HomeworkDetailViewTests(TestCase):
         }
 
         url = reverse(
-            "homework_detail",
+            "homework",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
