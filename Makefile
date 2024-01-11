@@ -1,23 +1,22 @@
-run:
+localvars:
+	export DATABASE_URL="sqlite:///db/db.sqlite3"
+
+run: localvars
 	pipenv run python manage.py runserver 0.0.0.0:8000
 
 
-migrations:
+migrations: localvars
 	pipenv run python manage.py makemigrations
 	pipenv run python manage.py migrate
 
 
-tests:
+tests: localvars
 	pipenv run python manage.py test courses.tests
 
 
-data:
+data: localvars
 	pipenv run python add_data.py
 
 
-shell:
+shell: localvars
 	pipenv run python manage.py shell
-
-
-admin:
-	pipenv run python manage.py createsuperuser

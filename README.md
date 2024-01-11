@@ -51,6 +51,12 @@ pipenv shell
 
 ### Prepare the service
 
+Set the database to local:
+
+```bash
+export DATABASE_URL="sqlite:///db.sqlite3"
+```
+
 Make migrations:
 
 ```bash
@@ -78,8 +84,49 @@ make run
 # python manage.py runserver 0.0.0.0:8000
 ```
 
+## Running with Docker
 
-### Authentication setup
+Build it:
+
+```bash
+docker build -t course_management .
+```
+
+Run it:
+
+```bash
+docker run -d \
+    -p 8000:8000 \
+    --name course_management \
+    -e DATABASE_URL="sqlite:////data/db.sqlite3" \
+    -v ${PWD}/db:/data \
+    course_management
+```
+
+if you're on cygwin:
+
+```bash
+docker run -it --rm \
+    -p 8000:8000 \
+    --name course_management \
+    -e DATABASE_URL="sqlite:////data/db.sqlite3" \
+    -v `cygpath -w ${PWD}/db`:/data \
+    course_management
+```
+
+remove the container later
+
+```bash
+docker rm course_management
+```
+
+get to the container
+
+```bash
+docker exec -it course_management bash
+```
+
+## Authentication setup
 
 If you want to authenticate with OAuth locally
 (not requeired for testing), do the following

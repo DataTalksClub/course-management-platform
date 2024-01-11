@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -85,14 +87,11 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
+db_config = dj_database_url.config(default=DATABASE_URL)
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        "TEST": {
-            "NAME":  BASE_DIR / "db-test.sqlite3",
-        },
-    }
+    "default": db_config
 }
 
 
@@ -130,10 +129,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
+STATIC_ROOT = BASE_DIR / "static"
 STATIC_URL = "/static/"
 
 # STATICFILES_DIRS = [
-#     BASE_DIR / "static",
+#     STATIC_ROOT,
 #     # Other directories here
 # ]
 

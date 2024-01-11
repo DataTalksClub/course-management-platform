@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 django = "*"
 django-allauth = {extras = ["slack"], version = "*"}
+dj-database-url = "*"
+uvicorn = "*"
 
 [dev-packages]
 ipython = "*"
