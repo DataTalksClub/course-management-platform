@@ -20,6 +20,6 @@ COPY entrypoint.sh /code/
 RUN chmod +x /code/entrypoint.sh
 ENTRYPOINT ["/code/entrypoint.sh"]
 
-EXPOSE 8000
+EXPOSE 80
 
-CMD uvicorn course_management.asgi:application --host 0.0.0.0 --port 8000
+CMD uvicorn course_management.asgi:application --host 0.0.0.0 --port 80

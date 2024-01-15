@@ -155,3 +155,36 @@ python manage.py runserver 0.0.0.0:8000
 Now log out as admin and log in with Google
 
 
+## Deployment
+
+Terraform
+
+```bash
+terraform plan -var-file=env.json -var="environment=dev"
+```
+
+```bash
+terraform apply -var-file=env.json -var="environment=dev"
+```
+
+
+ECR dev:
+
+```bash
+export ECR_REPO="387546586013.dkr.ecr.eu-west-1.amazonaws.com"
+export ECR_DEV_URL="${ECR_REPO}/dev-course-management-repo"
+```
+
+Logging in:
+
+```bash
+aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${ECR_REPO}
+```
+
+TODO:
+
+```bash
+docker tag course_management:latest ${ECR_DEV_URL}:latest
+docker push ${ECR_DEV_URL}:latest
+```
+

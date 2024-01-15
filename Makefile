@@ -23,7 +23,7 @@ docker_build:
 
 docker_run: docker_build
 	docker run -it --rm \
-		-p 8001:8001 \
+		-p 8000:80 \
 		--name course_management \
 		-e DEBUG="0" \
 		-e DATABASE_URL="sqlite:////data/db.sqlite3" \

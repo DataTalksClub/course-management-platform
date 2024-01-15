@@ -96,8 +96,6 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
 db_config = dj_database_url.config(default=DATABASE_URL)
 
-print("Database Configuration:", db_config)
-
 DATABASES = {
     "default": db_config
 }
