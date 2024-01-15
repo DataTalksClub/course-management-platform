@@ -26,9 +26,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-+94d0x=*&7rb=9!rax)h@4_xnr0gfekrd1_yges+es8va^z+!o"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = []
+
+APP_NAME = os.environ.get("FLY_APP_NAME")
+
+ALLOWED_HOSTS = [
+    "localhost",
+    f"{APP_NAME}.fly.dev",
+]
 
 
 # Application definition
@@ -53,6 +59,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -61,6 +68,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 ROOT_URLCONF = "course_management.urls"
 
@@ -87,7 +97,7 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
 db_config = dj_database_url.config(default=DATABASE_URL)
 
 DATABASES = {
@@ -130,7 +140,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_ROOT = BASE_DIR / "static"
-STATIC_URL = "/static/"
+STATIC_URL = "static/"
 
 # STATICFILES_DIRS = [
 #     STATIC_ROOT,

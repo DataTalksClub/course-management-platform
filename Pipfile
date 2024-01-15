@@ -8,6 +8,7 @@ django = "*"
 django-allauth = {extras = ["slack"], version = "*"}
 dj-database-url = "*"
 uvicorn = "*"
+whitenoise = "*"
 
 [dev-packages]
 ipython = "*"

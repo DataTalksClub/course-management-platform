@@ -1,22 +1,34 @@
-localvars:
-	export DATABASE_URL="sqlite:///db/db.sqlite3"
-
-run: localvars
+run:
 	pipenv run python manage.py runserver 0.0.0.0:8000
 
 
-migrations: localvars
+migrations:
 	pipenv run python manage.py makemigrations
 	pipenv run python manage.py migrate
 
 
-tests: localvars
+tests:
 	pipenv run python manage.py test courses.tests
 
 
-data: localvars
+data:
 	pipenv run python add_data.py
 
 
-shell: localvars
+shell:
 	pipenv run python manage.py shell
+
+docker_build:
+	docker build -t course_management .
+
+docker_run: docker_build
+	docker run -it --rm \
+		-p 8001:8001 \
+		--name course_management \
+		-e DEBUG="0" \
+		-e DATABASE_URL="sqlite:////data/db.sqlite3" \
+		-v `cygpath -w ${PWD}/db`:/data \
+		course_management
+
+docker_bash:
+	docker exec -it course_management bash
