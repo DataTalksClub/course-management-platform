@@ -153,3 +153,5 @@ python manage.py runserver 0.0.0.0:8000
 ```
 
 Now log out as admin and log in with Google
+
+

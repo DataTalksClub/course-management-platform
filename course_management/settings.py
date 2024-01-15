@@ -25,15 +25,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-+94d0x=*&7rb=9!rax)h@4_xnr0gfekrd1_yges+es8va^z+!o"
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', '1') == '1'
 
 
-APP_NAME = os.environ.get("FLY_APP_NAME")
-
 ALLOWED_HOSTS = [
     "localhost",
-    f"{APP_NAME}.fly.dev",
 ]
 
 
@@ -99,6 +95,8 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
 db_config = dj_database_url.config(default=DATABASE_URL)
+
+print("Database Configuration:", db_config)
 
 DATABASES = {
     "default": db_config

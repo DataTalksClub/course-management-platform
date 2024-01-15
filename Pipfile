@@ -9,6 +9,7 @@ django-allauth = {extras = ["slack"], version = "*"}
 dj-database-url = "*"
 uvicorn = "*"
 whitenoise = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 ipython = "*"
