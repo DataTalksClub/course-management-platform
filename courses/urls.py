@@ -3,6 +3,7 @@ from . import views
 
 
 urlpatterns = [
+    # path('ping', views.ping, name='ping'),
     path("", views.course_list, name="course_list"),
     path(
         "<slug:course_slug>/",

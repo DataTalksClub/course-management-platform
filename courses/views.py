@@ -38,6 +38,10 @@ logger = logging.getLogger(__name__)
 NONE_LIST = [None]
 
 
+def ping(request):
+    return HttpResponse("OK")
+
+
 def course_list(request):
     courses = Course.objects.all()
     return render(

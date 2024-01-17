@@ -23,17 +23,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-+94d0x=*&7rb=9!rax)h@4_xnr0gfekrd1_yges+es8va^z+!o"
+SECRET_KEY = os.getenv("SECRET_KEY", "SOME_SECRET_KEY")
 
 DEBUG = os.getenv("DEBUG", "1") == "1"
 
+EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
+extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 
 ALLOWED_HOSTS = [
-    "courses-dev.datatalks.club",
-    "course-management-dev-1297216880.eu-west-1.elb.amazonaws.com",
-    "courses.datatalks.club",
     "localhost",
-]
+] + extra_allowed_hosts_parsed
 
 
 # Application definition
@@ -57,6 +56,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "course_management.middleware.RequestHeaderLoggerMiddleware",
+    "course_management.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

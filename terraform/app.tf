@@ -1,3 +1,24 @@
+variable "django_key" {
+  description = "Django secret key"
+}
+
+variable "certificate_arn" {
+  description = "Certificate ARN for the ALB"
+  default = "arn:aws:acm:eu-west-1:387546586013:certificate/1fbf1209-f7cc-4a2e-b565-cc9f9dcc7e86"
+}
+
+variable "dev_tag" {
+  type    = string
+  default = "20240117-225720"
+}
+
+variable "prod_tag" {
+  type    = string
+  default = "20240117-185625"
+}
+
+
+
 # ECR
 
 resource "aws_ecr_repository" "course_management_ecr_repo" {
@@ -55,6 +76,13 @@ resource "aws_security_group" "course_management_sg" {
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }

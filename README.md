@@ -196,12 +196,12 @@ Connect to the bastion
 And then
 
 ```bash
-pgcli -h dev-course-management-cluster.cluster-cpj5uw8ck6vb.eu-west-1.rds.amazonaws.com	-p 5432 -u pgusr -d coursemanagement
+pgcli -h dev-course-management-cluster.cluster-cpj5uw8ck6vb.eu-west-1.rds.amazonaws.com -p 5432 -u pgusr -d coursemanagement
 ```
 
 When connecting for the first time, create dev and prod schemas
 
 ```SQL
-CREATE SCHEMA dev;
-CREATE SCHEMA prod;
+CREATE DATABASE dev;
+CREATE DATABASE prod;
 ```

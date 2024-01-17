@@ -1,14 +1,9 @@
-variable "dev_tag" {
-  type    = string
-  default = "20240117-132746"
-}
-
 resource "aws_cloudwatch_log_group" "couse_management_logs_dev" {
-  name = "/ecs/course-management-dev"
+  name              = "/ecs/course-management-dev"
   retention_in_days = 7
 
   tags = {
-    Name = "ECS Course Management Logs"
+    Name        = "ECS Course Management Logs"
     Environment = "Development"
     # Add additional tags as needed
   }
@@ -37,6 +32,14 @@ resource "aws_ecs_task_definition" "dev_course_management_task" {
       {
         name  = "DATABASE_URL",
         value = "postgresql://${var.db_username}:${var.db_password}@${aws_rds_cluster.dev_course_management_cluster.endpoint}:${aws_rds_cluster.dev_course_management_cluster.port}/dev"
+      },
+      {
+        NAME  = "SECRET_KEY",
+        value = var.django_key
+      },
+      {
+        name = "EXTRA_ALLOWED_HOSTS",
+        value = "dev.courses.datatalks.club,${aws_lb.course_managemenent_alb_dev.dns_name}"
       }
     ],
     logConfiguration = {
@@ -99,7 +102,7 @@ resource "aws_lb_target_group" "course_management_tg_dev" {
 
   health_check {
     enabled = true
-    path    = "/" # Modify if your app has a specific health check path
+    path    = "/ping"
   }
 }
 
@@ -109,12 +112,39 @@ resource "aws_lb_listener" "course_managemenent_listener_dev" {
   protocol          = "HTTP"
 
   default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "course_managemenent_https_listener_dev" {
+  load_balancer_arn = aws_lb.course_managemenent_alb_dev.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.certificate_arn
+
+  default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.course_management_tg_dev.arn
   }
 }
 
+resource "aws_route53_record" "dev_subdomain_cname" {
+  zone_id = "Z00653771YEUL1BFHEDFR"
+  name    = "dev.courses.datatalks.club"
+  type    = "CNAME"
+
+  ttl = 1800 # in seconds
+
+  records = [aws_lb.course_managemenent_alb_dev.dns_name]
+}
+
 output "alb_dev_dns_name" {
-  value = aws_lb.course_managemenent_alb_dev.dns_name
+  value       = aws_lb.course_managemenent_alb_dev.dns_name
   description = "The DNS name of the dev application load balancer"
 }
