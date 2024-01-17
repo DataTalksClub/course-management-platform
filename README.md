@@ -205,3 +205,27 @@ When connecting for the first time, create dev and prod schemas
 CREATE DATABASE dev;
 CREATE DATABASE prod;
 ```
+
+Creating users remotely from bastion:
+
+Prep work. Add this to the ssh config:
+
+```
+Host bastion-tunnel
+    HostName <IP>
+    User ubuntu
+    IdentityFile c:/Users/alexe/.ssh/<KEY>.pem
+    LocalForward 5433 dev-course-management-cluster.cluster-cpj5uw8ck6vb.eu-west-1.rds.amazonaws.com:5432
+    ServerAliveInterval 60
+```
+
+SSH to it:
+
+```bash
+ssh bastion-tunnel
+```
+
+```bash
+export DATABASE_URL='postgresql://pgusr:H7kPwX!2Yf5@localhost:5433/dev'
+export SECRET_KEY='django-insecure-+94d0x=*&7rb=9!rax)h@4_xnr0gfekrd1_yges+es8va^z+!o'
+```

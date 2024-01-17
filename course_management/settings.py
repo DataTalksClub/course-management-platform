@@ -35,6 +35,13 @@ ALLOWED_HOSTS = [
 ] + extra_allowed_hosts_parsed
 
 
+CSRF_TRUSTED_ORIGINS = []
+
+for host in ALLOWED_HOSTS:
+    CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+    CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -187,3 +194,6 @@ LOGGING = {
         },
     },
 }
+
+# force all-auth use https
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

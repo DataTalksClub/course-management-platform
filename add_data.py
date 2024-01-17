@@ -31,7 +31,7 @@ from courses.models import (  # noqa: E402
 User = get_user_model()
 
 admin_user, created = User.objects.get_or_create(
-    username="admin", defaults={"email": "admin@admin.com"}
+    username="admin", defaults={"email": "alexey@datatalks.club"}
 )
 
 if created:
