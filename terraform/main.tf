@@ -1,5 +1,9 @@
-provider "aws" {
-  region = "eu-west-1"
+variable "region" {
+  default = "eu-west-1"
+  description = "the AWS region"
 }
 
+provider "aws" {
+  region = var.region
+}
 

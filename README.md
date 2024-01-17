@@ -172,7 +172,7 @@ ECR dev:
 
 ```bash
 export ECR_REPO="387546586013.dkr.ecr.eu-west-1.amazonaws.com"
-export ECR_DEV_URL="${ECR_REPO}/dev-course-management-repo"
+export ECR_DEV_URL="${ECR_REPO}/course-management"
 ```
 
 Logging in:
@@ -188,3 +188,20 @@ docker tag course_management:latest ${ECR_DEV_URL}:latest
 docker push ${ECR_DEV_URL}:latest
 ```
 
+
+## DB connection
+
+Connect to the bastion
+
+And then
+
+```bash
+pgcli -h dev-course-management-cluster.cluster-cpj5uw8ck6vb.eu-west-1.rds.amazonaws.com	-p 5432 -u pgusr -d coursemanagement
+```
+
+When connecting for the first time, create dev and prod schemas
+
+```SQL
+CREATE SCHEMA dev;
+CREATE SCHEMA prod;
+```
