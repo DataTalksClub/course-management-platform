@@ -191,24 +191,7 @@ docker push ${ECR_DEV_URL}:latest
 
 ## DB connection
 
-Connect to the bastion
-
-And then
-
-```bash
-pgcli -h dev-course-management-cluster.cluster-cpj5uw8ck6vb.eu-west-1.rds.amazonaws.com -p 5432 -u pgusr -d coursemanagement
-```
-
-When connecting for the first time, create dev and prod schemas
-
-```SQL
-CREATE DATABASE dev;
-CREATE DATABASE prod;
-```
-
-Creating users remotely from bastion:
-
-Prep work. Add this to the ssh config:
+Prep work
 
 ```
 Host bastion-tunnel
@@ -219,13 +202,30 @@ Host bastion-tunnel
     ServerAliveInterval 60
 ```
 
-SSH to it:
+Connect to the bastion
 
 ```bash
 ssh bastion-tunnel
 ```
 
+And then
+
 ```bash
-export DATABASE_URL='postgresql://pgusr:H7kPwX!2Yf5@localhost:5433/dev'
-export SECRET_KEY='django-insecure-+94d0x=*&7rb=9!rax)h@4_xnr0gfekrd1_yges+es8va^z+!o'
+pgcli -h localhost -p 5433 -u pgusr -d coursemanagement
+```
+
+When connecting for the first time, create dev and prod schemas
+
+```SQL
+CREATE DATABASE dev;
+CREATE DATABASE prod;
+```
+
+Django shell
+
+```bash
+export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/dev"
+export SECRET_KEY="${DJANGO_SECRET}"
+
+pipenv run python manage.py shell
 ```
