@@ -40,6 +40,10 @@ resource "aws_ecs_task_definition" "dev_course_management_task" {
       {
         name = "EXTRA_ALLOWED_HOSTS",
         value = "dev.courses.datatalks.club,${aws_lb.course_managemenent_alb_dev.dns_name}"
+      },
+      {
+        NAME = "VERSION",
+        value = var.dev_tag
       }
     ],
     logConfiguration = {

@@ -6,15 +6,15 @@ variable "certificate_arn" {
   description = "Certificate ARN for the ALB"
   default = "arn:aws:acm:eu-west-1:387546586013:certificate/1fbf1209-f7cc-4a2e-b565-cc9f9dcc7e86"
 }
-
+  
 variable "dev_tag" {
   type    = string
-  default = "20240118-122136"
+  default = "20240118-212339"
 }
 
 variable "prod_tag" {
   type    = string
-  default = "20240117-185625"
+  default = "20240118-212339"
 }
 
 

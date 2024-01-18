@@ -1,16 +1,16 @@
-resource "aws_cloudwatch_log_group" "couse_management_logs_dev" {
-  name              = "/ecs/course-management-dev"
+resource "aws_cloudwatch_log_group" "couse_management_logs_prod" {
+  name              = "/ecs/course-management-prod"
   retention_in_days = 7
 
   tags = {
     Name        = "ECS Course Management Logs"
-    Environment = "Development"
+    Environment = "Production"
     # Add additional tags as needed
   }
 }
 
-resource "aws_ecs_task_definition" "dev_course_management_task" {
-  family                   = "course-management"
+resource "aws_ecs_task_definition" "course_management_task_prod" {
+  family                   = "course-management-prod"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256" # Adjust as needed
@@ -18,8 +18,8 @@ resource "aws_ecs_task_definition" "dev_course_management_task" {
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
 
   container_definitions = jsonencode([{
-    name  = "course-management-dev",
-    image = "${aws_ecr_repository.course_management_ecr_repo.repository_url}:${var.dev_tag}",
+    name  = "course-management-prod",
+    image = "${aws_ecr_repository.course_management_ecr_repo.repository_url}:${var.prod_tag}",
     portMappings = [{
       containerPort = 80,
       hostPort      = 80
@@ -27,11 +27,11 @@ resource "aws_ecs_task_definition" "dev_course_management_task" {
     environment = [
       {
         name  = "DEBUG",
-        value = "1"
+        value = "0"
       },
       {
         name  = "DATABASE_URL",
-        value = "postgresql://${var.db_username}:${var.db_password}@${aws_rds_cluster.dev_course_management_cluster.endpoint}:${aws_rds_cluster.dev_course_management_cluster.port}/dev"
+        value = "postgresql://${var.db_username}:${var.db_password}@${aws_rds_cluster.dev_course_management_cluster.endpoint}:${aws_rds_cluster.dev_course_management_cluster.port}/prod"
       },
       {
         NAME  = "SECRET_KEY",
@@ -39,13 +39,17 @@ resource "aws_ecs_task_definition" "dev_course_management_task" {
       },
       {
         name = "EXTRA_ALLOWED_HOSTS",
-        value = "dev.courses.datatalks.club,${aws_lb.course_managemenent_alb_dev.dns_name}"
+        value = "courses.datatalks.club,${aws_lb.course_managemenent_alb_prod.dns_name}"
+      },
+      {
+        NAME = "VERSION",
+        value = var.prod_tag
       }
     ],
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        awslogs-group         = aws_cloudwatch_log_group.couse_management_logs_dev.name
+        awslogs-group         = aws_cloudwatch_log_group.couse_management_logs_prod.name
         awslogs-region        = var.region
         awslogs-stream-prefix = "ecs"
       }
@@ -53,11 +57,11 @@ resource "aws_ecs_task_definition" "dev_course_management_task" {
   }])
 }
 
-resource "aws_ecs_service" "course_management_service_dev" {
-  name    = "course-management-dev"
+resource "aws_ecs_service" "course_management_service_prod" {
+  name    = "course-management-prod"
   cluster = aws_ecs_cluster.course_management_cluster.id
 
-  task_definition = aws_ecs_task_definition.dev_course_management_task.arn
+  task_definition = aws_ecs_task_definition.course_management_task_prod.arn
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -66,8 +70,8 @@ resource "aws_ecs_service" "course_management_service_dev" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.course_management_tg_dev.arn
-    container_name   = "course-management-dev"
+    target_group_arn = aws_lb_target_group.course_management_tg_prod.arn
+    container_name   = "course-management-prod"
     container_port   = 80
   }
 
@@ -81,8 +85,8 @@ resource "aws_ecs_service" "course_management_service_dev" {
   }
 }
 
-resource "aws_lb" "course_managemenent_alb_dev" {
-  name               = "course-management-dev"
+resource "aws_lb" "course_managemenent_alb_prod" {
+  name               = "course-management-prod"
   internal           = false
   load_balancer_type = "application"
 
@@ -92,8 +96,8 @@ resource "aws_lb" "course_managemenent_alb_dev" {
   enable_deletion_protection = false
 }
 
-resource "aws_lb_target_group" "course_management_tg_dev" {
-  name     = "course-management-dev"
+resource "aws_lb_target_group" "course_management_tg_prod" {
+  name     = "course-management-prod"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.course_management_vpc.id
@@ -106,8 +110,8 @@ resource "aws_lb_target_group" "course_management_tg_dev" {
   }
 }
 
-resource "aws_lb_listener" "course_managemenent_listener_dev" {
-  load_balancer_arn = aws_lb.course_managemenent_alb_dev.arn
+resource "aws_lb_listener" "course_managemenent_listener_prod" {
+  load_balancer_arn = aws_lb.course_managemenent_alb_prod.arn
   port              = 80
   protocol          = "HTTP"
 
@@ -121,8 +125,8 @@ resource "aws_lb_listener" "course_managemenent_listener_dev" {
   }
 }
 
-resource "aws_lb_listener" "course_managemenent_https_listener_dev" {
-  load_balancer_arn = aws_lb.course_managemenent_alb_dev.arn
+resource "aws_lb_listener" "course_managemenent_https_listener_prod" {
+  load_balancer_arn = aws_lb.course_managemenent_alb_prod.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
@@ -130,21 +134,23 @@ resource "aws_lb_listener" "course_managemenent_https_listener_dev" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.course_management_tg_dev.arn
+    target_group_arn = aws_lb_target_group.course_management_tg_prod.arn
   }
 }
 
-resource "aws_route53_record" "dev_subdomain_cname" {
+resource "aws_route53_record" "subdomain_alias_prod" {
   zone_id = "Z00653771YEUL1BFHEDFR"
-  name    = "dev.courses.datatalks.club"
-  type    = "CNAME"
+  name    = "courses.datatalks.club"
+  type    = "A" # Use 'A' for an Alias record
 
-  ttl = 1800 # in seconds
-
-  records = [aws_lb.course_managemenent_alb_dev.dns_name]
+  alias {
+    name                   =   aws_lb.course_managemenent_alb_prod.dns_name
+    zone_id                = aws_lb.course_managemenent_alb_prod.zone_id
+    evaluate_target_health = true
+  }
 }
 
-output "alb_dev_dns_name" {
-  value       = aws_lb.course_managemenent_alb_dev.dns_name
-  description = "The DNS name of the dev application load balancer"
+output "alb_prod_dns_name" {
+  value       = aws_lb.course_managemenent_alb_prod.dns_name
+  description = "The DNS name of the prod application load balancer"
 }
