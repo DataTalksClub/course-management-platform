@@ -5,25 +5,30 @@ set -e
 # Navigate to the script's directory
 cd "$(dirname "$0")"
 
-
 TAG=$1
-
-DEV_TASK_DEF="course-management-dev"
-
-FILE_IN="${DEV_TASK_DEF}-${TAG}.json"
-FILE_OUT="updated_${DEV_TASK_DEF}-${TAG}.json"
+ENV=$2
 
 # Check if tag is provided
 if [ -z "$TAG" ]; then
     echo "Error: No tag provided."
-    echo "Usage: ./deploy_dev.sh <tag>"
+    echo "Usage: ./deploy_dev.sh <tag> <env>"
     exit 1
 fi
+
+if [ -z "$ENV" ]; then
+    ENV="dev"
+fi
+
+DEV_TASK_DEF="course-management-${ENV}"
+echo "Deploying ${DEV_TASK_DEF}-${TAG} to ${ENV} environment"
+
+FILE_IN="${DEV_TASK_DEF}-${TAG}.json"
+FILE_OUT="updated_${DEV_TASK_DEF}-${TAG}.json"
 
 
 echo "writing task definition to ${FILE_IN}"
 aws ecs describe-task-definition \
-    --task-definition course-management-dev \
+    --task-definition ${DEV_TASK_DEF} \
     > ${FILE_IN}
 
 
@@ -37,10 +42,10 @@ aws ecs register-task-definition \
 # Update ECS service (replace 'my-cluster' with your actual ECS cluster name)
 aws ecs update-service \
     --cluster course-management-cluster \
-    --service course-management-dev \
+    --service course-management-${ENV} \
     --task-definition $DEV_TASK_DEF
 
 # Clean up JSON files
-# rm -f ${FILE_IN} ${FILE_OUT}
+rm -f ${FILE_IN} ${FILE_OUT}
 
-echo "Dev deployment completed successfully."
+echo "${ENV} deployment completed successfully."
