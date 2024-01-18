@@ -1,19 +1,36 @@
 from django.shortcuts import render
+from asgiref.sync import sync_to_async
 from allauth.socialaccount.providers import registry
 from allauth.socialaccount.models import SocialApp
 
+from django.conf import settings
+from django.urls import reverse
 
-def social_login_view(request):
+
+async def social_login_view(request):
     # Get available providers
-    available_providers = []
+    available_providers = await get_available_providers(request)
 
-    for provider in registry.get_class_list():
-        # Check if provider is configured
-        try:
-            provider_app = SocialApp.objects.get(provider=provider.id)
-            available_providers.append(provider)
-        except SocialApp.DoesNotExist:
-            # Skip providers that are not configured
+    return render(
+        request,
+        "social_login.html",
+        {"providers": available_providers},
+    )
+
+
+@sync_to_async
+def get_available_providers(request):
+    providers = []
+
+    site_id = settings.SITE_ID
+
+    for provider, name in registry.as_choices():
+        if not SocialApp.objects.filter(
+            provider=provider, sites__id__exact=site_id
+        ).exists():
             continue
 
-    return render(request, 'social_login.html', {'providers': available_providers})
+        login_url = reverse(f"{provider}_login")
+        providers.append({"name": name, "login_url": login_url})
+
+    return providers
