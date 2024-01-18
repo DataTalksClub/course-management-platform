@@ -23,6 +23,16 @@ def update_task_definition(input_file, new_tag, output_file):
                 base_image, _ = image.split(":")
                 new_image = f"{base_image}:{new_tag}"
                 container_def["image"] = new_image
+            
+            environment = container_def.get("environment", [])
+            executed = False
+            for env_var in environment:
+                if env_var["name"] == "VERSION":
+                    executed = True
+                    env_var["value"] = new_tag
+            if not executed:
+                version = {"name": "VERSION", "value": new_tag}
+                environment.append(version)
 
         # Remove fields not allowed in register-task-definition
         task_def.pop("status", None)

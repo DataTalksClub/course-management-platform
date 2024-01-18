@@ -94,10 +94,12 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "course_management.context_processors.export_settings",
             ],
         },
     },
 ]
+
 
 
 WSGI_APPLICATION = "course_management.wsgi.application"
@@ -159,6 +161,7 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+VERSION = os.getenv("VERSION", "N/A")
 
 # authentication
 

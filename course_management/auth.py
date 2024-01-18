@@ -24,6 +24,20 @@ def generate_random_password(
     )
 
 
+def extract_email(response_data):
+    email = ''
+
+    if 'email' in response_data:
+        email = response_data['email']
+
+    if 'user' in response_data:
+        user_data = response_data['user']
+        if 'email' in user_data:
+            email = user_data['email']
+
+    return email.lower().strip()    
+
+
 class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
     def pre_social_login(self, request, sociallogin):
         response_data = sociallogin.account.extra_data
@@ -37,7 +51,7 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
 
         email = None
         try:
-            email = response_data.get("email", "").lower()
+            email = extract_email(response_data)
             if not email:
                 logger.info("No email found in social account data")
                 return

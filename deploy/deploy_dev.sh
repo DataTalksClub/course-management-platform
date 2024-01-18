@@ -41,6 +41,6 @@ aws ecs update-service \
     --task-definition $DEV_TASK_DEF
 
 # Clean up JSON files
-rm -f ${FILE_IN} ${FILE_OUT}
+# rm -f ${FILE_IN} ${FILE_OUT}
 
 echo "Dev deployment completed successfully."
