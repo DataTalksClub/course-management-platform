@@ -472,6 +472,8 @@ def homework_view(
         homework=homework, student=user
     ).first()
 
+    logger.info(f"submission={submission}")
+
     # Process the form submission
     if request.method == "POST":
         return process_homework_submission(

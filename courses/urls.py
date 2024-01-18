@@ -8,7 +8,7 @@ urlpatterns = [
     path(
         "social_login",
         auth_views.social_login_view,
-        name="social_login",
+        name="login",
     ),
     path(
         "<slug:course_slug>/",

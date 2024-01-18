@@ -12,12 +12,18 @@ from courses.models import (
     QuestionTypes,
 )
 
+credentials = dict(
+    username="test@test.com",
+    email="test@test.com",
+    password="12345"
+)
+
 
 class CourseDetailViewTests(TestCase):
     def setUp(self):
         self.client = Client()
 
-        self.user = User.objects.create_user(username="testuser", password="12345")
+        self.user = User.objects.create_user(**credentials)
         self.course = Course.objects.create(
             title="Test Course",
             slug="test-course-2"
@@ -106,7 +112,7 @@ class CourseDetailViewTests(TestCase):
 
     def test_course_detail_authenticated_user(self):
         # Test the view for an authenticated user
-        self.client.login(username="testuser", password="12345")
+        self.client.login(**credentials)
 
         url = reverse("course", kwargs={"course_slug": self.course.slug})
         response = self.client.get(url)

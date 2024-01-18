@@ -28,7 +28,11 @@ from courses.scoring import (
 
 logger = logging.getLogger(__name__)
 
-credentials = dict(username="testuser", password="12345")
+credentials = dict(
+    username="test@test.com",
+    email="test@test.com",
+    password="12345"
+)
 
 
 class HomeworkDetailViewTests(TestCase):
@@ -322,6 +326,7 @@ class HomeworkDetailViewTests(TestCase):
             },
         )
 
+        logger.info(f"url={url}")
         response = self.client.get(url)
 
         self.assertEquals(response.status_code, 200)

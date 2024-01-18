@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+import sys
+
 from pathlib import Path
 
 import dj_database_url
@@ -63,7 +65,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "course_management.middleware.RequestHeaderLoggerMiddleware",
+    # "course_management.middleware.RequestHeaderLoggerMiddleware",
     "course_management.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -155,6 +157,13 @@ STATIC_URL = "static/"
 #     STATIC_ROOT,
 #     # Other directories here
 # ]
+
+
+is_test = 'test' in sys.argv or 'test_coverage' in sys.argv
+
+if is_test:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
