@@ -10,7 +10,7 @@ resource "aws_cloudwatch_log_group" "couse_management_logs_dev" {
 }
 
 resource "aws_ecs_task_definition" "dev_course_management_task" {
-  family                   = "course-management-dev"
+  family                   = "course-management"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256" # Adjust as needed

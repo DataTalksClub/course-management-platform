@@ -37,10 +37,12 @@ docker_run: docker_build
 docker_bash:
 	docker exec -it course_management bash
 
+docker_auth:
+	aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $(REPO_ROOT)
 
 docker_publish: docker_build
 	docker tag course_management:$(TAG) $(REPO_URI):$(TAG)
 	docker push $(REPO_URI):$(TAG)
 
-docker_auth:
-	aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $(REPO_ROOT)
+deploy_dev: docker_publish
+	bash deploy/deploy_dev.sh $(TAG)
