@@ -197,3 +197,6 @@ LOGGING = {
 
 # force all-auth use https
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# consolidate multiple social accounts with the same email into one user
+SOCIALACCOUNT_ADAPTER = 'course_management.auth.ConsolidatingSocialAccountAdapter'
