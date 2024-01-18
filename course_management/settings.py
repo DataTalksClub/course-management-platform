@@ -164,7 +164,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTHENTICATION_BACKENDS = (
     "allauth.account.auth_backends.AuthenticationBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    # "django.contrib.auth.backends.ModelBackend",
 )
 
 SITE_ID = int(os.getenv("SITE_ID", "2"))
@@ -194,6 +194,28 @@ LOGGING = {
         },
     },
 }
+
+# Use email authentication method
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+# Email is required for signing up
+ACCOUNT_EMAIL_REQUIRED = True
+
+# Don't require a username (use email instead)
+ACCOUNT_USERNAME_REQUIRED = False
+
+# Email has to be unique
+ACCOUNT_UNIQUE_EMAIL = True
+
+# Don't use usernames
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+
+# User is identified by email
+ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+
+# Disable sign-up form
+ACCOUNT_ALLOW_REGISTRATION = False
+
 
 # force all-auth use https
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

@@ -1,10 +1,15 @@
 from django.urls import path
-from . import views
+from . import views, auth_views
 
 
 urlpatterns = [
     # path('ping', views.ping, name='ping'),
     path("", views.course_list, name="course_list"),
+    path(
+        "social_login",
+        auth_views.social_login_view,
+        name="social_login",
+    ),
     path(
         "<slug:course_slug>/",
         views.course_view,
@@ -35,5 +40,4 @@ urlpatterns = [
         views.homework_view,
         name="homework",
     ),
-
 ]

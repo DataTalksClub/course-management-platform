@@ -45,7 +45,7 @@ class Enrollment(models.Model):
     class Meta:
         unique_together = ["student", "course"]
 
-    student = models.ForeignKey(User, on_delete=models.PROTECT)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     enrollment_date = models.DateTimeField(auto_now_add=True)
 
