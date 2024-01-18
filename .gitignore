@@ -12,6 +12,8 @@ __pycache__/
 *.tfstate
 *.tfstate.backup
 
+/deploy/*.json
+
 .envrc
 
 # Distribution / packaging
