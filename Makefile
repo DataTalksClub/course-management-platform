@@ -30,7 +30,7 @@ shell:
 
 
 docker_build: ## Build docker image
-docker_build:
+docker_build: tests
 	docker build -t course_management:$(TAG) .
 
 
