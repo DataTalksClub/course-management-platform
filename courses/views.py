@@ -373,6 +373,7 @@ def process_homework_submission(
     messages.success(
         request,
         "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+        extra_tags="homework"
     )
 
     return redirect(
@@ -552,7 +553,8 @@ def enrollment_view(request, course_slug):
             return redirect("course", course_slug=course_slug)
         else:
             messages.error(
-                request, "There was an error updating your enrollment"
+                request, "There was an error updating your enrollment",
+                extra_tags="homework"
             )
             # TODO: add POST to form below
 
@@ -631,6 +633,7 @@ def project_view(request, course_slug, project_slug):
         messages.success(
             request,
             "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+            extra_tags="homework",
         )
 
         return redirect(

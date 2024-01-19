@@ -12,9 +12,11 @@
 
   {% if messages %}
     {% for message in messages %}
+    {% if 'homework' in message.tags %}
       <div class="alert {{ message.tags }}">
         <p>{{ message }}</p>
       </div>
+    {% endif %}
     {% endfor %}
   {% endif %}
 
@@ -26,7 +28,7 @@
     {% endfor %}
   {% endif %}
 
-  {% if disabled %}
+  {% if homework.is_scored %}
     {% if submission %}
       <div class="alert alert-success">
         <p>This homework is already scored. Your score is {{ submission.total_score }}.</p>
@@ -39,6 +41,12 @@
   {% endif %}
 
   <p class="text-muted">{{ homework.description }}</p>
+
+  {% if not is_authenticated %}
+    <div class="mt-4 text-center">
+      <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+    </div>
+  {% endif %}
 
   <h3 class="mb-3">Questions</h3>
 
