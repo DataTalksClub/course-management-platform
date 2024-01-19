@@ -51,19 +51,26 @@ docker_bash: ## Run bash in docker container
 docker_bash:
 	docker exec -it course_management bash
 
+
 docker_auth: ## Authenticate to ECR
 docker_auth:
 	aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $(REPO_ROOT)
 
+
 docker_publish: ## Publish docker image to ECR
-docker_publish: docker_build
+docker_publish: docker_build docker_auth
 	docker tag course_management:$(TAG) $(REPO_URI):$(TAG)
 	docker push $(REPO_URI):$(TAG)
+
 
 deploy_dev:		## Deploy to dev environment
 deploy_dev: docker_publish
 	bash deploy/deploy_dev.sh $(TAG)
 
+
+deploy_prod: ## Deploy to prod environment
+deploy_prod:
+	bash deploy/deploy_prod.sh
 
 help:    ## Show this help.
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'

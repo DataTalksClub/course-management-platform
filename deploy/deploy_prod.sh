@@ -24,6 +24,18 @@ DEV_TAG=$(
 
 echo "deploying ${DEV_TAG} to prod"
 
+read -p "Are you sure you want to deploy to production? (y/N) " -n 1 -r
+echo
+
+# Check if the user's response is 'y' or 'Y'
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Okay, deploying..."
+else
+    # The user did not confirm, exit the script
+    echo "Deployment cancelled."
+    exit 1
+fi
+
 rm ${FILE_IN}
 
 bash deploy_dev.sh ${DEV_TAG} prod
