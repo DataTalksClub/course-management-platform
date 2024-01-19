@@ -103,7 +103,6 @@ TEMPLATES = [
 ]
 
 
-
 WSGI_APPLICATION = "course_management.wsgi.application"
 
 
@@ -159,10 +158,12 @@ STATIC_URL = "static/"
 # ]
 
 
-is_test = 'test' in sys.argv or 'test_coverage' in sys.argv
+is_test = "test" in sys.argv or "test_coverage" in sys.argv
 
 if is_test:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    STATICFILES_STORAGE = (
+        "django.contrib.staticfiles.storage.StaticFilesStorage"
+    )
 
 
 # Default primary key field type
@@ -194,21 +195,29 @@ AUTH_USER_MODEL = "accounts.CustomUser"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "json",
         },
     },
     "loggers": {
-        "": {  # root logger
+        "django": {
             "handlers": ["console"],
             "level": "INFO",
         },
     },
 }
 
+
 # Use email authentication method
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_AUTHENTICATION_METHOD = "email"
 
 # Email is required for signing up
 ACCOUNT_EMAIL_REQUIRED = True
@@ -223,14 +232,16 @@ ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
 # User is identified by email
-ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
 
 # Disable sign-up form
 ACCOUNT_ALLOW_REGISTRATION = False
 
 
 # force all-auth use https
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # consolidate multiple social accounts with the same email into one user
-SOCIALACCOUNT_ADAPTER = 'course_management.auth.ConsolidatingSocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = (
+    "course_management.auth.ConsolidatingSocialAccountAdapter"
+)

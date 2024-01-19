@@ -10,6 +10,7 @@ dj-database-url = "*"
 whitenoise = "*"
 psycopg2-binary = "*"
 gunicorn = "*"
+python-json-logger = "*"
 
 [dev-packages]
 ipython = "*"
