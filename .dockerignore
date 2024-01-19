@@ -1,2 +1,5 @@
 db/
 terraform/
+Dockerfile
+Makefile
+README.md

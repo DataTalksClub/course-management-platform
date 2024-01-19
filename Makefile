@@ -2,6 +2,7 @@ TAG := $(shell date +"%Y%m%d-%H%M%S")
 REPO_ROOT := 387546586013.dkr.ecr.eu-west-1.amazonaws.com
 REPO_URI := $(REPO_ROOT)/course-management
 
+SITE_ID ?= 2
 
 run: ## Run django server
 run:
@@ -38,8 +39,10 @@ docker_run: docker_build
 	docker run -it --rm \
 		-p 8000:80 \
 		--name course_management \
-		-e DEBUG="0" \
+		-e SITE_ID="$(SITE_ID)" \
+		-e DEBUG="1" \
 		-e DATABASE_URL="sqlite:////data/db.sqlite3" \
+		-e VERSION=$(TAG) \
 		-v `cygpath -w ${PWD}/db`:/data \
 		course_management:$(TAG)
 

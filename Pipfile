@@ -7,9 +7,9 @@ name = "pypi"
 django = "*"
 django-allauth = {extras = ["slack"], version = "*"}
 dj-database-url = "*"
-uvicorn = "*"
 whitenoise = "*"
 psycopg2-binary = "*"
+gunicorn = "*"
 
 [dev-packages]
 ipython = "*"
