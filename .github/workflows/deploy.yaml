@@ -13,7 +13,6 @@ jobs:
       AWS_REGION: eu-west-1
       REPO_ROOT: 387546586013.dkr.ecr.eu-west-1.amazonaws.com
       REPO_URI: 387546586013.dkr.ecr.eu-west-1.amazonaws.com/course-management
-      ENVIRONMENT: dev
 
     steps:
     - name: Prepare tags and repository info
