@@ -1,0 +1,62 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Prepare tags and repository info
+      id: prep
+      run: |
+        DATE=$(date +'%Y%m%d-%H%M%S')
+        SHORT_SHA=$(echo ${{ github.sha }} | cut -c 1-7)
+        REGION=eu-west-1
+        REPO_ROOT=387546586013.dkr.ecr.${REGION}.amazonaws.com
+
+        echo "TAG=${DATE}-${SHORT_SHA}" >> $GITHUB_ENV
+        echo "REGION=${REGION}" >> $GITHUB_ENV
+        echo "REPO_ROOT=${REPO_ROOT}" >> $GITHUB_ENV
+        echo "REPO_URI=${REPO_ROOT}/course-management" >> $GITHUB_ENV
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9.13'  # Specify the Python version
+
+    - name: Install dependencies
+      run: |
+        pip install pipenv
+        pipenv install
+
+    - name: Run tests
+      run: pipenv run python manage.py test courses.tests
+
+    - name: Build Docker image
+      run: docker build -t course_management:${{ env.TAG }} .
+
+    - name: Log in to Amazon ECR
+      run: |
+        aws ecr get-login-password --region ${{ env.REGION }} | docker login --username AWS --password-stdin ${{ env.REPO_ROOT }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    - name: Push Docker image to Amazon ECR
+      run: |
+        docker tag course_management:${{ env.TAG }} ${{ env.REPO_URI }}:${{ env.TAG }}
+        docker push ${{ env.REPO_URI }}:${{ env.TAG }}
+
+    - name: Deploy to Dev Environment
+      run: bash deploy/deploy_dev.sh ${{ env.TAG }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ env.REGION }}

@@ -9,12 +9,12 @@ variable "certificate_arn" {
   
 variable "dev_tag" {
   type    = string
-  default = "20240118-212339"
+  default = "20240119-220718"
 }
 
 variable "prod_tag" {
   type    = string
-  default = "20240118-212339"
+  default = "20240119-220718"
 }
 
 
