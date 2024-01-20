@@ -52,7 +52,8 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         email = None
         try:
             email = extract_email(response_data)
-            if not email:
+            logger.info(f"Extracted email {email} from OAuth response")
+            if email is None or len(email) == 0:
                 logger.info("No email found in social account data")
                 return
 
@@ -60,6 +61,7 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
                 email__iexact=email
             )
             num_existing_emails = existing_emails.count()
+            logger.info(f"Found {num_existing_emails} existing users for email {email}")
 
             if num_existing_emails == 0:
                 # No existing user with this email, so create a new one
