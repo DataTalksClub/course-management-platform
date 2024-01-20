@@ -1,8 +1,3 @@
-{% extends 'base.html' %}
-
-{% load socialaccount %}
-
-{% block content %}
-  <h2>Login</h2>
-  <a href="{% provider_login_url 'google' %}">Login with Google</a>
-{% endblock %}
+{% for provider in providers %}
+  <a href="{{ provider.login_url }}">Login with {{ provider.name }}</a><br>
+{% endfor %}

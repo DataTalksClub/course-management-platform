@@ -37,13 +37,15 @@ python update_task_def.py ${FILE_IN} ${TAG} ${FILE_OUT}
 
 # Register new task definition (Assuming AWS CLI and proper permissions are set up)
 aws ecs register-task-definition \
-    --cli-input-json file://${FILE_OUT}
+    --cli-input-json file://${FILE_OUT} \
+    > /dev/null
 
 # Update ECS service (replace 'my-cluster' with your actual ECS cluster name)
 aws ecs update-service \
     --cluster course-management-cluster \
     --service course-management-${ENV} \
-    --task-definition $DEV_TASK_DEF
+    --task-definition $DEV_TASK_DEF \
+    > /dev/null
 
 # Clean up JSON files
 rm -f ${FILE_IN} ${FILE_OUT}

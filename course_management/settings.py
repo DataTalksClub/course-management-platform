@@ -187,7 +187,7 @@ ACCOUNT_AUTHENTICATION_METHOD = "username_email"
 ACCOUNT_EMAIL_REQUIRED = True
 
 LOGIN_REDIRECT_URL = "/"
-LOGIN_URL = "/accounts/login"
+LOGIN_URL = "/login"
 
 AUTH_USER_MODEL = "accounts.CustomUser"
 
@@ -243,5 +243,5 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # consolidate multiple social accounts with the same email into one user
 SOCIALACCOUNT_ADAPTER = (
-    "course_management.auth.ConsolidatingSocialAccountAdapter"
+    "accounts.auth.ConsolidatingSocialAccountAdapter"
 )
