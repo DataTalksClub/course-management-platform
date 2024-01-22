@@ -16,12 +16,17 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.confirmProdDeploy == true }}
+    # if: ${{ github.event.inputs.confirmProdDeploy == true }}
 
     env:
       AWS_REGION: eu-west-1
 
     steps:
+    - name: Echo Inputs
+      run: |
+        echo "Confirm Production Deploy: ${{ github.event.inputs.confirmProdDeploy }}"
+        echo "Deploy Tag: ${{ github.event.inputs.deployTag }}"
+
     - name: Checkout code
       uses: actions/checkout@v2
 
