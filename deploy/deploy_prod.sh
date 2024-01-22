@@ -24,7 +24,7 @@ if [ -z "$DEV_TAG" ]; then
         jq '.taskDefinition.containerDefinitions[].environment[] | select(.name == "VERSION").value' -r ${FILE_IN}
     )
 
-    rm ${FILE_IN}
+    rm -f ${FILE_IN}
 fi
 
 
@@ -40,6 +40,5 @@ if [ -z "${GITHUB_ACTIONS}" ] && [ "${CONFIRM_DEPLOY}" != "true" ]; then
     fi
 fi
 
-rm ${FILE_IN}
 
 bash deploy_dev.sh ${DEV_TAG} prod
