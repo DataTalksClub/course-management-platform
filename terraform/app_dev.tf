@@ -80,6 +80,7 @@ resource "aws_ecs_service" "course_management_service_dev" {
   lifecycle {
     ignore_changes = [
       desired_count,
+      task_definition, # updated via CI/CD
       // Other attributes that Terraform should not update.
     ]
   }

@@ -44,7 +44,10 @@ resource "aws_iam_user_policy" "ci_cd_user_policy" {
       {
         Effect = "Allow",
         Action = "ecs:UpdateService",
-        Resource = "arn:aws:ecs:${var.region}:${data.aws_caller_identity.current.account_id}:service/${aws_ecs_cluster.course_management_cluster.name}/${aws_ecs_service.course_management_service_dev.name}"
+        Resource = [
+          "arn:aws:ecs:${var.region}:${data.aws_caller_identity.current.account_id}:service/${aws_ecs_cluster.course_management_cluster.name}/${aws_ecs_service.course_management_service_dev.name}",
+          "arn:aws:ecs:${var.region}:${data.aws_caller_identity.current.account_id}:service/${aws_ecs_cluster.course_management_cluster.name}/${aws_ecs_service.course_management_service_prod.name}",
+        ]
       },
       {
         Effect = "Allow",

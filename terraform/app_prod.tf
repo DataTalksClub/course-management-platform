@@ -80,6 +80,7 @@ resource "aws_ecs_service" "course_management_service_prod" {
   lifecycle {
     ignore_changes = [
       desired_count,
+      task_definition, # updated via CI/CD
       // Other attributes that Terraform should not update.
     ]
   }
@@ -141,7 +142,7 @@ resource "aws_lb_listener" "course_managemenent_https_listener_prod" {
 resource "aws_route53_record" "subdomain_alias_prod" {
   zone_id = "Z00653771YEUL1BFHEDFR"
   name    = "courses.datatalks.club"
-  type    = "A" # Use 'A' for an Alias record
+  type    = "A" # Alias
 
   alias {
     name                   =   aws_lb.course_managemenent_alb_prod.dns_name
