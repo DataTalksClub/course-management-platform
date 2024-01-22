@@ -22,7 +22,7 @@
     <nav>
       <ul>
         {% if user.is_authenticated %}
-          <li>{{ user.username }}! (<a href="{% url 'account_logout' %}">Logout</a>)</li>
+          <li>{{ user.username }} (<a href="{% url 'account_logout' %}">Logout</a>)</li>
         {% else %}
           <li><a href="{% url 'login' %}">Login</a></li>
         {% endif %}
@@ -42,7 +42,11 @@
   </div>
 
   <footer>
-    <p>© 2023 Course Management System (version {{ VERSION }})</p>
+    <p>
+      <a href="https://datatalks.club" target="_blank">DataTalks.Club</a>,
+      <a href="https://github.com/DataTalksClub/course-management-platform" target="_blank">Course Management Platform on GitHub</a>
+      (version {{ VERSION }})
+    </p>
   </footer>
 </body>
 

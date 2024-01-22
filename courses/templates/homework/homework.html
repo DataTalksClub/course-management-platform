@@ -133,7 +133,7 @@
     {% if homework.time_spent_lectures_field %}
       <div class="mb-3 question">
         <label for="time_spent_lectures" class="question-text">
-          Time spent on lectures (hours)
+          Time spent on lectures (hours) <span class="text-muted">(optional)</span>
           <i
             class="fas fa-question-circle text-muted"
             data-toggle="tooltip"
@@ -156,7 +156,7 @@
     {% if homework.time_spent_homework_field %}
       <div class="mb-3 question">
         <label for="time_spent_homework" class="question-text">
-          Time spent on homework (hours)
+          Time spent on homework (hours) <span class="text-muted">(optional)</span>
           <i
             class="fas fa-question-circle text-muted"
             data-toggle="tooltip"
@@ -178,7 +178,9 @@
 
     {% if homework.problems_comments_field %}
       <div class="mb-3 question">
-        <label for="problems_comments" class="question-text">Problems or comments</label>
+        <label for="problems_comments" class="question-text">
+          Problems or comments <span class="text-muted">(optional)</span>
+        </label>
         <textarea
           class="form-control"
           name="problems_comments"
@@ -191,7 +193,7 @@
     {% if course.faq_document_url and homework.faq_contribution_field %}
       <div class="mb-3 question">
         <label for="faq_contribution" class="question-text">
-          FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span>
+          FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, optional)</span>
           <i
             class="fas fa-question-circle text-muted"
             data-toggle="tooltip"
@@ -215,7 +217,11 @@
               id="submit-button"
               type="submit"
               class="btn btn-primary">
-            Save
+            {% if submission %}
+              Submit
+            {% else %}
+              Update
+            {% endif %}
           </button>
         {% else %}
           <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
