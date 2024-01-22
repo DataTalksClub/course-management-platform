@@ -16,7 +16,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # if: ${{ github.event.inputs.confirmProdDeploy == true }}
+    if: github.event.inputs.confirmProdDeploy == true
 
     env:
       AWS_REGION: eu-west-1
