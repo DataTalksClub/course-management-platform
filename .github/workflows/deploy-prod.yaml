@@ -27,7 +27,7 @@ jobs:
         echo "Deploy Tag: ${{ github.event.inputs.deployTag }}"
 
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4.1.1
 
     - name: Execute Production Deployment Script
       run: bash deploy/deploy_prod.sh ${{ github.event.inputs.deployTag }}

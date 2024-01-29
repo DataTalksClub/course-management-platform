@@ -34,10 +34,14 @@ echo "deploying ${DEV_TAG} to prod"
 if [ -z "${GITHUB_ACTIONS}" ] && [ "${CONFIRM_DEPLOY}" != "true" ]; then
     read -p "Are you sure you want to deploy to production? (y/N) " -n 1 -r
     echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Deployment cancelled."
-        exit 1
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        CONFIRM_DEPLOY="true"
     fi
+fi
+
+if [ "${CONFIRM_DEPLOY}" != "true" ]; then
+    echo "Exiting without deploying."
+    exit 1
 fi
 
 
