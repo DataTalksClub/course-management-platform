@@ -139,14 +139,14 @@ class CourseDetailViewTests(TestCase):
         self.assertEquals(submitted_homework.submitted_at, self.submission2.submitted_at)
         self.assertEquals(submitted_homework.is_scored, False)
         self.assertEquals(submitted_homework.score, None)
-        self.assertEquals(submitted_homework.days_until_due, 6)
+        self.assertEquals(submitted_homework.days_until_due, 7)
 
         unscored_homework = homeworks['unscored-homework']
         self.assertFalse(unscored_homework.submitted)
         self.assertFalse(hasattr(unscored_homework, 'submitted_at'))
         self.assertEquals(unscored_homework.is_scored, False)
         self.assertEquals(unscored_homework.score, None)
-        self.assertEquals(unscored_homework.days_until_due, 13)
+        self.assertEquals(unscored_homework.days_until_due, 14)
         self.assertEquals(unscored_homework.submissions, [])
 
         self.assertEquals(context['total_score'], 80)
