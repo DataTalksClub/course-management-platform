@@ -154,7 +154,7 @@ def update_homework_with_additional_info(homework: Homework) -> None:
     days_until_due = 0
 
     if homework.due_date > timezone.now():
-        days_until_due = (homework.due_date - timezone.now()).days
+        days_until_due = (homework.due_date - timezone.now()).days + 1
 
     homework.days_until_due = days_until_due
     homework.submitted = False
@@ -556,6 +556,7 @@ def enrollment_view(request, course_slug):
                 request, "There was an error updating your enrollment",
                 extra_tags="homework"
             )
+            return redirect("enrollment", course_slug=course_slug)
             # TODO: add POST to form below
 
     form = EnrollmentForm(instance=enrollment)
