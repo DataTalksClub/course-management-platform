@@ -40,7 +40,13 @@
     {% endif %}
   {% endif %}
 
-  <p class="text-muted">{{ homework.description }}</p>
+  <div>
+    <p class="text-muted">{{ homework.description }}</p>
+  </div>
+
+  <div>
+    <p>Due date: {{ homework.due_date }}</p>
+  </div>
 
   {% if not is_authenticated %}
     <div class="mt-4 text-center">
