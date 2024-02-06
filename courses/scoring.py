@@ -72,15 +72,14 @@ def is_answer_correct(question: Question, user_answer: str) -> bool:
     if question.answer_type == AnswerTypes.ANY.value:
         return True
 
-    correct_answer = question.correct_answer
+    correct_answer = question.get_correct_answer()
 
     if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
-        return user_answer == correct_answer
+        return user_answer in correct_answer
 
     elif question.question_type == QuestionTypes.CHECKBOXES.value:
         selected_options = set(safe_split(user_answer))
-        correct_options = set(safe_split(correct_answer))
-        return selected_options == correct_options
+        return selected_options == correct_answer
 
     elif question.question_type == QuestionTypes.FREE_FORM.value:
         return is_free_form_answer_correct(

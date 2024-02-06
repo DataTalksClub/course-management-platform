@@ -71,7 +71,7 @@ class CourseDetailViewTests(TestCase):
                     text=f"Question {i} of {hw.title}",
                     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
                     possible_answers=join_possible_answers(['A', 'B', 'C', 'D']),
-                    correct_answer="A",
+                    correct_answer="1",
                 )
 
         # Create submissions for the first two homeworks

@@ -161,7 +161,9 @@ class Question(models.Model):
     scores_for_correct_answer = models.IntegerField(default=1)
 
     def set_possible_answers(self, answers):
-        self.possible_answers = QUESTION_ANSWER_DELIMITER.join(answers)
+        self.possible_answers = QUESTION_ANSWER_DELIMITER.join(
+            answers
+        )
 
     def get_possible_answers(self):
         if not self.possible_answers:
@@ -169,6 +171,21 @@ class Question(models.Model):
 
         split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
         return split
+
+    def get_correct_answer(self):
+        if (self.question_type == QuestionTypes.CHECKBOXES.value) or (
+            self.question_type == QuestionTypes.MULTIPLE_CHOICE.value
+        ):
+            if not self.correct_answer:
+                return set()
+
+            indicies_raw = self.correct_answer.split(",")
+            indicies = [int(index) - 1 for index in indicies_raw]
+            possible_answers = self.get_possible_answers()
+            result = {possible_answers[i] for i in indicies}
+            return result
+
+        return self.correct_answer or ""
 
     def __str__(self):
         return f"{self.homework.course.title} / {self.homework.title} - {self.text}"

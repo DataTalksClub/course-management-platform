@@ -73,7 +73,7 @@ question11 = Question(
     text="What is 2 + 2?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
     possible_answers=join_possible_answers(["3", "4", "5", "6"]),
-    correct_answer="4",
+    correct_answer="2",
 )
 question11.save()
 question12 = Question(
@@ -97,7 +97,7 @@ question14 = Question(
     text="What is the capital of France?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
     possible_answers=join_possible_answers(["London", "Paris", "Berlin", "Madrid"]),
-    correct_answer="Paris",
+    correct_answer="2",
 )
 question14.save()
 question15 = Question(
@@ -179,7 +179,7 @@ Question(
     text="What is the boiling point of water?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
     possible_answers=join_possible_answers(["50", "75", "100", "125"]),
-    correct_answer="100",
+    correct_answer="3",
 ).save()
 Question(
     homework=homework2,
@@ -200,7 +200,7 @@ Question(
     text="Who wrote Macbeth?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
     possible_answers=join_possible_answers(["William Shakespeare", "Charles Dickens", "Mark Twain"]),
-    correct_answer="William Shakespeare",
+    correct_answer="1",
 ).save()
 Question(
     homework=homework2,

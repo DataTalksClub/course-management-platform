@@ -86,8 +86,8 @@ class HomeworkScoringTestCase(TestCase):
         q4 = Question.objects.create(
             homework=self.homework,
             text="Is the Earth flat? (yes/no)",
-            correct_answer="no",
             possible_answers=join_possible_answers(["yes", "no"]),
+            correct_answer="2",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             answer_type=AnswerTypes.EXACT_STRING.value,
             scores_for_correct_answer=1000,
@@ -95,7 +95,7 @@ class HomeworkScoringTestCase(TestCase):
         q5 = Question.objects.create(
             homework=self.homework,
             text="Water boils at 100 degrees Celsius. (true/false)",
-            correct_answer="true",
+            correct_answer="1",
             possible_answers=join_possible_answers(["true", "false"]),
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             answer_type=AnswerTypes.EXACT_STRING.value,
@@ -105,7 +105,7 @@ class HomeworkScoringTestCase(TestCase):
             homework=self.homework,
             text="Select the prime numbers: 2, 4, 5, 7, 8",
             possible_answers=join_possible_answers(["2", "4", "5", "7", "8"]),
-            correct_answer="2,5,7",
+            correct_answer="1,3,4",
             question_type=QuestionTypes.CHECKBOXES.value,
             answer_type=AnswerTypes.EXACT_STRING.value,
             scores_for_correct_answer=100000,

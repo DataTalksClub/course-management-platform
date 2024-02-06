@@ -22,6 +22,7 @@ from courses.models import (  # noqa: E402
     Answer,
     QuestionTypes,
     AnswerTypes,
+    QUESTION_ANSWER_DELIMITER
 )
 
 
@@ -37,8 +38,8 @@ def create_random_question(homework: Homework):
     question_id = random.randint(1, 1000)
 
     if question_type == QuestionTypes.MULTIPLE_CHOICE:
-        answers = "1,2,3,4"
-        correct_answer = random.choice(answers.split(","))
+        answers = ["1", "2", "3", "4"]
+        correct_answer = random.choice(answers)
         print(f"  Correct answer is {correct_answer}, possible answers are {answers}")
 
         return Question.objects.create(
@@ -46,7 +47,7 @@ def create_random_question(homework: Homework):
             text=f"Question text {question_id}",
             correct_answer=correct_answer,
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers=answers,
+            possible_answers=QUESTION_ANSWER_DELIMITER.join(answers),
             scores_for_correct_answer=1,
         )
 

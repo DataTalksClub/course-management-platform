@@ -60,7 +60,7 @@ class HomeworkDetailViewTests(TestCase):
             text="What is the capital of France?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             possible_answers=join_possible_answers(["Paris", "London", "Berlin"]) ,
-            correct_answer="Paris",
+            correct_answer="1",
         )
         self.question1.save()
 
@@ -77,7 +77,7 @@ class HomeworkDetailViewTests(TestCase):
             text="Select prime numbers.",
             question_type=QuestionTypes.CHECKBOXES.value,
             possible_answers=join_possible_answers(["2", "3", "4", "5"]),
-            correct_answer="2,3,5",
+            correct_answer="1,2,4",
         )
         self.question3.save()
 
@@ -86,7 +86,7 @@ class HomeworkDetailViewTests(TestCase):
             text="How many continents are there on Earth?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             possible_answers=join_possible_answers(["5", "6", "7"]),
-            correct_answer="7",
+            correct_answer="3",
         )
         self.question4.save()
 
@@ -104,7 +104,7 @@ class HomeworkDetailViewTests(TestCase):
             text="Select the colors in the French flag.",
             question_type=QuestionTypes.CHECKBOXES.value,
             possible_answers=join_possible_answers(["Blue", "White", "Red", "Green"]),
-            correct_answer="Blue,White,Red",
+            correct_answer="1,2,3",
         )
         self.question6.save()
 

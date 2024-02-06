@@ -238,6 +238,11 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "courses.migrations": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }
 

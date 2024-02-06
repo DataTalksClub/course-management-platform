@@ -218,7 +218,7 @@ def process_question_options_multiple_choice_or_checkboxes(
     possible_answers = question.get_possible_answers()
 
     if homework.is_scored:
-        correct_answers = (question.correct_answer or "").split(",")
+        correct_answer = question.get_correct_answer()
 
     for option in possible_answers:
         is_selected = option in selected_options
@@ -228,7 +228,7 @@ def process_question_options_multiple_choice_or_checkboxes(
         }
 
         if homework.is_scored:
-            is_correct = option in correct_answers
+            is_correct = option in correct_answer
 
             correctly_selected = determine_answer_class(
                 is_selected, is_correct
