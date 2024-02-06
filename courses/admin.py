@@ -17,7 +17,7 @@ class QuestionForm(forms.ModelForm):
         fields = "__all__"
         widgets = {
             "text": forms.TextInput(attrs={"size": "60"}),
-            "possible_answers": forms.TextInput(attrs={"size": "30"}),
+            "possible_answers": forms.Textarea(attrs={"cols": 60, "rows": 4}),
             "correct_answer": forms.TextInput(attrs={"size": "20"}),
         }
 

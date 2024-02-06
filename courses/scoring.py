@@ -141,23 +141,30 @@ def update_leaderboard(course: Course):
 
 def score_homework_submissions(homework_id: str) -> tuple[HomeworkScoringStatus, str]:
     homework = Homework.objects.get(pk=homework_id)
+    logger.info(f"Scoring submissions for {homework}")
 
     if homework.due_date > timezone.now():
+        logger.info(f"The due date for {homework} is in the future. Update the due date to score.")
         return (
             HomeworkScoringStatus.FAIL,
             f"The due date for {homework} is in the future. Update the due date to score.",
         )
 
     if homework.is_scored:
+        logger.info(f"Homework {homework} is already scored.")
         return HomeworkScoringStatus.FAIL, f"Homework {homework} is already scored."
 
     submissions = Submission.objects.filter(homework__id=homework_id)
+    logger.info(f"found {len(submissions)} submissions for {homework}")
 
     for submission in submissions:
+        logger.info(f"Scoring submission {submission}")
         update_score(submission)
 
     homework.is_scored = True
     homework.save()
+    logger.info(f"Done scoring {homework}")
+    logger.info(f"Updating leaderboard for {homework.course}")
 
     update_leaderboard(homework.course)
 

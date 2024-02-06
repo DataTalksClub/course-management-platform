@@ -25,6 +25,7 @@ from courses.models import (  # noqa: E402
     ProjectSubmission,
     ReviewCriteria,
     ReviewCriteriaTypes,
+    QUESTION_ANSWER_DELIMITER
 )
 
 
@@ -62,12 +63,16 @@ homework1.save()
 admin_enrollment = Enrollment(student=admin_user, course=course)
 admin_enrollment.save()
 
+
+def join_possible_answers(answers: list) -> str:
+    return QUESTION_ANSWER_DELIMITER.join(answers)
+
 # Questions for Homework 1
 question11 = Question(
     homework=homework1,
     text="What is 2 + 2?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers="1,2,3,4",
+    possible_answers=join_possible_answers(["3", "4", "5", "6"]),
     correct_answer="4",
 )
 question11.save()
@@ -83,7 +88,7 @@ question13 = Question(
     homework=homework1,
     text="Which of these are prime numbers?",
     question_type=QuestionTypes.CHECKBOXES.value,
-    possible_answers="2,3,4,5",
+    possible_answers=join_possible_answers(["1", "2", "3", "4", "5"]),
     correct_answer="2,3,5",
 )
 question13.save()
@@ -91,7 +96,7 @@ question14 = Question(
     homework=homework1,
     text="What is the capital of France?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers="London,Paris,Berlin",
+    possible_answers=join_possible_answers(["London", "Paris", "Berlin", "Madrid"]),
     correct_answer="Paris",
 )
 question14.save()
@@ -173,7 +178,7 @@ Question(
     homework=homework2,
     text="What is the boiling point of water?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers="90,95,100,105",
+    possible_answers=join_possible_answers(["50", "75", "100", "125"]),
     correct_answer="100",
 ).save()
 Question(
@@ -187,14 +192,14 @@ Question(
     homework=homework2,
     text="Select all even numbers",
     question_type=QuestionTypes.CHECKBOXES.value,
-    possible_answers="1,2,3,4,5,6",
+    possible_answers=join_possible_answers(["1", "2", "3", "4", "5", "6"]),
     correct_answer="2,4,6",
 ).save()
 Question(
     homework=homework2,
     text="Who wrote Macbeth?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers="William Shakespeare,Charles Dickens,Mark Twain",
+    possible_answers=join_possible_answers(["William Shakespeare", "Charles Dickens", "Mark Twain"]),
     correct_answer="William Shakespeare",
 ).save()
 Question(

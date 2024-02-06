@@ -128,6 +128,9 @@ class AnswerTypes(Enum):
     CONTAINS_STRING = "CTS"
 
 
+QUESTION_ANSWER_DELIMITER = "\n"
+
+
 class Question(models.Model):
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
     text = models.TextField()
@@ -157,11 +160,14 @@ class Question(models.Model):
 
     scores_for_correct_answer = models.IntegerField(default=1)
 
+    def set_possible_answers(self, answers):
+        self.possible_answers = QUESTION_ANSWER_DELIMITER.join(answers)
+
     def get_possible_answers(self):
         if not self.possible_answers:
             return []
 
-        split = self.possible_answers.split(",")
+        split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
         return split
 
     def __str__(self):

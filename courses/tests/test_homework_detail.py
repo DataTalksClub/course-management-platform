@@ -25,6 +25,7 @@ from courses.scoring import (
     score_homework_submissions,
 )
 
+from .util import join_possible_answers
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="What is the capital of France?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers="Paris,London,Berlin",
+            possible_answers=join_possible_answers(["Paris", "London", "Berlin"]) ,
             correct_answer="Paris",
         )
         self.question1.save()
@@ -75,7 +76,7 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="Select prime numbers.",
             question_type=QuestionTypes.CHECKBOXES.value,
-            possible_answers="2,3,4,5",
+            possible_answers=join_possible_answers(["2", "3", "4", "5"]),
             correct_answer="2,3,5",
         )
         self.question3.save()
@@ -84,7 +85,7 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="How many continents are there on Earth?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers="5,6,7",
+            possible_answers=join_possible_answers(["5", "6", "7"]),
             correct_answer="7",
         )
         self.question4.save()
@@ -102,7 +103,7 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="Select the colors in the French flag.",
             question_type=QuestionTypes.CHECKBOXES.value,
-            possible_answers="Blue,White,Red,Green",
+            possible_answers=join_possible_answers(["Blue", "White", "Red", "Green"]),
             correct_answer="Blue,White,Red",
         )
         self.question6.save()

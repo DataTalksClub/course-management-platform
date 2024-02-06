@@ -12,6 +12,8 @@ from courses.models import (
     QuestionTypes,
 )
 
+from .util import join_possible_answers
+
 credentials = dict(
     username="test@test.com",
     email="test@test.com",
@@ -68,7 +70,7 @@ class CourseDetailViewTests(TestCase):
                     homework=hw,
                     text=f"Question {i} of {hw.title}",
                     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-                    possible_answers="A,B,C,D",
+                    possible_answers=join_possible_answers(['A', 'B', 'C', 'D']),
                     correct_answer="A",
                 )
 
