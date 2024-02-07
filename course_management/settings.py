@@ -158,7 +158,13 @@ STATIC_URL = "static/"
 # ]
 
 
-is_test = "test" in sys.argv or "test_coverage" in sys.argv
+is_test = ("test" in sys.argv) or \
+    ("pytest" in sys.argv) or \
+    ("vscode_pytest" in sys.argv[0]) or \
+    ("test_coverage" in sys.argv)
+
+print(sys.argv)
+print(f"Is test: {is_test}")
 
 if is_test:
     STATICFILES_STORAGE = (

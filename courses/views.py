@@ -210,7 +210,8 @@ def process_question_options_multiple_choice_or_checkboxes(
 
     if answer:
         answer_text = answer.answer_text or ""
-        selected_options = answer_text.split(",")
+        selected_options = answer_text.strip().split(",")
+        selected_options = [option.strip() for option in selected_options]
     else:
         # no answer yet, so we need to show just options
         selected_options = []
@@ -304,6 +305,7 @@ def process_homework_submission(
     for answer_id, answer in request.POST.lists():
         if not answer_id.startswith("answer_"):
             continue
+        answer = [a.strip() for a in answer]
         answers_dict[answer_id] = ",".join(answer)
 
     if submission:

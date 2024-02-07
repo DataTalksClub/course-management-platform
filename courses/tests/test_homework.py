@@ -1,4 +1,3 @@
-import json
 import logging
 
 from datetime import datetime
@@ -1008,3 +1007,132 @@ class HomeworkDetailViewTests(TestCase):
             submission.learning_in_public_links,
             expected_learning_in_public_links,
         )
+
+    def test_submit_homework_submission_artifacts(self):
+        post_data = {
+            f"answer_{self.question1.id}": ["Berlin\r\n"],
+            f"answer_{self.question2.id}": ["Some text"],
+            f"answer_{self.question3.id}": ["2\r\n", "3"],
+            f"answer_{self.question4.id}": ["5"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["Blue\r\n", "White\r\n", "Red"],
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        self.client.login(**credentials)
+
+        self.client.post(
+            url,
+            post_data,
+        )
+
+        submission = Submission.objects.filter(
+            student=self.user, homework=self.homework
+        ).first()
+
+        answers = Answer.objects.filter(
+            student=self.user, submission=submission
+        )
+
+        self.assertEquals(len(answers), 6)
+
+        answer1 = answers.get(question=self.question1)
+        self.assertEquals(answer1.answer_text, "Berlin")
+
+        answer2 = answers.get(question=self.question2)
+        self.assertEquals(answer2.answer_text, "Some text")
+
+        answer3 = answers.get(question=self.question3)
+        self.assertEquals(answer3.answer_text, "2,3")
+
+        answer4 = answers.get(question=self.question4)
+        self.assertEquals(answer4.answer_text, "5")
+
+        answer5 = answers.get(question=self.question5)
+        self.assertEquals(answer5.answer_text, "3.141516")
+
+        answer6 = answers.get(question=self.question6)
+        self.assertEquals(answer6.answer_text, "Blue,White,Red")
+
+
+    def test_submit_homework_submission_artifacts_dispayed_correctly(self):
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["Berlin\r\n"],
+            f"answer_{self.question2.id}": ["Some text"],
+            f"answer_{self.question3.id}": ["2\r\n", "3"],
+            f"answer_{self.question4.id}": ["5"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["Blue\r\n", "White\r\n", "Red"],
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        self.client.post(url, post_data)
+
+        # now the results are saved, let's get them 
+        response = self.client.get(url)
+        context = response.context
+
+        question_answers = context["question_answers"]
+        self.assertEquals(len(question_answers), 6)
+
+        question1, answer1 = question_answers[0]
+        self.assertEquals(question1, self.question1)
+        expected_options1 = [
+            {"value": "Paris", "is_selected": False},
+            {"value": "London", "is_selected": False},
+            {"value": "Berlin", "is_selected": True},
+        ]
+        self.assertEquals(answer1["options"], expected_options1)
+
+        question2, answer2 = question_answers[1]
+        self.assertEquals(question2, self.question2)
+        self.assertEquals(answer2["text"], "Some text")
+
+        question3, answer3 = question_answers[2]
+        self.assertEquals(question3, self.question3)
+        expected_options3 = [
+            {"value": "2", "is_selected": True},
+            {"value": "3", "is_selected": True},
+            {"value": "4", "is_selected": False},
+            {"value": "5", "is_selected": False},
+        ]
+        self.assertEquals(answer3["options"], expected_options3)
+
+        question4, answer4 = question_answers[3]
+        self.assertEquals(question4, self.question4)
+        expected_options4 = [
+            {"value": "5", "is_selected": True},
+            {"value": "6", "is_selected": False},
+            {"value": "7", "is_selected": False},
+        ]
+        self.assertEquals(answer4["options"], expected_options4)
+
+        question5, answer5 = question_answers[4]
+        self.assertEquals(question5, self.question5)
+        self.assertEquals(answer5["text"], "3.141516")
+
+        question6, answer6 = question_answers[5]
+        self.assertEquals(question6, self.question6)
+        expected_options6 = [
+            {"value": "Blue", "is_selected": True},
+            {"value": "White", "is_selected": True},
+            {"value": "Red", "is_selected": True},
+            {"value": "Green", "is_selected": False},
+        ]
+        self.assertEquals(answer6["options"], expected_options6)

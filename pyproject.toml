@@ -1,2 +1,10 @@
 [tool.ruff]
 line-length = 70
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "course_management.settings"
+python_files = ["test_*.py"]
+
+testpaths = [
+    "courses/tests"
+]

@@ -4,10 +4,10 @@ from django.db import migrations
 
 import logging
 
+from courses.models import Question, QuestionTypes
+
 # Configure logging
 logger = logging.getLogger("courses.migrations")
-
-from courses.models import Question, QuestionTypes
 
 
 def replace_answers_with_indexes(possible_answers, correct_answers):
