@@ -188,6 +188,14 @@ class Question(models.Model):
 
         return self.correct_answer or ""
 
+    def get_correct_answer_indices(self):
+        if not self.correct_answer:
+            return set()
+
+        indicies_raw = self.correct_answer.split(",")
+        indicies = {int(index) for index in indicies_raw}
+        return indicies
+
     def __str__(self):
         return f"{self.homework.course.title} / {self.homework.title} - {self.text}"
 

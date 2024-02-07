@@ -143,9 +143,9 @@ class HomeworkDetailViewTests(TestCase):
         question1, answer1 = question_answers[0]
         self.assertEquals(question1, self.question1)
         expected_options1 = [
-            {"value": "Paris", "is_selected": False},
-            {"value": "London", "is_selected": False},
-            {"value": "Berlin", "is_selected": False},
+            {"value": "Paris", "is_selected": False, "index": 1},
+            {"value": "London", "is_selected": False, "index": 2},
+            {"value": "Berlin", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer1["options"], expected_options1)
 
@@ -156,19 +156,19 @@ class HomeworkDetailViewTests(TestCase):
         question3, answer3 = question_answers[2]
         self.assertEquals(question3, self.question3)
         expected_options3 = [
-            {"value": "2", "is_selected": False},
-            {"value": "3", "is_selected": False},
-            {"value": "4", "is_selected": False},
-            {"value": "5", "is_selected": False},
+            {"value": "2", "is_selected": False, "index": 1},
+            {"value": "3", "is_selected": False, "index": 2},
+            {"value": "4", "is_selected": False, "index": 3},
+            {"value": "5", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
         self.assertEquals(question4, self.question4)
         expected_options4 = [
-            {"value": "5", "is_selected": False},
-            {"value": "6", "is_selected": False},
-            {"value": "7", "is_selected": False},
+            {"value": "5", "is_selected": False, "index": 1},
+            {"value": "6", "is_selected": False, "index": 2},
+            {"value": "7", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer4["options"], expected_options4)
 
@@ -179,10 +179,10 @@ class HomeworkDetailViewTests(TestCase):
         question6, answer6 = question_answers[5]
         self.assertEquals(question6, self.question6)
         expected_options6 = [
-            {"value": "Blue", "is_selected": False},
-            {"value": "White", "is_selected": False},
-            {"value": "Red", "is_selected": False},
-            {"value": "Green", "is_selected": False},
+            {"value": "Blue", "is_selected": False, "index": 1},
+            {"value": "White", "is_selected": False, "index": 2},
+            {"value": "Red", "is_selected": False, "index": 3},
+            {"value": "Green", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer6["options"], expected_options6)
 
@@ -215,9 +215,9 @@ class HomeworkDetailViewTests(TestCase):
         question1, answer1 = question_answers[0]
         self.assertEquals(question1, self.question1)
         expected_options1 = [
-            {"value": "Paris", "is_selected": False},
-            {"value": "London", "is_selected": False},
-            {"value": "Berlin", "is_selected": False},
+            {"value": "Paris", "is_selected": False, "index": 1},
+            {"value": "London", "is_selected": False, "index": 2},
+            {"value": "Berlin", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer1["options"], expected_options1)
 
@@ -228,19 +228,19 @@ class HomeworkDetailViewTests(TestCase):
         question3, answer3 = question_answers[2]
         self.assertEquals(question3, self.question3)
         expected_options3 = [
-            {"value": "2", "is_selected": False},
-            {"value": "3", "is_selected": False},
-            {"value": "4", "is_selected": False},
-            {"value": "5", "is_selected": False},
+            {"value": "2", "is_selected": False, "index": 1},
+            {"value": "3", "is_selected": False, "index": 2},
+            {"value": "4", "is_selected": False, "index": 3},
+            {"value": "5", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
         self.assertEquals(question4, self.question4)
         expected_options4 = [
-            {"value": "5", "is_selected": False},
-            {"value": "6", "is_selected": False},
-            {"value": "7", "is_selected": False},
+            {"value": "5", "is_selected": False, "index": 1},
+            {"value": "6", "is_selected": False, "index": 2},
+            {"value": "7", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer4["options"], expected_options4)
 
@@ -251,10 +251,10 @@ class HomeworkDetailViewTests(TestCase):
         question6, answer6 = question_answers[5]
         self.assertEquals(question6, self.question6)
         expected_options6 = [
-            {"value": "Blue", "is_selected": False},
-            {"value": "White", "is_selected": False},
-            {"value": "Red", "is_selected": False},
-            {"value": "Green", "is_selected": False},
+            {"value": "Blue", "is_selected": False, "index": 1},
+            {"value": "White", "is_selected": False, "index": 2},
+            {"value": "Red", "is_selected": False, "index": 3},
+            {"value": "Green", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer6["options"], expected_options6)
 
@@ -272,7 +272,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question1,
-            answer_text="Berlin",
+            answer_text="3",
         )  # incorrect
         answer1.save()
 
@@ -288,7 +288,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question3,
-            answer_text="2,3",
+            answer_text="1,2",
         )  # partially correct
         answer3.save()
 
@@ -296,7 +296,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question4,
-            answer_text="5",
+            answer_text="1",
         )  # incorrect
         answer4.save()
 
@@ -312,7 +312,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question6,
-            answer_text="Blue,White,Red",
+            answer_text="1,2,3",
         )  # correct
         answer6.save()
 
@@ -347,9 +347,9 @@ class HomeworkDetailViewTests(TestCase):
         question1, answer1 = question_answers[0]
         self.assertEquals(question1, self.question1)
         expected_options1 = [
-            {"value": "Paris", "is_selected": False},
-            {"value": "London", "is_selected": False},
-            {"value": "Berlin", "is_selected": True},
+            {"value": "Paris", "is_selected": False, "index": 1},
+            {"value": "London", "is_selected": False, "index": 2},
+            {"value": "Berlin", "is_selected": True, "index": 3},
         ]
         self.assertEquals(answer1["options"], expected_options1)
 
@@ -360,19 +360,19 @@ class HomeworkDetailViewTests(TestCase):
         question3, answer3 = question_answers[2]
         self.assertEquals(question3, self.question3)
         expected_options3 = [
-            {"value": "2", "is_selected": True},
-            {"value": "3", "is_selected": True},
-            {"value": "4", "is_selected": False},
-            {"value": "5", "is_selected": False},
+            {"value": "2", "is_selected": True, "index": 1},
+            {"value": "3", "is_selected": True, "index": 2},
+            {"value": "4", "is_selected": False, "index": 3},
+            {"value": "5", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
         self.assertEquals(question4, self.question4)
         expected_options4 = [
-            {"value": "5", "is_selected": True},
-            {"value": "6", "is_selected": False},
-            {"value": "7", "is_selected": False},
+            {"value": "5", "is_selected": True, "index": 1},
+            {"value": "6", "is_selected": False, "index": 2},
+            {"value": "7", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer4["options"], expected_options4)
 
@@ -383,10 +383,10 @@ class HomeworkDetailViewTests(TestCase):
         question6, answer6 = question_answers[5]
         self.assertEquals(question6, self.question6)
         expected_options6 = [
-            {"value": "Blue", "is_selected": True},
-            {"value": "White", "is_selected": True},
-            {"value": "Red", "is_selected": True},
-            {"value": "Green", "is_selected": False},
+            {"value": "Blue", "is_selected": True, "index": 1},
+            {"value": "White", "is_selected": True, "index": 2},
+            {"value": "Red", "is_selected": True, "index": 3},
+            {"value": "Green", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer6["options"], expected_options6)
 
@@ -404,7 +404,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question1,
-            answer_text="Berlin",
+            answer_text="3",
         )  # incorrect
         answer1.save()
 
@@ -420,7 +420,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question3,
-            answer_text="2,3,4",
+            answer_text="1,2,3",
         )  # partially correct
         answer3.save()
 
@@ -428,7 +428,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question4,
-            answer_text="5",
+            answer_text="1",
         )  # incorrect
         answer4.save()
 
@@ -444,7 +444,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question6,
-            answer_text="Blue,White,Red",
+            answer_text="1,2,3",
         )  # correct
         answer6.save()
 
@@ -497,16 +497,19 @@ class HomeworkDetailViewTests(TestCase):
                 "value": "Paris",
                 "is_selected": False,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 1,
             },
             {
                 "value": "London",
                 "is_selected": False,
                 "correctly_selected_class": "option-answer-none",
+                "index": 2,
             },
             {
                 "value": "Berlin",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-incorrect",
+                "index": 3,
             },
         ]
         self.assertEquals(answer1["options"], expected_options1)
@@ -526,21 +529,25 @@ class HomeworkDetailViewTests(TestCase):
                 "value": "2",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 1,
             },
             {
                 "value": "3",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 2,
             },
             {
                 "value": "4",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-incorrect",
+                "index": 3,
             },
             {
                 "value": "5",
                 "is_selected": False,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 4,
             },
         ]
         self.assertEquals(answer3["options"], expected_options3)
@@ -552,16 +559,19 @@ class HomeworkDetailViewTests(TestCase):
                 "value": "5",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-incorrect",
+                "index": 1,
             },
             {
                 "value": "6",
                 "is_selected": False,
                 "correctly_selected_class": "option-answer-none",
+                "index": 2,
             },
             {
                 "value": "7",
                 "is_selected": False,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 3,
             },
         ]
         self.assertEquals(answer4["options"], expected_options4)
@@ -581,21 +591,25 @@ class HomeworkDetailViewTests(TestCase):
                 "value": "Blue",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 1,
             },
             {
                 "value": "White",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 2,
             },
             {
                 "value": "Red",
                 "is_selected": True,
                 "correctly_selected_class": "option-answer-correct",
+                "index": 3,
             },
             {
                 "value": "Green",
                 "is_selected": False,
                 "correctly_selected_class": "option-answer-none",
+                "index": 4,
             },
         ]
         self.assertEquals(answer6["options"], expected_options6)
@@ -614,12 +628,12 @@ class HomeworkDetailViewTests(TestCase):
         self.assertFalse(submission.exists())
 
         post_data = {
-            f"answer_{self.question1.id}": ["Berlin"],
+            f"answer_{self.question1.id}": ["1"],
             f"answer_{self.question2.id}": ["Some text"],
-            f"answer_{self.question3.id}": ["2", "3"],
-            f"answer_{self.question4.id}": ["5"],
+            f"answer_{self.question3.id}": ["1", "2"],
+            f"answer_{self.question4.id}": ["1"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue", "White", "Red"],
+            f"answer_{self.question6.id}": ["1", "2", "3"],
         }
 
         url = reverse(
@@ -671,22 +685,22 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEquals(len(answers), 6)
 
         answer1 = answers.get(question=self.question1)
-        self.assertEquals(answer1.answer_text, "Berlin")
+        self.assertEquals(answer1.answer_text, "1")
 
         answer2 = answers.get(question=self.question2)
         self.assertEquals(answer2.answer_text, "Some text")
 
         answer3 = answers.get(question=self.question3)
-        self.assertEquals(answer3.answer_text, "2,3")
+        self.assertEquals(answer3.answer_text, "1,2")
 
         answer4 = answers.get(question=self.question4)
-        self.assertEquals(answer4.answer_text, "5")
+        self.assertEquals(answer4.answer_text, "1")
 
         answer5 = answers.get(question=self.question5)
         self.assertEquals(answer5.answer_text, "3.141516")
 
         answer6 = answers.get(question=self.question6)
-        self.assertEquals(answer6.answer_text, "Blue,White,Red")
+        self.assertEquals(answer6.answer_text, "1,2,3")
 
     @mock.patch("django.utils.timezone.now")
     def test_homework_detail_submission_post_with_submissions(
@@ -708,7 +722,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question1,
-            answer_text="Berlin",
+            answer_text="1",
         )  # incorrect
         answer1.save()
 
@@ -724,7 +738,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question3,
-            answer_text="2,3,4",
+            answer_text="1,2,3",
         )  # partially correct
         answer3.save()
 
@@ -732,7 +746,7 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question4,
-            answer_text="5",
+            answer_text="1",
         )  # incorrect
         answer4.save()
 
@@ -748,19 +762,19 @@ class HomeworkDetailViewTests(TestCase):
             submission=self.submission,
             student=self.user,
             question=self.question6,
-            answer_text="Blue,White,Red",
+            answer_text="1,2,3",
         )  # correct
         answer6.save()
 
         self.client.login(**credentials)
 
         post_data = {
-            f"answer_{self.question1.id}": ["Paris"],
+            f"answer_{self.question1.id}": ["1"],
             f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["2", "3", "5"],
-            f"answer_{self.question4.id}": ["7"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue", "White"],
+            f"answer_{self.question6.id}": ["1", "2"],
         }
 
         url = reverse(
@@ -802,22 +816,22 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEquals(len(answers), 6)
 
         answer1 = answers.get(question=self.question1)
-        self.assertEquals(answer1.answer_text, "Paris")
+        self.assertEquals(answer1.answer_text, "1")
 
         answer2 = answers.get(question=self.question2)
         self.assertEquals(answer2.answer_text, "Some other text")
 
         answer3 = answers.get(question=self.question3)
-        self.assertEquals(answer3.answer_text, "2,3,5")
+        self.assertEquals(answer3.answer_text, "1,2,4")
 
         answer4 = answers.get(question=self.question4)
-        self.assertEquals(answer4.answer_text, "7")
+        self.assertEquals(answer4.answer_text, "3")
 
         answer5 = answers.get(question=self.question5)
         self.assertEquals(answer5.answer_text, "3.141516")
 
         answer6 = answers.get(question=self.question6)
-        self.assertEquals(answer6.answer_text, "Blue,White")
+        self.assertEquals(answer6.answer_text, "1,2")
 
     def test_submit_homework_with_all_fields(self):
         self.homework.homework_url_field = True
@@ -833,12 +847,12 @@ class HomeworkDetailViewTests(TestCase):
 
         # the submission data
         post_data = {
-            f"answer_{self.question1.id}": ["Paris"],
+            f"answer_{self.question1.id}": ["1"],
             f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["2", "3", "5"],
-            f"answer_{self.question4.id}": ["7"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue", "White"],
+            f"answer_{self.question6.id}": ["1", "2"],
             "homework_url": "http://example.com/homework",
             "learning_in_public_links[]": [
                 "http://example.com/link1",
@@ -913,12 +927,12 @@ class HomeworkDetailViewTests(TestCase):
 
         # the submission data
         post_data = {
-            f"answer_{self.question1.id}": ["Paris"],
+            f"answer_{self.question1.id}": ["1"],
             f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["2", "3", "5"],
-            f"answer_{self.question4.id}": ["7"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue", "White"],
+            f"answer_{self.question6.id}": ["1", "2"],
             "homework_url": "http://example.com/homework",
             "learning_in_public_links[]": [""],
             "time_spent_lectures": "",
@@ -966,12 +980,12 @@ class HomeworkDetailViewTests(TestCase):
 
         # the submission data
         post_data = {
-            f"answer_{self.question1.id}": ["Paris"],
+            f"answer_{self.question1.id}": ["1"],
             f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["2", "3", "5"],
-            f"answer_{self.question4.id}": ["7"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue", "White"],
+            f"answer_{self.question6.id}": ["1", "2"],
             "learning_in_public_links[]": [
                 "http://example.com/link1",
                 "http://example.com/link2",
@@ -1010,12 +1024,12 @@ class HomeworkDetailViewTests(TestCase):
 
     def test_submit_homework_submission_artifacts(self):
         post_data = {
-            f"answer_{self.question1.id}": ["Berlin\r\n"],
+            f"answer_{self.question1.id}": ["1\r\n"],
             f"answer_{self.question2.id}": ["Some text"],
-            f"answer_{self.question3.id}": ["2\r\n", "3"],
-            f"answer_{self.question4.id}": ["5"],
+            f"answer_{self.question3.id}": ["1\r\n", "2"],
+            f"answer_{self.question4.id}": ["1"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue\r\n", "White\r\n", "Red"],
+            f"answer_{self.question6.id}": ["1\r\n", "2\r\n", "3"],
         }
 
         url = reverse(
@@ -1044,33 +1058,33 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEquals(len(answers), 6)
 
         answer1 = answers.get(question=self.question1)
-        self.assertEquals(answer1.answer_text, "Berlin")
+        self.assertEquals(answer1.answer_text, "1")
 
         answer2 = answers.get(question=self.question2)
         self.assertEquals(answer2.answer_text, "Some text")
 
         answer3 = answers.get(question=self.question3)
-        self.assertEquals(answer3.answer_text, "2,3")
+        self.assertEquals(answer3.answer_text, "1,2")
 
         answer4 = answers.get(question=self.question4)
-        self.assertEquals(answer4.answer_text, "5")
+        self.assertEquals(answer4.answer_text, "1")
 
         answer5 = answers.get(question=self.question5)
         self.assertEquals(answer5.answer_text, "3.141516")
 
         answer6 = answers.get(question=self.question6)
-        self.assertEquals(answer6.answer_text, "Blue,White,Red")
+        self.assertEquals(answer6.answer_text, "1,2,3")
 
     def test_submit_homework_submission_artifacts_dispayed_correctly(self):
         self.client.login(**credentials)
 
         post_data = {
-            f"answer_{self.question1.id}": ["Berlin\r\n"],
+            f"answer_{self.question1.id}": ["3\r\n"],
             f"answer_{self.question2.id}": ["Some text"],
-            f"answer_{self.question3.id}": ["2\r\n", "3"],
-            f"answer_{self.question4.id}": ["5"],
+            f"answer_{self.question3.id}": ["1\r\n", "2"],
+            f"answer_{self.question4.id}": ["1"],
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["Blue\r\n", "White\r\n", "Red"],
+            f"answer_{self.question6.id}": ["1\r\n", "2\r\n", "3"],
         }
 
         url = reverse(
@@ -1093,9 +1107,9 @@ class HomeworkDetailViewTests(TestCase):
         question1, answer1 = question_answers[0]
         self.assertEquals(question1, self.question1)
         expected_options1 = [
-            {"value": "Paris", "is_selected": False},
-            {"value": "London", "is_selected": False},
-            {"value": "Berlin", "is_selected": True},
+            {"value": "Paris", "is_selected": False, "index": 1},
+            {"value": "London", "is_selected": False, "index": 2},
+            {"value": "Berlin", "is_selected": True, "index": 3},
         ]
         self.assertEquals(answer1["options"], expected_options1)
 
@@ -1106,19 +1120,19 @@ class HomeworkDetailViewTests(TestCase):
         question3, answer3 = question_answers[2]
         self.assertEquals(question3, self.question3)
         expected_options3 = [
-            {"value": "2", "is_selected": True},
-            {"value": "3", "is_selected": True},
-            {"value": "4", "is_selected": False},
-            {"value": "5", "is_selected": False},
+            {"value": "2", "is_selected": True, "index": 1},
+            {"value": "3", "is_selected": True, "index": 2},
+            {"value": "4", "is_selected": False, "index": 3},
+            {"value": "5", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
         self.assertEquals(question4, self.question4)
         expected_options4 = [
-            {"value": "5", "is_selected": True},
-            {"value": "6", "is_selected": False},
-            {"value": "7", "is_selected": False},
+            {"value": "5", "is_selected": True, "index": 1},
+            {"value": "6", "is_selected": False, "index": 2},
+            {"value": "7", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer4["options"], expected_options4)
 
@@ -1129,10 +1143,10 @@ class HomeworkDetailViewTests(TestCase):
         question6, answer6 = question_answers[5]
         self.assertEquals(question6, self.question6)
         expected_options6 = [
-            {"value": "Blue", "is_selected": True},
-            {"value": "White", "is_selected": True},
-            {"value": "Red", "is_selected": True},
-            {"value": "Green", "is_selected": False},
+            {"value": "Blue", "is_selected": True, "index": 1},
+            {"value": "White", "is_selected": True, "index": 2},
+            {"value": "Red", "is_selected": True, "index": 3},
+            {"value": "Green", "is_selected": False, "index": 4},
         ]
         self.assertEquals(answer6["options"], expected_options6)
 
@@ -1145,12 +1159,7 @@ class HomeworkDetailViewTests(TestCase):
         self.client.login(**credentials)
 
         post_data = {
-            f"answer_{self.question1.id}": ["Paris\r\n"],
-            # f"answer_{self.question2.id}": ["Some text"],
-            # f"answer_{self.question3.id}": ["3"],
-            # f"answer_{self.question4.id}": ["5"],
-            # f"answer_{self.question5.id}": ["3.141516"],
-            # f"answer_{self.question6.id}": ["Red"],
+            f"answer_{self.question1.id}": ["1\r\n"]
         }
 
         url = reverse(
@@ -1171,8 +1180,8 @@ class HomeworkDetailViewTests(TestCase):
         question1, answer1 = question_answers[0]
         self.assertEquals(question1, self.question1)
         expected_options1 = [
-            {"value": "Paris", "is_selected": True},
-            {"value": "London", "is_selected": False},
-            {"value": "Berlin", "is_selected": False},
+            {"value": "Paris", "is_selected": True, "index": 1},
+            {"value": "London", "is_selected": False, "index": 2},
+            {"value": "Berlin", "is_selected": False, "index": 3},
         ]
         self.assertEquals(answer1["options"], expected_options1)

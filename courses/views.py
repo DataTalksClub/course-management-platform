@@ -208,9 +208,7 @@ def process_question_options_multiple_choice_or_checkboxes(
     options = []
 
     if answer:
-        answer_text = answer.answer_text or ""
-        selected_options = answer_text.strip().split(",")
-        selected_options = [option.strip() for option in selected_options]
+        selected_options = extract_selected_options(answer)
     else:
         # no answer yet, so we need to show just options
         selected_options = []
@@ -218,17 +216,20 @@ def process_question_options_multiple_choice_or_checkboxes(
     possible_answers = question.get_possible_answers()
 
     if homework.is_scored:
-        correct_answer = question.get_correct_answer()
+        correct_indices = question.get_correct_answer_indices()
 
-    for option in possible_answers:
-        is_selected = option in selected_options
+    for zero_based_index, option in enumerate(possible_answers):
+        index = zero_based_index + 1
+        is_selected = index in selected_options
+
         processed_answer = {
             "value": option,
             "is_selected": is_selected,
+            "index": index,
         }
 
         if homework.is_scored:
-            is_correct = option in correct_answer
+            is_correct = index in correct_indices
 
             correctly_selected = determine_answer_class(
                 is_selected, is_correct
@@ -242,6 +243,31 @@ def process_question_options_multiple_choice_or_checkboxes(
 
     return {"options": options}
 
+
+def extract_selected_options(answer):
+    if not answer:
+        return []
+    
+    answer_text = answer.answer_text or ""
+    answer_text = answer_text.strip()
+
+    if not answer_text:
+        return []
+
+    selected_options = answer_text.strip().split(",")
+
+    result = []
+
+    for option in selected_options:
+        option = option.strip()
+        if not option:
+            continue
+        try:
+            result.append(int(option))
+        except ValueError:
+            pass
+
+    return result
 
 def determine_answer_class(
     is_selected: bool, is_correct: bool
