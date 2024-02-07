@@ -124,7 +124,6 @@ class HomeworkScoringTestCase(TestCase):
             student=self.student2,
         )
 
-
     def test_homework_scoring(self):
         submission1 = Submission.objects.create(
             homework=self.homework,
@@ -142,9 +141,9 @@ class HomeworkScoringTestCase(TestCase):
             "paris",  # Correct
             "15",  # Correct
             "oxygen",  # Incorrect
-            "no",  # Correct
-            "false",  # Incorrect
-            "2,5",  # Partially correct, but 0 score anyway
+            "2",  # Correct
+            "2",  # Incorrect
+            "1,3",  # Partially correct, but 0 score anyway
         ]
 
         expected_score1 = 1 + 10 + 0 + 1000 + 0 + 0
@@ -154,9 +153,9 @@ class HomeworkScoringTestCase(TestCase):
             "london",  # Incorrect
             "20",  # Incorrect
             "nitrogen",  # Correct
-            "yes",  # Incorrect
-            "true",  # Correct
-            "2,5,7",  # Correct
+            "1",  # Incorrect
+            "1",  # Correct
+            "1,3,4",  # Correct
         ]
         
         expected_score2 = 0 + 0 + 100 + 0 + 10000 + 100000
@@ -206,9 +205,9 @@ class HomeworkScoringTestCase(TestCase):
             "berlin",  # Inorrect
             "15",  # Correct
             "oxygen",  # Incorrect
-            "no",  # Correct
-            "false",  # Incorrect
-            "2,5",  # Partially correct
+            "2",  # Correct
+            "2",  # Incorrect
+            "1,3",  # Partially correct
         ]
         
         self.create_answers_for_student(
@@ -245,5 +244,3 @@ class HomeworkScoringTestCase(TestCase):
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
         self.assertEquals(self.enrollment1.total_score, total_score)
-
-
