@@ -1061,7 +1061,6 @@ class HomeworkDetailViewTests(TestCase):
         answer6 = answers.get(question=self.question6)
         self.assertEquals(answer6.answer_text, "Blue,White,Red")
 
-
     def test_submit_homework_submission_artifacts_dispayed_correctly(self):
         self.client.login(**credentials)
 
@@ -1136,3 +1135,44 @@ class HomeworkDetailViewTests(TestCase):
             {"value": "Green", "is_selected": False},
         ]
         self.assertEquals(answer6["options"], expected_options6)
+
+    def test_submit_homework_submission_artifacts_in_possible_answers(self):
+        self.question1.possible_answers = join_possible_answers(
+            ["Paris\r", "London\r", "Berlin"]
+        )
+        self.question1.save()
+
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["Paris\r\n"],
+            # f"answer_{self.question2.id}": ["Some text"],
+            # f"answer_{self.question3.id}": ["3"],
+            # f"answer_{self.question4.id}": ["5"],
+            # f"answer_{self.question5.id}": ["3.141516"],
+            # f"answer_{self.question6.id}": ["Red"],
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        self.client.post(url, post_data)
+
+        response = self.client.get(url)
+        context = response.context
+
+        question_answers = context["question_answers"]
+
+        question1, answer1 = question_answers[0]
+        self.assertEquals(question1, self.question1)
+        expected_options1 = [
+            {"value": "Paris", "is_selected": True},
+            {"value": "London", "is_selected": False},
+            {"value": "Berlin", "is_selected": False},
+        ]
+        self.assertEquals(answer1["options"], expected_options1)

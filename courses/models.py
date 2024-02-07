@@ -170,6 +170,7 @@ class Question(models.Model):
             return []
 
         split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
+        split = [s.strip() for s in split] # remove /r if present
         return split
 
     def get_correct_answer(self):
