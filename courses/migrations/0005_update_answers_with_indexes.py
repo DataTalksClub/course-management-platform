@@ -15,7 +15,7 @@ def replace_answers_with_indexes(possible_answers, answers):
     answers = answers.lower().strip()
 
     logger.debug(f"Possible answers: {possible_answers}")
-    logger.debug(f"Correct answers: {answers}")
+    logger.debug(f"User answers: {answers}")
 
     correct_indexes = []
 
@@ -57,7 +57,7 @@ def update_answers_with_indexes(apps, schema_editor):
             updated_answers.append(answer)
 
             logger.debug(
-                f"Updated answer ID {answer.id} with index/indices: {updated_answer_text}"
+                f"Updated answer ID {answer.id} with index/indices: {updated_answers}"
             )
 
     Answer.objects.bulk_update(updated_answers, ["answer_text"])
