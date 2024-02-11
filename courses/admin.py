@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 from django.contrib import messages
 
 
@@ -36,14 +36,9 @@ class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
         fields = "__all__"
-        widgets = {
-            "text": forms.TextInput(attrs={"size": "60"}),
-            "possible_answers": forms.Textarea(attrs={"cols": 60, "rows": 4}),
-            "correct_answer": forms.TextInput(attrs={"size": "20"}),
-        }
 
 
-class QuestionInline(admin.TabularInline):  # or admin.StackedInline
+class QuestionInline(TabularInline):
     model = Question
     form = QuestionForm
     extra = 0
