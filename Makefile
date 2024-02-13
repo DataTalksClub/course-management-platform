@@ -24,6 +24,9 @@ data: ## Add data to database
 data: migrations
 	pipenv run python add_data.py
 
+test_data: data
+	pipenv run python add_more_test_data.py
+
 shell: ## Run django shell
 shell:
 	pipenv run python manage.py shell

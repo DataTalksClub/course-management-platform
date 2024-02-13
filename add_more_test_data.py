@@ -122,20 +122,24 @@ for u in range(1, 21):
     username = f"student{u}"
     print(f"Creating student {username} and their submissions")
 
-    user, created = User.objects.get_or_create(username=username)
+    user, _ = User.objects.get_or_create(username=username)
+
+
+all_users = list(User.objects.all())
+homeworks = list(Homework.objects.filter(course=course))
+
+for user in all_users:
     enrollment, created = Enrollment.objects.get_or_create(
         course=course,
         student=user,
     )
 
-all_users = list(User.objects.all())
-
-for homework in Homework.objects.filter(course=course):
-    for user in all_users:
+    for homework in homeworks:
         submission, created = Submission.objects.get_or_create(
             homework=homework,
             student=user,
             defaults={'enrollment': enrollment},
         )
+
         if created:
             create_answers_for_student(submission)
