@@ -57,7 +57,7 @@ def update_answers_with_indexes(apps, schema_editor):
             updated_answers.append(answer)
 
             logger.debug(
-                f"Updated answer ID {answer.id} with index/indices: {updated_answers}"
+                f"Updated answer ID {answer.id} with index/indices: {updated_answer}"
             )
 
     Answer.objects.bulk_update(updated_answers, ["answer_text"])
