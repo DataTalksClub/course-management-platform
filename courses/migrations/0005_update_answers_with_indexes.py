@@ -8,7 +8,7 @@ from courses.models import Answer, QuestionTypes
 logger = logging.getLogger("courses.migrations")
 
 
-def replace_answers_with_indexes(possible_answers, answers):
+def replace_answers_with_indexes(possible_answers, answers, question_id=None):
     possible_answers = [
         answer.strip().lower() for answer in possible_answers
     ]
@@ -43,14 +43,14 @@ def update_answers_with_indexes(apps, schema_editor):
         if question.question_type not in [
             QuestionTypes.MULTIPLE_CHOICE.value,
             QuestionTypes.CHECKBOXES.value,
-        ]:    
+        ]:
             continue
 
         if question.possible_answers and answer.answer_text:
             possible_answers = question.get_possible_answers()
 
             updated_answer = replace_answers_with_indexes(
-                possible_answers, answer.answer_text
+                possible_answers, answer.answer_text, question.id
             )
 
             answer.answer_text = updated_answer
