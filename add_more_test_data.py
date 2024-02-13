@@ -79,9 +79,11 @@ def generate_answer(question: Question, submission: Submission) -> Answer:
 
     if is_correct:
         student_answer = question.correct_answer
-    else:    
+    else:
         if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
-            student_answer = random.choice(question.get_possible_answers())
+            num_possible_answers = len(question.get_possible_answers())
+            student_answer_int = random.choice(range(1, num_possible_answers + 1))
+            student_answer = str(student_answer_int)
         elif question.question_type == QuestionTypes.FREE_FORM.value:
             student_answer = "Incorrect answer"
 
