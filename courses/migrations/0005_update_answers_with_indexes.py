@@ -27,7 +27,7 @@ def replace_answers_with_indexes(possible_answers, answers, question_id=None):
             correct_indexes.append(str(index))
         except ValueError:
             logger.error(
-                f"Answer '{answer}' not found in possible_answers for question ID {question.id}"
+                f"Answer '{answer}' not found in possible_answers for question ID {question_id}"
             )
 
     result = ",".join(correct_indexes)
