@@ -522,13 +522,14 @@ def leaderboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
     user = request.user
-    enrollment_id = None
+    current_student_enrollment = None
+    current_student_enrollment_id = None
 
     if user.is_authenticated:
-        enrollment = get_object_or_404(
+        current_student_enrollment = get_object_or_404(
             Enrollment, student=request.user, course__slug=course_slug
         )
-        enrollment_id = enrollment.id
+        current_student_enrollment_id = current_student_enrollment.id
 
     enrollments = Enrollment.objects.filter(course=course).order_by(
         "position_on_leaderboard"
@@ -537,7 +538,8 @@ def leaderboard_view(request, course_slug: str):
     context = {
         "enrollments": enrollments,
         "course": course,
-        "current_student_enrollment_id": enrollment_id,
+        "current_student_enrollment": current_student_enrollment,
+        "current_student_enrollment_id": current_student_enrollment_id,
     }
 
     return render(request, "courses/leaderboard.html", context)
