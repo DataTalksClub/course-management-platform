@@ -105,7 +105,7 @@ def create_answers_for_student(submission):
 
 for hw in range(1, 6):
     print(f"Creating homework {hw}")
-    homework = Homework.objects.create(
+    homework, created = Homework.objects.get_or_create(
         course=course,
         slug=f"extra-homework-{hw}",
         title=f"Test Homework {hw}",
@@ -113,7 +113,8 @@ for hw in range(1, 6):
         description=f"Description for homework {hw}"
     )
 
-    create_questions_for_homework(homework)
+    if created:
+        create_questions_for_homework(homework)
 
 
 # Create 20 users and their submissions
@@ -127,10 +128,14 @@ for u in range(1, 21):
         student=user,
     )
 
-    for homework in Homework.objects.filter(course=course):
+all_users = list(User.objects.all())
+
+for homework in Homework.objects.filter(course=course):
+    for user in all_users:
         submission, created = Submission.objects.get_or_create(
             homework=homework,
             student=user,
             defaults={'enrollment': enrollment},
         )
-        create_answers_for_student(submission)
+        if created:
+            create_answers_for_student(submission)
