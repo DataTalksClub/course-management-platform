@@ -33,8 +33,7 @@ EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
 extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1"
+    "localhost"
 ] + extra_allowed_hosts_parsed
 
 
@@ -111,17 +110,11 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
-# db_config = dj_database_url.config(default=DATABASE_URL)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
+db_config = dj_database_url.config(default=DATABASE_URL)
 
-# DATABASES = {"default": db_config}
+DATABASES = {"default": db_config}
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
