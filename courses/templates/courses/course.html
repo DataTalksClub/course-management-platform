@@ -35,10 +35,9 @@
     <!-- Due date and days until deadline -->
     {% if not hw.is_scored %}
       <p>Due date: {{ hw.due_date }}</p>
-        {% if hw.days_until_due > 0 %}
-        <p>Days until deadline: {{ hw.days_until_due }}</p>
-      {% else %}
-        <p>Deadline has passed.</p>
+      <p>Days until deadline: {{ hw.days_until_due }}</p>
+      {% if hw.days_until_due == 0 %}
+        <p>The form is still accepting submissions.</p>
       {% endif %}
     {% endif %}
 

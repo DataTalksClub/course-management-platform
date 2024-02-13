@@ -1,4 +1,3 @@
-import random
 from enum import Enum
 
 from django.db import models
@@ -6,7 +5,6 @@ from django.db import models
 from django.core.validators import URLValidator
 
 from django.contrib.auth import get_user_model
-from django.utils.text import slugify
 from django.db.models import Sum
 
 from .random_names import generate_random_name
@@ -57,6 +55,10 @@ class Enrollment(models.Model):
 
     display_name = models.CharField(max_length=255, blank=True)
     display_on_leaderboard = models.BooleanField(default=True)
+
+    position_on_leaderboard = models.IntegerField(
+        blank=True, null=True, default=0
+    )
 
     certificate_name = models.CharField(
         max_length=255, blank=True, null=True

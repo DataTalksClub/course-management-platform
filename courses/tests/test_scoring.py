@@ -309,7 +309,7 @@ class HomeworkScoringTestCase(TestCase):
                     "1,3,4",
                 ],
                 "score": 111111,
-                "leaderboard_position": "1",
+                "leaderboard_position": 1,
             },
             {
                 "student": self.student2,
@@ -323,14 +323,14 @@ class HomeworkScoringTestCase(TestCase):
                     "1,3,4",
                 ],
                 "score": 110100,
-                "leaderboard_position": "2",
+                "leaderboard_position": 2,
             },
             {
                 "student": student3,
                 "enrollment": enrollment3,
                 "answers": ["paris", "15", "oxygen", "2", "2", "1,3"],
                 "score": 1011,
-                "leaderboard_position": "3",
+                "leaderboard_position": 3,
             },
             {
                 "student": student4,
@@ -344,7 +344,7 @@ class HomeworkScoringTestCase(TestCase):
                     "1,2,3",
                 ],
                 "score": 10,
-                "leaderboard_position": "4",
+                "leaderboard_position": 4,
             },
             {
                 "student": student5,
@@ -358,7 +358,7 @@ class HomeworkScoringTestCase(TestCase):
                     "2,3,4",
                 ],
                 "score": 0,
-                "leaderboard_position": "5",
+                "leaderboard_position": 5,
             },
         ]
 
@@ -373,26 +373,6 @@ class HomeworkScoringTestCase(TestCase):
             enrollment = fetch_fresh(r["enrollment"])
             self.assertEqual(enrollment.total_score, r["score"])
             self.assertEqual(
-                enrollment.position_on_leaderboa,
+                enrollment.position_on_leaderboard,
                 r["leaderboard_position"],
             )
-
-        # # Assuming you have a method to build the leaderboard, here we're using a simple order-by query for demonstration
-        # leaderboard = Enrollment.objects.filter(
-        #     course=self.course
-        # ).order_by("-total_score")
-
-        # # Convert QuerySet to list for easier assertion checks
-        # leaderboard_list = list(leaderboard)
-
-        # # Check if the leaderboard is in the correct order based on total_score
-        # expected_leaderboard_order = sorted(
-        #     enrollments, key=lambda e: e.total_score, reverse=True
-        # )
-        # self.assertEqual(
-        #     leaderboard_list,
-        #     expected_leaderboard_order,
-        #     "Leaderboard order does not match expected order.",
-        # )
-
-        # # Additional checks for scores, if necessary, can go here

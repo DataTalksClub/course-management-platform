@@ -158,9 +158,7 @@ def update_score(submission: Submission, save: bool = True):
         faq_score = 1
         submission.faq_score = faq_score
 
-    total_score = (
-        questions_score + learning_in_public_score + faq_score
-    )
+    total_score = questions_score + learning_in_public_score + faq_score
 
     submission.total_score = total_score
 
@@ -179,7 +177,6 @@ def score_homework_submissions(
         homework = Homework.objects.select_for_update().get(
             pk=homework_id
         )
-        # homework = Homework.objects.get(pk=homework_id)
 
         if homework.due_date > timezone.now():
             return (
@@ -227,9 +224,7 @@ def score_homework_submissions(
         logger.info(
             f"Updating {len(all_updated_answers)} answers for {homework}"
         )
-        Answer.objects.bulk_update(
-            all_updated_answers, ["is_correct"]
-        )
+        Answer.objects.bulk_update(all_updated_answers, ["is_correct"])
 
         homework.is_scored = True
         homework.save()
@@ -240,6 +235,7 @@ def score_homework_submissions(
 
         course = homework.course
         update_leaderboard(course)
+
         course.first_homework_scored = True
         course.save()
 
@@ -266,10 +262,30 @@ def update_leaderboard(course: Course):
         .annotate(total_score=Sum("total_score"))
     )
 
+    sorted_scores = sorted(
+        aggregated_scores, key=lambda x: x["total_score"], reverse=True
+    )
+
     logger.info(f"Updating {len(aggregated_scores)} enrollments")
 
-    for aggregated_score in aggregated_scores:
-        Enrollment.objects.filter(
-            id=aggregated_score["enrollment"]
-        ).update(total_score=aggregated_score["total_score"])
+    enrollments = Enrollment.objects.filter(course=course)
+    enrollments_by_id = {
+        enrollment.id: enrollment for enrollment in enrollments
+    }
 
+    enrollments_to_update = []
+
+    for rank, score in enumerate(sorted_scores, start=1):
+        enrollment_id = score["enrollment"]
+        total_score = score["total_score"]
+
+        enrollment = enrollments_by_id[enrollment_id]
+        enrollment.total_score = total_score
+        enrollment.position_on_leaderboard = rank
+
+        enrollments_to_update.append(enrollment)
+
+    Enrollment.objects.bulk_update(
+        enrollments_to_update,
+        ["total_score", "position_on_leaderboard"],
+    )
