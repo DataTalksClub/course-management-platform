@@ -248,22 +248,13 @@ def score_homework_submissions(
 def update_leaderboard(course: Course):
     logger.info(f"Updating leaderboard for course {course}")
 
-    scored_homeworks = Homework.objects.filter(
-        course=course, is_scored=True
-    )
-
-    logger.info(
-        f"Updating scores based on {scored_homeworks.count()} homeworks"
-    )
+    homeworks = Homework.objects.filter(course=course)
 
     aggregated_scores = (
-        Submission.objects.filter(homework__in=scored_homeworks)
+        Submission.objects.filter(homework__in=homeworks)
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
-    )
-
-    sorted_scores = sorted(
-        aggregated_scores, key=lambda x: x["total_score"], reverse=True
+        .order_by("-total_score")
     )
 
     logger.info(f"Updating {len(aggregated_scores)} enrollments")
@@ -272,20 +263,26 @@ def update_leaderboard(course: Course):
     enrollments_by_id = {
         enrollment.id: enrollment for enrollment in enrollments
     }
+    
+    rank = 1
 
-    enrollments_to_update = []
-
-    for rank, score in enumerate(sorted_scores, start=1):
+    for score in aggregated_scores:
         enrollment_id = score["enrollment"]
         total_score = score["total_score"]
 
         enrollment = enrollments_by_id[enrollment_id]
         enrollment.total_score = total_score
         enrollment.position_on_leaderboard = rank
+        
+        del enrollments_by_id[enrollment_id]
+        rank = rank + 1
 
-        enrollments_to_update.append(enrollment)
+    for enrollment in enrollments_by_id.values():
+        enrollment.total_score = 0
+        enrollment.position_on_leaderboard = rank
+        rank = rank + 1
 
     Enrollment.objects.bulk_update(
-        enrollments_to_update,
+        enrollments,
         ["total_score", "position_on_leaderboard"],
     )
