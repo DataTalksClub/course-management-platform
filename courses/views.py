@@ -531,7 +531,7 @@ def leaderboard_view(request, course_slug: str):
         enrollment_id = enrollment.id
 
     enrollments = Enrollment.objects.filter(course=course).order_by(
-        "-total_score"
+        "position_on_leaderboard"
     )
 
     context = {
