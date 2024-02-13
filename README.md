@@ -54,7 +54,7 @@ pipenv shell
 Set the database to local:
 
 ```bash
-export DATABASE_URL="sqlite:///db.sqlite3"
+export DATABASE_URL="sqlite:///db/db.sqlite3"
 ```
 
 Make migrations:
