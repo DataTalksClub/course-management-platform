@@ -185,11 +185,7 @@ def process_quesion_free_form(
 
     # the homework is scored and we want to show the answers
 
-    is_correct = is_free_form_answer_correct(
-        user_answer=answer.answer_text,
-        correct_answer=question.correct_answer,
-        answer_type=question.answer_type,
-    )
+    is_correct = is_free_form_answer_correct(question, answer)
 
     if is_correct:
         correctly_selected = "option-answer-correct"

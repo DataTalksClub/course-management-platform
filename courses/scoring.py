@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 
 from django.utils import timezone
-from django.db.models import Subquery, OuterRef, Sum
+from django.db.models import Sum
 
 from django.db import transaction
 
@@ -44,13 +44,48 @@ def is_integer_equal(value1: str, value2: str) -> bool:
         return False
 
 
-def is_free_form_answer_correct(
-    user_answer: str, correct_answer: str, answer_type: str
-):
+def safe_split(value: str, delimiter: str = ","):
+    if not value:
+        return []
+
+    value = value.strip()
+    return value.split(delimiter)
+
+
+def safe_split_to_int(value: str, delimiter: str = ","):
+    raw = safe_split(value, delimiter)
+    return [int(x) for x in raw]
+
+
+def is_multiple_choice_answer_correct(question : Question, answer: Answer) -> bool:
+    user_answer = answer.answer_text
+
+    if not user_answer:
+        return False
+
+    selected_option = int(user_answer)
+    correct_answer = question.get_correct_answer_indices()
+    return selected_option in correct_answer
+
+
+def is_checkbox_answer_correct(question: Question, answer: Answer) -> bool:
+    user_answer = answer.answer_text
+    selected_options = set(safe_split_to_int(user_answer))
+    correct_answer = question.get_correct_answer_indices()
+    return selected_options == correct_answer
+
+
+def is_free_form_answer_correct(question: Question, answer: Answer) -> bool:
+
+    answer_type = question.answer_type
+
     if answer_type == AnswerTypes.ANY.value:
         return True
 
+    user_answer = answer.answer_text
     user_answer = (user_answer or "").strip().lower()
+
+    correct_answer = question.get_correct_answer()
     correct_answer = (correct_answer or "").strip().lower()
 
     if answer_type == AnswerTypes.EXACT_STRING.value:
@@ -67,45 +102,18 @@ def is_free_form_answer_correct(
     return False
 
 
-def safe_split(value: str, delimiter: str = ","):
-    if not value:
-        return []
-
-    value = value.strip()
-    return value.split(delimiter)
-
-
-def safe_split_to_int(value: str, delimiter: str = ","):
-    raw = safe_split(value, delimiter)
-    return [int(x) for x in raw]
-
-
-def is_answer_correct(question: Question, user_answer: str) -> bool:
+def is_answer_correct(question: Question, answer: Answer) -> bool:
     if question.answer_type == AnswerTypes.ANY.value:
         return True
 
     if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
-        if not user_answer:
-            return False
-
-        selected_option = int(user_answer)
-
-        correct_answer = question.get_correct_answer_indices()
-        return selected_option in correct_answer
+        return is_multiple_choice_answer_correct(question, answer)
 
     if question.question_type == QuestionTypes.CHECKBOXES.value:
-        selected_options = safe_split_to_int(user_answer)
-        correct_answer = question.get_correct_answer_indices()
-        print(f'selected_options: {selected_options}')
-        print(f'correct_answer: {correct_answer}')
-        return selected_options == correct_answer
+        return is_checkbox_answer_correct(question, answer)
 
     if question.question_type == QuestionTypes.FREE_FORM.value:
-        correct_answer = question.get_correct_answer()
-
-        return is_free_form_answer_correct(
-            user_answer, correct_answer, question.answer_type
-        )
+        return is_free_form_answer_correct(question, answer)
 
     return False
 
@@ -116,7 +124,7 @@ def update_score(submission: Submission, save: bool = True):
     questions_score = 0
 
     for answer, question in submission.answers_with_questions:
-        is_correct = is_answer_correct(question, answer.answer_text)
+        is_correct = is_answer_correct(question, answer)
 
         answer.is_correct = is_correct
         updated_answers.append(answer)
