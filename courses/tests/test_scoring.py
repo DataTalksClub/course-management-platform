@@ -54,11 +54,11 @@ class HomeworkScoringTestCase(TestCase):
             course=self.course,
             slug="test-homework",
             title="Test Homework",
-            due_date=timezone.now() - timedelta(hours=1)
+            due_date=timezone.now() - timedelta(hours=1),
         )
 
         # Create questions
-        
+
         q1 = Question.objects.create(
             homework=self.homework,
             text="What is the capital of France?",
@@ -104,7 +104,9 @@ class HomeworkScoringTestCase(TestCase):
         q6 = Question.objects.create(
             homework=self.homework,
             text="Select the prime numbers: 2, 4, 5, 7, 8",
-            possible_answers=join_possible_answers(["2", "4", "5", "7", "8"]),
+            possible_answers=join_possible_answers(
+                ["2", "4", "5", "7", "8"]
+            ),
             correct_answer="1,3,4",
             question_type=QuestionTypes.CHECKBOXES.value,
             answer_type=AnswerTypes.EXACT_STRING.value,
@@ -157,15 +159,11 @@ class HomeworkScoringTestCase(TestCase):
             "1",  # Correct
             "1,3,4",  # Correct
         ]
-        
+
         expected_score2 = 0 + 0 + 100 + 0 + 10000 + 100000
 
-        self.create_answers_for_student(
-            submission1, answers_student1
-        )
-        self.create_answers_for_student(
-            submission2, answers_student2
-        )
+        self.create_answers_for_student(submission1, answers_student1)
+        self.create_answers_for_student(submission2, answers_student2)
 
         status, message = score_homework_submissions(self.homework.id)
 
@@ -179,20 +177,28 @@ class HomeworkScoringTestCase(TestCase):
         self.assertEquals(self.homework.is_scored, True)
 
         self.assertEquals(submission1.total_score, expected_score1)
-        self.assertEquals(submission1.questions_score, expected_score1)
+        self.assertEquals(
+            submission1.questions_score, expected_score1
+        )
         self.assertEquals(submission1.faq_score, 0)
-        self.assertEquals(submission1.learning_in_public_score, 0)        
+        self.assertEquals(submission1.learning_in_public_score, 0)
 
         self.assertEquals(submission2.total_score, expected_score2)
-        self.assertEquals(submission2.questions_score, expected_score2)
+        self.assertEquals(
+            submission2.questions_score, expected_score2
+        )
         self.assertEquals(submission2.faq_score, 0)
-        self.assertEquals(submission2.learning_in_public_score, 0)        
+        self.assertEquals(submission2.learning_in_public_score, 0)
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
         self.enrollment2 = fetch_fresh(self.enrollment2)
 
-        self.assertEquals(self.enrollment1.total_score, expected_score1)
-        self.assertEquals(self.enrollment2.total_score, expected_score2)
+        self.assertEquals(
+            self.enrollment1.total_score, expected_score1
+        )
+        self.assertEquals(
+            self.enrollment2.total_score, expected_score2
+        )
 
     def test_homework_scoring_extra_fields(self):
         submission1 = Submission.objects.create(
@@ -209,10 +215,8 @@ class HomeworkScoringTestCase(TestCase):
             "2",  # Incorrect
             "1,3",  # Partially correct
         ]
-        
-        self.create_answers_for_student(
-            submission1, answers_student1
-        )
+
+        self.create_answers_for_student(submission1, answers_student1)
 
         submission1.learning_in_public_links = [
             "https://www.linkedin.com/feed/update/urn:li:activity:7142541710064054272/",
@@ -235,12 +239,44 @@ class HomeworkScoringTestCase(TestCase):
         questions_score = 0 + 10 + 0 + 1000 + 0 + 0
         faq_score = 1
         learning_in_public_score = 3
-        total_score = questions_score + faq_score + learning_in_public_score
+        total_score = (
+            questions_score + faq_score + learning_in_public_score
+        )
 
-        self.assertEquals(submission1.questions_score, questions_score)
+        self.assertEquals(
+            submission1.questions_score, questions_score
+        )
         self.assertEquals(submission1.faq_score, faq_score)
-        self.assertEquals(submission1.learning_in_public_score, learning_in_public_score)
+        self.assertEquals(
+            submission1.learning_in_public_score,
+            learning_in_public_score,
+        )
         self.assertEquals(submission1.total_score, total_score)
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
         self.assertEquals(self.enrollment1.total_score, total_score)
+
+    def test_course_first_homework_scored(self):
+        submission1 = Submission.objects.create(
+            homework=self.homework,
+            student=self.student1,
+            enrollment=self.enrollment1,
+        )
+
+        answers_student1 = [
+            "berlin",  # Inorrect
+            "15",  # Correct
+            "oxygen",  # Incorrect
+            "2",  # Correct
+            "2",  # Incorrect
+            "1,3",  # Partially correct
+        ]
+
+        self.create_answers_for_student(submission1, answers_student1)
+
+        self.assertFalse(self.course.first_homework_scored)
+
+        status, message = score_homework_submissions(self.homework.id)
+
+        self.course = fetch_fresh(self.course)
+        self.assertTrue(self.course.first_homework_scored)

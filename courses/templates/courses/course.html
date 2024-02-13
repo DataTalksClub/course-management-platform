@@ -8,11 +8,13 @@
 <h2>{{ course.title }}</h2>
 <p>{{ course.description }}</p>
 
+{% if course.first_homework_scored %}
 <p>
   <a href="{% url 'leaderboard' course.slug %}">Course leaderboard</a>
 </p>
+{% endif %}
 
-{% if is_authenticated %}
+{% if course.first_homework_scored and is_authenticated %}
 <p>
   <a href="{% url 'enrollment' course.slug %}">Edit course profile</a>
 </p>

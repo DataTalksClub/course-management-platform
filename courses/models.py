@@ -30,7 +30,13 @@ class Course(models.Model):
         help_text="The hashtag associated with the course for social media use.",
     )
 
-    # New field for the URL of the FAQ document
+    first_homework_scored = models.BooleanField(
+        default=False,
+        blank=False,
+        help_text="Whether the first homework has been scored. "
+        + "We use that for deciding whether to show the leaderboard.",
+    )
+
     faq_document_url = models.URLField(
         blank=True,
         validators=[URLValidator()],
@@ -170,7 +176,7 @@ class Question(models.Model):
             return []
 
         split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
-        split = [s.strip() for s in split] # remove /r if present
+        split = [s.strip() for s in split]  # remove /r if present
         return split
 
     def get_correct_answer(self):

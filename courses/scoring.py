@@ -57,7 +57,9 @@ def safe_split_to_int(value: str, delimiter: str = ","):
     return [int(x) for x in raw]
 
 
-def is_multiple_choice_answer_correct(question : Question, answer: Answer) -> bool:
+def is_multiple_choice_answer_correct(
+    question: Question, answer: Answer
+) -> bool:
     user_answer = answer.answer_text
 
     if not user_answer:
@@ -68,15 +70,18 @@ def is_multiple_choice_answer_correct(question : Question, answer: Answer) -> bo
     return selected_option in correct_answer
 
 
-def is_checkbox_answer_correct(question: Question, answer: Answer) -> bool:
+def is_checkbox_answer_correct(
+    question: Question, answer: Answer
+) -> bool:
     user_answer = answer.answer_text
     selected_options = set(safe_split_to_int(user_answer))
     correct_answer = question.get_correct_answer_indices()
     return selected_options == correct_answer
 
 
-def is_free_form_answer_correct(question: Question, answer: Answer) -> bool:
-
+def is_free_form_answer_correct(
+    question: Question, answer: Answer
+) -> bool:
     answer_type = question.answer_type
 
     if answer_type == AnswerTypes.ANY.value:
@@ -229,11 +234,14 @@ def score_homework_submissions(
         homework.is_scored = True
         homework.save()
 
-        update_leaderboard(homework.course)
-
         logger.info(
             f"Scored {len(submissions)} submissions for {homework}"
         )
+
+        course = homework.course
+        update_leaderboard(course)
+        course.first_homework_scored = True
+        course.save()
 
         return (
             HomeworkScoringStatus.OK,
@@ -242,8 +250,14 @@ def score_homework_submissions(
 
 
 def update_leaderboard(course: Course):
+    logger.info(f"Updating leaderboard for course {course}")
+
     scored_homeworks = Homework.objects.filter(
         course=course, is_scored=True
+    )
+
+    logger.info(
+        f"Updating scores based on {scored_homeworks.count()} homeworks"
     )
 
     aggregated_scores = (
@@ -252,8 +266,10 @@ def update_leaderboard(course: Course):
         .annotate(total_score=Sum("total_score"))
     )
 
-    # Update each enrollment with the aggregated score
+    logger.info(f"Updating {len(aggregated_scores)} enrollments")
+
     for aggregated_score in aggregated_scores:
         Enrollment.objects.filter(
             id=aggregated_score["enrollment"]
         ).update(total_score=aggregated_score["total_score"])
+
