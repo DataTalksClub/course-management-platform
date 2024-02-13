@@ -32,7 +32,7 @@ def fetch_fresh(obj):
 
 
 class HomeworkScoringTestCase(TestCase):
-    def create_answers_for_student(self, submission, answers):
+    def create_answers(self, submission, answers):
         for question, answer_text in zip(self.questions, answers):
             Answer.objects.create(
                 submission=submission,
@@ -40,6 +40,14 @@ class HomeworkScoringTestCase(TestCase):
                 student=submission.student,
                 answer_text=answer_text,
             )
+
+    def create_answers_for_enrollemnt(self, enrollment, answers):
+        submission, _ = Submission.objects.get_or_create(
+            homework=self.homework,
+            student=enrollment.student,
+            enrollment=enrollment,
+        )
+        self.create_answers(submission, answers)
 
     def setUp(self):
         # Set up the data for the test
@@ -162,43 +170,35 @@ class HomeworkScoringTestCase(TestCase):
 
         expected_score2 = 0 + 0 + 100 + 0 + 10000 + 100000
 
-        self.create_answers_for_student(submission1, answers_student1)
-        self.create_answers_for_student(submission2, answers_student2)
+        self.create_answers(submission1, answers_student1)
+        self.create_answers(submission2, answers_student2)
 
         status, message = score_homework_submissions(self.homework.id)
 
-        self.assertEquals(status, HomeworkScoringStatus.OK)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
 
         self.homework = fetch_fresh(self.homework)
         submission1 = fetch_fresh(submission1)
         submission2 = fetch_fresh(submission2)
 
-        self.assertEquals(status, HomeworkScoringStatus.OK)
-        self.assertEquals(self.homework.is_scored, True)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
+        self.assertEqual(self.homework.is_scored, True)
 
-        self.assertEquals(submission1.total_score, expected_score1)
-        self.assertEquals(
-            submission1.questions_score, expected_score1
-        )
-        self.assertEquals(submission1.faq_score, 0)
-        self.assertEquals(submission1.learning_in_public_score, 0)
+        self.assertEqual(submission1.total_score, expected_score1)
+        self.assertEqual(submission1.questions_score, expected_score1)
+        self.assertEqual(submission1.faq_score, 0)
+        self.assertEqual(submission1.learning_in_public_score, 0)
 
-        self.assertEquals(submission2.total_score, expected_score2)
-        self.assertEquals(
-            submission2.questions_score, expected_score2
-        )
-        self.assertEquals(submission2.faq_score, 0)
-        self.assertEquals(submission2.learning_in_public_score, 0)
+        self.assertEqual(submission2.total_score, expected_score2)
+        self.assertEqual(submission2.questions_score, expected_score2)
+        self.assertEqual(submission2.faq_score, 0)
+        self.assertEqual(submission2.learning_in_public_score, 0)
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
         self.enrollment2 = fetch_fresh(self.enrollment2)
 
-        self.assertEquals(
-            self.enrollment1.total_score, expected_score1
-        )
-        self.assertEquals(
-            self.enrollment2.total_score, expected_score2
-        )
+        self.assertEqual(self.enrollment1.total_score, expected_score1)
+        self.assertEqual(self.enrollment2.total_score, expected_score2)
 
     def test_homework_scoring_extra_fields(self):
         submission1 = Submission.objects.create(
@@ -216,7 +216,7 @@ class HomeworkScoringTestCase(TestCase):
             "1,3",  # Partially correct
         ]
 
-        self.create_answers_for_student(submission1, answers_student1)
+        self.create_answers(submission1, answers_student1)
 
         submission1.learning_in_public_links = [
             "https://www.linkedin.com/feed/update/urn:li:activity:7142541710064054272/",
@@ -228,13 +228,13 @@ class HomeworkScoringTestCase(TestCase):
 
         status, message = score_homework_submissions(self.homework.id)
 
-        self.assertEquals(status, HomeworkScoringStatus.OK)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
 
         self.homework = fetch_fresh(self.homework)
         submission1 = fetch_fresh(submission1)
 
-        self.assertEquals(status, HomeworkScoringStatus.OK)
-        self.assertEquals(self.homework.is_scored, True)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
+        self.assertEqual(self.homework.is_scored, True)
 
         questions_score = 0 + 10 + 0 + 1000 + 0 + 0
         faq_score = 1
@@ -243,18 +243,16 @@ class HomeworkScoringTestCase(TestCase):
             questions_score + faq_score + learning_in_public_score
         )
 
-        self.assertEquals(
-            submission1.questions_score, questions_score
-        )
-        self.assertEquals(submission1.faq_score, faq_score)
-        self.assertEquals(
+        self.assertEqual(submission1.questions_score, questions_score)
+        self.assertEqual(submission1.faq_score, faq_score)
+        self.assertEqual(
             submission1.learning_in_public_score,
             learning_in_public_score,
         )
-        self.assertEquals(submission1.total_score, total_score)
+        self.assertEqual(submission1.total_score, total_score)
 
         self.enrollment1 = fetch_fresh(self.enrollment1)
-        self.assertEquals(self.enrollment1.total_score, total_score)
+        self.assertEqual(self.enrollment1.total_score, total_score)
 
     def test_course_first_homework_scored(self):
         submission1 = Submission.objects.create(
@@ -272,7 +270,7 @@ class HomeworkScoringTestCase(TestCase):
             "1,3",  # Partially correct
         ]
 
-        self.create_answers_for_student(submission1, answers_student1)
+        self.create_answers(submission1, answers_student1)
 
         self.assertFalse(self.course.first_homework_scored)
 
@@ -280,3 +278,121 @@ class HomeworkScoringTestCase(TestCase):
 
         self.course = fetch_fresh(self.course)
         self.assertTrue(self.course.first_homework_scored)
+
+    def test_leaderboard_update(self):
+        # Add 3 more students
+        student3 = User.objects.create_user(username="student3")
+        enrollment3 = Enrollment.objects.create(
+            course=self.course, student=student3
+        )
+
+        student4 = User.objects.create_user(username="student4")
+        enrollment4 = Enrollment.objects.create(
+            course=self.course, student=student4
+        )
+
+        student5 = User.objects.create_user(username="student5")
+        enrollment5 = Enrollment.objects.create(
+            course=self.course, student=student5
+        )
+
+        data = [
+            {
+                "student": self.student1,
+                "enrollment": self.enrollment1,
+                "answers": [
+                    "paris",
+                    "15",
+                    "nitrogen",
+                    "2",
+                    "1",
+                    "1,3,4",
+                ],
+                "score": 111111,
+                "leaderboard_position": "1",
+            },
+            {
+                "student": self.student2,
+                "enrollment": self.enrollment2,
+                "answers": [
+                    "london",
+                    "20",
+                    "nitrogen",
+                    "1",
+                    "1",
+                    "1,3,4",
+                ],
+                "score": 110100,
+                "leaderboard_position": "2",
+            },
+            {
+                "student": student3,
+                "enrollment": enrollment3,
+                "answers": ["paris", "15", "oxygen", "2", "2", "1,3"],
+                "score": 1011,
+                "leaderboard_position": "3",
+            },
+            {
+                "student": student4,
+                "enrollment": enrollment4,
+                "answers": [
+                    "berlin",
+                    "15",
+                    "oxygen",
+                    "1",
+                    "2",
+                    "1,2,3",
+                ],
+                "score": 10,
+                "leaderboard_position": "4",
+            },
+            {
+                "student": student5,
+                "enrollment": enrollment5,
+                "answers": [
+                    "madrid",
+                    "20",
+                    "carbon dioxide",
+                    "1",
+                    "2",
+                    "2,3,4",
+                ],
+                "score": 0,
+                "leaderboard_position": "5",
+            },
+        ]
+
+        for r in data:
+            self.create_answers_for_enrollemnt(
+                r["enrollment"], r["answers"]
+            )
+
+        score_homework_submissions(self.homework.id)
+
+        for r in data:
+            enrollment = fetch_fresh(r["enrollment"])
+            self.assertEqual(enrollment.total_score, r["score"])
+            self.assertEqual(
+                enrollment.position_on_leaderboa,
+                r["leaderboard_position"],
+            )
+
+        # # Assuming you have a method to build the leaderboard, here we're using a simple order-by query for demonstration
+        # leaderboard = Enrollment.objects.filter(
+        #     course=self.course
+        # ).order_by("-total_score")
+
+        # # Convert QuerySet to list for easier assertion checks
+        # leaderboard_list = list(leaderboard)
+
+        # # Check if the leaderboard is in the correct order based on total_score
+        # expected_leaderboard_order = sorted(
+        #     enrollments, key=lambda e: e.total_score, reverse=True
+        # )
+        # self.assertEqual(
+        #     leaderboard_list,
+        #     expected_leaderboard_order,
+        #     "Leaderboard order does not match expected order.",
+        # )
+
+        # # Additional checks for scores, if necessary, can go here

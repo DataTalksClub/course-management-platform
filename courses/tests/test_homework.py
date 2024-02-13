@@ -126,65 +126,65 @@ class HomeworkDetailViewTests(TestCase):
         )
         response = self.client.get(url)
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(
             response, "homework/homework.html"
         )
 
         context = response.context
 
-        self.assertEquals(context["course"], self.course)
-        self.assertEquals(context["homework"], self.homework)
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(context["homework"], self.homework)
         self.assertFalse(context["is_authenticated"])
 
         question_answers = context["question_answers"]
-        self.assertEquals(len(question_answers), 6)
+        self.assertEqual(len(question_answers), 6)
 
         question1, answer1 = question_answers[0]
-        self.assertEquals(question1, self.question1)
+        self.assertEqual(question1, self.question1)
         expected_options1 = [
             {"value": "Paris", "is_selected": False, "index": 1},
             {"value": "London", "is_selected": False, "index": 2},
             {"value": "Berlin", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer1["options"], expected_options1)
+        self.assertEqual(answer1["options"], expected_options1)
 
         question2, answer2 = question_answers[1]
-        self.assertEquals(question2, self.question2)
-        self.assertEquals(answer2["text"], "")
+        self.assertEqual(question2, self.question2)
+        self.assertEqual(answer2["text"], "")
 
         question3, answer3 = question_answers[2]
-        self.assertEquals(question3, self.question3)
+        self.assertEqual(question3, self.question3)
         expected_options3 = [
             {"value": "2", "is_selected": False, "index": 1},
             {"value": "3", "is_selected": False, "index": 2},
             {"value": "4", "is_selected": False, "index": 3},
             {"value": "5", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer3["options"], expected_options3)
+        self.assertEqual(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
-        self.assertEquals(question4, self.question4)
+        self.assertEqual(question4, self.question4)
         expected_options4 = [
             {"value": "5", "is_selected": False, "index": 1},
             {"value": "6", "is_selected": False, "index": 2},
             {"value": "7", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer4["options"], expected_options4)
+        self.assertEqual(answer4["options"], expected_options4)
 
         question5, answer5 = question_answers[4]
-        self.assertEquals(question5, self.question5)
-        self.assertEquals(answer5["text"], "")
+        self.assertEqual(question5, self.question5)
+        self.assertEqual(answer5["text"], "")
 
         question6, answer6 = question_answers[5]
-        self.assertEquals(question6, self.question6)
+        self.assertEqual(question6, self.question6)
         expected_options6 = [
             {"value": "Blue", "is_selected": False, "index": 1},
             {"value": "White", "is_selected": False, "index": 2},
             {"value": "Red", "is_selected": False, "index": 3},
             {"value": "Green", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer6["options"], expected_options6)
+        self.assertEqual(answer6["options"], expected_options6)
 
     def test_homework_detail_authenticated_no_submission(self):
         self.client.login(**credentials)
@@ -198,65 +198,65 @@ class HomeworkDetailViewTests(TestCase):
         )
         response = self.client.get(url)
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(
             response, "homework/homework.html"
         )
 
         context = response.context
 
-        self.assertEquals(context["course"], self.course)
-        self.assertEquals(context["homework"], self.homework)
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(context["homework"], self.homework)
         self.assertTrue(context["is_authenticated"])
 
         question_answers = context["question_answers"]
-        self.assertEquals(len(question_answers), 6)
+        self.assertEqual(len(question_answers), 6)
 
         question1, answer1 = question_answers[0]
-        self.assertEquals(question1, self.question1)
+        self.assertEqual(question1, self.question1)
         expected_options1 = [
             {"value": "Paris", "is_selected": False, "index": 1},
             {"value": "London", "is_selected": False, "index": 2},
             {"value": "Berlin", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer1["options"], expected_options1)
+        self.assertEqual(answer1["options"], expected_options1)
 
         question2, answer2 = question_answers[1]
-        self.assertEquals(question2, self.question2)
-        self.assertEquals(answer2["text"], "")
+        self.assertEqual(question2, self.question2)
+        self.assertEqual(answer2["text"], "")
 
         question3, answer3 = question_answers[2]
-        self.assertEquals(question3, self.question3)
+        self.assertEqual(question3, self.question3)
         expected_options3 = [
             {"value": "2", "is_selected": False, "index": 1},
             {"value": "3", "is_selected": False, "index": 2},
             {"value": "4", "is_selected": False, "index": 3},
             {"value": "5", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer3["options"], expected_options3)
+        self.assertEqual(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
-        self.assertEquals(question4, self.question4)
+        self.assertEqual(question4, self.question4)
         expected_options4 = [
             {"value": "5", "is_selected": False, "index": 1},
             {"value": "6", "is_selected": False, "index": 2},
             {"value": "7", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer4["options"], expected_options4)
+        self.assertEqual(answer4["options"], expected_options4)
 
         question5, answer5 = question_answers[4]
-        self.assertEquals(question5, self.question5)
-        self.assertEquals(answer5["text"], "")
+        self.assertEqual(question5, self.question5)
+        self.assertEqual(answer5["text"], "")
 
         question6, answer6 = question_answers[5]
-        self.assertEquals(question6, self.question6)
+        self.assertEqual(question6, self.question6)
         expected_options6 = [
             {"value": "Blue", "is_selected": False, "index": 1},
             {"value": "White", "is_selected": False, "index": 2},
             {"value": "Red", "is_selected": False, "index": 3},
             {"value": "Green", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer6["options"], expected_options6)
+        self.assertEqual(answer6["options"], expected_options6)
 
     def test_homework_detail_authenticated_with_submission(self):
         self.enrollment = Enrollment.objects.create(
@@ -329,66 +329,66 @@ class HomeworkDetailViewTests(TestCase):
         logger.info(f"url={url}")
         response = self.client.get(url)
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(
             response, "homework/homework.html"
         )
 
         context = response.context
 
-        self.assertEquals(context["course"], self.course)
-        self.assertEquals(context["homework"], self.homework)
-        self.assertEquals(context["submission"], self.submission)
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(context["homework"], self.homework)
+        self.assertEqual(context["submission"], self.submission)
         self.assertTrue(context["is_authenticated"])
 
         question_answers = context["question_answers"]
-        self.assertEquals(len(question_answers), 6)
+        self.assertEqual(len(question_answers), 6)
 
         question1, answer1 = question_answers[0]
-        self.assertEquals(question1, self.question1)
+        self.assertEqual(question1, self.question1)
         expected_options1 = [
             {"value": "Paris", "is_selected": False, "index": 1},
             {"value": "London", "is_selected": False, "index": 2},
             {"value": "Berlin", "is_selected": True, "index": 3},
         ]
-        self.assertEquals(answer1["options"], expected_options1)
+        self.assertEqual(answer1["options"], expected_options1)
 
         question2, answer2 = question_answers[1]
-        self.assertEquals(question2, self.question2)
-        self.assertEquals(answer2["text"], "Some text")
+        self.assertEqual(question2, self.question2)
+        self.assertEqual(answer2["text"], "Some text")
 
         question3, answer3 = question_answers[2]
-        self.assertEquals(question3, self.question3)
+        self.assertEqual(question3, self.question3)
         expected_options3 = [
             {"value": "2", "is_selected": True, "index": 1},
             {"value": "3", "is_selected": True, "index": 2},
             {"value": "4", "is_selected": False, "index": 3},
             {"value": "5", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer3["options"], expected_options3)
+        self.assertEqual(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
-        self.assertEquals(question4, self.question4)
+        self.assertEqual(question4, self.question4)
         expected_options4 = [
             {"value": "5", "is_selected": True, "index": 1},
             {"value": "6", "is_selected": False, "index": 2},
             {"value": "7", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer4["options"], expected_options4)
+        self.assertEqual(answer4["options"], expected_options4)
 
         question5, answer5 = question_answers[4]
-        self.assertEquals(question5, self.question5)
-        self.assertEquals(answer5["text"], "3.141516")
+        self.assertEqual(question5, self.question5)
+        self.assertEqual(answer5["text"], "3.141516")
 
         question6, answer6 = question_answers[5]
-        self.assertEquals(question6, self.question6)
+        self.assertEqual(question6, self.question6)
         expected_options6 = [
             {"value": "Blue", "is_selected": True, "index": 1},
             {"value": "White", "is_selected": True, "index": 2},
             {"value": "Red", "is_selected": True, "index": 3},
             {"value": "Green", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer6["options"], expected_options6)
+        self.assertEqual(answer6["options"], expected_options6)
 
     def test_homework_detail_with_scored_homework(self):
         self.enrollment = Enrollment.objects.create(
@@ -455,7 +455,7 @@ class HomeworkDetailViewTests(TestCase):
         self.homework.save()
 
         status, _ = score_homework_submissions(self.homework.id)
-        self.assertEquals(status, HomeworkScoringStatus.OK)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
 
         # make sure we have the latest version of the homework
         self.homework = Homework.objects.get(id=self.homework.id)
@@ -473,25 +473,25 @@ class HomeworkDetailViewTests(TestCase):
 
         response = self.client.get(url)
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(
             response, "homework/homework.html"
         )
 
         context = response.context
 
-        self.assertEquals(context["course"], self.course)
-        self.assertEquals(context["homework"], self.homework)
-        self.assertEquals(context["submission"], self.submission)
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(context["homework"], self.homework)
+        self.assertEqual(context["submission"], self.submission)
         self.assertTrue(context["is_authenticated"])
 
         self.assertTrue(context["homework"].is_scored)
 
         question_answers = context["question_answers"]
-        self.assertEquals(len(question_answers), 6)
+        self.assertEqual(len(question_answers), 6)
 
         question1, answer1 = question_answers[0]
-        self.assertEquals(question1, self.question1)
+        self.assertEqual(question1, self.question1)
         expected_options1 = [
             {
                 "value": "Paris",
@@ -512,18 +512,18 @@ class HomeworkDetailViewTests(TestCase):
                 "index": 3,
             },
         ]
-        self.assertEquals(answer1["options"], expected_options1)
+        self.assertEqual(answer1["options"], expected_options1)
 
         question2, answer2 = question_answers[1]
-        self.assertEquals(question2, self.question2)
-        self.assertEquals(answer2["text"], "Some text")
-        self.assertEquals(
+        self.assertEqual(question2, self.question2)
+        self.assertEqual(answer2["text"], "Some text")
+        self.assertEqual(
             answer2["correctly_selected_class"],
             "option-answer-correct",
         )
 
         question3, answer3 = question_answers[2]
-        self.assertEquals(question3, self.question3)
+        self.assertEqual(question3, self.question3)
         expected_options3 = [
             {
                 "value": "2",
@@ -550,10 +550,10 @@ class HomeworkDetailViewTests(TestCase):
                 "index": 4,
             },
         ]
-        self.assertEquals(answer3["options"], expected_options3)
+        self.assertEqual(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
-        self.assertEquals(question4, self.question4)
+        self.assertEqual(question4, self.question4)
         expected_options4 = [
             {
                 "value": "5",
@@ -574,18 +574,18 @@ class HomeworkDetailViewTests(TestCase):
                 "index": 3,
             },
         ]
-        self.assertEquals(answer4["options"], expected_options4)
+        self.assertEqual(answer4["options"], expected_options4)
 
         question5, answer5 = question_answers[4]
-        self.assertEquals(question5, self.question5)
-        self.assertEquals(answer5["text"], "3.141516")
-        self.assertEquals(
+        self.assertEqual(question5, self.question5)
+        self.assertEqual(answer5["text"], "3.141516")
+        self.assertEqual(
             answer5["correctly_selected_class"],
             "option-answer-correct",
         )
 
         question6, answer6 = question_answers[5]
-        self.assertEquals(question6, self.question6)
+        self.assertEqual(question6, self.question6)
         expected_options6 = [
             {
                 "value": "Blue",
@@ -612,7 +612,7 @@ class HomeworkDetailViewTests(TestCase):
                 "index": 4,
             },
         ]
-        self.assertEquals(answer6["options"], expected_options6)
+        self.assertEqual(answer6["options"], expected_options6)
 
     def test_homework_detail_submission_post_no_submissions(self):
         # enrollment doesn't exist yet
@@ -651,7 +651,7 @@ class HomeworkDetailViewTests(TestCase):
             post_data,
         )
 
-        self.assertEquals(response.status_code, 302)
+        self.assertEqual(response.status_code, 302)
 
         # check that redict url is correct
         redirect_url = reverse(
@@ -661,7 +661,7 @@ class HomeworkDetailViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        self.assertEquals(response.url, redirect_url)
+        self.assertEqual(response.url, redirect_url)
 
         # now enrollment exists
         enrollment = Enrollment.objects.filter(
@@ -682,25 +682,25 @@ class HomeworkDetailViewTests(TestCase):
             student=self.user, submission=submission
         )
 
-        self.assertEquals(len(answers), 6)
+        self.assertEqual(len(answers), 6)
 
         answer1 = answers.get(question=self.question1)
-        self.assertEquals(answer1.answer_text, "1")
+        self.assertEqual(answer1.answer_text, "1")
 
         answer2 = answers.get(question=self.question2)
-        self.assertEquals(answer2.answer_text, "Some text")
+        self.assertEqual(answer2.answer_text, "Some text")
 
         answer3 = answers.get(question=self.question3)
-        self.assertEquals(answer3.answer_text, "1,2")
+        self.assertEqual(answer3.answer_text, "1,2")
 
         answer4 = answers.get(question=self.question4)
-        self.assertEquals(answer4.answer_text, "1")
+        self.assertEqual(answer4.answer_text, "1")
 
         answer5 = answers.get(question=self.question5)
-        self.assertEquals(answer5.answer_text, "3.141516")
+        self.assertEqual(answer5.answer_text, "3.141516")
 
         answer6 = answers.get(question=self.question6)
-        self.assertEquals(answer6.answer_text, "1,2,3")
+        self.assertEqual(answer6.answer_text, "1,2,3")
 
     @mock.patch("django.utils.timezone.now")
     def test_homework_detail_submission_post_with_submissions(
@@ -792,7 +792,7 @@ class HomeworkDetailViewTests(TestCase):
             post_data,
         )
 
-        self.assertEquals(response.status_code, 302)
+        self.assertEqual(response.status_code, 302)
 
         # check that redict url is correct
         redirect_url = reverse(
@@ -802,36 +802,36 @@ class HomeworkDetailViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        self.assertEquals(response.url, redirect_url)
+        self.assertEqual(response.url, redirect_url)
 
         # submitted_at is updated to "now"
         submission = Submission.objects.get(id=self.submission.id)
-        self.assertEquals(submission.submitted_at, update_time_now)
+        self.assertEqual(submission.submitted_at, update_time_now)
 
         # check updated answers
         answers = Answer.objects.filter(
             student=self.user, submission=submission
         )
 
-        self.assertEquals(len(answers), 6)
+        self.assertEqual(len(answers), 6)
 
         answer1 = answers.get(question=self.question1)
-        self.assertEquals(answer1.answer_text, "1")
+        self.assertEqual(answer1.answer_text, "1")
 
         answer2 = answers.get(question=self.question2)
-        self.assertEquals(answer2.answer_text, "Some other text")
+        self.assertEqual(answer2.answer_text, "Some other text")
 
         answer3 = answers.get(question=self.question3)
-        self.assertEquals(answer3.answer_text, "1,2,4")
+        self.assertEqual(answer3.answer_text, "1,2,4")
 
         answer4 = answers.get(question=self.question4)
-        self.assertEquals(answer4.answer_text, "3")
+        self.assertEqual(answer4.answer_text, "3")
 
         answer5 = answers.get(question=self.question5)
-        self.assertEquals(answer5.answer_text, "3.141516")
+        self.assertEqual(answer5.answer_text, "3.141516")
 
         answer6 = answers.get(question=self.question6)
-        self.assertEquals(answer6.answer_text, "1,2")
+        self.assertEqual(answer6.answer_text, "1,2")
 
     def test_submit_homework_with_all_fields(self):
         self.homework.homework_url_field = True
@@ -1055,25 +1055,25 @@ class HomeworkDetailViewTests(TestCase):
             student=self.user, submission=submission
         )
 
-        self.assertEquals(len(answers), 6)
+        self.assertEqual(len(answers), 6)
 
         answer1 = answers.get(question=self.question1)
-        self.assertEquals(answer1.answer_text, "1")
+        self.assertEqual(answer1.answer_text, "1")
 
         answer2 = answers.get(question=self.question2)
-        self.assertEquals(answer2.answer_text, "Some text")
+        self.assertEqual(answer2.answer_text, "Some text")
 
         answer3 = answers.get(question=self.question3)
-        self.assertEquals(answer3.answer_text, "1,2")
+        self.assertEqual(answer3.answer_text, "1,2")
 
         answer4 = answers.get(question=self.question4)
-        self.assertEquals(answer4.answer_text, "1")
+        self.assertEqual(answer4.answer_text, "1")
 
         answer5 = answers.get(question=self.question5)
-        self.assertEquals(answer5.answer_text, "3.141516")
+        self.assertEqual(answer5.answer_text, "3.141516")
 
         answer6 = answers.get(question=self.question6)
-        self.assertEquals(answer6.answer_text, "1,2,3")
+        self.assertEqual(answer6.answer_text, "1,2,3")
 
     def test_submit_homework_submission_artifacts_dispayed_correctly(self):
         self.client.login(**credentials)
@@ -1102,53 +1102,53 @@ class HomeworkDetailViewTests(TestCase):
         context = response.context
 
         question_answers = context["question_answers"]
-        self.assertEquals(len(question_answers), 6)
+        self.assertEqual(len(question_answers), 6)
 
         question1, answer1 = question_answers[0]
-        self.assertEquals(question1, self.question1)
+        self.assertEqual(question1, self.question1)
         expected_options1 = [
             {"value": "Paris", "is_selected": False, "index": 1},
             {"value": "London", "is_selected": False, "index": 2},
             {"value": "Berlin", "is_selected": True, "index": 3},
         ]
-        self.assertEquals(answer1["options"], expected_options1)
+        self.assertEqual(answer1["options"], expected_options1)
 
         question2, answer2 = question_answers[1]
-        self.assertEquals(question2, self.question2)
-        self.assertEquals(answer2["text"], "Some text")
+        self.assertEqual(question2, self.question2)
+        self.assertEqual(answer2["text"], "Some text")
 
         question3, answer3 = question_answers[2]
-        self.assertEquals(question3, self.question3)
+        self.assertEqual(question3, self.question3)
         expected_options3 = [
             {"value": "2", "is_selected": True, "index": 1},
             {"value": "3", "is_selected": True, "index": 2},
             {"value": "4", "is_selected": False, "index": 3},
             {"value": "5", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer3["options"], expected_options3)
+        self.assertEqual(answer3["options"], expected_options3)
 
         question4, answer4 = question_answers[3]
-        self.assertEquals(question4, self.question4)
+        self.assertEqual(question4, self.question4)
         expected_options4 = [
             {"value": "5", "is_selected": True, "index": 1},
             {"value": "6", "is_selected": False, "index": 2},
             {"value": "7", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer4["options"], expected_options4)
+        self.assertEqual(answer4["options"], expected_options4)
 
         question5, answer5 = question_answers[4]
-        self.assertEquals(question5, self.question5)
-        self.assertEquals(answer5["text"], "3.141516")
+        self.assertEqual(question5, self.question5)
+        self.assertEqual(answer5["text"], "3.141516")
 
         question6, answer6 = question_answers[5]
-        self.assertEquals(question6, self.question6)
+        self.assertEqual(question6, self.question6)
         expected_options6 = [
             {"value": "Blue", "is_selected": True, "index": 1},
             {"value": "White", "is_selected": True, "index": 2},
             {"value": "Red", "is_selected": True, "index": 3},
             {"value": "Green", "is_selected": False, "index": 4},
         ]
-        self.assertEquals(answer6["options"], expected_options6)
+        self.assertEqual(answer6["options"], expected_options6)
 
     def test_submit_homework_submission_artifacts_in_possible_answers(self):
         self.question1.possible_answers = join_possible_answers(
@@ -1178,10 +1178,10 @@ class HomeworkDetailViewTests(TestCase):
         question_answers = context["question_answers"]
 
         question1, answer1 = question_answers[0]
-        self.assertEquals(question1, self.question1)
+        self.assertEqual(question1, self.question1)
         expected_options1 = [
             {"value": "Paris", "is_selected": True, "index": 1},
             {"value": "London", "is_selected": False, "index": 2},
             {"value": "Berlin", "is_selected": False, "index": 3},
         ]
-        self.assertEquals(answer1["options"], expected_options1)
+        self.assertEqual(answer1["options"], expected_options1)
