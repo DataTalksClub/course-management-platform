@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum, Count
 
 from django.db import transaction
 
@@ -263,7 +263,7 @@ def update_leaderboard(course: Course):
     enrollments_by_id = {
         enrollment.id: enrollment for enrollment in enrollments
     }
-    
+
     rank = 1
 
     for score in aggregated_scores:
@@ -273,7 +273,7 @@ def update_leaderboard(course: Course):
         enrollment = enrollments_by_id[enrollment_id]
         enrollment.total_score = total_score
         enrollment.position_on_leaderboard = rank
-        
+
         del enrollments_by_id[enrollment_id]
         rank = rank + 1
 
@@ -286,3 +286,37 @@ def update_leaderboard(course: Course):
         enrollments,
         ["total_score", "position_on_leaderboard"],
     )
+
+
+def fill_most_common_answer_as_correct(question: Question) -> None:
+    if question.correct_answer:
+        logger.info(f"Correct answer for {question} is already set")
+        return
+
+    most_common_answer = (
+        Answer.objects.filter(
+            question=question,
+            answer_text__isnull=False,
+            answer_text__gt="",
+        )
+        .values("answer_text")
+        .annotate(count=Count("answer_text"))
+        .order_by("-count")
+        .first()
+    )
+
+    if not most_common_answer:
+        logger.warning(f"No answers for {question}")
+        return
+
+    answer = most_common_answer["answer_text"]
+    question.correct_answer = answer
+    question.save()
+    logger.info(f"Updated answer for {question} to {answer}")
+
+
+def fill_correct_answers(homework: Homework) -> None:
+    questions = Question.objects.filter(homework=homework)
+
+    for question in questions:
+        fill_most_common_answer_as_correct(question)

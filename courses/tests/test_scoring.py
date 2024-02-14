@@ -19,6 +19,7 @@ from courses.models import (
 from courses.scoring import (
     HomeworkScoringStatus,
     score_homework_submissions,
+    fill_correct_answers,
 )
 
 
@@ -123,16 +124,18 @@ class HomeworkScoringTestCase(TestCase):
 
         self.questions = [q1, q2, q3, q4, q5, q6]
 
-        self.student1 = User.objects.create_user(username="student1")
-        self.enrollment1 = Enrollment.objects.create(
-            course=self.course, student=self.student1
-        )
+        self.student1, self.enrollment1 = self.create_student("s1")
+        self.student2, self.enrollment2 = self.create_student("s2")
+        self.student3, self.enrollment3 = self.create_student("s3")
+        self.student4, self.enrollment4 = self.create_student("s4")
+        self.student5, self.enrollment5 = self.create_student("s5")
 
-        self.student2 = User.objects.create_user(username="student2")
-        self.enrollment2 = Enrollment.objects.create(
-            course=self.course,
-            student=self.student2,
+    def create_student(self, name):
+        student = User.objects.create_user(username=name)
+        enrollment = Enrollment.objects.create(
+            course=self.course, student=student
         )
+        return student, enrollment
 
     def test_homework_scoring(self):
         submission1 = Submission.objects.create(
@@ -280,22 +283,6 @@ class HomeworkScoringTestCase(TestCase):
         self.assertTrue(self.course.first_homework_scored)
 
     def test_leaderboard_update(self):
-        # Add 3 more students
-        student3 = User.objects.create_user(username="student3")
-        enrollment3 = Enrollment.objects.create(
-            course=self.course, student=student3
-        )
-
-        student4 = User.objects.create_user(username="student4")
-        enrollment4 = Enrollment.objects.create(
-            course=self.course, student=student4
-        )
-
-        student5 = User.objects.create_user(username="student5")
-        enrollment5 = Enrollment.objects.create(
-            course=self.course, student=student5
-        )
-
         data = [
             {
                 "student": self.student1,
@@ -326,15 +313,15 @@ class HomeworkScoringTestCase(TestCase):
                 "leaderboard_position": 2,
             },
             {
-                "student": student3,
-                "enrollment": enrollment3,
+                "student": self.student3,
+                "enrollment": self.enrollment3,
                 "answers": ["paris", "15", "oxygen", "2", "2", "1,3"],
                 "score": 1011,
                 "leaderboard_position": 3,
             },
             {
-                "student": student4,
-                "enrollment": enrollment4,
+                "student": self.student4,
+                "enrollment": self.enrollment4,
                 "answers": [
                     "berlin",
                     "15",
@@ -347,8 +334,8 @@ class HomeworkScoringTestCase(TestCase):
                 "leaderboard_position": 4,
             },
             {
-                "student": student5,
-                "enrollment": enrollment5,
+                "student": self.student5,
+                "enrollment": self.enrollment5,
                 "answers": [
                     "madrid",
                     "20",
@@ -376,3 +363,68 @@ class HomeworkScoringTestCase(TestCase):
                 enrollment.position_on_leaderboard,
                 r["leaderboard_position"],
             )
+
+    def test_fill_most_common_answer_as_correct(self):
+        question = self.questions[3]
+        question.correct_answer = ''
+        question.save()
+
+        answers = [
+            (self.enrollment1, "1"),
+            (self.enrollment2, "1"),
+            (self.enrollment3, "2"),
+            (self.enrollment4, "1"),
+            (self.enrollment5, "2"),
+        ]
+
+        for enrollment, answer in answers:
+            submission = Submission.objects.create(
+                homework=self.homework,
+                student=enrollment.student,
+                enrollment=enrollment,
+            )
+            Answer.objects.create(
+                submission=submission,
+                question=question,
+                student=submission.student,
+                answer_text=answer,
+            )
+
+        fill_correct_answers(self.homework)
+
+        question = fetch_fresh(question)
+
+        self.assertEqual(question.correct_answer, "1")
+
+
+    def test_fill_most_common_answer_as_correct_not_updated_when_set(self):
+        question = self.questions[3]
+        self.assertEqual(question.correct_answer, "2")
+
+        answers = [
+            (self.enrollment1, "1"),
+            (self.enrollment2, "1"),
+            (self.enrollment3, "2"),
+            (self.enrollment4, "1"),
+            (self.enrollment5, "2"),
+        ]
+
+        for enrollment, answer in answers:
+            submission = Submission.objects.create(
+                homework=self.homework,
+                student=enrollment.student,
+                enrollment=enrollment,
+            )
+            Answer.objects.create(
+                submission=submission,
+                question=question,
+                student=submission.student,
+                answer_text=answer,
+            )
+
+        fill_correct_answers(self.homework)
+
+        question = fetch_fresh(question)
+
+        # still 2
+        self.assertEqual(question.correct_answer, "2")
