@@ -102,10 +102,3 @@ class HomeworkAdmin(ModelAdmin):
     list_display = important_fields
     list_filter = important_fields
     search_fields = important_fields
-
-
-admin.site.register(Homework, HomeworkAdmin)
-
-admin.site.register(Course, CourseAdmin)
-
-admin.site.register(Project)
