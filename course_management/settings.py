@@ -291,17 +291,5 @@ SOCIALACCOUNT_ADAPTER = (
 UNFOLD = {
     "SITE_HEADER": _("Course Management"),
     "SITE_TITLE": _("Course Management"),
-    "SITE_SYMBOL": "course",
-    "SHOW_HISTORY": False,
-    # "ENVIRONMENT": "formula.utils.environment_callback",
-    # "DASHBOARD_CALLBACK": "formula.views.dashboard_callback",
-    # "LOGIN": {
-    #     "image": lambda request: static("images/login-bg.jpg"),
-    # },
-    "STYLES": [
-        lambda request: static("css/styles.css"),
-    ],
-    # "SCRIPTS": [
-    #     lambda request: static("js/chart.min.js"),
-    # ]
+    "SITE_SYMBOL": "school",
 }
