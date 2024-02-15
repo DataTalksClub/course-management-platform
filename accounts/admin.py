@@ -16,46 +16,35 @@ from django.contrib.sites.models import Site
 
 admin.site.unregister(Group)
 
-
 @admin.register(Group)
 class GroupAdmin(ModelAdmin):
     pass
 
-
 admin.site.unregister(EmailAddress)
-
 
 @admin.register(EmailAddress)
 class EmailAddressAdmin(ModelAdmin):
     pass
 
-
 admin.site.unregister(SocialAccount)
-
 
 @admin.register(SocialAccount)
 class SocialAccountAdmin(ModelAdmin):
     pass
 
-
 admin.site.unregister(SocialToken)
-
 
 @admin.register(SocialToken)
 class SocialTokenAdmin(ModelAdmin):
     pass
 
-
 admin.site.unregister(SocialApp)
-
 
 @admin.register(SocialApp)
 class SocialAppAdmin(ModelAdmin):
     pass
 
-
 admin.site.unregister(Site)
-
 
 @admin.register(Site)
 class SiteAdmin(ModelAdmin):
