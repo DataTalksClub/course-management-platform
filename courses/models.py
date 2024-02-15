@@ -249,11 +249,6 @@ class Submission(models.Model):
     learning_in_public_score = models.IntegerField(default=0)
     total_score = models.IntegerField(default=0)
 
-    @property
-    def answers_with_questions(self):
-        questions = self.answer_set.select_related("question").all()
-        return [(answer, answer.question) for answer in questions]
-
     def __str__(self):
         return (
             f"{self.student}'s submission for {self.homework.title}"
@@ -270,7 +265,7 @@ class Answer(models.Model):
     is_correct = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Answer for {self.question} for submission {self.submission}"
+        return f"Answer id={self.id} for {self.question}"
 
 
 class ProjectState(Enum):

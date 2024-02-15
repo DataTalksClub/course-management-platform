@@ -1,6 +1,8 @@
 import logging
 
+from time import time
 from enum import Enum
+from collections import defaultdict
 
 from django.utils import timezone
 from django.db.models import Sum, Count
@@ -123,16 +125,24 @@ def is_answer_correct(question: Question, answer: Answer) -> bool:
     return False
 
 
-def update_score(submission: Submission, save: bool = True):
-    logger.info(f"Scoring submission {submission}")
-    updated_answers = []
+def update_score(
+    submission: Submission, answers: list[Answer], save: bool = True
+) -> None:
+    logger.info(f"Scoring submission {submission.id}")
     questions_score = 0
 
-    for answer, question in submission.answers_with_questions:
-        is_correct = is_answer_correct(question, answer)
+    for answer in answers:
+        question = answer.question
+        try:
+            is_correct = is_answer_correct(question, answer)
+        except Exception as e:
+            logger.exception(
+                f"Error while scoring submission {submission.id}"
+            )
+            raise e
+            # is_correct = False
 
         answer.is_correct = is_correct
-        updated_answers.append(answer)
         if save:
             answer.save()
 
@@ -165,54 +175,54 @@ def update_score(submission: Submission, save: bool = True):
     if save:
         submission.save()
 
-    return submission, updated_answers
-
 
 def score_homework_submissions(
     homework_id: str,
 ) -> tuple[HomeworkScoringStatus, str]:
     with transaction.atomic():
+        t0 = time()
         logger.info(f"Scoring submissions for homework {homework_id}")
 
-        homework = Homework.objects.select_for_update().get(
-            pk=homework_id
-        )
+        homework = Homework.objects.get(pk=homework_id)
 
         if homework.due_date > timezone.now():
             return (
                 HomeworkScoringStatus.FAIL,
-                f"The due date for {homework} is in the future. Update the due date to score.",
+                f"The due date for {homework_id} is in the future. Update the due date to score.",
             )
 
         if homework.is_scored:
             return (
                 HomeworkScoringStatus.FAIL,
-                f"Homework {homework} is already scored.",
+                f"Homework {homework_id} is already scored.",
             )
 
         submissions = Submission.objects.filter(
             homework__id=homework_id
         )
+        answers = Answer.objects.filter(
+            submission__in=submissions
+        ).select_related("question", "submission")
+
+        answers_by_submission_id = defaultdict(list)
+        for answer in answers:
+            aid = answer.submission_id
+            answers_by_submission_id[aid].append(answer)
 
         logger.info(
-            f"Scoring {len(submissions)} submissions for {homework}"
+            f"Scoring {len(answers_by_submission_id)} submissions for homework {homework_id}"
         )
-        updated_submissions = []
-        all_updated_answers = []
 
         for submission in submissions:
-            updated_submission, updated_answers = update_score(
-                submission, save=False
-            )
-            updated_submissions.append(updated_submission)
-            all_updated_answers.extend(updated_answers)
+            submission_answers = answers_by_submission_id[submission.id]
+            update_score(submission, submission_answers, save=False)
 
         logger.info(
-            f"Updating {len(updated_submissions)} submissions for {homework}"
+            f"Updating the submissions for homework {homework_id}"
         )
 
         Submission.objects.bulk_update(
-            updated_submissions,
+            submissions,
             [
                 "questions_score",
                 "learning_in_public_score",
@@ -222,15 +232,15 @@ def score_homework_submissions(
         )
 
         logger.info(
-            f"Updating {len(all_updated_answers)} answers for {homework}"
+            f"Updating answers for homework {homework_id}"
         )
-        Answer.objects.bulk_update(all_updated_answers, ["is_correct"])
+        Answer.objects.bulk_update(answers, ["is_correct"])
 
         homework.is_scored = True
         homework.save()
 
         logger.info(
-            f"Scored {len(submissions)} submissions for {homework}"
+            f"Scored {len(submissions)} submissions for homework {homework_id}"
         )
 
         course = homework.course
@@ -239,14 +249,17 @@ def score_homework_submissions(
         course.first_homework_scored = True
         course.save()
 
+        t1 = time()
+        logger.info(f"Scored homework in {(t1 - t0):.2f} seconds")
         return (
             HomeworkScoringStatus.OK,
-            f"Homework {homework} is scored",
+            f"Homework {homework_id} is scored",
         )
 
 
 def update_leaderboard(course: Course):
-    logger.info(f"Updating leaderboard for course {course}")
+    t0 = time()
+    logger.info(f"Updating leaderboard for course {course.id}")
 
     homeworks = Homework.objects.filter(course=course)
 
@@ -286,6 +299,9 @@ def update_leaderboard(course: Course):
         enrollments,
         ["total_score", "position_on_leaderboard"],
     )
+
+    t1 = time()
+    logger.info(f"Updated leaderboard in {(t1 - t0):.2f} seconds")
 
 
 def fill_most_common_answer_as_correct(question: Question) -> None:

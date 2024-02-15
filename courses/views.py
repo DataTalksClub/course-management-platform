@@ -342,7 +342,7 @@ def process_homework_submission(
     for question in questions:
         answer_text = answers_dict.get(f"answer_{question.id}")
 
-        values = {"answer_text": answer_text, "student": user}
+        values = {"answer_text": answer_text}
 
         Answer.objects.update_or_create(
             submission=submission,
