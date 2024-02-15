@@ -16,6 +16,9 @@ import sys
 from pathlib import Path
 
 import dj_database_url
+from django.templatetags.static import static
+from django.utils.translation import gettext_lazy as _
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -149,13 +152,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_ROOT = BASE_DIR / "static"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
 
-# STATICFILES_DIRS = [
-#     STATIC_ROOT,
-#     # Other directories here
-# ]
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 
 is_test = ("test" in sys.argv) or \
@@ -282,3 +284,23 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SOCIALACCOUNT_ADAPTER = (
     "accounts.auth.ConsolidatingSocialAccountAdapter"
 )
+
+
+# Unfold Configurations
+UNFOLD = {
+    "SITE_HEADER": _("Course Management"),
+    "SITE_TITLE": _("Course Management"),
+    "SITE_SYMBOL": "course",
+    "SHOW_HISTORY": False,
+    # "ENVIRONMENT": "formula.utils.environment_callback",
+    # "DASHBOARD_CALLBACK": "formula.views.dashboard_callback",
+    # "LOGIN": {
+    #     "image": lambda request: static("images/login-bg.jpg"),
+    # },
+    "STYLES": [
+        lambda request: static("css/styles.css"),
+    ],
+    # "SCRIPTS": [
+    #     lambda request: static("js/chart.min.js"),
+    # ]
+}
