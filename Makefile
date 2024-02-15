@@ -32,6 +32,11 @@ shell:
 	pipenv run python manage.py shell
 
 
+notebook: ## Run a jupyter notebook
+notebook:
+	pipenv run jupyter notebook
+
+
 docker_build: ## Build docker image
 docker_build: tests
 	docker build -t course_management:$(TAG) .

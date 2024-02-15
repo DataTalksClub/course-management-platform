@@ -15,6 +15,7 @@ python-json-logger = "*"
 [dev-packages]
 ipython = "*"
 pytest-django = "*"
+notebook = "*"
 
 [requires]
 python_version = "3.9"
