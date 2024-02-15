@@ -260,7 +260,8 @@ class HomeworkDetailViewTests(TestCase):
 
     def test_homework_detail_authenticated_with_submission(self):
         self.enrollment = Enrollment.objects.create(
-            student=self.user, course=self.course
+            student=self.user,
+            course=self.course,
         )
         self.submission = Submission.objects.create(
             homework=self.homework,
@@ -270,7 +271,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer1 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question1,
             answer_text="3",
         )  # incorrect
@@ -278,7 +278,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer2 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question2,
             answer_text="Some text",
         )  # any answer is correct
@@ -286,7 +285,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer3 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question3,
             answer_text="1,2",
         )  # partially correct
@@ -294,7 +292,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer4 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question4,
             answer_text="1",
         )  # incorrect
@@ -302,7 +299,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer5 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question5,
             answer_text="3.141516",
         )  # correct
@@ -310,7 +306,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer6 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question6,
             answer_text="1,2,3",
         )  # correct
@@ -392,7 +387,8 @@ class HomeworkDetailViewTests(TestCase):
 
     def test_homework_detail_with_scored_homework(self):
         self.enrollment = Enrollment.objects.create(
-            student=self.user, course=self.course
+            student=self.user,
+            course=self.course,
         )
         self.submission = Submission.objects.create(
             homework=self.homework,
@@ -402,7 +398,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer1 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question1,
             answer_text="3",
         )  # incorrect
@@ -410,7 +405,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer2 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question2,
             answer_text="Some text",
         )  # any answer is correct
@@ -418,7 +412,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer3 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question3,
             answer_text="1,2,3",
         )  # partially correct
@@ -426,7 +419,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer4 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question4,
             answer_text="1",
         )  # incorrect
@@ -434,7 +426,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer5 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question5,
             answer_text="3.141516",
         )  # correct
@@ -442,7 +433,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer6 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question6,
             answer_text="1,2,3",
         )  # correct
@@ -617,13 +607,15 @@ class HomeworkDetailViewTests(TestCase):
     def test_homework_detail_submission_post_no_submissions(self):
         # enrollment doesn't exist yet
         enrollment = Enrollment.objects.filter(
-            student=self.user, course=self.course
+            student=self.user,
+            course=self.course,
         )
         self.assertFalse(enrollment.exists())
 
         # submission doesn't exist yet
         submission = Submission.objects.filter(
-            student=self.user, homework=self.homework
+            student=self.user,
+            homework=self.homework
         )
         self.assertFalse(submission.exists())
 
@@ -665,13 +657,15 @@ class HomeworkDetailViewTests(TestCase):
 
         # now enrollment exists
         enrollment = Enrollment.objects.filter(
-            student=self.user, course=self.course
+            student=self.user,
+            course=self.course
         )
         self.assertTrue(enrollment.exists())
 
         # now submission exists
         submissions = Submission.objects.filter(
-            student=self.user, homework=self.homework
+            student=self.user,
+            homework=self.homework
         )
         self.assertTrue(submissions.exists())
 
@@ -679,7 +673,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # now answers exist too
         answers = Answer.objects.filter(
-            student=self.user, submission=submission
+            submission=submission
         )
 
         self.assertEqual(len(answers), 6)
@@ -710,7 +704,8 @@ class HomeworkDetailViewTests(TestCase):
         mock_now.return_value = update_time_now
 
         self.enrollment = Enrollment.objects.create(
-            student=self.user, course=self.course
+            student=self.user,
+            course=self.course
         )
         self.submission = Submission.objects.create(
             homework=self.homework,
@@ -720,7 +715,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer1 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question1,
             answer_text="1",
         )  # incorrect
@@ -728,7 +722,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer2 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question2,
             answer_text="Some text",
         )  # any answer is correct
@@ -736,7 +729,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer3 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question3,
             answer_text="1,2,3",
         )  # partially correct
@@ -744,7 +736,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer4 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question4,
             answer_text="1",
         )  # incorrect
@@ -752,7 +743,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer5 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question5,
             answer_text="3.141516",
         )  # correct
@@ -760,7 +750,6 @@ class HomeworkDetailViewTests(TestCase):
 
         answer6 = Answer.objects.create(
             submission=self.submission,
-            student=self.user,
             question=self.question6,
             answer_text="1,2,3",
         )  # correct
@@ -810,7 +799,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # check updated answers
         answers = Answer.objects.filter(
-            student=self.user, submission=submission
+            submission=submission
         )
 
         self.assertEqual(len(answers), 6)
@@ -879,7 +868,8 @@ class HomeworkDetailViewTests(TestCase):
 
         # Retrieve the updated submission object
         submission = Submission.objects.get(
-            homework=self.homework, student=self.user
+            homework=self.homework,
+            student=self.user
         )
 
         # Assertions to verify that the data is saved correctly
@@ -955,7 +945,8 @@ class HomeworkDetailViewTests(TestCase):
 
         # Retrieve the updated submission object
         submission = Submission.objects.get(
-            homework=self.homework, student=self.user
+            homework=self.homework,
+            student=self.user
         )
 
         # Assertions to verify that the data is saved correctly
@@ -1010,7 +1001,8 @@ class HomeworkDetailViewTests(TestCase):
 
         # Retrieve the updated submission object
         submission = Submission.objects.get(
-            homework=self.homework, student=self.user
+            homework=self.homework,
+            student=self.user
         )
 
         expected_learning_in_public_links = [
@@ -1048,11 +1040,12 @@ class HomeworkDetailViewTests(TestCase):
         )
 
         submission = Submission.objects.filter(
-            student=self.user, homework=self.homework
+            student=self.user,
+            homework=self.homework
         ).first()
 
         answers = Answer.objects.filter(
-            student=self.user, submission=submission
+            submission=submission
         )
 
         self.assertEqual(len(answers), 6)

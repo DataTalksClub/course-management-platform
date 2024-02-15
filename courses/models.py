@@ -265,13 +265,12 @@ class Answer(models.Model):
         Submission, on_delete=models.CASCADE
     )
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    student = models.ForeignKey(User, on_delete=models.CASCADE)
     answer_text = models.TextField(blank=True, null=True)
 
     is_correct = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Answer by {self.student} for {self.question}"
+        return f"Answer for {self.question} for submission {self.submission}"
 
 
 class ProjectState(Enum):
