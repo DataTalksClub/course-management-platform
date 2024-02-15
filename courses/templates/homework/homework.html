@@ -63,7 +63,15 @@
 
     {% for question, answer in question_answers %}
       <div class="mb-3 question">
-        <p class="question-text">Question {{ forloop.counter }}. {{ question.text }}</p>
+        <p class="question-text">
+          Question {{ forloop.counter }}.
+          {{ question.text }}
+          {% if question.scores_for_correct_answer > 1 %}
+            <span class="text-muted">({{ question.scores_for_correct_answer }} points)</span>
+          {% else %}
+            <span class="text-muted">({{ question.scores_for_correct_answer }} point)</span>
+          {% endif %}
+        </p>
 
         {% if question.question_type == 'MC' %}
           {% for option in answer.options %}
