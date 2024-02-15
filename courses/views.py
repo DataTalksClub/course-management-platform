@@ -473,7 +473,9 @@ def homework_view(
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
     )
-    questions = Question.objects.filter(homework=homework)
+    questions = Question.objects.filter(homework=homework).order_by(
+        "id"
+    )
 
     user = request.user
 
