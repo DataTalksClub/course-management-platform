@@ -148,7 +148,7 @@ Answer(
     submission=admin_submission,
     student=admin_user,
     question=question14,
-    answer_text="Paris",
+    answer_text="2",
 ).save()
 Answer(
     submission=admin_submission,
