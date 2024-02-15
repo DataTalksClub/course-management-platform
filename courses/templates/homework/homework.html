@@ -73,7 +73,7 @@
                 id="radio-{{ question.id }}-{{ forloop.counter }}"
                 type="radio"
                 name="answer_{{ question.id }}"
-                value="{{ option.value }}"
+                value="{{ option.index }}"
                 {% if option.is_selected %} checked {% endif %}
                 {% if disabled %} disabled {% endif %}
               />
@@ -89,7 +89,7 @@
                 id="checkbox-{{ question.id }}-{{ forloop.counter }}"
                 type="checkbox"
                 name="answer_{{ question.id }}"
-                value="{{ option.value }}"
+                value="{{ option.index }}"
                 {% if option.is_selected %} checked {% endif %}
                 {% if disabled %} disabled {% endif %}
               />

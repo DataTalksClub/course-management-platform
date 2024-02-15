@@ -3,19 +3,21 @@ import logging
 from enum import Enum
 
 from django.utils import timezone
-from django.db.models import Subquery, OuterRef, Sum
+from django.db.models import Sum, Count
+
+from django.db import transaction
+
 
 from .models import (
     Homework,
     Submission,
     Question,
+    Answer,
     Course,
     QuestionTypes,
     AnswerTypes,
-    Enrollment
+    Enrollment,
 )
-
-
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,9 @@ class HomeworkScoringStatus(Enum):
     FAIL = "Warning"
 
 
-def is_float_equal(value1: str, value2: str, tolerance: float=0.01) -> bool:
+def is_float_equal(
+    value1: str, value2: str, tolerance: float = 0.01
+) -> bool:
     try:
         return abs(float(value1) - float(value2)) <= tolerance
     except ValueError:
@@ -40,27 +44,7 @@ def is_integer_equal(value1: str, value2: str) -> bool:
         return False
 
 
-def is_free_form_answer_correct(
-    user_answer: str, correct_answer: str, answer_type: str
-):
-    if answer_type == AnswerTypes.ANY.value:
-        return True
-
-    user_answer = (user_answer or "").strip().lower()
-    correct_answer = (correct_answer or "").strip().lower()
-
-    if answer_type == AnswerTypes.EXACT_STRING.value:
-        return user_answer == correct_answer
-    elif answer_type == AnswerTypes.CONTAINS_STRING.value:
-        return correct_answer in user_answer
-    elif answer_type == AnswerTypes.FLOAT.value:
-        return is_float_equal(user_answer, correct_answer, tolerance=0.01)
-    elif answer_type == AnswerTypes.INTEGER.value:
-        return is_integer_equal(user_answer, correct_answer)
-
-    return False
-
-def safe_split(value: str, delimiter: str=","):
+def safe_split(value: str, delimiter: str = ","):
     if not value:
         return []
 
@@ -68,35 +52,89 @@ def safe_split(value: str, delimiter: str=","):
     return value.split(delimiter)
 
 
-def is_answer_correct(question: Question, user_answer: str) -> bool:
-    if question.answer_type == AnswerTypes.ANY.value:
+def safe_split_to_int(value: str, delimiter: str = ","):
+    raw = safe_split(value, delimiter)
+    return [int(x) for x in raw]
+
+
+def is_multiple_choice_answer_correct(
+    question: Question, answer: Answer
+) -> bool:
+    user_answer = answer.answer_text
+
+    if not user_answer:
+        return False
+
+    selected_option = int(user_answer)
+    correct_answer = question.get_correct_answer_indices()
+    return selected_option in correct_answer
+
+
+def is_checkbox_answer_correct(
+    question: Question, answer: Answer
+) -> bool:
+    user_answer = answer.answer_text
+    selected_options = set(safe_split_to_int(user_answer))
+    correct_answer = question.get_correct_answer_indices()
+    return selected_options == correct_answer
+
+
+def is_free_form_answer_correct(
+    question: Question, answer: Answer
+) -> bool:
+    answer_type = question.answer_type
+
+    if answer_type == AnswerTypes.ANY.value:
         return True
 
+    user_answer = answer.answer_text
+    user_answer = (user_answer or "").strip().lower()
+
     correct_answer = question.get_correct_answer()
+    correct_answer = (correct_answer or "").strip().lower()
 
-    if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
-        return user_answer in correct_answer
-
-    elif question.question_type == QuestionTypes.CHECKBOXES.value:
-        selected_options = set(safe_split(user_answer))
-        return selected_options == correct_answer
-
-    elif question.question_type == QuestionTypes.FREE_FORM.value:
-        return is_free_form_answer_correct(
-            user_answer, correct_answer, question.answer_type
+    if answer_type == AnswerTypes.EXACT_STRING.value:
+        return user_answer == correct_answer
+    elif answer_type == AnswerTypes.CONTAINS_STRING.value:
+        return correct_answer in user_answer
+    elif answer_type == AnswerTypes.FLOAT.value:
+        return is_float_equal(
+            user_answer, correct_answer, tolerance=0.01
         )
+    elif answer_type == AnswerTypes.INTEGER.value:
+        return is_integer_equal(user_answer, correct_answer)
 
     return False
 
 
-def update_score(submission: Submission):
+def is_answer_correct(question: Question, answer: Answer) -> bool:
+    if question.answer_type == AnswerTypes.ANY.value:
+        return True
+
+    if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
+        return is_multiple_choice_answer_correct(question, answer)
+
+    if question.question_type == QuestionTypes.CHECKBOXES.value:
+        return is_checkbox_answer_correct(question, answer)
+
+    if question.question_type == QuestionTypes.FREE_FORM.value:
+        return is_free_form_answer_correct(question, answer)
+
+    return False
+
+
+def update_score(submission: Submission, save: bool = True):
+    logger.info(f"Scoring submission {submission}")
+    updated_answers = []
     questions_score = 0
 
     for answer, question in submission.answers_with_questions:
-        is_correct = is_answer_correct(question, answer.answer_text)
+        is_correct = is_answer_correct(question, answer)
 
         answer.is_correct = is_correct
-        answer.save()
+        updated_answers.append(answer)
+        if save:
+            answer.save()
 
         if is_correct:
             questions_score += question.scores_for_correct_answer
@@ -106,67 +144,179 @@ def update_score(submission: Submission):
     learning_in_public_score = 0
 
     if submission.learning_in_public_links:
-        learning_in_public_score = len(submission.learning_in_public_links)
+        learning_in_public_score = len(
+            submission.learning_in_public_links
+        )
         submission.learning_in_public_score = learning_in_public_score
 
-    faq_score = 0    
+    faq_score = 0
 
-    if submission.faq_contribution and len(submission.faq_contribution) >= 5:
+    if (
+        submission.faq_contribution
+        and len(submission.faq_contribution) >= 5
+    ):
         faq_score = 1
         submission.faq_score = faq_score
-    
+
     total_score = questions_score + learning_in_public_score + faq_score
 
     submission.total_score = total_score
-    submission.save()
+
+    if save:
+        submission.save()
+
+    return submission, updated_answers
+
+
+def score_homework_submissions(
+    homework_id: str,
+) -> tuple[HomeworkScoringStatus, str]:
+    with transaction.atomic():
+        logger.info(f"Scoring submissions for homework {homework_id}")
+
+        homework = Homework.objects.select_for_update().get(
+            pk=homework_id
+        )
+
+        if homework.due_date > timezone.now():
+            return (
+                HomeworkScoringStatus.FAIL,
+                f"The due date for {homework} is in the future. Update the due date to score.",
+            )
+
+        if homework.is_scored:
+            return (
+                HomeworkScoringStatus.FAIL,
+                f"Homework {homework} is already scored.",
+            )
+
+        submissions = Submission.objects.filter(
+            homework__id=homework_id
+        )
+
+        logger.info(
+            f"Scoring {len(submissions)} submissions for {homework}"
+        )
+        updated_submissions = []
+        all_updated_answers = []
+
+        for submission in submissions:
+            updated_submission, updated_answers = update_score(
+                submission, save=False
+            )
+            updated_submissions.append(updated_submission)
+            all_updated_answers.extend(updated_answers)
+
+        logger.info(
+            f"Updating {len(updated_submissions)} submissions for {homework}"
+        )
+
+        Submission.objects.bulk_update(
+            updated_submissions,
+            [
+                "questions_score",
+                "learning_in_public_score",
+                "faq_score",
+                "total_score",
+            ],
+        )
+
+        logger.info(
+            f"Updating {len(all_updated_answers)} answers for {homework}"
+        )
+        Answer.objects.bulk_update(all_updated_answers, ["is_correct"])
+
+        homework.is_scored = True
+        homework.save()
+
+        logger.info(
+            f"Scored {len(submissions)} submissions for {homework}"
+        )
+
+        course = homework.course
+        update_leaderboard(course)
+
+        course.first_homework_scored = True
+        course.save()
+
+        return (
+            HomeworkScoringStatus.OK,
+            f"Homework {homework} is scored",
+        )
 
 
 def update_leaderboard(course: Course):
-    scored_homeworks = Homework.objects \
-        .filter(course=course, is_scored=True)
+    logger.info(f"Updating leaderboard for course {course}")
 
-    aggregated_scores = Submission.objects \
-        .filter(homework__in=scored_homeworks) \
-        .values('enrollment') \
-        .annotate(total_score=Sum('total_score'))
+    homeworks = Homework.objects.filter(course=course)
 
-    # Update each enrollment with the aggregated score
-    for aggregated_score in aggregated_scores:
-        Enrollment.objects \
-            .filter(id=aggregated_score['enrollment']) \
-            .update(total_score=aggregated_score['total_score'])
+    aggregated_scores = (
+        Submission.objects.filter(homework__in=homeworks)
+        .values("enrollment")
+        .annotate(total_score=Sum("total_score"))
+        .order_by("-total_score")
+    )
+
+    logger.info(f"Updating {len(aggregated_scores)} enrollments")
+
+    enrollments = Enrollment.objects.filter(course=course)
+    enrollments_by_id = {
+        enrollment.id: enrollment for enrollment in enrollments
+    }
+
+    rank = 1
+
+    for score in aggregated_scores:
+        enrollment_id = score["enrollment"]
+        total_score = score["total_score"]
+
+        enrollment = enrollments_by_id[enrollment_id]
+        enrollment.total_score = total_score
+        enrollment.position_on_leaderboard = rank
+
+        del enrollments_by_id[enrollment_id]
+        rank = rank + 1
+
+    for enrollment in enrollments_by_id.values():
+        enrollment.total_score = 0
+        enrollment.position_on_leaderboard = rank
+        rank = rank + 1
+
+    Enrollment.objects.bulk_update(
+        enrollments,
+        ["total_score", "position_on_leaderboard"],
+    )
 
 
+def fill_most_common_answer_as_correct(question: Question) -> None:
+    if question.correct_answer:
+        logger.info(f"Correct answer for {question} is already set")
+        return
 
-def score_homework_submissions(homework_id: str) -> tuple[HomeworkScoringStatus, str]:
-    homework = Homework.objects.get(pk=homework_id)
-    logger.info(f"Scoring submissions for {homework}")
-
-    if homework.due_date > timezone.now():
-        logger.info(f"The due date for {homework} is in the future. Update the due date to score.")
-        return (
-            HomeworkScoringStatus.FAIL,
-            f"The due date for {homework} is in the future. Update the due date to score.",
+    most_common_answer = (
+        Answer.objects.filter(
+            question=question,
+            answer_text__isnull=False,
+            answer_text__gt="",
         )
+        .values("answer_text")
+        .annotate(count=Count("answer_text"))
+        .order_by("-count")
+        .first()
+    )
 
-    if homework.is_scored:
-        logger.info(f"Homework {homework} is already scored.")
-        return HomeworkScoringStatus.FAIL, f"Homework {homework} is already scored."
+    if not most_common_answer:
+        logger.warning(f"No answers for {question}")
+        return
 
-    submissions = Submission.objects.filter(homework__id=homework_id)
-    logger.info(f"found {len(submissions)} submissions for {homework}")
+    answer = most_common_answer["answer_text"]
+    question.correct_answer = answer
+    question.save()
+    logger.info(f"Updated answer for {question} to {answer}")
 
-    for submission in submissions:
-        logger.info(f"Scoring submission {submission}")
-        update_score(submission)
 
-    homework.is_scored = True
-    homework.save()
-    logger.info(f"Done scoring {homework}")
-    logger.info(f"Updating leaderboard for {homework.course}")
+def fill_correct_answers(homework: Homework) -> None:
+    questions = Question.objects.filter(homework=homework)
 
-    update_leaderboard(homework.course)
-
-    logger.info(f"Scored {len(submissions)} submissions for {homework}")
-
-    return HomeworkScoringStatus.OK, f"Homework {homework} is scored"
+    for question in questions:
+        fill_most_common_answer_as_correct(question)

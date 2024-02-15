@@ -76,7 +76,7 @@
         class="fas fa-question-circle text-muted"
         data-toggle="tooltip"
         data-placement="top"
-        title="The commit id of your latest commit in the project. Should be a 7-character hex string">
+        title="The commit id of your latest commit in the project. It should be a 7-character hex string">
       </i>
     </label>
     <img
@@ -160,7 +160,11 @@
             id="submit-button"
             type="submit"
             class="btn btn-primary">
-          Save
+          {% if not submission %}
+            Submit
+          {% else %}
+            Update
+          {% endif %}
         </button>
       {% else %}
         <p>Please <a href="{% url 'login' %}">log in</a> to submit your project.</p>

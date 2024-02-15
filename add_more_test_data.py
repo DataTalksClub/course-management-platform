@@ -79,9 +79,11 @@ def generate_answer(question: Question, submission: Submission) -> Answer:
 
     if is_correct:
         student_answer = question.correct_answer
-    else:    
+    else:
         if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
-            student_answer = random.choice(question.get_possible_answers())
+            num_possible_answers = len(question.get_possible_answers())
+            student_answer_int = random.choice(range(1, num_possible_answers + 1))
+            student_answer = str(student_answer_int)
         elif question.question_type == QuestionTypes.FREE_FORM.value:
             student_answer = "Incorrect answer"
 
@@ -103,7 +105,7 @@ def create_answers_for_student(submission):
 
 for hw in range(1, 6):
     print(f"Creating homework {hw}")
-    homework = Homework.objects.create(
+    homework, created = Homework.objects.get_or_create(
         course=course,
         slug=f"extra-homework-{hw}",
         title=f"Test Homework {hw}",
@@ -111,7 +113,8 @@ for hw in range(1, 6):
         description=f"Description for homework {hw}"
     )
 
-    create_questions_for_homework(homework)
+    if created:
+        create_questions_for_homework(homework)
 
 
 # Create 20 users and their submissions
@@ -119,16 +122,24 @@ for u in range(1, 21):
     username = f"student{u}"
     print(f"Creating student {username} and their submissions")
 
-    user, created = User.objects.get_or_create(username=username)
+    user, _ = User.objects.get_or_create(username=username)
+
+
+all_users = list(User.objects.all())
+homeworks = list(Homework.objects.filter(course=course))
+
+for user in all_users:
     enrollment, created = Enrollment.objects.get_or_create(
         course=course,
         student=user,
     )
 
-    for homework in Homework.objects.filter(course=course):
+    for homework in homeworks:
         submission, created = Submission.objects.get_or_create(
             homework=homework,
             student=user,
             defaults={'enrollment': enrollment},
         )
-        create_answers_for_student(submission)
+
+        if created:
+            create_answers_for_student(submission)

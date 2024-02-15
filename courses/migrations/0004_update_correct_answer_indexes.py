@@ -9,7 +9,7 @@ from courses.models import Question, QuestionTypes
 logger = logging.getLogger("courses.migrations")
 
 
-def replace_answers_with_indexes(possible_answers, correct_answers):
+def replace_answers_with_indexes(possible_answers, correct_answers, question_id=None):
     possible_answers = [
         answer.strip().lower() for answer in possible_answers
     ]
@@ -28,7 +28,7 @@ def replace_answers_with_indexes(possible_answers, correct_answers):
             correct_indexes.append(str(index))
         except ValueError:
             logger.error(
-                f"Answer '{answer}' not found in possible_answers for question ID {question.id}"
+                f"Answer '{answer}' not found in possible_answers for question ID {question_id}"
             )
 
     result = ",".join(correct_indexes)
@@ -48,7 +48,7 @@ def update_correct_answers_to_indexes(apps, schema_editor):
             possible_answers = question.get_possible_answers()
 
             correct_indexes = replace_answers_with_indexes(
-                possible_answers, question.correct_answer
+                possible_answers, question.correct_answer, question.id
             )
 
             question.correct_answer = correct_indexes

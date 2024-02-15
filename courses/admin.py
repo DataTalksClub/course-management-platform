@@ -8,9 +8,21 @@ from .models import Course, Homework, Question, Project
 
 from .scoring import score_homework_submissions
 
+def update_leaderboard_admin(modeladmin, request, queryset):
+    for course in queryset:
+        update_leaderboard(course)
+        modeladmin.message_user(
+            request,
+            f"Leaderboard updated for course {course}",
+            level=messages.SUCCESS,
+        )
+
+
+update_leaderboard_admin.short_description = "Update leaderboard"
 
 @admin.register(Course)
 class CourseAdmin(ModelAdmin):
+    actions = [update_leaderboard_admin]
     important_fields = ["title", "social_media_hashtag"]
     list_display = important_fields
     list_filter = important_fields
@@ -30,6 +42,11 @@ class ProjectAdmin(ModelAdmin):
     list_display = important_fields
     list_filter = important_fields
     search_fields = important_fields
+from .scoring import (
+    score_homework_submissions,
+    update_leaderboard,
+    fill_correct_answers,
+)
 
 
 class QuestionForm(forms.ModelForm):
@@ -62,11 +79,33 @@ def score_selected_homeworks(modeladmin, request, queryset):
 score_selected_homeworks.short_description = "Score selected homeworks"
 
 
+def set_most_popular_as_correct(modeladmin, request, queryset):
+    for homework in queryset:
+        fill_correct_answers(homework)
+        modeladmin.message_user(
+            request,
+            f"Correct answer for {homework} set to most popular",
+            level=messages.SUCCESS,
+        )
+
+
+set_most_popular_as_correct.short_description = (
+    "Set correct answers to most popular"
+)
+
+
 @admin.register(Homework)
 class HomeworkAdmin(ModelAdmin):
     inlines = [QuestionInline]
-    actions = [score_selected_homeworks]
+    actions = [score_selected_homeworks, set_most_popular_as_correct]
     important_fields = ["course", "title", "due_date", "is_scored"]
     list_display = important_fields
     list_filter = important_fields
     search_fields = important_fields
+
+
+admin.site.register(Homework, HomeworkAdmin)
+
+admin.site.register(Course, CourseAdmin)
+
+admin.site.register(Project)

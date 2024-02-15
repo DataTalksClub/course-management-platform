@@ -8,7 +8,7 @@ from courses.models import Answer, QuestionTypes
 logger = logging.getLogger("courses.migrations")
 
 
-def replace_answers_with_indexes(possible_answers, answers):
+def replace_answers_with_indexes(possible_answers, answers, question_id=None):
     possible_answers = [
         answer.strip().lower() for answer in possible_answers
     ]
@@ -27,7 +27,7 @@ def replace_answers_with_indexes(possible_answers, answers):
             correct_indexes.append(str(index))
         except ValueError:
             logger.error(
-                f"Answer '{answer}' not found in possible_answers for question ID {question.id}"
+                f"Answer '{answer}' not found in possible_answers for question ID {question_id}"
             )
 
     result = ",".join(correct_indexes)
@@ -43,21 +43,21 @@ def update_answers_with_indexes(apps, schema_editor):
         if question.question_type not in [
             QuestionTypes.MULTIPLE_CHOICE.value,
             QuestionTypes.CHECKBOXES.value,
-        ]:    
+        ]:
             continue
 
         if question.possible_answers and answer.answer_text:
             possible_answers = question.get_possible_answers()
 
             updated_answer = replace_answers_with_indexes(
-                possible_answers, answer.answer_text
+                possible_answers, answer.answer_text, question.id
             )
 
             answer.answer_text = updated_answer
             updated_answers.append(answer)
 
             logger.debug(
-                f"Updated answer ID {answer.id} with index/indices: {updated_answers}"
+                f"Updated answer ID {answer.id} with index/indices: {updated_answer}"
             )
 
     Answer.objects.bulk_update(updated_answers, ["answer_text"])

@@ -1,5 +1,5 @@
 [tool.ruff]
-line-length = 70
+line-length = 72
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "course_management.settings"

@@ -132,23 +132,23 @@ class CourseDetailViewTests(TestCase):
         scored_homework = homeworks['scored-homework']
         self.assertTrue(scored_homework.submitted)
         self.assertFalse(hasattr(scored_homework, 'submitted_at'))
-        self.assertEquals(scored_homework.is_scored, True)
-        self.assertEquals(scored_homework.score, 80)
-        self.assertEquals(scored_homework.days_until_due, 0)
+        self.assertEqual(scored_homework.is_scored, True)
+        self.assertEqual(scored_homework.score, 80)
+        self.assertEqual(scored_homework.days_until_due, 0)
 
         submitted_homework = homeworks['submitted-homework']
         self.assertTrue(submitted_homework.submitted)
-        self.assertEquals(submitted_homework.submitted_at, self.submission2.submitted_at)
-        self.assertEquals(submitted_homework.is_scored, False)
-        self.assertEquals(submitted_homework.score, None)
-        self.assertEquals(submitted_homework.days_until_due, 7)
+        self.assertEqual(submitted_homework.submitted_at, self.submission2.submitted_at)
+        self.assertEqual(submitted_homework.is_scored, False)
+        self.assertEqual(submitted_homework.score, None)
+        self.assertEqual(submitted_homework.days_until_due, 7)
 
         unscored_homework = homeworks['unscored-homework']
         self.assertFalse(unscored_homework.submitted)
         self.assertFalse(hasattr(unscored_homework, 'submitted_at'))
-        self.assertEquals(unscored_homework.is_scored, False)
-        self.assertEquals(unscored_homework.score, None)
-        self.assertEquals(unscored_homework.days_until_due, 14)
-        self.assertEquals(unscored_homework.submissions, [])
+        self.assertEqual(unscored_homework.is_scored, False)
+        self.assertEqual(unscored_homework.score, None)
+        self.assertEqual(unscored_homework.days_until_due, 14)
+        self.assertEqual(unscored_homework.submissions, [])
 
-        self.assertEquals(context['total_score'], 80)
+        self.assertEqual(context['total_score'], 80)

@@ -1,4 +1,3 @@
-import random
 from enum import Enum
 
 from django.db import models
@@ -6,7 +5,6 @@ from django.db import models
 from django.core.validators import URLValidator
 
 from django.contrib.auth import get_user_model
-from django.utils.text import slugify
 from django.db.models import Sum
 
 from .random_names import generate_random_name
@@ -30,7 +28,13 @@ class Course(models.Model):
         help_text="The hashtag associated with the course for social media use.",
     )
 
-    # New field for the URL of the FAQ document
+    first_homework_scored = models.BooleanField(
+        default=False,
+        blank=False,
+        help_text="Whether the first homework has been scored. "
+        + "We use that for deciding whether to show the leaderboard.",
+    )
+
     faq_document_url = models.URLField(
         blank=True,
         validators=[URLValidator()],
@@ -51,6 +55,10 @@ class Enrollment(models.Model):
 
     display_name = models.CharField(max_length=255, blank=True)
     display_on_leaderboard = models.BooleanField(default=True)
+
+    position_on_leaderboard = models.IntegerField(
+        blank=True, null=True, default=0
+    )
 
     certificate_name = models.CharField(
         max_length=255, blank=True, null=True
@@ -170,7 +178,7 @@ class Question(models.Model):
             return []
 
         split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
-        split = [s.strip() for s in split] # remove /r if present
+        split = [s.strip() for s in split]  # remove /r if present
         return split
 
     def get_correct_answer(self):
@@ -187,6 +195,14 @@ class Question(models.Model):
             return result
 
         return self.correct_answer or ""
+
+    def get_correct_answer_indices(self):
+        if not self.correct_answer:
+            return set()
+
+        indicies_raw = self.correct_answer.split(",")
+        indicies = {int(index) for index in indicies_raw}
+        return indicies
 
     def __str__(self):
         return f"{self.homework.course.title} / {self.homework.title} - {self.text}"

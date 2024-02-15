@@ -105,9 +105,7 @@ def update_project_with_additional_info(project: Project) -> None:
         project.submitted_at = submission.submitted_at
 
 
-def course_view(
-    request: HttpRequest, course_slug: str
-) -> HttpResponse:
+def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug)
 
     user = request.user
@@ -139,9 +137,9 @@ def get_homeworks_for_course(course: Course, user) -> List[Homework]:
         "submission_set", queryset=queryset, to_attr="submissions"
     )
 
-    homeworks = Homework.objects.filter(
-        course=course
-    ).prefetch_related(submissions_prefetch)
+    homeworks = Homework.objects.filter(course=course).prefetch_related(
+        submissions_prefetch
+    )
 
     for hw in homeworks:
         update_homework_with_additional_info(hw)
@@ -185,11 +183,7 @@ def process_quesion_free_form(
 
     # the homework is scored and we want to show the answers
 
-    is_correct = is_free_form_answer_correct(
-        user_answer=answer.answer_text,
-        correct_answer=question.correct_answer,
-        answer_type=question.answer_type,
-    )
+    is_correct = is_free_form_answer_correct(question, answer)
 
     if is_correct:
         correctly_selected = "option-answer-correct"
@@ -208,9 +202,7 @@ def process_question_options_multiple_choice_or_checkboxes(
     options = []
 
     if answer:
-        answer_text = answer.answer_text or ""
-        selected_options = answer_text.strip().split(",")
-        selected_options = [option.strip() for option in selected_options]
+        selected_options = extract_selected_options(answer)
     else:
         # no answer yet, so we need to show just options
         selected_options = []
@@ -218,17 +210,20 @@ def process_question_options_multiple_choice_or_checkboxes(
     possible_answers = question.get_possible_answers()
 
     if homework.is_scored:
-        correct_answer = question.get_correct_answer()
+        correct_indices = question.get_correct_answer_indices()
 
-    for option in possible_answers:
-        is_selected = option in selected_options
+    for zero_based_index, option in enumerate(possible_answers):
+        index = zero_based_index + 1
+        is_selected = index in selected_options
+
         processed_answer = {
             "value": option,
             "is_selected": is_selected,
+            "index": index,
         }
 
         if homework.is_scored:
-            is_correct = option in correct_answer
+            is_correct = index in correct_indices
 
             correctly_selected = determine_answer_class(
                 is_selected, is_correct
@@ -243,9 +238,33 @@ def process_question_options_multiple_choice_or_checkboxes(
     return {"options": options}
 
 
-def determine_answer_class(
-    is_selected: bool, is_correct: bool
-) -> str:
+def extract_selected_options(answer):
+    if not answer:
+        return []
+
+    answer_text = answer.answer_text or ""
+    answer_text = answer_text.strip()
+
+    if not answer_text:
+        return []
+
+    selected_options = answer_text.strip().split(",")
+
+    result = []
+
+    for option in selected_options:
+        option = option.strip()
+        if not option:
+            continue
+        try:
+            result.append(int(option))
+        except ValueError:
+            pass
+
+    return result
+
+
+def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
     if is_selected and is_correct:
         return "option-answer-correct"
     if not is_selected and is_correct:
@@ -347,9 +366,7 @@ def process_homework_submission(
             time_spent_lectures is not None
             and time_spent_lectures != ""
         ):
-            submission.time_spent_lectures = float(
-                time_spent_lectures
-            )
+            submission.time_spent_lectures = float(time_spent_lectures)
 
     if homework.time_spent_homework_field:
         time_spent_homework = request.POST.get("time_spent_homework")
@@ -357,9 +374,7 @@ def process_homework_submission(
             time_spent_homework is not None
             and time_spent_homework != ""
         ):
-            submission.time_spent_homework = float(
-                time_spent_homework
-            )
+            submission.time_spent_homework = float(time_spent_homework)
 
     if homework.problems_comments_field:
         problems_comments = request.POST.get("problems_comments", "")
@@ -374,7 +389,7 @@ def process_homework_submission(
     messages.success(
         request,
         "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
-        extra_tags="homework"
+        extra_tags="homework",
     )
 
     return redirect(
@@ -458,7 +473,9 @@ def homework_view(
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
     )
-    questions = Question.objects.filter(homework=homework)
+    questions = Question.objects.filter(homework=homework).order_by(
+        "id"
+    )
 
     user = request.user
 
@@ -466,9 +483,7 @@ def homework_view(
         context = homework_detail_build_context_not_authenticated(
             course=course, homework=homework, questions=questions
         )
-        return render(
-            request, "homework/homework.html", context
-        )
+        return render(request, "homework/homework.html", context)
 
     submission = Submission.objects.filter(
         homework=homework, student=user
@@ -500,28 +515,32 @@ def leaderboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
     user = request.user
-    enrollment_id = None
+    current_student_enrollment = None
+    current_student_enrollment_id = None
 
     if user.is_authenticated:
-        enrollment = get_object_or_404(
+        current_student_enrollment = get_object_or_404(
             Enrollment, student=request.user, course__slug=course_slug
         )
-        enrollment_id = enrollment.id
+        current_student_enrollment_id = current_student_enrollment.id
 
     enrollments = Enrollment.objects.filter(course=course).order_by(
-        "-total_score"
+        "position_on_leaderboard"
     )
 
     context = {
         "enrollments": enrollments,
         "course": course,
-        "current_student_enrollment_id": enrollment_id,
+        "current_student_enrollment": current_student_enrollment,
+        "current_student_enrollment_id": current_student_enrollment_id,
     }
 
     return render(request, "courses/leaderboard.html", context)
 
 
-def leaderboard_score_breakdown_view(request, course_slug: str, enrollment_id: int):
+def leaderboard_score_breakdown_view(
+    request, course_slug: str, enrollment_id: int
+):
     # course = get_object_or_404(Course, slug=course_slug)
     # Get the specific enrollment
     enrollment = get_object_or_404(
@@ -529,14 +548,18 @@ def leaderboard_score_breakdown_view(request, course_slug: str, enrollment_id: i
     )
 
     # Get submissions related to the enrollment
-    submissions = Submission.objects.filter(enrollment=enrollment)
+    submissions = Submission.objects.filter(
+        enrollment=enrollment
+    ).order_by("-homework__is_scored", "homework__id")
 
     context = {
         "enrollment": enrollment,
         "submissions": submissions,
     }
 
-    return render(request, "courses/leaderboard_score_breakdown.html", context)
+    return render(
+        request, "courses/leaderboard_score_breakdown.html", context
+    )
 
 
 @login_required
@@ -554,8 +577,9 @@ def enrollment_view(request, course_slug):
             return redirect("course", course_slug=course_slug)
         else:
             messages.error(
-                request, "There was an error updating your enrollment",
-                extra_tags="homework"
+                request,
+                "There was an error updating your enrollment",
+                extra_tags="homework",
             )
             return redirect("enrollment", course_slug=course_slug)
             # TODO: add POST to form below
@@ -617,18 +641,24 @@ def project_view(request, course_slug, project_slug):
 
         if project.time_spent_project_field:
             time_spent = request.POST.get("time_spent")
-            if (
-                time_spent is not None and time_spent != ""
-            ):
-                project_submission.time_spent = tryparsefloat(time_spent)
+            if time_spent is not None and time_spent != "":
+                project_submission.time_spent = tryparsefloat(
+                    time_spent
+                )
 
         if project.problems_comments_field:
-            problems_comments = request.POST.get("problems_comments", "")
-            project_submission.problems_comments = problems_comments.strip()
+            problems_comments = request.POST.get(
+                "problems_comments", ""
+            )
+            project_submission.problems_comments = (
+                problems_comments.strip()
+            )
 
         if project.faq_contribution_field:
             faq_contribution = request.POST.get("faq_contribution", "")
-            project_submission.faq_contribution = faq_contribution.strip()
+            project_submission.faq_contribution = (
+                faq_contribution.strip()
+            )
 
         project_submission.save()
 
