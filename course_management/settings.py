@@ -36,6 +36,8 @@ ALLOWED_HOSTS = [
     "localhost",
 ] + extra_allowed_hosts_parsed
 
+IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
+print(f'IS_LOCAL={IS_LOCAL}')
 
 CSRF_TRUSTED_ORIGINS = []
 
@@ -158,10 +160,12 @@ STATIC_URL = "static/"
 # ]
 
 
-is_test = ("test" in sys.argv) or \
-    ("pytest" in sys.argv) or \
-    ("vscode_pytest" in sys.argv[0]) or \
-    ("test_coverage" in sys.argv)
+is_test = (
+    ("test" in sys.argv)
+    or ("pytest" in sys.argv)
+    or ("vscode_pytest" in sys.argv[0])
+    or ("test_coverage" in sys.argv)
+)
 
 print(sys.argv)
 print(f"Is test: {is_test}")
@@ -206,11 +210,14 @@ LOGGING = {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
             "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
         },
+        "simple": {
+            "format": "%(levelname)s %(message)s"
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "json",
+            "formatter": "json" if not IS_LOCAL else "simple",
         },
     },
     "loggers": {
@@ -224,6 +231,11 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # uncomment to see all SQL queries
+        # "django.db.backends": {
+        #     "level": "DEBUG",
+        #     "handlers": ["console"],
+        # },
         "allauth": {
             "handlers": ["console"],
             "level": "INFO",
