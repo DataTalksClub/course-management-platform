@@ -197,6 +197,13 @@ export SECRET_KEY="${DJANGO_SECRET}"
 pipenv run python manage.py shell
 ```
 
+or
+
+```bash
+export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/prod"
+export SECRET_KEY="${DJANGO_SECRET}"
+```
+
 Finding user with email:
 
 ```python
