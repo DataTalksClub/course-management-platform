@@ -31,6 +31,16 @@ urlpatterns = [
         name="project",
     ),
     path(
+        "<slug:course_slug>/project/<slug:project_slug>/eval",
+        views.projects_eval_view,
+        name="projects_eval",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/eval/<int:review_id>",
+        views.projects_eval_view,
+        name="projects_eval_submit",
+    ),
+    path(
         "<slug:course_slug>/homework/<slug:homework_slug>",
         views.homework_view,
         name="homework",

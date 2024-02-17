@@ -25,6 +25,7 @@ from .models import (
     Project,
     ProjectSubmission,
     ProjectState,
+    PeerReview,
     User,
 )
 
@@ -686,3 +687,28 @@ def project_view(request, course_slug, project_slug):
     }
 
     return render(request, "projects/project.html", context)
+
+
+@login_required
+def projects_eval_view(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    student_submissions = ProjectSubmission.objects.filter(
+        project=project, student=request.user
+    )
+
+    reviews = PeerReview.objects.filter(
+        reviewer__in=student_submissions,
+        submission_under_evaluation__project=project,
+    )
+
+    context = {
+        "course": course,
+        "project": project,
+        "reviews": reviews,
+    }
+
+    return render(request, "projects/eval.html", context)
