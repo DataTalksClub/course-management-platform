@@ -1,5 +1,7 @@
 import random
+import logging
 
+from time import time
 from enum import Enum
 
 from django.db import transaction
@@ -12,6 +14,9 @@ from courses.models import (
     ProjectState,
     PeerReviewState,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectActionStatus(Enum):
@@ -75,10 +80,12 @@ def select_random_assignment(
 
 
 def assign_peer_reviews_for_project(
-    project_id: str,
+    project: Project,
 ) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
-        project = Project.objects.get(id=project_id)
+        t0 = time()
+
+        # project = Project.objects.get(id=project_id)
 
         if project.state != ProjectState.COLLECTING_SUBMISSIONS.value:
             return (
@@ -112,7 +119,13 @@ def assign_peer_reviews_for_project(
         project.state = ProjectState.PEER_REVIEWING.value
         project.save()
 
+        t_end = time()
+
+        logger.info(
+            f"Peer reviews assigned for project {project.id} in {t_end - t0:.2f} seconds."
+        )
+
     return (
         ProjectActionStatus.OK,
-        f"Peer reviews assigned for project {project_id} and state updated to 'PEER_REVIEWING'.",
+        f"Peer reviews assigned for project {project.id} and state updated to 'PEER_REVIEWING'.",
     )

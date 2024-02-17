@@ -29,9 +29,7 @@ from .util import join_possible_answers
 logger = logging.getLogger(__name__)
 
 credentials = dict(
-    username="test@test.com",
-    email="test@test.com",
-    password="12345"
+    username="test@test.com", email="test@test.com", password="12345"
 )
 
 
@@ -58,7 +56,9 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="What is the capital of France?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers=join_possible_answers(["Paris", "London", "Berlin"]) ,
+            possible_answers=join_possible_answers(
+                ["Paris", "London", "Berlin"]
+            ),
             correct_answer="1",
         )
         self.question1.save()
@@ -75,7 +75,9 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="Select prime numbers.",
             question_type=QuestionTypes.CHECKBOXES.value,
-            possible_answers=join_possible_answers(["2", "3", "4", "5"]),
+            possible_answers=join_possible_answers(
+                ["2", "3", "4", "5"]
+            ),
             correct_answer="1,2,4",
         )
         self.question3.save()
@@ -102,7 +104,9 @@ class HomeworkDetailViewTests(TestCase):
             homework=self.homework,
             text="Select the colors in the French flag.",
             question_type=QuestionTypes.CHECKBOXES.value,
-            possible_answers=join_possible_answers(["Blue", "White", "Red", "Green"]),
+            possible_answers=join_possible_answers(
+                ["Blue", "White", "Red", "Green"]
+            ),
             correct_answer="1,2,3",
         )
         self.question6.save()
@@ -127,9 +131,7 @@ class HomeworkDetailViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(
-            response, "homework/homework.html"
-        )
+        self.assertTemplateUsed(response, "homework/homework.html")
 
         context = response.context
 
@@ -199,9 +201,7 @@ class HomeworkDetailViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(
-            response, "homework/homework.html"
-        )
+        self.assertTemplateUsed(response, "homework/homework.html")
 
         context = response.context
 
@@ -325,9 +325,7 @@ class HomeworkDetailViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(
-            response, "homework/homework.html"
-        )
+        self.assertTemplateUsed(response, "homework/homework.html")
 
         context = response.context
 
@@ -464,9 +462,7 @@ class HomeworkDetailViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(
-            response, "homework/homework.html"
-        )
+        self.assertTemplateUsed(response, "homework/homework.html")
 
         context = response.context
 
@@ -614,8 +610,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # submission doesn't exist yet
         submission = Submission.objects.filter(
-            student=self.user,
-            homework=self.homework
+            student=self.user, homework=self.homework
         )
         self.assertFalse(submission.exists())
 
@@ -657,24 +652,20 @@ class HomeworkDetailViewTests(TestCase):
 
         # now enrollment exists
         enrollment = Enrollment.objects.filter(
-            student=self.user,
-            course=self.course
+            student=self.user, course=self.course
         )
         self.assertTrue(enrollment.exists())
 
         # now submission exists
         submissions = Submission.objects.filter(
-            student=self.user,
-            homework=self.homework
+            student=self.user, homework=self.homework
         )
         self.assertTrue(submissions.exists())
 
         submission = submissions.first()
 
         # now answers exist too
-        answers = Answer.objects.filter(
-            submission=submission
-        )
+        answers = Answer.objects.filter(submission=submission)
 
         self.assertEqual(len(answers), 6)
 
@@ -704,8 +695,7 @@ class HomeworkDetailViewTests(TestCase):
         mock_now.return_value = update_time_now
 
         self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course
+            student=self.user, course=self.course
         )
         self.submission = Submission.objects.create(
             homework=self.homework,
@@ -798,9 +788,7 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(submission.submitted_at, update_time_now)
 
         # check updated answers
-        answers = Answer.objects.filter(
-            submission=submission
-        )
+        answers = Answer.objects.filter(submission=submission)
 
         self.assertEqual(len(answers), 6)
 
@@ -868,8 +856,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # Retrieve the updated submission object
         submission = Submission.objects.get(
-            homework=self.homework,
-            student=self.user
+            homework=self.homework, student=self.user
         )
 
         # Assertions to verify that the data is saved correctly
@@ -945,8 +932,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # Retrieve the updated submission object
         submission = Submission.objects.get(
-            homework=self.homework,
-            student=self.user
+            homework=self.homework, student=self.user
         )
 
         # Assertions to verify that the data is saved correctly
@@ -1001,8 +987,7 @@ class HomeworkDetailViewTests(TestCase):
 
         # Retrieve the updated submission object
         submission = Submission.objects.get(
-            homework=self.homework,
-            student=self.user
+            homework=self.homework, student=self.user
         )
 
         expected_learning_in_public_links = [
@@ -1040,13 +1025,10 @@ class HomeworkDetailViewTests(TestCase):
         )
 
         submission = Submission.objects.filter(
-            student=self.user,
-            homework=self.homework
+            student=self.user, homework=self.homework
         ).first()
 
-        answers = Answer.objects.filter(
-            submission=submission
-        )
+        answers = Answer.objects.filter(submission=submission)
 
         self.assertEqual(len(answers), 6)
 
@@ -1068,7 +1050,9 @@ class HomeworkDetailViewTests(TestCase):
         answer6 = answers.get(question=self.question6)
         self.assertEqual(answer6.answer_text, "1,2,3")
 
-    def test_submit_homework_submission_artifacts_dispayed_correctly(self):
+    def test_submit_homework_submission_artifacts_dispayed_correctly(
+        self,
+    ):
         self.client.login(**credentials)
 
         post_data = {
@@ -1090,7 +1074,7 @@ class HomeworkDetailViewTests(TestCase):
 
         self.client.post(url, post_data)
 
-        # now the results are saved, let's get them 
+        # now the results are saved, let's get them
         response = self.client.get(url)
         context = response.context
 
@@ -1143,7 +1127,9 @@ class HomeworkDetailViewTests(TestCase):
         ]
         self.assertEqual(answer6["options"], expected_options6)
 
-    def test_submit_homework_submission_artifacts_in_possible_answers(self):
+    def test_submit_homework_submission_artifacts_in_possible_answers(
+        self,
+    ):
         self.question1.possible_answers = join_possible_answers(
             ["Paris\r", "London\r", "Berlin"]
         )
@@ -1151,9 +1137,7 @@ class HomeworkDetailViewTests(TestCase):
 
         self.client.login(**credentials)
 
-        post_data = {
-            f"answer_{self.question1.id}": ["1\r\n"]
-        }
+        post_data = {f"answer_{self.question1.id}": ["1\r\n"]}
 
         url = reverse(
             "homework",

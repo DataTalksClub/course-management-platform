@@ -11,6 +11,11 @@ from .scoring import (
     fill_correct_answers,
 )
 
+from .projects import (
+    assign_peer_reviews_for_project,
+    ProjectActionStatus,
+)
+
 
 class QuestionForm(forms.ModelForm):
     class Meta:
@@ -89,4 +94,29 @@ class CourseAdmin(admin.ModelAdmin):
 
 admin.site.register(Course, CourseAdmin)
 
-admin.site.register(Project)
+
+def assign_peer_reviews_for_project_admin(
+    modeladmin, request, queryset
+):
+    for project in queryset:
+        status, message = assign_peer_reviews_for_project(project)
+        if status == ProjectActionStatus.OK:
+            modeladmin.message_user(
+                request, message, level=messages.SUCCESS
+            )
+        else:
+            modeladmin.message_user(
+                request, message, level=messages.WARNING
+            )
+
+
+assign_peer_reviews_for_project_admin.short_description = (
+    "Assign peer reviews"
+)
+
+
+class ProjectAdmin(admin.ModelAdmin):
+    actions = [assign_peer_reviews_for_project_admin]
+
+
+admin.site.register(Project, ProjectAdmin)

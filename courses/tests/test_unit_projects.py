@@ -3,7 +3,7 @@ import logging
 from unittest import TestCase
 from collections import defaultdict, Counter
 
-from courses.models import  ProjectSubmission
+from courses.models import ProjectSubmission
 
 from courses.projects import select_random_assignment
 
@@ -11,7 +11,7 @@ from courses.projects import select_random_assignment
 logger = logging.getLogger(__name__)
 
 
-class ProjectActionsTestCase(TestCase):
+class ProjectActionsUnitTestCase(TestCase):
     def test_select_random_assignment(self):
         num_submissions = 10
         num_projects_to_review = 3

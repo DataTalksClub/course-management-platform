@@ -314,7 +314,7 @@ class ProjectSubmission(models.Model):
     learning_in_public_links = models.JSONField(blank=True, null=True)
     faq_contribution = models.TextField(blank=True)
 
-    time_spent = models.FloatField()
+    time_spent = models.FloatField(blank=True, null=True)
     problems_comments = models.TextField(blank=True)
 
     submitted_at = models.DateTimeField(auto_now=True)
@@ -367,7 +367,7 @@ class PeerReview(models.Model):
     )
     note_to_peer = models.TextField()
     learning_in_public_links = models.JSONField(blank=True, null=True)
-    time_spent_reviewing = models.FloatField()
+    time_spent_reviewing = models.FloatField(blank=True, null=True)
     comments = models.TextField(blank=True)
 
     optional = models.BooleanField(
