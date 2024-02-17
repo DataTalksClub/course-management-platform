@@ -128,37 +128,31 @@ admin_submission.save()
 
 Answer(
     submission=admin_submission,
-    student=admin_user,
     question=question11,
     answer_text="3",
 ).save()
 Answer(
     submission=admin_submission,
-    student=admin_user,
     question=question12,
     answer_text="E=mc^2",
 ).save()
 Answer(
     submission=admin_submission,
-    student=admin_user,
     question=question13,
     answer_text="2,3,4,5",
 ).save()
 Answer(
     submission=admin_submission,
-    student=admin_user,
     question=question14,
     answer_text="2",
 ).save()
 Answer(
     submission=admin_submission,
-    student=admin_user,
     question=question15,
     answer_text="78.54",
 ).save()
 Answer(
     submission=admin_submission,
-    student=admin_user,
     question=question16,
     answer_text="Helium",
 ).save()

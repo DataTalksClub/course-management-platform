@@ -92,7 +92,6 @@ def generate_answer(question: Question, submission: Submission) -> Answer:
     return Answer.objects.create(
         submission=submission,
         question=question,
-        student=submission.student,
         answer_text=student_answer,
     )
 
