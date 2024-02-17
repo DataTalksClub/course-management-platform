@@ -169,9 +169,7 @@ class Question(models.Model):
     scores_for_correct_answer = models.IntegerField(default=1)
 
     def set_possible_answers(self, answers):
-        self.possible_answers = QUESTION_ANSWER_DELIMITER.join(
-            answers
-        )
+        self.possible_answers = QUESTION_ANSWER_DELIMITER.join(answers)
 
     def get_possible_answers(self):
         if not self.possible_answers:
@@ -211,9 +209,7 @@ class Question(models.Model):
 class Submission(models.Model):
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
-    enrollment = models.ForeignKey(
-        Enrollment, on_delete=models.CASCADE
-    )
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
 
     homework_link = models.URLField(
         blank=True,
@@ -250,15 +246,11 @@ class Submission(models.Model):
     total_score = models.IntegerField(default=0)
 
     def __str__(self):
-        return (
-            f"{self.student}'s submission for {self.homework.title}"
-        )
+        return f"{self.student}'s submission for {self.homework.title}"
 
 
 class Answer(models.Model):
-    submission = models.ForeignKey(
-        Submission, on_delete=models.CASCADE
-    )
+    submission = models.ForeignKey(Submission, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     answer_text = models.TextField(blank=True, null=True)
 
@@ -314,9 +306,7 @@ class Project(models.Model):
 class ProjectSubmission(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
-    enrollment = models.ForeignKey(
-        Enrollment, on_delete=models.CASCADE
-    )
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
 
     github_link = models.URLField(validators=[URLValidator()])
     commit_id = models.CharField(max_length=40)
@@ -330,7 +320,7 @@ class ProjectSubmission(models.Model):
     submitted_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.project.name} - {self.student.username}"
+        return f"project submission '{self.project.name}' for enrollment {self.enrollment.id}"
 
 
 class ReviewCriteriaTypes(Enum):
@@ -359,15 +349,40 @@ class ReviewCriteria(models.Model):
         return self.description
 
 
+class PeerReviewState(Enum):
+    TO_REVIEW = "TR"
+    SUBMITTED = "SU"
+
+
 class PeerReview(models.Model):
     submission_under_evaluation = models.ForeignKey(
-        ProjectSubmission, on_delete=models.CASCADE
+        ProjectSubmission,
+        related_name="reviews_under_evaluation",
+        on_delete=models.CASCADE,
     )
-    reviewer = models.ForeignKey(User, on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(
+        ProjectSubmission,
+        related_name="reviewers",
+        on_delete=models.CASCADE,
+    )
     note_to_peer = models.TextField()
     learning_in_public_links = models.JSONField(blank=True, null=True)
     time_spent_reviewing = models.FloatField()
     comments = models.TextField(blank=True)
+
+    optional = models.BooleanField(
+        default=False, null=False, blank=False
+    )
+
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    state = models.CharField(
+        max_length=2,
+        choices=[
+            (state.value, state.name) for state in PeerReviewState
+        ],
+        default=PeerReviewState.TO_REVIEW.value,
+    )
 
     def __str__(self):
         return f"Review by {self.reviewer.username} for {self.submission_under_evaluation.project.name}"
