@@ -4,6 +4,7 @@
 
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
 {% endblock %}
 
 {% block content %}
@@ -13,7 +14,7 @@
   <div class="list-group">
     {% for review in reviews %}
     <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="list-group-item list-group-item-action">
-      Evaluate: {{ review.submission_under_evaluation.student.username }}'s Submission
+      Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
       <span class="badge badge-primary badge-pill">Review State: {{ review.get_state_display }}</span>
     </a>
     {% endfor %}

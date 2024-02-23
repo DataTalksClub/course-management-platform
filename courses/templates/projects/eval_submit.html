@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+  <li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluatinos</a></li>
+{% endblock %}
+
+
+{% block content %}
+<div class="container mt-3">
+  <h2>Evaluate Projects for "{{ project.title }}"</h2>
+  <p>
+    {{ submission.enrollment.display_name }}
+    {{ submission.github_link }}
+    {{ submission.commit_id }}
+  </p>
+
+  <h3 class="mb-3">Questions</h3>
+
+  <form method="post" class="needs-validation" novalidate>
+    {% csrf_token %}
+
+    {% for criteria, response in criteria_response_pairs %}
+      <div class="mb-3 question">
+        <p class="question-text">
+          {{ forloop.counter }}. {{ criteria.description }}
+        </p>
+
+        {% for option in criteria.options %}
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              id="radio-{{ criteria.id }}-{{ option.index }}"
+              type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
+              name="answer_{{ criteria.id }}"
+              value="{{ option.index }}"
+              {% if option.is_selected %} checked {% endif %}
+              {% if disabled %} disabled {% endif %}
+            />
+            <label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">{{ option.criteria }} <span class="text-dark">({{ option.score }} points)</span></label>
+          </div>
+        {% endfor %}
+
+      </div>
+    {% endfor %}
+
+    <div class="mb-3 question">
+      <label for="note_to_peer" class="question-text">
+        Review comments
+        <i
+          class="fas fa-question-circle text-muted"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="Anything you want to tell your peer about their project - comments or notes">
+        </i>
+      </label>
+      <textarea
+        class="form-control"
+        name="note_to_peer"
+        id="note_to_peer"
+        {% if disabled %} disabled {% endif %}
+      >{{ review.note_to_peer|default:'' }}</textarea>
+    </div>
+
+    {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+    <script src="{% static 'learning_in_public.js' %}"></script>
+
+    {% if project.time_spent_evaluation_field %}
+      <div class="mb-3 question">
+        <label for="time_spent_reviewing" class="question-text">
+          Time spent on reviewing (hours) <span class="text-muted">(optional)</span>
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="How much time (in hours) did you spend on evaluating this project?">
+          </i>
+        </label>
+        <input
+          type="number"
+          class="form-control"
+          name="time_spent_reviewing"
+          id="time_spent_reviewing"
+          min="0"
+          value="{{ review.time_spent_reviewing|default:'' }}"
+          {% if disabled %} disabled {% endif %}
+        />
+      </div>
+    {% endif %}
+
+    {% if project.problems_comments_field %}
+      <div class="mb-3 question">
+        <label for="comments" class="question-text">
+          Problems or comments <span class="text-muted">(optional)</span>
+        </label>
+        <textarea
+          class="form-control"
+          name="comments"
+          id="comments"
+          {% if disabled %} disabled {% endif %}
+        >{{ review.comments|default:'' }}</textarea>
+      </div>
+    {% endif %}
+
+    {% if course.faq_document_url and project.faq_contribution_field %}
+      <div class="mb-3 question">
+        <label for="faq_contribution" class="question-text">
+          FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, optional)</span>
+          <i
+            class="fas fa-question-circle text-muted"
+            data-toggle="tooltip"
+            data-placement="top"
+            title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?">
+          </i>
+        </label>
+        <textarea
+          class="form-control"
+          name="faq_contribution"
+          id="faq_contribution"
+          {% if disabled %} disabled {% endif %}
+        >{{ review.faq_contribution|default:'' }}</textarea>
+      </div>
+    {% endif %}
+
+    {% if project.state == 'PR' %}
+      <div class="mt-4 text-center">
+        <button
+            id="submit-button"
+            type="submit"
+            class="btn btn-primary">
+          {% if review.state == 'TR' %}
+            Submit
+          {% else %}
+            Update
+          {% endif %}
+        </button>
+    {% else %}
+      <p>The evaluation period is over, it's no longer possible to submit evaluation</p>
+    {% endif %}
+  </form>
+
+  {% if review.state == 'SU' %}
+    <p class="text-muted question-text m-0">Last submission at: {{ review.submitted_at|date:"F d, Y H:i" }}</p>
+  {% endif %}
+
+  <script>
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip()
+    });
+  </script>
+</div>
+{% endblock %}

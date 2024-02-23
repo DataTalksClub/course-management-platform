@@ -320,7 +320,7 @@ class ProjectSubmission(models.Model):
     submitted_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"project submission '{self.project.name}' for enrollment {self.enrollment.id}"
+        return f"project submission for enrollment {self.enrollment.id}"
 
 
 class ReviewCriteriaTypes(Enum):
@@ -400,7 +400,7 @@ class CriteriaResponse(models.Model):
     criteria = models.ForeignKey(
         ReviewCriteria, on_delete=models.CASCADE
     )
-    score = models.IntegerField()
+    answer = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.criteria.description}: {self.score}"
+        return f"{self.criteria.description}: {self.answer}"

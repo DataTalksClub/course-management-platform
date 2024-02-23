@@ -12,8 +12,6 @@ from django.db.models import Prefetch
 
 from django.contrib.auth.decorators import login_required
 
-from django.core.exceptions import ValidationError
-
 from .models import (
     Course,
     Homework,
@@ -26,6 +24,7 @@ from .models import (
     ProjectSubmission,
     ProjectState,
     PeerReview,
+    ReviewCriteria,
     User,
 )
 
@@ -712,3 +711,45 @@ def projects_eval_view(request, course_slug, project_slug):
     }
 
     return render(request, "projects/eval.html", context)
+
+
+@login_required
+def projects_eval_submit(request, course_slug, project_slug, review_id):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(Project, slug=project_slug, course=course)
+
+    review = get_object_or_404(PeerReview, id=review_id)
+    submission = review.submission_under_evaluation
+
+    review_criteria = ReviewCriteria.objects.filter(course=course)
+
+    review_responses = review.get_criteria_responses()
+
+    responses_by_criteria_id = {r.criterion.id: r for r in review_responses}
+    
+    criteria_response_pairs = []
+
+    for criterion in review_criteria:
+        response = responses_by_criteria_id.get(criterion.id)
+        
+        index = 1
+        for option in criterion.options:
+            option['index'] = index
+            option['is_selected'] = False # TODO
+            index = index + 1
+
+        criteria_response_pairs.append((criterion, response))
+
+
+    accepting_submissions = project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+
+    context = {
+        'course': course,
+        'project': project,
+        'review': review,
+        'submission': submission,
+        'criteria_response_pairs': criteria_response_pairs,
+        'accepting_submissions': accepting_submissions,
+    }
+
+    return render(request, 'projects/eval_submit.html', context)

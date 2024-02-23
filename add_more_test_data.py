@@ -158,6 +158,11 @@ for i in [1, 2, 3]:
     if created:
         for user in all_users:
             print(f'  Creating submission for {user}')
+            
+            enrollment = Enrollment.objects.get(
+                course=course,
+                student=user,
+            )
             ProjectSubmission.objects.create(
                 project=project,
                 student=user,

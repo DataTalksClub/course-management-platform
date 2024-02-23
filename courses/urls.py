@@ -37,7 +37,7 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/<int:review_id>",
-        views.projects_eval_view,
+        views.projects_eval_submit,
         name="projects_eval_submit",
     ),
     path(
