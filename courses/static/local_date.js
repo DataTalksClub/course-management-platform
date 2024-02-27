@@ -16,14 +16,16 @@ const now = new Date();
 let days = 0;
 let hours = 0;
 let minutes = 0;
-let diff = homeworkDeadline.getTime() - now.getTime();
-if (diff > 0) {
-  let milliseconds = Math.floor((diff % 1000) / 1);
-  let seconds = Math.floor((diff / 1000) % 60);
-  minutes = Math.floor((diff / (1000 * 60)) % 60);
-  hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  days = Math.floor(diff / (1000 * 60 * 60 * 24));
-}
 
-const until_deadline = document.querySelector(".until-deadline");
-until_deadline.innerHTML = `days: ${days}, hours: ${hours}, minutes: ${minutes}`;
+const until_deadlines = document.querySelectorAll(".until-deadline");
+until_deadlines.forEach((deadline) => {
+  let diff = homeworkDeadline.getTime() - now.getTime();
+  if (diff > 0) {
+    let milliseconds = Math.floor((diff % 1000) / 1);
+    let seconds = Math.floor((diff / 1000) % 60);
+    minutes = Math.floor((diff / (1000 * 60)) % 60);
+    hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    deadline.innerHTML = `days: ${days}, hours: ${hours}, minutes: ${minutes}`;
+  }
+});
