@@ -43,14 +43,10 @@ def ping(request):
 
 def course_list(request):
     courses = Course.objects.all()
-    return render(
-        request, "courses/course_list.html", {"courses": courses}
-    )
+    return render(request, "courses/course_list.html", {"courses": courses})
 
 
-def get_projects_for_course(
-    course: Course, user: User
-) -> List[Project]:
+def get_projects_for_course(course: Course, user: User) -> List[Project]:
     if user.is_authenticated:
         queryset = ProjectSubmission.objects.filter(student=user)
     else:
@@ -77,9 +73,7 @@ def update_project_with_additional_info(project: Project) -> None:
 
     if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
         if project.submission_due_date > timezone.now():
-            days_until_due = (
-                project.submission_due_date - timezone.now()
-            ).days
+            days_until_due = (project.submission_due_date - timezone.now()).days
 
         project.days_until_due = days_until_due
         project.submitted = False
@@ -169,9 +163,7 @@ def update_homework_with_additional_info(homework: Homework) -> None:
         homework.submitted_at = submission.submitted_at
 
 
-def process_quesion_free_form(
-    homework: Homework, question: Question, answer: Answer
-):
+def process_quesion_free_form(homework: Homework, question: Question, answer: Answer):
     if not homework.is_scored:
         if not answer:
             return {"text": ""}
@@ -225,13 +217,9 @@ def process_question_options_multiple_choice_or_checkboxes(
         if homework.is_scored:
             is_correct = index in correct_indices
 
-            correctly_selected = determine_answer_class(
-                is_selected, is_correct
-            )
+            correctly_selected = determine_answer_class(is_selected, is_correct)
 
-            processed_answer[
-                "correctly_selected_class"
-            ] = correctly_selected
+            processed_answer["correctly_selected_class"] = correctly_selected
 
         options.append(processed_answer)
 
@@ -274,9 +262,7 @@ def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
     return "option-answer-none"
 
 
-def process_question_options(
-    homework: Homework, question: Question, answer: Answer
-):
+def process_question_options(homework: Homework, question: Question, answer: Answer):
     if question.question_type == QuestionTypes.FREE_FORM.value:
         return process_quesion_free_form(homework, question, answer)
 
@@ -292,9 +278,7 @@ def tryparsefloat(value: str) -> Optional[float]:
         return None
 
 
-def clean_learning_in_public_links(
-    links: List[str], cap: int
-) -> List[str]:
+def clean_learning_in_public_links(links: List[str], cap: int) -> List[str]:
     cleaned_links = []
 
     for link in links:
@@ -362,18 +346,12 @@ def process_homework_submission(
 
     if homework.time_spent_lectures_field:
         time_spent_lectures = request.POST.get("time_spent_lectures")
-        if (
-            time_spent_lectures is not None
-            and time_spent_lectures != ""
-        ):
+        if time_spent_lectures is not None and time_spent_lectures != "":
             submission.time_spent_lectures = float(time_spent_lectures)
 
     if homework.time_spent_homework_field:
         time_spent_homework = request.POST.get("time_spent_homework")
-        if (
-            time_spent_homework is not None
-            and time_spent_homework != ""
-        ):
+        if time_spent_homework is not None and time_spent_homework != "":
             submission.time_spent_homework = float(time_spent_homework)
 
     if homework.problems_comments_field:
@@ -426,14 +404,13 @@ def homework_detail_build_context_authenticated(
     questions: List[Question],
     submission: Optional[Submission],
 ) -> dict:
-    if submission:
-        answers = Answer.objects.filter(
-            submission=submission
-        ).select_related("question")
 
-        question_answers_map = {
-            answer.question.id: answer for answer in answers
-        }
+    if submission:
+        answers = Answer.objects.filter(submission=submission).select_related(
+            "question"
+        )
+
+        question_answers_map = {answer.question.id: answer for answer in answers}
     else:
         question_answers_map = {}
 
@@ -443,9 +420,7 @@ def homework_detail_build_context_authenticated(
 
     for question in questions:
         answer = question_answers_map.get(question.id)
-        processed_answer = process_question_options(
-            homework, question, answer
-        )
+        processed_answer = process_question_options(homework, question, answer)
 
         pair = (question, processed_answer)
         question_answers.append(pair)
@@ -465,17 +440,11 @@ def homework_detail_build_context_authenticated(
     return context
 
 
-def homework_view(
-    request: HttpRequest, course_slug: str, homework_slug: str
-):
+def homework_view(request: HttpRequest, course_slug: str, homework_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
-    homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
-    )
-    questions = Question.objects.filter(homework=homework).order_by(
-        "id"
-    )
+    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+    questions = Question.objects.filter(homework=homework).order_by("id")
 
     user = request.user
 
@@ -485,9 +454,7 @@ def homework_view(
         )
         return render(request, "homework/homework.html", context)
 
-    submission = Submission.objects.filter(
-        homework=homework, student=user
-    ).first()
+    submission = Submission.objects.filter(homework=homework, student=user).first()
 
     logger.info(f"submission={submission}")
 
@@ -538,9 +505,7 @@ def leaderboard_view(request, course_slug: str):
     return render(request, "courses/leaderboard.html", context)
 
 
-def leaderboard_score_breakdown_view(
-    request, course_slug: str, enrollment_id: int
-):
+def leaderboard_score_breakdown_view(request, course_slug: str, enrollment_id: int):
     # course = get_object_or_404(Course, slug=course_slug)
     # Get the specific enrollment
     enrollment = get_object_or_404(
@@ -548,18 +513,16 @@ def leaderboard_score_breakdown_view(
     )
 
     # Get submissions related to the enrollment
-    submissions = Submission.objects.filter(
-        enrollment=enrollment
-    ).order_by("-homework__is_scored", "homework__id")
+    submissions = Submission.objects.filter(enrollment=enrollment).order_by(
+        "-homework__is_scored", "homework__id"
+    )
 
     context = {
         "enrollment": enrollment,
         "submissions": submissions,
     }
 
-    return render(
-        request, "courses/leaderboard_score_breakdown.html", context
-    )
+    return render(request, "courses/leaderboard_score_breakdown.html", context)
 
 
 @login_required
@@ -593,9 +556,7 @@ def enrollment_view(request, course_slug):
 
 def project_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
-    )
+    project = get_object_or_404(Project, course=course, slug=project_slug)
 
     user = request.user
     is_authenticated = user.is_authenticated
@@ -611,9 +572,7 @@ def project_view(request, course_slug, project_slug):
         if project_submission:
             enrollment = project_submission.enrollment
 
-    accepting_submissions = (
-        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
-    )
+    accepting_submissions = project.state == ProjectState.COLLECTING_SUBMISSIONS.value
 
     if request.method == "POST":
         if project_submission:
@@ -642,23 +601,15 @@ def project_view(request, course_slug, project_slug):
         if project.time_spent_project_field:
             time_spent = request.POST.get("time_spent")
             if time_spent is not None and time_spent != "":
-                project_submission.time_spent = tryparsefloat(
-                    time_spent
-                )
+                project_submission.time_spent = tryparsefloat(time_spent)
 
         if project.problems_comments_field:
-            problems_comments = request.POST.get(
-                "problems_comments", ""
-            )
-            project_submission.problems_comments = (
-                problems_comments.strip()
-            )
+            problems_comments = request.POST.get("problems_comments", "")
+            project_submission.problems_comments = problems_comments.strip()
 
         if project.faq_contribution_field:
             faq_contribution = request.POST.get("faq_contribution", "")
-            project_submission.faq_contribution = (
-                faq_contribution.strip()
-            )
+            project_submission.faq_contribution = faq_contribution.strip()
 
         project_submission.save()
 

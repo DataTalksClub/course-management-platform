@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
@@ -34,8 +34,8 @@
 
     <!-- Due date and days until deadline -->
     {% if not hw.is_scored %}
-      <p>Due date: {{ hw.due_date }}</p>
-      <p>Days until deadline: {{ hw.days_until_due }}</p>
+    <p>Due date: <span class="local-date">{{ hw.due_date |date:"c"}}</span> Local time</p>
+      <p>until deadline: <span class="until-deadline">{{ hw.days_until_due }}</span></p>
       {% if hw.days_until_due == 0 %}
         <p>The form is still accepting submissions.</p>
       {% endif %}
@@ -47,7 +47,7 @@
     {% elif hw.is_scored and not hw.submitted %}
       <p>Status: Due date over (closed)</p>
     {% elif not hw.is_scored and hw.submitted %}
-      <p>Status: Submitted at {{ hw.submitted_at|date:"F d, Y H:i" }}</p>
+      <p>Status: Submitted at <span class="local-date">{{ hw.submitted_at|date:"c" }}</span></p>
     {% else %}
       <p>Status: Not submitted yet</p>
     {% endif %}
@@ -60,13 +60,14 @@
       <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
         {{ project.title }}
       </a>
-      <p>Due Date: {{ project.submission_due_date }}</p>
-      <p>Peer Review Due Date: {{ project.peer_review_due_date }}</p>
+      <p>Due Date: <span class="local-date">{{ project.submission_due_date }}</span></p>
+      <p>Peer Review Due Date: <span class="local-date">{{ project.peer_review_due_date }}</span></p>
     </div>
   {% empty %}
     <div>
       No projects available yet.
     </div>
   {% endfor %}
+    <script src="{% static 'local_date.js' %}"></script>
 
 {% endblock %}

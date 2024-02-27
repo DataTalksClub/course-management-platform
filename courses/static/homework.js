@@ -1,6 +1,5 @@
 $(document).ready(function () {
-
-  var isValidUrl = function(urlString) {
+  var isValidUrl = function (urlString) {
     try {
       var url = new URL(urlString);
       var validProtocol = url.protocol === "http:" || url.protocol === "https:";
@@ -10,60 +9,63 @@ $(document).ready(function () {
     }
   };
 
-  var isValidCommitId = function(commitId) {
+  var isValidCommitId = function (commitId) {
     var commitIdPattern = /^[0-9a-f]{7}$/i;
     return commitIdPattern.test(commitId);
   };
 
-  var validateUrlField = function(selector, name) {
+  var validateUrlField = function (selector, name) {
     var linkField = $(selector);
     if (linkField.length == 0) {
       /* the field doesn't exist */
-      return '';
+      return "";
     }
 
-    var errorMessage = '';
+    var errorMessage = "";
     var link = linkField.val();
     if (!link) {
-      errorMessage += (name + ' link URL is missing.\n');
+      errorMessage += name + " link URL is missing.\n";
     } else if (!isValidUrl(link)) {
-      errorMessage += (name + ' link URL is invalid. It should start with http:// or https://\n');
+      errorMessage +=
+        name +
+        " link URL is invalid. It should start with http:// or https://\n";
     }
     return errorMessage;
   };
 
-  var validateCommitIdField = function(selector) {
+  var validateCommitIdField = function (selector) {
     var commitField = $(selector);
     if (commitField.length == 0) {
       /* the field doesn't exist */
-      return '';
+      return "";
     }
 
-    var errorMessage = '';
+    var errorMessage = "";
     var commitId = commitField.val();
     if (!commitId) {
-      errorMessage += 'Commit ID is missing.\n';
+      errorMessage += "Commit ID is missing.\n";
     } else if (!isValidCommitId(commitId)) {
-      errorMessage += 'Commit ID is invalid. It should be a 7-character hexadecimal string. For example, "468aacb"\n';
+      errorMessage +=
+        'Commit ID is invalid. It should be a 7-character hexadecimal string. For example, "468aacb"\n';
     }
     return errorMessage;
   };
 
-  $('#submit-button').click(function (event) {
+  $("#submit-button").click(function (event) {
     console.log("test");
 
     var isValid = true;
-    var errorMessage = '';
+    var errorMessage = "";
 
     var urlFieldsToValidate = [
       ["#homework_url", "Homework"],
-      ["#github_link", "GitHub link"]
+      ["#github_link", "GitHub link"],
     ];
 
     for (var i = 0; i < urlFieldsToValidate.length; i++) {
       var selector = urlFieldsToValidate[i][0];
       var description = urlFieldsToValidate[i][1];
-      
+
       var message = validateUrlField(selector, description);
       if (message) {
         isValid = false;
@@ -71,7 +73,7 @@ $(document).ready(function () {
       }
     }
 
-    var commitIdMessage = validateCommitIdField('#commit_id');
+    var commitIdMessage = validateCommitIdField("#commit_id");
     if (commitIdMessage) {
       isValid = false;
       errorMessage += commitIdMessage;
@@ -81,10 +83,10 @@ $(document).ready(function () {
       var link = $(this).val();
       if (link && !isValidUrl(link)) {
         isValid = false;
-        errorMessage += 'Invalid learning in public link URL.\n';
+        errorMessage += "Invalid learning in public link URL.\n";
       }
     });
-  
+
     if (!isValid) {
       alert(errorMessage);
       event.preventDefault(); // Prevent form submission

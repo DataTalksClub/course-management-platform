@@ -45,7 +45,7 @@
   </div>
 
   <div>
-    <p>Due date: {{ homework.due_date }}</p>
+    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c"}}</span> local time</p>
   </div>
 
   {% if not is_authenticated %}
@@ -245,7 +245,7 @@
   </form>
 
   {% if submission %}
-    <p class="text-muted question-text m-0">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+    <p class="text-muted question-text m-0">Last submission at: <span class="local-date">{{ submission.submitted_at|date:"c" }}</span></p>
   {% endif %}
 
   <script>
@@ -255,5 +255,7 @@
   </script>
 
   <script src="{% static 'homework.js' %}"></script>
+    <script src="{% static 'local_date.js' %}"></script>
+
 
 {% endblock %}
