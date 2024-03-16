@@ -265,6 +265,11 @@ class ProjectState(Enum):
     PEER_REVIEWING = "PR"
     COMPLETED = "CO"
 
+project_state_names = {
+    ProjectState.COLLECTING_SUBMISSIONS.value: "Collecting Submissions",
+    ProjectState.PEER_REVIEWING.value: "Peer Reviewing",
+    ProjectState.COMPLETED.value: "Completed",
+}
 
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -295,6 +300,9 @@ class Project(models.Model):
         choices=[(state.value, state.name) for state in ProjectState],
         default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
+
+    def get_project_state_name(self):
+        return project_state_names[self.state]
 
     def __str__(self):
         return self.title
@@ -368,7 +376,7 @@ class PeerReview(models.Model):
     note_to_peer = models.TextField()
     learning_in_public_links = models.JSONField(blank=True, null=True)
     time_spent_reviewing = models.FloatField(blank=True, null=True)
-    comments = models.TextField(blank=True)
+    problems_comments = models.TextField(blank=True)
 
     optional = models.BooleanField(
         default=False, null=False, blank=False

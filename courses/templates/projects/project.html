@@ -37,9 +37,17 @@
       </div>
     {% endif %}
   {% else %}
-    <div class="alert alert-warning">
-      <p>You didn't submit your project and this form is no longer accepting new submissions.</p>
-    </div>
+    {% if is_authenticated %}
+      <div class="alert alert-warning">
+        <p>You didn't submit your project and this form is no longer accepting new submissions.</p>
+      </div>
+    {% else %}
+      <div class="alert alert-warning">
+        <p>
+          <a href="{% url 'login' %}">Log in</a> to see the status of your submission.
+        </p>
+      </div>
+    {% endif %}
   {% endif %}
 {% endif %}
 

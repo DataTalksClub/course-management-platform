@@ -24,7 +24,9 @@ from .models import (
     ProjectSubmission,
     ProjectState,
     PeerReview,
+    PeerReviewState,
     ReviewCriteria,
+    CriteriaResponse,
     User,
 )
 
@@ -664,7 +666,7 @@ def project_view(request, course_slug, project_slug):
 
         messages.success(
             request,
-            "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+            "Thank you for submitting your project, it is now saved. You can update your submission at any point before the due date.",
             extra_tags="homework",
         )
 
@@ -723,25 +725,91 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
 
     review_criteria = ReviewCriteria.objects.filter(course=course)
 
+    accepting_submissions = project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+
+    if request.method == "POST":
+        user = request.user
+
+        answers_dict = {}
+        for answer_id, answer in request.POST.lists():
+            if not answer_id.startswith("answer_"):
+                continue
+            answer = [a.strip() for a in answer]
+            answers_dict[answer_id] = ",".join(answer)
+
+        for criteria in review_criteria:
+            answer_text = answers_dict.get(f"answer_{criteria.id}")
+
+            values = {"answer": answer_text}
+
+            CriteriaResponse.objects.update_or_create(
+                review=review,
+                criteria=criteria,
+                defaults=values,
+            )
+
+        if project.learning_in_public_cap_review > 0:
+            links = request.POST.getlist("learning_in_public_links[]")
+            cleaned_links = clean_learning_in_public_links(
+                links, project.learning_in_public_cap_review
+            )
+            review.learning_in_public_links = cleaned_links
+
+        if project.time_spent_evaluation_field:
+            time_spent_reviewing = request.POST.get("time_spent_reviewing")
+            if (
+                time_spent_reviewing is not None
+                and time_spent_reviewing != ""
+            ):
+                review.time_spent_reviewing = float(time_spent_reviewing)
+
+        if project.problems_comments_field:
+            problems_comments = request.POST.get("problems_comments", "")
+            review.problems_comments = problems_comments.strip()
+
+        note_to_peer = request.POST.get("note_to_peer", "")
+        review.note_to_peer = note_to_peer.strip()
+
+        review.submitted_at = timezone.now()
+        review.state = PeerReviewState.SUBMITTED.value
+        review.save()
+
+        messages.success(
+            request,
+            "Thank you for submitting your evaluation, it is now saved. You can update it at any point.",
+            extra_tags="homework",
+        )
+
+        return redirect(
+            "projects_eval_submit",
+            course_slug=course_slug,
+            project_slug=project_slug,
+            review_id=review_id,
+        )
+
+
     review_responses = review.get_criteria_responses()
 
-    responses_by_criteria_id = {r.criterion.id: r for r in review_responses}
+    responses_by_criteria_id = {r.criteria.id: r for r in review_responses}
     
     criteria_response_pairs = []
 
-    for criterion in review_criteria:
-        response = responses_by_criteria_id.get(criterion.id)
-        
+    for criteria in review_criteria:
+        response = responses_by_criteria_id.get(criteria.id)
+
+        if response is None:
+            answer_int = set()
+        else:
+            answers = (response.answer or "").strip().split(",")
+            answer_int = {int(a) for a in answers if a}
+
         index = 1
-        for option in criterion.options:
+        for option in criteria.options:
             option['index'] = index
-            option['is_selected'] = False # TODO
+            option['is_selected'] = index in answer_int
             index = index + 1
 
-        criteria_response_pairs.append((criterion, response))
-
-
-    accepting_submissions = project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+        criteria_response_pairs.append((criteria, response))
 
     context = {
         'course': course,

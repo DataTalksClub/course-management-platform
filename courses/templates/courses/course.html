@@ -60,6 +60,7 @@
       <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
         {{ project.title }}
       </a>
+      <p>Project status: {{ project.get_project_state_name }}</p>
       <p>Due Date: {{ project.submission_due_date }}</p>
       <p>Peer Review Due Date: {{ project.peer_review_due_date }}</p>
     </div>

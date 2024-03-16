@@ -5,20 +5,42 @@
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
   <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
-  <li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluatinos</a></li>
+  <li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluations</a></li>
 {% endblock %}
 
 
 {% block content %}
 <div class="container mt-3">
   <h2>Evaluate Projects for "{{ project.title }}"</h2>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert {{ message.tags }}">
+        <p>{{ message }}</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if errors %}
+    {% for error in errors %}
+      <div class="alert alert-danger">
+        <p>{{ error }}</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+
   <p>
     {{ submission.enrollment.display_name }}
     {{ submission.github_link }}
     {{ submission.commit_id }}
   </p>
 
-  <h3 class="mb-3">Questions</h3>
+  <p>
+    Please evaluate the submission according to the following
+    criteria.
+  </p>
+
+  <h3 class="mb-3">Evaluation criteria</h3>
 
   <form method="post" class="needs-validation" novalidate>
     {% csrf_token %}
@@ -93,15 +115,15 @@
 
     {% if project.problems_comments_field %}
       <div class="mb-3 question">
-        <label for="comments" class="question-text">
+        <label for="problems_comments" class="question-text">
           Problems or comments <span class="text-muted">(optional)</span>
         </label>
         <textarea
           class="form-control"
-          name="comments"
-          id="comments"
+          name="problems_comments"
+          id="problems_comments"
           {% if disabled %} disabled {% endif %}
-        >{{ review.comments|default:'' }}</textarea>
+        >{{ review.problems_comments|default:'' }}</textarea>
       </div>
     {% endif %}
 
@@ -137,6 +159,7 @@
             Update
           {% endif %}
         </button>
+      </div>
     {% else %}
       <p>The evaluation period is over, it's no longer possible to submit evaluation</p>
     {% endif %}
@@ -152,4 +175,6 @@
     });
   </script>
 </div>
+
+<script src="{% static 'homework.js' %}"></script>
 {% endblock %}
