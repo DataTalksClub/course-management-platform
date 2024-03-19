@@ -22,10 +22,9 @@ $(document).ready(function () {
       let diff = homeworkDeadline.getTime() - now.getTime();
       if (diff > 0) {
         stillDeadline++;
-        minutes = Math.floor((diff / (1000 * 60)) % 60);
         hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
         days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        deadline.innerHTML = `days: ${days}, hours: ${hours}, minutes: ${minutes}`;
+        deadline.innerHTML = `days: ${days}, hours: ${hours}`;
       } else {
         deadline.innerHTML = `Deadline Passed`;
       }
