@@ -2,6 +2,7 @@ import logging
 
 from collections import defaultdict
 
+from django.urls import reverse
 from django.test import TestCase, Client
 from django.utils import timezone
 from datetime import timedelta
@@ -60,10 +61,11 @@ class ProjectActionsTestCase(TestCase):
             peer_review_due_date=timezone.now() + timedelta(hours=1),
         )
 
-        self.num_submissions = 10
-        self.submissions = []
+    def test_select_random_assignment(self):
+        num_submissions = 10
+        submissions = []
 
-        for i in range(self.num_submissions):
+        for i in range(num_submissions):
             student = User.objects.create_user(
                 username=f"student_{i}",
                 email=f"email_{i}@email.com",
@@ -80,9 +82,8 @@ class ProjectActionsTestCase(TestCase):
                 github_link=f"https://github.com/{student.username}/project",
             )
 
-            self.submissions.append(submission)
+            submissions.append(submission)
 
-    def test_select_random_assignment(self):
         peer_reviews = PeerReview.objects.filter(
             submission_under_evaluation__project=self.project
         )
@@ -108,8 +109,7 @@ class ProjectActionsTestCase(TestCase):
         peer_reviews = list(peer_reviews)
 
         expected_num_assignments = (
-            self.num_submissions
-            * self.project.number_of_peers_to_evaluate
+            num_submissions * self.project.number_of_peers_to_evaluate
         )
         self.assertEqual(len(peer_reviews), expected_num_assignments)
 
@@ -124,7 +124,7 @@ class ProjectActionsTestCase(TestCase):
             peer_reviews_by_submission[id].add(pr)
 
         self.assertEqual(
-            len(peer_reviews_by_submission), self.num_submissions
+            len(peer_reviews_by_submission), num_submissions
         )
 
         for _, reviews in peer_reviews_by_submission.items():

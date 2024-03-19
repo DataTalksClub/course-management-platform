@@ -618,6 +618,18 @@ def project_view(request, course_slug, project_slug):
     )
 
     if request.method == "POST":
+        if not accepting_submissions:
+            messages.error(
+                request,
+                "This project is no longer accepting submissions",
+                extra_tags="homework",
+            )
+            return redirect(
+                "project",
+                course_slug=course.slug,
+                project_slug=project.slug,
+            )
+
         if project_submission:
             project_submission.submitted_at = timezone.now()
         else:
@@ -728,8 +740,6 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     accepting_submissions = project.state == ProjectState.COLLECTING_SUBMISSIONS.value
 
     if request.method == "POST":
-        user = request.user
-
         answers_dict = {}
         for answer_id, answer in request.POST.lists():
             if not answer_id.startswith("answer_"):
@@ -786,7 +796,6 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
             project_slug=project_slug,
             review_id=review_id,
         )
-
 
     review_responses = review.get_criteria_responses()
 
