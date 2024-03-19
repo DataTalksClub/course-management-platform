@@ -3,7 +3,13 @@ from django.contrib import admin
 from django.contrib import messages
 
 
-from .models import Course, Homework, Question, Project
+from .models import (
+    Course,
+    Homework,
+    Question,
+    Project,
+    ReviewCriteria,
+)
 
 from .scoring import (
     score_homework_submissions,
@@ -88,7 +94,23 @@ def update_leaderboard_admin(modeladmin, request, queryset):
 update_leaderboard_admin.short_description = "Update leaderboard"
 
 
+class CriteriaForm(forms.ModelForm):
+    class Meta:
+        model = ReviewCriteria
+        fields = "__all__"
+        widgets = {
+            "description": forms.TextInput(attrs={"size": "60"}),
+            "options": forms.Textarea(
+                attrs={"cols": 60, "rows": 4}
+            )
+        }
+
+class CriteriaInline(admin.TabularInline):
+    model = ReviewCriteria
+    extra = 0
+
 class CourseAdmin(admin.ModelAdmin):
+    inlines = [CriteriaInline]
     actions = [update_leaderboard_admin]
 
 
@@ -120,3 +142,6 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Project, ProjectAdmin)
+
+
+admin.site.register(ReviewCriteria)

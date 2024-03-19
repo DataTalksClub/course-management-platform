@@ -342,8 +342,6 @@ class ReviewCriteria(models.Model):
 
     options = models.JSONField()
 
-    max_score = models.IntegerField(default=4)
-
     REVIEW_CRITERIA_TYPES = (
         (ReviewCriteriaTypes.RADIO_BUTTONS.value, "Radio Buttons"),
         (ReviewCriteriaTypes.CHECKBOXES.value, "Checkboxes"),
