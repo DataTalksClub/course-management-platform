@@ -13,7 +13,6 @@ from courses.scoring import (
     is_checkbox_answer_correct,
     is_multiple_choice_answer_correct,
     is_free_form_answer_correct,
-    is_answer_correct,
 )
 
 

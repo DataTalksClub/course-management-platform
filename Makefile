@@ -32,6 +32,14 @@ shell:
 	pipenv run python manage.py shell
 
 
+tunnel_prod: ## Open tunnel to prod
+	bash tunnel-prod.sh
+
+notebook: ## Run a jupyter notebook
+notebook:
+	pipenv run jupyter notebook
+
+
 docker_build: ## Build docker image
 docker_build: tests
 	docker build -t course_management:$(TAG) .
@@ -74,6 +82,8 @@ deploy_dev: docker_publish
 deploy_prod: ## Deploy to prod environment
 deploy_prod:
 	bash deploy/deploy_prod.sh
+
+
 
 help:    ## Show this help.
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'

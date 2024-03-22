@@ -45,7 +45,8 @@
   </div>
 
   <div>
-    <p>Due date: {{ homework.due_date }}</p>
+    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c"}}</span> Local time</p>
+    <p>Until deadline: <span class="until-deadline">{{ homework.days_until_due }}</span></p>
   </div>
 
   {% if not is_authenticated %}
@@ -63,7 +64,15 @@
 
     {% for question, answer in question_answers %}
       <div class="mb-3 question">
-        <p class="question-text">Question {{ forloop.counter }}. {{ question.text }}</p>
+        <p class="question-text">
+          Question {{ forloop.counter }}.
+          {{ question.text }}
+          {% if question.scores_for_correct_answer > 1 %}
+            <span class="text-muted">({{ question.scores_for_correct_answer }} points)</span>
+          {% else %}
+            <span class="text-muted">({{ question.scores_for_correct_answer }} point)</span>
+          {% endif %}
+        </p>
 
         {% if question.question_type == 'MC' %}
           {% for option in answer.options %}

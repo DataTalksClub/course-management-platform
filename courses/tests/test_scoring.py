@@ -38,7 +38,6 @@ class HomeworkScoringTestCase(TestCase):
             Answer.objects.create(
                 submission=submission,
                 question=question,
-                student=submission.student,
                 answer_text=answer_text,
             )
 
@@ -386,7 +385,6 @@ class HomeworkScoringTestCase(TestCase):
             Answer.objects.create(
                 submission=submission,
                 question=question,
-                student=submission.student,
                 answer_text=answer,
             )
 
@@ -418,7 +416,6 @@ class HomeworkScoringTestCase(TestCase):
             Answer.objects.create(
                 submission=submission,
                 question=question,
-                student=submission.student,
                 answer_text=answer,
             )
 

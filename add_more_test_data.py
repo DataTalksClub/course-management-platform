@@ -2,7 +2,7 @@
 import os
 
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import django
 from django.utils import timezone
@@ -12,7 +12,6 @@ django.setup()
 
 from django.contrib.auth import get_user_model # noqa: E402
 
-# This will retrieve your 'CustomUser' model
 from courses.models import (  # noqa: E402
     Course,
     Enrollment,
@@ -22,13 +21,14 @@ from courses.models import (  # noqa: E402
     Answer,
     QuestionTypes,
     AnswerTypes,
+    Project,
+    ProjectSubmission,
     QUESTION_ANSWER_DELIMITER
 )
 
 
 User = get_user_model()
 
-# Fetch the existing course object by slug
 course = Course.objects.get(slug="fake-course")
 
 
@@ -92,7 +92,6 @@ def generate_answer(question: Question, submission: Submission) -> Answer:
     return Answer.objects.create(
         submission=submission,
         question=question,
-        student=submission.student,
         answer_text=student_answer,
     )
 
@@ -143,3 +142,31 @@ for user in all_users:
 
         if created:
             create_answers_for_student(submission)
+
+
+for i in [1, 2, 3]:
+    project, created = Project.objects.get_or_create(
+        course=course,
+        slug=f"project-{i}",
+        title=f"Test Project {i}",
+        submission_due_date=timezone.now() - timedelta(days=i),
+        peer_review_due_date=timezone.now() + timedelta(days=i),
+    )
+
+    print(f"Created project {project} and now creating submissions")
+
+    if created:
+        for user in all_users:
+            print(f'  Creating submission for {user}')
+            
+            enrollment = Enrollment.objects.get(
+                course=course,
+                student=user,
+            )
+            ProjectSubmission.objects.create(
+                project=project,
+                student=user,
+                enrollment=enrollment,
+                github_link=f"https://github.com/{user.username}/project-{i}",
+                commit_id=f"commit-{i}",
+            )

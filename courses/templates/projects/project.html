@@ -26,16 +26,28 @@
   {% endfor %}
 {% endif %}
 
-<!-- TODO! -->
 {% if disabled %}
   {% if submission %}
-    <div class="alert alert-success">
-      <p>This project is already scored. Your score is {{ submission.total_score }}.</p>
-    </div>
+    {% if project.state == 'PR' %}
+      <div class="alert alert-warning">
+        <p>The project is currently in the peer-reviewing phase.
+          <a href="{% url 'projects_eval' course.slug project.slug %}">Evaluate your peers here.</a> 
+          This form is no longer accepting modifications.
+        </p>
+      </div>
+    {% endif %}
   {% else %}
-    <div class="alert alert-warning">
-      <p>This homework is already scored. You didn't submit your answers.</p>
-    </div>
+    {% if is_authenticated %}
+      <div class="alert alert-warning">
+        <p>You didn't submit your project and this form is no longer accepting new submissions.</p>
+      </div>
+    {% else %}
+      <div class="alert alert-warning">
+        <p>
+          <a href="{% url 'login' %}">Log in</a> to see the status of your submission.
+        </p>
+      </div>
+    {% endif %}
   {% endif %}
 {% endif %}
 
