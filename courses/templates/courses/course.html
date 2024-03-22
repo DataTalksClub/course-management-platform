@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
@@ -34,8 +35,8 @@
 
     <!-- Due date and days until deadline -->
     {% if not hw.is_scored %}
-      <p>Due date: {{ hw.due_date }}</p>
-      <p>Days until deadline: {{ hw.days_until_due }}</p>
+    <p>Due date: <span class="local-date">{{ hw.due_date |date:"c"}}</span> Local time</p>
+    <p>Until deadline: <span class="until-deadline">{{ hw.days_until_due }}</span></p>
       {% if hw.days_until_due == 0 %}
         <p>The form is still accepting submissions.</p>
       {% endif %}
