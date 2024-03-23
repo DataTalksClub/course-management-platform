@@ -75,10 +75,8 @@ set_most_popular_as_correct.short_description = (
 class HomeworkAdmin(ModelAdmin):
     inlines = [QuestionInline]
     actions = [score_selected_homeworks, set_most_popular_as_correct]
-    important_fields = ["course", "title", "due_date", "is_scored"]
-    list_display = important_fields
-    list_filter = important_fields
-    search_fields = important_fields
+    list_display = ["title", "course", "due_date", "is_scored"]
+    list_filter = ["course__slug"]
 
 
 class CriteriaForm(forms.ModelForm):
@@ -114,10 +112,7 @@ update_leaderboard_admin.short_description = "Update leaderboard"
 class CourseAdmin(ModelAdmin):
     actions = [update_leaderboard_admin]
     inlines = [CriteriaInline]
-    important_fields = ["title", "social_media_hashtag"]
-    list_display = important_fields
-    list_filter = important_fields
-    search_fields = important_fields
+    list_display = ["title"]
 
 
 def assign_peer_reviews_for_project_admin(
@@ -143,17 +138,10 @@ assign_peer_reviews_for_project_admin.short_description = (
 @admin.register(Project)
 class ProjectAdmin(ModelAdmin):
     actions = [assign_peer_reviews_for_project_admin]
-    important_fields = [
-        "course",
-        "title",
-        "submission_due_date",
-        "learning_in_public_cap_project",
-        "peer_review_due_date",
-        "state",
-    ]
-    list_display = important_fields
-    list_filter = important_fields
-    search_fields = important_fields
+
+    list_display = ["title", "course", "state"]
+    list_filter = ["course__slug"]
+
 
 
 @admin.register(ReviewCriteria)
