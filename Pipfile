@@ -11,6 +11,7 @@ whitenoise = "*"
 psycopg2-binary = "*"
 gunicorn = "*"
 python-json-logger = "*"
+django-unfold = "*"
 
 [dev-packages]
 ipython = "*"

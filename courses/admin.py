@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
+from unfold.widgets import UnfoldAdminTextInputWidget, UnfoldAdminTextareaWidget
 from django.contrib import messages
-
 
 from .models import (
     Course,
@@ -10,6 +11,9 @@ from .models import (
     Project,
     ReviewCriteria,
 )
+
+from .scoring import score_homework_submissions
+
 
 from .scoring import (
     score_homework_submissions,
@@ -28,15 +32,13 @@ class QuestionForm(forms.ModelForm):
         model = Question
         fields = "__all__"
         widgets = {
-            "text": forms.TextInput(attrs={"size": "60"}),
-            "possible_answers": forms.Textarea(
-                attrs={"cols": 60, "rows": 4}
-            ),
-            "correct_answer": forms.TextInput(attrs={"size": "20"}),
+            "text": UnfoldAdminTextInputWidget(attrs={"size": "60"}),
+            "possible_answers": UnfoldAdminTextareaWidget(attrs={"cols": 60, "rows": 4}),
+            "correct_answer": UnfoldAdminTextInputWidget(attrs={"size": "20"}),
         }
-
-
-class QuestionInline(admin.TabularInline):  # or admin.StackedInline
+        
+    
+class QuestionInline(TabularInline):
     model = Question
     form = QuestionForm
     extra = 0
@@ -46,13 +48,9 @@ def score_selected_homeworks(modeladmin, request, queryset):
     for homework in queryset:
         status, message = score_homework_submissions(homework.id)
         if status:
-            modeladmin.message_user(
-                request, message, level=messages.SUCCESS
-            )
+            modeladmin.message_user(request, message, level=messages.SUCCESS)
         else:
-            modeladmin.message_user(
-                request, message, level=messages.WARNING
-            )
+            modeladmin.message_user(request, message, level=messages.WARNING)
 
 
 score_selected_homeworks.short_description = "Score selected homeworks"
@@ -73,12 +71,29 @@ set_most_popular_as_correct.short_description = (
 )
 
 
-class HomeworkAdmin(admin.ModelAdmin):
+@admin.register(Homework)
+class HomeworkAdmin(ModelAdmin):
     inlines = [QuestionInline]
     actions = [score_selected_homeworks, set_most_popular_as_correct]
+    list_display = ["title", "course", "due_date", "is_scored"]
+    list_filter = ["course__slug"]
 
 
-admin.site.register(Homework, HomeworkAdmin)
+class CriteriaForm(forms.ModelForm):
+    class Meta:
+        model = ReviewCriteria
+        fields = "__all__"
+        widgets = {
+            "description": UnfoldAdminTextInputWidget(attrs={"size": "60"}),
+            "options": UnfoldAdminTextareaWidget(
+                attrs={"cols": 60, "rows": 4}
+            )
+        }
+
+class CriteriaInline(TabularInline):
+    model = ReviewCriteria
+    form = CriteriaForm
+    extra = 0
 
 
 def update_leaderboard_admin(modeladmin, request, queryset):
@@ -93,28 +108,11 @@ def update_leaderboard_admin(modeladmin, request, queryset):
 
 update_leaderboard_admin.short_description = "Update leaderboard"
 
-
-class CriteriaForm(forms.ModelForm):
-    class Meta:
-        model = ReviewCriteria
-        fields = "__all__"
-        widgets = {
-            "description": forms.TextInput(attrs={"size": "60"}),
-            "options": forms.Textarea(
-                attrs={"cols": 60, "rows": 4}
-            )
-        }
-
-class CriteriaInline(admin.TabularInline):
-    model = ReviewCriteria
-    extra = 0
-
-class CourseAdmin(admin.ModelAdmin):
-    inlines = [CriteriaInline]
+@admin.register(Course)
+class CourseAdmin(ModelAdmin):
     actions = [update_leaderboard_admin]
-
-
-admin.site.register(Course, CourseAdmin)
+    inlines = [CriteriaInline]
+    list_display = ["title"]
 
 
 def assign_peer_reviews_for_project_admin(
@@ -137,11 +135,15 @@ assign_peer_reviews_for_project_admin.short_description = (
 )
 
 
-class ProjectAdmin(admin.ModelAdmin):
+@admin.register(Project)
+class ProjectAdmin(ModelAdmin):
     actions = [assign_peer_reviews_for_project_admin]
 
+    list_display = ["title", "course", "state"]
+    list_filter = ["course__slug"]
 
-admin.site.register(Project, ProjectAdmin)
 
 
-admin.site.register(ReviewCriteria)
+@admin.register(ReviewCriteria)
+class ReviewCriteriaAdmin(ModelAdmin):
+    pass

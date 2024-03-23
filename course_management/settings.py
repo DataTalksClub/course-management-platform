@@ -16,6 +16,9 @@ import sys
 from pathlib import Path
 
 import dj_database_url
+from django.templatetags.static import static
+from django.utils.translation import gettext_lazy as _
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,7 +36,7 @@ EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
 extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 
 ALLOWED_HOSTS = [
-    "localhost",
+    "localhost"
 ] + extra_allowed_hosts_parsed
 
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
@@ -49,6 +52,7 @@ for host in ALLOWED_HOSTS:
 # Application definition
 
 INSTALLED_APPS = [
+    "unfold",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -115,7 +119,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
 db_config = dj_database_url.config(default=DATABASE_URL)
 
 DATABASES = {"default": db_config}
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -294,3 +297,11 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SOCIALACCOUNT_ADAPTER = (
     "accounts.auth.ConsolidatingSocialAccountAdapter"
 )
+
+
+# Unfold Configurations
+UNFOLD = {
+    "SITE_HEADER": _("Course Management"),
+    "SITE_TITLE": _("Course Management"),
+    "SITE_SYMBOL": "school",
+}
