@@ -35,7 +35,8 @@ nav .breadcrumbs ul li {
 /* Add ">" before each li except the first one using a pseudo-element */
 nav .breadcrumbs ul li:not(:first-child)::before {
   content: "\f105"; /* FontAwesome's right arrow icon */
-  font-family: "Font Awesome 5 Free"; /* Adjust based on your Font Awesome version */
+  font-family: "Font Awesome 5 Free";
+  color: #000;
   padding-right: 0.25rem; /* Add some space before the breadcrumb text */
   font-weight: 900; /* Bold */
 }
