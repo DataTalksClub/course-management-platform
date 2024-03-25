@@ -6,21 +6,27 @@
 {% endblock %}
 
 {% block content %}
-<h2 class="mt-4">{{ course.title }}</h2>
-<p>{{ course.description }}</p>
+<h2>{{ course.title }}</h2>
 
-<p>
-  {% if course.first_homework_scored %}
-    <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
-  {% endif %}
-  {% if is_authenticated %}
-    <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
-  {% endif %}
-</p>
+<div>
+  <p>{{ course.description }}</p>
+</div>
+
+<div>
+  <p>
+    {% if course.first_homework_scored %}
+      <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
+    {% endif %}
+    {% if is_authenticated %}
+      <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
+    {% endif %}
+  </p>  
+</div>
+
 
 {% if is_authenticated %}
 <div class="alert alert-info" role="alert">
-  Total score: {{ total_score }}
+  <p>Total score: {{ total_score }}</p>
 </div>
 {% endif %}
 
@@ -46,7 +52,7 @@
         {% elif not hw.is_scored and hw.submitted %}
           <span class="badge bg-info">Submitted</span>
         {% else %}
-          <span class="badge bg-warning">Pending</span>
+          <span class="badge bg-warning">Open</span>
         {% endif %}
       </div>
     </div>
