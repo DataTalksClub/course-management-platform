@@ -278,5 +278,21 @@ class CourseDetailViewTests(TestCase):
         last_enrollment = enrollments[len(enrollments) - 1]
         self.assertEqual(last_enrollment.id, current_enrollment.id)
 
+    def test_not_enrolled_but_can_edit_details(self):
+        self.enrollment.delete()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "enrollment", kwargs={"course_slug": self.course.slug}
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        enrollment = form.instance
+        self.assertEqual(enrollment.student.id, self.user.id)
+
 
 

@@ -571,8 +571,9 @@ def leaderboard_score_breakdown_view(
 def enrollment_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
-    enrollment = get_object_or_404(
-        Enrollment, student=request.user, course__slug=course_slug
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=request.user,
+        course=course,
     )
 
     if request.method == "POST":
