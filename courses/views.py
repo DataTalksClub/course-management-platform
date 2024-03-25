@@ -65,8 +65,10 @@ def get_projects_for_course(
         to_attr="submissions",
     )
 
-    projects = Project.objects.filter(course=course).prefetch_related(
-        submissions_prefetch
+    projects = (
+        Project.objects.filter(course=course)
+        .prefetch_related(submissions_prefetch)
+        .order_by("id")
     )
 
     for project in projects:
@@ -140,8 +142,10 @@ def get_homeworks_for_course(course: Course, user) -> List[Homework]:
         "submission_set", queryset=queryset, to_attr="submissions"
     )
 
-    homeworks = Homework.objects.filter(course=course).prefetch_related(
-        submissions_prefetch
+    homeworks = (
+        Homework.objects.filter(course=course)
+        .prefetch_related(submissions_prefetch)
+        .order_by("id")
     )
 
     for hw in homeworks:
@@ -522,9 +526,11 @@ def leaderboard_view(request, course_slug: str):
     current_student_enrollment_id = None
 
     if user.is_authenticated:
-        current_student_enrollment, _ = Enrollment.objects.get_or_create(
-            student=user,
-            course=course,
+        current_student_enrollment, _ = (
+            Enrollment.objects.get_or_create(
+                student=user,
+                course=course,
+            )
         )
         current_student_enrollment_id = current_student_enrollment.id
 
