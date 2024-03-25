@@ -8,7 +8,8 @@ from django.http import HttpRequest, HttpResponse
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Value
+from django.db.models.functions import Coalesce
 
 from django.contrib.auth.decorators import login_required
 
@@ -231,9 +232,9 @@ def process_question_options_multiple_choice_or_checkboxes(
                 is_selected, is_correct
             )
 
-            processed_answer[
-                "correctly_selected_class"
-            ] = correctly_selected
+            processed_answer["correctly_selected_class"] = (
+                correctly_selected
+            )
 
         options.append(processed_answer)
 
@@ -521,13 +522,15 @@ def leaderboard_view(request, course_slug: str):
     current_student_enrollment_id = None
 
     if user.is_authenticated:
-        current_student_enrollment = get_object_or_404(
-            Enrollment, student=request.user, course__slug=course_slug
+        current_student_enrollment, _ = Enrollment.objects.get_or_create(
+            student=user,
+            course=course,
         )
         current_student_enrollment_id = current_student_enrollment.id
 
     enrollments = Enrollment.objects.filter(course=course).order_by(
-        "position_on_leaderboard"
+        Coalesce("position_on_leaderboard", Value(999999)),
+        "id",
     )
 
     context = {
@@ -730,14 +733,18 @@ def projects_eval_view(request, course_slug, project_slug):
 @login_required
 def projects_eval_submit(request, course_slug, project_slug, review_id):
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(Project, slug=project_slug, course=course)
+    project = get_object_or_404(
+        Project, slug=project_slug, course=course
+    )
 
     review = get_object_or_404(PeerReview, id=review_id)
     submission = review.submission_under_evaluation
 
     review_criteria = ReviewCriteria.objects.filter(course=course)
 
-    accepting_submissions = project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+    accepting_submissions = (
+        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+    )
 
     if request.method == "POST":
         answers_dict = {}
@@ -766,15 +773,21 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
             review.learning_in_public_links = cleaned_links
 
         if project.time_spent_evaluation_field:
-            time_spent_reviewing = request.POST.get("time_spent_reviewing")
+            time_spent_reviewing = request.POST.get(
+                "time_spent_reviewing"
+            )
             if (
                 time_spent_reviewing is not None
                 and time_spent_reviewing != ""
             ):
-                review.time_spent_reviewing = float(time_spent_reviewing)
+                review.time_spent_reviewing = float(
+                    time_spent_reviewing
+                )
 
         if project.problems_comments_field:
-            problems_comments = request.POST.get("problems_comments", "")
+            problems_comments = request.POST.get(
+                "problems_comments", ""
+            )
             review.problems_comments = problems_comments.strip()
 
         note_to_peer = request.POST.get("note_to_peer", "")
@@ -799,8 +812,10 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
 
     review_responses = review.get_criteria_responses()
 
-    responses_by_criteria_id = {r.criteria.id: r for r in review_responses}
-    
+    responses_by_criteria_id = {
+        r.criteria.id: r for r in review_responses
+    }
+
     criteria_response_pairs = []
 
     for criteria in review_criteria:
@@ -814,19 +829,19 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
 
         index = 1
         for option in criteria.options:
-            option['index'] = index
-            option['is_selected'] = index in answer_int
+            option["index"] = index
+            option["is_selected"] = index in answer_int
             index = index + 1
 
         criteria_response_pairs.append((criteria, response))
 
     context = {
-        'course': course,
-        'project': project,
-        'review': review,
-        'submission': submission,
-        'criteria_response_pairs': criteria_response_pairs,
-        'accepting_submissions': accepting_submissions,
+        "course": course,
+        "project": project,
+        "review": review,
+        "submission": submission,
+        "criteria_response_pairs": criteria_response_pairs,
+        "accepting_submissions": accepting_submissions,
     }
 
-    return render(request, 'projects/eval_submit.html', context)
+    return render(request, "projects/eval_submit.html", context)

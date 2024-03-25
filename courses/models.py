@@ -57,7 +57,7 @@ class Enrollment(models.Model):
     display_on_leaderboard = models.BooleanField(default=True)
 
     position_on_leaderboard = models.IntegerField(
-        blank=True, null=True, default=0
+        blank=True, null=True, default=None
     )
 
     certificate_name = models.CharField(
