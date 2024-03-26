@@ -2,7 +2,6 @@ import logging
 
 from collections import defaultdict
 
-from django.urls import reverse
 from django.test import TestCase, Client
 from django.utils import timezone
 from datetime import timedelta
@@ -32,7 +31,9 @@ def fetch_fresh(obj):
 
 
 credentials = dict(
-    username="test@test.com", email="test@test.com", password="12345"
+    username="test@test.com",
+    email="test@test.com",
+    password="12345",
 )
 
 
