@@ -15,6 +15,11 @@ migrations:
 	pipenv run python manage.py migrate
 
 
+admin: ## Add an admin user
+admin:
+	pipenv run python manage.py createsuperuser
+
+
 tests: ## Run tests
 tests:
 	pipenv run python manage.py test courses.tests
