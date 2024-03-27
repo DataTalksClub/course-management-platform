@@ -1,6 +1,6 @@
 import logging
 
-from typing import List, Optional
+from typing import List, Optional, Iterable
 from urllib.parse import urlparse
 
 from django.http import HttpRequest, HttpResponse
@@ -445,7 +445,6 @@ def homework_detail_build_context_authenticated(
         question_answers_map = {}
 
     # Pairing questions with their answers
-
     question_answers = []
 
     for question in questions:
@@ -552,13 +551,10 @@ def leaderboard_view(request, course_slug: str):
 def leaderboard_score_breakdown_view(
     request, course_slug: str, enrollment_id: int
 ):
-    # course = get_object_or_404(Course, slug=course_slug)
-    # Get the specific enrollment
     enrollment = get_object_or_404(
         Enrollment, id=enrollment_id, course__slug=course_slug
     )
 
-    # Get submissions related to the enrollment
     submissions = Submission.objects.filter(
         enrollment=enrollment
     ).order_by("-homework__is_scored", "homework__id")
@@ -601,7 +597,6 @@ def enrollment_view(request, course_slug):
     context = {"form": form, "course": course}
 
     return render(request, "courses/enrollment.html", context)
-
 
 def project_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
@@ -737,85 +732,16 @@ def projects_eval_view(request, course_slug, project_slug):
     return render(request, "projects/eval.html", context)
 
 
-@login_required
-def projects_eval_submit(request, course_slug, project_slug, review_id):
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, slug=project_slug, course=course
-    )
-
-    review = get_object_or_404(PeerReview, id=review_id)
+def project_eval_build_context(
+    project: Project,
+    review: PeerReview,
+    review_criteria: Iterable[ReviewCriteria],
+):
     submission = review.submission_under_evaluation
-
-    review_criteria = ReviewCriteria.objects.filter(course=course)
 
     accepting_submissions = (
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
     )
-
-    if request.method == "POST":
-        answers_dict = {}
-        for answer_id, answer in request.POST.lists():
-            if not answer_id.startswith("answer_"):
-                continue
-            answer = [a.strip() for a in answer]
-            answers_dict[answer_id] = ",".join(answer)
-
-        for criteria in review_criteria:
-            answer_text = answers_dict.get(f"answer_{criteria.id}")
-
-            values = {"answer": answer_text}
-
-            CriteriaResponse.objects.update_or_create(
-                review=review,
-                criteria=criteria,
-                defaults=values,
-            )
-
-        if project.learning_in_public_cap_review > 0:
-            links = request.POST.getlist("learning_in_public_links[]")
-            cleaned_links = clean_learning_in_public_links(
-                links, project.learning_in_public_cap_review
-            )
-            review.learning_in_public_links = cleaned_links
-
-        if project.time_spent_evaluation_field:
-            time_spent_reviewing = request.POST.get(
-                "time_spent_reviewing"
-            )
-            if (
-                time_spent_reviewing is not None
-                and time_spent_reviewing != ""
-            ):
-                review.time_spent_reviewing = float(
-                    time_spent_reviewing
-                )
-
-        if project.problems_comments_field:
-            problems_comments = request.POST.get(
-                "problems_comments", ""
-            )
-            review.problems_comments = problems_comments.strip()
-
-        note_to_peer = request.POST.get("note_to_peer", "")
-        review.note_to_peer = note_to_peer.strip()
-
-        review.submitted_at = timezone.now()
-        review.state = PeerReviewState.SUBMITTED.value
-        review.save()
-
-        messages.success(
-            request,
-            "Thank you for submitting your evaluation, it is now saved. You can update it at any point.",
-            extra_tags="homework",
-        )
-
-        return redirect(
-            "projects_eval_submit",
-            course_slug=course_slug,
-            project_slug=project_slug,
-            review_id=review_id,
-        )
 
     review_responses = review.get_criteria_responses()
 
@@ -843,12 +769,98 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         criteria_response_pairs.append((criteria, response))
 
     context = {
-        "course": course,
         "project": project,
         "review": review,
         "submission": submission,
         "criteria_response_pairs": criteria_response_pairs,
         "accepting_submissions": accepting_submissions,
     }
+
+    return context
+
+
+def project_eval_post_submission(
+    request: HttpRequest,
+    project: Project,
+    review: PeerReview,
+    review_criteria: Iterable[ReviewCriteria],
+) -> None:
+    answers_dict = {}
+
+    for answer_id, answer in request.POST.lists():
+        if not answer_id.startswith("answer_"):
+            continue
+        answer = [a.strip() for a in answer]
+        answers_dict[answer_id] = ",".join(answer)
+
+    for criteria in review_criteria:
+        answer_text = answers_dict.get(f"answer_{criteria.id}")
+
+        values = {"answer": answer_text}
+
+        CriteriaResponse.objects.update_or_create(
+            review=review,
+            criteria=criteria,
+            defaults=values,
+        )
+
+    if project.learning_in_public_cap_review > 0:
+        links = request.POST.getlist("learning_in_public_links[]")
+        cleaned_links = clean_learning_in_public_links(
+            links, project.learning_in_public_cap_review
+        )
+        review.learning_in_public_links = cleaned_links
+
+    if project.time_spent_evaluation_field:
+        time_spent_reviewing = request.POST.get("time_spent_reviewing")
+        if (
+            time_spent_reviewing is not None
+            and time_spent_reviewing != ""
+        ):
+            review.time_spent_reviewing = float(time_spent_reviewing)
+
+    if project.problems_comments_field:
+        problems_comments = request.POST.get("problems_comments", "")
+        review.problems_comments = problems_comments.strip()
+
+    note_to_peer = request.POST.get("note_to_peer", "")
+    review.note_to_peer = note_to_peer.strip()
+
+    review.submitted_at = timezone.now()
+    review.state = PeerReviewState.SUBMITTED.value
+    review.save()
+
+    messages.success(
+        request,
+        "Thank you for submitting your evaluation, it is now saved. You can update it at any point.",
+        extra_tags="homework",
+    )
+
+
+@login_required
+def projects_eval_submit(request, course_slug, project_slug, review_id):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, slug=project_slug, course=course
+    )
+    review = get_object_or_404(PeerReview, id=review_id)
+    review_criteria = ReviewCriteria.objects.filter(course=course)
+
+    if request.method == "POST":
+        project_eval_post_submission(
+            request, project, review, review_criteria
+        )
+
+        return redirect(
+            "projects_eval_submit",
+            course_slug=course_slug,
+            project_slug=project_slug,
+            review_id=review_id,
+        )
+
+    context = project_eval_build_context(
+        project, review, review_criteria
+    )
+    context["course"] = course
 
     return render(request, "projects/eval_submit.html", context)
