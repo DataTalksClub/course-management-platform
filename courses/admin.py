@@ -77,6 +77,14 @@ class HomeworkAdmin(ModelAdmin):
     actions = [score_selected_homeworks, set_most_popular_as_correct]
     list_display = ["title", "course", "due_date", "is_scored"]
     list_filter = ["course__slug"]
+    
+    def formfield_for_foreignkey(self, db_field, request, obj=None, **kwargs):
+        kwargs = handled_course_choices(db_field, kwargs, request)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return get_queryset(request, qs, filter_field='course__instructor')
 
 
 class CriteriaForm(forms.ModelForm):
@@ -113,7 +121,14 @@ class CourseAdmin(ModelAdmin):
     actions = [update_leaderboard_admin]
     inlines = [CriteriaInline]
     list_display = ["title"]
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return get_form(request, form)
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return get_queryset(request, qs)
 
 def assign_peer_reviews_for_project_admin(
     modeladmin, request, queryset
@@ -142,8 +157,44 @@ class ProjectAdmin(ModelAdmin):
     list_display = ["title", "course", "state"]
     list_filter = ["course__slug"]
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return get_queryset(request, qs, filter_field='course__instructor')
+    
+    def formfield_for_foreignkey(self, db_field, request, obj=None, **kwargs):
+        kwargs = handled_course_choices(db_field, kwargs, request)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(ReviewCriteria)
 class ReviewCriteriaAdmin(ModelAdmin):
-    pass
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return get_queryset(request, qs, filter_field='course__instructor')
+    
+    def formfield_for_foreignkey(self, db_field, request, obj=None, **kwargs):
+        kwargs = handled_course_choices(db_field, kwargs, request)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+def get_queryset(request, qs, filter_field="instructor"):
+    if request.user.is_superuser:
+        return qs
+    else:
+        return qs.filter(**{filter_field: request.user})
+
+
+def get_form(request, form):
+    if not request.user.is_superuser:
+        form.base_fields["instructor"].initial = request.user
+        form.base_fields["instructor"].widget = forms.HiddenInput()
+    return form
+
+def handled_course_choices(db_field, kwargs, request):
+    if db_field.name == "course":
+        kwargs["queryset"] = (
+            Course.objects.all()
+            if request.user.is_superuser
+            else Course.objects.filter(instructor=request.user)
+        )
+    return kwargs
