@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Answer, Enrollment
+from courses.models import Answer, Enrollment
 
 
 class AnswerForm(forms.ModelForm):

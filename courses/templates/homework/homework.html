@@ -45,8 +45,7 @@
   </div>
 
   <div>
-    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c"}}</span> Local time</p>
-    <p>Until deadline: <span class="until-deadline">{{ homework.days_until_due }}</span></p>
+    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c"}}</span> (local time)</p>
   </div>
 
   {% if not is_authenticated %}

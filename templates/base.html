@@ -18,20 +18,32 @@
 </head>
 
 <body>
-  <header>
-    <nav>
-      <ul>
-        {% if user.is_authenticated %}
-          <li>{{ user.username }} (<a href="{% url 'account_logout' %}">Logout</a>)</li>
-        {% else %}
-          <li><a href="{% url 'login' %}">Login</a></li>
-        {% endif %}
-        <li><a href="{% url 'course_list' %}">Courses</a></li>
-        {% block breadcrumbs %}
-        {% endblock %}
-      </ul>
+  <div class="bg-light border-bottom">
+  <header class="container">
+    <nav class="d-flex justify-content-between align-items-center py-2">
+      <div class="breadcrumbs">
+        <ul class="list-unstyled d-flex align-items-center">
+          <li>
+            <i class="fas fa-graduation-cap"></i>
+            <a href="{% url 'course_list' %}">Courses</a>
+          </li>
+          {% block breadcrumbs %}
+          {% endblock %}
+        </ul>
+      </div>
+      <div>
+        <ul class="list-unstyled d-flex align-items-center">
+          {% if user.is_authenticated %}
+            <li class="mr-2"><i class="fas fa-user"></i> {{ user.username }}</li>
+            <li class="mr-2">(<a href="{% url 'account_logout' %}">Logout <i class="fas fa-sign-out-alt"></i></a>)</li>
+          {% else %}
+            <li><a href="{% url 'login' %}">Login <i class="fas fa-sign-in-alt"></i></a></li>
+          {% endif %}
+        </ul>
+      </div>
     </nav>
   </header>
+</div>
 
   <div id="content" class="container">
     <div class="form-container mt-4 bg-light border rounded">

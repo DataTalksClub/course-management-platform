@@ -57,7 +57,7 @@ class Enrollment(models.Model):
     display_on_leaderboard = models.BooleanField(default=True)
 
     position_on_leaderboard = models.IntegerField(
-        blank=True, null=True, default=0
+        blank=True, null=True, default=None
     )
 
     certificate_name = models.CharField(
@@ -271,6 +271,12 @@ project_state_names = {
     ProjectState.COMPLETED.value: "Completed",
 }
 
+project_status_badge_classes = {
+    ProjectState.COLLECTING_SUBMISSIONS.value: "bg-info",
+    ProjectState.PEER_REVIEWING.value: "bg-warning",
+    ProjectState.COMPLETED.value: "bg-success",
+}
+
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     slug = models.SlugField(blank=False)
@@ -303,6 +309,9 @@ class Project(models.Model):
 
     def get_project_state_name(self):
         return project_state_names[self.state]
+
+    def status_badge_class(self):
+        return project_status_badge_classes.get(self.state, "bg-secondary")
 
     def __str__(self):
         return self.title

@@ -10,6 +10,7 @@ on:
       - 'deploy/**'
       - 'terraform/**'
       - 'db/**'
+      - 'notebooks/**'
 
 jobs:
   build-and-deploy:

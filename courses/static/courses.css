@@ -1,3 +1,47 @@
+/* Apply to the header nav or a div inside the header if it wraps your content */
+header nav {
+  max-width: 720px;
+  margin: 0 auto; /* Centers the navigation horizontally */
+  padding: 20px 0; /* Vertical padding to match your content block */
+  display: flex;
+  justify-content: space-between; /* This will space your list and logout/login */
+  align-items: center; /* This will align the items vertically */
+}
+
+/* Ensure the lists within the nav take up the appropriate space */
+header nav ul {
+  display: flex;
+  align-items: center; /* Align list items vertically */
+  padding: 0;
+  margin: 0; /* Reset margins to control spacing explicitly */
+}
+
+header nav li:not(:last-child) {
+  margin-right: 1rem; /* Adds margin to the right of each list item except the last */
+}
+
+nav .breadcrumbs ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Style each list item */
+nav .breadcrumbs ul li {
+  margin-right: 0.25rem; /* Add some space between the breadcrumbs */
+}
+
+/* Add ">" before each li except the first one using a pseudo-element */
+nav .breadcrumbs ul li:not(:first-child)::before {
+  content: "\f105"; /* FontAwesome's right arrow icon */
+  font-family: "Font Awesome 5 Free";
+  color: #000;
+  padding-right: 0.25rem; /* Add some space before the breadcrumb text */
+  font-weight: 900; /* Bold */
+}
+
+
 .form-container {
   max-width: 720px; 
   margin: 20px auto;
