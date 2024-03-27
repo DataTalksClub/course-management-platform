@@ -293,43 +293,105 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(r1_actual, r1)
 
         expected_options1 = [
-            {"criteria": "Poor", "score": 0, "index": 1, "is_selected": True},
-            {"criteria": "Satisfactory", "score": 1, "index": 2, "is_selected": False},
-            {"criteria": "Good", "score": 2, "index": 3, "is_selected": False},
-            {"criteria": "Excellent", "score": 3, "index": 4, "is_selected": False},
+            {
+                "criteria": "Poor",
+                "score": 0,
+                "index": 1,
+                "is_selected": True,
+            },
+            {
+                "criteria": "Satisfactory",
+                "score": 1,
+                "index": 2,
+                "is_selected": False,
+            },
+            {
+                "criteria": "Good",
+                "score": 2,
+                "index": 3,
+                "is_selected": False,
+            },
+            {
+                "criteria": "Excellent",
+                "score": 3,
+                "index": 4,
+                "is_selected": False,
+            },
         ]
 
         self.assertEqual(c1.options, expected_options1)
-
 
         c2, r2_actual = criteria_response_pairs[1]
         self.assertEqual(c2, self.criteria2)
         self.assertEqual(r2_actual, r2)
 
         expected_options2 = [
-            {"criteria": "None", "score": 0, "index": 1, "is_selected": False},
-            {"criteria": "Basic", "score": 1, "index": 2, "is_selected": True},
-            {"criteria": "Complete", "score": 2, "index": 3, "is_selected": False},
-            {"criteria": "In-depth", "score": 3, "index": 4, "is_selected": False},
+            {
+                "criteria": "None",
+                "score": 0,
+                "index": 1,
+                "is_selected": False,
+            },
+            {
+                "criteria": "Basic",
+                "score": 1,
+                "index": 2,
+                "is_selected": True,
+            },
+            {
+                "criteria": "Complete",
+                "score": 2,
+                "index": 3,
+                "is_selected": False,
+            },
+            {
+                "criteria": "In-depth",
+                "score": 3,
+                "index": 4,
+                "is_selected": False,
+            },
         ]
 
         self.assertEqual(c2.options, expected_options2)
-
 
         c3, r3_actual = criteria_response_pairs[2]
         self.assertEqual(c3, self.criteria3)
         self.assertEqual(r3_actual, r3)
 
         expected_options3 = [
-            {"criteria": "Coding standards", "score": 1, "index": 1, "is_selected": True},
-            {"criteria": "Tests", "score": 1, "index": 2, "is_selected": False},
-            {"criteria": "Logging", "score": 1, "index": 3, "is_selected": True},
-            {"criteria": "Version control", "score": 1, "index": 4, "is_selected": False},
-            {"criteria": "CI/CD", "score": 1, "index": 5, "is_selected": False},
+            {
+                "criteria": "Coding standards",
+                "score": 1,
+                "index": 1,
+                "is_selected": True,
+            },
+            {
+                "criteria": "Tests",
+                "score": 1,
+                "index": 2,
+                "is_selected": False,
+            },
+            {
+                "criteria": "Logging",
+                "score": 1,
+                "index": 3,
+                "is_selected": True,
+            },
+            {
+                "criteria": "Version control",
+                "score": 1,
+                "index": 4,
+                "is_selected": False,
+            },
+            {
+                "criteria": "CI/CD",
+                "score": 1,
+                "index": 5,
+                "is_selected": False,
+            },
         ]
 
         self.assertEqual(c3.options, expected_options3)
-
 
     def test_eval_submit_post_not_submitted(self):
         self.client.login(**credentials)
@@ -360,6 +422,7 @@ class ProjectEvaluationTestCase(TestCase):
                     "http://example.com/page",
                     "http://example.com/page2",
                 ],
+                "problems_comments": "No problems"
             },
         )
 
@@ -371,6 +434,7 @@ class ProjectEvaluationTestCase(TestCase):
             self.peer_review.state, PeerReviewState.SUBMITTED.value
         )
         self.assertEqual(self.peer_review.note_to_peer, "Well done!")
+        self.assertEqual(self.peer_review.problems_comments, "No problems")
 
         learning_in_public_links = (
             self.peer_review.learning_in_public_links
