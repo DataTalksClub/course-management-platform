@@ -3,6 +3,7 @@ import logging
 
 from time import time
 from enum import Enum
+from collections import defaultdict
 
 from django.db import transaction
 from django.utils import timezone
@@ -14,6 +15,8 @@ from courses.models import (
     ProjectState,
     PeerReviewState,
 )
+
+from .scoring import update_leaderboard
 
 
 logger = logging.getLogger(__name__)
@@ -85,8 +88,6 @@ def assign_peer_reviews_for_project(
     with transaction.atomic():
         t0 = time()
 
-        # project = Project.objects.get(id=project_id)
-
         if project.state != ProjectState.COLLECTING_SUBMISSIONS.value:
             return (
                 ProjectActionStatus.FAIL,
@@ -128,4 +129,139 @@ def assign_peer_reviews_for_project(
     return (
         ProjectActionStatus.OK,
         f"Peer reviews assigned for project {project.id} and state updated to 'PEER_REVIEWING'.",
+    )
+
+
+def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
+    with transaction.atomic():
+        t0 = time()
+
+        if project.state != ProjectState.PEER_REVIEWING.value:
+            return (
+                ProjectActionStatus.FAIL,
+                "Project is not in 'PEER_REVIEWING' state",
+            )
+
+        if project.peer_review_due_date > timezone.now():
+            return (
+                ProjectActionStatus.FAIL,
+                "The peer review due date is in the future. Update the due date to score the project.",
+            )
+
+        peer_reviews = PeerReview.objects.filter(
+            submission_under_evaluation__project=project
+        )
+
+        if peer_reviews.count() == 0:
+            return (
+                ProjectActionStatus.FAIL,
+                "No peer reviews found for the project.",
+            )
+
+        submissions_to_update = []
+
+        peer_reviews = PeerReview.objects.filter(
+            submission_under_evaluation__project=project
+        )
+
+        submissions = {}
+        reviews_by_submission = defaultdict(list)
+        reviews_by_reviewer = defaultdict(list)
+
+        for review in peer_reviews:
+            submission = review.submission_under_evaluation
+            submissions[submission.id] = submission
+
+            if review.state == PeerReviewState.SUBMITTED.value:
+                reviews_by_submission[submission.id].append(review)
+                reviewer = review.reviewer
+                reviews_by_reviewer[reviewer.id].append(review)
+
+        for submission_id, submission in submissions.items():
+            reviews = reviews_by_submission[submission_id]
+
+            reviewed = reviews_by_reviewer[submission_id]
+
+            num_projects_reviewed = len(reviews)
+
+            submission.peer_review_score = (
+                num_projects_reviewed * project.points_for_peer_review
+            )
+
+            learning_in_public_cap_project = (
+                project.learning_in_public_cap_project
+            )
+
+            project_learning_in_public_score = len(
+                submission.learning_in_public_links
+            )
+            if (
+                project_learning_in_public_score
+                > learning_in_public_cap_project
+            ):
+                project_learning_in_public_score = (
+                    learning_in_public_cap_project
+                )
+
+            submission.peer_review_learning_in_public_score = (
+                project_learning_in_public_score
+            )
+
+            peer_review_learning_in_public_score = 0
+
+            for review in reviews:
+                poinst_for_review = len(review.learning_in_public_links)
+                cap = project.learning_in_public_cap_review
+                if poinst_for_review > cap:
+                    poinst_for_review = cap
+                peer_review_learning_in_public_score += (
+                    poinst_for_review
+                )
+
+            submission.total_score = (
+                submission.project_score
+                + submission.project_faq_score
+                + submission.project_learning_in_public_score
+                + submission.peer_review_score
+                + submission.peer_review_faq_score
+                + submission.peer_review_learning_in_public_score
+            )
+
+            submission.reviewed_enough_peers = (
+                num_projects_reviewed
+                >= project.number_of_peers_to_evaluate
+            )
+            submission.passed = (
+                submission.project_score >= project.points_to_pass
+            )
+
+        ProjectSubmission.objects.bulk_update(
+            submissions_to_update,
+            [
+                "project_score",
+                "project_faq_score",
+                "project_learning_in_public_score",
+                "peer_review_score",
+                "peer_review_faq_score",
+                "peer_review_learning_in_public_score",
+                "total_score",
+                "reviewed_enough_peers",
+                "passed",
+            ],
+        )
+
+        project.state = ProjectState.COMPLETED.value
+        project.save()
+
+        update_leaderboard(project.course)
+
+        t_end = time()
+
+        logger.info(
+            f"Project {project.id} scored in {t_end - t0:.2f} seconds."
+        )
+
+    return (
+        ProjectActionStatus.OK,
+        f"Project {project.id} scored and state updated to 'COMPLETED'.",
     )

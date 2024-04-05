@@ -12,9 +12,6 @@ from .models import (
     ReviewCriteria,
 )
 
-from .scoring import score_homework_submissions
-
-
 from .scoring import (
     score_homework_submissions,
     update_leaderboard,
@@ -23,6 +20,7 @@ from .scoring import (
 
 from .projects import (
     assign_peer_reviews_for_project,
+    score_project,
     ProjectActionStatus,
 )
 
@@ -133,6 +131,21 @@ def assign_peer_reviews_for_project_admin(
 assign_peer_reviews_for_project_admin.short_description = (
     "Assign peer reviews"
 )
+
+
+
+def score_projects_admin(modeladmin, request, queryset):
+    for project in queryset:
+        status, message = score_project(project)
+        if status == ProjectActionStatus.OK:
+            modeladmin.message_user(
+                request, message, level=messages.SUCCESS
+            )
+        else:
+            modeladmin.message_user(
+                request, message, level=messages.WARNING
+            )
+        
 
 
 @admin.register(Project)

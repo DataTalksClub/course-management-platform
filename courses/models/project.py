@@ -14,6 +14,7 @@ class ProjectState(Enum):
     PEER_REVIEWING = "PR"
     COMPLETED = "CO"
 
+
 project_state_names = {
     ProjectState.COLLECTING_SUBMISSIONS.value: "Collecting Submissions",
     ProjectState.PEER_REVIEWING.value: "Peer Reviewing",
@@ -25,6 +26,7 @@ project_status_badge_classes = {
     ProjectState.PEER_REVIEWING.value: "bg-warning",
     ProjectState.COMPLETED.value: "bg-success",
 }
+
 
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -46,6 +48,7 @@ class Project(models.Model):
 
     learning_in_public_cap_review = models.IntegerField(default=2)
     number_of_peers_to_evaluate = models.IntegerField(default=3)
+    points_for_peer_review = models.IntegerField(default=3)
     time_spent_evaluation_field = models.BooleanField(default=True)
 
     points_to_pass = models.IntegerField(default=0)
@@ -60,7 +63,9 @@ class Project(models.Model):
         return project_state_names[self.state]
 
     def status_badge_class(self):
-        return project_status_badge_classes.get(self.state, "bg-secondary")
+        return project_status_badge_classes.get(
+            self.state, "bg-secondary"
+        )
 
     def __str__(self):
         return self.title
@@ -84,6 +89,19 @@ class ProjectSubmission(models.Model):
     problems_comments = models.TextField(blank=True)
 
     submitted_at = models.DateTimeField(auto_now=True)
+
+    project_score = models.IntegerField(default=0)
+    project_faq_score = models.IntegerField(default=0)
+    project_learning_in_public_score = models.IntegerField(default=0)
+
+    peer_review_score = models.IntegerField(default=0)
+    peer_review_faq_score = models.IntegerField(default=0)
+    peer_review_learning_in_public_score = models.IntegerField(default=0)
+
+    total_score = models.IntegerField(default=0)
+
+    reviewed_enough_peers = models.BooleanField(default=False)
+    passed = models.BooleanField(default=False)
 
     def __str__(self):
         return f"project submission for enrollment {self.enrollment.id}"
@@ -169,3 +187,17 @@ class CriteriaResponse(models.Model):
     def __str__(self):
         return f"{self.criteria.description}: {self.answer}"
 
+
+class ProjectEvaluationScore(models.Model):
+    submission = models.ForeignKey(
+        ProjectSubmission, on_delete=models.CASCADE
+    )
+
+    review_criteria = models.ForeignKey(
+        ReviewCriteria, on_delete=models.CASCADE
+    )
+
+    score = models.IntegerField()
+
+    def __str__(self):
+        return f"Score: {self.score} for submission by {self.submission.id}"

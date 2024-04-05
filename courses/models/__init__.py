@@ -1,3 +1,6 @@
+
+from . import course, project, homework
+
 from .course import Course, Enrollment
 from .homework import (
     Homework,
