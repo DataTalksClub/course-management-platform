@@ -4,6 +4,10 @@ import logging
 from time import time
 from enum import Enum
 from collections import defaultdict
+from types import Iterable, List, Tuple
+
+import math
+import statistics
 
 from django.db import transaction
 from django.utils import timezone
@@ -14,6 +18,8 @@ from courses.models import (
     PeerReview,
     ProjectState,
     PeerReviewState,
+    ProjectEvaluationScore,
+    CriteriaResponse,
 )
 
 from .scoring import update_leaderboard
@@ -132,6 +138,37 @@ def assign_peer_reviews_for_project(
     )
 
 
+def calculate_project_score(
+    submission, reviews: List[PeerReview]
+) -> Tuple[int, List[ProjectEvaluationScore]]:
+    new_evaluations: List[ProjectEvaluationScore] = []
+
+    project_score = 0
+
+    responses_by_criteria = defaultdict(list)
+
+    for review in reviews:
+        for response in review.responses:
+            responses_by_criteria[response.criteria_id].append(response)
+
+    for criteria_id, responses in responses_by_criteria.items():
+        criteria_score = 0
+        scores = [response.score for response in responses]
+        median_score = statistics.median(scores)
+        criteria_score = math.ceil(median_score)
+
+        score = ProjectEvaluationScore(
+            submission=submission,
+            criteria_id=criteria_id,
+            score=criteria_score,
+        )
+        new_evaluations.append(score)
+
+        project_score += criteria_score
+
+    return project_score, new_evaluations
+
+
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
@@ -164,6 +201,14 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             submission_under_evaluation__project=project
         )
 
+        criteria_responses = CriteriaResponse.objects.filter(
+            review__in=peer_reviews
+        )
+
+        responses_by_review = defaultdict(list)
+        for response in criteria_responses:
+            responses_by_review[response.review_id].append(response)
+
         submissions = {}
         reviews_by_submission = defaultdict(list)
         reviews_by_reviewer = defaultdict(list)
@@ -176,13 +221,22 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 reviews_by_submission[submission.id].append(review)
                 reviewer = review.reviewer
                 reviews_by_reviewer[reviewer.id].append(review)
+                review.responses = responses_by_review[review.id]
+
+        all_scores = []
 
         for submission_id, submission in submissions.items():
             reviews = reviews_by_submission[submission_id]
 
             reviewed = reviews_by_reviewer[submission_id]
 
-            num_projects_reviewed = len(reviews)
+            project_score, scores = calculate_project_score(
+                submission, reviews
+            )
+            submission.project_score = project_score
+            all_scores.extend(scores)
+
+            num_projects_reviewed = len(reviewed)
 
             submission.peer_review_score = (
                 num_projects_reviewed * project.points_for_peer_review
@@ -218,6 +272,28 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                     poinst_for_review
                 )
 
+            submission.peer_review_learning_in_public_score = (
+                peer_review_learning_in_public_score
+            )
+
+
+            submission.project_faq_score = 0 
+
+            if (
+                submission.faq_contribution
+                and len(submission.faq_contribution) >= 5
+            ):
+                submission.project_faq_score = 1
+
+
+            peer_review_faq_score = 0
+            for review in reviews:
+                if (
+                    review.note_to_peer
+                    and len(review.note_to_peer) >= 5
+                ):
+                    peer_review_faq_score += 1
+
             submission.total_score = (
                 submission.project_score
                 + submission.project_faq_score
@@ -232,7 +308,8 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 >= project.number_of_peers_to_evaluate
             )
             submission.passed = (
-                submission.project_score >= project.points_to_pass
+                (submission.project_score >= project.points_to_pass) 
+                and submission.reviewed_enough_peers
             )
 
         ProjectSubmission.objects.bulk_update(
@@ -249,6 +326,13 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 "passed",
             ],
         )
+
+        scores_to_delete = ProjectEvaluationScore.objects.filter(
+            submission_id__in=submissions.keys()
+        )
+        scores_to_delete.delete()
+
+        ProjectEvaluationScore.objects.bulk_create(all_scores)
 
         project.state = ProjectState.COMPLETED.value
         project.save()
