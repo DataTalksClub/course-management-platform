@@ -4,7 +4,8 @@ import logging
 from time import time
 from enum import Enum
 from collections import defaultdict
-from types import Iterable, List, Tuple
+
+from typing import List, Tuple
 
 import math
 import statistics
@@ -285,21 +286,11 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             ):
                 submission.project_faq_score = 1
 
-
-            peer_review_faq_score = 0
-            for review in reviews:
-                if (
-                    review.note_to_peer
-                    and len(review.note_to_peer) >= 5
-                ):
-                    peer_review_faq_score += 1
-
             submission.total_score = (
                 submission.project_score
                 + submission.project_faq_score
                 + submission.project_learning_in_public_score
                 + submission.peer_review_score
-                + submission.peer_review_faq_score
                 + submission.peer_review_learning_in_public_score
             )
 

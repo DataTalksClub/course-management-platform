@@ -95,7 +95,6 @@ class ProjectSubmission(models.Model):
     project_learning_in_public_score = models.IntegerField(default=0)
 
     peer_review_score = models.IntegerField(default=0)
-    peer_review_faq_score = models.IntegerField(default=0)
     peer_review_learning_in_public_score = models.IntegerField(default=0)
 
     total_score = models.IntegerField(default=0)
