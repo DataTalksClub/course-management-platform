@@ -1,22 +1,8 @@
-from .course import Course, Enrollment
-from .homework import (
-    Homework,
-    Submission,
-    Answer,
-    AnswerTypes,
-    Question,
-    QuestionTypes,
-    QUESTION_ANSWER_DELIMITER,
-)
-from .project import (
-    Project,
-    ProjectSubmission,
-    ProjectState,
-    PeerReview,
-    PeerReviewState,
-    ReviewCriteria,
-    CriteriaResponse,
-)
+from . import course, project, homework
+
+from .course import *  # noqa: F403
+from .homework import *  # noqa: F403
+from .project import *  # noqa: F403
 
 from django.contrib.auth import get_user_model
 

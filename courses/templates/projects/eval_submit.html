@@ -30,9 +30,9 @@
   {% endif %}
 
   <p>
-    {{ submission.enrollment.display_name }}
-    {{ submission.github_link }}
-    {{ submission.commit_id }}
+    <p>Evaluation for: {{ submission.enrollment.display_name }}</p>
+    <p><a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a></p>
+    <p>commit hash: {{ submission.commit_id }}</p>
   </p>
 
   <p>
@@ -124,26 +124,6 @@
           id="problems_comments"
           {% if disabled %} disabled {% endif %}
         >{{ review.problems_comments|default:'' }}</textarea>
-      </div>
-    {% endif %}
-
-    {% if course.faq_document_url and project.faq_contribution_field %}
-      <div class="mb-3 question">
-        <label for="faq_contribution" class="question-text">
-          FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, optional)</span>
-          <i
-            class="fas fa-question-circle text-muted"
-            data-toggle="tooltip"
-            data-placement="top"
-            title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?">
-          </i>
-        </label>
-        <textarea
-          class="form-control"
-          name="faq_contribution"
-          id="faq_contribution"
-          {% if disabled %} disabled {% endif %}
-        >{{ review.faq_contribution|default:'' }}</textarea>
       </div>
     {% endif %}
 
