@@ -183,6 +183,16 @@ class CriteriaResponse(models.Model):
     )
     answer = models.CharField(max_length=255, blank=True, null=True)
 
+    def get_scores(self):
+        criteria = self.criteria
+
+        answers = (self.answer or "").split(",")
+        answer_idx = [int(s) - 1 for s in answers]
+        scores = [criteria.options[i]["score"] for i in answer_idx]
+
+        return scores
+
+
     def __str__(self):
         return f"{self.criteria.description}: {self.answer}"
 

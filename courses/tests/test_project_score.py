@@ -20,6 +20,8 @@ from courses.models import (
 )
 
 
+from courses.projects import score_project, ProjectActionStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,7 +38,6 @@ credentials = dict(
 
 class ProjectEvaluationTestCase(TestCase):
     def setUp(self):
-        super().setUp()
         self.client = Client()
 
         self.user = User.objects.create_user(**credentials)
@@ -73,11 +74,10 @@ class ProjectEvaluationTestCase(TestCase):
             github_link="https://github.com/user/project",
             commit_id="1234567",
             learning_in_public_links=["link1", "link2", "link3"],
-            faq_contribution="A"*10,  # Assume this means they've contributed enough to FAQ
+            faq_contribution="AAAAAAAAAA"
         )
 
-
-        self.criteria1 = ReviewCriteria.objects.create(
+        self.criteria = ReviewCriteria.objects.create(
             course=self.course,
             description="Code quality",
             options=[
@@ -89,35 +89,9 @@ class ProjectEvaluationTestCase(TestCase):
             review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
 
-        self.criteria2 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Project documentation",
-            options=[
-                {"criteria": "None", "score": 0},
-                {"criteria": "Basic", "score": 1},
-                {"criteria": "Complete", "score": 2},
-                {"criteria": "In-depth", "score": 3},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
+        self.peer_reviews = []
 
-        self.criteria3 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Best practices",
-            options=[
-                {"criteria": "Coding standards", "score": 1},
-                {"criteria": "Tests", "score": 1},
-                {"criteria": "Logging", "score": 1},
-                {"criteria": "Version control", "score": 1},
-                {"criteria": "CI/CD", "score": 1},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
-        )
-
-        self.criteria = [self.criteria1, self.criteria2, self.criteria3]
-
-        # Create additional users for peer reviews
-        for i in range(1, 4):
+        for i in range(3):
             other_user = User.objects.create_user(
                 username=f"student{i}",
                 email=f"student{i}@email.com",
@@ -134,20 +108,26 @@ class ProjectEvaluationTestCase(TestCase):
                 github_link=f"https://github.com/other_student{i}/project",
                 commit_id="abcdefg{i}",
             )
-
-            peer_review = PeerReview.objects.create(
-                submission_under_evaluation=other_submission,
-                reviewer=self.submission,
-                state=PeerReviewState.SUBMITTED.value,
+            pr = PeerReview.objects.create(
+                submission_under_evaluation=self.submission,
+                reviewer=other_submission,
+                state=PeerReviewState.TO_REVIEW.value,
             )
-
-            for criteria in self.criteria:
-                CriteriaResponse.objects.create(
-                    review=peer_review,
-                    criteria=criteria,
-                    answer="1"
-                )
-
+            self.peer_reviews.append(pr)
 
     def test_project_evaluation(self):
-        pass
+        answers = ["4", "4", "3"] 
+
+        for pr, answer in zip(self.peer_reviews, answers):
+            CriteriaResponse.objects.create(
+                review=pr,
+                criteria=self.criteria,
+                answer=answer,
+            )
+            pr.state = PeerReviewState.SUBMITTED.value
+            pr.save()
+        
+
+        status, message = score_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.OK)
+        

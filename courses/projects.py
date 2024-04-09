@@ -140,7 +140,7 @@ def assign_peer_reviews_for_project(
 
 
 def calculate_project_score(
-    submission, reviews: List[PeerReview]
+    submission: ProjectSubmission, reviews: List[PeerReview]
 ) -> Tuple[int, List[ProjectEvaluationScore]]:
     new_evaluations: List[ProjectEvaluationScore] = []
 
@@ -154,13 +154,21 @@ def calculate_project_score(
 
     for criteria_id, responses in responses_by_criteria.items():
         criteria_score = 0
-        scores = [response.score for response in responses]
+
+        scores = []
+        for response in responses:
+            response_scores = response.get_scores()
+            score = sum(response_scores)
+            scores.append(score)
+
+
+        criteria = responses[0].criteria
         median_score = statistics.median(scores)
         criteria_score = math.ceil(median_score)
 
         score = ProjectEvaluationScore(
             submission=submission,
-            criteria_id=criteria_id,
+            review_criteria=criteria,
             score=criteria_score,
         )
         new_evaluations.append(score)
@@ -265,12 +273,14 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             peer_review_learning_in_public_score = 0
 
             for review in reviews:
-                poinst_for_review = len(review.learning_in_public_links)
+                if not review.learning_in_public_links:
+                    continue
+                points_for_review = len(review.learning_in_public_links)
                 cap = project.learning_in_public_cap_review
-                if poinst_for_review > cap:
-                    poinst_for_review = cap
+                if points_for_review > cap:
+                    points_for_review = cap
                 peer_review_learning_in_public_score += (
-                    poinst_for_review
+                    points_for_review
                 )
 
             submission.peer_review_learning_in_public_score = (
@@ -310,7 +320,6 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 "project_faq_score",
                 "project_learning_in_public_score",
                 "peer_review_score",
-                "peer_review_faq_score",
                 "peer_review_learning_in_public_score",
                 "total_score",
                 "reviewed_enough_peers",
