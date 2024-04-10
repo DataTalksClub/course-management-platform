@@ -1,3 +1,5 @@
+import math
+import statistics
 from enum import Enum
 
 from django.db import models
@@ -125,6 +127,18 @@ class ReviewCriteria(models.Model):
     review_criteria_type = models.CharField(
         max_length=2, choices=REVIEW_CRITERIA_TYPES
     )
+
+    def median_score(self) -> int:
+        result = 0
+        scores = [option["score"] for option in self.options]
+
+        if self.review_criteria_type == ReviewCriteriaTypes.RADIO_BUTTONS.value:
+            result = statistics.median(scores)
+
+        if self.review_criteria_type == ReviewCriteriaTypes.CHECKBOXES.value:
+            result = sum(scores) / 2 # just give the middle score
+    
+        return math.ceil(result)
 
     def __str__(self):
         return self.description
