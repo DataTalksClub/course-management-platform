@@ -180,7 +180,7 @@ class PeerReview(models.Model):
     )
 
     def __str__(self):
-        return f"Review by {self.reviewer.username} for {self.submission_under_evaluation.project.name}"
+        return f"Review by {self.reviewer.id} for {self.submission_under_evaluation.project.name}"
 
     def get_criteria_responses(self):
         return self.criteria_responses.all()
@@ -200,7 +200,10 @@ class CriteriaResponse(models.Model):
     def get_scores(self):
         criteria = self.criteria
 
-        answers = (self.answer or "").split(",")
+        if not self.answer:
+            return [0]
+
+        answers = self.answer.split(",")
         answer_idx = [int(s) - 1 for s in answers]
         scores = [criteria.options[i]["score"] for i in answer_idx]
 

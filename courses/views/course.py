@@ -198,13 +198,18 @@ def leaderboard_score_breakdown_view(
         Enrollment, id=enrollment_id, course__slug=course_slug
     )
 
-    submissions = Submission.objects.filter(
+    homework_submissions = Submission.objects.filter(
         enrollment=enrollment
     ).order_by("-homework__is_scored", "homework__id")
 
+    project_submissions = ProjectSubmission.objects.filter(
+        enrollment=enrollment
+    ).order_by("project__id")
+
     context = {
         "enrollment": enrollment,
-        "submissions": submissions,
+        "submissions": homework_submissions,
+        "project_submissions": project_submissions,
     }
 
     return render(
