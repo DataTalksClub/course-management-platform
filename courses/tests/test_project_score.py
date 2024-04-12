@@ -73,7 +73,7 @@ class ProjectEvaluationTestCase(TestCase):
             student=self.user,
             enrollment=self.enrollment,
             github_link="https://github.com/user/project",
-            commit_id="1234567"
+            commit_id="1234567",
         )
 
         self.criteria = ReviewCriteria.objects.create(
@@ -298,7 +298,9 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(status, ProjectActionStatus.OK)
 
         self.submission.refresh_from_db()
-        self.assertEqual(self.submission.project_learning_in_public_score, 3)
+        self.assertEqual(
+            self.submission.project_learning_in_public_score, 3
+        )
 
     def test_learning_in_public_peer_review(self):
         other_prs = self.create_peer_review_assignments_for_user()
@@ -358,3 +360,81 @@ class ProjectEvaluationTestCase(TestCase):
 
         self.submission.refresh_from_db()
         self.assertEqual(self.submission.project_faq_score, 0)
+
+    def test_project_passed(self):
+        # 3 peers evaluated
+        other_prs = self.create_peer_review_assignments_for_user()
+
+        self.submit_peer_review(other_prs[0], "4")
+        self.submit_peer_review(other_prs[1], "3")
+        self.submit_peer_review(other_prs[2], "3")
+
+        # received good score
+        answers = ["4", "4", "1"]
+        scores = [3, 3, 0]
+        expected_project_score = 3
+
+        self.project.points_to_pass = 3
+        self.project.save()
+
+        answers_and_scores = list(zip(answers, scores))
+
+        # also does the scoring
+        self.assert_evaluation_score(
+            answers_and_scores, expected_project_score
+        )
+
+        self.submission.refresh_from_db()
+        self.assertTrue(self.submission.passed)
+
+        self.assertEqual(
+            self.submission.project_score, expected_project_score
+        )
+        self.assertEqual(
+            self.submission.peer_review_score,
+            3 * self.project.points_for_peer_review,
+        )
+        self.assertEqual(
+            self.submission.total_score,
+            expected_project_score
+            + 3 * self.project.points_for_peer_review,
+        )
+
+    def test_project_not_passed(self):
+        # 3 peers evaluated
+        other_prs = self.create_peer_review_assignments_for_user()
+
+        self.submit_peer_review(other_prs[0], "4")
+        self.submit_peer_review(other_prs[1], "3")
+        self.submit_peer_review(other_prs[2], "3")
+
+        # received good score
+        answers = ["4", "1", "1"]
+        scores = [3, 0, 0]
+        expected_project_score = 0
+
+        self.project.points_to_pass = 3
+        self.project.save()
+
+        answers_and_scores = list(zip(answers, scores))
+
+        # also does the scoring
+        self.assert_evaluation_score(
+            answers_and_scores, expected_project_score
+        )
+
+        self.submission.refresh_from_db()
+        self.assertFalse(self.submission.passed)
+
+        self.assertEqual(
+            self.submission.project_score, expected_project_score
+        )
+        self.assertEqual(
+            self.submission.peer_review_score,
+            3 * self.project.points_for_peer_review,
+        )
+        self.assertEqual(
+            self.submission.total_score,
+            expected_project_score
+            + 3 * self.project.points_for_peer_review,
+        )
