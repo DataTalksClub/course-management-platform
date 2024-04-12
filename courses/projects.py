@@ -166,7 +166,6 @@ def calculate_project_score(
     evaluation_criteria: Iterable[ReviewCriteria],
     reviews: List[PeerReview],
 ) -> Tuple[int, List[ProjectEvaluationScore]]:
-
     if len(reviews) == 0:
         logger.info(f"No reviews found for submission {submission.id}")
         return calculate_median_score(submission, evaluation_criteria)
@@ -266,7 +265,9 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 reviews_by_reviewer[reviewer.id].append(review)
                 review.responses = responses_by_review[review.id]
 
-        criteria = ReviewCriteria.objects.filter(course=project.course).all()
+        criteria = ReviewCriteria.objects.filter(
+            course=project.course
+        ).all()
 
         all_scores = []
 
@@ -280,7 +281,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             project_score, scores = calculate_project_score(
                 submission=submission,
                 evaluation_criteria=criteria,
-                reviews=reviews
+                reviews=reviews,
             )
             submission.project_score = project_score
             all_scores.extend(scores)
@@ -295,9 +296,12 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 project.learning_in_public_cap_project
             )
 
-            project_learning_in_public_score = len(
-                submission.learning_in_public_links
-            )
+            project_learning_in_public_score = 0
+
+            if submission.learning_in_public_links:
+                project_learning_in_public_score = len(
+                    submission.learning_in_public_links
+                )
             if (
                 project_learning_in_public_score
                 > learning_in_public_cap_project
@@ -306,13 +310,13 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                     learning_in_public_cap_project
                 )
 
-            submission.peer_review_learning_in_public_score = (
+            submission.project_learning_in_public_score = (
                 project_learning_in_public_score
             )
 
             peer_review_learning_in_public_score = 0
 
-            for review in reviews:
+            for review in reviewed:
                 if not review.learning_in_public_links:
                     continue
                 points_for_review = len(review.learning_in_public_links)
