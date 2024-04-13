@@ -37,7 +37,7 @@
   <div class="p-2 {% cycle 'bg-white' '' %}">
     <div class="row align-items-center">
       <div class="col-5">
-        <a href="{% url 'homework' course.slug hw.slug %}" class="text-decoration-none">
+        <a href="{% url 'homework' course.slug hw.slug %}">
           {{ hw.title }}
         </a>
       </div>
@@ -67,13 +67,18 @@
     <div class="row align-items-center">
       <div class="col-5">
         {% if project.state == 'CS' %}
-          <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}" class="text-decoration-none">
+          <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
             {{ project.title }}
           </a>
         {% elif project.state == 'PR' %}
-          <a href="{% url 'projects_eval' course.slug project.slug %}" class="text-decoration-none">
+          <a href="{% url 'projects_eval' course.slug project.slug %}">
             {{ project.title }}
           </a>
+        {% elif project.state == 'CO' %}
+          <a href="{% url 'project_results' course.slug project.slug %}">
+            {{ project.title }}
+          </a>
+          
         {% else %}
           {{ project.title }}
         {% endif %}

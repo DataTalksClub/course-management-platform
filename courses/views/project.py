@@ -157,15 +157,26 @@ def project_view(request, course_slug, project_slug):
     return render(request, "projects/project.html", context)
 
 
-@login_required
 def projects_eval_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
 
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    if not is_authenticated:
+        context = {
+            "course": course,
+            "project": project,
+            "is_authenticated": False,
+        }
+
+        return render(request, "projects/eval.html", context)
+
     student_submissions = ProjectSubmission.objects.filter(
-        project=project, student=request.user
+        project=project, student=user
     )
 
     reviews = PeerReview.objects.filter(
@@ -177,9 +188,46 @@ def projects_eval_view(request, course_slug, project_slug):
         "course": course,
         "project": project,
         "reviews": reviews,
+        "is_authenticated": True
     }
 
     return render(request, "projects/eval.html", context)
+
+
+def project_results(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    if not is_authenticated:
+        context = {
+            "course": course,
+            "project": project,
+            "submission": None,
+            "is_authenticated": False,
+        }
+
+        return render(request, "projects/results.html", context)
+
+    submission = ProjectSubmission.objects.filter(
+        project=project, student=user
+    ).first()
+
+    context = {
+        "course": course,
+        "project": project,
+        "submission": submission,
+        "is_authenticated": True,
+    }
+
+    return render(request, "projects/results.html", context)
+
+
+
 
 
 def project_eval_build_context(
