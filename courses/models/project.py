@@ -118,6 +118,13 @@ class ReviewCriteria(models.Model):
     description = models.CharField(max_length=255)
 
     options = models.JSONField()
+    # example:
+    # options=[
+    #     {"criteria": "Poor", "score": 0},
+    #     {"criteria": "Satisfactory", "score": 1},
+    #     {"criteria": "Good", "score": 2},
+    #     {"criteria": "Excellent", "score": 3},
+    # ]
 
     REVIEW_CRITERIA_TYPES = (
         (ReviewCriteriaTypes.RADIO_BUTTONS.value, "Radio Buttons"),

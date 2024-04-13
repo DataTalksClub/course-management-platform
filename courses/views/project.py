@@ -20,6 +20,7 @@ from courses.models import (
     PeerReviewState,
     ReviewCriteria,
     CriteriaResponse,
+    ProjectEvaluationScore,
     User,
 )
 
@@ -63,23 +64,15 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     if project.time_spent_project_field:
         time_spent = request.POST.get("time_spent")
         if time_spent is not None and time_spent != "":
-            project_submission.time_spent = tryparsefloat(
-                time_spent
-            )
+            project_submission.time_spent = tryparsefloat(time_spent)
 
     if project.problems_comments_field:
-        problems_comments = request.POST.get(
-            "problems_comments", ""
-        )
-        project_submission.problems_comments = (
-            problems_comments.strip()
-        )
+        problems_comments = request.POST.get("problems_comments", "")
+        project_submission.problems_comments = problems_comments.strip()
 
     if project.faq_contribution_field:
         faq_contribution = request.POST.get("faq_contribution", "")
-        project_submission.faq_contribution = (
-            faq_contribution.strip()
-        )
+        project_submission.faq_contribution = faq_contribution.strip()
 
     project_submission.save()
 
@@ -188,7 +181,7 @@ def projects_eval_view(request, course_slug, project_slug):
         "course": course,
         "project": project,
         "reviews": reviews,
-        "is_authenticated": True
+        "is_authenticated": True,
     }
 
     return render(request, "projects/eval.html", context)
@@ -207,7 +200,6 @@ def project_results(request, course_slug, project_slug):
         context = {
             "course": course,
             "project": project,
-            "submission": None,
             "is_authenticated": False,
         }
 
@@ -217,17 +209,24 @@ def project_results(request, course_slug, project_slug):
         project=project, student=user
     ).first()
 
+    scores = []
+
+    if submission:
+        scores = (
+            ProjectEvaluationScore.objects.filter(submission=submission)
+            .order_by("review_criteria__id")
+            .prefetch_related("review_criteria")
+        )
+
     context = {
         "course": course,
         "project": project,
         "submission": submission,
+        "scores": scores,
         "is_authenticated": True,
     }
 
     return render(request, "projects/results.html", context)
-
-
-
 
 
 def project_eval_build_context(

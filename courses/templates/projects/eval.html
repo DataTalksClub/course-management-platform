@@ -9,7 +9,7 @@
 
 {% block content %}
 
-<h2 class="mb-3 text-center">Projects to evaluate for {{ project.title }} for <a href="{% url 'course' course.slug %}">{{ course.title }}</a></h2>
+<h2 class="mb-3 text-center">Projects to evaluate for {{ project.title }}</h2>
 
 {% if not is_authenticated %}
   <div class="alert alert-info" role="alert">
