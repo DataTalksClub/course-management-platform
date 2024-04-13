@@ -150,7 +150,10 @@ def score_projects_admin(modeladmin, request, queryset):
 
 @admin.register(Project)
 class ProjectAdmin(ModelAdmin):
-    actions = [assign_peer_reviews_for_project_admin]
+    actions = [
+        assign_peer_reviews_for_project_admin,
+        score_projects_admin,
+    ]
 
     list_display = ["title", "course", "state"]
     list_filter = ["course__slug"]
