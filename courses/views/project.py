@@ -350,6 +350,19 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     review = get_object_or_404(PeerReview, id=review_id)
     review_criteria = ReviewCriteria.objects.filter(course=course)
 
+    # check if the submission belongs to the student
+    if review.reviewer.student != request.user:
+        messages.error(
+            request,
+            "You are not allowed to evaluate this submission, choose a different one.",
+            extra_tags="homework",
+        )
+        return redirect(
+            "projects_eval",
+            course_slug=course_slug,
+            project_slug=project_slug,
+        )
+
     if request.method == "POST":
         project_eval_post_submission(
             request, project, review, review_criteria

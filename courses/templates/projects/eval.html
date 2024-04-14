@@ -9,6 +9,14 @@
 
 {% block content %}
 
+{% if messages %}
+{% for message in messages %}
+  <div class="alert {{ message.tags }}">
+    <p>{{ message }}</p>
+  </div>
+{% endfor %}
+{% endif %}
+
 <h2 class="mb-3 text-center">Projects to evaluate for {{ project.title }}</h2>
 
 {% if not is_authenticated %}
