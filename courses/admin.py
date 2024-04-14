@@ -147,6 +147,7 @@ def score_projects_admin(modeladmin, request, queryset):
             )
         
 
+score_projects_admin.short_description = "Score projects"
 
 @admin.register(Project)
 class ProjectAdmin(ModelAdmin):
