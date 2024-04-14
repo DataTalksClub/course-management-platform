@@ -247,6 +247,8 @@ def project_eval_build_context(
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
     )
 
+    disabled = not accepting_submissions
+
     review_responses = review.get_criteria_responses()
 
     responses_by_criteria_id = {
@@ -278,6 +280,7 @@ def project_eval_build_context(
         "submission": submission,
         "criteria_response_pairs": criteria_response_pairs,
         "accepting_submissions": accepting_submissions,
+        "disabled": disabled,
     }
 
     return context
@@ -343,12 +346,7 @@ def project_eval_post_submission(
 
 @login_required
 def projects_eval_submit(request, course_slug, project_slug, review_id):
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, slug=project_slug, course=course
-    )
     review = get_object_or_404(PeerReview, id=review_id)
-    review_criteria = ReviewCriteria.objects.filter(course=course)
 
     # check if the submission belongs to the student
     if review.reviewer.student != request.user:
@@ -362,6 +360,13 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
             course_slug=course_slug,
             project_slug=project_slug,
         )
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, slug=project_slug, course=course
+    )
+
+    review_criteria = ReviewCriteria.objects.filter(course=course)
 
     if request.method == "POST":
         project_eval_post_submission(
