@@ -13,7 +13,7 @@ User = get_user_model()
 
 
 class Course(models.Model):
-    instructor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="courses_taught")
+    instructor = models.ManyToManyField(User, through="Instructor", related_name="courses_taught")
     slug = models.SlugField(unique=True, blank=False)
     title = models.CharField(max_length=200)
 
