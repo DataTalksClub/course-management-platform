@@ -185,8 +185,7 @@ def calculate_project_score(
 
         scores = []
         for response in responses:
-            response_scores = response.get_scores()
-            score = sum(response_scores)
+            score = response.get_score()
             scores.append(score)
 
         criteria = responses[0].criteria
