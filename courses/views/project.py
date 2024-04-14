@@ -209,20 +209,27 @@ def project_results(request, course_slug, project_slug):
         project=project, student=user
     ).first()
 
-    scores = []
+    scores = list(
+        ProjectEvaluationScore.objects.filter(submission=submission)
+        .order_by("review_criteria__id")
+        .prefetch_related("review_criteria")
+    )
 
-    if submission:
-        scores = (
-            ProjectEvaluationScore.objects.filter(submission=submission)
-            .order_by("review_criteria__id")
-            .prefetch_related("review_criteria")
+    feedback = list(
+        PeerReview.objects.filter(
+            submission_under_evaluation=submission,
+            state=PeerReviewState.SUBMITTED.value,
+            note_to_peer__isnull=False,
+            note_to_peer__gt="",
         )
+    )
 
     context = {
         "course": course,
         "project": project,
         "submission": submission,
         "scores": scores,
+        "feedback": feedback,
         "is_authenticated": True,
     }
 

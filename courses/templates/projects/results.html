@@ -17,7 +17,7 @@
   </div>
 {% else %}
 
-  <div class="card mt-4">
+  <div class="card m-4">
     <div class="card-body">
       <ul>
         <li>Total score: {{ submission.total_score }}</li>
@@ -28,7 +28,7 @@
         <li>Status: {{ submission.passed|yesno:"Passed,Failed" }}</li>  
       </ul>
       
-      <div class="mt-4">
+      <div class="m-4">
         <h2>Scores Breakdown:</h2>
         {% for score in scores %}
         <div>
@@ -43,7 +43,7 @@
         {% endfor %}
       </div>
 
-      <div class="mt-4">
+      <div class="m-4">
         <p><strong>Score Components:</strong></p>
         <ul>
           <li>Project score: {{ submission.project_score }}</li>
@@ -53,6 +53,19 @@
           <li>FAQ contribution score: {{ submission.project_faq_score }}</li>
         </ul>
       </div>
+
+
+      {% if feedback %}
+      <div class="m-4">
+        <h2>Feedback:</h2>
+        <ul>
+          {% for review in feedback %}
+            <li>{{ review.note_to_peer }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 
