@@ -3,6 +3,7 @@ from django.urls import path
 from .views import course
 from .views import homework
 from .views import project
+from .views import data
 
 
 urlpatterns = [
@@ -51,5 +52,10 @@ urlpatterns = [
         "<slug:course_slug>/homework/<slug:homework_slug>",
         homework.homework_view,
         name="homework",
+    ),
+    path(
+        "data/<slug:course_slug>/homework/<slug:homework_slug>",
+        data.homework_data_view,
+        name="data_homework",
     ),
 ]
