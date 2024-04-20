@@ -244,7 +244,7 @@ def project_eval_build_context(
     submission = review.submission_under_evaluation
 
     accepting_submissions = (
-        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+        project.state == ProjectState.PEER_REVIEWING.value
     )
 
     disabled = not accepting_submissions
