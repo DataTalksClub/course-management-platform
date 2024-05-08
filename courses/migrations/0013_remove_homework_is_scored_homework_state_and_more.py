@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
             name="state",
             field=models.CharField(
                 choices=[("CL", "CLOSED"), ("OP", "OPEN"), ("SC", "SCORED")],
-                default="CL",
+                default="OP",
                 max_length=2,
             ),
         ),
@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
                     ("PR", "PEER_REVIEWING"),
                     ("CO", "COMPLETED"),
                 ],
-                default="CL",
+                default="CS",
                 max_length=2,
             ),
         ),

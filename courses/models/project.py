@@ -61,7 +61,7 @@ class Project(models.Model):
     state = models.CharField(
         max_length=2,
         choices=[(state.value, state.name) for state in ProjectState],
-        default=ProjectState.CLOSED.value,
+        default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
     def get_project_state_name(self):

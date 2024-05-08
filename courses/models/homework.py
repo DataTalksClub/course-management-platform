@@ -48,7 +48,7 @@ class Homework(models.Model):
     state = models.CharField(
         max_length=2,
         choices=[(state.value, state.name) for state in HomeworkState],
-        default=HomeworkState.CLOSED.value,
+        default=HomeworkState.OPEN.value,
     )
 
     def is_scored(self):
