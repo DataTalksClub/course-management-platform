@@ -208,6 +208,12 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
 
+        if project.points_to_pass == 0:
+            return (
+                ProjectActionStatus.FAIL,
+                "Project has no points to pass. Update the `point_to_pass` field to greater than zero value",
+            )
+
         if project.state != ProjectState.PEER_REVIEWING.value:
             return (
                 ProjectActionStatus.FAIL,
