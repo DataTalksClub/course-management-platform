@@ -12,18 +12,21 @@ User = get_user_model()
 
 
 class ProjectState(Enum):
+    CLOSED = "CL"
     COLLECTING_SUBMISSIONS = "CS"
     PEER_REVIEWING = "PR"
     COMPLETED = "CO"
 
 
 project_state_names = {
+    ProjectState.CLOSED.value: "Closed",
     ProjectState.COLLECTING_SUBMISSIONS.value: "Collecting Submissions",
     ProjectState.PEER_REVIEWING.value: "Peer Reviewing",
     ProjectState.COMPLETED.value: "Completed",
 }
 
 project_status_badge_classes = {
+    ProjectState.CLOSED.value: "bg-secondary",
     ProjectState.COLLECTING_SUBMISSIONS.value: "bg-info",
     ProjectState.PEER_REVIEWING.value: "bg-warning",
     ProjectState.COMPLETED.value: "bg-success",
@@ -58,7 +61,7 @@ class Project(models.Model):
     state = models.CharField(
         max_length=2,
         choices=[(state.value, state.name) for state in ProjectState],
-        default=ProjectState.COLLECTING_SUBMISSIONS.value,
+        default=ProjectState.CLOSED.value,
     )
 
     def get_project_state_name(self):

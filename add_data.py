@@ -16,12 +16,14 @@ from courses.models import (  # noqa: E402
     Course,
     Enrollment,
     Homework,
+    HomeworkState,
     Question,
     Submission,
     Answer,
     AnswerTypes,
     QuestionTypes,
     Project,
+    ProjectState,
     ProjectSubmission,
     ReviewCriteria,
     ReviewCriteriaTypes,
@@ -57,6 +59,7 @@ homework1 = Homework(
     description="Description for Homework 1",
     due_date=ten_years_later,
     slug="hw1",
+    state=HomeworkState.CLOSED.value,
 )
 homework1.save()
 
@@ -164,6 +167,7 @@ homework2 = Homework(
     description="Description for Homework 2",
     due_date=ten_years_later,
     slug="hw2",
+    state=HomeworkState.OPEN.value,
 )
 homework2.save()
 
@@ -222,6 +226,7 @@ project = Project(
     learning_in_public_cap_review=2,
     number_of_peers_to_evaluate=3,
     points_to_pass=10,
+    state=ProjectState.COLLECTING_SUBMISSIONS.value,
 )
 
 project.save()

@@ -12,6 +12,7 @@ from django.db import transaction
 
 from .models import (
     Homework,
+    HomeworkState,
     Submission,
     Question,
     Answer,
@@ -193,7 +194,13 @@ def score_homework_submissions(
                 f"The due date for {homework_id} is in the future. Update the due date to score.",
             )
 
-        if homework.is_scored:
+        if homework.state == HomeworkState.CLOSED.value:
+            return (
+                HomeworkScoringStatus.FAIL,
+                f"Homework {homework_id} is closed. Update the state to OPEN to score.",
+            )
+
+        if homework.state == HomeworkState.SCORED.value:
             return (
                 HomeworkScoringStatus.FAIL,
                 f"Homework {homework_id} is already scored.",
@@ -236,7 +243,7 @@ def score_homework_submissions(
         logger.info(f"Updating answers for homework {homework_id}")
         Answer.objects.bulk_update(answers, ["is_correct"])
 
-        homework.is_scored = True
+        homework.state = HomeworkState.SCORED.value
         homework.save()
 
         logger.info(

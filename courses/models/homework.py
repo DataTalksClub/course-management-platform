@@ -9,6 +9,12 @@ from .course import Course, Enrollment
 User = get_user_model()
 
 
+class HomeworkState(Enum):
+    CLOSED = "CL"
+    OPEN = "OP"
+    SCORED = "SC"
+
+
 class Homework(models.Model):
     slug = models.SlugField(blank=False)
 
@@ -39,7 +45,14 @@ class Homework(models.Model):
         default=True, help_text="Include field for FAQ contributions"
     )
 
-    is_scored = models.BooleanField(default=False)
+    state = models.CharField(
+        max_length=2,
+        choices=[(state.value, state.name) for state in HomeworkState],
+        default=HomeworkState.CLOSED.value,
+    )
+
+    def is_scored(self):
+        return self.state == HomeworkState.SCORED.value
 
     class Meta:
         unique_together = ("course", "slug")

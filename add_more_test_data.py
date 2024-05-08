@@ -17,27 +17,26 @@ from courses.models import (  # noqa: E402
     Course,
     Enrollment,
     Homework,
+    HomeworkState,
     Question,
     Submission,
     Answer,
     QuestionTypes,
     AnswerTypes,
     Project,
+    ProjectState,
     ProjectSubmission,
-    QUESTION_ANSWER_DELIMITER,
-)
-
-from courses.projects import (
-    assign_peer_reviews_for_project,
-    score_project,
-)
-
-from courses.models import (
     ReviewCriteria,
     ReviewCriteriaTypes,
     PeerReview,
     PeerReviewState,
     CriteriaResponse,
+    QUESTION_ANSWER_DELIMITER,
+)
+
+from courses.projects import (  # noqa: E402
+    assign_peer_reviews_for_project,
+    score_project,
 )
 
 
@@ -139,6 +138,7 @@ for hw in range(1, 6):
         title=f"Test Homework {hw}",
         due_date=timezone.now() - timedelta(days=hw),
         description=f"Description for homework {hw}",
+        state=HomeworkState.OPEN.value,
     )
 
     if created:
@@ -180,6 +180,7 @@ for i in [1, 2, 3]:
         title=f"Test Project {i}",
         submission_due_date=timezone.now() - timedelta(days=i),
         peer_review_due_date=timezone.now() + timedelta(days=i),
+        state=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
     print(f"Created project {project} and now creating submissions")

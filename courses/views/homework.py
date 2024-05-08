@@ -11,6 +11,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from courses.models import (
     Course,
     Homework,
+    HomeworkState,
     Question,
     Answer,
     Submission,
@@ -30,7 +31,7 @@ NONE_LIST = [None]
 def process_quesion_free_form(
     homework: Homework, question: Question, answer: Answer
 ):
-    if not homework.is_scored:
+    if not homework.is_scored():
         if not answer:
             return {"text": ""}
         else:
@@ -67,7 +68,7 @@ def process_question_options_multiple_choice_or_checkboxes(
 
     possible_answers = question.get_possible_answers()
 
-    if homework.is_scored:
+    if homework.is_scored():
         correct_indices = question.get_correct_answer_indices()
 
     for zero_based_index, option in enumerate(possible_answers):
@@ -80,7 +81,7 @@ def process_question_options_multiple_choice_or_checkboxes(
             "index": index,
         }
 
-        if homework.is_scored:
+        if homework.state == HomeworkState.SCORED.value:
             is_correct = index in correct_indices
 
             correctly_selected = determine_answer_class(
@@ -307,7 +308,8 @@ def homework_detail_build_context_authenticated(
         pair = (question, processed_answer)
         question_answers.append(pair)
 
-    disabled = homework.is_scored
+    disabled = (homework.state != HomeworkState.OPEN.value)
+    accepting_submissions = homework.state == HomeworkState.OPEN.value
 
     context = {
         "course": course,
@@ -316,7 +318,7 @@ def homework_detail_build_context_authenticated(
         "submission": submission,
         "is_authenticated": True,
         "disabled": disabled,
-        "accepting_submissions": not homework.is_scored,
+        "accepting_submissions": accepting_submissions,
     }
 
     return context

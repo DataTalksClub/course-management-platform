@@ -7,6 +7,7 @@ from datetime import timedelta
 from courses.models import (
     Course,
     Homework,
+    HomeworkState,
     Question,
     Submission,
     Answer,
@@ -63,6 +64,7 @@ class HomeworkScoringTestCase(TestCase):
             slug="test-homework",
             title="Test Homework",
             due_date=timezone.now() - timedelta(hours=1),
+            state=HomeworkState.OPEN.value
         )
 
         # Create questions
@@ -136,6 +138,15 @@ class HomeworkScoringTestCase(TestCase):
         )
         return student, enrollment
 
+    def test_homework_closed(self):
+        self.homework.state = HomeworkState.CLOSED.value
+        self.homework.save()
+
+        status, _ = score_homework_submissions(self.homework.id)
+
+        self.assertEqual(status, HomeworkScoringStatus.FAIL)
+
+
     def test_homework_scoring(self):
         submission1 = Submission.objects.create(
             homework=self.homework,
@@ -184,7 +195,8 @@ class HomeworkScoringTestCase(TestCase):
         submission2 = fetch_fresh(submission2)
 
         self.assertEqual(status, HomeworkScoringStatus.OK)
-        self.assertEqual(self.homework.is_scored, True)
+        self.assertEqual(self.homework.is_scored(), True)
+        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
 
         self.assertEqual(submission1.total_score, expected_score1)
         self.assertEqual(submission1.questions_score, expected_score1)
@@ -228,7 +240,7 @@ class HomeworkScoringTestCase(TestCase):
         submission1.faq_contribution = "some FAQ contribution"
         submission1.save()
 
-        status, message = score_homework_submissions(self.homework.id)
+        status, _ = score_homework_submissions(self.homework.id)
 
         self.assertEqual(status, HomeworkScoringStatus.OK)
 
@@ -236,7 +248,8 @@ class HomeworkScoringTestCase(TestCase):
         submission1 = fetch_fresh(submission1)
 
         self.assertEqual(status, HomeworkScoringStatus.OK)
-        self.assertEqual(self.homework.is_scored, True)
+        self.assertEqual(self.homework.is_scored(), True)
+        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
 
         questions_score = 0 + 10 + 0 + 1000 + 0 + 0
         faq_score = 1
@@ -276,7 +289,7 @@ class HomeworkScoringTestCase(TestCase):
 
         self.assertFalse(self.course.first_homework_scored)
 
-        status, message = score_homework_submissions(self.homework.id)
+        score_homework_submissions(self.homework.id)
 
         self.course = fetch_fresh(self.course)
         self.assertTrue(self.course.first_homework_scored)

@@ -38,18 +38,24 @@
   <div class="p-2 {% cycle 'bg-white' '' %}">
     <div class="row align-items-center">
       <div class="col-5">
-        <a href="{% url 'homework' course.slug hw.slug %}">
+        {% if hw.state == 'CL' %}
           {{ hw.title }}
-        </a>
+        {% else %}
+          <a href="{% url 'homework' course.slug hw.slug %}">
+            {{ hw.title }}
+          </a>
+        {% endif %}
       </div>
       <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ hw.days_until_due }} days left">
         <span class="local-date">{{ hw.due_date | date:"c" }}</span>
       </div>
       <div class="col-3 text-md-right">
-        {% if hw.is_scored and hw.submitted %}
+        {% if hw.state == 'CL' %}
+          <span class="badge bg-secondary">Closed</span>
+        {% elif hw.is_scored and hw.submitted %}
           <span class="badge bg-success">Scored ({{ hw.score }})</span>
         {% elif hw.is_scored %}
-          <span class="badge bg-secondary">Closed</span>
+          <span class="badge bg-secondary">Scored</span>
         {% elif not hw.is_scored and hw.submitted %}
           <span class="badge bg-info">Submitted</span>
         {% else %}

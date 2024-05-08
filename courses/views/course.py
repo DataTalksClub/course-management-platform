@@ -154,7 +154,7 @@ def update_homework_with_additional_info(homework: Homework) -> None:
     submission = homework.submissions[0]
 
     homework.submitted = True
-    if homework.is_scored:
+    if homework.is_scored():
         homework.score = submission.total_score
     else:
         homework.submitted_at = submission.submitted_at
