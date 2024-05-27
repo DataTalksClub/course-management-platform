@@ -6,6 +6,8 @@
 
 {% block content %}
   <h2>Edit Enrollment Details</h2>
+  <h4>Display name appears on the leaderboard, is an auto-generated random name. You can edit it to be a nickname, or your real name.</h4>
+  <h4>Certificate name should be your actual name that you want to appear on your certificate</h4>
   <form method="post">
     {% csrf_token %}
     {{ form.as_p }}
