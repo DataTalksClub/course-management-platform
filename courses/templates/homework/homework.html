@@ -66,13 +66,11 @@
         <p class="question-text">
           Question {{ forloop.counter }}.
           {{ question.text }}
-          {% if question.scores_for_correct_answer > 1 %}
-            <span class="text-muted">({{ question.scores_for_correct_answer }} points)</span>
-          {% else %}
-            <span class="text-muted">({{ question.scores_for_correct_answer }} point)</span>
-          {% endif %}
+          <span class="text-muted">({{ question.scores_for_correct_answer|pluralize }} point)</span>
         </p>
-
+        {% if is_authenticated and disabled and  question.question_type == 'MC' and  not answer.is_answered%}
+          <p style="background-color: #FFF3CD;">Question not answered</p>
+        {% endif %}
         {% if question.question_type == 'MC' %}
           {% for option in answer.options %}
             <div class="form-check {{ option.correctly_selected_class }}">

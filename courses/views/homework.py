@@ -71,6 +71,7 @@ def process_question_options_multiple_choice_or_checkboxes(
     if homework.is_scored():
         correct_indices = question.get_correct_answer_indices()
 
+    is_answered = True if len(selected_options) > 0 else False
     for zero_based_index, option in enumerate(possible_answers):
         index = zero_based_index + 1
         is_selected = index in selected_options
@@ -94,7 +95,7 @@ def process_question_options_multiple_choice_or_checkboxes(
 
         options.append(processed_answer)
 
-    return {"options": options}
+    return {"options": options, "is_answered": is_answered}
 
 
 def extract_selected_options(answer):
@@ -126,7 +127,7 @@ def extract_selected_options(answer):
 def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
     if is_selected and is_correct:
         return "option-answer-correct"
-    if not is_selected and is_correct:
+    if not is_selected  and is_correct:
         return "option-answer-correct"
     if is_selected and not is_correct:
         return "option-answer-incorrect"
