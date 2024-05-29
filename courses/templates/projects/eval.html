@@ -9,15 +9,30 @@
 
 {% block content %}
 
-<h2 class="mb-3 text-center">Projects to evaluate for {{ project.title }} for <a href="{% url 'course' course.slug %}">{{ course.title }}</a></h2>
+{% if messages %}
+{% for message in messages %}
+  <div class="alert {{ message.tags }}">
+    <p>{{ message }}</p>
+  </div>
+{% endfor %}
+{% endif %}
 
+<h2 class="mb-3 text-center">Projects to evaluate for {{ project.title }}</h2>
+
+{% if not is_authenticated %}
+  <div class="alert alert-info" role="alert">
+    <p>Please <a href="{% url 'login' %}">log in</a> to see the projects you need to evaluate.</p>
+  </div>
+{% else %}
   <div class="list-group">
     {% for review in reviews %}
-    <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="list-group-item list-group-item-action">
-      Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
-      <span class="badge badge-primary badge-pill">Review State: {{ review.get_state_display }}</span>
-    </a>
+      <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="list-group-item list-group-item-action">
+        Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
+        <span class="badge badge-primary badge-pill">Review State: {{ review.get_state_display }}</span>
+      </a>
     {% endfor %}
   </div>
+
+{% endif %}
 
 {% endblock %}

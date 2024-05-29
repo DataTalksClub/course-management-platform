@@ -57,6 +57,7 @@ class ProjectEvaluationTestCase(TestCase):
             title="Test Project",
             submission_due_date=timezone.now() - timedelta(hours=1),
             peer_review_due_date=timezone.now() + timedelta(hours=1),
+            state=ProjectState.PEER_REVIEWING.value,
         )
 
         self.submission = ProjectSubmission.objects.create(
@@ -163,6 +164,7 @@ class ProjectEvaluationTestCase(TestCase):
         context = response.context
 
         self.assertTrue(context["accepting_submissions"])
+        self.assertFalse(context["disabled"])
 
         course = context["course"]
         self.assertEqual(course, self.course)
@@ -222,6 +224,7 @@ class ProjectEvaluationTestCase(TestCase):
         context = response.context
 
         self.assertFalse(context["accepting_submissions"])
+        self.assertTrue(context["disabled"])
 
         review = context["review"]
         self.assertEqual(review, self.peer_review)

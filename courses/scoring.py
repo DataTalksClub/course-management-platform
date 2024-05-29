@@ -12,6 +12,7 @@ from django.db import transaction
 
 from .models import (
     Homework,
+    HomeworkState,
     Submission,
     Question,
     Answer,
@@ -19,6 +20,8 @@ from .models import (
     QuestionTypes,
     AnswerTypes,
     Enrollment,
+    Project,
+    ProjectSubmission,
 )
 
 
@@ -191,7 +194,13 @@ def score_homework_submissions(
                 f"The due date for {homework_id} is in the future. Update the due date to score.",
             )
 
-        if homework.is_scored:
+        if homework.state == HomeworkState.CLOSED.value:
+            return (
+                HomeworkScoringStatus.FAIL,
+                f"Homework {homework_id} is closed. Update the state to OPEN to score.",
+            )
+
+        if homework.state == HomeworkState.SCORED.value:
             return (
                 HomeworkScoringStatus.FAIL,
                 f"Homework {homework_id} is already scored.",
@@ -231,12 +240,10 @@ def score_homework_submissions(
             ],
         )
 
-        logger.info(
-            f"Updating answers for homework {homework_id}"
-        )
+        logger.info(f"Updating answers for homework {homework_id}")
         Answer.objects.bulk_update(answers, ["is_correct"])
 
-        homework.is_scored = True
+        homework.state = HomeworkState.SCORED.value
         homework.save()
 
         logger.info(
@@ -263,37 +270,47 @@ def update_leaderboard(course: Course):
 
     homeworks = Homework.objects.filter(course=course)
 
-    aggregated_scores = (
+    aggregated_homework_scores = (
         Submission.objects.filter(homework__in=homeworks)
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
-        .order_by("-total_score")
     )
-
-    logger.info(f"Updating {len(aggregated_scores)} enrollments")
-
-    enrollments = Enrollment.objects.filter(course=course)
-    enrollments_by_id = {
-        enrollment.id: enrollment for enrollment in enrollments
+    homework_scores_by_enrollment = {
+        score["enrollment"]: score["total_score"]
+        for score in aggregated_homework_scores
     }
 
-    rank = 1
+    projects = Project.objects.filter(course=course)
 
-    for score in aggregated_scores:
-        enrollment_id = score["enrollment"]
-        total_score = score["total_score"]
+    aggregated_project_scores = (
+        ProjectSubmission.objects.filter(project__in=projects)
+        .values("enrollment")
+        .annotate(total_score=Sum("total_score"))
+    )
 
-        enrollment = enrollments_by_id[enrollment_id]
-        enrollment.total_score = total_score
+    project_score_by_enrollment = {
+        score["enrollment"]: score["total_score"]
+        for score in aggregated_project_scores
+    }
+
+    enrollments = list(Enrollment.objects.filter(course=course))
+
+    for enrollment in enrollments:
+        homework_score = homework_scores_by_enrollment.get(
+            enrollment.id, 0
+        )
+        project_score = project_score_by_enrollment.get(
+            enrollment.id, 0
+        )
+
+        enrollment.total_score = homework_score + project_score
+
+    enrollments = sorted(
+        enrollments, key=lambda x: x.total_score, reverse=True
+    )
+
+    for rank, enrollment in enumerate(enrollments, 1):
         enrollment.position_on_leaderboard = rank
-
-        del enrollments_by_id[enrollment_id]
-        rank = rank + 1
-
-    for enrollment in enrollments_by_id.values():
-        enrollment.total_score = 0
-        enrollment.position_on_leaderboard = rank
-        rank = rank + 1
 
     Enrollment.objects.bulk_update(
         enrollments,

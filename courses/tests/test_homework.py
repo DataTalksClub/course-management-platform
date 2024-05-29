@@ -11,6 +11,7 @@ from courses.models import (
     User,
     Course,
     Homework,
+    HomeworkState,
     Question,
     Submission,
     Answer,
@@ -48,7 +49,8 @@ class HomeworkDetailViewTests(TestCase):
             title="Test Homework",
             description="Test Homework Description",
             due_date=timezone.now() + timezone.timedelta(days=7),
-            is_scored=False,
+            state=HomeworkState.OPEN.value,
+            # is_scored=False,
             slug="test-homework",
         )
 
@@ -447,7 +449,8 @@ class HomeworkDetailViewTests(TestCase):
 
         # make sure we have the latest version of the homework
         self.homework = Homework.objects.get(id=self.homework.id)
-        self.assertTrue(self.homework.is_scored)
+        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
+        self.assertTrue(self.homework.is_scored())
 
         self.client.login(**credentials)
 

@@ -7,7 +7,9 @@ from django.http import HttpRequest, HttpResponse
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
+
 from django.db.models import Prefetch, Value
+from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
 from django.contrib.auth.decorators import login_required
@@ -15,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from courses.models import (
     Course,
     Homework,
+    HomeworkState,
     Submission,
     Enrollment,
     Project,
@@ -154,7 +157,7 @@ def update_homework_with_additional_info(homework: Homework) -> None:
     submission = homework.submissions[0]
 
     homework.submitted = True
-    if homework.is_scored:
+    if homework.is_scored():
         homework.score = submission.total_score
     else:
         homework.submitted_at = submission.submitted_at
@@ -198,13 +201,27 @@ def leaderboard_score_breakdown_view(
         Enrollment, id=enrollment_id, course__slug=course_slug
     )
 
-    submissions = Submission.objects.filter(
+    state_order = Case(
+        When(homework__state=HomeworkState.SCORED.value, then=Value(0)),
+        When(homework__state=HomeworkState.OPEN.value, then=Value(1)),
+        When(homework__state=HomeworkState.CLOSED.value, then=Value(2)),
+        default=Value(3),
+        output_field=IntegerField(),
+    )
+
+    # Update the queryset to use the custom sorting order
+    homework_submissions = Submission.objects.filter(
         enrollment=enrollment
-    ).order_by("-homework__is_scored", "homework__id")
+    ).order_by(state_order, "homework__id")
+
+    project_submissions = ProjectSubmission.objects.filter(
+        enrollment=enrollment
+    ).order_by("project__id")
 
     context = {
         "enrollment": enrollment,
-        "submissions": submissions,
+        "submissions": homework_submissions,
+        "project_submissions": project_submissions,
     }
 
     return render(

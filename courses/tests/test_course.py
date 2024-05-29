@@ -10,6 +10,7 @@ from courses.models import (
     Enrollment,
     Question,
     QuestionTypes,
+    HomeworkState,
 )
 
 from .util import join_possible_answers
@@ -38,7 +39,7 @@ class CourseDetailViewTests(TestCase):
             title="Scored Homework",
             description="This homework is already scored.",
             due_date=timezone.now() - timezone.timedelta(days=1),
-            is_scored=True,
+            state=HomeworkState.SCORED.value,
         )
 
         self.homework2 = Homework.objects.create(
@@ -47,7 +48,7 @@ class CourseDetailViewTests(TestCase):
             title="Submitted Homework",
             description="Homework with submitted answers.",
             due_date=timezone.now() + timezone.timedelta(days=7),
-            is_scored=False,
+            state=HomeworkState.OPEN.value,
         )
 
         self.homework3 = Homework.objects.create(
@@ -56,7 +57,7 @@ class CourseDetailViewTests(TestCase):
             title="Homework Without Submissions",
             description="Homework without any submissions yet.",
             due_date=timezone.now() + timezone.timedelta(days=14),
-            is_scored=False,
+            state=HomeworkState.OPEN.value,
         )
 
         self.homeworks = [
@@ -138,24 +139,26 @@ class CourseDetailViewTests(TestCase):
         scored_homework = homeworks["scored-homework"]
         self.assertTrue(scored_homework.submitted)
         self.assertFalse(hasattr(scored_homework, "submitted_at"))
-        self.assertEqual(scored_homework.is_scored, True)
+        self.assertEqual(scored_homework.is_scored(), True)
+        self.assertEqual(scored_homework.state, HomeworkState.SCORED.value)
         self.assertEqual(scored_homework.score, 80)
         self.assertEqual(scored_homework.days_until_due, 0)
 
         submitted_homework = homeworks["submitted-homework"]
         self.assertTrue(submitted_homework.submitted)
+        self.assertEqual(submitted_homework.state, HomeworkState.OPEN.value)
         self.assertEqual(
             submitted_homework.submitted_at,
             self.submission2.submitted_at,
         )
-        self.assertEqual(submitted_homework.is_scored, False)
+        self.assertEqual(submitted_homework.is_scored(), False)
         self.assertEqual(submitted_homework.score, None)
         self.assertEqual(submitted_homework.days_until_due, 7)
 
         unscored_homework = homeworks["unscored-homework"]
         self.assertFalse(unscored_homework.submitted)
         self.assertFalse(hasattr(unscored_homework, "submitted_at"))
-        self.assertEqual(unscored_homework.is_scored, False)
+        self.assertEqual(unscored_homework.is_scored(), False)
         self.assertEqual(unscored_homework.score, None)
         self.assertEqual(unscored_homework.days_until_due, 14)
         self.assertEqual(unscored_homework.submissions, [])

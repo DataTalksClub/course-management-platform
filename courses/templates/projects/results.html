@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+
+<h2 class="mb-3 text-center">Results for {{ project.title }}</h2>
+
+{% if not is_authenticated %}
+  <div class="alert alert-info" role="alert">
+    <p>Please <a href="{% url 'login' %}">log in</a> to see the results of your projects.</p>
+  </div>
+{% else %}
+
+  <div class="card m-4">
+    <div class="card-body">
+      <ul>
+        <li>Total score: {{ submission.total_score }}</li>
+        <li>Project link: <a href="{{ submission.github_link }}">{{ submission.github_link }}</a></li>
+        <li>Commit ID: {{ submission.commit_id }}</li>
+        <li>Submitted at: {{ submission.submitted_at }}</li>
+        <li>Reviewed enough peers: {{ submission.reviewed_enough_peers|yesno:"Yes,No" }}</li>
+        <li>Status: {{ submission.passed|yesno:"Passed,Failed" }}</li>  
+      </ul>
+      
+      <div class="m-4">
+        <h2>Scores Breakdown:</h2>
+        {% for score in scores %}
+        <div>
+          <strong>{{ score.review_criteria.description }}:</strong>
+          <ul>
+            {% for option in score.review_criteria.options %}
+             <li>{{ option.criteria }} ({{ option.score }} points)</li>
+            {% endfor %}
+          </ul>
+          <p>Score Received: {{ score.score }}</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="m-4">
+        <p><strong>Score Components:</strong></p>
+        <ul>
+          <li>Project score: {{ submission.project_score }}</li>
+          <li>Peer review score: {{ submission.peer_review_score }}</li>
+          <li>Learning in public (project): {{ submission.project_learning_in_public_score }}</li>
+          <li>Learning in public (peer review): {{ submission.peer_review_learning_in_public_score }}</li>
+          <li>FAQ contribution score: {{ submission.project_faq_score }}</li>
+        </ul>
+      </div>
+
+
+      {% if feedback %}
+      <div class="m-4">
+        <h2>Feedback:</h2>
+        <ul>
+          {% for review in feedback %}
+            <li>{{ review.note_to_peer }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div class="text-center">
+    Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -24,12 +24,37 @@
       {% else %}
       <li>
         <strong>Homework:</strong> {{ submission.homework.title }}<br>
-         Not scored yet
+        Not scored yet
       </li>
       {% endif %}
     {% empty %}
-    <li>No submissions found.</li>
+      <li>No submissions found.</li>
     {% endfor %}
   </ul>
+
+  <h4>Project submissions</h4>
+  <ul>
+    {% for submission in project_submissions %}
+      {% if submission.project.state == 'CO' %}
+      <li>
+        <strong>Project:</strong> {{ submission.project.title }}<br>
+        <strong>Project score:</strong> {{ submission.project_score }}<br>
+        <strong>Peer review score:</strong> {{ submission.peer_review_score }}<br>
+        <strong>Learning in public (project):</strong> {{ submission.project_learning_in_public_score }}<br>
+        <strong>Learning in public (peer review):</strong> {{ submission.peer_review_learning_in_public_score }}<br>
+        <strong>FAQ contribution score:</strong> {{ submission.project_faq_score }}<br>
+        <strong>Total score:</strong> {{ submission.total_score }}
+      </li>
+      {% else %}
+      <li>
+        <strong>Project:</strong> {{ submission.project.title }}<br>
+        Not scored yet
+      </li>
+      {% endif %}
+    {% empty %}
+      <li>No submissions found.</li>
+    {% endfor %}
+  </ul>
+
 
 {% endblock %}

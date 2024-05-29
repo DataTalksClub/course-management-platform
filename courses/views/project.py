@@ -20,6 +20,7 @@ from courses.models import (
     PeerReviewState,
     ReviewCriteria,
     CriteriaResponse,
+    ProjectEvaluationScore,
     User,
 )
 
@@ -63,23 +64,15 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     if project.time_spent_project_field:
         time_spent = request.POST.get("time_spent")
         if time_spent is not None and time_spent != "":
-            project_submission.time_spent = tryparsefloat(
-                time_spent
-            )
+            project_submission.time_spent = tryparsefloat(time_spent)
 
     if project.problems_comments_field:
-        problems_comments = request.POST.get(
-            "problems_comments", ""
-        )
-        project_submission.problems_comments = (
-            problems_comments.strip()
-        )
+        problems_comments = request.POST.get("problems_comments", "")
+        project_submission.problems_comments = problems_comments.strip()
 
     if project.faq_contribution_field:
         faq_contribution = request.POST.get("faq_contribution", "")
-        project_submission.faq_contribution = (
-            faq_contribution.strip()
-        )
+        project_submission.faq_contribution = faq_contribution.strip()
 
     project_submission.save()
 
@@ -157,15 +150,26 @@ def project_view(request, course_slug, project_slug):
     return render(request, "projects/project.html", context)
 
 
-@login_required
 def projects_eval_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
 
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    if not is_authenticated:
+        context = {
+            "course": course,
+            "project": project,
+            "is_authenticated": False,
+        }
+
+        return render(request, "projects/eval.html", context)
+
     student_submissions = ProjectSubmission.objects.filter(
-        project=project, student=request.user
+        project=project, student=user
     )
 
     reviews = PeerReview.objects.filter(
@@ -177,9 +181,59 @@ def projects_eval_view(request, course_slug, project_slug):
         "course": course,
         "project": project,
         "reviews": reviews,
+        "is_authenticated": True,
     }
 
     return render(request, "projects/eval.html", context)
+
+
+def project_results(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    if not is_authenticated:
+        context = {
+            "course": course,
+            "project": project,
+            "is_authenticated": False,
+        }
+
+        return render(request, "projects/results.html", context)
+
+    submission = ProjectSubmission.objects.filter(
+        project=project, student=user
+    ).first()
+
+    scores = list(
+        ProjectEvaluationScore.objects.filter(submission=submission)
+        .order_by("review_criteria__id")
+        .prefetch_related("review_criteria")
+    )
+
+    feedback = list(
+        PeerReview.objects.filter(
+            submission_under_evaluation=submission,
+            state=PeerReviewState.SUBMITTED.value,
+            note_to_peer__isnull=False,
+            note_to_peer__gt="",
+        )
+    )
+
+    context = {
+        "course": course,
+        "project": project,
+        "submission": submission,
+        "scores": scores,
+        "feedback": feedback,
+        "is_authenticated": True,
+    }
+
+    return render(request, "projects/results.html", context)
 
 
 def project_eval_build_context(
@@ -190,8 +244,10 @@ def project_eval_build_context(
     submission = review.submission_under_evaluation
 
     accepting_submissions = (
-        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+        project.state == ProjectState.PEER_REVIEWING.value
     )
+
+    disabled = not accepting_submissions
 
     review_responses = review.get_criteria_responses()
 
@@ -224,6 +280,7 @@ def project_eval_build_context(
         "submission": submission,
         "criteria_response_pairs": criteria_response_pairs,
         "accepting_submissions": accepting_submissions,
+        "disabled": disabled,
     }
 
     return context
@@ -289,11 +346,26 @@ def project_eval_post_submission(
 
 @login_required
 def projects_eval_submit(request, course_slug, project_slug, review_id):
+    review = get_object_or_404(PeerReview, id=review_id)
+
+    # check if the submission belongs to the student
+    if review.reviewer.student != request.user:
+        messages.error(
+            request,
+            "You are not allowed to evaluate this submission, choose a different one.",
+            extra_tags="homework",
+        )
+        return redirect(
+            "projects_eval",
+            course_slug=course_slug,
+            project_slug=project_slug,
+        )
+
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, slug=project_slug, course=course
     )
-    review = get_object_or_404(PeerReview, id=review_id)
+
     review_criteria = ReviewCriteria.objects.filter(course=course)
 
     if request.method == "POST":

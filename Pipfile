@@ -17,6 +17,8 @@ django-unfold = "*"
 ipython = "*"
 pytest-django = "*"
 notebook = "*"
+pandas = "*"
+tqdm = "*"
 
 [requires]
 python_version = "3.9"

@@ -213,3 +213,20 @@ User = get_user_model()
 user = User.objects.get(email='test@gmail.com')
 ```
 
+
+## Getting the data
+
+There are `/data` endpoints for getting the data
+
+Using them:
+
+```bash
+TOKEN="TOKEN"
+HOST="http://localhost:8000"
+COURSE="fake-course"
+HOMEWORK="hw1"
+
+curl \
+    -H "Authorization: ${TOKEN}" \
+    "${HOST}/data/${COURSE}/homework/${HOMEWORK}"
+```

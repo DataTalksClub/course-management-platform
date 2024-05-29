@@ -24,31 +24,38 @@
 </div>
 
 
-{% if is_authenticated %}
+{% if is_authenticated and course.first_homework_scored %}
 <div class="alert alert-info" role="alert">
   <p>Total score: {{ total_score }}</p>
 </div>
 {% endif %}
 
+{% if homeworks %}
 <div class="pb-3">
-<h2>Homework</h2>
+  <h2>Homework</h2>
 
-{% for hw in homeworks %}
+  {% for hw in homeworks %}
   <div class="p-2 {% cycle 'bg-white' '' %}">
     <div class="row align-items-center">
       <div class="col-5">
-        <a href="{% url 'homework' course.slug hw.slug %}" class="text-decoration-none">
+        {% if hw.state == 'CL' %}
           {{ hw.title }}
-        </a>
+        {% else %}
+          <a href="{% url 'homework' course.slug hw.slug %}">
+            {{ hw.title }}
+          </a>
+        {% endif %}
       </div>
       <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ hw.days_until_due }} days left">
         <span class="local-date">{{ hw.due_date | date:"c" }}</span>
       </div>
       <div class="col-3 text-md-right">
-        {% if hw.is_scored and hw.submitted %}
+        {% if hw.state == 'CL' %}
+          <span class="badge bg-secondary">Closed</span>
+        {% elif hw.is_scored and hw.submitted %}
           <span class="badge bg-success">Scored ({{ hw.score }})</span>
         {% elif hw.is_scored %}
-          <span class="badge bg-secondary">Closed</span>
+          <span class="badge bg-secondary">Scored</span>
         {% elif not hw.is_scored and hw.submitted %}
           <span class="badge bg-info">Submitted</span>
         {% else %}
@@ -59,7 +66,9 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 
+{% if projects %}
 <div class="pb-3">
   <h2>Projects</h2>
   {% for project in projects %}
@@ -67,11 +76,15 @@
     <div class="row align-items-center">
       <div class="col-5">
         {% if project.state == 'CS' %}
-          <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}" class="text-decoration-none">
+          <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
             {{ project.title }}
           </a>
         {% elif project.state == 'PR' %}
-          <a href="{% url 'projects_eval' course.slug project.slug %}" class="text-decoration-none">
+          <a href="{% url 'projects_eval' course.slug project.slug %}">
+            {{ project.title }}
+          </a>
+        {% elif project.state == 'CO' %}
+          <a href="{% url 'project_results' course.slug project.slug %}">
             {{ project.title }}
           </a>
         {% else %}
@@ -90,16 +103,22 @@
       </div>
     </div>
   </div>
-  {% empty %}
-  <div class="alert alert-secondary" role="alert">
-    No projects available yet.
-  </div>
   {% endfor %}
 </div>
+{% endif %}
+
+
+{% if not homeworks and not projects %}
+<div class="alert alert-info" role="alert">
+  <p>There are no homeworks or projects available for this course yet. Come back later.</p>
+</div>
+{% endif %}
+
 
 <script>
   $(function() {
     $('[data-toggle="tooltip"]').tooltip()
   })
 </script>
+
 {% endblock %}
