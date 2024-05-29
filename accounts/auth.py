@@ -1,13 +1,17 @@
 import json
 import logging
+from functools import wraps
 
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from allauth.account.models import EmailAddress
-from django.core.exceptions import MultipleObjectsReturned
 
 from django.utils.crypto import get_random_string
 
 from django.contrib.auth import get_user_model
+
+from django.http import JsonResponse
+
+from .models import Token
 
 
 User = get_user_model()
@@ -128,3 +132,23 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
             key=lambda user: (user.last_login or user.date_joined),
             default=None,
         )
+
+
+
+
+def token_required(f):
+    @wraps(f)
+    def decorated(request, *args, **kwargs):
+        token_key = request.headers.get('Authorization')
+        if token_key:
+            token_key = token_key.replace('Token ', '', 1)  # Assuming the token is sent as "Token <token_key>"
+            try:
+                token = Token.objects.get(key=token_key)
+                request.user = token.user
+            except Token.DoesNotExist:
+                return JsonResponse({'error': 'Invalid token'}, status=401)
+        else:
+            return JsonResponse({'error': 'Authentication token required'}, status=401)
+
+        return f(request, *args, **kwargs)
+    return decorated

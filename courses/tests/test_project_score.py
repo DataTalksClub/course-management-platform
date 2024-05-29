@@ -438,3 +438,10 @@ class ProjectEvaluationTestCase(TestCase):
             expected_project_score
             + 3 * self.project.points_for_peer_review,
         )
+
+    def test_not_scoring_when_passing_score_is_0(self):
+        self.project.points_to_pass = 0
+        self.project.save()
+
+        status, _ = score_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.FAIL)

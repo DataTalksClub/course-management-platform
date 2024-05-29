@@ -73,7 +73,7 @@ set_most_popular_as_correct.short_description = (
 class HomeworkAdmin(ModelAdmin):
     inlines = [QuestionInline]
     actions = [score_selected_homeworks, set_most_popular_as_correct]
-    list_display = ["title", "course", "due_date", "is_scored"]
+    list_display = ["title", "course", "due_date", "state"]
     list_filter = ["course__slug"]
     
     def formfield_for_foreignkey(self, db_field, request, obj=None, **kwargs):

@@ -3,7 +3,6 @@ from django.db import models
 from django.core.validators import URLValidator
 
 from django.contrib.auth import get_user_model
-from django.db.models import Sum
 
 from courses.random_names import generate_random_name
 

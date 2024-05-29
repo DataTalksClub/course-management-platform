@@ -62,7 +62,13 @@
               {% if option.is_selected %} checked {% endif %}
               {% if disabled %} disabled {% endif %}
             />
-            <label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">{{ option.criteria }} <span class="text-dark">({{ option.score }} points)</span></label>
+            <label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">
+              {{ option.criteria }}
+              <span class="text-dark">
+                ({{ option.score }}
+                {{ option.score|pluralize:"point,points" }})
+              </span>
+            </label>
           </div>
         {% endfor %}
 
