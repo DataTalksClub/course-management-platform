@@ -148,10 +148,9 @@ for hw in range(1, 6):
 # Create 20 users and their submissions
 for u in range(1, 21):
     username = f"student{u}"
-    email = f"student{u}@email.com"
     print(f"Creating student {username} and their submissions")
 
-    user, _ = User.objects.get_or_create(username=username, email=email)
+    user, _ = User.objects.get_or_create(username=username)
 
 
 all_users = list(User.objects.all())
