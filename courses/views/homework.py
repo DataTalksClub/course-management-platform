@@ -245,9 +245,15 @@ def process_homework_submission(
 
     submission.save()
 
+    success_message = (
+        "Thank you for submitting your homework, now your solution " +
+        "is saved. You can update it at any point. You will see " +
+        "your score after the form is closed."
+    )
+
     messages.success(
         request,
-        "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+        success_message,
         extra_tags="homework",
     )
 
