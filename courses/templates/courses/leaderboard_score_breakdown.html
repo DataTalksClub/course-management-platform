@@ -19,16 +19,18 @@
         <strong>Questions Score:</strong> {{ submission.questions_score }}<br>
         <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
         <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
-        <strong>Total Score:</strong> {{ submission.total_score }}
-      </li>
-      {% else %}
-      <li>
-        <strong>Homework:</strong> {{ submission.homework.title }}<br>
-        Not scored yet
+        <strong>Total Score:</strong> {{ submission.total_score }}<br>
+        <strong>Homework URL:</strong> <a href="{{ submission.homework_link}}" target="_blank">{{ submission.homework_link}}</a><br>
+        {% if submission.learning_in_public_links %}
+        <strong>Learning in public links:</strong><br>
+          {% for link in submission.learning_in_public_links %}
+            <a href="{{ link }}" target="_blank">{{ link }}</a><br>
+          {% endfor %}
+        {% endif %}
       </li>
       {% endif %}
     {% empty %}
-      <li>No submissions found.</li>
+      <li>No submissions yet.</li>
     {% endfor %}
   </ul>
 
