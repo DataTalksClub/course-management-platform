@@ -165,6 +165,13 @@
     </div>
   {% endif %}
 
+  {% if accepting_submissions and ceritificate_name %}
+    <div class="mt-4">
+      Name on your certificate: {{ ceritificate_name }}
+      (<a href="{% url 'enrollment' course.slug %}" target="_blank">Change</a>)
+    </div>
+  {% endif %}
+
   {% if accepting_submissions %}
     <div class="mt-4 text-center">
       {% if is_authenticated %}

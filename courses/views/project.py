@@ -130,11 +130,21 @@ def project_view(request, course_slug, project_slug):
         )
 
     project_submission = None
+    ceritificate_name = None
 
     if is_authenticated:
         project_submission = ProjectSubmission.objects.filter(
             project=project, student=request.user
         ).first()
+
+        enrollment, _ = Enrollment.objects.get_or_create(
+            student=user,
+            course=course,
+        )
+
+        ceritificate_name = (
+            enrollment.display_name or enrollment.certificate_name
+        )
 
     disabled = not accepting_submissions
 
@@ -145,6 +155,7 @@ def project_view(request, course_slug, project_slug):
         "is_authenticated": is_authenticated,
         "disabled": disabled,
         "accepting_submissions": accepting_submissions,
+        "ceritificate_name": ceritificate_name,
     }
 
     return render(request, "projects/project.html", context)
