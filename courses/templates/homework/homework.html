@@ -8,7 +8,10 @@
 
 {% block content %}
 
-  <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course' course.slug %}">{{ course.title }}</a></h2>
+  <h2 class="mb-3 text-center">
+    {{ homework.title }} for
+    <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+  </h2>
 
   {% if messages %}
     {% for message in messages %}
@@ -45,7 +48,7 @@
   </div>
 
   <div>
-    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c"}}</span> (local time)</p>
+    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c" }}</span> (local time)</p>
   </div>
 
   {% if not is_authenticated %}
@@ -65,10 +68,14 @@
       <div class="mb-3 question">
         <p class="question-text">
           Question {{ forloop.counter }}. {{ question.text }}
-          <span class="text-muted">
-            ({{ question.scores_for_correct_answer }}
-            {{ question.scores_for_correct_answer|pluralize:"point,points" }})
-          </span>
+          {% if question.scores_for_correct_answer != 0 %}
+            <span class="text-muted">
+              ({{ question.scores_for_correct_answer }}
+              {{ question.scores_for_correct_answer|pluralize:"point,points" }})
+            </span>
+          {% else %}
+            <span class="text-muted">(not graded)</span>
+          {% endif %}
         </p>
 
         {% if question.question_type == 'MC' %}
