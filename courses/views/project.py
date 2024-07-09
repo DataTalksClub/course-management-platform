@@ -143,7 +143,7 @@ def project_view(request, course_slug, project_slug):
         )
 
         ceritificate_name = (
-            enrollment.display_name or enrollment.certificate_name
+            enrollment.certificate_name or enrollment.display_name
         )
 
     disabled = not accepting_submissions

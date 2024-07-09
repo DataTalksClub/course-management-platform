@@ -74,10 +74,29 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(context["project"], self.project)
         self.assertEqual(context["course"], self.course)
 
-    def test_project_detail_authenticated_with_submission(self):
-        """
-        Test the project details view for authenticated users with a submission.
-        """
+    # def test_project_detail_authenticated_with_submission(self):
+    #     self.client.login(
+    #         username=credentials["username"],
+    #         password=credentials["password"],
+    #     )
+    #     url = reverse(
+    #         "project", args=[self.course.slug, self.project.slug]
+    #     )
+    #     response = self.client.get(url)
+    #     self.assertEqual(response.status_code, 200)
+    #     self.assertIn("submission", response.context)
+
+    #     context = response.context
+    #     submission = context["submission"]
+
+    #     self.assertIsNotNone(submission)
+        # More assertions here for the submission details...
+
+    def test_project_detail_authenticated_certificate_name_is_used(self):
+        self.enrollment.display_name = "Display Name"
+        self.enrollment.certificate_name = "Certificate Name"
+        self.enrollment.save()
+
         self.client.login(
             username=credentials["username"],
             password=credentials["password"],
@@ -87,8 +106,29 @@ class ProjectViewTestCase(TestCase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("submission", response.context)
-        # More assertions here for the submission details...
+
+        context = response.context
+        ceritificate_name = context["ceritificate_name"]
+
+        self.assertEqual(ceritificate_name, "Certificate Name")
+
+    def test_project_detail_authenticated_without_submission(self):
+        self.client.login(
+            username=credentials["username"],
+            password=credentials["password"],
+        )
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+
+        submission = context["submission"]
+        self.assertIsNone(submission)
+
+        self.assertTrue(context["is_authenticated"])
 
     def test_project_detail_when_peer_reviewing(self):
         self.project.state = ProjectState.PEER_REVIEWING.value
@@ -231,7 +271,6 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(count_sumissions, 1)
 
         submission = fetch_fresh(submission)
-
         self.assertEqual(submission.github_link, data["github_link"])
         self.assertEqual(submission.commit_id, data["commit_id"])
         self.assertEqual(submission.time_spent, int(data["time_spent"]))
