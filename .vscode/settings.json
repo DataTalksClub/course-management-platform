@@ -5,8 +5,5 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "terminal.integrated.env.windows": {
-        "PIPENV_IGNORE_VIRTUALENVS": "1",
-        "PATH": "C:\\Users\\alexe\\miniconda3\\envs\\py3-9-13\\Library\\bin;${env:PATH}"
-    }
+    "python.envFile": "${workspaceFolder}/.vscode_env"
 }

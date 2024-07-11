@@ -3,3 +3,4 @@ export DJANGO_SECRET='secret'
 export SITE_ID=3
 export IS_LOCAL=1
 export AUTH_TOKEN='token'
+export PIPENV_VENV_IN_PROJECT=1
