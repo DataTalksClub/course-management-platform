@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 django = "*"
 django-allauth = {extras = ["slack"], version = "*"}
+requests = "*"
 dj-database-url = "*"
 whitenoise = "*"
 psycopg2-binary = "*"
