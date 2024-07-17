@@ -15,6 +15,7 @@ gunicorn = "*"
 python-json-logger = "*"
 django-unfold = "*"
 django-loginas = "*"
+cryptography = "*"
 
 [dev-packages]
 ipython = "*"
