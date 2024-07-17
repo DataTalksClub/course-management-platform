@@ -35,12 +35,12 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9.13'  # Specify the Python version
+        python-version: '3.9.13'
 
     - name: Install dependencies
       run: |
         pip install pipenv
-        pipenv install
+        pipenv install --deploy --ignore-pipfile
 
     - name: Run tests
       run: pipenv run python manage.py test courses.tests
