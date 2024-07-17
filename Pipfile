@@ -12,6 +12,7 @@ psycopg2-binary = "*"
 gunicorn = "*"
 python-json-logger = "*"
 django-unfold = "*"
+django-loginas = "*"
 
 [dev-packages]
 ipython = "*"
