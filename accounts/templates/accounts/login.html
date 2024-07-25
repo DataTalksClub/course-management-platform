@@ -1,3 +1,116 @@
-{% for provider in providers %}
-  <a href="{{ provider.login_url }}">Login with {{ provider.name }}</a><br>
-{% endfor %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'courses.css' %}">
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+        }
+
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .login-card {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-title {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #343a40;
+        }
+
+        .login-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #fff;
+            background-color: #6c757d;
+            border: none;
+            border-radius: 0.25rem;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            text-decoration: none;
+        }
+
+        .login-button:hover {
+            background-color: #5a6268;
+            color: #fff;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .login-button i {
+            margin-right: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .github { background-color: #24292e; }
+        .github:hover { background-color: #1b1f23; }
+        .google { background-color: #dd4b39; }
+        .google:hover { background-color: #c23321; }
+        .slack { background-color: #4A154B; }
+        .slack:hover { background-color: #3b1139; }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h2 class="login-title">Continue with Your Account</h2>
+            {% for provider in providers %}
+                <a href="{{ provider.login_url }}" class="login-button {{ provider.name|lower }}">
+                    <i class="fab fa-{{ provider.name|lower }}"></i>
+                    Continue with {{ provider.name }}
+                </a>
+            {% endfor %}
+            <a href="#" class="login-button github">
+                <i class="fab fa-github"></i>
+                Continue with GitHub
+            </a>
+            <a href="#" class="login-button slack">
+                <i class="fab fa-slack"></i>
+                Continue with Slack
+            </a>
+        </div>
+    </div>
+
+    <script src="{% static 'local_date.js' %}"></script>
+</body>
+</html>

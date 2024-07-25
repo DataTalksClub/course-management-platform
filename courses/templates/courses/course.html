@@ -1,43 +1,119 @@
 {% extends 'base.html' %}
 {% load tz %}
 
+{% block styles %}
+<style>
+  .course-header {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+    padding: 20px 0;
+    margin-bottom: 30px;
+  }
+
+  .course-title {
+    color: #343a40;
+    margin-bottom: 10px;
+  }
+
+  .course-description {
+    color: #6c757d;
+    font-size: 1.1em;
+    margin-bottom: 20px;
+  }
+
+  .action-buttons {
+    margin-bottom: 30px;
+  }
+
+  .action-buttons .btn {
+    margin-right: 10px;
+  }
+
+  .section-title {
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  .homework-item, .project-item {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+  }
+
+  .homework-item:hover, .project-item:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  }
+
+  .item-title {
+    font-weight: bold;
+    color: #007bff;
+  }
+
+  .item-title a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .item-title a:hover {
+    text-decoration: underline;
+  }
+
+  .item-date {
+    font-style: italic;
+    color: #6c757d;
+  }
+
+  .badge {
+    font-size: 0.9em;
+    padding: 5px 10px;
+  }
+
+  .alert-info {
+    background-color: #e1f5fe;
+    border-color: #b3e5fc;
+    color: #01579b;
+  }
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
-  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li class="breadcrumb-item active" aria-current="page"><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
 {% block content %}
-<h2>{{ course.title }}</h2>
-
-<div>
-  <p>{{ course.description }}</p>
+<div class="course-header">
+  <h2 class="course-title">{{ course.title }}</h2>
+  <p class="course-description">{{ course.description }}</p>
 </div>
 
-<div>
-  <p>
-    {% if course.first_homework_scored %}
-      <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
-    {% endif %}
-    {% if is_authenticated %}
-      <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
-    {% endif %}
-  </p>  
+<div class="action-buttons">
+  {% if course.first_homework_scored %}
+    <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
+  {% endif %}
+  {% if is_authenticated %}
+    <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
+  {% endif %}
 </div>
-
 
 {% if is_authenticated and course.first_homework_scored %}
 <div class="alert alert-info" role="alert">
-  <p>Total score: {{ total_score }}</p>
+  <p class="mb-0">Total score: {{ total_score }}</p>
 </div>
 {% endif %}
 
 {% if homeworks %}
 <div class="pb-3">
-  <h2>Homework</h2>
+  <h3 class="section-title">Homeworks</h3>
 
   {% for hw in homeworks %}
-  <div class="p-2 {% cycle 'bg-white' '' %}">
+  <div class="homework-item">
     <div class="row align-items-center">
-      <div class="col-5">
+      <div class="col-md-5 item-title">
         {% if hw.state == 'CL' %}
           {{ hw.title }}
         {% else %}
@@ -46,20 +122,20 @@
           </a>
         {% endif %}
       </div>
-      <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ hw.days_until_due }} days left">
+      <div class="col-md-4 text-md-right item-date" data-toggle="tooltip" data-placement="right" title="{{ hw.days_until_due }} days left">
         <span class="local-date">{{ hw.due_date | date:"c" }}</span>
       </div>
-      <div class="col-3 text-md-right">
+      <div class="col-md-3 text-md-right">
         {% if hw.state == 'CL' %}
-          <span class="badge bg-secondary">Closed</span>
+          <span class="badge badge-secondary">Closed</span>
         {% elif hw.is_scored and hw.submitted %}
-          <span class="badge bg-success">Scored ({{ hw.score }})</span>
+          <span class="badge badge-success">Scored ({{ hw.score }})</span>
         {% elif hw.is_scored %}
-          <span class="badge bg-secondary">Scored</span>
+          <span class="badge badge-secondary">Scored</span>
         {% elif not hw.is_scored and hw.submitted %}
-          <span class="badge bg-info">Submitted</span>
+          <span class="badge badge-info">Submitted</span>
         {% else %}
-          <span class="badge bg-warning">Open</span>
+          <span class="badge badge-warning">Open</span>
         {% endif %}
       </div>
     </div>
@@ -70,11 +146,11 @@
 
 {% if projects %}
 <div class="pb-3">
-  <h2>Projects</h2>
+  <h3 class="section-title">Projects</h3>
   {% for project in projects %}
-  <div class="p-2 {% cycle 'bg-white' '' %}">
+  <div class="project-item">
     <div class="row align-items-center">
-      <div class="col-5">
+      <div class="col-md-5 item-title">
         {% if project.state == 'CS' %}
           <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
             {{ project.title }}
@@ -91,14 +167,14 @@
           {{ project.title }}
         {% endif %}
       </div>
-      <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_due }} days left">
+      <div class="col-md-4 text-md-right item-date" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_due }} days left">
         {% if project.state == 'CS' %}
           <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
         {% else %}
           <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
         {% endif %}
       </div>
-      <div class="col-3 text-md-right">
+      <div class="col-md-3 text-md-right">
         <span class="badge {{ project.status_badge_class }}">{{ project.get_project_state_name }}</span>
       </div>
     </div>
@@ -107,18 +183,15 @@
 </div>
 {% endif %}
 
-
 {% if not homeworks and not projects %}
 <div class="alert alert-info" role="alert">
-  <p>There are no homeworks or projects available for this course yet. Come back later.</p>
+  <p class="mb-0">There are no homeworks or projects available for this course yet. Come back later.</p>
 </div>
 {% endif %}
-
 
 <script>
   $(function() {
     $('[data-toggle="tooltip"]').tooltip()
   })
 </script>
-
 {% endblock %}
