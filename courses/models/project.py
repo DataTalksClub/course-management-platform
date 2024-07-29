@@ -7,6 +7,7 @@ from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
 
 from .course import Course, Enrollment
+from courses.validators import validate_url_200
 
 User = get_user_model()
 
@@ -84,7 +85,7 @@ class ProjectSubmission(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
 
-    github_link = models.URLField(validators=[URLValidator()])
+    github_link = models.URLField(validators=[URLValidator(), validate_url_200])
     commit_id = models.CharField(max_length=40)
 
     learning_in_public_links = models.JSONField(blank=True, null=True)
