@@ -7,6 +7,7 @@ from django.http import HttpRequest
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
+from django.core.exceptions import ValidationError
 
 from courses.models import (
     Course,
@@ -243,6 +244,7 @@ def process_homework_submission(
         faq_contribution = request.POST.get("faq_contribution", "")
         submission.faq_contribution = faq_contribution.strip()
 
+    submission.full_clean()
     submission.save()
 
     success_message = (
@@ -356,22 +358,26 @@ def homework_view(
 
     logger.info(f"submission={submission}")
 
-    # Process the form submission
-    if request.method == "POST":
-        return process_homework_submission(
-            request=request,
-            course=course,
-            homework=homework,
-            questions=questions,
-            submission=submission,
-        )
-
     context = homework_detail_build_context_authenticated(
         course=course,
         homework=homework,
         questions=questions,
         submission=submission,
     )
+
+    # Process the form submission
+    if request.method == "POST":
+        try:
+            return process_homework_submission(
+                request=request,
+                course=course,
+                homework=homework,
+                questions=questions,
+                submission=submission,
+            )
+        except ValidationError as e:
+            context["errors"] = e.messages
+
 
     return render(request, "homework/homework.html", context)
 

@@ -173,7 +173,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -220,7 +220,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -242,7 +242,7 @@ class ProjectViewTestCase(TestCase):
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
-            github_link="https://github.com/testuser/project",
+            github_link="https://httpbin.org/status/200",
             commit_id="123456a",
         )
 
@@ -251,7 +251,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project2",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "123456e",
             "time_spent": "3",
             "problems_comments": "No issues encountered.",
@@ -296,7 +296,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",

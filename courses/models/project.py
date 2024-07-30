@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 
 from .course import Course, Enrollment
 from courses.validators import validate_url_200
+from courses.validators.validating_json_field import ValidatingJSONField
 
 User = get_user_model()
 
@@ -88,7 +89,7 @@ class ProjectSubmission(models.Model):
     github_link = models.URLField(validators=[URLValidator(), validate_url_200])
     commit_id = models.CharField(max_length=40)
 
-    learning_in_public_links = models.JSONField(blank=True, null=True)
+    learning_in_public_links = ValidatingJSONField(blank=True, null=True)
     faq_contribution = models.TextField(blank=True)
 
     time_spent = models.FloatField(blank=True, null=True)
