@@ -5,6 +5,8 @@ from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
 
 from .course import Course, Enrollment
+from courses.validators import validate_url_200
+from courses.validators.validating_json_field import ValidatingJSONField
 
 User = get_user_model()
 
@@ -153,9 +155,9 @@ class Submission(models.Model):
     homework_link = models.URLField(
         blank=True,
         null=True,
-        validators=[URLValidator(schemes=["http", "https", "git"])],
+        validators=[URLValidator(schemes=["http", "https", "git"]), validate_url_200],
     )
-    learning_in_public_links = models.JSONField(
+    learning_in_public_links = ValidatingJSONField(
         blank=True,
         null=True,
         help_text="Links where students talk about the course",

@@ -833,10 +833,10 @@ class HomeworkDetailViewTests(TestCase):
             f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
             f"answer_{self.question6.id}": ["1", "2"],
-            "homework_url": "http://example.com/homework",
+            "homework_url": "https://httpbin.org/status/200",
             "learning_in_public_links[]": [
-                "http://example.com/link1",
-                "http://example.com/link2",
+                "https://httpbin.org/status/200",
+                "https://github.com/DataTalksClub",
                 "",
             ],
             "time_spent_lectures": "5",
@@ -868,8 +868,8 @@ class HomeworkDetailViewTests(TestCase):
         )
 
         expected_learning_in_public_links = [
-            "http://example.com/link1",
-            "http://example.com/link2",
+            "https://httpbin.org/status/200",
+            "https://github.com/DataTalksClub",
         ]
         self.assertEqual(
             submission.learning_in_public_links,
@@ -913,7 +913,7 @@ class HomeworkDetailViewTests(TestCase):
             f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
             f"answer_{self.question6.id}": ["1", "2"],
-            "homework_url": "http://example.com/homework",
+            "homework_url": "https://httpbin.org/status/200",
             "learning_in_public_links[]": [""],
             "time_spent_lectures": "",
             "time_spent_homework": "",
@@ -967,11 +967,9 @@ class HomeworkDetailViewTests(TestCase):
             f"answer_{self.question5.id}": ["3.141516"],
             f"answer_{self.question6.id}": ["1", "2"],
             "learning_in_public_links[]": [
-                "http://example.com/link1",
-                "http://example.com/link2",
-                "http://example.com/link1",
-                "",
-                "",
+                "https://httpbin.org/status/200",
+                "https://httpbin.org/status/200",
+                "https://github.com/DataTalksClub"
                 "",
             ],
         }
@@ -994,8 +992,8 @@ class HomeworkDetailViewTests(TestCase):
         )
 
         expected_learning_in_public_links = [
-            "http://example.com/link1",
-            "http://example.com/link2",
+            "https://httpbin.org/status/200",
+            "https://github.com/DataTalksClub"
         ]
         self.assertEqual(
             submission.learning_in_public_links,
