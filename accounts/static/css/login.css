@@ -1,0 +1,84 @@
+body {
+  font-family: "Roboto", sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  background-color: #f8f9fa;
+}
+
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.login-card {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem;
+  max-width: 400px;
+  width: 100%;
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #343a40;
+}
+
+.login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: #6c757d;
+  border: none;
+  border-radius: 0.25rem;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  text-decoration: none;
+}
+
+.login-button:hover {
+  background-color: #5a6268;
+  color: #fff;
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.login-button:active {
+  transform: translateY(0);
+}
+
+.login-button i {
+  margin-right: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.github {
+  background-color: #24292e;
+}
+.github:hover {
+  background-color: #1b1f23;
+}
+.google {
+  background-color: #dd4b39;
+}
+.google:hover {
+  background-color: #c23321;
+}
+.slack {
+  background-color: #4a154b;
+}
+.slack:hover {
+  background-color: #3b1139;
+}
