@@ -3,12 +3,12 @@
 {% load static %}
 
 {% block breadcrumbs %}
-  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li class="breadcrumb-item active" aria-current="page"><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
 {% block content %}
-
-  <h2 class="mb-3 text-center">
+<div class="homework-container">
+  <h2 class="homework-title mb-3 text-center">
     {{ homework.title }} for
     <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
   </h2>
@@ -43,11 +43,8 @@
     {% endif %}
   {% endif %}
 
-  <div>
+  <div class="homework-meta">
     <p class="text-muted">{{ homework.description }}</p>
-  </div>
-
-  <div>
     <p>Due date: <span class="local-date">{{ homework.due_date |date:"c" }}</span> (local time)</p>
   </div>
 
@@ -260,5 +257,5 @@
   </script>
 
   <script src="{% static 'homework.js' %}"></script>
-
+</div>
 {% endblock %}

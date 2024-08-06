@@ -1,23 +1,33 @@
-/* Apply to the header nav or a div inside the header if it wraps your content */
-header nav {
-  max-width: 720px;
-  margin: 0 auto; /* Centers the navigation horizontally */
-  padding: 20px 0; /* Vertical padding to match your content block */
+body {
+  font-family: "Roboto", sans-serif;
   display: flex;
-  justify-content: space-between; /* This will space your list and logout/login */
-  align-items: center; /* This will align the items vertically */
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
 }
 
-/* Ensure the lists within the nav take up the appropriate space */
+.content-wrapper {
+  flex: 1;
+}
+
+header nav {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 header nav ul {
   display: flex;
-  align-items: center; /* Align list items vertically */
+  align-items: center;
   padding: 0;
-  margin: 0; /* Reset margins to control spacing explicitly */
+  margin: 0;
 }
 
 header nav li:not(:last-child) {
-  margin-right: 1rem; /* Adds margin to the right of each list item except the last */
+  margin-right: 1rem;
 }
 
 nav .breadcrumbs ul {
@@ -27,23 +37,42 @@ nav .breadcrumbs ul {
   align-items: center;
 }
 
-/* Style each list item */
 nav .breadcrumbs ul li {
-  margin-right: 0.25rem; /* Add some space between the breadcrumbs */
+  margin-right: 0.25rem;
 }
 
-/* Add ">" before each li except the first one using a pseudo-element */
 nav .breadcrumbs ul li:not(:first-child)::before {
-  content: "\f105"; /* FontAwesome's right arrow icon */
+  content: "\f105";
   font-family: "Font Awesome 5 Free";
   color: #000;
-  padding-right: 0.25rem; /* Add some space before the breadcrumb text */
-  font-weight: 900; /* Bold */
+  padding-right: 0.25rem;
+  font-weight: 900;
 }
 
+.breadcrumb {
+  background-color: #e9ecef;
+  padding: 0.75rem 1rem;
+  margin-left: 15px;
+  border-radius: 0.25rem;
+  margin-left: 15px;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  content: "/";
+  color: #6c757d;
+}
+
+.breadcrumb-item a {
+  color: #0088dd;
+  text-decoration: none;
+}
+
+.breadcrumb-item.active {
+  color: #6c757d;
+}
 
 .form-container {
-  max-width: 720px; 
+  max-width: 720px;
   margin: 20px auto;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   padding: 20px;
@@ -57,46 +86,45 @@ nav .breadcrumbs ul li:not(:first-child)::before {
   margin-bottom: 0.5rem;
 }
 
-/* Questions */
 .form-check-label {
   display: block;
   color: #5f6368;
 }
 
 .form-control {
-  box-shadow: none; /* Remove Bootstrap's default shadow */
-  border-color: #e0e0e0; /* Light grey border color */
-  border-radius: 8px; /* Rounded corners */
+  box-shadow: none;
+  border-color: #e0e0e0;
+  border-radius: 8px;
 }
 
-/* Focused Inputs */
 .form-control:focus {
-  border-color: #a6c8ff; /* Highlight color when focused */
-  box-shadow: 0 0 0 0.2rem rgba(102, 175, 233, .25);
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-/* Buttons */
 .btn-primary {
-  background-color: #1a73e8; /* Google's blue */
-  border-color: #1a73e8; /* Google's blue */
-  box-shadow: none; /* Remove Bootstrap's default shadow */
+  background-color: #007bff;
+  border-color: #007bff;
 }
 
 .btn-primary:hover {
-  background-color: #1669c7; /* Darker blue on hover */
-  border-color: #1669c7; /* Darker blue on hover */
+  background-color: #0056b3;
+  border-color: #0056b3;
 }
 
-/* Adjustments for smaller screens */
 @media (max-width: 576px) {
   .form-container {
     max-width: 100%;
-    padding: 15px; /* Smaller padding on smaller screens */
+    padding: 15px;
   }
 }
 
-.text-muted a, .text-muted a:visited, .text-muted a:hover, .text-muted a:focus, .text-muted a:active {
-  color: inherit; /* This makes the link use the color of the parent .text-muted class */
+.text-muted a,
+.text-muted a:visited,
+.text-muted a:hover,
+.text-muted a:focus,
+.text-muted a:active {
+  color: inherit;
 }
 
 #learning-in-public-links .form-control {
@@ -107,6 +135,9 @@ nav .breadcrumbs ul li:not(:first-child)::before {
   margin-bottom: 0;
 }
 
+.alert {
+  border-radius: 4px;
+}
 
 .option-answer-correct {
   background-color: lightgreen;
@@ -117,20 +148,19 @@ nav .breadcrumbs ul li:not(:first-child)::before {
 }
 
 .container .row {
-  border-bottom: 1px solid #f8f8f8; /* subtle bottom border for each row */
+  border-bottom: 1px solid #f8f8f8;
 }
 
 .container .row:last-child {
-  border-bottom: none; /* remove border for the last row */
+  border-bottom: none;
 }
 
-/* Highlighting for the current student's row */
 .bg-info {
-  background-color: #d1ecf1 !important; /* Adjust color as needed */
+  background-color: #d1ecf1 !important;
 }
 
 .tooltip-icon {
-  margin-left: 4px; /* Adjust as needed */
+  margin-left: 4px;
 }
 
 .question .question-image {
@@ -139,4 +169,155 @@ nav .breadcrumbs ul li:not(:first-child)::before {
   height: auto;
   margin-bottom: 8px;
   border-radius: 4px;
+}
+
+footer {
+  background-color: #212529;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.footer-links a {
+  margin: 0 15px;
+  transition: opacity 0.3s ease;
+}
+
+.footer-links a:hover {
+  opacity: 0.7;
+}
+
+.footer-icon {
+  height: 40px;
+  width: 40px;
+  font-size: 40px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.course-header {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #e9ecef;
+  padding: 20px 0;
+  margin-bottom: 30px;
+}
+
+.course-title {
+  color: #343a40;
+  margin-bottom: 10px;
+}
+
+.course-description {
+  color: #6c757d;
+  font-size: 1.1em;
+  margin-bottom: 20px;
+}
+
+.action-buttons {
+  margin-bottom: 30px;
+}
+
+.action-buttons .btn {
+  margin-right: 10px;
+}
+
+.section-title {
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.homework-item,
+.project-item {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 15px;
+  transition: all 0.3s ease;
+}
+
+.homework-item:hover,
+.project-item:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.item-title {
+  font-weight: bold;
+  color: #007bff;
+}
+
+.item-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.item-title a:hover {
+  text-decoration: underline;
+}
+
+.item-date {
+  font-style: italic;
+  color: #6c757d;
+}
+
+.badge {
+  font-size: 0.9em;
+  padding: 5px 10px;
+}
+
+.alert-info {
+  background-color: #e1f5fe;
+  border-color: #b3e5fc;
+  color: #01579b;
+}
+
+.homework-container {
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.homework-title {
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.homework-meta {
+  background-color: #e9ecef;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.question {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.question-text {
+  font-weight: bold;
+  color: #495057;
+}
+
+.form-check {
+  margin-bottom: 10px;
+}
+
+.text-muted {
+  font-size: 0.9em;
 }

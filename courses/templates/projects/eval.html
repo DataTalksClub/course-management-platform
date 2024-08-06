@@ -3,8 +3,8 @@
 {% load static %}
 
 {% block breadcrumbs %}
-  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+<li class="breadcrumb-item active" aria-current="page"><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li class="breadcrumb-item active" aria-current="page"><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
 {% endblock %}
 
 {% block content %}
