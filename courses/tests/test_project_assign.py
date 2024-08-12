@@ -62,8 +62,7 @@ class ProjectActionsTestCase(TestCase):
             peer_review_due_date=timezone.now() + timedelta(hours=1),
         )
 
-    def test_select_random_assignment(self):
-        num_submissions = 10
+    def generate_submissions(self, num_submissions):
         submissions = []
 
         for i in range(num_submissions):
@@ -84,6 +83,11 @@ class ProjectActionsTestCase(TestCase):
             )
 
             submissions.append(submission)
+        return submissions
+
+    def test_select_random_assignment(self):
+        num_submissions = 10
+        self.generate_submissions(num_submissions)
 
         peer_reviews = PeerReview.objects.filter(
             submission_under_evaluation__project=self.project
@@ -133,3 +137,16 @@ class ProjectActionsTestCase(TestCase):
                 len(reviews),
                 self.project.number_of_peers_to_evaluate,
             )
+
+    def test_select_random_assignment_3_3(self):
+        num_submissions = 3
+        self.generate_submissions(num_submissions)
+
+        self.project.number_of_peers_to_evaluate = 3
+        self.project.save()
+
+        status, message = assign_peer_reviews_for_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.FAIL)
+
+        expected_message = "Not enough submissions to assign 3 peer reviews each."
+        self.assertEqual(message, expected_message)

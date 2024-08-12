@@ -51,6 +51,11 @@ def select_random_assignment(
     num_projects_to_review: int,
     seed: int = 1,
 ) -> list[PeerReview]:
+    if num_projects_to_review <= len(submissions):
+        raise ValueError(
+            "The number of projects to review should be greater than the number of submissions."
+        )
+
     random.seed(seed)
 
     n = len(submissions)
@@ -113,7 +118,7 @@ def assign_peer_reviews_for_project(
         ).select_related("enrollment")
 
         num_evaluations = project.number_of_peers_to_evaluate
-        if submissions.count() < num_evaluations:
+        if submissions.count() <= num_evaluations:
             return (
                 ProjectActionStatus.FAIL,
                 f"Not enough submissions to assign {num_evaluations} peer reviews each.",
