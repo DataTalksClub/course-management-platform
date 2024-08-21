@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from courses.models import (
     User,
@@ -52,12 +53,15 @@ class DataAPITestCase(TestCase):
             slug="test-homework",
         )
 
-        self.submission = Submission.objects.create(
+        self.submission = Submission(
             homework=self.homework,
             student=self.user,
             enrollment=self.enrollment,
-            homework_link="https://example.com/homework",
+            homework_link="https://github.com/DataTalksClub",
         )
+
+        self.submission.full_clean()
+        self.submission.save()
 
         self.question = Question.objects.create(
             homework=self.homework,
@@ -221,13 +225,16 @@ class DataAPITestCase(TestCase):
             + timezone.timedelta(days=14),
         )
 
-        self.project_submission = ProjectSubmission.objects.create(
+        self.project_submission = ProjectSubmission(
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
-            github_link="https://github.com/test/repo",
+            github_link="https://github.com/DataTalksClub",
             commit_id="abcd1234",
         )
+
+        self.project_submission.full_clean()
+        self.project_submission.save()
 
         url = reverse(
             "data_project",
@@ -331,3 +338,45 @@ class DataAPITestCase(TestCase):
         self.assertEqual(submission['total_score'], expected_submission['total_score'])
         self.assertEqual(submission['reviewed_enough_peers'], expected_submission['reviewed_enough_peers'])
         self.assertEqual(submission['passed'], expected_submission['passed'])
+
+
+    def test_homework_submission_with_404_url(self):
+        self.homework = Homework.objects.create(
+            course=self.course,
+            title="Test Homework",
+            description="Test Homework Description",
+            due_date=timezone.now() + timezone.timedelta(days=7),
+            state=HomeworkState.OPEN.value,
+            slug="test-homework",
+        )
+
+        self.submission = Submission(
+            homework=self.homework,
+            student=self.user,
+            enrollment=self.enrollment,
+            homework_link="https://httpbin.org/status/404",
+        )
+        with self.assertRaises(ValidationError):
+            self.submission.full_clean()
+
+    def test_project_submission_with_404_url(self):
+        self.project = Project.objects.create(
+            course=self.course,
+            slug="test-project",
+            title="Test Project",
+            description="Description",
+            submission_due_date=timezone.now()
+            + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now()
+            + timezone.timedelta(days=14),
+        )
+
+        self.project_submission = ProjectSubmission(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://httpbin.org/status/404",
+            commit_id="abcd1234",
+        )
+        with self.assertRaises(ValidationError):
+            self.project_submission.full_clean()

@@ -12,15 +12,20 @@ logger = logging.getLogger(__name__)
 
 
 class ProjectActionsUnitTestCase(TestCase):
-    def test_select_random_assignment(self):
-        num_submissions = 10
-        num_projects_to_review = 3
-
+    def generate_submissions(self, num_submissions):
         submissions = []
 
         for i in range(num_submissions):
             submission = ProjectSubmission(id=i)
             submissions.append(submission)
+
+        return submissions
+
+    def test_select_random_assignment(self):
+        num_submissions = 10
+        num_projects_to_review = 3
+
+        submissions = self.generate_submissions(num_submissions)
 
         assignments = select_random_assignment(
             submissions=submissions,
@@ -64,3 +69,16 @@ class ProjectActionsUnitTestCase(TestCase):
         # each project appears exactly 3 times
         for _, count in submission_couner.items():
             self.assertEqual(count, num_projects_to_review)
+
+    def test_select_random_assignment_3_3(self):
+        num_submissions = 3
+        num_projects_to_review = 3
+
+        submissions = self.generate_submissions(num_submissions)
+
+        with self.assertRaises(ValueError):
+            select_random_assignment(
+                submissions=submissions,
+                num_projects_to_review=num_projects_to_review,
+                seed=1,
+            )

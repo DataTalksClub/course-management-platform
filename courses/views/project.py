@@ -7,7 +7,7 @@ from django.http import HttpRequest
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-
+from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
 
 from courses.models import (
@@ -45,7 +45,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
             student=user,
             course=project.course,
         )
-        project_submission = ProjectSubmission.objects.create(
+        project_submission = ProjectSubmission(
             project=project,
             student=user,
             enrollment=enrollment,
@@ -74,6 +74,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         faq_contribution = request.POST.get("faq_contribution", "")
         project_submission.faq_contribution = faq_contribution.strip()
 
+    project_submission.full_clean()
     project_submission.save()
 
     messages.success(
@@ -121,7 +122,15 @@ def project_view(request, course_slug, project_slug):
                 project_slug=project.slug,
             )
 
-        project_submit_post(request, project)
+        try:
+            project_submit_post(request, project)
+        except ValidationError as e:
+            for message in e.messages:
+                messages.error(
+                    request,
+                    f"Failed to submit the project: {message}",
+                    extra_tags="alert-danger",
+                )
 
         return redirect(
             "project",

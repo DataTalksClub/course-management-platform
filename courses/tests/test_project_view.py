@@ -173,7 +173,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -220,7 +220,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -242,7 +242,7 @@ class ProjectViewTestCase(TestCase):
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
-            github_link="https://github.com/testuser/project",
+            github_link="https://httpbin.org/status/200",
             commit_id="123456a",
         )
 
@@ -251,7 +251,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project2",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "123456e",
             "time_spent": "3",
             "problems_comments": "No issues encountered.",
@@ -296,7 +296,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://github.com/testuser/project",
+            "github_link": "https://httpbin.org/status/200",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -313,3 +313,29 @@ class ProjectViewTestCase(TestCase):
         )
 
         self.assertEqual(submissions.count(), 0)
+
+    def test_project_submission_post_invalid_link_no_submission(self):
+        """
+        When the link is invalid and there's no submission yet,
+        no submission is created
+        """
+        self.client.login(**credentials)
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+
+        data = {
+            "github_link": "https://github.com/alexeygrigorev/404",
+            "commit_id": "1234567"
+        }
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 302)
+
+        submission = ProjectSubmission.objects.filter(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+        )
+
+        self.assertFalse(submission.exists())
