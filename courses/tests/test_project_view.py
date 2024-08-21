@@ -313,3 +313,29 @@ class ProjectViewTestCase(TestCase):
         )
 
         self.assertEqual(submissions.count(), 0)
+
+    def test_project_submission_post_invalid_link_no_submission(self):
+        """
+        When the link is invalid and there's no submission yet,
+        no submission is created
+        """
+        self.client.login(**credentials)
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+
+        data = {
+            "github_link": "https://github.com/alexeygrigorev/404",
+            "commit_id": "1234567"
+        }
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 302)
+
+        submission = ProjectSubmission.objects.filter(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+        )
+
+        self.assertFalse(submission.exists())

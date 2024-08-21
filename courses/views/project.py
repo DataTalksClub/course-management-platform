@@ -45,7 +45,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
             student=user,
             course=project.course,
         )
-        project_submission = ProjectSubmission.objects.create(
+        project_submission = ProjectSubmission(
             project=project,
             student=user,
             enrollment=enrollment,
@@ -73,6 +73,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     if project.faq_contribution_field:
         faq_contribution = request.POST.get("faq_contribution", "")
         project_submission.faq_contribution = faq_contribution.strip()
+
     project_submission.full_clean()
     project_submission.save()
 
