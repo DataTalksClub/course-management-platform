@@ -51,14 +51,15 @@ def select_random_assignment(
     num_projects_to_review: int,
     seed: int = 1,
 ) -> list[PeerReview]:
-    if num_projects_to_review <= len(submissions):
+    n = len(submissions)
+
+    if n <= num_projects_to_review:
         raise ValueError(
-            "The number of projects to review should be greater than the number of submissions."
+            "The number of projects to review should be greater than the number of submissions. " + 
+            f"Number of projects to review: {num_projects_to_review}, Number of submissions: {n}"
         )
 
-    random.seed(seed)
-
-    n = len(submissions)
+    random.seed(seed)    
 
     submissions_list = list(submissions)
 
