@@ -22,18 +22,17 @@ class ProjectState(Enum):
 
 project_state_names = {
     ProjectState.CLOSED.value: "Closed",
-    ProjectState.COLLECTING_SUBMISSIONS.value: "Collecting Submissions",
-    ProjectState.PEER_REVIEWING.value: "Peer Reviewing",
-    ProjectState.COMPLETED.value: "Completed",
+    ProjectState.COLLECTING_SUBMISSIONS.value: "Open",
+    ProjectState.PEER_REVIEWING.value: "Review",
+    ProjectState.COMPLETED.value: "Scored",
 }
 
 project_status_badge_classes = {
     ProjectState.CLOSED.value: "bg-secondary",
-    ProjectState.COLLECTING_SUBMISSIONS.value: "bg-info",
-    ProjectState.PEER_REVIEWING.value: "bg-warning",
-    ProjectState.COMPLETED.value: "bg-success",
+    ProjectState.COLLECTING_SUBMISSIONS.value: "bg-warning",
+    ProjectState.PEER_REVIEWING.value: "bg-info",
+    ProjectState.COMPLETED.value: "bg-secondary",
 }
-
 
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
