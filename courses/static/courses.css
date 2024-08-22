@@ -13,7 +13,6 @@ body {
 header nav {
   max-width: 720px;
   margin: 0 auto;
-  padding: 20px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -202,10 +201,7 @@ footer {
 }
 
 .course-header {
-  background-color: #f8f9fa;
-  border-bottom: 2px solid #e9ecef;
-  padding: 20px 0;
-  margin-bottom: 30px;
+  padding: 0.7rem 0;
 }
 
 .course-title {
@@ -220,7 +216,7 @@ footer {
 }
 
 .action-buttons {
-  margin-bottom: 30px;
+  margin-bottom: 2rem;
 }
 
 .action-buttons .btn {
@@ -229,34 +225,20 @@ footer {
 
 .section-title {
   color: #495057;
-  border-bottom: 2px solid #dee2e6;
   padding-bottom: 10px;
-  margin-bottom: 20px;
 }
 
 .homework-item,
 .project-item {
-  background-color: #fff;
-  border: 1px solid #dee2e6;
-  border-radius: 5px;
-  padding: 15px;
-  margin-bottom: 15px;
-  transition: all 0.3s ease;
-}
-
-.homework-item:hover,
-.project-item:hover {
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  padding: .5rem
 }
 
 .item-title {
-  font-weight: bold;
   color: #007bff;
 }
 
 .item-title a {
   color: inherit;
-  text-decoration: none;
 }
 
 .item-title a:hover {
@@ -264,13 +246,12 @@ footer {
 }
 
 .item-date {
-  font-style: italic;
   color: #6c757d;
 }
 
 .badge {
-  font-size: 0.9em;
-  padding: 5px 10px;
+  font-size: 85%;
+  padding: .25em .4em;
 }
 
 .alert-info {
@@ -280,33 +261,30 @@ footer {
 }
 
 .homework-container {
-  margin: 0 auto;
+  /* margin: 0 auto;
   padding: 20px;
   background-color: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
 }
 
 .homework-title {
   color: #333;
-  border-bottom: 2px solid #007bff;
   padding-bottom: 10px;
   margin-bottom: 20px;
 }
 
 .homework-meta {
-  background-color: #e9ecef;
-  border-radius: 4px;
   padding: 10px;
   margin-bottom: 20px;
 }
 
 .question {
-  background-color: #fff;
+  /* background-color: #fff;
   border: 1px solid #dee2e6;
   border-radius: 4px;
   padding: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 20px; */
 }
 
 .question-text {

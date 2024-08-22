@@ -30,7 +30,7 @@
   <h3 class="section-title">Homeworks</h3>
 
   {% for hw in homeworks %}
-  <div class="homework-item">
+  <div class="homework-item {% cycle 'bg-white' '' %}">
     <div class="row align-items-center">
       <div class="col-md-5 item-title">
         {% if hw.state == 'CL' %}
@@ -67,7 +67,7 @@
 <div class="pb-3">
   <h3 class="section-title">Projects</h3>
   {% for project in projects %}
-  <div class="project-item">
+  <div class="project-item {% cycle 'bg-white' '' %}">
     <div class="row align-items-center">
       <div class="col-md-5 item-title">
         {% if project.state == 'CS' %}
