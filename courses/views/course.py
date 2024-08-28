@@ -67,16 +67,25 @@ def get_projects_for_course(
 def update_project_with_additional_info(project: Project) -> None:
     days_until_due = 0
 
-    if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+    project.badge_state_name = "Not submitted"
+    project.badge_css_class = "bg-secondary"
+    project.submitted = False
+    project.score = None
+
+    if project.state == ProjectState.CLOSED.value:
+        project.badge_state_name = "Closed"
+    elif project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
         if project.submission_due_date > timezone.now():
             days_until_due = (
                 project.submission_due_date - timezone.now()
             ).days
 
         project.days_until_due = days_until_due
-        project.submitted = False
-        project.score = None
-    elif project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+
+        project.badge_state_name = "Open"
+        project.badge_css_class = "bg-warning"
+
+    elif project.state == ProjectState.PEER_REVIEWING.value:
         pass
     elif project.state == ProjectState.COMPLETED.value:
         pass
@@ -90,11 +99,21 @@ def update_project_with_additional_info(project: Project) -> None:
     submission = project.submissions[0]
     project.submitted = True
 
-    if project.state == ProjectState.COMPLETED.value:
-        pass
-        # project.score = submission.total_score
-    else:
-        project.submitted_at = submission.submitted_at
+    project.submitted_at = submission.submitted_at
+
+    if project.state == ProjectState.PEER_REVIEWING.value:
+        project.badge_state_name = "Review"
+        project.badge_css_class = "bg-info"
+
+    elif project.state == ProjectState.COMPLETED.value:
+        project.score = submission.total_score
+
+        if submission.passed:
+            project.badge_state_name = f"Passed ({project.score})"
+            project.badge_css_class = "bg-success"
+        else:
+            project.badge_state_name = f"Failed ({project.score})"
+
 
 
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:

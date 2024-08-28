@@ -20,20 +20,6 @@ class ProjectState(Enum):
     COMPLETED = "CO"
 
 
-project_state_names = {
-    ProjectState.CLOSED.value: "Closed",
-    ProjectState.COLLECTING_SUBMISSIONS.value: "Open",
-    ProjectState.PEER_REVIEWING.value: "Review",
-    ProjectState.COMPLETED.value: "Scored",
-}
-
-project_status_badge_classes = {
-    ProjectState.CLOSED.value: "bg-secondary",
-    ProjectState.COLLECTING_SUBMISSIONS.value: "bg-warning",
-    ProjectState.PEER_REVIEWING.value: "bg-info",
-    ProjectState.COMPLETED.value: "bg-secondary",
-}
-
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     slug = models.SlugField(blank=False)
@@ -65,13 +51,20 @@ class Project(models.Model):
         default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
-    def get_project_state_name(self):
-        return project_state_names[self.state]
+    # def get_project_state_name(self):
+    #     return project_state_names[self.state]
 
-    def status_badge_class(self):
-        return project_status_badge_classes.get(
-            self.state, "bg-secondary"
-        )
+    # def status_badge_class(self):
+    #     project_status_badge_classes = {
+    #         ProjectState.CLOSED.value: "bg-secondary",
+    #         ProjectState.COLLECTING_SUBMISSIONS.value: "bg-warning",
+    #         ProjectState.PEER_REVIEWING.value: "bg-info",
+    #         ProjectState.COMPLETED.value: "bg-secondary",
+    #     }
+
+    #     return project_status_badge_classes.get(
+    #         self.state, "bg-secondary"
+    #     )
 
     def __str__(self):
         return self.title
