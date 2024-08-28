@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from courses.random_names import generate_random_name
 
 
-
 User = get_user_model()
 
 
@@ -64,13 +63,9 @@ class Enrollment(models.Model):
 
     total_score = models.IntegerField(default=0)
 
-    # def calculate_total_score(self):
-    #     submissions = Submission.objects.filter(enrollment=self)
-    #     total_score_sum = submissions.aggregate(Sum("total_score"))[
-    #         "total_score__sum"
-    #     ]
-    #     self.total_score = total_score_sum or 0
-    #     self.save()
+    certificate_url = models.CharField(
+        max_length=255, null=True, blank=True
+    )
 
     def save(self, *args, **kwargs):
         if not self.display_name:

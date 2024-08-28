@@ -254,7 +254,11 @@ def enrollment_view(request, course_slug):
 
     form = EnrollmentForm(instance=enrollment)
 
-    context = {"form": form, "course": course}
+    context = {
+        "form": form,
+        "course": course,
+        "enrollment": enrollment,
+    }
 
     return render(request, "courses/enrollment.html", context)
 
