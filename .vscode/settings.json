@@ -5,5 +5,6 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "python.envFile": "${workspaceFolder}/.vscode_env"
+    "python.envFile": "${workspaceFolder}/.vscode_env",
+    "makefile.configureOnOpen": false
 }
