@@ -15,7 +15,7 @@ $(document).ready(function () {
     return commitIdPattern.test(commitId);
   };
 
-  var validateUrlField = function(selector, name) {
+  var validateUrlField = function(selector, name, optional) {
     var linkField = $(selector);
     if (linkField.length == 0) {
       /* the field doesn't exist */
@@ -24,7 +24,11 @@ $(document).ready(function () {
 
     var errorMessage = '';
     var link = linkField.val();
+  
     if (!link) {
+      if (optional) {
+        return '';
+      }
       errorMessage += (name + ' link URL is missing.\n');
     } else if (!isValidUrl(link)) {
       errorMessage += (name + ' link URL is invalid. It should start with http:// or https://\n');
@@ -50,21 +54,24 @@ $(document).ready(function () {
   };
 
   $('#submit-button').click(function (event) {
-    console.log("test");
-
     var isValid = true;
     var errorMessage = '';
 
     var urlFieldsToValidate = [
-      ["#homework_url", "Homework"],
-      ["#github_link", "GitHub link"]
+      ["#homework_url", "Homework", false],
+      ["#github_link", "GitHub link", false],
+      ["#id_github_url", "GitHub profile link", true],
+      ["#id_linkedin_url", "LinkedIn profile link", true],
+      ["#id_personal_website_url", "Personal website link", true],
     ];
 
     for (var i = 0; i < urlFieldsToValidate.length; i++) {
       var selector = urlFieldsToValidate[i][0];
       var description = urlFieldsToValidate[i][1];
-      
-      var message = validateUrlField(selector, description);
+      var optional = urlFieldsToValidate[i][1];
+
+      var message = validateUrlField(selector, description, optional);
+
       if (message) {
         isValid = false;
         errorMessage += message;

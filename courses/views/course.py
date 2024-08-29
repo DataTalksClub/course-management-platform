@@ -115,7 +115,6 @@ def update_project_with_additional_info(project: Project) -> None:
             project.badge_state_name = f"Failed ({project.score})"
 
 
-
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug)
 
@@ -263,13 +262,12 @@ def enrollment_view(request, course_slug):
             form.save()
             return redirect("course", course_slug=course_slug)
         else:
-            messages.error(
-                request,
-                "There was an error updating your enrollment",
-                extra_tags="homework",
-            )
-            return redirect("enrollment", course_slug=course_slug)
-            # TODO: add POST to form below
+            context = {
+                "form": form,
+                "course": course,
+                "enrollment": enrollment,
+            }
+            return render(request, "courses/enrollment.html", context)
 
     form = EnrollmentForm(instance=enrollment)
 
@@ -280,4 +278,3 @@ def enrollment_view(request, course_slug):
     }
 
     return render(request, "courses/enrollment.html", context)
-

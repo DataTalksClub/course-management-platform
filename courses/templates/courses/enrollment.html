@@ -1,40 +1,84 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
 {% block content %}
 
-    <h2>Edit Enrollment Details</h2>
-    <div class="mb-4">
-      <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
 
-        <p>
-          Display name appears on the leaderboard, is an auto-generated
-          random name. You can edit it to be a nickname, or your real
-          name.</p>
-        <p>
-          Certificate name should be your actual name that you want to
-          appear on your certificate. If you don't set it, your
-          Display name will be used for the certificate.
-        </p>
+<h2>Edit Enrollment Details</h2>
+<div class="mb-4">
+  <form method="post">
+    {% csrf_token %}
 
-        <button type="submit">Save Changes</button>
-      </form>
-    </div>
-
-    <h2>Enrollment information</h2>
-    <div>
-      <p>Certificate: 
-        {% if enrollment.certificate_url %}
-          <a href="{{ enrollment.certificate_url }}" target="_blank">Download</a>
-        {% else %}
-          Not available
+    {% for field in form %}
+      <div class="mb-3 question">
+        <label for="{{ field.id_for_label }}" class="question-text">
+          {{ field.label }}
+          {% if field.field.widget.attrs.optional %}
+            <span class="text-muted">(optional)</span>
+          {% endif %}
+          {% if field.help_text %}
+            <i class="fas fa-question-circle text-muted"
+                data-toggle="tooltip"
+                data-placement="top"
+                title="{{ field.help_text }}">
+            </i>
+          {% endif %}
+        </label>
+        {{ field }}
+        {% if field.errors %}
+        <div class="error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          {{ field.errors|join:" " }}
+        </div>
         {% endif %}
-      </p>
+      </div>
+    {% endfor %}
+
+    <p>
+      Display name appears on the leaderboard, is an auto-generated
+      random name. You can edit it to be a nickname, or your real
+      name.
+    </p>
+    <p>
+      Certificate name should be your actual name that you want to
+      appear on your certificate. If you don't set it, your
+      Display name will be used for the certificate.
+    </p>
+
+    <div class="mt-4 text-center">
+      <button
+          id="submit-button"
+          type="submit"
+          class="btn btn-primary">
+        Save changes
+      </button>
     </div>
+
+  </form>
+</div>
+
+<h2>Enrollment information</h2>
+<div>
+  <p>Certificate: 
+    {% if enrollment.certificate_url %}
+      <a href="{{ enrollment.certificate_url }}" target="_blank">Download</a>
+    {% else %}
+      Not available
+    {% endif %}
+  </p>
+</div>
+
+<script>
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip()
+  });
+</script>
+
+<script src="{% static 'homework.js' %}"></script>
 
 {% endblock %}
