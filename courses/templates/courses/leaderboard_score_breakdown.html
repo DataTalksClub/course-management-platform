@@ -6,89 +6,93 @@
 {% endblock %}
 
 {% block content %}
-  <h2>{{ enrollment.display_name }}</h2>
-  
-  <div>
-    <p>Total Score: {{ enrollment.total_score }}</p>
-    {% if enrollment.github_url %}
-      <p>GitHub: <a href="{{ enrollment.github_url }}" target="_blank">{{ enrollment.github_url}}</a></p>
-    {% endif %}
-    {% if enrollment.linkedin_url %}
-      <p>LinkedIn: <a href="{{ enrollment.linkedin_url }}" target="_blank">{{ enrollment.linkedin_url }}</a></p>
-    {% endif %}
-    {% if enrollment.personal_website_url %}
-      <p>Personal website: <a href="{{ enrollment.personal_website_url }}" target="_blank">{{ enrollment.personal_website_url }}</a></p>
-    {% endif %}
-    {% if enrollment.about_me %}
-      <p>About me: {{enrollment.about_me}}</p>
-    {% endif %}
-  </div>
+
+<h2>{{ enrollment.display_name }}</h2>
+
+<div>
+  <p>Total Score: {{ enrollment.total_score }}</p>
+  {% if enrollment.github_url %}
+    <p>GitHub: <a href="{{ enrollment.github_url }}" target="_blank">{{ enrollment.github_url}}</a></p>
+  {% endif %}
+  {% if enrollment.linkedin_url %}
+    <p>LinkedIn: <a href="{{ enrollment.linkedin_url }}" target="_blank">{{ enrollment.linkedin_url }}</a></p>
+  {% endif %}
+  {% if enrollment.personal_website_url %}
+    <p>Personal website: <a href="{{ enrollment.personal_website_url }}" target="_blank">{{ enrollment.personal_website_url }}</a></p>
+  {% endif %}
+  {% if enrollment.about_me %}
+    <p>About me: {{enrollment.about_me}}</p>
+  {% endif %}
+</div>
 
 
-  <h4>Submissions</h4>
-  <ul>
-    {% for submission in submissions %}
-      {% if submission.homework.is_scored %}
-      <li>
-        <strong>Homework:</strong> {{ submission.homework.title }}<br>
-        <strong>Questions Score:</strong> {{ submission.questions_score }}<br>
-        <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
-        <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
-        <strong>Total Score:</strong> {{ submission.total_score }}<br>
-        {% if submission.homework_link %}
-        <strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">{{ submission.homework_link}}</a><br>
-        {% endif %}
-        {% if submission.learning_in_public_links %}
-        <strong>Learning in public links:</strong><br>
-          {% for link in submission.learning_in_public_links %}
-            <a href="{{ link }}" target="_blank">{{ link }}</a><br>
-          {% endfor %}
-        {% endif %}
-      </li>
+<h4>Submissions</h4>
+<ul>
+  {% for submission in submissions %}
+    {% if submission.homework.is_scored %}
+    <li>
+      <strong>Homework:</strong> {{ submission.homework.title }}<br>
+      <strong>Questions Score:</strong> {{ submission.questions_score }}<br>
+      <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
+      <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
+      <strong>Total Score:</strong> {{ submission.total_score }}<br>
+      {% if submission.homework_link %}
+      <strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">{{ submission.homework_link}}</a><br>
       {% endif %}
-    {% empty %}
-      <li>No submissions yet.</li>
-    {% endfor %}
-  </ul>
+      {% if submission.learning_in_public_links %}
+      <strong>Learning in public links:</strong><br>
+        {% for link in submission.learning_in_public_links %}
+          <a href="{{ link }}" target="_blank">{{ link }}</a><br>
+        {% endfor %}
+      {% endif %}
+    </li>
+    {% endif %}
+  {% empty %}
+    <li>No submissions yet.</li>
+  {% endfor %}
+</ul>
 
-  <h4>Project submissions</h4>
-  <ul>
-    {% for submission in project_submissions %}
-      {% if submission.project.state == 'CO' %}
-      <li>
-        <strong>Project:</strong> {{ submission.project.title }}<br>
-        <strong>Project score:</strong> {{ submission.project_score }}
-        {% if submission.passed %}
-          (passed)
-        {% else %}
-          (failed)
-        {% endif %}
-        <br>
-        <strong>Peer review score:</strong> {{ submission.peer_review_score }}<br>
-        <strong>Learning in public (project):</strong> {{ submission.project_learning_in_public_score }}<br>
-        <strong>Learning in public (peer review):</strong> {{ submission.peer_review_learning_in_public_score }}<br>
-        <strong>FAQ contribution score:</strong> {{ submission.project_faq_score }}<br>
-        <strong>Total score:</strong> {{ submission.total_score }}<br>
-        {% if submission.github_link %}
-        <strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link}}</a><br>
-        {% endif %}
-        {% if submission.learning_in_public_links %}
-        <strong>Learning in public links:</strong><br>
-          {% for link in submission.learning_in_public_links %}
-            <a href="{{ link }}" target="_blank">{{ link }}</a><br>
-          {% endfor %}
-        {% endif %}
-      </li>
+<h4>Project submissions</h4>
+<ul>
+  {% for submission in project_submissions %}
+    {% if submission.project.state == 'CO' %}
+    <li>
+      <strong>Project:</strong> {{ submission.project.title }}<br>
+      <strong>Project score:</strong> {{ submission.project_score }}
+      {% if submission.passed %}
+        (passed)
       {% else %}
-      <li>
-        <strong>Project:</strong> {{ submission.project.title }}<br>
-        Not scored yet
-      </li>
+        (failed)
       {% endif %}
-    {% empty %}
-      <li>No submissions found.</li>
-    {% endfor %}
-  </ul>
+      <br>
+      <strong>Peer review score:</strong> {{ submission.peer_review_score }}<br>
+      <strong>Learning in public (project):</strong> {{ submission.project_learning_in_public_score }}<br>
+      <strong>Learning in public (peer review):</strong> {{ submission.peer_review_learning_in_public_score }}<br>
+      <strong>FAQ contribution score:</strong> {{ submission.project_faq_score }}<br>
+      <strong>Total score:</strong> {{ submission.total_score }}<br>
+      {% if submission.github_link %}
+      <strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link}}</a><br>
+      {% endif %}
+      {% if submission.learning_in_public_links %}
+      <strong>Learning in public links:</strong><br>
+        {% for link in submission.learning_in_public_links %}
+          <a href="{{ link }}" target="_blank">{{ link }}</a><br>
+        {% endfor %}
+      {% endif %}
+    </li>
+    {% else %}
+    <li>
+      <strong>Project:</strong> {{ submission.project.title }}<br>
+      Not scored yet
+    </li>
+    {% endif %}
+  {% empty %}
+    <li>No submissions found.</li>
+  {% endfor %}
+</ul>
 
+<div class="text-center">
+  Back to <a href="{% url 'leaderboard' enrollment.course.slug %}">Leaderboard</a>
+</div>
 
 {% endblock %}

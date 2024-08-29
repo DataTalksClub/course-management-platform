@@ -10,6 +10,8 @@
 
 
 <h2>Edit Enrollment Details</h2>
+
+
 <div class="mb-4">
   <form method="post">
     {% csrf_token %}
@@ -71,6 +73,10 @@
       Not available
     {% endif %}
   </p>
+</div>
+
+<div class="text-center">
+  Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
 </div>
 
 <script>
