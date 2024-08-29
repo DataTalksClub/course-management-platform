@@ -6,9 +6,24 @@
 {% endblock %}
 
 {% block content %}
-  <h2>Leaderboard Detail for {{ enrollment.display_name }}</h2>
-  <h3>Course: {{ enrollment.course.title }}</h3>
-  <p>Total Score: {{ enrollment.total_score }}</p>
+  <h2>{{ enrollment.display_name }}</h2>
+  
+  <div>
+    <p>Total Score: {{ enrollment.total_score }}</p>
+    {% if enrollment.github_url %}
+      <p>GitHub: <a href="{{ enrollment.github_url }}" target="_blank">{{ enrollment.github_url}}</a></p>
+    {% endif %}
+    {% if enrollment.linkedin_url %}
+      <p>LinkedIn: <a href="{{ enrollment.linkedin_url }}" target="_blank">{{ enrollment.linkedin_url }}</a></p>
+    {% endif %}
+    {% if enrollment.personal_website_url %}
+      <p>Personal website: <a href="{{ enrollment.personal_website_url }}" target="_blank">{{ enrollment.personal_website_url }}</a></p>
+    {% endif %}
+    {% if enrollment.about_me %}
+      <p>About me: {{enrollment.about_me}}</p>
+    {% endif %}
+  </div>
+
 
   <h4>Submissions</h4>
   <ul>
@@ -20,7 +35,9 @@
         <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
         <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
         <strong>Total Score:</strong> {{ submission.total_score }}<br>
-        <strong>Homework URL:</strong> <a href="{{ submission.homework_link}}" target="_blank">{{ submission.homework_link}}</a><br>
+        {% if submission.homework_link %}
+        <strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">{{ submission.homework_link}}</a><br>
+        {% endif %}
         {% if submission.learning_in_public_links %}
         <strong>Learning in public links:</strong><br>
           {% for link in submission.learning_in_public_links %}
