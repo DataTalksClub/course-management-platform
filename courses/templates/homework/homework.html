@@ -195,20 +195,6 @@
       </div>
     {% endif %}
 
-    {% if homework.problems_comments_field %}
-      <div class="mb-3 question">
-        <label for="problems_comments" class="question-text">
-          Problems or comments <span class="text-muted">(optional)</span>
-        </label>
-        <textarea
-          class="form-control"
-          name="problems_comments"
-          id="problems_comments"
-          {% if disabled %} disabled {% endif %}
-        >{{ submission.problems_comments|default:'' }}</textarea>
-      </div>
-    {% endif %}
-
     {% if course.faq_document_url and homework.faq_contribution_field %}
       <div class="mb-3 question">
         <label for="faq_contribution" class="question-text">

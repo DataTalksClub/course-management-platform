@@ -119,20 +119,6 @@
       </div>
     {% endif %}
 
-    {% if project.problems_comments_field %}
-      <div class="mb-3 question">
-        <label for="problems_comments" class="question-text">
-          Suggestions for improvement and comments <span class="text-muted">(optional)</span>
-        </label>
-        <textarea
-          class="form-control"
-          name="problems_comments"
-          id="problems_comments"
-          {% if disabled %} disabled {% endif %}
-        >{{ review.problems_comments|default:'' }}</textarea>
-      </div>
-    {% endif %}
-
     {% if project.state == 'PR' %}
       <div class="mt-4 text-center">
         <button
