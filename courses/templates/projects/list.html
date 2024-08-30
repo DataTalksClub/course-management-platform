@@ -13,23 +13,25 @@
 <h2 class="mb-3 text-center">Projects of {{ project.title }}</h2>
 
 
-<div class="mx-3">
-<div class="row fw-bold border-bottom pb-2 d-none d-md-flex">
-    <div class="col-md-6"><strong>Name</strong></div>
-    <div class="col-md-6"><strong>GitHub Link</strong></div>
-</div>
 
 {% for submission in submissions %}
 <div class="row py-2 border-bottom align-items-center {% cycle 'bg-white' 'bg-light' %}">
-    <div class="col-md-6 mb-2 mb-md-0">
-        <span class="fw-bold d-md-none">Name: </span>{{ submission.enrollment.display_name }}
-    </div>
-    <div class="col-md-6">
-        <span class="fw-bold d-md-none">GitHub Link: </span>
-        <a href="{{ submission.github_link }}" target="_blank" class="text-break">{{ submission.github_link }}</a>
-    </div>
+    Name: {{ submission.enrollment.display_name }} <br/>
+    GitHub Link: <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a> <br/>
+    {% if is_authenticated %}
+        To evaluate:
+        {% if submission.to_evaluate %}
+            <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}">
+                evaluate (<span class="badge badge-primary badge-pill">{{ submission.review.get_state_display }}</span>)
+            </a> 
+        {% else %}
+            <a href="{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}">
+                add to evaluation
+            </a>
+        {% endif %}
+    {% endif %}
 </div>
+<div>&nbsp;</div>
 {% endfor %}
-</div>
 
 {% endblock %}

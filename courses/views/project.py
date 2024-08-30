@@ -408,21 +408,96 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     return render(request, "projects/eval_submit.html", context)
 
 
+@login_required
+def projects_eval_add(
+    request, course_slug, project_slug, submission_id
+):
+    user = request.user
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    student_submission = ProjectSubmission.objects.get(
+        project=project, student=user
+    )
+
+    submission_under_evaluation = ProjectSubmission.objects.get(
+        id=submission_id
+    )
+
+    review = PeerReview.objects.get_or_create(
+        submission_under_evaluation=submission_under_evaluation,
+        reviewer=student_submission,
+        optional=True,
+    )
+
+    return redirect(
+        "project_list",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+
+
+@login_required
+def projects_eval_delete(
+    request, course_slug, project_slug, review_id
+):
+    # TODO: only for this user!
+
+    PeerReview.objects.filter(
+        id=review_id,
+        optional=True
+    ).delete()
+
+    return redirect(
+        "project_list",
+        course_slug=course_slug,
+        project_slug=project_slug,
+    )
+
+
+
 def projects_list_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
 
-    submissions = ProjectSubmission.objects.filter(
-        project=project
-    )
+    submissions = ProjectSubmission.objects.filter(project=project)
+
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    if is_authenticated:
+        student_submissions = ProjectSubmission.objects.filter(
+            project=project, student=user
+        )
+
+        reviews = PeerReview.objects.filter(
+            reviewer__in=student_submissions,
+            submission_under_evaluation__project=project,
+        )
+
+        review_ids = {}
+
+        for review in reviews:
+            eval_id = review.submission_under_evaluation_id
+            review_ids[eval_id] = review
+    else:
+        review_ids = {}
+
+    for submission in submissions:
+        if submission.id in review_ids:
+            submission.to_evaluate = True
+            submission.review = review_ids[submission.id]
+        else:
+            submission.to_evaluate = False
 
     context = {
         "course": course,
         "project": project,
         "submissions": submissions,
+        "is_authenticated": is_authenticated,
     }
 
     return render(request, "projects/list.html", context)
-

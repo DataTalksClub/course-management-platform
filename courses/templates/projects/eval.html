@@ -28,13 +28,16 @@
     {% for review in reviews %}
       <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="list-group-item list-group-item-action">
         Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
-        <span class="badge badge-primary badge-pill">Review State: {{ review.get_state_display }}</span>
+        <span class="badge badge-primary badge-pill">{{ review.get_state_display }}</span>
       </a>
     {% endfor %}
   </div>
 
   <div class="text-center">
-    <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="btn btn-secondary mt-3">See all projects</a>
+    <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}"
+        class="btn btn-secondary mt-3">
+      See all projects
+    </a>
   </div>
 
 {% endif %}

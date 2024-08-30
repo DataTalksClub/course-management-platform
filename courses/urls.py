@@ -54,6 +54,16 @@ urlpatterns = [
         name="projects_eval_submit",
     ),
     path(
+        "<slug:course_slug>/project/<slug:project_slug>/eval/add/<int:submission_id>",
+        project.projects_eval_add,
+        name="projects_eval_add",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/eval/delete/<int:review_id>",
+        project.projects_eval_delete,
+        name="projects_eval_delete",
+    ),
+    path(
         "<slug:course_slug>/homework/<slug:homework_slug>",
         homework.homework_view,
         name="homework",
