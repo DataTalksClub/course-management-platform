@@ -406,3 +406,23 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     context["course"] = course
 
     return render(request, "projects/eval_submit.html", context)
+
+
+def projects_list_view(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    submissions = ProjectSubmission.objects.filter(
+        project=project
+    )
+
+    context = {
+        "course": course,
+        "project": project,
+        "submissions": submissions,
+    }
+
+    return render(request, "projects/list.html", context)
+

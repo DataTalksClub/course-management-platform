@@ -281,7 +281,7 @@ class ProjectViewTestCase(TestCase):
             submission.faq_contribution, data["faq_contribution"]
         )
 
-    # this test requires a redesing of the project view 
+    # this test requires a redesing of the project view
     # skipping for now
     # def test_submission_exist_post_with_error(self):
     #     """
