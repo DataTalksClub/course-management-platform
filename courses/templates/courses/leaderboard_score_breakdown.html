@@ -29,10 +29,10 @@
 
 <p><strong>Total Score:</strong> {{ enrollment.total_score }}</p>
 
-<h3 class="mt-4">Homework Submissions</h3>
+<h3 class="mt-4">Homework submissions</h3>
 {% for submission in submissions %}
   {% if submission.homework.is_scored %}
-    <div class="mb-3 pb-3 border-bottom">
+    <div class="mb-3 pb-3">
       <h4>{{ submission.homework.title }}</h4>
       <p>
         <strong>Score:</strong> {{ submission.total_score }} =
@@ -41,7 +41,7 @@
         {{ submission.learning_in_public_score }} <span class="text-muted">(learning in public)</span>
       </p>
       {% if submission.homework_link %}
-        <p><strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">View Submission</a></p>
+        <p><strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">View submission</a></p>
       {% endif %}
       {% if submission.learning_in_public_links %}
         <p>
@@ -64,9 +64,9 @@
 
 <h3 class="mt-4">Project submissions</h3>
 {% for submission in project_submissions %}
-  <div class="mb-3 pb-3 border-bottom">
+  {% if submission.project.state == 'CO' %}
+  <div class="mb-3 pb-3">
     <h4>{{ submission.project.title }}</h4>
-    {% if submission.project.state == 'CO' %}
       <p>
         <strong>Project score:</strong> {{ submission.project_score }}
         {% if submission.passed %}
@@ -79,12 +79,12 @@
         <strong>Score:</strong> {{ submission.total_score }} = 
         {{ submission.project_score }} <span class="text-muted">(project)</span> +
         {{ submission.peer_review_score }} <span class="text-muted">(peer review)</span> +
-        {{ submission.project_learning_in_public_score }} <span class="text-muted">(learning in public for project)</span> +
-        {{ submission.peer_review_learning_in_public_score }} <span class="text-muted">(learning in public for peer review)</span> +
+        {{ submission.project_learning_in_public_score }} <span class="text-muted">(learning in public / project)</span> +
+        {{ submission.peer_review_learning_in_public_score }} <span class="text-muted">(learning in public / peer review)</span> +
         {{ submission.project_faq_score }} <span class="text-muted">(FAQ)</span>
       </p>
       {% if submission.github_link %}
-        <p><strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">View Project</a></p>
+        <p><strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">View project</a></p>
       {% endif %}
       {% if submission.learning_in_public_links %}
         <p><strong>Learning in public links:</strong></p>
@@ -94,10 +94,9 @@
           {% endfor %}
         </ul>
       {% endif %}
-    {% else %}
-      <p>Not scored yet</p>
-    {% endif %}
-  </div>
+    </div>
+{% endif %}
+
 {% empty %}
   <p>No project submissions found.</p>
 {% endfor %}
