@@ -4,8 +4,6 @@ from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
 
 from courses.random_names import generate_random_name
-from courses.validators import validate_url_200, Status200UrlValidator
-
 
 User = get_user_model()
 

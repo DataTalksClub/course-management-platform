@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
 {% block breadcrumbs %}
   <li><a href="{% url 'course' enrollment.course.slug %}">{{ enrollment.course.title }}</a></li>
   <li><a href="{% url 'leaderboard' enrollment.course.slug %}">Leaderboard</a></li>
@@ -9,90 +11,101 @@
 
 <h2>{{ enrollment.display_name }}</h2>
 
-<div>
-  <p>Total Score: {{ enrollment.total_score }}</p>
+{% if enrollment.about_me %}
+  <p><strong>About me:</strong> {{enrollment.about_me}}</p>
+{% endif %}
+
+<p>
   {% if enrollment.github_url %}
-    <p>GitHub: <a href="{{ enrollment.github_url }}" target="_blank">{{ enrollment.github_url}}</a></p>
+    <a href="{{ enrollment.github_url }}" target="_blank"><i class="fab fa-github social-icon"></i></a>
   {% endif %}
   {% if enrollment.linkedin_url %}
-    <p>LinkedIn: <a href="{{ enrollment.linkedin_url }}" target="_blank">{{ enrollment.linkedin_url }}</a></p>
+    <a href="{{ enrollment.linkedin_url }}" target="_blank"><i class="fab fa-linkedin social-icon"></i></a>
   {% endif %}
   {% if enrollment.personal_website_url %}
-    <p>Personal website: <a href="{{ enrollment.personal_website_url }}" target="_blank">{{ enrollment.personal_website_url }}</a></p>
+    <a href="{{ enrollment.personal_website_url }}" target="_blank"><i class="fas fa-globe social-icon"></i></a>
   {% endif %}
-  {% if enrollment.about_me %}
-    <p>About me: {{enrollment.about_me}}</p>
-  {% endif %}
-</div>
+</p>
 
+<p><strong>Total Score:</strong> {{ enrollment.total_score }}</p>
 
-<h4>Submissions</h4>
-<ul>
-  {% for submission in submissions %}
-    {% if submission.homework.is_scored %}
-    <li>
-      <strong>Homework:</strong> {{ submission.homework.title }}<br>
-      <strong>Questions Score:</strong> {{ submission.questions_score }}<br>
-      <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
-      <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
-      <strong>Total Score:</strong> {{ submission.total_score }}<br>
+<h3 class="mt-4">Homework Submissions</h3>
+{% for submission in submissions %}
+  {% if submission.homework.is_scored %}
+    <div class="mb-3 pb-3 border-bottom">
+      <h4>{{ submission.homework.title }}</h4>
+      <p>
+        <strong>Score:</strong> {{ submission.total_score }} =
+        {{ submission.questions_score }} <span class="text-muted">(questions)</span> +
+        {{ submission.faq_score }} <span class="text-muted">(FAQ)</span> +
+        {{ submission.learning_in_public_score }} <span class="text-muted">(learning in public)</span>
+      </p>
       {% if submission.homework_link %}
-      <strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">{{ submission.homework_link}}</a><br>
+        <p><strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">View Submission</a></p>
       {% endif %}
       {% if submission.learning_in_public_links %}
-      <strong>Learning in public links:</strong><br>
-        {% for link in submission.learning_in_public_links %}
-          <a href="{{ link }}" target="_blank">{{ link }}</a><br>
-        {% endfor %}
+        <p>
+          <strong>Learning in public links:</strong>
+          <span class="toggle-lip" data-target="lip-links-hw-{{ forloop.counter }}">
+            <i class="fas fa-chevron-down"></i> <span class="fas-show">Show</span>
+          </span>
+        </p>
+        <ul id="lip-links-hw-{{ forloop.counter }}" class="lip-links">
+          {% for link in submission.learning_in_public_links %}
+            <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
+          {% endfor %}
+        </ul>
       {% endif %}
-    </li>
-    {% endif %}
-  {% empty %}
-    <li>No submissions yet.</li>
-  {% endfor %}
-</ul>
+    </div>
+  {% endif %}
+{% empty %}
+  <p>No submissions yet.</p>
+{% endfor %}
 
-<h4>Project submissions</h4>
-<ul>
-  {% for submission in project_submissions %}
+<h3 class="mt-4">Project submissions</h3>
+{% for submission in project_submissions %}
+  <div class="mb-3 pb-3 border-bottom">
+    <h4>{{ submission.project.title }}</h4>
     {% if submission.project.state == 'CO' %}
-    <li>
-      <strong>Project:</strong> {{ submission.project.title }}<br>
-      <strong>Project score:</strong> {{ submission.project_score }}
-      {% if submission.passed %}
-        (passed)
-      {% else %}
-        (failed)
-      {% endif %}
-      <br>
-      <strong>Peer review score:</strong> {{ submission.peer_review_score }}<br>
-      <strong>Learning in public (project):</strong> {{ submission.project_learning_in_public_score }}<br>
-      <strong>Learning in public (peer review):</strong> {{ submission.peer_review_learning_in_public_score }}<br>
-      <strong>FAQ contribution score:</strong> {{ submission.project_faq_score }}<br>
-      <strong>Total score:</strong> {{ submission.total_score }}<br>
+      <p>
+        <strong>Project score:</strong> {{ submission.project_score }}
+        {% if submission.passed %}
+          <span class="badge bg-success">Passed</span>
+        {% else %}
+          <span class="badge bg-danger">Failed</span>
+        {% endif %}
+      </p>
+      <p>
+        <strong>Score:</strong> {{ submission.total_score }} = 
+        {{ submission.project_score }} <span class="text-muted">(project)</span> +
+        {{ submission.peer_review_score }} <span class="text-muted">(peer review)</span> +
+        {{ submission.project_learning_in_public_score }} <span class="text-muted">(learning in public for project)</span> +
+        {{ submission.peer_review_learning_in_public_score }} <span class="text-muted">(learning in public for peer review)</span> +
+        {{ submission.project_faq_score }} <span class="text-muted">(FAQ)</span>
+      </p>
       {% if submission.github_link %}
-      <strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link}}</a><br>
+        <p><strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">View Project</a></p>
       {% endif %}
       {% if submission.learning_in_public_links %}
-      <strong>Learning in public links:</strong><br>
-        {% for link in submission.learning_in_public_links %}
-          <a href="{{ link }}" target="_blank">{{ link }}</a><br>
-        {% endfor %}
+        <p><strong>Learning in public links:</strong></p>
+        <ul>
+          {% for link in submission.learning_in_public_links %}
+            <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
+          {% endfor %}
+        </ul>
       {% endif %}
-    </li>
     {% else %}
-    <li>
-      <strong>Project:</strong> {{ submission.project.title }}<br>
-      Not scored yet
-    </li>
+      <p>Not scored yet</p>
     {% endif %}
-  {% empty %}
-    <li>No submissions found.</li>
-  {% endfor %}
-</ul>
+  </div>
+{% empty %}
+  <p>No project submissions found.</p>
+{% endfor %}
 
-<div class="text-center">
-  Back to <a href="{% url 'leaderboard' enrollment.course.slug %}">Leaderboard</a>
+<div class="mt-4 text-center">
+  <a href="{% url 'leaderboard' enrollment.course.slug %}" class="btn btn-secondary">Back to Leaderboard</a>
 </div>
+
+<script src="{% static 'leaderboard.js' %}"></script>
 
 {% endblock %}

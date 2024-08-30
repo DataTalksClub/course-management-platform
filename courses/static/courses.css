@@ -160,3 +160,24 @@ nav .breadcrumbs ul li:not(:first-child)::before {
 .question select.is-invalid {
   border-color: #dc3545;
 }
+
+.social-icon {
+  font-size: 24px;
+  color: #808080;
+  margin-right: 10px;
+  transition: color 0.3s ease;
+}
+
+.social-icon:hover {
+  color: #000000;
+}
+
+.toggle-lip {
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.lip-links {
+  display: none;
+  margin-top: 10px;
+}

@@ -157,7 +157,7 @@ class Submission(models.Model):
         null=True,
         validators=[URLValidator(schemes=["http", "https", "git"]), validate_url_200],
     )
-    learning_in_public_links = ValidatingJSONField(
+    learning_in_public_links = models.JSONField(
         blank=True,
         null=True,
         help_text="Links where students talk about the course",
