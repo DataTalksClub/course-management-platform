@@ -87,8 +87,13 @@
         <p><strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">View project</a></p>
       {% endif %}
       {% if submission.learning_in_public_links %}
-        <p><strong>Learning in public links:</strong></p>
-        <ul>
+        <p>
+          <strong>Learning in public links:</strong>
+          <span class="toggle-lip" data-target="lip-links-project-{{ forloop.counter }}">
+            <i class="fas fa-chevron-down"></i> <span class="fas-show">Show</span>
+          </span>
+        </p>
+        <ul id="lip-links-project-{{ forloop.counter }}" class="lip-links">
           {% for link in submission.learning_in_public_links %}
             <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
           {% endfor %}
