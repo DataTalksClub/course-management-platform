@@ -101,9 +101,13 @@ def update_project_with_additional_info(project: Project) -> None:
 
     project.submitted_at = submission.submitted_at
 
-    if project.state == ProjectState.PEER_REVIEWING.value:
-        project.badge_state_name = "Review"
+    if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        project.badge_state_name = "Submitted"
         project.badge_css_class = "bg-info"
+
+    elif project.state == ProjectState.PEER_REVIEWING.value:
+        project.badge_state_name = "Review"
+        project.badge_css_class = "bg-danger"
 
     elif project.state == ProjectState.COMPLETED.value:
         project.score = submission.total_score

@@ -281,6 +281,59 @@ class ProjectViewTestCase(TestCase):
             submission.faq_contribution, data["faq_contribution"]
         )
 
+    # this test requires a redesing of the project view 
+    # skipping for now
+    # def test_submission_exist_post_with_error(self):
+    #     """
+    #     Test posting a project submission when there are existing submissions.
+    #     """
+    #     self.client.login(**credentials)
+
+    #     # Create an initial submission
+    #     db_submission = ProjectSubmission.objects.create(
+    #         project=self.project,
+    #         student=self.user,
+    #         enrollment=self.enrollment,
+    #         github_link="https://github.com/alexeygrigorev/llm-rag-workshop",
+    #         commit_id="123456a",
+    #         learning_in_public_links=[
+    #             "https://httpbin.org/status/200?link1",
+    #             "https://httpbin.org/status/200?link2",
+    #         ]
+    #     )
+
+    #     url = reverse(
+    #         "project", args=[self.course.slug, self.project.slug]
+    #     )
+
+    #     # accidentally replaces the working link
+    #     # updates commit_id and learning in public links
+    #     data = {
+    #         "github_link": "https://github.com/alexeygrigorev/404",
+    #         "commit_id": "123456f",
+    #         "time_spent": "3",
+    #         "learning_in_public_links": [
+    #             "https://httpbin.org/status/200?link1",
+    #             "https://httpbin.org/status/200?link2",
+    #             "https://httpbin.org/status/200?link3",
+    #         ]
+    #     }
+
+    #     response = self.client.post(url, data)
+    #     self.assertEqual(response.status_code, 302)
+
+    #     context = response.context
+    #     submission = context["submission"]
+
+    #     # context is updated
+    #     self.assertEquals(submission.github_link, data["github_link"])
+    #     self.assertEquals(submission.commit_id, data["commit_id"])
+    #     self.assertEquals(submission.learning_in_public_links, data["learning_in_public_links"])
+
+    #     # the original submission is not
+    #     self.assertNotEqual(db_submission.github_link, data["github_link"])
+    #     self.assertNotEqual(db_submission.commit_id, data["commit_id"])
+
     def test_project_submission_not_accepting_responses(self):
         """
         Test posting a project submission when there are no existing submissions.
