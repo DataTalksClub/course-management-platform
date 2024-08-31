@@ -12,26 +12,36 @@
 
 <h2 class="mb-3 text-center">Projects of {{ project.title }}</h2>
 
-
-
 {% for submission in submissions %}
-<div class="row py-2 border-bottom align-items-center {% cycle 'bg-white' 'bg-light' %}">
-    Name: {{ submission.enrollment.display_name }} <br/>
-    GitHub Link: <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a> <br/>
+<div class="p-2 border-bottom {% cycle 'bg-white' 'bg-light' %}">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <strong>Project by:</strong> {{ submission.enrollment.display_name }} <br/>
+      <strong>Projet link:</strong> <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a>
+    </div>
     {% if is_authenticated %}
-        To evaluate:
+      <div>
         {% if submission.to_evaluate %}
-            <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}">
-                evaluate (<span class="badge badge-primary badge-pill">{{ submission.review.get_state_display }}</span>)
-            </a> 
+          <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}" class="btn btn-primary btn-sm">
+            Evaluate <span class="badge bg-light text-dark">{{ submission.review.get_state_display }}</span>
+          </a>
         {% else %}
-            <a href="{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}">
-                add to evaluation
-            </a>
+          <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-plus"></i> Add to Evaluation
+          </button>
         {% endif %}
+      </div>
     {% endif %}
+  </div>
 </div>
-<div>&nbsp;</div>
 {% endfor %}
+
+<script>
+function confirmEvaluation(url) {
+  if (confirm('Are you sure you want to add this project to the list of projects you need to evaluate?')) {
+    window.location.href = url;
+  }
+}
+</script>
 
 {% endblock %}

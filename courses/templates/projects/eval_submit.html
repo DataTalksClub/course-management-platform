@@ -10,149 +10,160 @@
 
 
 {% block content %}
-<div class="container mt-3">
-  <h2>Evaluate Projects for "{{ project.title }}"</h2>
+<h2>Evaluate Projects for "{{ project.title }}"</h2>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert {{ message.tags }}">
-        <p>{{ message }}</p>
-      </div>
-    {% endfor %}
-  {% endif %}
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert {{ message.tags }}">
+      <p>{{ message }}</p>
+    </div>
+  {% endfor %}
+{% endif %}
 
-  {% if errors %}
-    {% for error in errors %}
-      <div class="alert alert-danger">
-        <p>{{ error }}</p>
-      </div>
-    {% endfor %}
-  {% endif %}
+{% if errors %}
+  {% for error in errors %}
+    <div class="alert alert-danger">
+      <p>{{ error }}</p>
+    </div>
+  {% endfor %}
+{% endif %}
 
-  <p>
-    <p>Evaluation for: {{ submission.enrollment.display_name }}</p>
-    <p><a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a></p>
-    <p>commit hash: {{ submission.commit_id }}</p>
-  </p>
+  
+<div class="mb-2">
+  <strong>GitHub Link:</strong> <a href="{{ submission.github_link }}" target="_blank" class="text-primary">{{ submission.github_link }}</a>
+</div>
+<div class="mb-3">
+  <strong>Commit Hash:</strong> <code>{{ submission.commit_id }}</code>
+</div>
 
-  <p>
-    Please evaluate the submission according to the following
-    criteria.
-  </p>
+{% if review.optional %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center">
+  <span>
+    <i class="fas fa-info-circle me-2"></i>
+    This is an optional review. You can skip it if you don't have time.
+  </span>
+  <button onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="btn btn-outline-danger btn-sm">
+    <i class="fas fa-minus"></i> Remove
+  </button>
+</div>
+{% endif %}
 
-  {% if review.optional %}
-  <div>
-    Optional: True
-    <a href="{% url 'projects_eval_delete' course.slug project.slug review.id %}">Remove</a>
-  </div>
-  {% endif %}
-  <h3 class="mb-3">Evaluation criteria</h3>
 
-  <form method="post" class="needs-validation" novalidate>
-    {% csrf_token %}
+<p>
+  Please evaluate the submission according to the following criteria.
+</p>
 
-    {% for criteria, response in criteria_response_pairs %}
-      <div class="mb-3 question">
-        <p class="question-text">
-          {{ forloop.counter }}. {{ criteria.description }}
-        </p>
 
-        {% for option in criteria.options %}
-          <div class="form-check">
-            <input
-              class="form-check-input"
-              id="radio-{{ criteria.id }}-{{ option.index }}"
-              type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
-              name="answer_{{ criteria.id }}"
-              value="{{ option.index }}"
-              {% if option.is_selected %} checked {% endif %}
-              {% if disabled %} disabled {% endif %}
-            />
-            <label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">
-              {{ option.criteria }}
-              <span class="text-dark">
-                ({{ option.score }}
-                {{ option.score|pluralize:"point,points" }})
-              </span>
-            </label>
-          </div>
-        {% endfor %}
+<form method="post" class="needs-validation" novalidate>
+  {% csrf_token %}
 
-      </div>
-    {% endfor %}
-
+  {% for criteria, response in criteria_response_pairs %}
     <div class="mb-3 question">
-      <label for="note_to_peer" class="question-text">
-        Review comments
+      <p class="question-text">
+        {{ forloop.counter }}. {{ criteria.description }}
+      </p>
+
+      {% for option in criteria.options %}
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            id="radio-{{ criteria.id }}-{{ option.index }}"
+            type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
+            name="answer_{{ criteria.id }}"
+            value="{{ option.index }}"
+            {% if option.is_selected %} checked {% endif %}
+            {% if disabled %} disabled {% endif %}
+          />
+          <label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">
+            {{ option.criteria }}
+            <span class="text-dark">
+              ({{ option.score }}
+              {{ option.score|pluralize:"point,points" }})
+            </span>
+          </label>
+        </div>
+      {% endfor %}
+
+    </div>
+  {% endfor %}
+
+  <div class="mb-3 question">
+    <label for="note_to_peer" class="question-text">
+      Review comments
+      <i
+        class="fas fa-question-circle text-muted"
+        data-toggle="tooltip"
+        data-placement="top"
+        title="Anything you want to tell your peer about their project - comments or notes">
+      </i>
+    </label>
+    <textarea
+      class="form-control"
+      name="note_to_peer"
+      id="note_to_peer"
+      {% if disabled %} disabled {% endif %}
+    >{{ review.note_to_peer|default:'' }}</textarea>
+  </div>
+
+  {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+  <script src="{% static 'learning_in_public.js' %}"></script>
+
+  {% if project.time_spent_evaluation_field %}
+    <div class="mb-3 question">
+      <label for="time_spent_reviewing" class="question-text">
+        Time spent on reviewing (hours) <span class="text-muted">(optional)</span>
         <i
           class="fas fa-question-circle text-muted"
           data-toggle="tooltip"
           data-placement="top"
-          title="Anything you want to tell your peer about their project - comments or notes">
+          title="How much time (in hours) did you spend on evaluating this project?">
         </i>
       </label>
-      <textarea
+      <input
+        type="number"
         class="form-control"
-        name="note_to_peer"
-        id="note_to_peer"
+        name="time_spent_reviewing"
+        id="time_spent_reviewing"
+        min="0"
+        value="{{ review.time_spent_reviewing|default:'' }}"
         {% if disabled %} disabled {% endif %}
-      >{{ review.note_to_peer|default:'' }}</textarea>
+      />
     </div>
-
-    {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
-    <script src="{% static 'learning_in_public.js' %}"></script>
-
-    {% if project.time_spent_evaluation_field %}
-      <div class="mb-3 question">
-        <label for="time_spent_reviewing" class="question-text">
-          Time spent on reviewing (hours) <span class="text-muted">(optional)</span>
-          <i
-            class="fas fa-question-circle text-muted"
-            data-toggle="tooltip"
-            data-placement="top"
-            title="How much time (in hours) did you spend on evaluating this project?">
-          </i>
-        </label>
-        <input
-          type="number"
-          class="form-control"
-          name="time_spent_reviewing"
-          id="time_spent_reviewing"
-          min="0"
-          value="{{ review.time_spent_reviewing|default:'' }}"
-          {% if disabled %} disabled {% endif %}
-        />
-      </div>
-    {% endif %}
-
-    {% if project.state == 'PR' %}
-      <div class="mt-4 text-center">
-        <button
-            id="submit-button"
-            type="submit"
-            class="btn btn-primary">
-          {% if review.state == 'TR' %}
-            Submit
-          {% else %}
-            Update
-          {% endif %}
-        </button>
-      </div>
-    {% else %}
-      <p>The evaluation period is over, it's no longer possible to submit evaluation</p>
-    {% endif %}
-  </form>
-
-  {% if review.state == 'SU' %}
-    <p class="text-muted question-text m-0">Last submission at: {{ review.submitted_at|date:"F d, Y H:i" }}</p>
   {% endif %}
 
-  <script>
-    $(function () {
-      $('[data-toggle="tooltip"]').tooltip()
-    });
-  </script>
-</div>
+  {% if project.state == 'PR' %}
+    <div class="mt-4 text-center">
+      <button
+          id="submit-button"
+          type="submit"
+          class="btn btn-primary">
+        {% if review.state == 'TR' %}
+          Submit
+        {% else %}
+          Update
+        {% endif %}
+      </button>
+    </div>
+  {% else %}
+    <p>The evaluation period is over, it's no longer possible to submit evaluation</p>
+  {% endif %}
+</form>
+
+{% if review.state == 'SU' %}
+  <p class="text-muted question-text m-0">Last submission at: {{ review.submitted_at|date:"F d, Y H:i" }}</p>
+{% endif %}
+
+<script>
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip()
+  });
+
+  function confirmRemove(url) {
+    if (confirm('Are you sure you want to remove this project from your evaluation list?')) {
+      window.location.href = url;
+    }
+  }
+</script>
 
 <script src="{% static 'homework.js' %}"></script>
 {% endblock %}

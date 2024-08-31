@@ -26,8 +26,14 @@
 {% else %}
   <div class="list-group">
     {% for review in reviews %}
-      <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="list-group-item list-group-item-action">
-        Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
+      <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}"
+          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <div>
+          Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
+          {% if review.optional %}
+            <span class="badge bg-info text-dark ms-2">Optional</span>
+          {% endif %}
+        </div>
         <span class="badge badge-primary badge-pill">{{ review.get_state_display }}</span>
       </a>
     {% endfor %}
