@@ -85,6 +85,7 @@ def project_data_view(request, course_slug: str, project_slug: str):
     for submission in submissions:
         submission_dict = {
             "student_id": submission.student_id,
+            "student_email": submission.student.email,
             "github_link": submission.github_link,
             "commit_id": submission.commit_id,
             "learning_in_public_links": submission.learning_in_public_links,

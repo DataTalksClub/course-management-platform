@@ -279,6 +279,7 @@ class DataAPITestCase(TestCase):
 
         expected_submission = {
             "student_id": self.user.id,
+            "student_email": self.user.email,
             "github_link": self.project_submission.github_link,
             "commit_id": self.project_submission.commit_id,
             "learning_in_public_links": self.project_submission.learning_in_public_links,
@@ -324,6 +325,7 @@ class DataAPITestCase(TestCase):
         self.assertEqual(len(actual_result['submissions']), 1)
         submission = actual_result['submissions'][0]
         self.assertEqual(submission['student_id'], expected_submission['student_id'])
+        self.assertEqual(submission['student_email'], expected_submission['student_email'])
         self.assertEqual(submission['github_link'], expected_submission['github_link'])
         self.assertEqual(submission['commit_id'], expected_submission['commit_id'])
         self.assertEqual(submission['learning_in_public_links'], expected_submission['learning_in_public_links'])
