@@ -14,11 +14,20 @@
 
 {% for submission in submissions %}
 <div class="p-2 border-bottom {% cycle 'bg-white' 'bg-light' %}">
-  <div class="d-flex justify-content-between align-items-center">
-    <div>
-      <strong>Project by:</strong> {{ submission.enrollment.display_name }} <br/>
-      <strong>Projet link:</strong> <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a>
-    </div>
+  <div class="d-flex justify-content-between align-items-center text-decoration-none">
+    <a href="{{ submission.github_link }}" target="_blank">
+      <div>
+        {{ submission.enrollment.display_name }}
+        <span
+            class="ms-2"
+            data-bs-toggle="tooltip"
+            data-bs-placement="bottom"
+            title="{{ submission.github_link }}">
+          <i class="fas fa-external-link-alt"></i>
+        </span>
+      </div>
+    </a>
+
     {% if is_authenticated %}
       <div>
         {% if submission.to_evaluate %}
