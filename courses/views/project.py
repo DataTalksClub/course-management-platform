@@ -210,7 +210,7 @@ def projects_eval_view(request, course_slug, project_slug):
         "project": project,
         "reviews": reviews,
         "is_authenticated": True,
-        "number_of_completed_evaluation": number_of_completed_evaluation
+        "number_of_completed_evaluation": number_of_completed_evaluation,
     }
 
     return render(request, "projects/eval.html", context)
@@ -395,7 +395,9 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         Project, slug=project_slug, course=course
     )
 
-    review_criteria = ReviewCriteria.objects.filter(course=course)
+    review_criteria = ReviewCriteria.objects.filter(
+        course=course
+    ).order_by("id")
 
     if request.method == "POST":
         project_eval_post_submission(
@@ -403,10 +405,9 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         )
 
         return redirect(
-            "projects_eval_submit",
+            "projects_eval",
             course_slug=course_slug,
-            project_slug=project_slug,
-            review_id=review_id,
+            project_slug=project_slug
         )
 
     context = project_eval_build_context(
@@ -448,22 +449,16 @@ def projects_eval_add(
 
 
 @login_required
-def projects_eval_delete(
-    request, course_slug, project_slug, review_id
-):
+def projects_eval_delete(request, course_slug, project_slug, review_id):
     # TODO: only for this user!
 
-    PeerReview.objects.filter(
-        id=review_id,
-        optional=True
-    ).delete()
+    PeerReview.objects.filter(id=review_id, optional=True).delete()
 
     return redirect(
         "project_list",
         course_slug=course_slug,
         project_slug=project_slug,
     )
-
 
 
 def projects_list_view(request, course_slug, project_slug):
