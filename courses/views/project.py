@@ -195,13 +195,22 @@ def projects_eval_view(request, course_slug, project_slug):
     reviews = PeerReview.objects.filter(
         reviewer__in=student_submissions,
         submission_under_evaluation__project=project,
-    )
+    ).order_by("optional")
+
+    number_of_completed_evaluation = 0
+
+    for review in reviews:
+        if review.optional:
+            continue
+        if review.state == PeerReviewState.SUBMITTED.value:
+            number_of_completed_evaluation += 1
 
     context = {
         "course": course,
         "project": project,
         "reviews": reviews,
         "is_authenticated": True,
+        "number_of_completed_evaluation": number_of_completed_evaluation
     }
 
     return render(request, "projects/eval.html", context)
