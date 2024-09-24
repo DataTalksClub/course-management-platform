@@ -23,7 +23,9 @@ def fetch_fresh(obj):
 
 
 credentials = dict(
-    username="test@test.com", email="test@test.com", password="12345"
+    username="test@test.com",
+    email="test@test.com",
+    password="12345",
 )
 
 
@@ -90,9 +92,11 @@ class ProjectViewTestCase(TestCase):
     #     submission = context["submission"]
 
     #     self.assertIsNotNone(submission)
-        # More assertions here for the submission details...
+    # More assertions here for the submission details...
 
-    def test_project_detail_authenticated_certificate_name_is_used(self):
+    def test_project_detail_authenticated_certificate_name_is_used(
+        self,
+    ):
         self.enrollment.display_name = "Display Name"
         self.enrollment.certificate_name = "Certificate Name"
         self.enrollment.save()
@@ -379,7 +383,7 @@ class ProjectViewTestCase(TestCase):
 
         data = {
             "github_link": "https://github.com/alexeygrigorev/404",
-            "commit_id": "1234567"
+            "commit_id": "1234567",
         }
         response = self.client.post(url, data)
 

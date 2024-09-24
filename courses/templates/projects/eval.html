@@ -41,6 +41,11 @@
 
   <div class="text-center mb-2 mt-3">
     Completed {{ number_of_completed_evaluation }} out of {{ project.number_of_peers_to_evaluate }} mandatory project evaluations.
+    {% if number_of_completed_evaluation == project.number_of_peers_to_evaluate %}
+      <span class="badge bg-success">All mandatory evaluations completed!</span>
+    {% else %}
+      Note that in order to pass this project, you need to finish all mandatory evaluations.
+    {% endif %}
   </div>
 
 {% endif %}

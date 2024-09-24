@@ -435,7 +435,7 @@ def projects_eval_add(
         id=submission_id
     )
 
-    review = PeerReview.objects.get_or_create(
+    review, created = PeerReview.objects.get_or_create(
         submission_under_evaluation=submission_under_evaluation,
         reviewer=student_submission,
         optional=True,
@@ -450,9 +450,21 @@ def projects_eval_add(
 
 @login_required
 def projects_eval_delete(request, course_slug, project_slug, review_id):
-    # TODO: only for this user!
+    project = get_object_or_404(
+        Project, course__slug=course_slug, slug=project_slug
+    )
 
-    PeerReview.objects.filter(id=review_id, optional=True).delete()
+    user = request.user
+
+    student_submission = get_object_or_404(
+        ProjectSubmission, project=project, student=user
+    )
+
+    PeerReview.objects.filter(
+        id=review_id,
+        reviewer=student_submission,
+        optional=True,
+    ).delete()
 
     return redirect(
         "project_list",
