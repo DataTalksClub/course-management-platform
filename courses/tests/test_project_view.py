@@ -285,6 +285,52 @@ class ProjectViewTestCase(TestCase):
             submission.faq_contribution, data["faq_contribution"]
         )
 
+    def test_remove_project_submission(self):
+        self.client.login(**credentials)
+
+        # Create an initial submission
+        ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://httpbin.org/status/200",
+            commit_id="123456a",
+        )
+
+        count_sumissions = ProjectSubmission.objects.filter(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+        ).count()
+
+        self.assertEqual(count_sumissions, 1)
+
+
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+
+        data = {
+            "github_link": "https://httpbin.org/status/200",
+            "commit_id": "123456e",
+            "time_spent": "3",
+            "problems_comments": "No issues encountered.",
+            "faq_contribution": "Helped a peer with their problem.",
+            "action": "delete"
+        }
+
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302)
+
+        count_sumissions = ProjectSubmission.objects.filter(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+        ).count()
+
+        self.assertEqual(count_sumissions, 0)
+
+
     # this test requires a redesing of the project view
     # skipping for now
     # def test_submission_exist_post_with_error(self):

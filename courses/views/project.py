@@ -84,6 +84,24 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     )
 
 
+def project_delete_submission(request: HttpRequest, project: Project) -> None:
+    user = request.user
+
+    project_submission = ProjectSubmission.objects.filter(
+        project=project, student=request.user
+    ).first()
+
+    if project_submission:
+        project_submission.delete()
+
+    messages.success(
+        request,
+        "Your project submission is deleted. You can still make a new submission if you want.",
+        extra_tags="homework",
+    )
+
+
+
 def project_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
@@ -122,15 +140,18 @@ def project_view(request, course_slug, project_slug):
                 project_slug=project.slug,
             )
 
-        try:
-            project_submit_post(request, project)
-        except ValidationError as e:
-            for message in e.messages:
-                messages.error(
-                    request,
-                    f"Failed to submit the project: {message}",
-                    extra_tags="alert-danger",
-                )
+        if 'action' in request.POST and request.POST['action'] == 'delete':
+            project_delete_submission(request, project)
+        else:
+            try:
+                project_submit_post(request, project)
+            except ValidationError as e:
+                for message in e.messages:
+                    messages.error(
+                        request,
+                        f"Failed to submit the project: {message}",
+                        extra_tags="alert-danger",
+                    )
 
         return redirect(
             "project",

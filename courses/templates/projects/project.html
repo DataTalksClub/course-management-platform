@@ -55,7 +55,7 @@
 
 <h3 class="mb-3">Project submission</h3>
 
-<form method="post" class="needs-validation" novalidate>
+<form method="post" id="project-form" class="needs-validation" novalidate>
   {% if is_authenticated %}
     {% csrf_token %}
   {% endif %}
@@ -163,16 +163,27 @@
   {% if accepting_submissions %}
     <div class="mt-4 text-center">
       {% if is_authenticated %}
-        <button
+        {% if not submission %}
+          <button
             id="submit-button"
             type="submit"
             class="btn btn-primary">
-          {% if not submission %}
-            Submit
-          {% else %}
-            Update
-          {% endif %}
-        </button>
+              Submit
+          </button>
+        {% else %}
+          <button
+            id="submit-button"
+            type="submit"
+            class="btn btn-primary">
+              Update
+          </button>
+          <button
+            id="delete-button"
+            type="button"
+            class="btn btn-danger">
+              Remove
+          </button>
+        {% endif %}
       {% else %}
         <p>Please <a href="{% url 'login' %}">log in</a> to submit your project.</p>
       {% endif %}
@@ -181,12 +192,38 @@
 </form>
 
 {% if submission %}
-  <p class="text-muted question-text m-0">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+  <p class="text-muted question-text m-0 mt-4">
+    Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}
+  </p>
 {% endif %}
 
 <script>
-  $(function () {
+  $(function() {
     $('[data-toggle="tooltip"]').tooltip()
+  });
+
+  $(document).ready(function() {
+    const $form = $('#project-form');
+    const $updateButton = $('#update-button');
+    const $deleteButton = $('#delete-button');
+
+    $updateButton.on('click', function(e) {
+      e.preventDefault();
+      $form.submit();
+    });
+
+    $deleteButton.on('click', function(e) {
+      e.preventDefault();
+      if (confirm('Are you sure you want to delete your project submission?')) {
+        $('<input>').attr({
+          type: 'hidden',
+          name: 'action',
+          value: 'delete'
+        }).appendTo($form);
+
+        $form.submit();
+      }
+    });
   });
 </script>
 
