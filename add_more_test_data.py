@@ -167,6 +167,8 @@ for user in all_users:
             homework=homework,
             student=user,
             defaults={"enrollment": enrollment},
+            time_spent_lectures=random.randint(0, 10),
+            time_spent_homework=random.randint(0, 10),
         )
 
         if created:

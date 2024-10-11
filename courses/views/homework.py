@@ -1,13 +1,18 @@
 import logging
 
+import statistics
+
 from typing import List, Optional
 
 from django.http import HttpRequest
+
+from django.db.models import Count, Min, Max, Avg
 
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
+
 
 from courses.models import (
     Course,
@@ -19,6 +24,7 @@ from courses.models import (
     QuestionTypes,
     Enrollment,
     User,
+    HomeworkStatistics,
 )
 
 from courses.scoring import is_free_form_answer_correct
@@ -248,9 +254,9 @@ def process_homework_submission(
     submission.save()
 
     success_message = (
-        "Thank you for submitting your homework, now your solution " +
-        "is saved. You can update it at any point. You will see " +
-        "your score after the form is closed."
+        "Thank you for submitting your homework, now your solution "
+        + "is saved. You can update it at any point. You will see "
+        + "your score after the form is closed."
     )
 
     messages.success(
@@ -316,7 +322,7 @@ def homework_detail_build_context_authenticated(
         pair = (question, processed_answer)
         question_answers.append(pair)
 
-    disabled = (homework.state != HomeworkState.OPEN.value)
+    disabled = homework.state != HomeworkState.OPEN.value
     accepting_submissions = homework.state == HomeworkState.OPEN.value
 
     context = {
@@ -378,7 +384,111 @@ def homework_view(
         except ValidationError as e:
             context["errors"] = e.messages
 
-
     return render(request, "homework/homework.html", context)
 
 
+def calculate_statistics(homework_id):
+    submissions = Submission.objects.filter(homework_id=homework_id)
+
+    fields = [
+        "questions_score",
+        "learning_in_public_score",
+        "total_score",
+        "time_spent_lectures",
+        "time_spent_homework",
+    ]
+
+    total_submissions = submissions.count()
+
+    stats_renamed = {"total_submissions": total_submissions}
+
+    nones = {
+        "min": None,
+        "max": None,
+        "avg": None,
+        "q1": None,
+        "median": None,
+        "q3": None,
+    }
+
+    for field in fields:
+        values = list(
+            submissions.exclude(
+                **{f"{field}__isnull": True}
+            ).values_list(field, flat=True)
+        )
+
+        if not values:
+            stats_renamed[field] = nones
+            continue
+
+        quantiles = statistics.quantiles(
+            values, n=4, method="inclusive"
+        )
+
+        stats_renamed[field] = {
+            "min": min(values),
+            "max": max(values),
+            "avg": statistics.mean(values),
+            "q1": quantiles[0],
+            "median": quantiles[1],
+            "q3": quantiles[2],
+        }
+
+        print(f"stats_renamed[{field}]", stats_renamed[field])
+
+    return stats_renamed
+
+
+def homework_statistics(request, course_slug, homework_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+
+    if not homework.is_scored():
+        messages.error(
+            request,
+            "This homework is not scored yet, so there are no available statistics.",
+            extra_tags="homework",
+        )
+        return redirect(
+            "homework",
+            course_slug=course.slug,
+            homework_slug=homework.slug,
+        )
+
+    stats, created = HomeworkStatistics.objects.get_or_create(
+        homework=homework
+    )
+
+    if created:
+        calculated_stats = calculate_statistics(homework.id)
+
+        stats.total_submissions = calculated_stats["total_submissions"]
+
+        for field in [
+            "questions_score",
+            "learning_in_public_score",
+            "total_score",
+            "time_spent_lectures",
+            "time_spent_homework",
+        ]:
+            field_stats = calculated_stats[field]
+
+            setattr(stats, f"min_{field}", field_stats["min"])
+            setattr(stats, f"max_{field}", field_stats["max"])
+            setattr(stats, f"avg_{field}", field_stats["avg"])
+            setattr(stats, f"median_{field}", field_stats["median"])
+            setattr(stats, f"q1_{field}", field_stats["q1"])
+            setattr(stats, f"q3_{field}", field_stats["q3"])
+
+        stats.save()
+
+    context = {
+        "course": course,
+        "homework": homework,
+        "stats": stats,
+    }
+
+    return render(request, "homework/stats.html", context)

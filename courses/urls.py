@@ -28,6 +28,8 @@ urlpatterns = [
         course.enrollment_view,
         name="enrollment",
     ),
+
+    # project
     path(
         "<slug:course_slug>/project/<slug:project_slug>",
         project.project_view,
@@ -63,11 +65,20 @@ urlpatterns = [
         project.projects_eval_delete,
         name="projects_eval_delete",
     ),
+
+    # homework
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>",
         homework.homework_view,
         name="homework",
     ),
+    path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/stats",
+        homework.homework_statistics,
+        name="homework_statistics",
+    ),
+
+    # API
     path(
         "data/<slug:course_slug>/homework/<slug:homework_slug>",
         data.homework_data_view,

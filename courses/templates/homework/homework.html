@@ -41,6 +41,10 @@
         <p>This homework is already scored. You didn't submit your answers.</p>
       </div>
     {% endif %}
+
+    <div class="pb-2">
+      <a href="{% url 'homework_statistics' course.slug homework.slug %}">Homework statistics</a>
+    </div>
   {% endif %}
 
   <div>
