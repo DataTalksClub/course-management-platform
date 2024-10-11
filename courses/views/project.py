@@ -516,6 +516,9 @@ def projects_list_view(request, course_slug, project_slug):
     user = request.user
     is_authenticated = user.is_authenticated
 
+    review_ids = {}
+    own_submissions = set()
+
     if is_authenticated:
         student_submissions = ProjectSubmission.objects.filter(
             project=project, student=user
@@ -528,14 +531,10 @@ def projects_list_view(request, course_slug, project_slug):
             submission_under_evaluation__project=project,
         )
 
-        review_ids = {}
-
         for review in reviews:
             eval_id = review.submission_under_evaluation_id
             review_ids[eval_id] = review
-    else:
-        review_ids = {}
-        own_submissions = set()
+
 
     for submission in submissions:
         if submission.id in review_ids:
