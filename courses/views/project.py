@@ -510,6 +510,9 @@ def projects_list_view(request, course_slug, project_slug):
 
     submissions = ProjectSubmission.objects.filter(project=project)
 
+    if project.state == ProjectState.COMPLETED.value:
+        submissions = submissions.order_by('-project_score')
+
     user = request.user
     is_authenticated = user.is_authenticated
 
@@ -532,6 +535,7 @@ def projects_list_view(request, course_slug, project_slug):
             review_ids[eval_id] = review
     else:
         review_ids = {}
+        own_submissions = set()
 
     for submission in submissions:
         if submission.id in review_ids:
