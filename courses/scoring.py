@@ -391,7 +391,7 @@ def calculate_raw_homework_statistics(homework):
             ).values_list(field, flat=True)
         )
 
-        if not values:
+        if not values or len(values) < 3:
             stats[field] = nones
             continue
 
