@@ -247,6 +247,40 @@ class ProjectActionsTestCase(TestCase):
 
         self.assertEqual(peer_review.optional, True)
 
+    def test_add_optional_project_self_eval_not_possible(self):
+        my_submission = ProjectSubmission.objects.create(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+            github_link=f"https://github.com/{self.user.username}/project",
+        )
+
+        num_submissions = 5
+        self.generate_submissions(num_submissions)
+        other_submission = my_submission
+
+        self.client.login(**credentials)
+
+        eval_url = reverse(
+            "projects_eval_add",
+            args=[
+                self.course.slug,
+                self.project.slug,
+                other_submission.id,
+            ],
+        )
+
+        response = self.client.get(eval_url)
+        self.assertEqual(response.status_code, 302)
+
+        peer_reviews = PeerReview.objects.filter(
+            reviewer=my_submission,
+            submission_under_evaluation=other_submission,
+        )
+
+        self.assertFalse(peer_reviews.exists())
+
+
     def test_delete_optional_project_eval_non_optional(self):
         my_submission = ProjectSubmission.objects.create(
             student=self.user,

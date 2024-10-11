@@ -452,6 +452,14 @@ def projects_eval_add(
         project=project, student=user
     )
 
+    if student_submission.id == submission_id:
+        # don't allow self-evaluation
+        return redirect(
+            "project_list",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
+
     submission_under_evaluation = ProjectSubmission.objects.get(
         id=submission_id
     )
@@ -510,6 +518,8 @@ def projects_list_view(request, course_slug, project_slug):
             project=project, student=user
         )
 
+        own_submissions = set(student_submissions.values_list("id", flat=True))
+
         reviews = PeerReview.objects.filter(
             reviewer__in=student_submissions,
             submission_under_evaluation__project=project,
@@ -529,6 +539,8 @@ def projects_list_view(request, course_slug, project_slug):
             submission.review = review_ids[submission.id]
         else:
             submission.to_evaluate = False
+
+        submission.own = submission.id in own_submissions
 
     context = {
         "course": course,

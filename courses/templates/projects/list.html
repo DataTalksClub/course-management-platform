@@ -35,9 +35,13 @@
             Evaluate <span class="badge bg-light text-dark">{{ submission.review.get_state_display }}</span>
           </a>
         {% else %}
-          <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')" class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-plus"></i> Add to Evaluation
-          </button>
+          {% if submission.own %}
+            Your project
+          {% else %}
+            <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-plus"></i> Add to Evaluation
+            </button>
+          {% endif %}
         {% endif %}
       </div>
     {% endif %}
