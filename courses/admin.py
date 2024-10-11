@@ -1,7 +1,10 @@
 from django import forms
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
-from unfold.widgets import UnfoldAdminTextInputWidget, UnfoldAdminTextareaWidget
+from unfold.widgets import (
+    UnfoldAdminTextInputWidget,
+    UnfoldAdminTextareaWidget,
+)
 from django.contrib import messages
 
 from .models import (
@@ -10,12 +13,14 @@ from .models import (
     Question,
     Project,
     ReviewCriteria,
+    HomeworkState,
 )
 
 from .scoring import (
     score_homework_submissions,
     update_leaderboard,
     fill_correct_answers,
+    calculate_homework_statistics,
 )
 
 from .projects import (
@@ -31,11 +36,15 @@ class QuestionForm(forms.ModelForm):
         fields = "__all__"
         widgets = {
             "text": UnfoldAdminTextInputWidget(attrs={"size": "60"}),
-            "possible_answers": UnfoldAdminTextareaWidget(attrs={"cols": 60, "rows": 4}),
-            "correct_answer": UnfoldAdminTextInputWidget(attrs={"size": "20"}),
+            "possible_answers": UnfoldAdminTextareaWidget(
+                attrs={"cols": 60, "rows": 4}
+            ),
+            "correct_answer": UnfoldAdminTextInputWidget(
+                attrs={"size": "20"}
+            ),
         }
-        
-    
+
+
 class QuestionInline(TabularInline):
     model = Question
     form = QuestionForm
@@ -46,9 +55,13 @@ def score_selected_homeworks(modeladmin, request, queryset):
     for homework in queryset:
         status, message = score_homework_submissions(homework.id)
         if status:
-            modeladmin.message_user(request, message, level=messages.SUCCESS)
+            modeladmin.message_user(
+                request, message, level=messages.SUCCESS
+            )
         else:
-            modeladmin.message_user(request, message, level=messages.WARNING)
+            modeladmin.message_user(
+                request, message, level=messages.WARNING
+            )
 
 
 score_selected_homeworks.short_description = "Score selected homeworks"
@@ -69,10 +82,40 @@ set_most_popular_as_correct.short_description = (
 )
 
 
+def calculate_statistics_selected_homeworks(
+    modeladmin, request, queryset
+):
+    for homework in queryset:
+        if homework.state != HomeworkState.SCORED.value:
+            modeladmin.message_user(
+                request,
+                f"Cannot calculate statistics for {homework} "
+                "because it has not been scored",
+                level=messages.WARNING,
+            )
+            continue
+
+        calculate_homework_statistics(homework, force=True)
+
+        message = f"Statistics calculated for {homework}"
+        modeladmin.message_user(
+            request, message, level=messages.SUCCESS
+        )
+
+
+calculate_statistics_selected_homeworks.short_description = (
+    "Calculate statistics"
+)
+
+
 @admin.register(Homework)
 class HomeworkAdmin(ModelAdmin):
     inlines = [QuestionInline]
-    actions = [score_selected_homeworks, set_most_popular_as_correct]
+    actions = [
+        score_selected_homeworks,
+        set_most_popular_as_correct,
+        calculate_statistics_selected_homeworks,
+    ]
     list_display = ["title", "course", "due_date", "state"]
     list_filter = ["course__slug"]
 
@@ -82,11 +125,14 @@ class CriteriaForm(forms.ModelForm):
         model = ReviewCriteria
         fields = "__all__"
         widgets = {
-            "description": UnfoldAdminTextInputWidget(attrs={"size": "60"}),
+            "description": UnfoldAdminTextInputWidget(
+                attrs={"size": "60"}
+            ),
             "options": UnfoldAdminTextareaWidget(
                 attrs={"cols": 60, "rows": 4}
-            )
+            ),
         }
+
 
 class CriteriaInline(TabularInline):
     model = ReviewCriteria
@@ -105,6 +151,7 @@ def update_leaderboard_admin(modeladmin, request, queryset):
 
 
 update_leaderboard_admin.short_description = "Update leaderboard"
+
 
 @admin.register(Course)
 class CourseAdmin(ModelAdmin):
@@ -133,7 +180,6 @@ assign_peer_reviews_for_project_admin.short_description = (
 )
 
 
-
 def score_projects_admin(modeladmin, request, queryset):
     for project in queryset:
         status, message = score_project(project)
@@ -145,9 +191,10 @@ def score_projects_admin(modeladmin, request, queryset):
             modeladmin.message_user(
                 request, message, level=messages.WARNING
             )
-        
+
 
 score_projects_admin.short_description = "Score projects"
+
 
 @admin.register(Project)
 class ProjectAdmin(ModelAdmin):
@@ -158,7 +205,6 @@ class ProjectAdmin(ModelAdmin):
 
     list_display = ["title", "course", "state"]
     list_filter = ["course__slug"]
-
 
 
 @admin.register(ReviewCriteria)

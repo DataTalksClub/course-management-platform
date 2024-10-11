@@ -1,18 +1,13 @@
 import logging
 
-import statistics
-
 from typing import List, Optional
 
 from django.http import HttpRequest
-
-from django.db.models import Count, Min, Max, Avg
 
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
-
 
 from courses.models import (
     Course,
@@ -27,7 +22,7 @@ from courses.models import (
     HomeworkStatistics,
 )
 
-from courses.scoring import is_free_form_answer_correct
+from courses.scoring import is_free_form_answer_correct, calculate_homework_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -387,58 +382,6 @@ def homework_view(
     return render(request, "homework/homework.html", context)
 
 
-def calculate_statistics(homework_id):
-    submissions = Submission.objects.filter(homework_id=homework_id)
-
-    fields = [
-        "questions_score",
-        "learning_in_public_score",
-        "total_score",
-        "time_spent_lectures",
-        "time_spent_homework",
-    ]
-
-    total_submissions = submissions.count()
-
-    stats_renamed = {"total_submissions": total_submissions}
-
-    nones = {
-        "min": None,
-        "max": None,
-        "avg": None,
-        "q1": None,
-        "median": None,
-        "q3": None,
-    }
-
-    for field in fields:
-        values = list(
-            submissions.exclude(
-                **{f"{field}__isnull": True}
-            ).values_list(field, flat=True)
-        )
-
-        if not values:
-            stats_renamed[field] = nones
-            continue
-
-        quantiles = statistics.quantiles(
-            values, n=4, method="inclusive"
-        )
-
-        stats_renamed[field] = {
-            "min": min(values),
-            "max": max(values),
-            "avg": statistics.mean(values),
-            "q1": quantiles[0],
-            "median": quantiles[1],
-            "q3": quantiles[2],
-        }
-
-        print(f"stats_renamed[{field}]", stats_renamed[field])
-
-    return stats_renamed
-
 
 def homework_statistics(request, course_slug, homework_slug):
     course = get_object_or_404(Course, slug=course_slug)
@@ -458,32 +401,7 @@ def homework_statistics(request, course_slug, homework_slug):
             homework_slug=homework.slug,
         )
 
-    stats, created = HomeworkStatistics.objects.get_or_create(
-        homework=homework
-    )
-
-    if created:
-        calculated_stats = calculate_statistics(homework.id)
-
-        stats.total_submissions = calculated_stats["total_submissions"]
-
-        for field in [
-            "questions_score",
-            "learning_in_public_score",
-            "total_score",
-            "time_spent_lectures",
-            "time_spent_homework",
-        ]:
-            field_stats = calculated_stats[field]
-
-            setattr(stats, f"min_{field}", field_stats["min"])
-            setattr(stats, f"max_{field}", field_stats["max"])
-            setattr(stats, f"avg_{field}", field_stats["avg"])
-            setattr(stats, f"median_{field}", field_stats["median"])
-            setattr(stats, f"q1_{field}", field_stats["q1"])
-            setattr(stats, f"q3_{field}", field_stats["q3"])
-
-        stats.save()
+    stats = calculate_homework_statistics(homework, force=False)
 
     context = {
         "course": course,
