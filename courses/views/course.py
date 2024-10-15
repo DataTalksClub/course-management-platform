@@ -32,9 +32,26 @@ logger = logging.getLogger(__name__)
 
 
 def course_list(request):
-    courses = Course.objects.all()
+    courses = Course.objects.all().order_by("-id")
+
+    active_courses = []
+    finished_courses = []
+
+    for course in courses:
+        if course.finished:
+            finished_courses.append(course)
+        else:
+            active_courses.append(course)
+
+    context = {
+        "active_courses": active_courses,
+        "finished_courses": finished_courses,
+    }
+
     return render(
-        request, "courses/course_list.html", {"courses": courses}
+        request,
+        "courses/course_list.html",
+        context,
     )
 
 

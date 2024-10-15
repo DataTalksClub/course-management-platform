@@ -48,6 +48,7 @@ course = Course(
     title="Fake Course",
     description="This is a fake course.",
     slug="fake-course",
+    finished=False,
 )
 course.save()
 
@@ -386,3 +387,11 @@ for criterion in criteria_data:
         options=criterion["options"],
     )
 
+
+course2 = Course(
+    title="Fake Course 2",
+    description="This is a fake course.",
+    slug="fake-course-2",
+    finished=True,
+)
+course2.save()

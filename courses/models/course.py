@@ -30,6 +30,12 @@ class Course(models.Model):
         + "We use that for deciding whether to show the leaderboard.",
     )
 
+    finished = models.BooleanField(
+        default=False,
+        blank=False,
+        help_text="Whether the course has finished.",
+    )
+
     faq_document_url = models.URLField(
         blank=True,
         validators=[URLValidator()],

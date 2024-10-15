@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 
 {% load static %}
+{% load custom_filters %}
+
 
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
@@ -48,7 +50,7 @@
   {% endif %}
 
   <div>
-    <p class="text-muted">{{ homework.description }}</p>
+    <p class="text-muted">{{ homework.description | urlize_target_blank }}</p>
   </div>
 
   <div>
