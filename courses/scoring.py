@@ -6,7 +6,7 @@ from enum import Enum
 from collections import defaultdict
 
 from django.utils import timezone
-from django.db.models import Sum, Count, Min, Max, Avg
+from django.db.models import Sum, Count
 
 from django.db import transaction
 
