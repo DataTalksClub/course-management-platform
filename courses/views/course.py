@@ -82,7 +82,22 @@ def get_projects_for_course(
 
 
 def update_project_with_additional_info(project: Project) -> None:
-    days_until_due = 0
+    days_until_submission_due = 0
+
+    if project.submission_due_date > timezone.now():
+        days_until_submission_due = (
+            project.submission_due_date - timezone.now()
+        ).days
+
+    project.days_until_submission_due = days_until_submission_due
+
+    days_until_pr_due = 0
+    if project.peer_review_due_date > timezone.now():
+        days_until_pr_due = (
+            project.peer_review_due_date - timezone.now()
+        ).days
+
+    project.days_until_pr_due = days_until_pr_due
 
     project.badge_state_name = "Not submitted"
     project.badge_css_class = "bg-secondary"
@@ -92,16 +107,8 @@ def update_project_with_additional_info(project: Project) -> None:
     if project.state == ProjectState.CLOSED.value:
         project.badge_state_name = "Closed"
     elif project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        if project.submission_due_date > timezone.now():
-            days_until_due = (
-                project.submission_due_date - timezone.now()
-            ).days
-
-        project.days_until_due = days_until_due
-
         project.badge_state_name = "Open"
         project.badge_css_class = "bg-warning"
-
     elif project.state == ProjectState.PEER_REVIEWING.value:
         pass
     elif project.state == ProjectState.COMPLETED.value:
