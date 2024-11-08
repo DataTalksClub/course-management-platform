@@ -78,9 +78,18 @@
 
 {% endif %}
 
+<div class="text-center mb-4">
+  <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}"
+      class="btn btn-secondary mt-3">
+    See all projects
+  </a>
+</div>
+
+
 <div class="text-center">
   Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
 </div>
+
 
 
 {% endblock %}
