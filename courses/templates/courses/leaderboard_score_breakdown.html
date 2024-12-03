@@ -1,60 +1,115 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
 {% block breadcrumbs %}
   <li><a href="{% url 'course' enrollment.course.slug %}">{{ enrollment.course.title }}</a></li>
   <li><a href="{% url 'leaderboard' enrollment.course.slug %}">Leaderboard</a></li>
 {% endblock %}
 
 {% block content %}
-  <h2>Leaderboard Detail for {{ enrollment.display_name }}</h2>
-  <h3>Course: {{ enrollment.course.title }}</h3>
-  <p>Total Score: {{ enrollment.total_score }}</p>
 
-  <h4>Submissions</h4>
-  <ul>
-    {% for submission in submissions %}
-      {% if submission.homework.is_scored %}
-      <li>
-        <strong>Homework:</strong> {{ submission.homework.title }}<br>
-        <strong>Questions Score:</strong> {{ submission.questions_score }}<br>
-        <strong>FAQ Score:</strong> {{ submission.faq_score }}<br>
-        <strong>Learning in Public Score:</strong> {{ submission.learning_in_public_score }}<br>
-        <strong>Total Score:</strong> {{ submission.total_score }}
-      </li>
-      {% else %}
-      <li>
-        <strong>Homework:</strong> {{ submission.homework.title }}<br>
-        Not scored yet
-      </li>
+<h2>{{ enrollment.display_name }}</h2>
+
+{% if enrollment.about_me %}
+  <p><strong>About me:</strong> {{enrollment.about_me}}</p>
+{% endif %}
+
+<p>
+  {% if enrollment.github_url %}
+    <a href="{{ enrollment.github_url }}" target="_blank"><i class="fab fa-github social-icon"></i></a>
+  {% endif %}
+  {% if enrollment.linkedin_url %}
+    <a href="{{ enrollment.linkedin_url }}" target="_blank"><i class="fab fa-linkedin social-icon"></i></a>
+  {% endif %}
+  {% if enrollment.personal_website_url %}
+    <a href="{{ enrollment.personal_website_url }}" target="_blank"><i class="fas fa-globe social-icon"></i></a>
+  {% endif %}
+</p>
+
+<p><strong>Total Score:</strong> {{ enrollment.total_score }}</p>
+
+<h3 class="mt-4">Homework submissions</h3>
+{% for submission in submissions %}
+  {% if submission.homework.is_scored %}
+    <div class="mb-3 pb-3">
+      <h4>{{ submission.homework.title }}</h4>
+      <p>
+        <strong>Score:</strong> {{ submission.total_score }} =
+        {{ submission.questions_score }} <span class="text-muted">(questions)</span> +
+        {{ submission.faq_score }} <span class="text-muted">(FAQ)</span> +
+        {{ submission.learning_in_public_score }} <span class="text-muted">(learning in public)</span>
+      </p>
+      {% if submission.homework_link %}
+        <p><strong>Homework URL:</strong> <a href="{{ submission.homework_link }}" target="_blank">View submission</a></p>
       {% endif %}
-    {% empty %}
-      <li>No submissions found.</li>
-    {% endfor %}
-  </ul>
-
-  <h4>Project submissions</h4>
-  <ul>
-    {% for submission in project_submissions %}
-      {% if submission.project.state == 'CO' %}
-      <li>
-        <strong>Project:</strong> {{ submission.project.title }}<br>
-        <strong>Project score:</strong> {{ submission.project_score }}<br>
-        <strong>Peer review score:</strong> {{ submission.peer_review_score }}<br>
-        <strong>Learning in public (project):</strong> {{ submission.project_learning_in_public_score }}<br>
-        <strong>Learning in public (peer review):</strong> {{ submission.peer_review_learning_in_public_score }}<br>
-        <strong>FAQ contribution score:</strong> {{ submission.project_faq_score }}<br>
-        <strong>Total score:</strong> {{ submission.total_score }}
-      </li>
-      {% else %}
-      <li>
-        <strong>Project:</strong> {{ submission.project.title }}<br>
-        Not scored yet
-      </li>
+      {% if submission.learning_in_public_links %}
+        <p>
+          <strong>Learning in public links:</strong>
+          <span class="toggle-lip" data-target="lip-links-hw-{{ forloop.counter }}">
+            <i class="fas fa-chevron-down"></i> <span class="fas-show">Show</span>
+          </span>
+        </p>
+        <ul id="lip-links-hw-{{ forloop.counter }}" class="lip-links">
+          {% for link in submission.learning_in_public_links %}
+            <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
+          {% endfor %}
+        </ul>
       {% endif %}
-    {% empty %}
-      <li>No submissions found.</li>
-    {% endfor %}
-  </ul>
+    </div>
+  {% endif %}
+{% empty %}
+  <p>No submissions yet.</p>
+{% endfor %}
 
+<h3 class="mt-4">Project submissions</h3>
+{% for submission in project_submissions %}
+  {% if submission.project.state == 'CO' %}
+  <div class="mb-3 pb-3">
+    <h4>{{ submission.project.title }}</h4>
+      <p>
+        <strong>Project score:</strong> {{ submission.project_score }}
+        {% if submission.passed %}
+          <span class="badge bg-success">Passed</span>
+        {% else %}
+          <span class="badge bg-danger">Failed</span>
+        {% endif %}
+      </p>
+      <p>
+        <strong>Score:</strong> {{ submission.total_score }} = 
+        {{ submission.project_score }} <span class="text-muted">(project)</span> +
+        {{ submission.peer_review_score }} <span class="text-muted">(peer review)</span> +
+        {{ submission.project_learning_in_public_score }} <span class="text-muted">(learning in public / project)</span> +
+        {{ submission.peer_review_learning_in_public_score }} <span class="text-muted">(learning in public / peer review)</span> +
+        {{ submission.project_faq_score }} <span class="text-muted">(FAQ)</span>
+      </p>
+      {% if submission.github_link %}
+        <p><strong>Project URL:</strong> <a href="{{ submission.github_link }}" target="_blank">View project</a></p>
+      {% endif %}
+      {% if submission.learning_in_public_links %}
+        <p>
+          <strong>Learning in public links:</strong>
+          <span class="toggle-lip" data-target="lip-links-project-{{ forloop.counter }}">
+            <i class="fas fa-chevron-down"></i> <span class="fas-show">Show</span>
+          </span>
+        </p>
+        <ul id="lip-links-project-{{ forloop.counter }}" class="lip-links">
+          {% for link in submission.learning_in_public_links %}
+            <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+{% endif %}
+
+{% empty %}
+  <p>No project submissions found.</p>
+{% endfor %}
+
+<div class="mt-4 text-center">
+  <a href="{% url 'leaderboard' enrollment.course.slug %}" class="btn btn-secondary">Back to Leaderboard</a>
+</div>
+
+<script src="{% static 'leaderboard.js' %}"></script>
 
 {% endblock %}

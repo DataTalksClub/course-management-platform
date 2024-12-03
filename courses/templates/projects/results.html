@@ -15,8 +15,11 @@
   <div class="alert alert-info" role="alert">
     <p>Please <a href="{% url 'login' %}">log in</a> to see the results of your projects.</p>
   </div>
+{% elif not submission %}
+  <div class="alert alert-info" role="alert">
+    <p>You didn't make a submission for this project.</p>
+  </div>
 {% else %}
-
   <div class="card m-4">
     <div class="card-body">
       <ul>
@@ -70,8 +73,23 @@
   </div>
 
   <div class="text-center">
-    Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+    <a href="{% url 'project_list' course.slug project.slug %}">See all projects</a>
   </div>
+
 {% endif %}
+
+<div class="text-center mb-4">
+  <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}"
+      class="btn btn-secondary mt-3">
+    See all projects
+  </a>
+</div>
+
+
+<div class="text-center">
+  Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+</div>
+
+
 
 {% endblock %}

@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 
 {% load static %}
+{% load custom_filters %}
+
 
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
@@ -8,7 +10,10 @@
 
 {% block content %}
 
-  <h2 class="mb-3 text-center">{{ homework.title }} for <a href="{% url 'course' course.slug %}">{{ course.title }}</a></h2>
+  <h2 class="mb-3 text-center">
+    {{ homework.title }} for
+    <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+  </h2>
 
   {% if messages %}
     {% for message in messages %}
@@ -38,14 +43,18 @@
         <p>This homework is already scored. You didn't submit your answers.</p>
       </div>
     {% endif %}
+
+    <div class="pb-2">
+      <a href="{% url 'homework_statistics' course.slug homework.slug %}">Homework statistics</a>
+    </div>
   {% endif %}
 
   <div>
-    <p class="text-muted">{{ homework.description }}</p>
+    <p class="text-muted">{{ homework.description | urlize_target_blank }}</p>
   </div>
 
   <div>
-    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c"}}</span> (local time)</p>
+    <p>Due date: <span class="local-date">{{ homework.due_date |date:"c" }}</span> (local time)</p>
   </div>
 
   {% if not is_authenticated %}
@@ -65,10 +74,14 @@
       <div class="mb-3 question">
         <p class="question-text">
           Question {{ forloop.counter }}. {{ question.text }}
-          <span class="text-muted">
-            ({{ question.scores_for_correct_answer }}
-            {{ question.scores_for_correct_answer|pluralize:"point,points" }})
-          </span>
+          {% if question.scores_for_correct_answer != 0 %}
+            <span class="text-muted">
+              ({{ question.scores_for_correct_answer }}
+              {{ question.scores_for_correct_answer|pluralize:"point,points" }})
+            </span>
+          {% else %}
+            <span class="text-muted">(not graded)</span>
+          {% endif %}
         </p>
 
         {% if question.question_type == 'MC' %}
@@ -188,20 +201,6 @@
       </div>
     {% endif %}
 
-    {% if homework.problems_comments_field %}
-      <div class="mb-3 question">
-        <label for="problems_comments" class="question-text">
-          Problems or comments <span class="text-muted">(optional)</span>
-        </label>
-        <textarea
-          class="form-control"
-          name="problems_comments"
-          id="problems_comments"
-          {% if disabled %} disabled {% endif %}
-        >{{ submission.problems_comments|default:'' }}</textarea>
-      </div>
-    {% endif %}
-
     {% if course.faq_document_url and homework.faq_contribution_field %}
       <div class="mb-3 question">
         <label for="faq_contribution" class="question-text">
@@ -243,7 +242,9 @@
   </form>
 
   {% if submission %}
-    <p class="text-muted question-text m-0">Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+    <p class="text-muted question-text m-0">Status: Submitted at {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+  {% else %}
+    <p class="text-muted question-text m-0">Status: Not submitted</p>
   {% endif %}
 
   <script>

@@ -7,7 +7,7 @@ from django.http import HttpRequest
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-
+from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
 
 from courses.models import (
@@ -45,7 +45,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
             student=user,
             course=project.course,
         )
-        project_submission = ProjectSubmission.objects.create(
+        project_submission = ProjectSubmission(
             project=project,
             student=user,
             enrollment=enrollment,
@@ -74,6 +74,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         faq_contribution = request.POST.get("faq_contribution", "")
         project_submission.faq_contribution = faq_contribution.strip()
 
+    project_submission.full_clean()
     project_submission.save()
 
     messages.success(
@@ -81,6 +82,24 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         "Thank you for submitting your project, it is now saved. You can update your submission at any point before the due date.",
         extra_tags="homework",
     )
+
+
+def project_delete_submission(request: HttpRequest, project: Project) -> None:
+    user = request.user
+
+    project_submission = ProjectSubmission.objects.filter(
+        project=project, student=request.user
+    ).first()
+
+    if project_submission:
+        project_submission.delete()
+
+    messages.success(
+        request,
+        "Your project submission is deleted. You can still make a new submission if you want.",
+        extra_tags="homework",
+    )
+
 
 
 def project_view(request, course_slug, project_slug):
@@ -121,7 +140,18 @@ def project_view(request, course_slug, project_slug):
                 project_slug=project.slug,
             )
 
-        project_submit_post(request, project)
+        if 'action' in request.POST and request.POST['action'] == 'delete':
+            project_delete_submission(request, project)
+        else:
+            try:
+                project_submit_post(request, project)
+            except ValidationError as e:
+                for message in e.messages:
+                    messages.error(
+                        request,
+                        f"Failed to submit the project: {message}",
+                        extra_tags="alert-danger",
+                    )
 
         return redirect(
             "project",
@@ -130,11 +160,21 @@ def project_view(request, course_slug, project_slug):
         )
 
     project_submission = None
+    ceritificate_name = None
 
     if is_authenticated:
         project_submission = ProjectSubmission.objects.filter(
             project=project, student=request.user
         ).first()
+
+        enrollment, _ = Enrollment.objects.get_or_create(
+            student=user,
+            course=course,
+        )
+
+        ceritificate_name = (
+            enrollment.certificate_name or enrollment.display_name
+        )
 
     disabled = not accepting_submissions
 
@@ -145,6 +185,7 @@ def project_view(request, course_slug, project_slug):
         "is_authenticated": is_authenticated,
         "disabled": disabled,
         "accepting_submissions": accepting_submissions,
+        "ceritificate_name": ceritificate_name,
     }
 
     return render(request, "projects/project.html", context)
@@ -175,13 +216,22 @@ def projects_eval_view(request, course_slug, project_slug):
     reviews = PeerReview.objects.filter(
         reviewer__in=student_submissions,
         submission_under_evaluation__project=project,
-    )
+    ).order_by("optional")
+
+    number_of_completed_evaluation = 0
+
+    for review in reviews:
+        if review.optional:
+            continue
+        if review.state == PeerReviewState.SUBMITTED.value:
+            number_of_completed_evaluation += 1
 
     context = {
         "course": course,
         "project": project,
         "reviews": reviews,
         "is_authenticated": True,
+        "number_of_completed_evaluation": number_of_completed_evaluation,
     }
 
     return render(request, "projects/eval.html", context)
@@ -366,7 +416,9 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         Project, slug=project_slug, course=course
     )
 
-    review_criteria = ReviewCriteria.objects.filter(course=course)
+    review_criteria = ReviewCriteria.objects.filter(
+        course=course
+    ).order_by("id")
 
     if request.method == "POST":
         project_eval_post_submission(
@@ -374,10 +426,9 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         )
 
         return redirect(
-            "projects_eval_submit",
+            "projects_eval",
             course_slug=course_slug,
-            project_slug=project_slug,
-            review_id=review_id,
+            project_slug=project_slug
         )
 
     context = project_eval_build_context(
@@ -386,3 +437,119 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     context["course"] = course
 
     return render(request, "projects/eval_submit.html", context)
+
+
+@login_required
+def projects_eval_add(
+    request, course_slug, project_slug, submission_id
+):
+    user = request.user
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    student_submission = ProjectSubmission.objects.get(
+        project=project, student=user
+    )
+
+    if student_submission.id == submission_id:
+        # don't allow self-evaluation
+        return redirect(
+            "project_list",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
+
+    submission_under_evaluation = ProjectSubmission.objects.get(
+        id=submission_id
+    )
+
+    review, created = PeerReview.objects.get_or_create(
+        submission_under_evaluation=submission_under_evaluation,
+        reviewer=student_submission,
+        optional=True,
+    )
+
+    return redirect(
+        "project_list",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+
+
+@login_required
+def projects_eval_delete(request, course_slug, project_slug, review_id):
+    project = get_object_or_404(
+        Project, course__slug=course_slug, slug=project_slug
+    )
+
+    user = request.user
+
+    student_submission = get_object_or_404(
+        ProjectSubmission, project=project, student=user
+    )
+
+    PeerReview.objects.filter(
+        id=review_id,
+        reviewer=student_submission,
+        optional=True,
+    ).delete()
+
+    return redirect(
+        "project_list",
+        course_slug=course_slug,
+        project_slug=project_slug,
+    )
+
+
+def projects_list_view(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    submissions = ProjectSubmission.objects.filter(project=project)
+
+    if project.state == ProjectState.COMPLETED.value:
+        submissions = submissions.order_by('-project_score')
+
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    review_ids = {}
+    own_submissions = set()
+
+    if is_authenticated:
+        student_submissions = ProjectSubmission.objects.filter(
+            project=project, student=user
+        )
+
+        own_submissions = set(student_submissions.values_list("id", flat=True))
+
+        reviews = PeerReview.objects.filter(
+            reviewer__in=student_submissions,
+            submission_under_evaluation__project=project,
+        )
+
+        for review in reviews:
+            eval_id = review.submission_under_evaluation_id
+            review_ids[eval_id] = review
+
+
+    for submission in submissions:
+        if submission.id in review_ids:
+            submission.to_evaluate = True
+            submission.review = review_ids[submission.id]
+        else:
+            submission.to_evaluate = False
+
+        submission.own = submission.id in own_submissions
+
+    context = {
+        "course": course,
+        "project": project,
+        "submissions": submissions,
+        "is_authenticated": is_authenticated,
+    }
+
+    return render(request, "projects/list.html", context)

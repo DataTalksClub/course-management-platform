@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
+
 {% load tz %}
+{% load custom_filters %}
 
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
@@ -9,7 +11,7 @@
 <h2>{{ course.title }}</h2>
 
 <div>
-  <p>{{ course.description }}</p>
+  <p>{{ course.description | urlize_target_blank }}</p>
 </div>
 
 <div>
@@ -91,15 +93,25 @@
           {{ project.title }}
         {% endif %}
       </div>
-      <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_due }} days left">
-        {% if project.state == 'CS' %}
+      {% if project.state == 'CS' or project.state == 'CL' %}
+        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_submission_due }} days left to submit your project">
           <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
-        {% else %}
+        </div>
+      {% elif project.state == 'PR' %}
+        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_pr_due }} days left to review your peers">
           <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
-        {% endif %}
-      </div>
+        </div>
+      {% elif project.state == 'CO' %}
+        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="Project is completed">
+          <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
+        </div>
+      {% else %}
+        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_submission_due }} days left to submit your project">
+          <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
+        </div>
+      {% endif %}
       <div class="col-3 text-md-right">
-        <span class="badge {{ project.status_badge_class }}">{{ project.get_project_state_name }}</span>
+        <span class="badge {{ project.badge_css_class }}">{{ project.badge_state_name }}</span>
       </div>
     </div>
   </div>

@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+
+
+<h2 class="mb-3 text-center">Projects of {{ project.title }}</h2>
+
+{% if project.state == 'CL' %}
+  <div>
+    The project is closed. Come back later to see the submissions.
+  </div>
+
+{% else %}
+
+  {% for submission in submissions %}
+  <div class="p-2 border-bottom {% cycle 'bg-white' 'bg-light' %}">
+    <div class="d-flex justify-content-between align-items-center text-decoration-none">
+      <a href="{{ submission.github_link }}" target="_blank">
+        <div>
+          {{ submission.enrollment.display_name }}
+          <span
+              class="ms-2"
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
+              title="{{ submission.github_link }}">
+            <i class="fas fa-external-link-alt"></i>
+          </span>
+        </div>
+      </a>
+      
+      <div>
+        {% if is_authenticated and project.state == 'PR' %}
+          {% if submission.to_evaluate %}
+            <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}" class="btn btn-primary btn-sm">
+              Evaluate <span class="badge bg-light text-dark">{{ submission.review.get_state_display }}</span>
+            </a>
+          {% elif submission.own %}
+            Your project
+          {% else %}
+            <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-plus"></i> Add to Evaluation
+            </button>
+          {% endif %}
+        {% elif project.state == 'CO' %}
+          {{ submission.project_score }}  
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<script>
+function confirmEvaluation(url) {
+  if (confirm('Are you sure you want to add this project to the list of projects you need to evaluate?')) {
+    window.location.href = url;
+  }
+}
+</script>
+
+{% endblock %}

@@ -17,7 +17,7 @@
 {% endfor %}
 {% endif %}
 
-<h2 class="mb-3 text-center">Projects to evaluate for {{ project.title }}</h2>
+<h2 class="mb-3 text-center">Evaluations for {{ project.title }}</h2>
 
 {% if not is_authenticated %}
   <div class="alert alert-info" role="alert">
@@ -26,13 +26,36 @@
 {% else %}
   <div class="list-group">
     {% for review in reviews %}
-      <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="list-group-item list-group-item-action">
-        Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
-        <span class="badge badge-primary badge-pill">Review State: {{ review.get_state_display }}</span>
+      <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}"
+          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <div>
+          Evaluate: {{ review.submission_under_evaluation.enrollment.display_name }}'s Submission
+          {% if review.optional %}
+            <span class="badge bg-info text-dark ms-2">Optional</span>
+          {% endif %}
+        </div>
+        <span class="badge badge-primary badge-pill">{{ review.get_state_display }}</span>
       </a>
     {% endfor %}
   </div>
 
+  <div class="text-center mb-2 mt-3">
+    Completed {{ number_of_completed_evaluation }} out of {{ project.number_of_peers_to_evaluate }} mandatory project evaluations.
+    {% if number_of_completed_evaluation == project.number_of_peers_to_evaluate %}
+      <span class="badge bg-success">All mandatory evaluations completed!</span>
+    {% else %}
+      Note that in order to pass this project, you need to finish all mandatory evaluations.
+    {% endif %}
+  </div>
+
 {% endif %}
+
+<div class="text-center">
+  <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}"
+      class="btn btn-secondary mt-3">
+    See all projects
+  </a>
+</div>
+
 
 {% endblock %}

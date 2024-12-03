@@ -1,8 +1,12 @@
-{
-    "python.analysis.typeCheckingMode": "basic",
-    "python.testing.pytestArgs": [
-        "-s"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
-}
+    {
+        "python.analysis.typeCheckingMode": "basic",
+        "python.testing.pytestArgs": [
+            ".",
+            "-v",
+            "-s"
+        ],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": true,
+        "python.envFile": "${workspaceFolder}/.vscode_env",
+        "makefile.configureOnOpen": false
+    }

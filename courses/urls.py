@@ -28,10 +28,17 @@ urlpatterns = [
         course.enrollment_view,
         name="enrollment",
     ),
+
+    # project
     path(
         "<slug:course_slug>/project/<slug:project_slug>",
         project.project_view,
         name="project",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/list",
+        project.projects_list_view,
+        name="project_list",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval",
@@ -49,13 +56,37 @@ urlpatterns = [
         name="projects_eval_submit",
     ),
     path(
+        "<slug:course_slug>/project/<slug:project_slug>/eval/add/<int:submission_id>",
+        project.projects_eval_add,
+        name="projects_eval_add",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/eval/delete/<int:review_id>",
+        project.projects_eval_delete,
+        name="projects_eval_delete",
+    ),
+
+    # homework
+    path(
         "<slug:course_slug>/homework/<slug:homework_slug>",
         homework.homework_view,
         name="homework",
     ),
     path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/stats",
+        homework.homework_statistics,
+        name="homework_statistics",
+    ),
+
+    # API
+    path(
         "data/<slug:course_slug>/homework/<slug:homework_slug>",
         data.homework_data_view,
         name="data_homework",
+    ),
+    path(
+        "data/<slug:course_slug>/project/<slug:project_slug>",
+        data.project_data_view,
+        name="data_project",
     ),
 ]

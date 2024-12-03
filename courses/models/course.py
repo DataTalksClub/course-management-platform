@@ -1,12 +1,9 @@
 from django.db import models
 
 from django.core.validators import URLValidator
-
 from django.contrib.auth import get_user_model
 
 from courses.random_names import generate_random_name
-
-
 
 User = get_user_model()
 
@@ -34,6 +31,12 @@ class Course(models.Model):
         + "We use that for deciding whether to show the leaderboard.",
     )
 
+    finished = models.BooleanField(
+        default=False,
+        blank=False,
+        help_text="Whether the course has finished.",
+    )
+
     faq_document_url = models.URLField(
         blank=True,
         validators=[URLValidator()],
@@ -52,7 +55,10 @@ class Enrollment(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     enrollment_date = models.DateTimeField(auto_now_add=True)
 
-    display_name = models.CharField(max_length=255, blank=True)
+    display_name = models.CharField(
+        verbose_name="Leaderboard name", max_length=255, blank=True,
+        help_text="Name on the leaderboard"
+    )
     display_on_leaderboard = models.BooleanField(default=True)
 
     position_on_leaderboard = models.IntegerField(
@@ -60,18 +66,43 @@ class Enrollment(models.Model):
     )
 
     certificate_name = models.CharField(
-        max_length=255, blank=True, null=True
+        verbose_name="Certificate name",
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Your actual name that will appear on your certificate"
     )
 
     total_score = models.IntegerField(default=0)
 
-    # def calculate_total_score(self):
-    #     submissions = Submission.objects.filter(enrollment=self)
-    #     total_score_sum = submissions.aggregate(Sum("total_score"))[
-    #         "total_score__sum"
-    #     ]
-    #     self.total_score = total_score_sum or 0
-    #     self.save()
+    certificate_url = models.CharField(
+        max_length=255, null=True, blank=True
+    )
+
+    github_url = models.URLField(
+        verbose_name="GitHub URL",
+        blank=True,
+        null=True,
+        validators=[URLValidator()],
+    )
+    linkedin_url = models.URLField(
+        verbose_name="LinkedIn URL",
+        blank=True,
+        null=True,
+        validators=[URLValidator()],
+    )
+    personal_website_url = models.URLField(
+        verbose_name="Personal website URL",
+        blank=True,
+        null=True,
+        validators=[URLValidator()],
+    )
+    about_me = models.TextField(
+        verbose_name="About me",
+        blank=True,
+        null=True,
+        help_text="Any information about you",
+    )
 
     def save(self, *args, **kwargs):
         if not self.display_name:

@@ -51,9 +51,15 @@ def select_random_assignment(
     num_projects_to_review: int,
     seed: int = 1,
 ) -> list[PeerReview]:
-    random.seed(seed)
-
     n = len(submissions)
+
+    if n <= num_projects_to_review:
+        raise ValueError(
+            "The number of projects to review should be greater than the number of submissions. " + 
+            f"Number of projects to review: {num_projects_to_review}, Number of submissions: {n}"
+        )
+
+    random.seed(seed)    
 
     submissions_list = list(submissions)
 
@@ -113,7 +119,7 @@ def assign_peer_reviews_for_project(
         ).select_related("enrollment")
 
         num_evaluations = project.number_of_peers_to_evaluate
-        if submissions.count() < num_evaluations:
+        if submissions.count() <= num_evaluations:
             return (
                 ProjectActionStatus.FAIL,
                 f"Not enough submissions to assign {num_evaluations} peer reviews each.",
@@ -227,7 +233,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             )
 
         peer_reviews = PeerReview.objects.filter(
-            submission_under_evaluation__project=project
+            submission_under_evaluation__project=project,
         )
 
         if peer_reviews.count() == 0:
@@ -237,10 +243,6 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             )
 
         submissions_to_update = []
-
-        peer_reviews = PeerReview.objects.filter(
-            submission_under_evaluation__project=project
-        )
 
         criteria_responses = CriteriaResponse.objects.filter(
             review__in=peer_reviews
@@ -276,6 +278,8 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
         all_scores = []
 
+        passed = 0
+
         for submission_id, submission in submissions.items():
             reviews = reviews_by_submission[submission_id]
 
@@ -291,10 +295,14 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             submission.project_score = project_score
             all_scores.extend(scores)
 
-            num_projects_reviewed = len(reviewed)
+            num_mandatory_projects_reviewed = 0
+
+            for review in reviewed:
+                if not review.optional:
+                    num_mandatory_projects_reviewed += 1
 
             submission.peer_review_score = (
-                num_projects_reviewed * project.points_for_peer_review
+                num_mandatory_projects_reviewed * project.points_for_peer_review
             )
 
             learning_in_public_cap_project = (
@@ -353,7 +361,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             )
 
             submission.reviewed_enough_peers = (
-                num_projects_reviewed
+                num_mandatory_projects_reviewed
                 >= project.number_of_peers_to_evaluate
             )
             submission.passed = (
@@ -361,6 +369,11 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             ) and submission.reviewed_enough_peers
 
             submissions_to_update.append(submission)
+            
+            if submission.passed:
+                passed += 1
+
+        passed_ratio = passed / len(submissions)
 
         logger.info(
             f"updading {len(submissions_to_update)} submissions..."
@@ -400,5 +413,5 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
     return (
         ProjectActionStatus.OK,
-        f"Project {project.id} scored and state updated to 'COMPLETED'.",
+        f"Project {project.id} scored and state updated to 'COMPLETED'. {passed} passed ({passed_ratio:.2f}).",
     )

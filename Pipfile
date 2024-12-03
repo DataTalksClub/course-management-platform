@@ -6,12 +6,16 @@ name = "pypi"
 [packages]
 django = "*"
 django-allauth = {extras = ["slack"], version = "*"}
+requests = "*"
+pyjwt = "*"
+cryptography = "*"
 dj-database-url = "*"
 whitenoise = "*"
 psycopg2-binary = "*"
 gunicorn = "*"
 python-json-logger = "*"
 django-unfold = "*"
+django-loginas = "*"
 
 [dev-packages]
 ipython = "*"

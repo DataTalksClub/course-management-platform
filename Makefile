@@ -20,6 +20,10 @@ admin:
 	pipenv run python manage.py createsuperuser
 
 
+user:
+	pipenv run python add_user.py
+
+
 tests: ## Run tests
 tests:
 	pipenv run python manage.py test courses.tests

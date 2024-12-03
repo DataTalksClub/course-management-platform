@@ -48,6 +48,7 @@ course = Course(
     title="Fake Course",
     description="This is a fake course.",
     slug="fake-course",
+    finished=False,
 )
 course.save()
 
@@ -63,7 +64,11 @@ homework1 = Homework(
 )
 homework1.save()
 
-admin_enrollment = Enrollment(student=admin_user, course=course)
+admin_enrollment = Enrollment(
+    student=admin_user,
+    course=course,
+    certificate_url="https://certificate.datatalks.club/mlops-zoomcamp/2024/fe629854d45c559e9c10b3b8458ea392fdeb68a9.pdf"
+)
 admin_enrollment.save()
 
 
@@ -381,3 +386,12 @@ for criterion in criteria_data:
         review_criteria_type=criterion["type"],
         options=criterion["options"],
     )
+
+
+course2 = Course(
+    title="Fake Course 2",
+    description="This is a fake course.",
+    slug="fake-course-2",
+    finished=True,
+)
+course2.save()

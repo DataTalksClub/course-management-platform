@@ -7,6 +7,7 @@ from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
 
 from .course import Course, Enrollment
+from courses.validators import validate_url_200
 
 User = get_user_model()
 
@@ -16,21 +17,6 @@ class ProjectState(Enum):
     COLLECTING_SUBMISSIONS = "CS"
     PEER_REVIEWING = "PR"
     COMPLETED = "CO"
-
-
-project_state_names = {
-    ProjectState.CLOSED.value: "Closed",
-    ProjectState.COLLECTING_SUBMISSIONS.value: "Collecting Submissions",
-    ProjectState.PEER_REVIEWING.value: "Peer Reviewing",
-    ProjectState.COMPLETED.value: "Completed",
-}
-
-project_status_badge_classes = {
-    ProjectState.CLOSED.value: "bg-secondary",
-    ProjectState.COLLECTING_SUBMISSIONS.value: "bg-info",
-    ProjectState.PEER_REVIEWING.value: "bg-warning",
-    ProjectState.COMPLETED.value: "bg-success",
-}
 
 
 class Project(models.Model):
@@ -64,14 +50,6 @@ class Project(models.Model):
         default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
-    def get_project_state_name(self):
-        return project_state_names[self.state]
-
-    def status_badge_class(self):
-        return project_status_badge_classes.get(
-            self.state, "bg-secondary"
-        )
-
     def __str__(self):
         return self.title
 
@@ -84,7 +62,7 @@ class ProjectSubmission(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
 
-    github_link = models.URLField(validators=[URLValidator()])
+    github_link = models.URLField(validators=[URLValidator(), validate_url_200])
     commit_id = models.CharField(max_length=40)
 
     learning_in_public_links = models.JSONField(blank=True, null=True)

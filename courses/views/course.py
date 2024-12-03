@@ -32,9 +32,26 @@ logger = logging.getLogger(__name__)
 
 
 def course_list(request):
-    courses = Course.objects.all()
+    courses = Course.objects.all().order_by("-id")
+
+    active_courses = []
+    finished_courses = []
+
+    for course in courses:
+        if course.finished:
+            finished_courses.append(course)
+        else:
+            active_courses.append(course)
+
+    context = {
+        "active_courses": active_courses,
+        "finished_courses": finished_courses,
+    }
+
     return render(
-        request, "courses/course_list.html", {"courses": courses}
+        request,
+        "courses/course_list.html",
+        context,
     )
 
 
@@ -65,18 +82,34 @@ def get_projects_for_course(
 
 
 def update_project_with_additional_info(project: Project) -> None:
-    days_until_due = 0
+    days_until_submission_due = 0
 
-    if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        if project.submission_due_date > timezone.now():
-            days_until_due = (
-                project.submission_due_date - timezone.now()
-            ).days
+    if project.submission_due_date > timezone.now():
+        days_until_submission_due = (
+            project.submission_due_date - timezone.now()
+        ).days
 
-        project.days_until_due = days_until_due
-        project.submitted = False
-        project.score = None
+    project.days_until_submission_due = days_until_submission_due
+
+    days_until_pr_due = 0
+    if project.peer_review_due_date > timezone.now():
+        days_until_pr_due = (
+            project.peer_review_due_date - timezone.now()
+        ).days
+
+    project.days_until_pr_due = days_until_pr_due
+
+    project.badge_state_name = "Not submitted"
+    project.badge_css_class = "bg-secondary"
+    project.submitted = False
+    project.score = None
+
+    if project.state == ProjectState.CLOSED.value:
+        project.badge_state_name = "Closed"
     elif project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        project.badge_state_name = "Open"
+        project.badge_css_class = "bg-warning"
+    elif project.state == ProjectState.PEER_REVIEWING.value:
         pass
     elif project.state == ProjectState.COMPLETED.value:
         pass
@@ -90,11 +123,24 @@ def update_project_with_additional_info(project: Project) -> None:
     submission = project.submissions[0]
     project.submitted = True
 
-    if project.state == ProjectState.COMPLETED.value:
-        pass
-        # project.score = submission.total_score
-    else:
-        project.submitted_at = submission.submitted_at
+    project.submitted_at = submission.submitted_at
+
+    if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        project.badge_state_name = "Submitted"
+        project.badge_css_class = "bg-info"
+
+    elif project.state == ProjectState.PEER_REVIEWING.value:
+        project.badge_state_name = "Review"
+        project.badge_css_class = "bg-danger"
+
+    elif project.state == ProjectState.COMPLETED.value:
+        project.score = submission.total_score
+
+        if submission.passed:
+            project.badge_state_name = f"Passed ({project.score})"
+            project.badge_css_class = "bg-success"
+        else:
+            project.badge_state_name = f"Failed ({project.score})"
 
 
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
@@ -244,17 +290,19 @@ def enrollment_view(request, course_slug):
             form.save()
             return redirect("course", course_slug=course_slug)
         else:
-            messages.error(
-                request,
-                "There was an error updating your enrollment",
-                extra_tags="homework",
-            )
-            return redirect("enrollment", course_slug=course_slug)
-            # TODO: add POST to form below
+            context = {
+                "form": form,
+                "course": course,
+                "enrollment": enrollment,
+            }
+            return render(request, "courses/enrollment.html", context)
 
     form = EnrollmentForm(instance=enrollment)
 
-    context = {"form": form, "course": course}
+    context = {
+        "form": form,
+        "course": course,
+        "enrollment": enrollment,
+    }
 
     return render(request, "courses/enrollment.html", context)
-

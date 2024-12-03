@@ -7,6 +7,7 @@ from django.http import HttpRequest
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
+from django.core.exceptions import ValidationError
 
 from courses.models import (
     Course,
@@ -18,9 +19,10 @@ from courses.models import (
     QuestionTypes,
     Enrollment,
     User,
+    HomeworkStatistics,
 )
 
-from courses.scoring import is_free_form_answer_correct
+from courses.scoring import is_free_form_answer_correct, calculate_homework_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -243,11 +245,18 @@ def process_homework_submission(
         faq_contribution = request.POST.get("faq_contribution", "")
         submission.faq_contribution = faq_contribution.strip()
 
+    submission.full_clean()
     submission.save()
+
+    success_message = (
+        "Thank you for submitting your homework, now your solution "
+        + "is saved. You can update it at any point. You will see "
+        + "your score after the form is closed."
+    )
 
     messages.success(
         request,
-        "Thank you for submitting your homework, now your solution is saved. You can update it at any point.",
+        success_message,
         extra_tags="homework",
     )
 
@@ -308,7 +317,7 @@ def homework_detail_build_context_authenticated(
         pair = (question, processed_answer)
         question_answers.append(pair)
 
-    disabled = (homework.state != HomeworkState.OPEN.value)
+    disabled = homework.state != HomeworkState.OPEN.value
     accepting_submissions = homework.state == HomeworkState.OPEN.value
 
     context = {
@@ -350,16 +359,6 @@ def homework_view(
 
     logger.info(f"submission={submission}")
 
-    # Process the form submission
-    if request.method == "POST":
-        return process_homework_submission(
-            request=request,
-            course=course,
-            homework=homework,
-            questions=questions,
-            submission=submission,
-        )
-
     context = homework_detail_build_context_authenticated(
         course=course,
         homework=homework,
@@ -367,6 +366,47 @@ def homework_view(
         submission=submission,
     )
 
+    # Process the form submission
+    if request.method == "POST":
+        try:
+            return process_homework_submission(
+                request=request,
+                course=course,
+                homework=homework,
+                questions=questions,
+                submission=submission,
+            )
+        except ValidationError as e:
+            context["errors"] = e.messages
+
     return render(request, "homework/homework.html", context)
 
 
+
+def homework_statistics(request, course_slug, homework_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+
+    if not homework.is_scored():
+        messages.error(
+            request,
+            "This homework is not scored yet, so there are no available statistics.",
+            extra_tags="homework",
+        )
+        return redirect(
+            "homework",
+            course_slug=course.slug,
+            homework_slug=homework.slug,
+        )
+
+    stats = calculate_homework_statistics(homework, force=False)
+
+    context = {
+        "course": course,
+        "homework": homework,
+        "stats": stats,
+    }
+
+    return render(request, "homework/stats.html", context)

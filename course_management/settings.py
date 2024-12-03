@@ -60,14 +60,18 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "loginas",
+
     "accounts.apps.AccountsConfig",
     "courses.apps.CoursesConfig",
+
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "allauth.socialaccount.providers.github",
     "allauth.socialaccount.providers.slack",
+
 ]
 
 MIDDLEWARE = [

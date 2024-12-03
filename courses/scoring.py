@@ -1,4 +1,5 @@
 import logging
+import statistics
 
 from time import time
 from enum import Enum
@@ -13,6 +14,7 @@ from django.db import transaction
 from .models import (
     Homework,
     HomeworkState,
+    HomeworkStatistics,
     Submission,
     Question,
     Answer,
@@ -256,6 +258,8 @@ def score_homework_submissions(
         course.first_homework_scored = True
         course.save()
 
+        calculate_homework_statistics(homework, force=True)
+
         t1 = time()
         logger.info(f"Scored homework in {(t1 - t0):.2f} seconds")
         return (
@@ -353,3 +357,91 @@ def fill_correct_answers(homework: Homework) -> None:
 
     for question in questions:
         fill_most_common_answer_as_correct(question)
+
+
+
+def calculate_raw_homework_statistics(homework):
+    submissions = Submission.objects.filter(homework=homework)
+
+    total_submissions = submissions.count()
+
+    stats = {"total_submissions": total_submissions}
+
+    nones = {
+        "min": None,
+        "max": None,
+        "avg": None,
+        "q1": None,
+        "median": None,
+        "q3": None,
+    }
+
+    fields = [
+        "questions_score",
+        "learning_in_public_score",
+        "total_score",
+        "time_spent_lectures",
+        "time_spent_homework",
+    ]
+
+    for field in fields:
+        values = list(
+            submissions.exclude(
+                **{f"{field}__isnull": True}
+            ).values_list(field, flat=True)
+        )
+
+        if not values or len(values) < 3:
+            stats[field] = nones
+            continue
+
+        quantiles = statistics.quantiles(
+            values, n=4, method="inclusive"
+        )
+
+        stats[field] = {
+            "min": min(values),
+            "max": max(values),
+            "avg": statistics.mean(values),
+            "q1": quantiles[0],
+            "median": quantiles[1],
+            "q3": quantiles[2],
+        }
+
+    return stats
+
+
+def calculate_homework_statistics(homework, force=False):
+    if homework.state != HomeworkState.SCORED.value:
+        raise ValueError(
+            f"Cannot calculate statistics for unscored homework {homework}"
+        )
+
+    stats, created = HomeworkStatistics.objects.get_or_create(
+        homework=homework
+    )
+
+    if force or created:
+        calculated_stats = calculate_raw_homework_statistics(homework)
+
+        stats.total_submissions = calculated_stats["total_submissions"]
+
+        for field in [
+            "questions_score",
+            "learning_in_public_score",
+            "total_score",
+            "time_spent_lectures",
+            "time_spent_homework",
+        ]:
+            field_stats = calculated_stats[field]
+
+            setattr(stats, f"min_{field}", field_stats["min"])
+            setattr(stats, f"max_{field}", field_stats["max"])
+            setattr(stats, f"avg_{field}", field_stats["avg"])
+            setattr(stats, f"median_{field}", field_stats["median"])
+            setattr(stats, f"q1_{field}", field_stats["q1"])
+            setattr(stats, f"q3_{field}", field_stats["q3"])
+
+        stats.save()
+
+    return stats

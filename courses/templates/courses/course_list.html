@@ -1,10 +1,24 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <h2>Courses</h2>
+  <h2>DataTalks.Club courses</h2>
+  <div>
+    Welcome to our course management platform! You can learn more about 
+    our courses in our webpage <a href="https://datatalks.club/" target="_blank">https://datatalks.club/</a>.
+  </div>
+
+  <h3 class="pt-4">Active courses</h3>
   <ul>
-    {% for course in courses %}
+    {% for course in active_courses %}
       <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
     {% endfor %}
   </ul>
+
+  <h3 class="pt-3">Finished courses</h3>
+  <ul>
+    {% for course in finished_courses %}
+      <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+    {% endfor %}
+  </ul>
+  
 {% endblock %}
