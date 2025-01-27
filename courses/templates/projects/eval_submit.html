@@ -28,6 +28,9 @@
   {% endfor %}
 {% endif %}
 
+<div>
+  <p>Due date: <span class="local-date">{{ project.peer_review_due_date |date:"c" }}</span> (local time)</p>
+</div>
   
 <div class="mb-2">
   <strong>GitHub Link:</strong> <a href="{{ submission.github_link }}" target="_blank" class="text-primary">{{ submission.github_link }}</a>

@@ -57,6 +57,10 @@
 
 <h3 class="mb-3">Project submission</h3>
 
+<div>
+  <p>Due date: <span class="local-date">{{ project.submission_due_date |date:"c" }}</span> (local time)</p>
+</div>
+
 <form method="post" id="project-form" class="needs-validation" novalidate>
   {% if is_authenticated %}
     {% csrf_token %}
