@@ -109,6 +109,7 @@ class CourseDetailViewTests(TestCase):
         self.assertFalse(context["is_authenticated"])
         self.assertEqual(context["course"], self.course)
         self.assertEqual(len(context["homeworks"]), 3)
+        self.assertIsNone(context["total_score"])
 
         # Check the properties of each homework in the context
         for hw in context["homeworks"]:
@@ -119,6 +120,11 @@ class CourseDetailViewTests(TestCase):
 
     def test_course_detail_authenticated_user(self):
         # Test the view for an authenticated user
+
+        total_score = 80
+        self.enrollment.total_score = total_score
+        self.enrollment.save()
+
         self.client.login(**credentials)
 
         url = reverse(
@@ -163,7 +169,54 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(unscored_homework.days_until_due, 14)
         self.assertEqual(unscored_homework.submissions, [])
 
-        self.assertEqual(context["total_score"], 80)
+        self.assertEqual(context["total_score"], total_score)
+
+    def test_course_detail_authenticated_user_not_enrolled(self):
+        # Test the view for an authenticated user
+
+        self.enrollment.delete()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+
+        self.assertTrue(context["is_authenticated"])
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(len(context["homeworks"]), 3)
+
+        homeworks = {h.slug: h for h in response.context["homeworks"]}
+
+        scored_homework = homeworks["scored-homework"]
+        self.assertFalse(scored_homework.submitted)
+        self.assertEqual(scored_homework.is_scored(), True)
+        self.assertEqual(scored_homework.state, HomeworkState.SCORED.value)
+        self.assertEqual(scored_homework.score, None)
+        self.assertEqual(scored_homework.days_until_due, 0)
+
+        submitted_homework = homeworks["submitted-homework"]
+        self.assertFalse(submitted_homework.submitted)
+        self.assertEqual(submitted_homework.state, HomeworkState.OPEN.value)
+        self.assertEqual(submitted_homework.is_scored(), False)
+        self.assertEqual(submitted_homework.score, None)
+        self.assertEqual(submitted_homework.days_until_due, 7)
+
+        unscored_homework = homeworks["unscored-homework"]
+        self.assertFalse(unscored_homework.submitted)
+        self.assertFalse(hasattr(unscored_homework, "submitted_at"))
+        self.assertEqual(unscored_homework.is_scored(), False)
+        self.assertEqual(unscored_homework.score, None)
+        self.assertEqual(unscored_homework.days_until_due, 14)
+        self.assertEqual(unscored_homework.submissions, [])
+
+        self.assertIsNone(context["total_score"])
+
 
     def create_enrollment(
         self, name, total_score, position_on_leaderboard=None

@@ -148,11 +148,18 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
 
     user = request.user
     homeworks = get_homeworks_for_course(course, user)
-
-    homework_score = sum(hw.score or 0 for hw in homeworks)
-    total_score = homework_score
-
     projects = get_projects_for_course(course, user)
+
+    total_score = None
+    if user.is_authenticated:
+        try:
+            enrollment = Enrollment.objects.get(
+                student=user,
+                course=course,
+            )
+            total_score = enrollment.total_score
+        except Enrollment.DoesNotExist:
+            pass
 
     context = {
         "course": course,
