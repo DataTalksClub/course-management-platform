@@ -126,6 +126,27 @@ get to the container
 docker exec -it course_management bash
 ```
 
+## Getting the data
+
+There are `/data` endpoints for getting the data
+
+Using them:
+
+```bash
+TOKEN="TEST_TOKEN"
+HOST="http://localhost:8000"
+COURSE="fake-course"
+HOMEWORK="hw1"
+
+curl \
+    -H "Authorization: ${TOKEN}" \
+    "${HOST}/data/${COURSE}/homework/${HOMEWORK}"
+```
+
+Make sure to run `make data` to create the admin user and 
+data (including authentication token)
+
+
 ## Authentication setup
 
 If you want to authenticate with OAuth locally
@@ -214,19 +235,3 @@ user = User.objects.get(email='test@gmail.com')
 ```
 
 
-## Getting the data
-
-There are `/data` endpoints for getting the data
-
-Using them:
-
-```bash
-TOKEN="TOKEN"
-HOST="http://localhost:8000"
-COURSE="fake-course"
-HOMEWORK="hw1"
-
-curl \
-    -H "Authorization: ${TOKEN}" \
-    "${HOST}/data/${COURSE}/homework/${HOMEWORK}"
-```
