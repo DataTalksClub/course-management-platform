@@ -130,6 +130,31 @@ def is_answer_correct(question: Question, answer: Answer) -> bool:
     return False
 
 
+def update_learning_in_public_score(submission: Submission) -> int:
+    learning_in_public_score = 0
+
+    if submission.learning_in_public_links:
+        learning_in_public_score = len(
+            submission.learning_in_public_links
+        )
+        submission.learning_in_public_score = learning_in_public_score
+
+    return learning_in_public_score
+
+
+def update_faq_score(submission: Submission) -> int:
+    faq_score = 0
+
+    if (
+        submission.faq_contribution
+        and len(submission.faq_contribution) >= 5
+    ):
+        faq_score = 1
+        submission.faq_score = faq_score
+    
+    return faq_score
+
+
 def update_score(
     submission: Submission, answers: list[Answer], save: bool = True
 ) -> None:
@@ -156,24 +181,10 @@ def update_score(
 
     submission.questions_score = questions_score
 
-    learning_in_public_score = 0
+    lip_score = update_learning_in_public_score(submission)
+    faq_score = update_faq_score(submission)
 
-    if submission.learning_in_public_links:
-        learning_in_public_score = len(
-            submission.learning_in_public_links
-        )
-        submission.learning_in_public_score = learning_in_public_score
-
-    faq_score = 0
-
-    if (
-        submission.faq_contribution
-        and len(submission.faq_contribution) >= 5
-    ):
-        faq_score = 1
-        submission.faq_score = faq_score
-
-    total_score = questions_score + learning_in_public_score + faq_score
+    total_score = questions_score + lip_score + faq_score
 
     submission.total_score = total_score
 
