@@ -3,6 +3,9 @@ from accounts.auth import token_required
 from django.shortcuts import get_object_or_404
 from django.db.models import Prefetch
 
+from collections import Counter
+from hashlib import sha1
+
 from courses.models import (
     Answer,
     Course,
@@ -111,3 +114,66 @@ def project_data_view(request, course_slug: str, project_slug: str):
     }
 
     return JsonResponse(result)
+
+@token_required
+def graduates_data_view(request, course_slug: str):
+    min_projects = 2
+    cohort = 2024
+    course_name = 'ml-zoomcamp'
+    certificate_url_template = f"https://certificate.datatalks.club/{course_name}/{cohort}/{{hash}}.pdf"
+
+    # Fetch course
+    try:
+        course = get_object_or_404(Course, slug=course_slug)
+        #course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return JsonResponse({"error": "Course not found"}, status=404)
+
+    # Get passed students
+    graduates = ProjectSubmission.objects \
+        .filter(project__course=course, passed=True) \
+        .prefetch_related("enrollment")
+
+    # Count projects per student
+    cnt = Counter()
+    ids_mapping = {}
+
+    for g in graduates:
+        e = g.enrollment
+        eid = e.id
+        cnt[eid] += 1
+        ids_mapping[eid] = e
+
+    passed = []
+    for eid, c in cnt.items():
+        if c >= min_projects:
+            passed.append(ids_mapping[eid])
+
+    # Prepare results
+    results = []
+    for enrollment in passed:
+        student = enrollment.student
+        email = student.email
+        name = enrollment.certificate_name or enrollment.display_name
+        hash_id = compute_certificate_id(email)
+
+        url = certificate_url_template.format(hash=hash_id)
+        enrollment.certificate_url = url
+
+        results.append({
+            "email": email,
+            "name": name,
+            "hash": hash_id,
+            "certificate_url": url
+        })
+
+    results.append({
+        'email': 'never.give.up@gmail.com',
+        'name': 'Rick Astley',
+        'hash': 'na'
+    })
+
+    # Bulk update database
+    #Enrollment.objects.bulk_update(passed, fields=["certificate_url"])
+
+    return JsonResponse(results, safe=False)
