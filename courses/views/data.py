@@ -127,7 +127,7 @@ def graduates_data_view(request, course_slug: str):
         return JsonResponse({"error": "Course not found"}, status=404)
 
     # Get passed students
-    graduates = ProjectSubmission.objects \
+    submissions = ProjectSubmission.objects \
         .filter(project__course=course, passed=True) \
         .prefetch_related("enrollment")
 
@@ -135,13 +135,19 @@ def graduates_data_view(request, course_slug: str):
     cnt = Counter()
     ids_mapping = {}
 
-    for g in graduates:
-        e = g.enrollment
+    for s in submissions:
+        e = s.enrollment
         eid = e.id
         cnt[eid] += 1
         ids_mapping[eid] = e
 
     passed = []
+
+    # Get course object from enrollment object e
+    crs = e.course
+    # Get mimimum number of projects to pass
+    min_projects = crs.min_projects_to_pass
+
     for eid, c in cnt.items():
         if c >= min_projects:
             passed.append(ids_mapping[eid])
