@@ -117,10 +117,7 @@ def project_data_view(request, course_slug: str, project_slug: str):
 
 @token_required
 def graduates_data_view(request, course_slug: str):
-    min_projects = 2
     cohort = 2024
-    course_name = 'ml-zoomcamp'
-    certificate_url_template = f"https://certificate.datatalks.club/{course_name}/{cohort}/{{hash}}.pdf"
 
     # Fetch course
     try:
@@ -155,16 +152,10 @@ def graduates_data_view(request, course_slug: str):
         student = enrollment.student
         email = student.email
         name = enrollment.certificate_name or enrollment.display_name
-        hash_id = compute_certificate_id(email)
-
-        url = certificate_url_template.format(hash=hash_id)
-        enrollment.certificate_url = url
 
         results.append({
             "email": email,
             "name": name,
-            "hash": hash_id,
-            "certificate_url": url
         })
 
     results.append({
@@ -172,8 +163,5 @@ def graduates_data_view(request, course_slug: str):
         'name': 'Rick Astley',
         'hash': 'na'
     })
-
-    # Bulk update database
-    #Enrollment.objects.bulk_update(passed, fields=["certificate_url"])
 
     return JsonResponse(results, safe=False)

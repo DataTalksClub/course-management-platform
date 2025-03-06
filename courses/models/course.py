@@ -42,6 +42,14 @@ class Course(models.Model):
         help_text="The URL of the FAQ document for the course.",
     )
 
+    #  let's create a field in the course model 
+    # that specifies the min number of projects to pass in order to graduate
+    min_projects_to_pass = models.IntegerField(
+        default=1,
+        blank=False,
+        help_text="The minimum number of projects to pass the course.",
+    )
+
     def __str__(self):
         return self.title
 
