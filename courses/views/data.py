@@ -117,7 +117,6 @@ def project_data_view(request, course_slug: str, project_slug: str):
 
 @token_required
 def graduates_data_view(request, course_slug: str):
-    cohort = 2024
 
     # Fetch course
     try:
@@ -143,10 +142,8 @@ def graduates_data_view(request, course_slug: str):
 
     passed = []
 
-    # Get course object from enrollment object e
-    crs = e.course
     # Get mimimum number of projects to pass
-    min_projects = crs.min_projects_to_pass
+    min_projects = course.min_projects_to_pass
 
     for eid, c in cnt.items():
         if c >= min_projects:
@@ -164,10 +161,5 @@ def graduates_data_view(request, course_slug: str):
             "name": name,
         })
 
-    results.append({
-        'email': 'never.give.up@gmail.com',
-        'name': 'Rick Astley',
-        'hash': 'na'
-    })
 
     return JsonResponse(results, safe=False)
