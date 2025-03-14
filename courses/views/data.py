@@ -4,7 +4,6 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Prefetch
 
 from collections import Counter
-from hashlib import sha1
 
 from courses.models import (
     Answer,
