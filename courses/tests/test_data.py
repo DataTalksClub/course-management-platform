@@ -385,7 +385,7 @@ class DataAPITestCase(TestCase):
 
     def test_graduate_data_view(self):
     
-        # Get student with id 31
+        # Create student with id 31
     
         for u in range(31, 32):
             username = f"student{u}"
