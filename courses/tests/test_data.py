@@ -382,3 +382,73 @@ class DataAPITestCase(TestCase):
         )
         with self.assertRaises(ValidationError):
             self.project_submission.full_clean()
+
+    def test_graduate_data_view(self):
+    
+        # Get student with id 31
+    
+        for u in range(31, 32):
+            username = f"student{u}"
+            print(f"Creating student {username} and their submissions")
+
+            user, _ = User.objects.get_or_create(username=username)
+            user.save()
+
+
+        all_users = list(User.objects.all())
+    
+        for user in all_users:
+            enrollment, created = Enrollment.objects.get_or_create(
+                course=self.course,
+                student=user,
+            )
+            enrollment.save()
+    
+        # # student111 submits project and passes it
+        # self.project = Project.objects.create(
+        #     course=self.course,
+        #     slug="test-project",
+        #     title="Test Project",
+        #     description="Description",
+        #     submission_due_date=timezone.now()
+        #     + timezone.timedelta(days=7),
+        #     peer_review_due_date=timezone.now()
+        #     + timezone.timedelta(days=14),
+        # )
+        # self.project_submission = ProjectSubmission(
+        #     project=self.project,
+        #     student=self.student111,
+        #     enrollment=self.enrollment111,
+        #     github_link="https://github.com/DataTalksClub",
+        #     commit_id="abcd5678",
+        #     passed=True,
+        # )
+                 
+        # self.project_submission.full_clean()
+        # self.project_submission.save()
+
+        url = reverse(
+            "data_graduates",
+            kwargs={
+                "course_slug": self.course.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        actual_result = response.json()
+
+        # # Test course fields
+        # self.assertEqual(actual_result["course"]["id"], self.course.id)
+        # self.assertEqual(
+        #     actual_result["course"]["slug"], self.course.slug
+        # )
+        # self.assertEqual(
+        #     actual_result["course"]["title"], self.course.title
+        # )
+        # self.assertEqual(
+        #     actual_result["course"]["description"],
+        #     self.course.description,
+        # )
+        # with self.assertRaises(ValidationError):
+        #     self.project_submission.full_clean()
