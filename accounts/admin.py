@@ -2,13 +2,18 @@ import secrets
 
 from django import forms
 from django.contrib import admin
-
+from unfold.admin import ModelAdmin
+from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser, Token
+from unfold.forms import UserCreationForm, AdminPasswordChangeForm, UserChangeForm
 
 
-class CustomUserAdmin(admin.ModelAdmin):
+class CustomUserAdmin(UserAdmin, ModelAdmin):
     search_fields = ["email"]
     change_form_template = 'loginas/change_form.html'
+    form = UserChangeForm
+    add_form = UserCreationForm
+    change_password_form = AdminPasswordChangeForm
 
 
 admin.site.register(CustomUser, CustomUserAdmin)
