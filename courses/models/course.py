@@ -1,11 +1,11 @@
 from django.db import models
 
 from django.core.validators import URLValidator
-from django.contrib.auth import get_user_model
+from accounts.models import CustomUser
 
 from courses.random_names import generate_random_name
 
-User = get_user_model()
+User = CustomUser
 
 
 class Course(models.Model):
@@ -106,6 +106,15 @@ class Enrollment(models.Model):
     def save(self, *args, **kwargs):
         if not self.display_name:
             self.display_name = generate_random_name()
+        
+        # If certificate_name is being set, update the user's certificate_name
+        if self.certificate_name and self.certificate_name != self.student.certificate_name:
+            self.student.certificate_name = self.certificate_name
+            self.student.save()
+        # If certificate_name is not set but user has one, use the user's certificate_name
+        elif not self.certificate_name and self.student.certificate_name:
+            self.certificate_name = self.student.certificate_name
+            
         super().save(*args, **kwargs)
 
     def __str__(self):
