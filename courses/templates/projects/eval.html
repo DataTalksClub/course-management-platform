@@ -23,6 +23,15 @@
   <div class="alert alert-info" role="alert">
     <p>Please <a href="{% url 'login' %}">log in</a> to see the projects you need to evaluate.</p>
   </div>
+{% elif not has_submission and project.state == 'PR' %}
+  <div class="alert alert-warning" role="alert">
+    <p>
+      Because you did not submit your project,
+      you cannot participate in peer review. But
+      <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}">
+        you can see other submissions</a>.
+    </p>
+  </div>
 {% else %}
   <div class="list-group">
     {% for review in reviews %}
@@ -56,6 +65,5 @@
     See all projects
   </a>
 </div>
-
 
 {% endblock %}

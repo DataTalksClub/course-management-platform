@@ -528,3 +528,108 @@ class ProjectEvaluationTestCase(TestCase):
 
         c3 = fetch_fresh(c3)
         self.assertEqual(c3.answer, "1,2,3")
+
+    def test_eval_view_authenticated_no_submission(self):
+        """Test that eval view shows warning when user hasn't submitted their project"""
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
+        self.submission.delete()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        
+        self.assertFalse(response.context["has_submission"])
+        
+        self.assertContains(
+            response,
+            "you did not submit your project",
+            status_code=200,
+        )
+
+    def test_eval_view_authenticated_with_submission(self):
+        """Test that eval view shows reviews when user has submitted their project"""
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        
+        self.assertTrue(response.context["has_submission"])
+        
+        self.assertNotContains(
+            response,
+            "you did not submit your project",
+            status_code=200,
+        )
+        self.assertContains(
+            response,
+            "Evaluate",
+            status_code=200,
+        )
+
+    def test_list_view_authenticated_no_submission(self):
+        """Test that list view doesn't show Add to Evaluation button when user hasn't submitted their project"""
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
+        self.submission.delete()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/list.html")
+        
+        self.assertFalse(response.context["has_submission"])
+        self.assertNotContains(
+            response,
+            "Add to Evaluation",
+            status_code=200,
+        )
+
+    def test_list_view_authenticated_with_submission(self):
+        """Test that list view shows Add to Evaluation button when user has submitted their project"""
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
+        self.peer_review.delete()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/list.html")
+        
+        self.assertTrue(response.context["has_submission"])
+        self.assertContains(
+            response,
+            "Add to Evaluation",
+            status_code=200,
+        )
