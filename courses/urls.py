@@ -14,6 +14,11 @@ urlpatterns = [
         name="course",
     ),
     path(
+        "<slug:course_slug>/projects",
+        course.list_all_project_submissions_view,
+        name="list_all_project_submissions",
+    ),
+    path(
         "<slug:course_slug>/leaderboard",
         course.leaderboard_view,
         name="leaderboard",
