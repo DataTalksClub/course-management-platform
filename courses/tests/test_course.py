@@ -13,6 +13,9 @@ from courses.models import (
     HomeworkState,
     ReviewCriteria,
     ReviewCriteriaTypes,
+    Project,
+    ProjectState,
+    ProjectSubmission,
 )
 
 from .util import join_possible_answers
@@ -93,6 +96,45 @@ class CourseDetailViewTests(TestCase):
             enrollment=self.enrollment,
             student=self.user,
             total_score=0,  # Assuming this is an unscored submission
+        )
+
+        # Create projects
+        self.open_project = Project.objects.create(
+            course=self.course,
+            title="Open Project",
+            slug="open-project",
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+            submission_due_date=timezone.now()
+            + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now()
+            + timezone.timedelta(days=14),
+        )
+
+        self.completed_project = Project.objects.create(
+            course=self.course,
+            title="Completed Project",
+            slug="completed-project",
+            state=ProjectState.COMPLETED.value,
+            submission_due_date=timezone.now()
+            - timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now()
+            + timezone.timedelta(days=14),
+        )
+
+        # Create project submissions
+        self.completed_submission = ProjectSubmission.objects.create(
+            project=self.completed_project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/test/repo",
+            project_score=85,
+        )
+
+        self.open_submission = ProjectSubmission.objects.create(
+            project=self.open_project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/test/repo2",
         )
 
     def test_course_detail_unauthenticated_user(self):
@@ -462,3 +504,93 @@ class CourseDetailViewTests(TestCase):
 
         # Verify that enrollments were not copied
         self.assertEqual(new_course.students.count(), 0)
+
+    def test_course_view_with_completed_projects(self):
+        """Test that the course view shows the 'See all submitted projects' button when there are completed projects"""
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse("course", args=[self.course.slug])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "courses/course.html")
+        self.assertTrue(response.context["has_completed_projects"])
+        self.assertContains(response, "See all submitted projects")
+
+    def test_course_view_without_completed_projects(self):
+        """Test that the course view doesn't show the button when there are no completed projects"""
+        # Change the completed project to open state
+        self.completed_project.state = (
+            ProjectState.COLLECTING_SUBMISSIONS.value
+        )
+        self.completed_project.save()
+
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse("course", args=[self.course.slug])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["has_completed_projects"])
+        self.assertNotContains(response, "See all submitted projects")
+
+    def test_list_all_submissions_view(self):
+        """Test the list all submissions view shows submissions in correct order"""
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse(
+                "list_all_project_submissions", args=[self.course.slug]
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/list_all.html")
+
+        # Check that submissions are ordered by score (completed first)
+        submissions = response.context["submissions"]
+        self.assertEqual(len(submissions), 2)
+        self.assertEqual(submissions[0].project, self.completed_project)
+        self.assertEqual(submissions[0].display_score, 85)
+        self.assertEqual(submissions[1].project, self.open_project)
+        self.assertEqual(submissions[1].display_score, -1)
+
+    def test_list_all_submissions_view_unauthorized(self):
+        """Test that unauthorized users can access the submissions list"""
+        response = self.client.get(
+            reverse(
+                "list_all_project_submissions", args=[self.course.slug]
+            )
+        )
+        self.assertEqual(response.status_code, 200)  # see as usual
+
+    def test_submissions_display_format(self):
+        """Test that submissions are displayed with correct format and N/A for unevaluated"""
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse(
+                "list_all_project_submissions", args=[self.course.slug]
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+
+        submissions = response.context["submissions"]
+        our_submissions = {}
+
+        for submission in submissions:
+            if submission.enrollment.student == self.user:
+                our_submissions[submission.project_id] = submission
+
+        self.assertEqual(len(our_submissions), 2)
+
+        evaluated_submission = our_submissions[
+            self.completed_project.id
+        ]
+        self.assertEqual(
+            evaluated_submission.project, self.completed_project
+        )
+        self.assertEqual(evaluated_submission.display_score, 85)
+        self.assertEqual(
+            evaluated_submission.enrollment.student, self.user
+        )
+
+        open_submission = our_submissions[self.open_project.id]
+        self.assertEqual(open_submission.project, self.open_project)
+        self.assertEqual(open_submission.display_score, -1)
+        self.assertEqual(open_submission.enrollment.student, self.user)
