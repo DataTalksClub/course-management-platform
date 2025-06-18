@@ -449,7 +449,9 @@ class HomeworkDetailViewTests(TestCase):
 
         # make sure we have the latest version of the homework
         self.homework = Homework.objects.get(id=self.homework.id)
-        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
+        self.assertEqual(
+            self.homework.state, HomeworkState.SCORED.value
+        )
         self.assertTrue(self.homework.is_scored())
 
         self.client.login(**credentials)
@@ -814,13 +816,14 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(answer6.answer_text, "1,2")
 
     def test_submit_homework_with_all_fields(self):
+        self.course.homework_problems_comments_field = True
+        self.course.save()
+
         self.homework.homework_url_field = True
         self.homework.learning_in_public_cap = 7
         self.homework.time_spent_lectures_field = True
         self.homework.time_spent_homework_field = True
-        self.homework.problems_comments_field = True
         self.homework.faq_contribution_field = True
-
         self.homework.save()
 
         self.client.login(**credentials)
@@ -969,8 +972,7 @@ class HomeworkDetailViewTests(TestCase):
             "learning_in_public_links[]": [
                 "https://httpbin.org/status/200",
                 "https://httpbin.org/status/200",
-                "https://github.com/DataTalksClub"
-                "",
+                "https://github.com/DataTalksClub",
             ],
         }
 
@@ -993,7 +995,7 @@ class HomeworkDetailViewTests(TestCase):
 
         expected_learning_in_public_links = [
             "https://httpbin.org/status/200",
-            "https://github.com/DataTalksClub"
+            "https://github.com/DataTalksClub",
         ]
         self.assertEqual(
             submission.learning_in_public_links,

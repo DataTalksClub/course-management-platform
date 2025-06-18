@@ -42,6 +42,11 @@ class Course(models.Model):
         help_text="The URL of the FAQ document for the course.",
     )
 
+    homework_problems_comments_field = models.BooleanField(
+        default=False,
+        help_text="Include field for problems and comments in homework",
+    )
+
     def __str__(self):
         return self.title
 
