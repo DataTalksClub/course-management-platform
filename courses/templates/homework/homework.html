@@ -34,13 +34,19 @@
   {% endif %}
 
   {% if homework.is_scored %}
-    {% if submission %}
-      <div class="alert alert-success">
-        <p>This homework is already scored. Your score is {{ submission.total_score }}.</p>
-      </div>
+    {% if is_authenticated %}
+      {% if submission %}
+        <div class="alert alert-success">
+          <p>This homework is already scored. Your score is {{ submission.total_score }}.</p>
+        </div>
+      {% else %}
+        <div class="alert alert-warning">
+          <p>This homework is already scored. You didn't submit your answers.</p>
+        </div>
+      {% endif %}
     {% else %}
-      <div class="alert alert-warning">
-        <p>This homework is already scored. You didn't submit your answers.</p>
+      <div class="alert alert-info">
+        <p>This homework is already scored. <a href="{% url 'login' %}">Log in</a> to see your submission.</p>
       </div>
     {% endif %}
 
@@ -59,7 +65,7 @@
 
   {% if not is_authenticated %}
     <div class="mt-4 text-center">
-      <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+      <p>Please <a href="{% url 'login' %}">log in</a> to access this homework.</p>
     </div>
   {% endif %}
 
@@ -249,7 +255,7 @@
             {% endif %}
           </button>
         {% else %}
-          <p>Please <a href="{% url 'login' %}">log in</a> to submit your answers.</p>
+          <p>Please <a href="{% url 'login' %}">log in</a> to access this homework.</p>
         {% endif %}
       </div>
     {% endif %}
