@@ -594,3 +594,86 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(open_submission.project, self.open_project)
         self.assertEqual(open_submission.display_score, -1)
         self.assertEqual(open_submission.enrollment.student, self.user)
+
+    def test_homeworks_sorted_by_due_date(self):
+        """Test that homeworks are displayed in order of due date."""
+        # Create homeworks with different due dates in non-chronological order
+        homework_late = Homework.objects.create(
+            slug="homework-late",
+            course=self.course,
+            title="Late Homework",
+            description="Homework due later",
+            due_date=timezone.now() + timezone.timedelta(days=30),
+            state=HomeworkState.OPEN.value,
+        )
+        
+        homework_early = Homework.objects.create(
+            slug="homework-early", 
+            course=self.course,
+            title="Early Homework",
+            description="Homework due earlier",
+            due_date=timezone.now() + timezone.timedelta(days=5),
+            state=HomeworkState.OPEN.value,
+        )
+        
+        homework_middle = Homework.objects.create(
+            slug="homework-middle",
+            course=self.course, 
+            title="Middle Homework",
+            description="Homework due in the middle",
+            due_date=timezone.now() + timezone.timedelta(days=15),
+            state=HomeworkState.OPEN.value,
+        )
+        
+        # Add questions to each homework
+        for hw in [homework_late, homework_early, homework_middle]:
+            Question.objects.create(
+                homework=hw,
+                text=f"Question for {hw.title}",
+                question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+                possible_answers=join_possible_answers(["A", "B", "C"]),
+                correct_answer="1",
+            )
+        
+        # Test as unauthenticated user
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Get homeworks from context
+        homeworks = response.context["homeworks"]
+        
+        # Verify we have all homeworks (original 3 + new 3)
+        self.assertEqual(len(homeworks), 6)
+        
+        # Check that homeworks are sorted by due_date
+        # The first homework should be the one with the earliest due date
+        # among the new homeworks we created
+        homework_slugs = [hw.slug for hw in homeworks]
+        
+        # Find the positions of our new homeworks in the sorted list
+        early_pos = homework_slugs.index("homework-early")
+        middle_pos = homework_slugs.index("homework-middle") 
+        late_pos = homework_slugs.index("homework-late")
+        
+        # Verify they are in chronological order (early < middle < late)
+        self.assertLess(early_pos, middle_pos)
+        self.assertLess(middle_pos, late_pos)
+        
+        # Test as authenticated user
+        self.client.login(**credentials)
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        homeworks = response.context["homeworks"]
+        
+        # Verify the same ordering for authenticated users
+        homework_slugs = [hw.slug for hw in homeworks]
+        early_pos = homework_slugs.index("homework-early")
+        middle_pos = homework_slugs.index("homework-middle")
+        late_pos = homework_slugs.index("homework-late")
+        
+        self.assertLess(early_pos, middle_pos)
+        self.assertLess(middle_pos, late_pos)
+

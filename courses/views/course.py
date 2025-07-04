@@ -192,7 +192,7 @@ def get_homeworks_for_course(course: Course, user) -> List[Homework]:
     homeworks = (
         Homework.objects.filter(course=course)
         .prefetch_related(submissions_prefetch)
-        .order_by("id")
+        .order_by("due_date")
     )
 
     for hw in homeworks:
