@@ -91,23 +91,14 @@ docker build -t course_management .
 Run it:
 
 ```bash
-docker run -d \
-    -p 8000:8000 \
-    --name course_management \
-    -e DATABASE_URL="sqlite:////data/db.sqlite3" \
-    -v ${PWD}/db:/data \
-    course_management
-```
+DBDIR=`cygpath -w ${PWD}/db`
 
-if you're on cygwin:
-
-```bash
 docker run -it --rm \
     -p 8000:80 \
     --name course_management \
     -e DATABASE_URL="sqlite:////data/db.sqlite3" \
     -e SITE_ID="${SITE_ID}" \
-    -v `cygpath -w ${PWD}/db`:/data \
+    -v ${DBDIR}:/data \
     course_management
 ```
 

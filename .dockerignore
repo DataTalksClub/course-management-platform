@@ -3,3 +3,4 @@ terraform/
 Dockerfile
 Makefile
 README.md
+.venv
