@@ -1,4 +1,5 @@
-FROM python:3.12.3-slim
+FROM python:3.13.5-slim-bookworm
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -6,8 +7,9 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /code
 
 # Install dependencies
-COPY Pipfile Pipfile.lock ./
-RUN pip install pipenv && pipenv install --system
+COPY "pyproject.toml" "uv.lock" ".python-version" ./
+RUN uv sync --locked
+ENV PATH="/code/.venv/bin:$PATH"
 
 # Copy project
 COPY . .

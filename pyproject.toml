@@ -1,3 +1,34 @@
+[project]
+name = "course-management-platform"
+version = "0.1.0"
+description = "A Django-based course management platform"
+requires-python = ">=3.13"
+
+dependencies = [
+    "django",
+    "django-allauth[slack]",
+    "requests",
+    "pyjwt",
+    "cryptography",
+    "dj-database-url",
+    "whitenoise",
+    "psycopg2-binary",
+    "gunicorn",
+    "python-json-logger",
+    "django-unfold",
+    "django-loginas",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipython",
+    "pytest-django",
+    "jupyter",
+    "pandas",
+    "tqdm",
+]
+
+
 [tool.ruff]
 line-length = 72
 
