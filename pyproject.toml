@@ -19,10 +19,11 @@ dependencies = [
     "django-loginas",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "ipython",
     "pytest-django",
+    "pytest",
     "jupyter",
     "pandas",
     "tqdm",

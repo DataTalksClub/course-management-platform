@@ -238,11 +238,12 @@ dependencies = [
     { name = "whitenoise" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "ipython" },
     { name = "jupyter" },
     { name = "pandas" },
+    { name = "pytest" },
     { name = "pytest-django" },
     { name = "tqdm" },
 ]
@@ -256,18 +257,22 @@ requires-dist = [
     { name = "django-loginas" },
     { name = "django-unfold" },
     { name = "gunicorn" },
-    { name = "ipython", marker = "extra == 'dev'" },
-    { name = "jupyter", marker = "extra == 'dev'" },
-    { name = "pandas", marker = "extra == 'dev'" },
     { name = "psycopg2-binary" },
     { name = "pyjwt" },
-    { name = "pytest-django", marker = "extra == 'dev'" },
     { name = "python-json-logger" },
     { name = "requests" },
-    { name = "tqdm", marker = "extra == 'dev'" },
     { name = "whitenoise" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipython" },
+    { name = "jupyter" },
+    { name = "pandas" },
+    { name = "pytest" },
+    { name = "pytest-django" },
+    { name = "tqdm" },
+]
 
 [[package]]
 name = "cryptography"

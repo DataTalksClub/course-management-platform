@@ -42,8 +42,6 @@ class Project(models.Model):
     points_for_peer_review = models.IntegerField(default=3)
     time_spent_evaluation_field = models.BooleanField(default=True)
 
-    points_to_pass = models.IntegerField(default=0)
-
     state = models.CharField(
         max_length=2,
         choices=[(state.value, state.name) for state in ProjectState],
@@ -52,6 +50,11 @@ class Project(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def points_to_pass(self):
+        """Get the passing score from the course"""
+        return self.course.project_passing_score
 
     class Meta:
         unique_together = ("course", "slug")

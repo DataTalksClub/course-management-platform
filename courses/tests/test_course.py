@@ -447,6 +447,7 @@ class CourseDetailViewTests(TestCase):
         self.course.slug = f"test-course-{current_year - 1}"
         self.course.social_media_hashtag = "#testcourse2023"
         self.course.faq_document_url = "https://example.com/faq"
+        self.course.project_passing_score = 75
         self.course.save()
 
         # Execute the duplicate action
@@ -478,6 +479,9 @@ class CourseDetailViewTests(TestCase):
         )
         self.assertEqual(
             new_course.faq_document_url, self.course.faq_document_url
+        )
+        self.assertEqual(
+            new_course.project_passing_score, self.course.project_passing_score
         )
         self.assertFalse(new_course.first_homework_scored)
         self.assertFalse(new_course.finished)

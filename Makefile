@@ -93,6 +93,10 @@ deploy_prod:
 	bash deploy/deploy_prod.sh
 
 
+sync: ## Install dev dependencies
+sync:
+	uv sync --dev
+
 
 help:    ## Show this help.
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'

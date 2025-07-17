@@ -47,6 +47,11 @@ class Course(models.Model):
         help_text="Include field for problems and comments in homework",
     )
 
+    project_passing_score = models.IntegerField(
+        default=0,
+        help_text="Minimum score required to pass any project in this course",
+    )
+
     def __str__(self):
         return self.title
 

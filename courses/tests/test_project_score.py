@@ -56,6 +56,10 @@ class ProjectEvaluationTestCase(TestCase):
             course=self.course,
         )
 
+        # Set the course's project passing score
+        self.course.project_passing_score = 70
+        self.course.save()
+
         self.project = Project.objects.create(
             course=self.course,
             slug="test-project",
@@ -67,7 +71,6 @@ class ProjectEvaluationTestCase(TestCase):
             learning_in_public_cap_project=5,
             learning_in_public_cap_review=3,
             number_of_peers_to_evaluate=3,
-            points_to_pass=70,
         )
 
         self.submission = ProjectSubmission.objects.create(
@@ -386,8 +389,8 @@ class ProjectEvaluationTestCase(TestCase):
         scores = [3, 3, 0]
         expected_project_score = 3
 
-        self.project.points_to_pass = 3
-        self.project.save()
+        self.course.project_passing_score = 3
+        self.course.save()
 
         answers_and_scores = list(zip(answers, scores))
 
@@ -425,8 +428,8 @@ class ProjectEvaluationTestCase(TestCase):
         scores = [3, 0, 0]
         expected_project_score = 0
 
-        self.project.points_to_pass = 3
-        self.project.save()
+        self.course.project_passing_score = 3
+        self.course.save()
 
         answers_and_scores = list(zip(answers, scores))
 
@@ -452,8 +455,8 @@ class ProjectEvaluationTestCase(TestCase):
         )
 
     def test_not_scoring_when_passing_score_is_0(self):
-        self.project.points_to_pass = 0
-        self.project.save()
+        self.course.project_passing_score = 0
+        self.course.save()
 
         status, _ = score_project(self.project)
         self.assertEqual(status, ProjectActionStatus.FAIL)
@@ -478,8 +481,8 @@ class ProjectEvaluationTestCase(TestCase):
         scores = [3, 3, 0]
         expected_project_score = 3
 
-        self.project.points_to_pass = 3
-        self.project.save()
+        self.course.project_passing_score = 3
+        self.course.save()
 
         answers_and_scores = list(zip(answers, scores))
 

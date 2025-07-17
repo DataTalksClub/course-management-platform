@@ -74,6 +74,7 @@ def duplicate_course(modeladmin, request, queryset):
             first_homework_scored=False,
             finished=False,
             faq_document_url=course.faq_document_url,
+            project_passing_score=course.project_passing_score,
         )
 
         # Copy review criteria with all fields
