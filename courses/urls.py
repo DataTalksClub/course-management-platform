@@ -99,4 +99,9 @@ urlpatterns = [
         data.graduates_data_view,
         name="data_graduates",
     ),
+    path(
+        "data/<slug:course_slug>/update-certificate",
+        data.update_enrollment_certificate_view,
+        name="data_update_certificate",
+    ),
 ]

@@ -223,3 +223,85 @@ user = User.objects.get(email='test@gmail.com')
 ```
 
 
+
+## API Endpoints
+
+All API endpoints require authentication using a valid token in the Authorization header: `Token <token_key>`
+
+### Homework Data
+
+**Endpoint:** `GET /data/{course_slug}/homework/{homework_slug}`
+
+**Description:** Retrieves comprehensive homework data including course information, homework details, and all student submissions with their answers.
+
+**Response:** Returns course data, homework details, and an array of submissions with:
+- Student information
+- Homework submission details (links, time spent, scores)
+- Individual question answers with correctness
+- Learning in public contributions
+- FAQ contributions
+
+### Project Data
+
+**Endpoint:** `GET /data/{course_slug}/project/{project_slug}`
+
+**Description:** Retrieves comprehensive project data including course information, project details, and all student submissions with their scores and peer review information.
+
+**Response:** Returns course data, project details, and an array of submissions with:
+- Student information and GitHub links
+- Project scores (project, FAQ, learning in public, peer review)
+- Peer review status and scores
+- Pass/fail status
+- Time spent and learning in public links
+
+### Graduates Data
+
+**Endpoint:** `GET /data/{course_slug}/graduates`
+
+**Description:** Retrieves a list of students who have successfully completed the course by passing the minimum required number of projects.
+
+**Response:** Returns an array of graduates with:
+- Student email
+- Certificate name (or display name if certificate name not set)
+
+### Update Enrollment Certificate
+
+**Endpoint:** `POST /data/{course_slug}/update-certificate`
+
+**Description:** Updates the certificate URL for a user's enrollment in a specific course.
+
+**Request Body:**
+```json
+{
+    "email": "user@example.com",
+    "certificate_path": "/path/to/certificate.pdf"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Certificate URL updated for user@example.com in course course-slug",
+    "enrollment_id": 123,
+    "certificate_url": "/path/to/certificate.pdf"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Missing required fields or invalid JSON
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: User not found or not enrolled in the course
+- `405 Method Not Allowed`: Wrong HTTP method (only POST allowed)
+- `500 Internal Server Error`: Server error
+
+**Example Usage:**
+```bash
+curl -X POST \
+  -H "Authorization: Token your_token_here" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "student@example.com", "certificate_path": "/certificates/student-cert.pdf"}' \
+  http://localhost:8000/data/python-for-data-science/update-certificate
+```
+
+

@@ -15,6 +15,9 @@ from courses.models import (
 
 from django.forms.models import model_to_dict
 
+import json
+from courses.models import User, Enrollment
+
 
 @token_required
 def homework_data_view(request, course_slug: str, homework_slug: str):
@@ -107,7 +110,7 @@ def project_data_view(request, course_slug: str, project_slug: str):
 
     # Get project data and add the points_to_pass property
     project_data = model_to_dict(project)
-    project_data['points_to_pass'] = project.points_to_pass
+    project_data["points_to_pass"] = project.points_to_pass
 
     # Compile the result
     result = {
@@ -118,51 +121,124 @@ def project_data_view(request, course_slug: str, project_slug: str):
 
     return JsonResponse(result)
 
+
 @token_required
-def graduates_data_view(request, course_slug: str):
+def update_enrollment_certificate_view(request, course_slug: str):
+    """
+    Update enrollment certificate URL for a user in a specific course.
 
-    # Fetch course
+    Expected JSON payload:
+    {
+        "email": "user@example.com",
+        "certificate_path": "/path/to/certificate.pdf"
+    }
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
     try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        certificate_path = data.get("certificate_path")
+
+        if not email or not certificate_path:
+            return JsonResponse(
+                {
+                    "error": "Both email and certificate_path are required"
+                },
+                status=400,
+            )
+
+        # Find the course
         course = get_object_or_404(Course, slug=course_slug)
-        #course = Course.objects.get(id=course_id)
-    except Course.DoesNotExist:
-        return JsonResponse({"error": "Course not found"}, status=404)
 
-    # Get passed students
-    submissions = ProjectSubmission.objects \
-        .filter(project__course=course, passed=True) \
-        .prefetch_related("enrollment")
+        # Find the user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return JsonResponse(
+                {"error": f"User with email {email} not found"},
+                status=404,
+            )
 
-    # Count projects per student
-    cnt = Counter()
+        # Find the enrollment
+        try:
+            enrollment = Enrollment.objects.get(
+                student=user, course=course
+            )
+        except Enrollment.DoesNotExist:
+            return JsonResponse(
+                {
+                    "error": f"User {email} is not enrolled in course {course_slug}"
+                },
+                status=404,
+            )
+
+        # Update the certificate URL
+        enrollment.certificate_url = certificate_path
+        enrollment.save()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Certificate URL updated for {email} in course {course_slug}",
+                "enrollment_id": enrollment.id,
+                "certificate_url": certificate_path,
+            }
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def get_passed_enrollments(passed_project_submissions, min_projects):
+    assert min_projects > 0, "min_projects must be greater than 0"
+
+    counter_passed = Counter()
     ids_mapping = {}
 
-    for s in submissions:
+    for s in passed_project_submissions:
         e = s.enrollment
         eid = e.id
-        cnt[eid] += 1
+        counter_passed[eid] += 1
         ids_mapping[eid] = e
 
-    passed = []
+    passed_enrollments = []
 
-    # Get mimimum number of projects to pass
-    min_projects = course.min_projects_to_pass
+    for eid, count in counter_passed.items():
+        if count >= min_projects:
+            passed_enrollments.append(ids_mapping[eid])
 
-    for eid, c in cnt.items():
-        if c >= min_projects:
-            passed.append(ids_mapping[eid])
+    return passed_enrollments
 
-    # Prepare results
-    results = []
-    for enrollment in passed:
+
+@token_required
+def graduates_data_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+
+    passed_project_submissions = ProjectSubmission.objects.filter(
+        project__course=course, passed=True
+    ).prefetch_related("enrollment")
+
+    passed_enrollments = get_passed_enrollments(
+        passed_project_submissions, course.min_projects_to_pass
+    )
+
+    graduates = []
+
+    for enrollment in passed_enrollments:
         student = enrollment.student
         email = student.email
         name = enrollment.certificate_name or enrollment.display_name
 
-        results.append({
-            "email": email,
-            "name": name,
-        })
+        graduates.append(
+            {
+                "email": email,
+                "name": name,
+            }
+        )
 
-
-    return JsonResponse(results, safe=False)
+    response = {"graduates": graduates}
+    return JsonResponse(response)
