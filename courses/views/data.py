@@ -3,6 +3,8 @@ from accounts.auth import token_required
 from django.shortcuts import get_object_or_404
 from django.db.models import Prefetch
 
+from collections import Counter
+
 from courses.models import (
     Answer,
     Course,
@@ -115,3 +117,52 @@ def project_data_view(request, course_slug: str, project_slug: str):
     }
 
     return JsonResponse(result)
+
+@token_required
+def graduates_data_view(request, course_slug: str):
+
+    # Fetch course
+    try:
+        course = get_object_or_404(Course, slug=course_slug)
+        #course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return JsonResponse({"error": "Course not found"}, status=404)
+
+    # Get passed students
+    submissions = ProjectSubmission.objects \
+        .filter(project__course=course, passed=True) \
+        .prefetch_related("enrollment")
+
+    # Count projects per student
+    cnt = Counter()
+    ids_mapping = {}
+
+    for s in submissions:
+        e = s.enrollment
+        eid = e.id
+        cnt[eid] += 1
+        ids_mapping[eid] = e
+
+    passed = []
+
+    # Get mimimum number of projects to pass
+    min_projects = course.min_projects_to_pass
+
+    for eid, c in cnt.items():
+        if c >= min_projects:
+            passed.append(ids_mapping[eid])
+
+    # Prepare results
+    results = []
+    for enrollment in passed:
+        student = enrollment.student
+        email = student.email
+        name = enrollment.certificate_name or enrollment.display_name
+
+        results.append({
+            "email": email,
+            "name": name,
+        })
+
+
+    return JsonResponse(results, safe=False)

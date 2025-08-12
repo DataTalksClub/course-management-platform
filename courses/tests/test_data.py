@@ -378,3 +378,78 @@ class DataAPITestCase(TestCase):
         )
         with self.assertRaises(ValidationError):
             self.project_submission.full_clean()
+
+    def test_graduate_data_view(self):
+        """Test that only students who passed enough projects are returned."""
+
+        self.course.min_projects_to_pass = 2
+        self.course.save()
+
+        self.user.email = "student1@example.com"
+        self.user.save()
+        self.enrollment.certificate_name = "Student One"
+        self.enrollment.save()
+
+        other_user = CustomUser.objects.create(
+            username="student2", email="student2@example.com", password="pass"
+        )
+        other_enrollment = Enrollment.objects.create(
+            student=other_user,
+            course=self.course,
+            certificate_name="Student Two",
+        )
+
+        project1 = Project.objects.create(
+            course=self.course,
+            slug="project1",
+            title="Project 1",
+            description="Description",
+            submission_due_date=timezone.now() + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now() + timezone.timedelta(days=14),
+        )
+        project2 = Project.objects.create(
+            course=self.course,
+            slug="project2",
+            title="Project 2",
+            description="Description",
+            submission_due_date=timezone.now() + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now() + timezone.timedelta(days=14),
+        )
+
+        ProjectSubmission.objects.create(
+            project=project1,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://httpbin.org/status/200",
+            commit_id="1111",
+            passed=True,
+        )
+        ProjectSubmission.objects.create(
+            project=project2,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://httpbin.org/status/200",
+            commit_id="2222",
+            passed=True,
+        )
+        ProjectSubmission.objects.create(
+            project=project1,
+            student=other_user,
+            enrollment=other_enrollment,
+            github_link="https://httpbin.org/status/200",
+            commit_id="3333",
+            passed=True,
+        )
+
+        url = reverse(
+            "data_graduates",
+            kwargs={"course_slug": self.course.slug},
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        actual_result = response.json()
+
+        self.assertEqual(len(actual_result), 1)
+        self.assertEqual(actual_result[0]["email"], self.user.email)
+        self.assertEqual(actual_result[0]["name"], self.enrollment.certificate_name)

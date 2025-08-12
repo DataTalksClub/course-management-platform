@@ -42,6 +42,12 @@ class Course(models.Model):
         help_text="The URL of the FAQ document for the course.",
     )
 
+    min_projects_to_pass = models.IntegerField(
+        default=1,
+        blank=False,
+        help_text="The minimum number of projects to pass the course.",
+    )
+
     homework_problems_comments_field = models.BooleanField(
         default=False,
         help_text="Include field for problems and comments in homework",

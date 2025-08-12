@@ -94,4 +94,9 @@ urlpatterns = [
         data.project_data_view,
         name="data_project",
     ),
+    path(
+        "data/<slug:course_slug>/graduates",
+        data.graduates_data_view,
+        name="data_graduates",
+    ),
 ]
