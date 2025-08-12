@@ -1,22 +1,23 @@
-from django.http import JsonResponse
-from accounts.auth import token_required
-from django.shortcuts import get_object_or_404
-from django.db.models import Prefetch
-
+import json
 from collections import Counter
 
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.db.models import Prefetch
+from django.forms.models import model_to_dict
+from django.views.decorators.csrf import csrf_exempt
+
+from accounts.auth import token_required
+
 from courses.models import (
+    User, 
+    Enrollment,
     Answer,
     Course,
     Homework,
     Project,
     ProjectSubmission,
 )
-
-from django.forms.models import model_to_dict
-
-import json
-from courses.models import User, Enrollment
 
 
 @token_required
@@ -123,6 +124,7 @@ def project_data_view(request, course_slug: str, project_slug: str):
 
 
 @token_required
+@csrf_exempt
 def update_enrollment_certificate_view(request, course_slug: str):
     """
     Update enrollment certificate URL for a user in a specific course.
