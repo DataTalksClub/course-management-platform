@@ -47,4 +47,4 @@ fi
 
 bash deploy_dev.sh ${DEV_TAG} prod
 
-echo "${DEV_TAG}" >> .prod-versions
+echo "${DEV_TAG}" >> ../.prod-versions
