@@ -3,3 +3,7 @@ terraform/
 Dockerfile
 Makefile
 README.md
+.venv
+.envrc
+.envrc_template
+.github

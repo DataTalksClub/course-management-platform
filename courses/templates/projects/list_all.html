@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+
+<h2 class="mb-3 text-center">All Project Submissions for {{ course.title }}</h2>
+
+<div class="list-group">
+  {% for submission in submissions %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <a href="{{ submission.github_link }}" target="_blank" class="text-decoration-none">
+            {{ submission.enrollment.display_name }}
+            <span
+                class="ms-2"
+                data-bs-toggle="tooltip"
+                data-bs-placement="bottom"
+                title="{{ submission.github_link }}">
+              <i class="fas fa-external-link-alt"></i>
+            </span>
+          </a>
+          <span class="text-muted">({{ submission.project.title }})</span>
+        </div>
+        
+        <div>
+          {% if submission.display_score == -1 %}
+            N/A
+          {% else %}
+            {{ submission.display_score }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %} 

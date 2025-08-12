@@ -1,4 +1,3 @@
-
 import secrets
 
 from django.db import models
@@ -12,6 +11,13 @@ class CustomUser(AbstractUser):
     )
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+    certificate_name = models.CharField(
+        verbose_name="Certificate name",
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Your actual name that will appear on your certificates"
+    )
 
 
 class Token(models.Model):

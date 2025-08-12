@@ -105,10 +105,14 @@ def project_data_view(request, course_slug: str, project_slug: str):
         }
         submission_data.append(submission_dict)
 
+    # Get project data and add the points_to_pass property
+    project_data = model_to_dict(project)
+    project_data['points_to_pass'] = project.points_to_pass
+
     # Compile the result
     result = {
         "course": course_data,
-        "project": model_to_dict(project),
+        "project": project_data,
         "submissions": submission_data,
     }
 

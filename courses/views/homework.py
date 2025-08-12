@@ -237,7 +237,7 @@ def process_homework_submission(
         ):
             submission.time_spent_homework = float(time_spent_homework)
 
-    if homework.problems_comments_field:
+    if course.homework_problems_comments_field:
         problems_comments = request.POST.get("problems_comments", "")
         submission.problems_comments = problems_comments.strip()
 

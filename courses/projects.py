@@ -55,11 +55,11 @@ def select_random_assignment(
 
     if n <= num_projects_to_review:
         raise ValueError(
-            "The number of projects to review should be greater than the number of submissions. " + 
-            f"Number of projects to review: {num_projects_to_review}, Number of submissions: {n}"
+            "The number of projects to review should be greater than the number of submissions. "
+            + f"Number of projects to review: {num_projects_to_review}, Number of submissions: {n}"
         )
 
-    random.seed(seed)    
+    random.seed(seed)
 
     submissions_list = list(submissions)
 
@@ -217,7 +217,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
         if project.points_to_pass == 0:
             return (
                 ProjectActionStatus.FAIL,
-                "Project has no points to pass. Update the `point_to_pass` field to greater than zero value",
+                "Project has no points to pass. Update the course's `project_passing_score` field to greater than zero value",
             )
 
         if project.state != ProjectState.PEER_REVIEWING.value:
@@ -302,7 +302,8 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                     num_mandatory_projects_reviewed += 1
 
             submission.peer_review_score = (
-                num_mandatory_projects_reviewed * project.points_for_peer_review
+                num_mandatory_projects_reviewed
+                * project.points_for_peer_review
             )
 
             learning_in_public_cap_project = (
@@ -369,7 +370,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             ) and submission.reviewed_enough_peers
 
             submissions_to_update.append(submission)
-            
+
             if submission.passed:
                 passed += 1
 

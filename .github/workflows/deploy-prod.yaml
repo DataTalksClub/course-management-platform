@@ -36,3 +36,11 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+
+    - name: Commit and push .prod-versions
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .prod-versions
+        git commit -m "Update production versions: ${{ github.event.inputs.deployTag || 'auto-detected' }}"
+        git push

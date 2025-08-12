@@ -116,6 +116,15 @@
     </div>
   </div>
   {% endfor %}
+  
+  {% if has_completed_projects %}
+    <div class="text-center mb-2">
+      <a href="{% url 'list_all_project_submissions' course.slug %}"
+          class="btn btn-secondary mt-3">
+        See all submitted projects
+      </a>
+    </div>
+  {% endif %}
 </div>
 {% endif %}
 

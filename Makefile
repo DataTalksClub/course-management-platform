@@ -6,39 +6,39 @@ SITE_ID ?= 2
 
 run: ## Run django server
 run:
-	pipenv run python manage.py runserver 0.0.0.0:8000
+	uv run python manage.py runserver 0.0.0.0:8000
 
 
 migrations: ## Make migrations
 migrations:
-	pipenv run python manage.py makemigrations
-	pipenv run python manage.py migrate
+	uv run python manage.py makemigrations
+	uv run python manage.py migrate
 
 
 admin: ## Add an admin user
 admin:
-	pipenv run python manage.py createsuperuser
+	uv run python manage.py createsuperuser
 
 
 user:
-	pipenv run python add_user.py
+	uv run python add_user.py
 
 
 tests: ## Run tests
 tests:
-	pipenv run python manage.py test courses.tests
+	uv run python manage.py test courses.tests
 
 
 data: ## Add data to database
 data: migrations
-	pipenv run python add_data.py
+	uv run python add_data.py
 
 test_data: data
-	pipenv run python add_more_test_data.py
+	uv run python add_more_test_data.py
 
 shell: ## Run django shell
 shell:
-	pipenv run python manage.py shell
+	uv run python manage.py shell
 
 
 tunnel_prod: ## Open tunnel to prod
@@ -46,7 +46,7 @@ tunnel_prod: ## Open tunnel to prod
 
 notebook: ## Run a jupyter notebook
 notebook:
-	pipenv run jupyter notebook
+	uv run jupyter notebook
 
 
 docker_build: ## Build docker image
@@ -92,6 +92,10 @@ deploy_prod: ## Deploy to prod environment
 deploy_prod:
 	bash deploy/deploy_prod.sh
 
+
+sync: ## Install dev dependencies
+sync:
+	uv sync --dev
 
 
 help:    ## Show this help.

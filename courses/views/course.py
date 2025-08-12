@@ -150,6 +150,12 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     homeworks = get_homeworks_for_course(course, user)
     projects = get_projects_for_course(course, user)
 
+    has_completed_projects = False
+    for project in projects:
+        print("project.state:", project.state)
+        if project.state == ProjectState.COMPLETED.value:
+            has_completed_projects = True
+
     total_score = None
     if user.is_authenticated:
         try:
@@ -165,6 +171,7 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         "course": course,
         "homeworks": homeworks,
         "projects": projects,
+        "has_completed_projects": has_completed_projects,
         "is_authenticated": user.is_authenticated,
         "total_score": total_score,
     }
@@ -185,7 +192,7 @@ def get_homeworks_for_course(course: Course, user) -> List[Homework]:
     homeworks = (
         Homework.objects.filter(course=course)
         .prefetch_related(submissions_prefetch)
-        .order_by("id")
+        .order_by("due_date")
     )
 
     for hw in homeworks:
@@ -313,3 +320,31 @@ def enrollment_view(request, course_slug):
     }
 
     return render(request, "courses/enrollment.html", context)
+
+
+def list_all_project_submissions_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+
+    submissions = (
+        ProjectSubmission.objects.filter(project__course=course)
+        .select_related("project", "enrollment")
+        .annotate(
+            display_score=Case(
+                When(
+                    project__state=ProjectState.COMPLETED.value,
+                    then="project_score",
+                ),
+                default=Value(-1),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("-display_score", "project__id", "submitted_at")
+    )
+
+    context = {
+        "course": course,
+        "submissions": submissions,
+        "is_authenticated": request.user.is_authenticated,
+    }
+
+    return render(request, "projects/list_all.html", context)

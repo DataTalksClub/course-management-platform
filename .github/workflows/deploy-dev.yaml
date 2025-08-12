@@ -35,15 +35,15 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9.13'
+        python-version: '3.13.5'
 
     - name: Install dependencies
       run: |
-        pip install pipenv
-        pipenv install --deploy --ignore-pipfile
+        pip install uv
+        uv sync --locked
 
     - name: Run tests
-      run: pipenv run python manage.py test courses.tests
+      run: uv run python manage.py test courses.tests
 
     - name: Build Docker image
       run: docker build -t course_management:${{ env.TAG }} .

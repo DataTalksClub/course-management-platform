@@ -8,7 +8,6 @@ peer reviews.
 Students can enroll in courses, submit homework, projects
 and engage in peer evaluations.
 
-
 ## Features
 
 - **User Authentication**: Registration and login functionality for students and instructors.
@@ -31,22 +30,19 @@ and engage in peer evaluations.
 
 ### Installing dependencies
 
-Install pipenv if you don't have it yet:
+This project uses uv for dependency management and requires Python 3.13.
+
+Install uv if you don't have it yet:
 
 ```bash
-pip install pipenv
+pip install uv
 ```
 
-Install the dependencies (you need Python 3.9):
+Install Python 3.13 and dependencies:
 
 ```bash
-pipenv install
-```
-
-Activate virtual env:
-
-```bash
-pipenv shell
+uv python install 3.13
+uv sync --dev
 ```
 
 ### Prepare the service
@@ -61,14 +57,14 @@ Make migrations:
 
 ```bash
 make migrations
-# python manage.py migrate
+# uv run python manage.py migrate
 ```
 
 Add an admin user:
 
 ```bash
 make admin
-# python manage.py createsuperuser
+# uv run python manage.py createsuperuser
 ```
 
 Add some data:
@@ -81,7 +77,7 @@ make data
 
 ```bash
 make run
-# python manage.py runserver 0.0.0.0:8000
+# uv run python manage.py runserver 0.0.0.0:8000
 ```
 
 ## Running with Docker
@@ -95,22 +91,14 @@ docker build -t course_management .
 Run it:
 
 ```bash
-docker run -d \
-    -p 8000:8000 \
-    --name course_management \
-    -e DATABASE_URL="sqlite:////data/db.sqlite3" \
-    -v ${PWD}/db:/data \
-    course_management
-```
+DBDIR=`cygpath -w ${PWD}/db`
 
-if you're on cygwin:
-
-```bash
 docker run -it --rm \
-    -p 8000:8000 \
+    -p 8000:80 \
     --name course_management \
     -e DATABASE_URL="sqlite:////data/db.sqlite3" \
-    -v `cygpath -w ${PWD}/db`:/data \
+    -e SITE_ID="${SITE_ID}" \
+    -v ${DBDIR}:/data \
     course_management
 ```
 

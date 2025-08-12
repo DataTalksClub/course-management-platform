@@ -152,10 +152,6 @@ class DataAPITestCase(TestCase):
             self.homework.time_spent_homework_field,
         )
         self.assertEqual(
-            actual_result["homework"]["problems_comments_field"],
-            self.homework.problems_comments_field,
-        )
-        self.assertEqual(
             actual_result["homework"]["faq_contribution_field"],
             self.homework.faq_contribution_field,
         )

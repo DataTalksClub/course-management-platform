@@ -59,7 +59,7 @@ resource "aws_security_group" "public_security_group" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["2.215.181.58/32"]
+    cidr_blocks = ["2.215.203.106/32", "2.215.235.143/32"]
   }
 
   # uncomment to allow access from everywhere
