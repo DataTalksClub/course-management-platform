@@ -302,6 +302,9 @@ SOCIALACCOUNT_ADAPTER = (
     "accounts.auth.ConsolidatingSocialAccountAdapter"
 )
 
+# Skip intermediate confirmation page - direct OAuth redirect
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
 
 # Unfold Configurations
 UNFOLD = {
