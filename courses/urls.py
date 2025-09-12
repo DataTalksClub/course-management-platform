@@ -33,6 +33,11 @@ urlpatterns = [
         course.enrollment_view,
         name="enrollment",
     ),
+    path(
+        "<slug:course_slug>/dashboard",
+        course.dashboard_view,
+        name="dashboard",
+    ),
 
     # project
     path(
@@ -54,6 +59,11 @@ urlpatterns = [
         "<slug:course_slug>/project/<slug:project_slug>/results",
         project.project_results,
         name="project_results",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/stats",
+        project.project_statistics,
+        name="project_statistics",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/<int:review_id>",

@@ -24,6 +24,8 @@ from courses.models import (
     User,
 )
 
+from courses.scoring import calculate_project_statistics
+
 
 from .homework import tryparsefloat, clean_learning_in_public_links
 
@@ -559,3 +561,32 @@ def projects_list_view(request, course_slug, project_slug):
     }
 
     return render(request, "projects/list.html", context)
+
+
+def project_statistics(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    if project.state != ProjectState.COMPLETED.value:
+        messages.error(
+            request,
+            "This project is not completed yet, so there are no available statistics.",
+            extra_tags="project",
+        )
+        return redirect(
+            "project",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
+
+    stats = calculate_project_statistics(project, force=False)
+
+    context = {
+        "course": course,
+        "project": project,
+        "stats": stats,
+    }
+
+    return render(request, "projects/stats.html", context)

@@ -57,6 +57,19 @@
   {% endfor %}
 {% endif %}
 
+{% if project.state == 'CO' %}
+  <div class="text-center my-4">
+    <a href="{% url 'project_statistics' course.slug project.slug %}"
+        class="btn btn-info">
+      Project statistics
+    </a>
+  </div>
+{% endif %}
+
+<div class="text-center">
+  Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+</div>
+
 <script>
 function confirmEvaluation(url) {
   if (confirm('Are you sure you want to add this project to the list of projects you need to evaluate?')) {

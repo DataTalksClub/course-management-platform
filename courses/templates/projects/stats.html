@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'project' course.slug project.slug %}">{{ project.title }}</a></li>
+
+{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">
+  {{ project.title }} statistics
+</h1>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">
+      <i class="fas fa-users"></i> Total submissions
+    </h5>
+    <p class="card-text display-4">{{ stats.total_submissions }}</p>
+  </div>
+</div>
+
+
+{% for field_name, field_stats, field_icon in stats.get_stat_fields %}
+<div class="card mb-3">
+  <div class="card-header">
+    <h5 class="mb-0">
+      <i class="{{ field_icon }}"></i> {{ field_name }}
+    </h5>
+  </div>
+  <div class="card-body pt-4 pb-3">
+    <div class="row g-2 mb-0">
+      {% for value, label, icon in field_stats %}
+      <div class="col-md-4 col-6">
+        <h6 class="mb-1"><i class="{{ icon }}"></i> {{ label }}</h6>
+        <p class="lead mb-2">{{ value|floatformat:0 }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<p class="text-muted">
+  <i class="fas fa-calendar-alt"></i> Calculated: {{ stats.last_calculated }}
+</p>
+
+
+{% endblock %}

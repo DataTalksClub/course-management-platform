@@ -53,6 +53,12 @@
   {% endif %}
 {% endif %}
 
+{% if project.state == 'CO' %}
+  <div class="pb-2">
+    <a href="{% url 'project_statistics' course.slug project.slug %}">Project statistics</a>
+  </div>
+{% endif %}
+
 <p class="text-muted">{{ project.description | urlize_target_blank }}</p>
 
 <h3 class="mb-3">Project submission</h3>

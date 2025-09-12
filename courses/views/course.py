@@ -1,4 +1,5 @@
 import logging
+import statistics
 
 from typing import List
 
@@ -8,7 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 
-from django.db.models import Prefetch, Value
+from django.db.models import Prefetch, Value, Count, Q
 from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
@@ -348,3 +349,113 @@ def list_all_project_submissions_view(request, course_slug: str):
     }
 
     return render(request, "projects/list_all.html", context)
+
+
+def dashboard_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+    
+    # Get total enrollments
+    total_enrollments = Enrollment.objects.filter(course=course).count()
+    
+    # Get project completion data
+    project_submissions = ProjectSubmission.objects.filter(
+        project__course=course
+    ).select_related('project', 'enrollment')
+    
+    # Calculate project completion
+    total_projects = Project.objects.filter(course=course).count()
+    total_possible_project_submissions = total_enrollments * total_projects
+    project_completion_rate = (project_submissions.count() / total_possible_project_submissions * 100) if total_possible_project_submissions > 0 else 0
+    
+    # Get time spent data for projects
+    project_time_spent = [s.time_spent for s in project_submissions if s.time_spent is not None]
+    
+    # Get project score data
+    project_scores = [s.total_score for s in project_submissions if s.total_score is not None]
+    
+    # Calculate average total scores
+    enrollments_with_scores = Enrollment.objects.filter(
+        course=course, total_score__isnull=False
+    )
+    avg_total_score = statistics.mean([e.total_score for e in enrollments_with_scores]) if enrollments_with_scores.exists() else 0
+    
+    # Project pass/fail data
+    project_pass_count = project_submissions.filter(passed=True).count()
+    project_fail_count = project_submissions.filter(passed=False).count()
+    
+    # Helper function to calculate quartiles safely
+    def safe_quartiles(data):
+        if len(data) < 3:
+            return None, None, None
+        try:
+            q25, median, q75 = statistics.quantiles(data, n=4)
+            return q25, median, q75
+        except:
+            return None, None, None
+    
+    # Calculate quartiles for project metrics
+    project_time_q25, project_time_median, project_time_q75 = safe_quartiles(project_time_spent)
+    project_score_q25, project_score_median, project_score_q75 = safe_quartiles(project_scores)
+    
+    # Get homework data per homework
+    homeworks = Homework.objects.filter(course=course).order_by('id')
+    homework_stats = []
+    
+    for homework in homeworks:
+        hw_submissions = Submission.objects.filter(homework=homework).select_related('enrollment')
+        
+        # Get time and score data for this homework
+        hw_time_lecture = [s.time_spent_lectures for s in hw_submissions if s.time_spent_lectures is not None]
+        hw_time_homework = [s.time_spent_homework for s in hw_submissions if s.time_spent_homework is not None]
+        hw_scores = [s.total_score for s in hw_submissions if s.total_score is not None]
+        
+        # Calculate total time (lecture + homework) for each submission
+        hw_time_total = []
+        for s in hw_submissions:
+            if s.time_spent_lectures is not None and s.time_spent_homework is not None:
+                hw_time_total.append(s.time_spent_lectures + s.time_spent_homework)
+        
+        # Calculate quartiles for this homework
+        hw_time_lecture_q25, hw_time_lecture_median, hw_time_lecture_q75 = safe_quartiles(hw_time_lecture)
+        hw_time_homework_q25, hw_time_homework_median, hw_time_homework_q75 = safe_quartiles(hw_time_homework)
+        hw_time_total_q25, hw_time_total_median, hw_time_total_q75 = safe_quartiles(hw_time_total)
+        hw_score_q25, hw_score_median, hw_score_q75 = safe_quartiles(hw_scores)
+        
+        homework_stats.append({
+            'homework': homework,
+            'submissions_count': hw_submissions.count(),
+            'time_lecture_q25': hw_time_lecture_q25,
+            'time_lecture_median': hw_time_lecture_median,
+            'time_lecture_q75': hw_time_lecture_q75,
+            'time_lecture_median_formatted': f"{hw_time_lecture_median:.0f}" if hw_time_lecture_median and hw_time_lecture_median % 1 == 0 else f"{hw_time_lecture_median:.1f}" if hw_time_lecture_median else None,
+            'time_homework_q25': hw_time_homework_q25,
+            'time_homework_median': hw_time_homework_median,
+            'time_homework_q75': hw_time_homework_q75,
+            'time_homework_median_formatted': f"{hw_time_homework_median:.0f}" if hw_time_homework_median and hw_time_homework_median % 1 == 0 else f"{hw_time_homework_median:.1f}" if hw_time_homework_median else None,
+            'time_total_q25': hw_time_total_q25,
+            'time_total_median': hw_time_total_median,
+            'time_total_q75': hw_time_total_q75,
+            'time_total_median_formatted': f"{hw_time_total_median:.0f}" if hw_time_total_median and hw_time_total_median % 1 == 0 else f"{hw_time_total_median:.1f}" if hw_time_total_median else None,
+            'score_q25': hw_score_q25,
+            'score_median': hw_score_median,
+            'score_q75': hw_score_q75,
+        })
+    
+    context = {
+        'course': course,
+        'total_enrollments': total_enrollments,
+        'project_completion_rate': round(project_completion_rate, 1),
+        'project_time_q25': project_time_q25,
+        'project_time_median': project_time_median,
+        'project_time_q75': project_time_q75,
+        'project_score_q25': project_score_q25,
+        'project_score_median': project_score_median,
+        'project_score_q75': project_score_q75,
+        'avg_total_score': round(avg_total_score, 1),
+        'project_pass_count': project_pass_count,
+        'project_fail_count': project_fail_count,
+        'project_passing_score': course.project_passing_score,
+        'homework_stats': homework_stats,
+    }
+    
+    return render(request, "courses/dashboard.html", context)

@@ -19,6 +19,7 @@
     {% if course.first_homework_scored %}
       <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
     {% endif %}
+    <a class="btn btn-secondary" href="{% url 'dashboard' course.slug %}" role="button">Course dashboard</a>
     {% if is_authenticated %}
       <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
     {% endif %}
