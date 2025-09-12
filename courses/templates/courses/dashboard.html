@@ -41,19 +41,19 @@
       <div class="col-md-4">
         <i class="fas fa-book" data-bs-toggle="tooltip" title="Homework Assignment"></i>
       </div>
-      <div class="col-3 col-md-1">
+      <div class="col-3 col-md">
         <i class="fas fa-hashtag" data-bs-toggle="tooltip" title="Number of Submissions"></i>
       </div>
-      <div class="col-3 col-md-1">
+      <div class="col-3 col-md">
         <i class="fas fa-video" data-bs-toggle="tooltip" title="Time Spent Watching Lectures"></i>
       </div>
-      <div class="col-3 col-md-2">
+      <div class="col-3 col-md">
         <i class="fas fa-tasks" data-bs-toggle="tooltip" title="Time Spent on Homework"></i>
       </div>
-      <div class="col-3 col-md-2">
+      <div class="col-3 col-md">
         <i class="fas fa-clock" data-bs-toggle="tooltip" title="Total Time Spent"></i>
       </div>
-      <div class="col-md-2">
+      <div class="col-md">
         <i class="fas fa-star" data-bs-toggle="tooltip" title="Average Score"></i>
       </div>
     </div>
@@ -63,10 +63,10 @@
       <div class="col-md-4">
         <strong>{{ hw_stat.homework.title }}</strong>
       </div>
-      <div class="col-3 col-md-1">
+      <div class="col-3 col-md">
         {{ hw_stat.submissions_count }}
       </div>
-      <div class="col-3 col-md-1">
+      <div class="col-3 col-md">
         {% if hw_stat.time_lecture_median %}
           <span data-bs-toggle="tooltip" data-bs-placement="top" 
                 title="Most students spent between {{ hw_stat.time_lecture_q25|floatformat:1 }} and {{ hw_stat.time_lecture_q75|floatformat:1 }} hours on lectures">
@@ -76,7 +76,7 @@
           -
         {% endif %}
       </div>
-      <div class="col-3 col-md-2">
+      <div class="col-3 col-md">
         {% if hw_stat.time_homework_median %}
           <span data-bs-toggle="tooltip" data-bs-placement="top" 
                 title="Most students spent between {{ hw_stat.time_homework_q25|floatformat:1 }} and {{ hw_stat.time_homework_q75|floatformat:1 }} hours on homework">
@@ -86,7 +86,7 @@
           -
         {% endif %}
       </div>
-      <div class="col-3 col-md-2">
+      <div class="col-3 col-md">
         {% if hw_stat.time_total_median %}
           <span data-bs-toggle="tooltip" data-bs-placement="top" 
                 title="Most students spent between {{ hw_stat.time_total_q25|floatformat:1 }} and {{ hw_stat.time_total_q75|floatformat:1 }} hours total">
@@ -96,7 +96,7 @@
           -
         {% endif %}
       </div>
-      <div class="col-md-2">
+      <div class="col-md">
         {% if hw_stat.score_median %}{{ hw_stat.score_median|floatformat:0 }}{% else %}-{% endif %}
       </div>
     </div>
