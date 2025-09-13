@@ -66,7 +66,6 @@ class DataAPITestCase(TestCase):
             homework_link="https://github.com/DataTalksClub",
         )
 
-        self.submission.full_clean()
         self.submission.save()
 
         self.question = Question.objects.create(
@@ -235,7 +234,6 @@ class DataAPITestCase(TestCase):
             commit_id="abcd1234",
         )
 
-        self.project_submission.full_clean()
         self.project_submission.save()
 
         url = reverse(
@@ -441,47 +439,6 @@ class DataAPITestCase(TestCase):
         self.assertEqual(
             submission["passed"], expected_submission["passed"]
         )
-
-    def test_homework_submission_with_404_url(self):
-        self.homework = Homework.objects.create(
-            course=self.course,
-            title="Test Homework",
-            description="Test Homework Description",
-            due_date=timezone.now() + timezone.timedelta(days=7),
-            state=HomeworkState.OPEN.value,
-            slug="test-homework",
-        )
-
-        self.submission = Submission(
-            homework=self.homework,
-            student=self.user,
-            enrollment=self.enrollment,
-            homework_link="https://httpbin.org/status/404",
-        )
-        with self.assertRaises(ValidationError):
-            self.submission.full_clean()
-
-    def test_project_submission_with_404_url(self):
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            description="Description",
-            submission_due_date=timezone.now()
-            + timezone.timedelta(days=7),
-            peer_review_due_date=timezone.now()
-            + timezone.timedelta(days=14),
-        )
-
-        self.project_submission = ProjectSubmission(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://httpbin.org/status/404",
-            commit_id="abcd1234",
-        )
-        with self.assertRaises(ValidationError):
-            self.project_submission.full_clean()
 
     def test_graduate_data_view(self):
         """Test that only students who passed enough projects are returned."""

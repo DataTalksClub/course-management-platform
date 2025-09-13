@@ -1,5 +1,6 @@
 import logging
 
+from unittest import mock
 from django.urls import reverse
 from django.test import TestCase, Client
 from django.utils import timezone
@@ -167,10 +168,15 @@ class ProjectViewTestCase(TestCase):
         # Check if the context has 'disabled' as True
         self.assertTrue(response.context["disabled"])
 
-    def test_project_submission_post_no_submissions(self):
+    @mock.patch("requests.get")
+    def test_project_submission_post_no_submissions(self, mock_get):
         """
         Test posting a project submission when there are no existing submissions.
         """
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
         self.client.login(**credentials)
         url = reverse(
             "project", args=[self.course.slug, self.project.slug]
@@ -207,7 +213,12 @@ class ProjectViewTestCase(TestCase):
             submission.faq_contribution, data["faq_contribution"]
         )
 
-    def test_project_submission_post_creates_enrollment(self):
+    @mock.patch("requests.get")
+    def test_project_submission_post_creates_enrollment(self, mock_get):
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
         self.enrollment.delete()
 
         enrollments = Enrollment.objects.filter(
@@ -224,7 +235,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://httpbin.org/status/200",
+            "github_link": "https://github.com/existing/repo",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -235,10 +246,15 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(enrollments.count(), 1)
 
-    def test_project_submission_post_with_submissions(self):
+    @mock.patch("requests.get")
+    def test_project_submission_post_with_submissions(self, mock_get):
         """
         Test posting a project submission when there are existing submissions.
         """
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
         self.client.login(**credentials)
 
         # Create an initial submission
@@ -246,7 +262,7 @@ class ProjectViewTestCase(TestCase):
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
-            github_link="https://httpbin.org/status/200",
+            github_link="https://github.com/existing/repo",
             commit_id="123456a",
         )
 
@@ -255,7 +271,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://httpbin.org/status/200",
+            "github_link": "https://github.com/existing/repo",
             "commit_id": "123456e",
             "time_spent": "3",
             "problems_comments": "No issues encountered.",
@@ -293,7 +309,7 @@ class ProjectViewTestCase(TestCase):
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
-            github_link="https://httpbin.org/status/200",
+            github_link="https://github.com/existing/repo",
             commit_id="123456a",
         )
 
@@ -305,18 +321,17 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(count_sumissions, 1)
 
-
         url = reverse(
             "project", args=[self.course.slug, self.project.slug]
         )
 
         data = {
-            "github_link": "https://httpbin.org/status/200",
+            "github_link": "https://github.com/existing/repo",
             "commit_id": "123456e",
             "time_spent": "3",
             "problems_comments": "No issues encountered.",
             "faq_contribution": "Helped a peer with their problem.",
-            "action": "delete"
+            "action": "delete",
         }
 
         response = self.client.post(url, data)
@@ -329,7 +344,6 @@ class ProjectViewTestCase(TestCase):
         ).count()
 
         self.assertEqual(count_sumissions, 0)
-
 
     # this test requires a redesing of the project view
     # skipping for now
@@ -399,7 +413,7 @@ class ProjectViewTestCase(TestCase):
         )
 
         data = {
-            "github_link": "https://httpbin.org/status/200",
+            "github_link": "https://github.com/existing/repo",
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
@@ -417,11 +431,18 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(submissions.count(), 0)
 
-    def test_project_submission_post_invalid_link_no_submission(self):
+    @mock.patch("requests.get")
+    def test_project_submission_post_invalid_link_no_submission(
+        self, mock_get
+    ):
         """
         When the link is invalid and there's no submission yet,
         no submission is created
         """
+        mock_response = mock.Mock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
         self.client.login(**credentials)
         url = reverse(
             "project", args=[self.course.slug, self.project.slug]

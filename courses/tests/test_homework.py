@@ -815,7 +815,12 @@ class HomeworkDetailViewTests(TestCase):
         answer6 = answers.get(question=self.question6)
         self.assertEqual(answer6.answer_text, "1,2")
 
-    def test_submit_homework_with_all_fields(self):
+    @mock.patch("requests.get")
+    def test_submit_homework_with_all_fields(self, mock_get):
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
         self.course.homework_problems_comments_field = True
         self.course.save()
 
@@ -896,7 +901,14 @@ class HomeworkDetailViewTests(TestCase):
             post_data["faq_contribution"],
         )
 
-    def test_submit_homework_with_all_fields_optional_empty(self):
+    @mock.patch("requests.get")
+    def test_submit_homework_with_all_fields_optional_empty(
+        self, mock_get
+    ):
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
         self.homework.homework_url_field = True
         self.homework.learning_in_public_cap = 7
         self.homework.time_spent_lectures_field = True
@@ -916,7 +928,7 @@ class HomeworkDetailViewTests(TestCase):
             f"answer_{self.question4.id}": ["3"],
             f"answer_{self.question5.id}": ["3.141516"],
             f"answer_{self.question6.id}": ["1", "2"],
-            "homework_url": "https://httpbin.org/status/200",
+            "homework_url": "https://github.com/existing/repo",
             "learning_in_public_links[]": [""],
             "time_spent_lectures": "",
             "time_spent_homework": "",
@@ -953,6 +965,42 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(submission.problems_comments, "")
         self.assertEqual(submission.faq_contribution, "")
 
+    @mock.patch("requests.get")
+    def test_submit_homework_url_validation_404_error(self, mock_get):
+        mock_response = mock.Mock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        self.homework.homework_url_field = True
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            f"answer_{self.question2.id}": ["Some other text"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["1", "2"],
+            "homework_url": "https://github.com/nonexistent/repo",
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, post_data)
+
+        # Should return form with errors due to 404
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "The submitted GitHub link")
+        self.assertContains(response, "does not exist")
+
     def test_submit_homework_learning_in_public_empty_and_duplicates(
         self,
     ):
@@ -970,9 +1018,10 @@ class HomeworkDetailViewTests(TestCase):
             f"answer_{self.question5.id}": ["3.141516"],
             f"answer_{self.question6.id}": ["1", "2"],
             "learning_in_public_links[]": [
-                "https://httpbin.org/status/200",
-                "https://httpbin.org/status/200",
-                "https://github.com/DataTalksClub",
+                "https://test.org/totally-existing-url/1",
+                "https://test.org/totally-existing-url/1",
+                "https://test.org/totally-existing-url/2",
+                "https://test.org/totally-existing-url/3",
             ],
         }
 
@@ -994,8 +1043,9 @@ class HomeworkDetailViewTests(TestCase):
         )
 
         expected_learning_in_public_links = [
-            "https://httpbin.org/status/200",
-            "https://github.com/DataTalksClub",
+            "https://test.org/totally-existing-url/1",
+            "https://test.org/totally-existing-url/2",
+            "https://test.org/totally-existing-url/3",
         ]
         self.assertEqual(
             submission.learning_in_public_links,
