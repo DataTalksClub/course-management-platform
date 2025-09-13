@@ -24,6 +24,8 @@ from .models import (
     Enrollment,
     Project,
     ProjectSubmission,
+    ProjectStatistics,
+    ProjectState,
 )
 
 
@@ -151,7 +153,7 @@ def update_faq_score(submission: Submission) -> int:
     ):
         faq_score = 1
         submission.faq_score = faq_score
-    
+
     return faq_score
 
 
@@ -370,12 +372,22 @@ def fill_correct_answers(homework: Homework) -> None:
         fill_most_common_answer_as_correct(question)
 
 
-
 def calculate_raw_homework_statistics(homework):
-    submissions = Submission.objects.filter(homework=homework)
+    # Fetch all needed fields in one query to avoid N+1 problem
+    fields = [
+        "questions_score",
+        "learning_in_public_score",
+        "total_score",
+        "time_spent_lectures",
+        "time_spent_homework",
+    ]
 
-    total_submissions = submissions.count()
+    # Single query to get all data we need
+    submissions_data = list(
+        Submission.objects.filter(homework=homework).values(*fields)
+    )
 
+    total_submissions = len(submissions_data)
     stats = {"total_submissions": total_submissions}
 
     nones = {
@@ -387,20 +399,13 @@ def calculate_raw_homework_statistics(homework):
         "q3": None,
     }
 
-    fields = [
-        "questions_score",
-        "learning_in_public_score",
-        "total_score",
-        "time_spent_lectures",
-        "time_spent_homework",
-    ]
-
     for field in fields:
-        values = list(
-            submissions.exclude(
-                **{f"{field}__isnull": True}
-            ).values_list(field, flat=True)
-        )
+        # Extract non-null values for this field from already fetched data
+        values = [
+            submission[field]
+            for submission in submissions_data
+            if submission[field] is not None
+        ]
 
         if not values or len(values) < 3:
             stats[field] = nones
@@ -443,6 +448,101 @@ def calculate_homework_statistics(homework, force=False):
             "total_score",
             "time_spent_lectures",
             "time_spent_homework",
+        ]:
+            field_stats = calculated_stats[field]
+
+            setattr(stats, f"min_{field}", field_stats["min"])
+            setattr(stats, f"max_{field}", field_stats["max"])
+            setattr(stats, f"avg_{field}", field_stats["avg"])
+            setattr(stats, f"median_{field}", field_stats["median"])
+            setattr(stats, f"q1_{field}", field_stats["q1"])
+            setattr(stats, f"q3_{field}", field_stats["q3"])
+
+        stats.save()
+
+    return stats
+
+
+def calculate_raw_project_statistics(project):
+    # Fetch all needed fields in one query to avoid N+1 problem
+    fields = [
+        "project_score",
+        "project_learning_in_public_score",
+        "peer_review_score",
+        "peer_review_learning_in_public_score",
+        "total_score",
+        "time_spent",
+    ]
+
+    # Single query to get all data we need
+    submissions_data = list(
+        ProjectSubmission.objects.filter(project=project).values(
+            *fields
+        )
+    )
+
+    total_submissions = len(submissions_data)
+    stats = {"total_submissions": total_submissions}
+
+    nones = {
+        "min": None,
+        "max": None,
+        "avg": None,
+        "q1": None,
+        "median": None,
+        "q3": None,
+    }
+
+    for field in fields:
+        # Extract non-null values for this field from already fetched data
+        values = [
+            submission[field]
+            for submission in submissions_data
+            if submission[field] is not None
+        ]
+
+        if not values or len(values) < 3:
+            stats[field] = nones
+            continue
+
+        quantiles = statistics.quantiles(
+            values, n=4, method="inclusive"
+        )
+
+        stats[field] = {
+            "min": min(values),
+            "max": max(values),
+            "avg": statistics.mean(values),
+            "q1": quantiles[0],
+            "median": quantiles[1],
+            "q3": quantiles[2],
+        }
+
+    return stats
+
+
+def calculate_project_statistics(project, force=False):
+    if project.state != ProjectState.COMPLETED.value:
+        raise ValueError(
+            f"Cannot calculate statistics for uncompleted project {project}"
+        )
+
+    stats, created = ProjectStatistics.objects.get_or_create(
+        project=project
+    )
+
+    if force or created:
+        calculated_stats = calculate_raw_project_statistics(project)
+
+        stats.total_submissions = calculated_stats["total_submissions"]
+
+        for field in [
+            "project_score",
+            "project_learning_in_public_score",
+            "peer_review_score",
+            "peer_review_learning_in_public_score",
+            "total_score",
+            "time_spent",
         ]:
             field_stats = calculated_stats[field]
 

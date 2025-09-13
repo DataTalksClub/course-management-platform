@@ -43,7 +43,7 @@ jobs:
         uv sync --locked
 
     - name: Run tests
-      run: uv run python manage.py test courses.tests
+      run: make tests
 
     - name: Build Docker image
       run: docker build -t course_management:${{ env.TAG }} .

@@ -72,10 +72,6 @@
     </div>
   </div>
 
-  <div class="text-center">
-    <a href="{% url 'project_list' course.slug project.slug %}">See all projects</a>
-  </div>
-
 {% endif %}
 
 <div class="text-center mb-4">
@@ -83,6 +79,13 @@
       class="btn btn-secondary mt-3">
     See all projects
   </a>
+  
+  {% if project.state == 'CO' %}
+    <a href="{% url 'project_statistics' course.slug project.slug %}"
+        class="btn btn-info mt-3 ms-2">
+      Project statistics
+    </a>
+  {% endif %}
 </div>
 
 

@@ -26,7 +26,7 @@ user:
 
 tests: ## Run tests
 tests:
-	uv run python manage.py test courses.tests
+	uv run python manage.py test courses.tests --timing --durations 30
 
 
 data: ## Add data to database
