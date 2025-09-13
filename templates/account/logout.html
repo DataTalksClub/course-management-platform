@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign Out - Course Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header text-center">
+        <h3><i class="fas fa-sign-out-alt"></i> Sign Out</h3>
+        <p class="text-muted">Are you sure you want to sign out?</p>
+      </div>
+      <div class="card-body text-center">
+        <form method="post" action="{% url 'account_logout' %}">
+          {% csrf_token %}
+          <div class="alert alert-warning">
+            <i class="fas fa-user"></i>
+            {% if user.is_authenticated %}
+              You are currently signed in as <strong>{{ user.username }}</strong>.
+            {% else %}
+              You are about to sign out.
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-sign-out-alt"></i>
+            Yes, Sign Out
+          </button>
+          <a href="{% url 'course_list' %}" class="btn btn-secondary ml-2">
+            <i class="fas fa-times"></i>
+            Cancel
+          </a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
