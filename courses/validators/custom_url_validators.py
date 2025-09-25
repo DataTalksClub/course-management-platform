@@ -23,8 +23,11 @@ def get_error_message(status_code, url):
 
 
 def validate_url_200(
-    url, get_method=requests.get, code=None, params=None
+    url, get_method=None, code=None, params=None
 ):
+    if get_method is None:
+        get_method = requests.get
+        
     try:
         response = get_method(url)
         status_code = response.status_code
