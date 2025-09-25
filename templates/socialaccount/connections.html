@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Account Connections - Course Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-link"></i> Account Connections</h3>
+        <p class="text-muted mb-0">Manage your connected social accounts</p>
+      </div>
+      <div class="card-body">
+        {% if socialaccount_list %}
+          <h5>Connected Accounts</h5>
+          {% for account in socialaccount_list %}
+            <div class="d-flex justify-content-between align-items-center border rounded p-3 mb-2">
+              <div class="d-flex align-items-center">
+                {% if account.provider == 'google' %}
+                  <i class="fab fa-google text-danger fa-lg mr-3"></i>
+                {% elif account.provider == 'github' %}
+                  <i class="fab fa-github text-dark fa-lg mr-3"></i>
+                {% elif account.provider == 'slack' %}
+                  <i class="fab fa-slack text-info fa-lg mr-3"></i>
+                {% else %}
+                  <i class="fas fa-user fa-lg mr-3"></i>
+                {% endif %}
+                <div>
+                  <strong>{{ account.provider|title }}</strong>
+                  <br><small class="text-muted">{{ account.extra_data.email|default:account.uid }}</small>
+                </div>
+              </div>
+              <form method="post" action="{% url 'socialaccount_remove' account.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to disconnect this account?')">
+                  <i class="fas fa-unlink"></i> Disconnect
+                </button>
+              </form>
+            </div>
+          {% endfor %}
+          <hr>
+        {% endif %}
+        
+        <h5>Add New Connection</h5>
+        <p class="text-muted">Connect additional social accounts for easier login</p>
+        
+        {% for provider in providers %}
+          <a href="{{ provider.login_url }}?process=connect" class="btn btn-outline-primary btn-block mb-2">
+            {% if 'Google' in provider.name %}
+              <i class="fab fa-google text-danger"></i>
+            {% elif 'GitHub' in provider.name %}
+              <i class="fab fa-github text-dark"></i>
+            {% elif 'Slack' in provider.name %}
+              <i class="fab fa-slack text-info"></i>
+            {% else %}
+              <i class="fas fa-plus"></i>
+            {% endif %}
+            Connect {{ provider.name }}
+          </a>
+        {% empty %}
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            No additional providers are available to connect.
+          </div>
+        {% endfor %}
+      </div>
+      <div class="card-footer">
+        <a href="{% url 'course_list' %}" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i>
+          Back to Courses
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
