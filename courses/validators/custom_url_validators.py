@@ -1,5 +1,4 @@
 import requests
-import sys
 
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
@@ -24,18 +23,11 @@ def get_error_message(status_code, url):
 
 
 def validate_url_200(
-    url, get_method=requests.get, code=None, params=None
+    url, get_method=None, code=None, params=None
 ):
-    # Skip validation during testing only for integration tests that use the default requests.get
-    # but still allow validation errors to be tested when explicit mocks are provided
-    if ('pytest' in sys.modules or 'test' in sys.argv or any('test' in arg for arg in sys.argv)):
-        # Check if this is an integration test with the default requests.get that would fail
-        # due to network issues (like httpbin.org not being accessible)
-        if (str(get_method).startswith('<function get') and 
-            ('httpbin.org' in url)):
-            # Skip validation for httpbin.org URLs during testing to avoid network dependency
-            return
-    
+    if get_method is None:
+        get_method = requests.get
+        
     try:
         response = get_method(url)
         status_code = response.status_code
