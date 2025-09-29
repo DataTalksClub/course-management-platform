@@ -3,7 +3,7 @@ import secrets
 from django import forms
 from django.contrib import admin
 
-from .models import CustomUser, Token
+from .models import CustomUser, Token, EmailVerificationCode
 
 
 class CustomUserAdmin(admin.ModelAdmin):
@@ -43,3 +43,19 @@ class TokenAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Token, TokenAdmin)
+
+
+class EmailVerificationCodeAdmin(admin.ModelAdmin):
+    list_display = ('email', 'code', 'created_at', 'used', 'is_valid_display')
+    list_filter = ('used', 'created_at')
+    search_fields = ('email', 'code')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    
+    def is_valid_display(self, obj):
+        return obj.is_valid()
+    is_valid_display.short_description = 'Valid'
+    is_valid_display.boolean = True
+
+
+admin.site.register(EmailVerificationCode, EmailVerificationCodeAdmin)

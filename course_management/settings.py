@@ -294,6 +294,28 @@ ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
 ACCOUNT_ALLOW_REGISTRATION = False
 
 
+# AWS SES Configuration
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = os.getenv("AWS_REGION", "eu-west-1")
+AWS_SES_FROM_EMAIL = os.getenv("AWS_SES_FROM_EMAIL", "noreply@datatalks.club")
+
+
+# Email backend configuration
+if not IS_LOCAL:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = f'email-smtp.{AWS_REGION}.amazonaws.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = AWS_ACCESS_KEY_ID
+    EMAIL_HOST_PASSWORD = AWS_SECRET_ACCESS_KEY
+    DEFAULT_FROM_EMAIL = AWS_SES_FROM_EMAIL
+else:
+    # For local development, use console backend
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    DEFAULT_FROM_EMAIL = 'noreply@localhost'
+
+
 # force all-auth use https
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

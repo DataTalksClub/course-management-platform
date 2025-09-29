@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign in with Email - Course Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header text-center">
+        <h3><i class="fas fa-envelope"></i> Sign in with Email</h3>
+        <p class="text-muted">Use an organization email to easily collaborate with teammates</p>
+      </div>
+      <div class="card-body">
+        <!-- Email Input Form -->
+        <div id="email-form">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" class="form-control" id="email" placeholder="alexey.s.grigoriev@gmail.com" required>
+            <small class="form-text text-muted">We'll send a verification code to your inbox</small>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" id="send-code-btn">
+            <i class="fas fa-paper-plane"></i> Continue
+          </button>
+        </div>
+
+        <!-- Verification Code Form (Initially Hidden) -->
+        <div id="verification-form" style="display: none;">
+          <div class="form-group">
+            <label for="verification-code">Verification code</label>
+            <input type="text" class="form-control" id="verification-code" placeholder="Enter code" maxlength="6" required>
+            <small class="form-text text-muted">We sent a code to your inbox</small>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" id="verify-code-btn">
+            <i class="fas fa-check"></i> Continue
+          </button>
+          <button type="button" class="btn btn-link btn-block" id="resend-code-btn">
+            <i class="fas fa-redo"></i> Resend in <span id="countdown">28</span>s
+          </button>
+        </div>
+
+        <!-- Loading and Error States -->
+        <div id="loading" style="display: none;" class="text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+          </div>
+        </div>
+
+        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+      </div>
+      
+      <div class="card-footer text-center">
+        <small class="text-muted">
+          <i class="fas fa-shield-alt"></i>
+          Secure login - your email is safe with us
+        </small>
+        <br>
+        <small>
+          <a href="{% url 'login' %}">
+            <i class="fas fa-arrow-left"></i> Back to other login options
+          </a>
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailForm = document.getElementById('email-form');
+    const verificationForm = document.getElementById('verification-form');
+    const emailInput = document.getElementById('email');
+    const codeInput = document.getElementById('verification-code');
+    const sendCodeBtn = document.getElementById('send-code-btn');
+    const verifyCodeBtn = document.getElementById('verify-code-btn');
+    const resendCodeBtn = document.getElementById('resend-code-btn');
+    const loading = document.getElementById('loading');
+    const errorMessage = document.getElementById('error-message');
+    const successMessage = document.getElementById('success-message');
+    const countdown = document.getElementById('countdown');
+    
+    let countdownTimer;
+    let resendTimeout = false;
+
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+    }
+
+    function showSuccess(message) {
+        successMessage.textContent = message;
+        successMessage.style.display = 'block';
+        errorMessage.style.display = 'none';
+    }
+
+    function hideMessages() {
+        errorMessage.style.display = 'none';
+        successMessage.style.display = 'none';
+    }
+
+    function showLoading(show) {
+        loading.style.display = show ? 'block' : 'none';
+        sendCodeBtn.disabled = show;
+        verifyCodeBtn.disabled = show;
+    }
+
+    function startCountdown() {
+        let timeLeft = 28;
+        resendTimeout = true;
+        resendCodeBtn.disabled = true;
+        countdown.textContent = timeLeft;
+        
+        countdownTimer = setInterval(function() {
+            timeLeft--;
+            countdown.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdownTimer);
+                resendTimeout = false;
+                resendCodeBtn.disabled = false;
+                resendCodeBtn.innerHTML = '<i class="fas fa-redo"></i> Resend code';
+            }
+        }, 1000);
+    }
+
+    sendCodeBtn.addEventListener('click', function() {
+        const email = emailInput.value.trim();
+        
+        if (!email) {
+            showError('Please enter your email address');
+            return;
+        }
+
+        if (!email.includes('@')) {
+            showError('Please enter a valid email address');
+            return;
+        }
+
+        hideMessages();
+        showLoading(true);
+
+        fetch('/accounts/send-verification-code/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                showSuccess('Verification code sent to your email');
+                emailForm.style.display = 'none';
+                verificationForm.style.display = 'block';
+                startCountdown();
+                codeInput.focus();
+            } else {
+                showError(data.error || 'Failed to send verification code');
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('Network error. Please try again.');
+            console.error('Error:', error);
+        });
+    });
+
+    verifyCodeBtn.addEventListener('click', function() {
+        const email = emailInput.value.trim();
+        const code = codeInput.value.trim();
+        
+        if (!code) {
+            showError('Please enter the verification code');
+            return;
+        }
+
+        if (code.length !== 6) {
+            showError('Verification code must be 6 digits');
+            return;
+        }
+
+        hideMessages();
+        showLoading(true);
+
+        fetch('/accounts/verify-code/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: email, code: code })
+        })
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                showSuccess('Login successful! Redirecting...');
+                setTimeout(function() {
+                    window.location.href = '/';
+                }, 1500);
+            } else {
+                showError(data.error || 'Invalid verification code');
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('Network error. Please try again.');
+            console.error('Error:', error);
+        });
+    });
+
+    resendCodeBtn.addEventListener('click', function() {
+        if (resendTimeout) return;
+        
+        const email = emailInput.value.trim();
+        hideMessages();
+        showLoading(true);
+
+        fetch('/accounts/send-verification-code/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                showSuccess('New verification code sent');
+                startCountdown();
+            } else {
+                showError(data.error || 'Failed to resend verification code');
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('Network error. Please try again.');
+            console.error('Error:', error);
+        });
+    });
+
+    // Allow Enter key to submit forms
+    emailInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendCodeBtn.click();
+        }
+    });
+
+    codeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            verifyCodeBtn.click();
+        }
+    });
+
+    // Auto-format verification code input (only digits)
+    codeInput.addEventListener('input', function(e) {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
+});
+</script>
+{% endblock %}

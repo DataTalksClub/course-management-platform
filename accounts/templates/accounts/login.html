@@ -11,6 +11,20 @@
         <p class="text-muted">Choose your preferred login method</p>
       </div>
       <div class="card-body">
+        <!-- Email Login Option -->
+        <a href="{% url 'email_login' %}" class="btn btn-primary btn-block mb-3">
+          <i class="fas fa-envelope"></i>
+          Sign in with Email
+        </a>
+        
+        <!-- Divider -->
+        {% if providers %}
+        <div class="text-center my-3">
+          <small class="text-muted">OR</small>
+        </div>
+        {% endif %}
+        
+        <!-- Social Login Options -->
         {% for provider in providers %}
           <a href="{{ provider.login_url }}" class="btn btn-outline-primary btn-block mb-3">
             {% if 'Google' in provider.name %}
@@ -25,21 +39,21 @@
             Continue with {{ provider.name }}
           </a>
         {% empty %}
+          {% if not providers %}
           <div class="alert alert-warning text-center">
             <i class="fas fa-exclamation-triangle"></i>
-            <strong>No login providers configured</strong><br>
+            <strong>No social login providers configured</strong><br>
             Please contact an administrator to set up social login.
           </div>
+          {% endif %}
         {% endfor %}
       </div>
-      {% if providers %}
       <div class="card-footer text-center">
         <small class="text-muted">
           <i class="fas fa-shield-alt"></i>
-          Secure login - we never store your social media passwords
+          Secure login - we never store your passwords
         </small>
       </div>
-      {% endif %}
     </div>
   </div>
 </div>
