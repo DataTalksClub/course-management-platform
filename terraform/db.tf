@@ -8,7 +8,7 @@ variable "db_password" {}
 resource "aws_rds_cluster" "dev_course_management_cluster" {
   cluster_identifier     = "dev-course-management-cluster"
   engine                 = "aurora-postgresql"
-  engine_version         = "15.10"
+  engine_version         = "15.12"
   database_name          = "coursemanagement"
   master_username        = var.db_username
   master_password        = var.db_password
