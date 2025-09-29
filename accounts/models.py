@@ -19,6 +19,10 @@ class CustomUser(AbstractUser):
         help_text="Your actual name that will appear on your certificates"
     )
 
+    def __str__(self):
+        # safest is to display something stable
+        return self.username or self.email or str(self.pk)
+
 
 class Token(models.Model):
     key = models.CharField(max_length=40, primary_key=True)
