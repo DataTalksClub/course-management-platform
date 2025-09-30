@@ -53,6 +53,12 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
             enrollment=enrollment,
         )
 
+    # Update certificate name from the form
+    certificate_name = request.POST.get("certificate_name", "").strip()
+    if certificate_name:
+        enrollment.certificate_name = certificate_name
+        enrollment.save()
+
     project_submission.github_link = request.POST.get("github_link")
     project_submission.commit_id = request.POST.get("commit_id")
 
