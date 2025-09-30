@@ -114,4 +114,9 @@ urlpatterns = [
         data.update_enrollment_certificate_view,
         name="data_update_certificate",
     ),
+    path(
+        "<slug:course_slug>/course-criteria.yaml",
+        data.course_criteria_yaml_view,
+        name="course_criteria_yaml",
+    ),
 ]

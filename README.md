@@ -226,7 +226,50 @@ user = User.objects.get(email='test@gmail.com')
 
 ## API Endpoints
 
-All API endpoints require authentication using a valid token in the Authorization header: `Token <token_key>`
+Most API endpoints require authentication using a valid token in the Authorization header: `Token <token_key>` (except where noted as public)
+
+### Course Criteria (Public)
+
+**Endpoint:** `GET /{course_slug}/course-criteria.yaml`
+
+**Description:** Retrieves the review criteria for a course in YAML format. This is a public endpoint that doesn't require authentication.
+
+**Response:** Returns YAML-formatted data containing:
+- Course information (slug, title, description)
+- All review criteria for the course including:
+  - Criteria descriptions
+  - Criteria types (Radio Buttons or Checkboxes)
+  - Available options with scores
+
+**Example Response:**
+```yaml
+course:
+  slug: machine-learning-zoomcamp
+  title: Machine Learning Zoomcamp
+  description: Learn machine learning engineering
+review_criteria:
+  - description: Problem description
+    type: Radio Buttons
+    review_criteria_type: RB
+    options:
+      - criteria: The problem is not described
+        score: 0
+      - criteria: The problem is well described
+        score: 2
+  - description: Best practices
+    type: Checkboxes
+    review_criteria_type: CB
+    options:
+      - criteria: There are unit tests
+        score: 1
+      - criteria: There's a CI/CD pipeline
+        score: 2
+```
+
+**Example Usage:**
+```bash
+curl http://localhost:8000/machine-learning-zoomcamp/course-criteria.yaml
+```
 
 ### Homework Data
 
