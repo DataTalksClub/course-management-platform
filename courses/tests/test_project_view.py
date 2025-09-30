@@ -345,6 +345,40 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(count_sumissions, 0)
 
+    @mock.patch("requests.get")
+    def test_project_submission_with_certificate_name(self, mock_get):
+        """
+        Test that submitting a project with certificate name saves it to the enrollment.
+        """
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
+        self.client.login(**credentials)
+
+        # Initially, enrollment should not have a certificate name
+        self.enrollment.certificate_name = None
+        self.enrollment.save()
+
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+
+        data = {
+            "github_link": "https://github.com/test/repo",
+            "commit_id": "abcd123",
+            "certificate_name": "John Doe",
+        }
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 302)
+
+        # Refresh enrollment from database
+        self.enrollment.refresh_from_db()
+
+        # Check that certificate name was saved
+        self.assertEqual(self.enrollment.certificate_name, "John Doe")
+
     # this test requires a redesing of the project view
     # skipping for now
     # def test_submission_exist_post_with_error(self):
