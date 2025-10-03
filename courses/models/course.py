@@ -4,6 +4,7 @@ from django.core.validators import URLValidator
 from accounts.models import CustomUser
 
 from courses.random_names import generate_random_name
+from courses.constants import CourseState, COUNTRIES, ROLE_CHOICES
 
 User = CustomUser
 
@@ -34,6 +35,41 @@ class Course(models.Model):
         default=False,
         blank=False,
         help_text="Whether the course has finished.",
+    )
+
+    state = models.CharField(
+        max_length=2,
+        choices=CourseState.CHOICES,
+        default=CourseState.ACTIVE,
+        help_text="Current state of the course (Registration, Active, or Finished)",
+    )
+
+    about_content = models.TextField(
+        blank=True,
+        help_text="Markdown content for the course landing page",
+    )
+
+    video_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+        help_text="YouTube URL for course overview video",
+    )
+
+    hero_image_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+        help_text="Hero image URL for the course landing page",
+    )
+
+    meta_description = models.TextField(
+        blank=True,
+        help_text="SEO meta description for the course landing page",
+    )
+
+    mailchimp_tag = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Mailchimp tag for newsletter subscriptions",
     )
 
     faq_document_url = models.URLField(
@@ -135,3 +171,24 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student} enrolled in {self.course}"
+
+
+class CourseRegistration(models.Model):
+    """Model to track course registrations from the landing page"""
+    
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    email = models.EmailField()
+    name = models.CharField(max_length=255)
+    country = models.CharField(max_length=100)
+    region = models.CharField(max_length=100, blank=True)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    comment = models.TextField(blank=True)
+    
+    registered_at = models.DateTimeField(auto_now_add=True)
+    mailchimp_subscribed = models.BooleanField(default=False)
+    
+    class Meta:
+        unique_together = ["course", "email"]
+    
+    def __str__(self):
+        return f"{self.name} ({self.email}) registered for {self.course.title}"

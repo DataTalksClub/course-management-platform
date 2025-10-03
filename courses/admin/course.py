@@ -9,7 +9,7 @@ from unfold.widgets import (
 
 from django.contrib import messages
 
-from courses.models import Course, ReviewCriteria
+from courses.models import Course, ReviewCriteria, CourseRegistration
 from courses.scoring import update_leaderboard
 
 
@@ -100,4 +100,29 @@ duplicate_course.short_description = "Duplicate selected courses"
 class CourseAdmin(ModelAdmin):
     actions = [update_leaderboard_admin, duplicate_course]
     inlines = [CriteriaInline]
-    list_display = ["title"]
+    list_display = ["title", "state"]
+    list_filter = ["state", "finished"]
+    fieldsets = (
+        ("Basic Information", {
+            "fields": ("slug", "title", "description", "social_media_hashtag")
+        }),
+        ("Course State", {
+            "fields": ("state", "finished", "first_homework_scored")
+        }),
+        ("Landing Page Content", {
+            "fields": ("about_content", "video_url", "hero_image_url", "meta_description", "mailchimp_tag"),
+            "classes": ("collapse",)
+        }),
+        ("Settings", {
+            "fields": ("faq_document_url", "min_projects_to_pass", "project_passing_score", "homework_problems_comments_field")
+        }),
+    )
+
+
+@admin.register(CourseRegistration)
+class CourseRegistrationAdmin(ModelAdmin):
+    list_display = ["name", "email", "course", "country", "role", "registered_at", "mailchimp_subscribed"]
+    list_filter = ["course", "role", "country", "mailchimp_subscribed", "registered_at"]
+    search_fields = ["name", "email", "comment"]
+    readonly_fields = ["registered_at", "mailchimp_subscribed"]
+    date_hierarchy = "registered_at"
