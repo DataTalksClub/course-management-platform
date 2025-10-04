@@ -7,6 +7,15 @@
     our courses in our webpage <a href="https://datatalks.club/" target="_blank">https://datatalks.club/</a>.
   </div>
 
+  {% if registration_courses %}
+  <h3 class="pt-4">Registration Open</h3>
+  <ul>
+    {% for course in registration_courses %}
+      <li><a href="{% url 'course_landing' course.slug %}">{{ course.title }}</a> - <span class="badge badge-info">Registration</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
   <h3 class="pt-4">Active courses</h3>
   <ul>
     {% for course in active_courses %}

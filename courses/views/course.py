@@ -17,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 
 from courses.models import (
     Course,
+    CourseRegistration,
     Homework,
     HomeworkState,
     Submission,
@@ -27,7 +28,11 @@ from courses.models import (
     User,
 )
 
-from .forms import EnrollmentForm
+from .forms import EnrollmentForm, CourseRegistrationForm
+from courses.constants import CourseState, COUNTRIES
+from courses.mailchimp import add_subscriber_to_mailchimp
+import markdown
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -37,15 +42,25 @@ def course_list(request):
 
     active_courses = []
     finished_courses = []
+    registration_courses = []
 
     for course in courses:
-        if course.finished:
+        # Use state if available, fallback to finished field for backwards compatibility
+        if hasattr(course, 'state') and course.state:
+            if course.state == CourseState.FINISHED:
+                finished_courses.append(course)
+            elif course.state == CourseState.REGISTRATION:
+                registration_courses.append(course)
+            else:  # ACTIVE
+                active_courses.append(course)
+        elif course.finished:
             finished_courses.append(course)
         else:
             active_courses.append(course)
 
     context = {
         "active_courses": active_courses,
+        "registration_courses": registration_courses,
         "finished_courses": finished_courses,
     }
 
@@ -146,6 +161,12 @@ def update_project_with_additional_info(project: Project) -> None:
 
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug)
+    
+    # If course is in REGISTRATION state, redirect to landing page
+    # unless user is a superuser
+    if course.state == CourseState.REGISTRATION:
+        if not (request.user.is_authenticated and request.user.is_superuser):
+            return redirect("course_landing", course_slug=course_slug)
 
     user = request.user
     homeworks = get_homeworks_for_course(course, user)
@@ -556,3 +577,82 @@ def dashboard_view(request, course_slug: str):
     }
 
     return render(request, "courses/dashboard.html", context)
+
+
+def course_landing_view(request: HttpRequest, course_slug: str) -> HttpResponse:
+    """Landing page for course registration"""
+    course = get_object_or_404(Course, slug=course_slug)
+    
+    # Convert markdown content to HTML
+    about_html = ""
+    if course.about_content:
+        about_html = markdown.markdown(
+            course.about_content,
+            extensions=["extra", "codehilite"]
+        )
+    
+    # Extract YouTube video ID if present
+    youtube_video_id = None
+    if course.video_url:
+        # Support various YouTube URL formats
+        if "youtube.com/watch?v=" in course.video_url:
+            youtube_video_id = course.video_url.split("watch?v=")[1].split("&")[0]
+        elif "youtu.be/" in course.video_url:
+            youtube_video_id = course.video_url.split("youtu.be/")[1].split("?")[0]
+    
+    success_message = None
+    
+    if request.method == "POST":
+        form = CourseRegistrationForm(request.POST, user=request.user)
+        if form.is_valid():
+            # Save registration
+            registration = form.save(commit=False)
+            registration.course = course
+            
+            # Find region from country
+            country = form.cleaned_data["country"]
+            region = next((r for c, r in COUNTRIES if c == country), "")
+            registration.region = region
+            
+            # Check if already registered
+            existing = CourseRegistration.objects.filter(
+                course=course,
+                email=registration.email
+            ).first()
+            
+            if existing:
+                messages.info(request, "You have already registered for this course!")
+            else:
+                registration.save()
+                
+                # Add to Mailchimp in background
+                if course.mailchimp_tag:
+                    def subscribe_to_mailchimp():
+                        success = add_subscriber_to_mailchimp(
+                            registration.email,
+                            course.mailchimp_tag
+                        )
+                        if success:
+                            registration.mailchimp_subscribed = True
+                            registration.save()
+                    
+                    thread = threading.Thread(target=subscribe_to_mailchimp)
+                    thread.daemon = True
+                    thread.start()
+                
+                success_message = "Thank you for registering! We'll keep you updated."
+                form = CourseRegistrationForm(user=request.user)  # Reset form
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = CourseRegistrationForm(user=request.user)
+    
+    context = {
+        "course": course,
+        "form": form,
+        "about_html": about_html,
+        "youtube_video_id": youtube_video_id,
+        "success_message": success_message,
+    }
+    
+    return render(request, "courses/course_landing.html", context)

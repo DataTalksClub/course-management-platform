@@ -17,6 +17,7 @@ dependencies = [
     "python-json-logger",
     "django-unfold",
     "django-loginas",
+    "markdown",
 ]
 
 [dependency-groups]

@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}{{ course.title }} - DataTalks.Club{% endblock %}
+
+{% block head_extra %}
+<!-- SEO Meta Tags -->
+<meta name="description" content="{% if course.meta_description %}{{ course.meta_description }}{% else %}{{ course.description }}{% endif %}">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ course.title }} - DataTalks.Club">
+<meta property="og:description" content="{% if course.meta_description %}{{ course.meta_description }}{% else %}{{ course.description }}{% endif %}">
+{% if course.hero_image_url %}
+<meta property="og:image" content="{{ course.hero_image_url }}">
+{% endif %}
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ course.title }} - DataTalks.Club">
+<meta name="twitter:description" content="{% if course.meta_description %}{{ course.meta_description }}{% else %}{{ course.description }}{% endif %}">
+{% if course.hero_image_url %}
+<meta name="twitter:image" content="{{ course.hero_image_url }}">
+{% endif %}
+{% endblock %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course_landing' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="course-landing">
+  <!-- Hero Section -->
+  <div class="hero-section mb-4">
+    {% if course.hero_image_url %}
+    <div class="hero-image mb-3">
+      <img src="{{ course.hero_image_url }}" alt="{{ course.title }}" class="img-fluid rounded" style="max-height: 400px; width: 100%; object-fit: cover;">
+    </div>
+    {% endif %}
+    
+    <h1 class="display-4">{{ course.title }}</h1>
+    
+    {% if course.social_media_hashtag %}
+    <p class="lead text-muted">{{ course.social_media_hashtag }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Video Section -->
+  {% if youtube_video_id %}
+  <div class="video-section mb-4">
+    <div class="embed-responsive embed-responsive-16by9 rounded">
+      <iframe class="embed-responsive-item" 
+              src="https://www.youtube.com/embed/{{ youtube_video_id }}" 
+              allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- About Content -->
+  {% if about_html %}
+  <div class="about-content mb-5">
+    {{ about_html|safe }}
+  </div>
+  {% else %}
+  <div class="about-content mb-5">
+    <p>{{ course.description }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Registration Form -->
+  <div class="registration-section bg-light p-4 rounded">
+    <h2 class="mb-3">Register for This Course</h2>
+    
+    {% if success_message %}
+    <div class="alert alert-success" role="alert">
+      <i class="fas fa-check-circle"></i> {{ success_message }}
+    </div>
+    {% endif %}
+    
+    <div class="alert alert-info mb-3" role="alert">
+      <i class="fas fa-info-circle"></i>
+      By registering, you'll be subscribed to the DataTalks.Club newsletter to receive course updates and announcements.
+    </div>
+    
+    <form method="post" id="registration-form">
+      {% csrf_token %}
+      
+      <div class="form-group mb-3">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }} <span class="text-danger">*</span></label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <div class="text-danger mt-1">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ form.email.errors|join:" " }}
+          </div>
+        {% endif %}
+        {% if user.is_authenticated %}
+          <small class="form-text text-muted">Email is pre-filled from your account.</small>
+        {% endif %}
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="{{ form.name.id_for_label }}">{{ form.name.label }} <span class="text-danger">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}
+          <div class="text-danger mt-1">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ form.name.errors|join:" " }}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="{{ form.country.id_for_label }}">{{ form.country.label }} <span class="text-danger">*</span></label>
+        {{ form.country }}
+        {% if form.country.errors %}
+          <div class="text-danger mt-1">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ form.country.errors|join:" " }}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="{{ form.role.id_for_label }}">{{ form.role.label }} <span class="text-danger">*</span></label>
+        {{ form.role }}
+        {% if form.role.errors %}
+          <div class="text-danger mt-1">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ form.role.errors|join:" " }}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
+        {{ form.comment }}
+        {% if form.comment.errors %}
+          <div class="text-danger mt-1">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ form.comment.errors|join:" " }}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="text-center mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">
+          <i class="fas fa-user-plus"></i> Register Now
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Navigation Links -->
+  <div class="mt-4 text-center">
+    {% if user.is_authenticated and user.is_superuser %}
+      <a href="{% url 'course' course.slug %}" class="btn btn-secondary">
+        <i class="fas fa-eye"></i> View Course Workspace (Admin)
+      </a>
+    {% endif %}
+    <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Courses
+    </a>
+  </div>
+</div>
+
+<style>
+.course-landing h1 {
+  margin-bottom: 1rem;
+}
+
+.course-landing .about-content {
+  font-size: 1.1rem;
+  line-height: 1.8;
+}
+
+.course-landing .about-content h2 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.course-landing .about-content ul {
+  margin-left: 1.5rem;
+}
+
+.course-landing .about-content code {
+  background-color: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.course-landing .about-content pre {
+  background-color: #f4f4f4;
+  padding: 1rem;
+  border-radius: 5px;
+  overflow-x: auto;
+}
+
+.embed-responsive {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.embed-responsive-16by9::before {
+  padding-top: 56.25%;
+  content: "";
+  display: block;
+}
+
+.embed-responsive-item {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+</style>
+
+{% endblock %}

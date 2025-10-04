@@ -9,6 +9,11 @@ from .views import data
 urlpatterns = [
     path("", course.course_list, name="course_list"),
     path(
+        "<slug:course_slug>/about",
+        course.course_landing_view,
+        name="course_landing",
+    ),
+    path(
         "<slug:course_slug>/",
         course.course_view,
         name="course",
