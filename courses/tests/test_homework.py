@@ -1215,3 +1215,153 @@ class HomeworkDetailViewTests(TestCase):
             {"value": "Berlin", "is_selected": False, "index": 3},
         ]
         self.assertEqual(answer1["options"], expected_options1)
+
+    def test_homework_detail_scored_with_unanswered_questions(self):
+        """Test that unanswered questions in scored homework show appropriate indicators"""
+        self.enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        self.submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=self.enrollment,
+        )
+
+        # Only answer questions 1, 2, and 5 - leaving 3, 4, and 6 unanswered
+        answer1 = Answer.objects.create(
+            submission=self.submission,
+            question=self.question1,
+            answer_text="1",
+        )  # correct
+        answer1.save()
+
+        answer2 = Answer.objects.create(
+            submission=self.submission,
+            question=self.question2,
+            answer_text="Some explanation",
+        )  # correct (ANY type with non-empty answer)
+        answer2.save()
+
+        answer5 = Answer.objects.create(
+            submission=self.submission,
+            question=self.question5,
+            answer_text="3.14",
+        )  # correct
+        answer5.save()
+
+        # update homework's due date to be in the past
+        self.homework.due_date = timezone.now() - timezone.timedelta(
+            days=1
+        )
+        self.homework.save()
+
+        status, _ = score_homework_submissions(self.homework.id)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
+
+        # make sure we have the latest version of the homework
+        self.homework = Homework.objects.get(id=self.homework.id)
+        self.assertEqual(
+            self.homework.state, HomeworkState.SCORED.value
+        )
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+        question_answers = context["question_answers"]
+        self.assertEqual(len(question_answers), 6)
+
+        # Question 1 - answered correctly
+        question1, answer1_result = question_answers[0]
+        self.assertEqual(question1, self.question1)
+        self.assertNotIn("no_answer_submitted", answer1_result)
+
+        # Question 2 - answered (free form ANY type)
+        question2, answer2_result = question_answers[1]
+        self.assertEqual(question2, self.question2)
+        self.assertNotIn("no_answer_submitted", answer2_result)
+        self.assertEqual(answer2_result["text"], "Some explanation")
+
+        # Question 3 - not answered (checkboxes)
+        question3, answer3_result = question_answers[2]
+        self.assertEqual(question3, self.question3)
+        self.assertTrue(answer3_result.get("no_answer_submitted", False))
+
+        # Question 4 - not answered (multiple choice)
+        question4, answer4_result = question_answers[3]
+        self.assertEqual(question4, self.question4)
+        self.assertTrue(answer4_result.get("no_answer_submitted", False))
+
+        # Question 5 - answered correctly
+        question5, answer5_result = question_answers[4]
+        self.assertEqual(question5, self.question5)
+        self.assertNotIn("no_answer_submitted", answer5_result)
+
+        # Question 6 - not answered (checkboxes)
+        question6, answer6_result = question_answers[5]
+        self.assertEqual(question6, self.question6)
+        self.assertTrue(answer6_result.get("no_answer_submitted", False))
+
+    def test_homework_detail_scored_with_empty_free_form_answer(self):
+        """Test that empty free form answers in scored homework show appropriate indicators"""
+        self.enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        self.submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=self.enrollment,
+        )
+
+        # Create empty answer for free form question
+        answer2 = Answer.objects.create(
+            submission=self.submission,
+            question=self.question2,
+            answer_text="   ",  # whitespace only
+        )
+        answer2.save()
+
+        # update homework's due date to be in the past
+        self.homework.due_date = timezone.now() - timezone.timedelta(
+            days=1
+        )
+        self.homework.save()
+
+        status, _ = score_homework_submissions(self.homework.id)
+        self.assertEqual(status, HomeworkScoringStatus.OK)
+
+        # make sure we have the latest version of the homework
+        self.homework = Homework.objects.get(id=self.homework.id)
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+        question_answers = context["question_answers"]
+
+        # Question 2 - empty free form answer
+        question2, answer2_result = question_answers[1]
+        self.assertEqual(question2, self.question2)
+        self.assertTrue(answer2_result.get("no_answer_submitted", False))
