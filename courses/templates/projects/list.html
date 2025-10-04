@@ -2,6 +2,10 @@
 
 {% load static %}
 
+{% block meta_robots %}
+  <meta name="robots" content="noindex">
+{% endblock %}
+
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
   <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
@@ -43,7 +47,7 @@
             </a>
           {% elif submission.own %}
             Your project
-          {% else %}
+          {% elif has_submission %}
             <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')" class="btn btn-outline-primary btn-sm">
               <i class="fas fa-plus"></i> Add to Evaluation
             </button>
@@ -56,6 +60,19 @@
   </div>
   {% endfor %}
 {% endif %}
+
+{% if project.state == 'CO' %}
+  <div class="text-center my-4">
+    <a href="{% url 'project_statistics' course.slug project.slug %}"
+        class="btn btn-info">
+      Project statistics
+    </a>
+  </div>
+{% endif %}
+
+<div class="text-center">
+  Back to <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+</div>
 
 <script>
 function confirmEvaluation(url) {

@@ -91,6 +91,15 @@ $(document).ready(function () {
         errorMessage += 'Invalid learning in public link URL.\n';
       }
     });
+
+    var certificateNameField = $('#certificate_name');
+    if (certificateNameField.length > 0) {
+      var certificateName = certificateNameField.val();
+      if (!certificateName || certificateName.trim() === '') {
+        isValid = false;
+        errorMessage += 'Certificate name is required. Please enter the name you would like to appear on your certificate.\n';
+      }
+    }
   
     if (!isValid) {
       alert(errorMessage);

@@ -19,6 +19,7 @@
     {% if course.first_homework_scored %}
       <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
     {% endif %}
+    <a class="btn btn-secondary" href="{% url 'dashboard' course.slug %}" role="button">Course dashboard</a>
     {% if is_authenticated %}
       <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
     {% endif %}
@@ -116,9 +117,17 @@
     </div>
   </div>
   {% endfor %}
+  
+  {% if has_completed_projects %}
+    <div class="text-center mb-2">
+      <a href="{% url 'list_all_project_submissions' course.slug %}"
+          class="btn btn-secondary mt-3">
+        See all submitted projects
+      </a>
+    </div>
+  {% endif %}
 </div>
 {% endif %}
-
 
 {% if not homeworks and not projects %}
 <div class="alert alert-info" role="alert">
@@ -126,6 +135,7 @@
 </div>
 {% endif %}
 
+<div class="mt-2">All deadlines are in your local timezone</div>
 
 <script>
   $(function() {

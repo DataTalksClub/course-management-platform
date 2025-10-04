@@ -30,6 +30,7 @@ from courses.models import (  # noqa: E402
     QUESTION_ANSWER_DELIMITER
 )
 
+from accounts.models import Token  # noqa: E402
 
 User = get_user_model()
 
@@ -43,6 +44,8 @@ if created:
     admin_user.is_staff = True
     admin_user.save()
 
+    TOKEN = "TEST_TOKEN"
+    Token.objects.get_or_create(key=TOKEN, user=admin_user)  
 
 course = Course(
     title="Fake Course",

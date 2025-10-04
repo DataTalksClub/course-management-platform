@@ -39,10 +39,7 @@ class Homework(models.Model):
         default=True,
         help_text="Include field for time spent on homework",
     )
-    problems_comments_field = models.BooleanField(
-        default=True,
-        help_text="Include field for problems and comments",
-    )
+
     faq_contribution_field = models.BooleanField(
         default=True, help_text="Include field for FAQ contributions"
     )

@@ -28,18 +28,21 @@ def generate_random_password(
     )
 
 
-def extract_email(response_data):
-    email = ''
+def extract_email(response_data, sociallogin=None):
+    if response_data.get("email"):
+        return response_data["email"]
 
-    if 'email' in response_data:
-        email = response_data['email']
+    # GitHub-specific (via allauth fetch)
+    if sociallogin and sociallogin.email_addresses:
+        verified = [e for e in sociallogin.email_addresses if e.verified]
+        if verified:
+            return verified[0].email
+        return sociallogin.email_addresses[0].email
 
-    if 'user' in response_data:
-        user_data = response_data['user']
-        if 'email' in user_data:
-            email = user_data['email']
+    if response_data.get("notification_email"):
+        return response_data["notification_email"]
 
-    return email.lower().strip()    
+    raise KeyError("Email not found in response data")
 
 
 class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -55,7 +58,7 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
 
         email = None
         try:
-            email = extract_email(response_data)
+            email = extract_email(response_data, sociallogin=sociallogin)
             logger.info(f"Extracted email {email} from OAuth response")
             if email is None or len(email) == 0:
                 logger.info("No email found in social account data")

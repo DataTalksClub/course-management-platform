@@ -302,6 +302,17 @@ SOCIALACCOUNT_ADAPTER = (
     "accounts.auth.ConsolidatingSocialAccountAdapter"
 )
 
+# Skip intermediate confirmation page - direct OAuth redirect
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
+SOCIALACCOUNT_PROVIDERS = {
+    "github": {
+        "SCOPE": [
+            "user:email",
+        ],
+        "VERIFIED_EMAIL": True,
+    }
+}
 
 # Unfold Configurations
 UNFOLD = {

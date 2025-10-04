@@ -24,6 +24,8 @@ from courses.models import (
     User,
 )
 
+from courses.scoring import calculate_project_statistics
+
 
 from .homework import tryparsefloat, clean_learning_in_public_links
 
@@ -50,6 +52,12 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
             student=user,
             enrollment=enrollment,
         )
+
+    # Update certificate name from the form
+    certificate_name = request.POST.get("certificate_name", "").strip()
+    if certificate_name:
+        enrollment.certificate_name = certificate_name
+        enrollment.save()
 
     project_submission.github_link = request.POST.get("github_link")
     project_submission.commit_id = request.POST.get("commit_id")
@@ -213,6 +221,8 @@ def projects_eval_view(request, course_slug, project_slug):
         project=project, student=user
     )
 
+    has_submission = student_submissions.exists()
+
     reviews = PeerReview.objects.filter(
         reviewer__in=student_submissions,
         submission_under_evaluation__project=project,
@@ -232,6 +242,7 @@ def projects_eval_view(request, course_slug, project_slug):
         "reviews": reviews,
         "is_authenticated": True,
         "number_of_completed_evaluation": number_of_completed_evaluation,
+        "has_submission": has_submission,
     }
 
     return render(request, "projects/eval.html", context)
@@ -518,6 +529,7 @@ def projects_list_view(request, course_slug, project_slug):
 
     review_ids = {}
     own_submissions = set()
+    has_submission = False
 
     if is_authenticated:
         student_submissions = ProjectSubmission.objects.filter(
@@ -525,6 +537,7 @@ def projects_list_view(request, course_slug, project_slug):
         )
 
         own_submissions = set(student_submissions.values_list("id", flat=True))
+        has_submission = len(own_submissions) > 0
 
         reviews = PeerReview.objects.filter(
             reviewer__in=student_submissions,
@@ -550,6 +563,36 @@ def projects_list_view(request, course_slug, project_slug):
         "project": project,
         "submissions": submissions,
         "is_authenticated": is_authenticated,
+        "has_submission": has_submission,
     }
 
     return render(request, "projects/list.html", context)
+
+
+def project_statistics(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    if project.state != ProjectState.COMPLETED.value:
+        messages.error(
+            request,
+            "This project is not completed yet, so there are no available statistics.",
+            extra_tags="project",
+        )
+        return redirect(
+            "project",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
+
+    stats = calculate_project_statistics(project, force=False)
+
+    context = {
+        "course": course,
+        "project": project,
+        "stats": stats,
+    }
+
+    return render(request, "projects/stats.html", context)

@@ -2,6 +2,10 @@
 
 {% load static %}
 
+{% block meta_robots %}
+  <meta name="robots" content="noindex">
+{% endblock %}
+
 {% block breadcrumbs %}
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
   <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
@@ -28,6 +32,9 @@
   {% endfor %}
 {% endif %}
 
+<div>
+  <p>Due date: <span class="local-date">{{ project.peer_review_due_date |date:"c" }}</span> (local time)</p>
+</div>
   
 <div class="mb-2">
   <strong>GitHub Link:</strong> <a href="{{ submission.github_link }}" target="_blank" class="text-primary">{{ submission.github_link }}</a>

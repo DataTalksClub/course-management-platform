@@ -42,8 +42,6 @@ class Project(models.Model):
     points_for_peer_review = models.IntegerField(default=3)
     time_spent_evaluation_field = models.BooleanField(default=True)
 
-    points_to_pass = models.IntegerField(default=0)
-
     state = models.CharField(
         max_length=2,
         choices=[(state.value, state.name) for state in ProjectState],
@@ -52,6 +50,11 @@ class Project(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def points_to_pass(self):
+        """Get the passing score from the course"""
+        return self.course.project_passing_score
 
     class Meta:
         unique_together = ("course", "slug")
@@ -217,3 +220,139 @@ class ProjectEvaluationScore(models.Model):
 
     def __str__(self):
         return f"Score: {self.score} for submission by {self.submission.id}"
+
+
+class ProjectStatistics(models.Model):
+    project = models.OneToOneField(
+        Project, on_delete=models.CASCADE, related_name="statistics"
+    )
+
+    total_submissions = models.IntegerField(default=0)
+
+    # Fields for project_score
+    min_project_score = models.IntegerField(null=True, blank=True)
+    max_project_score = models.IntegerField(null=True, blank=True)
+    avg_project_score = models.FloatField(null=True, blank=True)
+    median_project_score = models.FloatField(null=True, blank=True)
+    q1_project_score = models.FloatField(null=True, blank=True)
+    q3_project_score = models.FloatField(null=True, blank=True)
+
+    # Fields for project_learning_in_public_score
+    min_project_learning_in_public_score = models.IntegerField(null=True, blank=True)
+    max_project_learning_in_public_score = models.IntegerField(null=True, blank=True)
+    avg_project_learning_in_public_score = models.FloatField(null=True, blank=True)
+    median_project_learning_in_public_score = models.FloatField(null=True, blank=True)
+    q1_project_learning_in_public_score = models.FloatField(null=True, blank=True)
+    q3_project_learning_in_public_score = models.FloatField(null=True, blank=True)
+
+    # Fields for peer_review_score
+    min_peer_review_score = models.IntegerField(null=True, blank=True)
+    max_peer_review_score = models.IntegerField(null=True, blank=True)
+    avg_peer_review_score = models.FloatField(null=True, blank=True)
+    median_peer_review_score = models.FloatField(null=True, blank=True)
+    q1_peer_review_score = models.FloatField(null=True, blank=True)
+    q3_peer_review_score = models.FloatField(null=True, blank=True)
+
+    # Fields for peer_review_learning_in_public_score
+    min_peer_review_learning_in_public_score = models.IntegerField(null=True, blank=True)
+    max_peer_review_learning_in_public_score = models.IntegerField(null=True, blank=True)
+    avg_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
+    median_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
+    q1_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
+    q3_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
+
+    # Fields for total_score
+    min_total_score = models.IntegerField(null=True, blank=True)
+    max_total_score = models.IntegerField(null=True, blank=True)
+    avg_total_score = models.FloatField(null=True, blank=True)
+    median_total_score = models.FloatField(null=True, blank=True)
+    q1_total_score = models.FloatField(null=True, blank=True)
+    q3_total_score = models.FloatField(null=True, blank=True)
+
+    # Fields for time_spent
+    min_time_spent = models.FloatField(null=True, blank=True)
+    max_time_spent = models.FloatField(null=True, blank=True)
+    avg_time_spent = models.FloatField(null=True, blank=True)
+    median_time_spent = models.FloatField(null=True, blank=True)
+    q1_time_spent = models.FloatField(null=True, blank=True)
+    q3_time_spent = models.FloatField(null=True, blank=True)
+
+    last_calculated = models.DateTimeField(auto_now=True)
+
+    def get_value(self, field_name, stats_type):
+        attribute_name = f"{stats_type}_{field_name}"
+        return getattr(self, attribute_name)
+
+    def get_stat_fields(self):
+        results = []
+
+        results.append(
+            ("Project score", [
+                (self.min_project_score, "Minimum", "fas fa-arrow-down"),
+                (self.max_project_score, "Maximum", "fas fa-arrow-up"),
+                (self.avg_project_score, "Average", "fas fa-equals"),
+                (self.q1_project_score, "25th Percentile", "fas fa-percentage"),
+                (self.median_project_score, "Median", "fas fa-percentage"),
+                (self.q3_project_score, "75th Percentile", "fas fa-percentage"),
+            ], 'fas fa-project-diagram')
+        )
+
+        results.append(
+            ("Project learning in public score", [
+                (self.min_project_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
+                (self.max_project_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
+                (self.avg_project_learning_in_public_score, "Average", "fas fa-equals"),
+                (self.q1_project_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
+                (self.median_project_learning_in_public_score, "Median", "fas fa-percentage"),
+                (self.q3_project_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
+            ], 'fas fa-globe')
+        )
+
+        results.append(
+            ("Peer review score", [
+                (self.min_peer_review_score, "Minimum", "fas fa-arrow-down"),
+                (self.max_peer_review_score, "Maximum", "fas fa-arrow-up"),
+                (self.avg_peer_review_score, "Average", "fas fa-equals"),
+                (self.q1_peer_review_score, "25th Percentile", "fas fa-percentage"),
+                (self.median_peer_review_score, "Median", "fas fa-percentage"),
+                (self.q3_peer_review_score, "75th Percentile", "fas fa-percentage"),
+            ], 'fas fa-users')
+        )
+
+        results.append(
+            ("Peer review learning in public score", [
+                (self.min_peer_review_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
+                (self.max_peer_review_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
+                (self.avg_peer_review_learning_in_public_score, "Average", "fas fa-equals"),
+                (self.q1_peer_review_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
+                (self.median_peer_review_learning_in_public_score, "Median", "fas fa-percentage"),
+                (self.q3_peer_review_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
+            ], 'fas fa-share-alt')
+        )
+
+        results.append(
+            ("Total score", [
+                (self.min_total_score, "Minimum", "fas fa-arrow-down"),
+                (self.max_total_score, "Maximum", "fas fa-arrow-up"),
+                (self.avg_total_score, "Average", "fas fa-equals"),
+                (self.q1_total_score, "25th Percentile", "fas fa-percentage"),
+                (self.median_total_score, "Median", "fas fa-percentage"),
+                (self.q3_total_score, "75th Percentile", "fas fa-percentage"),
+            ], 'fas fa-star')
+        )
+
+        results.append(
+            ("Time spent on project", [
+                (self.min_time_spent, "Minimum", "fas fa-arrow-down"),
+                (self.max_time_spent, "Maximum", "fas fa-arrow-up"),
+                (self.avg_time_spent, "Average", "fas fa-equals"),
+                (self.q1_time_spent, "25th Percentile", "fas fa-percentage"),
+                (self.median_time_spent, "Median", "fas fa-percentage"),
+                (self.q3_time_spent, "75th Percentile", "fas fa-percentage"),
+            ], 'fas fa-clock')
+        )
+
+        return results
+
+    def __str__(self):
+        return f"Statistics for {self.project.slug}"

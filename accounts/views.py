@@ -17,7 +17,7 @@ def disabled(request):
 async def social_login_view(request):
     providers = await get_available_providers()
 
-    return render(
+    return await sync_to_async(render)(
         request,
         "accounts/login.html",
         {"providers": providers},

@@ -53,9 +53,19 @@
   {% endif %}
 {% endif %}
 
+{% if project.state == 'CO' %}
+  <div class="pb-2">
+    <a href="{% url 'project_statistics' course.slug project.slug %}">Project statistics</a>
+  </div>
+{% endif %}
+
 <p class="text-muted">{{ project.description | urlize_target_blank }}</p>
 
 <h3 class="mb-3">Project submission</h3>
+
+<div>
+  <p>Due date: <span class="local-date">{{ project.submission_due_date |date:"c" }}</span> (local time)</p>
+</div>
 
 <form method="post" id="project-form" class="needs-validation" novalidate>
   {% if is_authenticated %}
@@ -155,10 +165,26 @@
     </div>
   {% endif %}
 
-  {% if accepting_submissions and ceritificate_name %}
-    <div class="mt-4">
-      Name on your certificate: {{ ceritificate_name }}
-      (<a href="{% url 'enrollment' course.slug %}" target="_blank">Change</a>)
+  {% if accepting_submissions %}
+    <div class="mb-3 question">
+      <label for="certificate_name" class="question-text">
+        Certificate name
+        <i
+          class="fas fa-question-circle text-muted"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="Enter the name you would like to be shown on the certificate. This is required and will be used for your certificate.">
+        </i>
+      </label>
+      <input
+        type="text"
+        class="form-control"
+        id="certificate_name"
+        name="certificate_name"
+        value="{{ ceritificate_name|default:'' }}"
+        required
+        {% if disabled %} disabled {% endif %}
+      />
     </div>
   {% endif %}
 

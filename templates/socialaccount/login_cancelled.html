@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Login Cancelled - Course Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header text-center">
+        <h3><i class="fas fa-times-circle text-warning"></i> Login Cancelled</h3>
+        <p class="text-muted">You cancelled the login process</p>
+      </div>
+      <div class="card-body text-center">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          <strong>No problem!</strong><br>
+          You can try logging in again whenever you're ready.
+        </div>
+        
+        <div class="mt-4">
+          <a href="{% url 'login' %}" class="btn btn-primary">
+            <i class="fas fa-sign-in-alt"></i>
+            Try Login Again
+          </a>
+          <a href="{% url 'course_list' %}" class="btn btn-secondary ml-2">
+            <i class="fas fa-home"></i>
+            Browse Courses
+          </a>
+        </div>
+      </div>
+      <div class="card-footer text-center">
+        <small class="text-muted">
+          <i class="fas fa-shield-alt"></i>
+          Your privacy and security are always protected
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

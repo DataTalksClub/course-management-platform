@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Authentication Error - Course Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header text-center">
+        <h3><i class="fas fa-exclamation-triangle text-danger"></i> Authentication Error</h3>
+        <p class="text-muted">Something went wrong during login</p>
+      </div>
+      <div class="card-body text-center">
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-circle"></i>
+          <strong>Login failed</strong><br>
+          There was an issue connecting to the authentication provider. This could be due to:
+          <ul class="list-unstyled mt-2">
+            <li>• Network connectivity issues</li>
+            <li>• Temporary provider unavailability</li>
+            <li>• Account access restrictions</li>
+          </ul>
+        </div>
+        
+        <div class="mt-4">
+          <a href="{% url 'login' %}" class="btn btn-primary">
+            <i class="fas fa-redo"></i>
+            Try Again
+          </a>
+          <a href="{% url 'course_list' %}" class="btn btn-secondary ml-2">
+            <i class="fas fa-home"></i>
+            Go Home
+          </a>
+        </div>
+      </div>
+      <div class="card-footer text-center">
+        <small class="text-muted">
+          <i class="fas fa-question-circle"></i>
+          Need help? Contact support if the problem persists
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

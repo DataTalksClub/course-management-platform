@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">
+  {{ course.title }} Dashboard
+</h1>
+
+<!-- Navigation Links -->
+<div class="mb-4">
+  <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">
+    <i class="fas fa-trophy"></i> View Leaderboard
+  </a>
+</div>
+
+<!-- Total Enrollment -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">
+      <i class="fas fa-users"></i> Total Enrollments: {{ total_enrollments }}
+    </h5>
+  </div>
+</div>
+
+<!-- Homework Statistics -->
+{% if homework_stats %}
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">
+      <i class="fas fa-book"></i> Homework Statistics
+    </h5>
+    
+    <!-- Header Row -->
+    <div class="row border-bottom py-2 bg-light">
+      <div class="col-md-4">
+        <i class="fas fa-book" data-bs-toggle="tooltip" title="Homework Assignment"></i>
+      </div>
+      <div class="col-3 col-md">
+        <i class="fas fa-hashtag" data-bs-toggle="tooltip" title="Number of Submissions"></i>
+      </div>
+      <div class="col-3 col-md">
+        <i class="fas fa-video" data-bs-toggle="tooltip" title="Time Spent Watching Lectures"></i>
+      </div>
+      <div class="col-3 col-md">
+        <i class="fas fa-tasks" data-bs-toggle="tooltip" title="Time Spent on Homework"></i>
+      </div>
+      <div class="col-3 col-md">
+        <i class="fas fa-clock" data-bs-toggle="tooltip" title="Total Time Spent"></i>
+      </div>
+      <div class="col-md">
+        <i class="fas fa-star" data-bs-toggle="tooltip" title="Average Score"></i>
+      </div>
+    </div>
+    
+    {% for hw_stat in homework_stats %}
+    <div class="row border-bottom py-2 align-items-center">
+      <div class="col-md-4">
+        <strong>{{ hw_stat.homework.title }}</strong>
+      </div>
+      <div class="col-3 col-md">
+        {{ hw_stat.submissions_count }}
+      </div>
+      <div class="col-3 col-md">
+        {% if hw_stat.time_lecture_median %}
+          <span data-bs-toggle="tooltip" data-bs-placement="top" 
+                title="Most students spent between {{ hw_stat.time_lecture_q25|floatformat:1 }} and {{ hw_stat.time_lecture_q75|floatformat:1 }} hours on lectures">
+            {{ hw_stat.time_lecture_median_formatted }}h
+          </span>
+        {% else %}
+          -
+        {% endif %}
+      </div>
+      <div class="col-3 col-md">
+        {% if hw_stat.time_homework_median %}
+          <span data-bs-toggle="tooltip" data-bs-placement="top" 
+                title="Most students spent between {{ hw_stat.time_homework_q25|floatformat:1 }} and {{ hw_stat.time_homework_q75|floatformat:1 }} hours on homework">
+            {{ hw_stat.time_homework_median_formatted }}h
+          </span>
+        {% else %}
+          -
+        {% endif %}
+      </div>
+      <div class="col-3 col-md">
+        {% if hw_stat.time_total_median %}
+          <span data-bs-toggle="tooltip" data-bs-placement="top" 
+                title="Most students spent between {{ hw_stat.time_total_q25|floatformat:1 }} and {{ hw_stat.time_total_q75|floatformat:1 }} hours total">
+            {{ hw_stat.time_total_median_formatted }}h
+          </span>
+        {% else %}
+          -
+        {% endif %}
+      </div>
+      <div class="col-md">
+        {% if hw_stat.score_median %}{{ hw_stat.score_median|floatformat:0 }}{% else %}-{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Project Statistics -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">
+      <i class="fas fa-project-diagram"></i> Project Statistics
+    </h5>
+    
+    <!-- Score to Pass -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <strong>Score to Pass:</strong> {{ project_passing_score }}
+      </div>
+    </div>
+
+    <!-- Completion Rate -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <strong>Completion Rate:</strong> {{ project_completion_rate }}%
+      </div>
+    </div>
+
+    <!-- Pass/Fail Results -->
+    <div class="row mb-3">
+      <div class="col-6">
+        <strong>Passed:</strong> {{ project_pass_count }}
+      </div>
+      <div class="col-6">
+        <strong>Failed:</strong> {{ project_fail_count }}
+      </div>
+    </div>
+
+    <!-- Average Score -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <strong>Average Score:</strong>
+        {% if project_score_median %}
+          <span data-bs-toggle="tooltip" data-bs-placement="top" 
+                title="Most students scored between {{ project_score_q25|floatformat:0 }} and {{ project_score_q75|floatformat:0 }} points">
+            {{ project_score_median|floatformat:0 }}
+          </span>
+        {% else %}
+          Insufficient data
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Link to All Projects -->
+    <div class="row">
+      <div class="col-12">
+        <a href="{% url 'list_all_project_submissions' course.slug %}" class="btn btn-secondary">
+          <i class="fas fa-list"></i> View All Project Submissions
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Initialize Bootstrap tooltips
+  document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  });
+</script>
+
+{% endblock %}

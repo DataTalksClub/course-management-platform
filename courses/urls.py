@@ -14,6 +14,11 @@ urlpatterns = [
         name="course",
     ),
     path(
+        "<slug:course_slug>/projects",
+        course.list_all_project_submissions_view,
+        name="list_all_project_submissions",
+    ),
+    path(
         "<slug:course_slug>/leaderboard",
         course.leaderboard_view,
         name="leaderboard",
@@ -27,6 +32,11 @@ urlpatterns = [
         "<slug:course_slug>/enrollment",
         course.enrollment_view,
         name="enrollment",
+    ),
+    path(
+        "<slug:course_slug>/dashboard",
+        course.dashboard_view,
+        name="dashboard",
     ),
 
     # project
@@ -49,6 +59,11 @@ urlpatterns = [
         "<slug:course_slug>/project/<slug:project_slug>/results",
         project.project_results,
         name="project_results",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/stats",
+        project.project_statistics,
+        name="project_statistics",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/<int:review_id>",
@@ -88,5 +103,20 @@ urlpatterns = [
         "data/<slug:course_slug>/project/<slug:project_slug>",
         data.project_data_view,
         name="data_project",
+    ),
+    path(
+        "data/<slug:course_slug>/graduates",
+        data.graduates_data_view,
+        name="data_graduates",
+    ),
+    path(
+        "data/<slug:course_slug>/update-certificate",
+        data.update_enrollment_certificate_view,
+        name="data_update_certificate",
+    ),
+    path(
+        "<slug:course_slug>/course-criteria.yaml",
+        data.course_criteria_yaml_view,
+        name="course_criteria_yaml",
     ),
 ]
