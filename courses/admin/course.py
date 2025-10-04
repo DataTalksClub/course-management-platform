@@ -1,5 +1,7 @@
+from typing import Any
 from django import forms
 from django.contrib import admin
+from django.http import HttpRequest
 from django.utils import timezone
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.widgets import (
@@ -9,6 +11,7 @@ from unfold.widgets import (
 
 from django.contrib import messages
 
+from courses.mixin import InstructorAccessMixin
 from courses.models import Course, ReviewCriteria
 from courses.scoring import update_leaderboard
 
@@ -97,7 +100,22 @@ duplicate_course.short_description = "Duplicate selected courses"
 
 
 @admin.register(Course)
-class CourseAdmin(ModelAdmin):
+class CourseAdmin(InstructorAccessMixin, ModelAdmin):
     actions = [update_leaderboard_admin, duplicate_course]
     inlines = [CriteriaInline]
-    list_display = ["title"]
+    list_display = ["title", "slug", "finished"]
+
+    instructor_field = "instructor"
+
+    def get_form(
+        self,
+        request: HttpRequest,
+        obj: Any | None = ...,
+        change: bool = ...,
+        **kwargs: Any,
+    ) -> forms.ModelForm:
+        form = super().get_form(request, obj, change, **kwargs)
+        if not request.user.is_superuser:
+            form.base_fields["instructor"].initial = request.user
+            form.base_fields["instructor"].widget = forms.HiddenInput()
+        return form
