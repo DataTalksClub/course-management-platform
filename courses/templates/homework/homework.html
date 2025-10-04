@@ -91,6 +91,11 @@
         </p>
 
         {% if question.question_type == 'MC' %}
+          {% if answer.no_answer_submitted %}
+            <div class="alert alert-warning no-answer-indicator">
+              <i class="fas fa-exclamation-triangle"></i> No answer was submitted for this question
+            </div>
+          {% endif %}
           {% for option in answer.options %}
             <div class="form-check {{ option.correctly_selected_class }}">
               <input
@@ -107,8 +112,13 @@
           {% endfor %}
 
         {% elif question.question_type == 'CB' %}
+          {% if answer.no_answer_submitted %}
+            <div class="alert alert-warning no-answer-indicator">
+              <i class="fas fa-exclamation-triangle"></i> No answer was submitted for this question
+            </div>
+          {% endif %}
           {% for option in answer.options %}
-            <div class="form-check">
+            <div class="form-check {{ option.correctly_selected_class }}">
               <input
                 class="form-check-input"
                 id="checkbox-{{ question.id }}-{{ forloop.counter }}"
@@ -123,8 +133,13 @@
           {% endfor %}
 
         {% elif question.question_type == 'FF' %}
+          {% if answer.no_answer_submitted %}
+            <div class="alert alert-warning no-answer-indicator">
+              <i class="fas fa-exclamation-triangle"></i> No answer was submitted for this question
+            </div>
+          {% endif %}
           <input
-            class="form-control"
+            class="form-control {% if answer.correctly_selected_class %}{{ answer.correctly_selected_class }}{% endif %}"
             type="text"
             name="answer_{{ question.id }}"
             value="{{ answer.text|default:'' }}"

@@ -39,8 +39,12 @@ def process_quesion_free_form(
         else:
             return {"text": answer.answer_text}
 
-    if not answer:
-        return {"text": question.correct_answer}
+    # homework is scored - show correct answers
+    if not answer or not answer.answer_text or not answer.answer_text.strip():
+        return {
+            "text": question.correct_answer,
+            "no_answer_submitted": True,
+        }
 
     # the homework is scored and we want to show the answers
 
@@ -96,7 +100,13 @@ def process_question_options_multiple_choice_or_checkboxes(
 
         options.append(processed_answer)
 
-    return {"options": options}
+    result = {"options": options}
+    
+    # Check if no answer was submitted for a scored homework
+    if homework.is_scored() and len(selected_options) == 0:
+        result["no_answer_submitted"] = True
+
+    return result
 
 
 def extract_selected_options(answer):

@@ -116,6 +116,16 @@ nav .breadcrumbs ul li:not(:first-child)::before {
   background-color: lightcoral;
 }
 
+.no-answer-indicator {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.no-answer-indicator i {
+  margin-right: 0.5rem;
+}
+
 .container .row {
   border-bottom: 1px solid #f8f8f8; /* subtle bottom border for each row */
 }
