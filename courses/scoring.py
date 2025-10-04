@@ -92,20 +92,23 @@ def is_free_form_answer_correct(
     question: Question, answer: Answer
 ) -> bool:
     answer_type = question.answer_type
+    
+    user_answer = answer.answer_text
+    user_answer = (user_answer or "").strip()
 
     if answer_type == AnswerTypes.ANY.value:
-        return True
+        # For "ANY" type, require non-empty answer
+        return len(user_answer) > 0
 
-    user_answer = answer.answer_text
-    user_answer = (user_answer or "").strip().lower()
+    user_answer_lower = user_answer.lower()
 
     correct_answer = question.get_correct_answer()
     correct_answer = (correct_answer or "").strip().lower()
 
     if answer_type == AnswerTypes.EXACT_STRING.value:
-        return user_answer == correct_answer
+        return user_answer_lower == correct_answer
     elif answer_type == AnswerTypes.CONTAINS_STRING.value:
-        return correct_answer in user_answer
+        return correct_answer in user_answer_lower
     elif answer_type == AnswerTypes.FLOAT.value:
         return is_float_equal(
             user_answer, correct_answer, tolerance=0.01
