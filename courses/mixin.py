@@ -18,26 +18,26 @@ class InstructorAccessMixin:
         """
         # Parse the instructor_field to handle relationships
         parts = self.instructor_field.split("__")
-
+        formfield = super().formfield_for_foreignkey(
+            db_field, request, **kwargs
+        )
         # For direct instructor field on current model (no relationship traversal needed)
         if len(parts) == 1:
-            return super().formfield_for_foreignkey(
-                db_field, request, **kwargs
-            )
+            return formfield
 
         # For related fields (e.g., course__instructor)
         # parts[0] is the foreign key field name, parts[1:] is the lookup path
         fk_field_name = parts[0]
         lookup_path = "__".join(parts[1:])
 
+        queryset = formfield.queryset
+
         # Only apply filtering if this is the related foreign key field
         if (
             db_field.name == fk_field_name
             and not request.user.is_superuser
         ):
-            # Get the related model's queryset
-            related_model = db_field.remote_field.model
-            kwargs["queryset"] = related_model.objects.filter(
+            kwargs["queryset"] = queryset.filter(
                 **{lookup_path: request.user}
             )
 
