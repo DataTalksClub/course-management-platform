@@ -731,10 +731,13 @@ class CourseDetailViewTests(TestCase):
     
     def test_duplicate_course_preserves_visibility(self):
         """Test that course duplication preserves the visibility setting"""
-        # Set the course to be hidden
+        current_year = timezone.now().year
+        previous_year = current_year - 1
+        
+        # Set the course to be hidden with previous year in slug
         self.course.visible = False
-        self.course.title = "Test Course 2023"
-        self.course.slug = "test-course-2023"
+        self.course.title = f"Test Course {previous_year}"
+        self.course.slug = f"test-course-{previous_year}"
         self.course.save()
         
         # Create admin user and client
@@ -760,7 +763,6 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         
         # Get the duplicated course
-        current_year = timezone.now().year
         new_course = Course.objects.get(
             slug=f"test-course-{current_year}"
         )
