@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 def course_list(request):
-    courses = Course.objects.all().order_by("-id")
+    courses = Course.objects.filter(visible=True).order_by("-id")
 
     active_courses = []
     finished_courses = []
