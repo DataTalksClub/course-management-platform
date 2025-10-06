@@ -59,6 +59,13 @@ class Course(models.Model):
         help_text="Minimum score required to pass any project in this course",
     )
 
+    visible = models.BooleanField(
+        default=True,
+        blank=False,
+        help_text="Whether the course is visible in the course list. "
+        + "Non-visible courses are still accessible via direct link.",
+    )
+
     def __str__(self):
         return self.title
 

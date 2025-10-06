@@ -78,6 +78,7 @@ def duplicate_course(modeladmin, request, queryset):
             finished=False,
             faq_document_url=course.faq_document_url,
             project_passing_score=course.project_passing_score,
+            visible=course.visible,
         )
 
         # Copy review criteria with all fields
@@ -103,7 +104,7 @@ duplicate_course.short_description = "Duplicate selected courses"
 class CourseAdmin(InstructorAccessMixin, ModelAdmin):
     actions = [update_leaderboard_admin, duplicate_course]
     inlines = [CriteriaInline]
-    list_display = ["title", "slug", "finished"]
+    list_display = ["title", "slug", "finished", "visible"]
 
     instructor_field = "instructor"
 
