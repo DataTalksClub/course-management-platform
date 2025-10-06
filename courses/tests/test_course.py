@@ -681,3 +681,90 @@ class CourseDetailViewTests(TestCase):
         self.assertLess(early_pos, middle_pos)
         self.assertLess(middle_pos, late_pos)
 
+    def test_course_visibility_in_list(self):
+        """Test that non-visible courses don't appear in the course list"""
+        # Create a visible course
+        visible_course = Course.objects.create(
+            title="Visible Course",
+            slug="visible-course",
+            visible=True
+        )
+        
+        # Create a non-visible course
+        hidden_course = Course.objects.create(
+            title="Hidden Course",
+            slug="hidden-course",
+            visible=False
+        )
+        
+        # Test the course list view
+        url = reverse("course_list")
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that visible course is in the list
+        active_courses = response.context["active_courses"]
+        finished_courses = response.context["finished_courses"]
+        all_courses = list(active_courses) + list(finished_courses)
+        course_slugs = [course.slug for course in all_courses]
+        
+        self.assertIn("visible-course", course_slugs)
+        self.assertNotIn("hidden-course", course_slugs)
+    
+    def test_hidden_course_accessible_via_direct_link(self):
+        """Test that non-visible courses are still accessible via direct link"""
+        # Create a non-visible course
+        hidden_course = Course.objects.create(
+            title="Hidden Course",
+            slug="hidden-course",
+            visible=False
+        )
+        
+        # Test direct access to the course
+        url = reverse("course", kwargs={"course_slug": "hidden-course"})
+        response = self.client.get(url)
+        
+        # Should be accessible
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["course"], hidden_course)
+    
+    def test_duplicate_course_preserves_visibility(self):
+        """Test that course duplication preserves the visibility setting"""
+        # Set the course to be hidden
+        self.course.visible = False
+        self.course.title = "Test Course 2023"
+        self.course.slug = "test-course-2023"
+        self.course.save()
+        
+        # Create admin user and client
+        admin_user = User.objects.create_superuser(
+            username="admin2@test.com",
+            email="admin2@test.com",
+            password="admin12345",
+        )
+        admin_client = Client()
+        admin_client.login(
+            username="admin2@test.com", password="admin12345"
+        )
+        
+        # Execute the duplicate action
+        url = reverse("admin:courses_course_changelist")
+        data = {
+            "action": "duplicate_course",
+            "_selected_action": [str(self.course.pk)],
+        }
+        response = admin_client.post(url, data, follow=True)
+        
+        # Check if the duplication was successful
+        self.assertEqual(response.status_code, 200)
+        
+        # Get the duplicated course
+        current_year = timezone.now().year
+        new_course = Course.objects.get(
+            slug=f"test-course-{current_year}"
+        )
+        
+        # Test that visibility was preserved
+        self.assertFalse(new_course.visible)
+
