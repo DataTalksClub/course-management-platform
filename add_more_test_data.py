@@ -47,7 +47,7 @@ course = Course.objects.get(slug="fake-course")
 
 def create_random_question(homework: Homework):
     question_type = random.choice(
-        [QuestionTypes.FREE_FORM, QuestionTypes.MULTIPLE_CHOICE]
+        [QuestionTypes.FREE_FORM, QuestionTypes.FREE_FORM_LONG, QuestionTypes.MULTIPLE_CHOICE]
     )
     print(
         f"Creating question of type {question_type} for homework {homework}"
@@ -83,6 +83,19 @@ def create_random_question(homework: Homework):
             scores_for_correct_answer=1,
         )
 
+    elif question_type == QuestionTypes.FREE_FORM_LONG:
+        correct_answer = "Example long answer"
+        print(f"  Correct answer is {correct_answer}")
+
+        return Question.objects.create(
+            homework=homework,
+            text=f"Question text {question_id} (long form)",
+            correct_answer=correct_answer,
+            question_type=QuestionTypes.FREE_FORM_LONG.value,
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            scores_for_correct_answer=1,
+        )
+
 
 # Function to create questions for a given homework
 def create_questions_for_homework(homework: Homework):
@@ -113,6 +126,8 @@ def generate_answer(
             student_answer = str(student_answer_int)
         elif question.question_type == QuestionTypes.FREE_FORM.value:
             student_answer = "Incorrect answer"
+        elif question.question_type == QuestionTypes.FREE_FORM_LONG.value:
+            student_answer = "Incorrect long answer"
 
     print(
         f"  Answer is correct: {is_correct}, student answer: {student_answer}"

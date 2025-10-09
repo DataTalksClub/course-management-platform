@@ -63,6 +63,7 @@ class Homework(models.Model):
 class QuestionTypes(Enum):
     MULTIPLE_CHOICE = "MC"
     FREE_FORM = "FF"
+    FREE_FORM_LONG = "FL"
     CHECKBOXES = "CB"
 
 
@@ -84,6 +85,7 @@ class Question(models.Model):
     QUESTION_TYPES = (
         (QuestionTypes.MULTIPLE_CHOICE.value, "Multiple Choice"),
         (QuestionTypes.FREE_FORM.value, "Free Form"),
+        (QuestionTypes.FREE_FORM_LONG.value, "Free Form Long"),
         (QuestionTypes.CHECKBOXES.value, "Checkboxes"),
     )
     question_type = models.CharField(

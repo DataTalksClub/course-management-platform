@@ -132,6 +132,9 @@ def is_answer_correct(question: Question, answer: Answer) -> bool:
     if question.question_type == QuestionTypes.FREE_FORM.value:
         return is_free_form_answer_correct(question, answer)
 
+    if question.question_type == QuestionTypes.FREE_FORM_LONG.value:
+        return is_free_form_answer_correct(question, answer)
+
     return False
 
 
