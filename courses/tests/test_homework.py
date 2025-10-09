@@ -1603,9 +1603,9 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.assertEqual(context["course"], self.course)
         self.assertEqual(context["homework"], self.homework)
 
-        submissions = context["submissions"]
-        self.assertEqual(len(submissions), 1)
-        self.assertEqual(submissions[0], self.submission)
+        submissions_data = context["submissions_data"]
+        self.assertEqual(len(submissions_data), 1)
+        self.assertEqual(submissions_data[0]["submission"], self.submission)
 
     def test_submissions_view_displays_all_submissions(self):
         """Test that all submissions are displayed"""
@@ -1642,8 +1642,8 @@ class HomeworkSubmissionsViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        submissions = response.context["submissions"]
-        self.assertEqual(len(submissions), 2)
+        submissions_data = response.context["submissions_data"]
+        self.assertEqual(len(submissions_data), 2)
 
     def test_admin_link_visible_to_staff(self):
         """Test that the admin link is visible to staff users"""
@@ -1680,3 +1680,81 @@ class HomeworkSubmissionsViewTests(TestCase):
         content = response.content.decode("utf-8")
         self.assertNotIn("View all submissions", content)
         self.assertNotIn("Admin only", content)
+
+    def test_submissions_view_displays_questions_and_answers(self):
+        """Test that submissions view displays questions and answers instead of scores"""
+        # Create some questions for the homework
+        q1 = Question.objects.create(
+            homework=self.homework,
+            text="What is 2+2?",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.INTEGER.value,
+            correct_answer="4",
+        )
+        q2 = Question.objects.create(
+            homework=self.homework,
+            text="What is the capital of France?",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            correct_answer="Paris",
+        )
+        
+        # Create answers for the submission
+        Answer.objects.create(
+            submission=self.submission,
+            question=q1,
+            answer_text="4",
+        )
+        Answer.objects.create(
+            submission=self.submission,
+            question=q2,
+            answer_text="Paris",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that questions are in context
+        questions = response.context["questions"]
+        self.assertEqual(len(questions), 2)
+        
+        # Check that submissions_data has the right structure
+        submissions_data = response.context["submissions_data"]
+        self.assertEqual(len(submissions_data), 1)
+        
+        item = submissions_data[0]
+        self.assertEqual(item["submission"], self.submission)
+        self.assertEqual(len(item["answers"]), 2)
+        self.assertEqual(item["answers"][0], "4")
+        self.assertEqual(item["answers"][1], "Paris")
+        
+        # Check that the page does NOT contain score columns
+        content = response.content.decode("utf-8")
+        self.assertNotIn("Questions Score", content)
+        self.assertNotIn("FAQ Score", content)
+        self.assertNotIn("Learning in Public Score", content)
+        self.assertNotIn("Total Score", content)
+        
+        # Check that the page contains question headers
+        self.assertIn("Q1", content)
+        self.assertIn("Q2", content)
+        
+        # Check that the page contains answers
+        self.assertIn("4", content)
+        self.assertIn("Paris", content)
+        
+        # Check that email is displayed but not username
+        self.assertIn(self.user.email, content)
+        # The username should not appear in a table cell context
+        # (it may appear elsewhere like in navigation)
