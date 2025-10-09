@@ -1486,3 +1486,197 @@ class HomeworkDetailViewTests(TestCase):
         # (since the user is authenticated and some questions were not answered)
         content = response.content.decode('utf-8')
         self.assertIn("No answer was submitted for this question", content)
+
+
+class HomeworkSubmissionsViewTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        # Create regular user
+        self.user = User.objects.create_user(**credentials)
+
+        # Create admin user
+        self.admin_user = User.objects.create_user(
+            username="admin@test.com",
+            email="admin@test.com",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+
+        self.course = Course.objects.create(
+            title="Test Course", slug="test-course"
+        )
+
+        self.homework = Homework.objects.create(
+            course=self.course,
+            title="Test Homework",
+            description="Test Homework Description",
+            due_date=timezone.now() + timezone.timedelta(days=7),
+            state=HomeworkState.OPEN.value,
+            slug="test-homework",
+        )
+
+        # Create an enrollment and submission for the regular user
+        self.enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+
+        self.submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=self.enrollment,
+            questions_score=10,
+            faq_score=2,
+            learning_in_public_score=3,
+            total_score=15,
+        )
+
+    def test_submissions_view_unauthenticated_redirects(self):
+        """Test that unauthenticated users are redirected"""
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        # Should redirect to homework view with error message
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse(
+                "homework",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+
+    def test_submissions_view_regular_user_denied(self):
+        """Test that regular users cannot access submissions view"""
+        self.client.login(**credentials)
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        # Should redirect to homework view with error message
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse(
+                "homework",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+
+    def test_submissions_view_admin_can_access(self):
+        """Test that admin users can access submissions view"""
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "homework/submissions.html")
+
+        context = response.context
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(context["homework"], self.homework)
+
+        submissions = context["submissions"]
+        self.assertEqual(len(submissions), 1)
+        self.assertEqual(submissions[0], self.submission)
+
+    def test_submissions_view_displays_all_submissions(self):
+        """Test that all submissions are displayed"""
+        # Create another user and submission
+        user2 = User.objects.create_user(
+            username="user2@test.com",
+            email="user2@test.com",
+            password="12345",
+        )
+        enrollment2 = Enrollment.objects.create(
+            student=user2,
+            course=self.course,
+        )
+        submission2 = Submission.objects.create(
+            homework=self.homework,
+            student=user2,
+            enrollment=enrollment2,
+            questions_score=8,
+            faq_score=1,
+            learning_in_public_score=2,
+            total_score=11,
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        submissions = response.context["submissions"]
+        self.assertEqual(len(submissions), 2)
+
+    def test_admin_link_visible_to_staff(self):
+        """Test that the admin link is visible to staff users"""
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("View all submissions", content)
+        self.assertIn("Admin only", content)
+
+    def test_admin_link_not_visible_to_regular_users(self):
+        """Test that the admin link is not visible to regular users"""
+        self.client.login(**credentials)
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertNotIn("View all submissions", content)
+        self.assertNotIn("Admin only", content)
