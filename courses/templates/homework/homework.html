@@ -55,6 +55,14 @@
     </div>
   {% endif %}
 
+  {% if user.is_staff %}
+    <div class="pb-2">
+      <a href="{% url 'homework_submissions' course.slug homework.slug %}">
+        <i class="fas fa-users"></i> View all submissions (Admin only)
+      </a>
+    </div>
+  {% endif %}
+
   <div>
     <p class="text-muted">{{ homework.description | urlize_target_blank }}</p>
   </div>

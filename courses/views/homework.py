@@ -423,3 +423,38 @@ def homework_statistics(request, course_slug, homework_slug):
     }
 
     return render(request, "homework/stats.html", context)
+
+
+def homework_submissions(request, course_slug, homework_slug):
+    # Check if user is admin/staff
+    if not request.user.is_authenticated or not request.user.is_staff:
+        messages.error(
+            request,
+            "You do not have permission to view this page.",
+            extra_tags="homework",
+        )
+        return redirect(
+            "homework",
+            course_slug=course_slug,
+            homework_slug=homework_slug,
+        )
+
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+
+    # Get all submissions for this homework, ordered by submission time
+    submissions = (
+        Submission.objects.filter(homework=homework)
+        .select_related("student", "enrollment")
+        .order_by("-submitted_at")
+    )
+
+    context = {
+        "course": course,
+        "homework": homework,
+        "submissions": submissions,
+    }
+
+    return render(request, "homework/submissions.html", context)

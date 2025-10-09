@@ -92,6 +92,11 @@ urlpatterns = [
         homework.homework_statistics,
         name="homework_statistics",
     ),
+    path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/submissions",
+        homework.homework_submissions,
+        name="homework_submissions",
+    ),
 
     # API
     path(
