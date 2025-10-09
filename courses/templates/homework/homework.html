@@ -145,6 +145,19 @@
             value="{{ answer.text|default:'' }}"
             {% if disabled %} disabled {% endif %}
           />
+
+        {% elif question.question_type == 'FL' %}
+          {% if is_authenticated and answer.no_answer_submitted %}
+            <div class="alert alert-warning no-answer-indicator">
+              <i class="fas fa-exclamation-triangle"></i> No answer was submitted for this question
+            </div>
+          {% endif %}
+          <textarea
+            class="form-control {% if answer.correctly_selected_class %}{{ answer.correctly_selected_class }}{% endif %}"
+            name="answer_{{ question.id }}"
+            rows="5"
+            {% if disabled %} disabled {% endif %}
+          >{{ answer.text|default:'' }}</textarea>
         {% endif %}
       </div>
     {% endfor %}

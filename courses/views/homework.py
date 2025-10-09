@@ -150,6 +150,9 @@ def process_question_options(
 ):
     if question.question_type == QuestionTypes.FREE_FORM.value:
         return process_quesion_free_form(homework, question, answer)
+    
+    if question.question_type == QuestionTypes.FREE_FORM_LONG.value:
+        return process_quesion_free_form(homework, question, answer)
 
     return process_question_options_multiple_choice_or_checkboxes(
         homework, question, answer
