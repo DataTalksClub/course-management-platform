@@ -32,7 +32,7 @@
     <h5 class="card-title">
       <i class="fas fa-info-circle"></i> Total Submissions
     </h5>
-    <p class="card-text display-4">{{ submissions|length }}</p>
+    <p class="card-text display-4">{{ submissions_data|length }}</p>
   </div>
 </div>
 
@@ -43,34 +43,38 @@
     </h5>
   </div>
   <div class="card-body">
-    {% if submissions %}
+    {% if submissions_data %}
       <div class="table-responsive">
         <table class="table table-striped table-hover">
           <thead>
             <tr>
-              <th>Student</th>
               <th>Email</th>
               <th>Submitted At</th>
-              <th>Questions Score</th>
-              <th>FAQ Score</th>
-              <th>Learning in Public Score</th>
-              <th>Total Score</th>
+              {% for question in questions %}
+              <th>Q{{ forloop.counter }}</th>
+              {% endfor %}
               <th>Homework Link</th>
             </tr>
           </thead>
           <tbody>
-            {% for submission in submissions %}
+            {% for item in submissions_data %}
             <tr>
-              <td>{{ submission.student.username }}</td>
-              <td>{{ submission.student.email }}</td>
-              <td>{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</td>
-              <td>{{ submission.questions_score }}</td>
-              <td>{{ submission.faq_score }}</td>
-              <td>{{ submission.learning_in_public_score }}</td>
-              <td><strong>{{ submission.total_score }}</strong></td>
+              <td>{{ item.submission.student.email }}</td>
+              <td>{{ item.submission.submitted_at|date:"Y-m-d H:i:s" }}</td>
+              {% for answer in item.answers %}
               <td>
-                {% if submission.homework_link %}
-                  <a href="{{ submission.homework_link }}" target="_blank" rel="noopener noreferrer">
+                {% if answer %}
+                  <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ answer }}">
+                    {{ answer }}
+                  </div>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              {% endfor %}
+              <td>
+                {% if item.submission.homework_link %}
+                  <a href="{{ item.submission.homework_link }}" target="_blank" rel="noopener noreferrer">
                     <i class="fas fa-external-link-alt"></i> View
                   </a>
                 {% else %}
