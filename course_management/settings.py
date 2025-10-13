@@ -36,7 +36,8 @@ EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
 extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 
 ALLOWED_HOSTS = [
-    "localhost"
+    "localhost",
+    "127.0.0.1"
 ] + extra_allowed_hosts_parsed
 
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"

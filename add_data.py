@@ -233,7 +233,6 @@ project = Project(
     learning_in_public_cap_project=14,
     learning_in_public_cap_review=2,
     number_of_peers_to_evaluate=3,
-    points_to_pass=10,
     state=ProjectState.COLLECTING_SUBMISSIONS.value,
 )
 
