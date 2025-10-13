@@ -64,9 +64,25 @@
               {% for answer in item.answers %}
               <td>
                 {% if answer %}
-                  <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ answer }}">
-                    {{ answer }}
-                  </div>
+                  {% if answer|length < 1000 %}
+                    <div style="max-width: 400px; white-space: pre-wrap; word-wrap: break-word;">
+                      {{ answer }}
+                    </div>
+                  {% else %}
+                    <div>
+                      <div id="answer-short-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" style="max-width: 400px; white-space: pre-wrap; word-wrap: break-word;">
+                        {{ answer|truncatechars:200 }}
+                      </div>
+                      <div id="answer-full-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" style="max-width: 400px; white-space: pre-wrap; word-wrap: break-word; display: none;">
+                        {{ answer }}
+                      </div>
+                      <button class="btn btn-sm btn-outline-primary mt-1 toggle-answer" 
+                              data-short-id="answer-short-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                              data-full-id="answer-full-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                        <i class="fas fa-chevron-down"></i> Show All
+                      </button>
+                    </div>
+                  {% endif %}
                 {% else %}
                   <span class="text-muted">-</span>
                 {% endif %}
@@ -92,4 +108,30 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+  $('.toggle-answer').click(function() {
+    var shortId = $(this).data('short-id');
+    var fullId = $(this).data('full-id');
+    var $short = $('#' + shortId);
+    var $full = $('#' + fullId);
+    var $icon = $(this).find('i');
+    
+    if ($full.is(':visible')) {
+      $full.hide();
+      $short.show();
+      $icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+      $(this).html('<i class="fas fa-chevron-down"></i> Show All');
+    } else {
+      $short.hide();
+      $full.show();
+      $icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+      $(this).html('<i class="fas fa-chevron-up"></i> Show Less');
+    }
+  });
+});
+</script>
 {% endblock %}

@@ -1758,3 +1758,77 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.assertIn(self.user.email, content)
         # The username should not appear in a table cell context
         # (it may appear elsewhere like in navigation)
+
+    def test_submissions_view_short_answers_displayed_fully(self):
+        """Test that short answers (< 1000 chars) are displayed in full"""
+        # Create a question with a short answer
+        q1 = Question.objects.create(
+            homework=self.homework,
+            text="Short answer question",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.ANY.value,
+        )
+        
+        short_answer = "This is a short answer with less than 1000 characters."
+        Answer.objects.create(
+            submission=self.submission,
+            question=q1,
+            answer_text=short_answer,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        
+        # Check that the short answer is displayed in full
+        self.assertIn(short_answer, content)
+        # Check that there's no toggle button class in the table body
+        self.assertNotIn('class="btn btn-sm btn-outline-primary mt-1 toggle-answer"', content)
+
+    def test_submissions_view_long_answers_have_toggle(self):
+        """Test that long answers (>= 1000 chars) have a toggle button"""
+        # Create a question with a long answer
+        q1 = Question.objects.create(
+            homework=self.homework,
+            text="Long answer question",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.ANY.value,
+        )
+        
+        # Create a long answer (>1000 characters)
+        long_answer = "This is a very long answer. " * 100  # Should be over 1000 chars
+        Answer.objects.create(
+            submission=self.submission,
+            question=q1,
+            answer_text=long_answer,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        
+        # Check that there's a toggle button for long answers in the table
+        self.assertIn('class="btn btn-sm btn-outline-primary mt-1 toggle-answer"', content)
+        # Check that the truncated version is present (using Django's truncatechars which uses "…")
+        self.assertIn("…", content)
+        # Check that both short and full divs are present
+        self.assertIn('id="answer-short-', content)
+        self.assertIn('id="answer-full-', content)
