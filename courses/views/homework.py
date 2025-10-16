@@ -370,8 +370,6 @@ def homework_view(
         homework=homework, student=user
     ).first()
 
-    logger.info(f"submission={submission}")
-
     context = homework_detail_build_context_authenticated(
         course=course,
         homework=homework,

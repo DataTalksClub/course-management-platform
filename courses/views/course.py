@@ -153,7 +153,6 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
 
     has_completed_projects = False
     for project in projects:
-        print("project.state:", project.state)
         if project.state == ProjectState.COMPLETED.value:
             has_completed_projects = True
 
