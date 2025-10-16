@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: course_management
+      POSTGRES_USER: course_user
+      POSTGRES_PASSWORD: course_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U course_user -d course_management"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: 'tcp db:5432'
+    ports:
+      - "4040:4040"
+
+  web:
+    build: .
+    ports:
+      - "8000:80"
+    environment:
+      DATABASE_URL: postgresql://course_user:course_password@db:5432/course_management
+      DEBUG: "1"
+      IS_LOCAL: "1"
+      SECRET_KEY: "dev-secret-key-change-in-production"
+    volumes:
+      - init_flag:/code/.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/code/docker-entrypoint.sh"]
+    command: ["gunicorn", "course_management.wsgi", "--bind", "0.0.0.0:80"]
+
+volumes:
+  postgres_data:
+  init_flag:

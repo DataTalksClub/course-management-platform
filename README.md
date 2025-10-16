@@ -82,7 +82,17 @@ make run
 
 ## Running with Docker
 
-Build it:
+Best option - run it with docker-compose:
+
+
+```bash
+docker-compose up --build
+```
+
+It will also use Postgres instead of SQLite.
+
+
+Without Compose - first, build it:
 
 ```bash
 docker build -t course_management .
