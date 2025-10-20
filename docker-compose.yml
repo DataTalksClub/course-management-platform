@@ -5,6 +5,7 @@ services:
       POSTGRES_DB: course_management
       POSTGRES_USER: course_user
       POSTGRES_PASSWORD: course_password
+    command: postgres -c wal_level=logical
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
