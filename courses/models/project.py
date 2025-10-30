@@ -65,7 +65,9 @@ class ProjectSubmission(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
 
-    github_link = models.URLField(validators=[URLValidator(), validate_url_200])
+    github_link = models.URLField(
+        validators=[URLValidator(), validate_url_200],
+    )
     commit_id = models.CharField(max_length=40)
 
     learning_in_public_links = models.JSONField(blank=True, null=True)
@@ -81,7 +83,9 @@ class ProjectSubmission(models.Model):
     project_learning_in_public_score = models.IntegerField(default=0)
 
     peer_review_score = models.IntegerField(default=0)
-    peer_review_learning_in_public_score = models.IntegerField(default=0)
+    peer_review_learning_in_public_score = models.IntegerField(
+        default=0
+    )
 
     total_score = models.IntegerField(default=0)
 
@@ -123,12 +127,18 @@ class ReviewCriteria(models.Model):
         result = 0
         scores = [option["score"] for option in self.options]
 
-        if self.review_criteria_type == ReviewCriteriaTypes.RADIO_BUTTONS.value:
+        if (
+            self.review_criteria_type
+            == ReviewCriteriaTypes.RADIO_BUTTONS.value
+        ):
             result = statistics.median(scores)
 
-        if self.review_criteria_type == ReviewCriteriaTypes.CHECKBOXES.value:
-            result = sum(scores) / 2 # just give the middle score
-    
+        if (
+            self.review_criteria_type
+            == ReviewCriteriaTypes.CHECKBOXES.value
+        ):
+            result = sum(scores) / 2  # just give the middle score
+
         return math.ceil(result)
 
     def __str__(self):
@@ -238,12 +248,24 @@ class ProjectStatistics(models.Model):
     q3_project_score = models.FloatField(null=True, blank=True)
 
     # Fields for project_learning_in_public_score
-    min_project_learning_in_public_score = models.IntegerField(null=True, blank=True)
-    max_project_learning_in_public_score = models.IntegerField(null=True, blank=True)
-    avg_project_learning_in_public_score = models.FloatField(null=True, blank=True)
-    median_project_learning_in_public_score = models.FloatField(null=True, blank=True)
-    q1_project_learning_in_public_score = models.FloatField(null=True, blank=True)
-    q3_project_learning_in_public_score = models.FloatField(null=True, blank=True)
+    min_project_learning_in_public_score = models.IntegerField(
+        null=True, blank=True
+    )
+    max_project_learning_in_public_score = models.IntegerField(
+        null=True, blank=True
+    )
+    avg_project_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    median_project_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    q1_project_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    q3_project_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
 
     # Fields for peer_review_score
     min_peer_review_score = models.IntegerField(null=True, blank=True)
@@ -254,12 +276,24 @@ class ProjectStatistics(models.Model):
     q3_peer_review_score = models.FloatField(null=True, blank=True)
 
     # Fields for peer_review_learning_in_public_score
-    min_peer_review_learning_in_public_score = models.IntegerField(null=True, blank=True)
-    max_peer_review_learning_in_public_score = models.IntegerField(null=True, blank=True)
-    avg_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
-    median_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
-    q1_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
-    q3_peer_review_learning_in_public_score = models.FloatField(null=True, blank=True)
+    min_peer_review_learning_in_public_score = models.IntegerField(
+        null=True, blank=True
+    )
+    max_peer_review_learning_in_public_score = models.IntegerField(
+        null=True, blank=True
+    )
+    avg_peer_review_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    median_peer_review_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    q1_peer_review_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    q3_peer_review_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
 
     # Fields for total_score
     min_total_score = models.IntegerField(null=True, blank=True)
@@ -287,69 +321,225 @@ class ProjectStatistics(models.Model):
         results = []
 
         results.append(
-            ("Project score", [
-                (self.min_project_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_project_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_project_score, "Average", "fas fa-equals"),
-                (self.q1_project_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_project_score, "Median", "fas fa-percentage"),
-                (self.q3_project_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-project-diagram')
+            (
+                "Project score",
+                [
+                    (
+                        self.min_project_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_project_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_project_score,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_project_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_project_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_project_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-project-diagram",
+            )
         )
 
         results.append(
-            ("Project learning in public score", [
-                (self.min_project_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_project_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_project_learning_in_public_score, "Average", "fas fa-equals"),
-                (self.q1_project_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_project_learning_in_public_score, "Median", "fas fa-percentage"),
-                (self.q3_project_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-globe')
+            (
+                "Project learning in public score",
+                [
+                    (
+                        self.min_project_learning_in_public_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_project_learning_in_public_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_project_learning_in_public_score,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_project_learning_in_public_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_project_learning_in_public_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_project_learning_in_public_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-globe",
+            )
         )
 
         results.append(
-            ("Peer review score", [
-                (self.min_peer_review_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_peer_review_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_peer_review_score, "Average", "fas fa-equals"),
-                (self.q1_peer_review_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_peer_review_score, "Median", "fas fa-percentage"),
-                (self.q3_peer_review_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-users')
+            (
+                "Peer review score",
+                [
+                    (
+                        self.min_peer_review_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_peer_review_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_peer_review_score,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_peer_review_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_peer_review_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_peer_review_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-users",
+            )
         )
 
         results.append(
-            ("Peer review learning in public score", [
-                (self.min_peer_review_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_peer_review_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_peer_review_learning_in_public_score, "Average", "fas fa-equals"),
-                (self.q1_peer_review_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_peer_review_learning_in_public_score, "Median", "fas fa-percentage"),
-                (self.q3_peer_review_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-share-alt')
+            (
+                "Peer review learning in public score",
+                [
+                    (
+                        self.min_peer_review_learning_in_public_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_peer_review_learning_in_public_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_peer_review_learning_in_public_score,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_peer_review_learning_in_public_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_peer_review_learning_in_public_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_peer_review_learning_in_public_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-share-alt",
+            )
         )
 
         results.append(
-            ("Total score", [
-                (self.min_total_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_total_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_total_score, "Average", "fas fa-equals"),
-                (self.q1_total_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_total_score, "Median", "fas fa-percentage"),
-                (self.q3_total_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-star')
+            (
+                "Total score",
+                [
+                    (
+                        self.min_total_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_total_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (self.avg_total_score, "Average", "fas fa-equals"),
+                    (
+                        self.q1_total_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_total_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_total_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-star",
+            )
         )
 
         results.append(
-            ("Time spent on project", [
-                (self.min_time_spent, "Minimum", "fas fa-arrow-down"),
-                (self.max_time_spent, "Maximum", "fas fa-arrow-up"),
-                (self.avg_time_spent, "Average", "fas fa-equals"),
-                (self.q1_time_spent, "25th Percentile", "fas fa-percentage"),
-                (self.median_time_spent, "Median", "fas fa-percentage"),
-                (self.q3_time_spent, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-clock')
+            (
+                "Time spent on project",
+                [
+                    (
+                        self.min_time_spent,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (self.max_time_spent, "Maximum", "fas fa-arrow-up"),
+                    (self.avg_time_spent, "Average", "fas fa-equals"),
+                    (
+                        self.q1_time_spent,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_time_spent,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_time_spent,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-clock",
+            )
         )
 
         return results
