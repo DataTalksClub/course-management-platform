@@ -60,7 +60,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         enrollment.save()
 
     project_submission.github_link = request.POST.get("github_link")
-    project_submission.commit_id = request.POST.get("commit_id")
+    project_submission.commit_id = request.POST.get("commit_id", "").strip()
 
     if project.learning_in_public_cap_project > 0:
         links = request.POST.getlist("learning_in_public_links[]")

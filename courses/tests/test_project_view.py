@@ -247,6 +247,39 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(enrollments.count(), 1)
 
     @mock.patch("requests.get")
+    def test_project_submission_commit_id_with_whitespace(self, mock_get):
+        """
+        Test that commit_id with leading/trailing whitespace is stripped.
+        """
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
+        self.client.login(**credentials)
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+
+        data = {
+            "github_link": "https://httpbin.org/status/200",
+            "commit_id": "  abc1234  ",  # Leading and trailing spaces
+            "time_spent": "2",
+            "problems_comments": "Test",
+            "faq_contribution": "Test FAQ.",
+        }
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 302)
+
+        submission = ProjectSubmission.objects.filter(
+            student=self.user,
+            project=self.project,
+        ).first()
+
+        # Verify that whitespace was stripped
+        self.assertEqual(submission.commit_id, "abc1234")
+
+    @mock.patch("requests.get")
     def test_project_submission_post_with_submissions(self, mock_get):
         """
         Test posting a project submission when there are existing submissions.
