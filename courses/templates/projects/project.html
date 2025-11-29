@@ -234,6 +234,19 @@
     const $form = $('#project-form');
     const $updateButton = $('#update-button');
     const $deleteButton = $('#delete-button');
+    const $commitIdInput = $('#commit_id');
+
+    // Automatically strip whitespace from commit_id when user leaves the field
+    $commitIdInput.on('blur', function() {
+      const trimmedValue = $(this).val().trim();
+      $(this).val(trimmedValue);
+    });
+
+    // Strip whitespace from commit_id before form submission
+    $form.on('submit', function() {
+      const trimmedValue = $commitIdInput.val().trim();
+      $commitIdInput.val(trimmedValue);
+    });
 
     $updateButton.on('click', function(e) {
       e.preventDefault();
