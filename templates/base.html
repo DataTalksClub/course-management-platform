@@ -18,8 +18,11 @@
 
 </head>
 
-<body class="{% if DARK_MODE %}dark-mode{% endif %}">
-  <div class="{% if DARK_MODE %}bg-dark border-dark{% else %}bg-light border-bottom{% endif %}">
+<body class="{% if DARK_MODE %}dark-mode{% endif %}" data-dark-mode="{% if DARK_MODE %}true{% else %}false{% endif %}">
+  {% if user.is_authenticated %}
+  <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+  {% endif %}
+  <div class="{% if DARK_MODE %}bg-dark border-dark{% else %}bg-light border-bottom{% endif %}" id="header-container">
   <header class="container">
     <nav class="d-flex justify-content-between align-items-center py-2">
       <div class="breadcrumbs">
@@ -37,7 +40,7 @@
           {% if user.is_authenticated %}
             <li class="mr-2">
               <button id="dark-mode-toggle" class="btn btn-sm {% if DARK_MODE %}btn-light{% else %}btn-dark{% endif %}" title="Toggle dark mode">
-                <i class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"></i>
+                <i id="dark-mode-icon" class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"></i>
               </button>
             </li>
             <li class="mr-2"><i class="fas fa-user"></i> {{ user.username }}</li>
@@ -52,7 +55,7 @@
 </div>
 
   <div id="content" class="container">
-    <div class="form-container mt-4 {% if DARK_MODE %}bg-dark{% else %}bg-light{% endif %} border rounded">
+    <div class="form-container mt-4 {% if DARK_MODE %}bg-dark{% else %}bg-light{% endif %} border rounded" id="main-content">
     {% block content %}
     <!-- The specific content of each page will be inserted here -->
     {% endblock %}
@@ -71,14 +74,37 @@
   <script>
     $(document).ready(function() {
       $('#dark-mode-toggle').click(function() {
+        var csrfToken = $('#csrf-token').val();
         $.ajax({
           url: '{% url "toggle_dark_mode" %}',
           type: 'POST',
           headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
+            'X-CSRFToken': csrfToken
           },
           success: function(data) {
-            location.reload();
+            var isDarkMode = data.dark_mode;
+            var $html = $('html');
+            var $body = $('body');
+            var $toggle = $('#dark-mode-toggle');
+            var $icon = $('#dark-mode-icon');
+            var $header = $('#header-container');
+            var $content = $('#main-content');
+
+            if (isDarkMode) {
+              $html.addClass('dark-mode');
+              $body.addClass('dark-mode').attr('data-dark-mode', 'true');
+              $toggle.removeClass('btn-dark').addClass('btn-light');
+              $icon.removeClass('fa-moon').addClass('fa-sun');
+              $header.removeClass('bg-light border-bottom').addClass('bg-dark border-dark');
+              $content.removeClass('bg-light').addClass('bg-dark');
+            } else {
+              $html.removeClass('dark-mode');
+              $body.removeClass('dark-mode').attr('data-dark-mode', 'false');
+              $toggle.removeClass('btn-light').addClass('btn-dark');
+              $icon.removeClass('fa-sun').addClass('fa-moon');
+              $header.removeClass('bg-dark border-dark').addClass('bg-light border-bottom');
+              $content.removeClass('bg-dark').addClass('bg-light');
+            }
           },
           error: function(xhr, status, error) {
             console.error('Error toggling dark mode:', error);
