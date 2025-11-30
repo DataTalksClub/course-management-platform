@@ -234,7 +234,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
         peer_reviews = PeerReview.objects.filter(
             submission_under_evaluation__project=project,
-        )
+        ).select_related('submission_under_evaluation', 'reviewer')
 
         if peer_reviews.count() == 0:
             return (
@@ -246,7 +246,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
         criteria_responses = CriteriaResponse.objects.filter(
             review__in=peer_reviews
-        )
+        ).select_related('criteria')
 
         responses_by_review = defaultdict(list)
         for response in criteria_responses:

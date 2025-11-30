@@ -49,7 +49,7 @@ else:
     print("ERROR: DJANGO_SECRET not found in .envrc")
     sys.exit(1)
 
-print(f"✓ DATABASE_URL: {os.environ['DATABASE_URL']}")
+# print(f"✓ DATABASE_URL: {os.environ['DATABASE_URL']}")
 print()
 
 # Setup Django
@@ -161,7 +161,7 @@ def main():
     args = parser.parse_args()
 
     print("Connecting to dev database via SSH tunnel...")
-    print(f"DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}")
+    # print(f"DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}")
     print()
 
     score_and_display(course_slug=args.course_slug, project_slug=args.project_slug)
