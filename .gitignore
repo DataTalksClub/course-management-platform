@@ -1,5 +1,8 @@
 /notebooks/data/
 
+# Project data exports (may contain PII)
+/data_prod/
+
 # Collected static files
 /static/
 
