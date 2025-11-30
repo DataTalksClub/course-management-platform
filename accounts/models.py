@@ -18,6 +18,11 @@ class CustomUser(AbstractUser):
         null=True,
         help_text="Your actual name that will appear on your certificates"
     )
+    dark_mode = models.BooleanField(
+        verbose_name="Dark mode",
+        default=False,
+        help_text="Enable dark mode theme"
+    )
 
     def __str__(self):
         # safest is to display something stable

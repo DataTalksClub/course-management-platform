@@ -7,11 +7,22 @@ from django.core.cache import cache
 
 from django.conf import settings
 from django.urls import reverse
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 
 
 def disabled(request):
     return HttpResponse("This URL is disabled", status=403)
+
+
+@login_required
+@require_POST
+def toggle_dark_mode(request):
+    user = request.user
+    user.dark_mode = not user.dark_mode
+    user.save(update_fields=['dark_mode'])
+    return JsonResponse({'dark_mode': user.dark_mode})
 
 
 async def social_login_view(request):
