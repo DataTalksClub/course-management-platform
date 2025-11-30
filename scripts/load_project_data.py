@@ -180,44 +180,78 @@ def load_project_data(input_file, clear_existing=False):
         
         # Create users
         print(f"\nCreating {len(data['users'])} users...")
-        for user_data in tqdm(data["users"], desc="Creating users", unit="users"):
+        
+        # Get all existing usernames in one query
+        existing_usernames = {u.username: u for u in User.objects.filter(
+            username__in=[user_data["username"] for user_data in data["users"]]
+        )}
+        
+        users_to_create = []
+        for user_data in tqdm(data["users"], desc="Processing users", unit="users"):
             old_id = user_data["id"]
-            user, created = User.objects.get_or_create(
-                username=user_data["username"],
-                defaults={
-                    "email": user_data["email"],
-                    "certificate_name": user_data.get("certificate_name", ""),
-                    "dark_mode": user_data.get("dark_mode", False),
-                }
-            )
-            user_id_map[old_id] = user.id
-        print("✓ Users ready")
+            username = user_data["username"]
+            
+            if username in existing_usernames:
+                user_id_map[old_id] = existing_usernames[username].id
+            else:
+                user = User(
+                    username=username,
+                    email=user_data["email"],
+                    certificate_name=user_data.get("certificate_name", ""),
+                    dark_mode=user_data.get("dark_mode", False),
+                )
+                users_to_create.append((old_id, user))
+        
+        # Bulk create new users
+        if users_to_create:
+            created_users = User.objects.bulk_create([u for _, u in users_to_create])
+            for (old_id, _), created_user in zip(users_to_create, created_users):
+                user_id_map[old_id] = created_user.id
+        
+        print(f"✓ Users ready ({len(users_to_create)} created, {len(existing_usernames)} existing)")
         
         # Create enrollments
         print(f"Creating {len(data['enrollments'])} enrollments...")
-        for enroll_data in tqdm(data["enrollments"], desc="Creating enrollments", unit="enrollments"):
+        
+        # Get all existing enrollments for this course in one query
+        existing_enrollments = {e.student_id: e for e in Enrollment.objects.filter(
+            course=course,
+            student_id__in=list(user_id_map.values())
+        )}
+        
+        enrollments_to_create = []
+        for enroll_data in tqdm(data["enrollments"], desc="Processing enrollments", unit="enrollments"):
             old_id = enroll_data["id"]
             old_student_id = enroll_data["student_id"]
+            new_student_id = user_id_map[old_student_id]
             
-            enrollment, created = Enrollment.objects.get_or_create(
-                student_id=user_id_map[old_student_id],
-                course=course,
-                defaults={
-                    "enrollment_date": parse_datetime(enroll_data["enrollment_date"]),
-                    "display_name": enroll_data.get("display_name", ""),
-                    "display_on_leaderboard": enroll_data.get("display_on_leaderboard", True),
-                    "position_on_leaderboard": enroll_data.get("position_on_leaderboard"),
-                    "certificate_name": enroll_data.get("certificate_name"),
-                    "total_score": enroll_data.get("total_score", 0),
-                    "certificate_url": enroll_data.get("certificate_url"),
-                    "github_url": enroll_data.get("github_url"),
-                    "linkedin_url": enroll_data.get("linkedin_url"),
-                    "personal_website_url": enroll_data.get("personal_website_url"),
-                    "about_me": enroll_data.get("about_me"),
-                }
-            )
-            enrollment_id_map[old_id] = enrollment.id
-        print("✓ Enrollments created")
+            if new_student_id in existing_enrollments:
+                enrollment_id_map[old_id] = existing_enrollments[new_student_id].id
+            else:
+                enrollment = Enrollment(
+                    student_id=new_student_id,
+                    course=course,
+                    enrollment_date=parse_datetime(enroll_data["enrollment_date"]),
+                    display_name=enroll_data.get("display_name", ""),
+                    display_on_leaderboard=enroll_data.get("display_on_leaderboard", True),
+                    position_on_leaderboard=enroll_data.get("position_on_leaderboard"),
+                    certificate_name=enroll_data.get("certificate_name"),
+                    total_score=enroll_data.get("total_score", 0),
+                    certificate_url=enroll_data.get("certificate_url"),
+                    github_url=enroll_data.get("github_url"),
+                    linkedin_url=enroll_data.get("linkedin_url"),
+                    personal_website_url=enroll_data.get("personal_website_url"),
+                    about_me=enroll_data.get("about_me"),
+                )
+                enrollments_to_create.append((old_id, enrollment))
+        
+        # Bulk create new enrollments
+        if enrollments_to_create:
+            created_enrollments = Enrollment.objects.bulk_create([e for _, e in enrollments_to_create])
+            for (old_id, _), created_enrollment in zip(enrollments_to_create, created_enrollments):
+                enrollment_id_map[old_id] = created_enrollment.id
+        
+        print(f"✓ Enrollments ready ({len(enrollments_to_create)} created, {len(existing_enrollments)} existing)")
         
         # Create review criteria
         print(f"Creating {len(data['review_criteria'])} review criteria...")
@@ -237,12 +271,15 @@ def load_project_data(input_file, clear_existing=False):
         
         # Create submissions
         print(f"Creating {len(data['submissions'])} submissions...")
+        submissions_to_create = []
+        batch_size = 100
+        
         for sub_data in tqdm(data["submissions"], desc="Creating submissions", unit="submissions"):
             old_id = sub_data["id"]
             old_student_id = sub_data["student_id"]
             old_enrollment_id = sub_data["enrollment_id"]
             
-            submission = ProjectSubmission.objects.create(
+            submission = ProjectSubmission(
                 project=project,
                 student_id=user_id_map[old_student_id],
                 enrollment_id=enrollment_id_map[old_enrollment_id],
@@ -262,17 +299,32 @@ def load_project_data(input_file, clear_existing=False):
                 reviewed_enough_peers=sub_data.get("reviewed_enough_peers", False),
                 passed=sub_data.get("passed", False),
             )
-            submission_id_map[old_id] = submission.id
+            submissions_to_create.append((old_id, submission))
+            
+            if len(submissions_to_create) >= batch_size:
+                created = ProjectSubmission.objects.bulk_create([s for _, s in submissions_to_create])
+                for (old_id, _), created_sub in zip(submissions_to_create, created):
+                    submission_id_map[old_id] = created_sub.id
+                submissions_to_create = []
+        
+        # Insert remaining
+        if submissions_to_create:
+            created = ProjectSubmission.objects.bulk_create([s for _, s in submissions_to_create])
+            for (old_id, _), created_sub in zip(submissions_to_create, created):
+                submission_id_map[old_id] = created_sub.id
+        
         print("✓ Submissions created")
         
         # Create peer reviews
         print(f"Creating {len(data['peer_reviews'])} peer reviews...")
+        reviews_to_create = []
+        
         for review_data in tqdm(data["peer_reviews"], desc="Creating peer reviews", unit="reviews"):
             old_id = review_data["id"]
             old_submission_id = review_data["submission_under_evaluation_id"]
             old_reviewer_id = review_data["reviewer_id"]
             
-            review = PeerReview.objects.create(
+            review = PeerReview(
                 submission_under_evaluation_id=submission_id_map[old_submission_id],
                 reviewer_id=submission_id_map[old_reviewer_id],
                 note_to_peer=review_data.get("note_to_peer", ""),
@@ -283,33 +335,70 @@ def load_project_data(input_file, clear_existing=False):
                 submitted_at=parse_datetime(review_data.get("submitted_at")),
                 state=review_data["state"],
             )
-            review_id_map[old_id] = review.id
+            reviews_to_create.append((old_id, review))
+            
+            if len(reviews_to_create) >= batch_size:
+                created = PeerReview.objects.bulk_create([r for _, r in reviews_to_create])
+                for (old_id, _), created_review in zip(reviews_to_create, created):
+                    review_id_map[old_id] = created_review.id
+                reviews_to_create = []
+        
+        # Insert remaining
+        if reviews_to_create:
+            created = PeerReview.objects.bulk_create([r for _, r in reviews_to_create])
+            for (old_id, _), created_review in zip(reviews_to_create, created):
+                review_id_map[old_id] = created_review.id
+        
         print("✓ Peer reviews created")
         
         # Create criteria responses
         print(f"Creating {len(data['criteria_responses'])} criteria responses...")
+        responses_to_create = []
+        
         for response_data in tqdm(data["criteria_responses"], desc="Creating responses", unit="responses"):
             old_review_id = response_data["review_id"]
             old_criteria_id = response_data["criteria_id"]
             
-            CriteriaResponse.objects.create(
+            response = CriteriaResponse(
                 review_id=review_id_map[old_review_id],
                 criteria_id=criteria_id_map[old_criteria_id],
                 answer=response_data.get("answer", ""),
             )
+            responses_to_create.append(response)
+            
+            if len(responses_to_create) >= batch_size:
+                CriteriaResponse.objects.bulk_create(responses_to_create)
+                responses_to_create = []
+        
+        # Insert remaining
+        if responses_to_create:
+            CriteriaResponse.objects.bulk_create(responses_to_create)
+        
         print("✓ Criteria responses created")
         
         # Create evaluation scores
         print(f"Creating {len(data['evaluation_scores'])} evaluation scores...")
+        scores_to_create = []
+        
         for score_data in tqdm(data["evaluation_scores"], desc="Creating scores", unit="scores"):
             old_submission_id = score_data["submission_id"]
             old_criteria_id = score_data["review_criteria_id"]
             
-            ProjectEvaluationScore.objects.create(
+            score = ProjectEvaluationScore(
                 submission_id=submission_id_map[old_submission_id],
                 review_criteria_id=criteria_id_map[old_criteria_id],
                 score=score_data["score"],
             )
+            scores_to_create.append(score)
+            
+            if len(scores_to_create) >= batch_size:
+                ProjectEvaluationScore.objects.bulk_create(scores_to_create)
+                scores_to_create = []
+        
+        # Insert remaining
+        if scores_to_create:
+            ProjectEvaluationScore.objects.bulk_create(scores_to_create)
+        
         print("✓ Evaluation scores created")
     
     print("\n" + "=" * 80)
