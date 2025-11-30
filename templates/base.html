@@ -18,7 +18,7 @@
 
 </head>
 
-<body class="{% if DARK_MODE %}dark-mode{% endif %}" data-dark-mode="{% if DARK_MODE %}true{% else %}false{% endif %}">
+<body class="{% if DARK_MODE %}dark-mode{% endif %}" data-dark-mode="{% if DARK_MODE %}true{% else %}false{% endif %}" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}" data-toggle-url="{% url 'toggle_dark_mode' %}">
   {% if user.is_authenticated %}
   <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
   {% endif %}

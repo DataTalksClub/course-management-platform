@@ -3,7 +3,7 @@ $(document).ready(function() {
 
   // Initialize dark mode based on localStorage or server-side setting
   function initDarkMode() {
-    var isAuthenticated = $('#csrf-token').length > 0;
+    var isAuthenticated = $('body').attr('data-authenticated') === 'true';
     var serverDarkMode = $('body').attr('data-dark-mode') === 'true';
     
     if (isAuthenticated) {
@@ -51,15 +51,16 @@ $(document).ready(function() {
 
   // Handle dark mode toggle click
   $('#dark-mode-toggle').click(function() {
-    var isAuthenticated = $('#csrf-token').length > 0;
+    var isAuthenticated = $('body').attr('data-authenticated') === 'true';
     var currentDarkMode = $('body').attr('data-dark-mode') === 'true';
     var newDarkMode = !currentDarkMode;
 
     if (isAuthenticated) {
       // For authenticated users, save to server
       var csrfToken = $('#csrf-token').val();
+      var toggleUrl = $('body').attr('data-toggle-url');
       $.ajax({
-        url: '/accounts/toggle-dark-mode/',
+        url: toggleUrl,
         type: 'POST',
         headers: {
           'X-CSRFToken': csrfToken
