@@ -7,6 +7,7 @@ from unfold.widgets import (
 )
 from django.contrib import messages
 
+from courses.mixin import InstructorAccessMixin
 from courses.models import Homework, Question, HomeworkState
 
 from courses.scoring import (
@@ -95,7 +96,7 @@ calculate_statistics_selected_homeworks.short_description = (
 
 
 @admin.register(Homework)
-class HomeworkAdmin(ModelAdmin):
+class HomeworkAdmin(InstructorAccessMixin, ModelAdmin):
     inlines = [QuestionInline]
     actions = [
         score_selected_homeworks,
@@ -104,3 +105,5 @@ class HomeworkAdmin(ModelAdmin):
     ]
     list_display = ["title", "course", "due_date", "state"]
     list_filter = ["course__slug"]
+
+    instructor_field = "course__instructor"

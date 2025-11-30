@@ -3,6 +3,7 @@ from unfold.admin import ModelAdmin
 
 from django.contrib import messages
 
+from courses.mixin import InstructorAccessMixin
 from courses.models import Project, ReviewCriteria, ProjectState
 
 from courses.projects import (
@@ -77,7 +78,7 @@ calculate_statistics_selected_projects.short_description = (
 
 
 @admin.register(Project)
-class ProjectAdmin(ModelAdmin):
+class ProjectAdmin(InstructorAccessMixin, ModelAdmin):
     actions = [
         assign_peer_reviews_for_project_admin,
         score_projects_admin,
@@ -87,7 +88,12 @@ class ProjectAdmin(ModelAdmin):
     list_display = ["title", "course", "state"]
     list_filter = ["course__slug"]
 
+    instructor_field = "course__instructor"
+
 
 @admin.register(ReviewCriteria)
-class ReviewCriteriaAdmin(ModelAdmin):
-    pass
+class ReviewCriteriaAdmin(InstructorAccessMixin, ModelAdmin):
+    list_display = ["course", "description", "review_criteria_type"]
+    list_filter = ["course"]
+
+    instructor_field = "course__instructor"
