@@ -78,8 +78,10 @@ class Enrollment(models.Model):
     enrollment_date = models.DateTimeField(auto_now_add=True)
 
     display_name = models.CharField(
-        verbose_name="Leaderboard name", max_length=255, blank=True,
-        help_text="Name on the leaderboard"
+        verbose_name="Leaderboard name",
+        max_length=255,
+        blank=True,
+        help_text="Name on the leaderboard",
     )
     display_on_leaderboard = models.BooleanField(default=True)
 
@@ -92,7 +94,7 @@ class Enrollment(models.Model):
         max_length=255,
         blank=True,
         null=True,
-        help_text="Your actual name that will appear on your certificate"
+        help_text="Your actual name that will appear on your certificate",
     )
 
     total_score = models.IntegerField(default=0)
@@ -129,15 +131,20 @@ class Enrollment(models.Model):
     def save(self, *args, **kwargs):
         if not self.display_name:
             self.display_name = generate_random_name()
-        
+
         # If certificate_name is being set, update the user's certificate_name
-        if self.certificate_name and self.certificate_name != self.student.certificate_name:
+        if (
+            self.certificate_name
+            and self.certificate_name != self.student.certificate_name
+        ):
             self.student.certificate_name = self.certificate_name
             self.student.save()
         # If certificate_name is not set but user has one, use the user's certificate_name
-        elif not self.certificate_name and self.student.certificate_name:
+        elif (
+            not self.certificate_name and self.student.certificate_name
+        ):
             self.certificate_name = self.student.certificate_name
-            
+
         super().save(*args, **kwargs)
 
     def __str__(self):

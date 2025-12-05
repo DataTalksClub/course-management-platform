@@ -16,7 +16,6 @@ import sys
 from pathlib import Path
 
 import dj_database_url
-from django.templatetags.static import static
 from django.utils.translation import gettext_lazy as _
 
 
@@ -35,13 +34,10 @@ DEBUG = os.getenv("DEBUG", "1") == "1"
 EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
 extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1"
-] + extra_allowed_hosts_parsed
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"] + extra_allowed_hosts_parsed
 
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
-print(f'IS_LOCAL={IS_LOCAL}')
+print(f"IS_LOCAL={IS_LOCAL}")
 
 CSRF_TRUSTED_ORIGINS = []
 
@@ -62,17 +58,14 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "loginas",
-
     "accounts.apps.AccountsConfig",
     "courses.apps.CoursesConfig",
-
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "allauth.socialaccount.providers.github",
     "allauth.socialaccount.providers.slack",
-
 ]
 
 MIDDLEWARE = [
@@ -215,12 +208,10 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "()": "pythonjsonlogger.json.JsonFormatter",
             "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
         },
-        "simple": {
-            "format": "%(levelname)s %(message)s"
-        },
+        "simple": {"format": "%(levelname)s %(message)s"},
     },
     "handlers": {
         "console": {
@@ -321,3 +312,6 @@ UNFOLD = {
     "SITE_TITLE": _("Course Management"),
     "SITE_SYMBOL": "school",
 }
+
+# Fix Django 6.0 URLField deprecation warning
+FORMS_URLFIELD_ASSUME_HTTPS = True
