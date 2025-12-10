@@ -12,97 +12,125 @@
 }
 
 .wrapped-hero {
-    background: linear-gradient(135deg, #7c8fdc 0%, #8b68b8 100%);
+    background: #6c7ae0;
     color: white;
     padding: 50px 40px;
-    border-radius: 16px;
+    border-radius: 12px;
     text-align: center;
     margin-bottom: 40px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .wrapped-hero h1 {
-    font-size: 3em;
+    font-size: 2.5em;
     font-weight: bold;
     margin-bottom: 10px;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
 
 .wrapped-hero p {
-    font-size: 1.2em;
+    font-size: 1.1em;
     opacity: 0.95;
 }
 
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 25px;
+    gap: 20px;
     margin-bottom: 40px;
 }
 
 .stat-card {
-    background: linear-gradient(135deg, #e8b4e8 0%, #d77b8c 100%);
-    color: white;
+    background: #e0e0e0;
+    color: #333;
     padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .stat-card.blue {
-    background: linear-gradient(135deg, #72c8f5 0%, #5ed4f4 100%);
+    background: #e3f2fd;
+    color: #1565c0;
 }
 
 .stat-card.green {
-    background: linear-gradient(135deg, #6ed995 0%, #60d9c4 100%);
+    background: #e8f5e9;
+    color: #2e7d32;
 }
 
 .stat-card.orange {
-    background: linear-gradient(135deg, #f5a0b8 0%, #f9d583 100%);
+    background: #fff3e0;
+    color: #e65100;
 }
 
 .stat-card.purple {
-    background: linear-gradient(135deg, #8b9de8 0%, #9178ba 100%);
+    background: #f3e5f5;
+    color: #6a1b9a;
 }
 
 .stat-card.teal {
-    background: linear-gradient(135deg, #65c4c5 0%, #5a4d8a 100%);
+    background: #e0f2f1;
+    color: #00695c;
+}
+
+.dark-mode .stat-card {
+    background: #424242;
+    color: #e0e0e0;
+}
+
+.dark-mode .stat-card.blue {
+    background: #1e3a5f;
+    color: #90caf9;
+}
+
+.dark-mode .stat-card.green {
+    background: #1b5e20;
+    color: #a5d6a7;
+}
+
+.dark-mode .stat-card.orange {
+    background: #663c00;
+    color: #ffb74d;
+}
+
+.dark-mode .stat-card.purple {
+    background: #4a148c;
+    color: #ce93d8;
+}
+
+.dark-mode .stat-card.teal {
+    background: #004d40;
+    color: #80cbc4;
 }
 
 .stat-number {
     font-size: 2.5em;
     font-weight: bold;
     margin: 10px 0;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
 }
 
 .stat-label {
-    font-size: 1em;
-    opacity: 0.9;
+    font-size: 0.9em;
+    opacity: 0.8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .section-title {
-    font-size: 2em;
+    font-size: 1.8em;
     font-weight: bold;
     margin: 40px 0 25px;
     text-align: center;
-    background: linear-gradient(135deg, #7c8fdc 0%, #8b68b8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #555;
 }
 
 .dark-mode .section-title {
-    background: linear-gradient(135deg, #9fb3f5 0%, #c4a5e0 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #b0b0b0;
 }
 
 .course-list {
@@ -131,22 +159,22 @@
 
 .course-card h4 {
     margin-bottom: 15px;
-    color: #7c8fdc;
+    color: #555;
     font-weight: bold;
 }
 
 .dark-mode .course-card h4 {
-    color: #9fb3f5;
+    color: #b0b0b0;
 }
 
 .course-enrollment-count {
     font-size: 1.2em;
     font-weight: bold;
-    color: #8b68b8;
+    color: #666;
 }
 
 .dark-mode .course-enrollment-count {
-    color: #c4a5e0;
+    color: #999;
 }
 
 .leaderboard-container {
@@ -193,8 +221,12 @@
 }
 
 .leaderboard-row.top-3 {
-    background: linear-gradient(135deg, #f9e5a7 0%, #f5d889 100%);
+    background: #fff9e6;
     font-weight: bold;
+}
+
+.dark-mode .leaderboard-row.top-3 {
+    background: #3d3520;
 }
 
 .rank-badge {
@@ -209,19 +241,19 @@
 }
 
 .rank-badge.gold {
-    background: linear-gradient(135deg, #f5d76e 0%, #e8b44a 100%);
-    color: white;
+    background: #ffd700;
+    color: #333;
     font-size: 1.4em;
 }
 
 .rank-badge.silver {
-    background: linear-gradient(135deg, #d0d8df 0%, #a0aab5 100%);
-    color: white;
+    background: #c0c0c0;
+    color: #333;
     font-size: 1.4em;
 }
 
 .rank-badge.bronze {
-    background: linear-gradient(135deg, #cd9968 0%, #b07d42 100%);
+    background: #cd7f32;
     color: white;
     font-size: 1.4em;
 }
@@ -275,6 +307,13 @@
     {% if user_stats %}
     <!-- Personal Statistics -->
     <h2 class="section-title">✨ Your {{ year }} Highlights</h2>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+        <a href="{% url 'user_wrapped' request.user.id %}" class="btn btn-primary">
+            🔗 View Your Shareable Wrapped Page
+        </a>
+    </div>
+    
     <div class="stats-grid">
         <div class="stat-card purple">
             <div class="stat-label">Total Points Earned</div>

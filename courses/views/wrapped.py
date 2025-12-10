@@ -13,6 +13,9 @@ from courses.models import (
     Enrollment,
     Submission,
     ProjectSubmission,
+    Homework,
+    Project,
+    PeerReview,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +99,118 @@ def get_platform_statistics_2025() -> Dict[str, Any]:
         'total_hours': round(total_hours, 1) if total_hours else 0,
         'total_certificates': total_certificates,
         'total_points': total_points,
+    }
+
+
+def get_comprehensive_user_statistics_2025(user) -> Dict[str, Any]:
+    """
+    Calculate comprehensive user-specific statistics for 2025.
+    Includes users who have any homework or project activity in 2025,
+    even if the course started in 2024 or hasn't finished.
+    """
+    year_start, year_end = get_year_date_range(year=2025)
+    
+    # Get all homework submissions in 2025
+    homework_submissions_2025 = Submission.objects.filter(
+        student=user,
+        submitted_at__gte=year_start,
+        submitted_at__lte=year_end
+    ).select_related('homework', 'homework__course', 'enrollment')
+    
+    # Get all project submissions in 2025
+    project_submissions_2025 = ProjectSubmission.objects.filter(
+        student=user,
+        submitted_at__gte=year_start,
+        submitted_at__lte=year_end
+    ).select_related('project', 'project__course', 'enrollment')
+    
+    # Get unique courses from submissions (courses with activity in 2025)
+    courses_from_homeworks = set(hw.homework.course for hw in homework_submissions_2025)
+    courses_from_projects = set(proj.project.course for proj in project_submissions_2025)
+    courses_with_2025_activity = courses_from_homeworks | courses_from_projects
+    
+    # Get enrollments for these courses
+    enrollments = Enrollment.objects.filter(
+        student=user,
+        course__in=courses_with_2025_activity
+    ).select_related('course')
+    
+    # Total points from enrollments
+    total_points = enrollments.aggregate(
+        total_score=Sum('total_score')
+    )['total_score'] or 0
+    
+    # Courses with activity
+    courses_list = [
+        {
+            'title': e.course.title,
+            'score': e.total_score,
+            'slug': e.course.slug
+        }
+        for e in enrollments
+    ]
+    
+    # Calculate hours spent
+    homework_hours = homework_submissions_2025.aggregate(
+        total_lecture_hours=Sum('time_spent_lectures'),
+        total_homework_hours=Sum('time_spent_homework')
+    )
+    
+    project_hours = project_submissions_2025.aggregate(
+        total_project_hours=Sum('time_spent')
+    )
+    
+    total_hours = calculate_total_hours(homework_hours, project_hours)
+    
+    # Count submissions
+    homework_count = homework_submissions_2025.count()
+    project_count = project_submissions_2025.count()
+    
+    # Count peer reviews done in 2025
+    peer_reviews_given = PeerReview.objects.filter(
+        reviewer__student=user,
+        submitted_at__gte=year_start,
+        submitted_at__lte=year_end
+    ).count()
+    
+    # Learning in public contributions
+    lip_homework = sum(
+        len(hw.learning_in_public_links) if hw.learning_in_public_links else 0
+        for hw in homework_submissions_2025
+    )
+    lip_projects = sum(
+        len(proj.learning_in_public_links) if proj.learning_in_public_links else 0
+        for proj in project_submissions_2025
+    )
+    learning_in_public_count = lip_homework + lip_projects
+    
+    # FAQ contributions (non-empty)
+    faq_homework = sum(
+        1 for hw in homework_submissions_2025
+        if hw.faq_contribution and hw.faq_contribution.strip()
+    )
+    faq_projects = sum(
+        1 for proj in project_submissions_2025
+        if proj.faq_contribution and proj.faq_contribution.strip()
+    )
+    faq_contributions_count = faq_homework + faq_projects
+    
+    # Certificates earned
+    certificates_earned = enrollments.exclude(
+        Q(certificate_url__isnull=True) | Q(certificate_url='')
+    ).count()
+    
+    return {
+        'total_points': total_points,
+        'courses': courses_list,
+        'total_hours': round(total_hours, 1) if total_hours else 0,
+        'homework_count': homework_count,
+        'project_count': project_count,
+        'peer_reviews_given': peer_reviews_given,
+        'learning_in_public_count': learning_in_public_count,
+        'faq_contributions_count': faq_contributions_count,
+        'certificates_earned': certificates_earned,
+        'has_activity': homework_count > 0 or project_count > 0,
     }
 
 
@@ -239,3 +354,59 @@ def wrapped_view(request: HttpRequest) -> HttpResponse:
     }
     
     return render(request, 'courses/wrapped.html', context)
+
+
+def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
+    """Individual user wrapped page for sharing on social media"""
+    from django.contrib.auth import get_user_model
+    from django.shortcuts import get_object_or_404
+    
+    User = get_user_model()
+    user = get_object_or_404(User, id=student_id)
+    
+    # Get comprehensive statistics
+    user_stats = get_comprehensive_user_statistics_2025(user)
+    
+    # Check if user has any activity in 2025
+    if not user_stats['has_activity']:
+        # Return a "no activity" page
+        context = {
+            'year': 2025,
+            'user': user,
+            'no_activity': True,
+        }
+        return render(request, 'courses/user_wrapped.html', context)
+    
+    # Find user's rank
+    year_start, year_end = get_year_date_range(year=2025)
+    
+    # Get all users with 2025 activity and their scores
+    all_users_scores = Enrollment.objects.filter(
+        enrollment_date__gte=year_start,
+        enrollment_date__lte=year_end,
+        display_on_leaderboard=True
+    ).values('student_id').annotate(
+        total=Sum('total_score')
+    ).order_by('-total')
+    
+    # Find user's rank
+    user_rank = None
+    for idx, entry in enumerate(all_users_scores, start=1):
+        if entry['student_id'] == user.id:
+            user_rank = idx
+            break
+    
+    # Get display name from enrollment
+    enrollment = Enrollment.objects.filter(student=user).first()
+    display_name = enrollment.display_name if enrollment else user.username
+    
+    context = {
+        'year': 2025,
+        'user': user,
+        'display_name': display_name,
+        'user_stats': user_stats,
+        'user_rank': user_rank,
+        'no_activity': False,
+    }
+    
+    return render(request, 'courses/user_wrapped.html', context)
