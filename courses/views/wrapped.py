@@ -160,8 +160,8 @@ def get_user_statistics_2025(user) -> Dict[str, Any]:
     }
 
 
-def get_2025_leaderboard(limit=1200):
-    """Get top participants for 2025 (limited to 1200)"""
+def get_2025_leaderboard(limit=100):
+    """Get top participants for 2025 (limited to 100)"""
     year_start, year_end = get_year_date_range(year=2025)
     
     # Get all enrollments from 2025, ordered by total score
@@ -227,8 +227,8 @@ def wrapped_view(request: HttpRequest) -> HttpResponse:
             
             user_rank = higher_count + 1
     
-    # Get leaderboard (top 1200)
-    leaderboard = get_2025_leaderboard(limit=1200)
+    # Get leaderboard (top 100)
+    leaderboard = get_2025_leaderboard(limit=100)
     
     context = {
         'year': 2025,
