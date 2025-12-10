@@ -7,6 +7,15 @@
     our courses in our webpage <a href="https://datatalks.club/" target="_blank">https://datatalks.club/</a>.
   </div>
 
+  <!-- DataTalks.Club Wrapped 2025 Banner -->
+  <div class="my-4 p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <div class="text-white">
+      <h3 class="mb-2">🎉 DataTalks.Club Wrapped 2025</h3>
+      <p class="mb-3">Check out your year of learning in review! See your statistics, course progress, and how you rank on the 2025 leaderboard.</p>
+      <a href="{% url 'wrapped' %}" class="btn btn-light btn-lg">View Your 2025 Wrapped →</a>
+    </div>
+  </div>
+
   <h3 class="pt-4">Active courses</h3>
   <ul>
     {% for course in active_courses %}
