@@ -15,8 +15,8 @@ from courses.models import (
     ProjectSubmission,
     Homework,
     Project,
-    PeerReview,
 )
+from courses.models.project import PeerReview
 
 logger = logging.getLogger(__name__)
 
@@ -396,8 +396,8 @@ def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
             user_rank = idx
             break
     
-    # Get display name from enrollment
-    enrollment = Enrollment.objects.filter(student=user).first()
+    # Get display name from most recent enrollment
+    enrollment = Enrollment.objects.filter(student=user).order_by('-enrollment_date').first()
     display_name = enrollment.display_name if enrollment else user.username
     
     context = {
