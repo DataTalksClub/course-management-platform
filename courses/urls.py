@@ -9,7 +9,7 @@ from .views import wrapped
 
 urlpatterns = [
     path("", course.course_list, name="course_list"),
-    path("wrapped", wrapped.wrapped_view, name="wrapped"),
+    path("wrapped/", wrapped.wrapped_view, name="wrapped"),
     path(
         "<slug:course_slug>/",
         course.course_view,

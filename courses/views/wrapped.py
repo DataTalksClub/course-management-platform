@@ -18,16 +18,28 @@ from courses.models import (
 logger = logging.getLogger(__name__)
 
 
-def get_2025_date_range():
-    """Get the start and end date for 2025"""
-    year_2025_start = timezone.make_aware(datetime(2025, 1, 1))
-    year_2025_end = timezone.make_aware(datetime(2025, 12, 31, 23, 59, 59))
-    return year_2025_start, year_2025_end
+def get_year_date_range(year=2025):
+    """Get the start and end date for a given year"""
+    year_start = timezone.make_aware(datetime(year, 1, 1))
+    year_end = timezone.make_aware(datetime(year, 12, 31, 23, 59, 59))
+    return year_start, year_end
+
+
+def calculate_total_hours(homework_submissions_aggregate, project_submissions_aggregate):
+    """Calculate total hours from homework and project submissions"""
+    total_hours = 0
+    if homework_submissions_aggregate['total_lecture_hours']:
+        total_hours += homework_submissions_aggregate['total_lecture_hours']
+    if homework_submissions_aggregate['total_homework_hours']:
+        total_hours += homework_submissions_aggregate['total_homework_hours']
+    if project_submissions_aggregate['total_project_hours']:
+        total_hours += project_submissions_aggregate['total_project_hours']
+    return total_hours
 
 
 def get_platform_statistics_2025() -> Dict[str, Any]:
     """Calculate platform-wide statistics for 2025"""
-    year_start, year_end = get_2025_date_range()
+    year_start, year_end = get_year_date_range(year=2025)
     
     # Get enrollments in 2025
     enrollments_2025 = Enrollment.objects.filter(
@@ -62,13 +74,10 @@ def get_platform_statistics_2025() -> Dict[str, Any]:
         total_project_hours=Sum('time_spent')
     )
     
-    total_hours = 0
-    if homework_submissions_2025['total_lecture_hours']:
-        total_hours += homework_submissions_2025['total_lecture_hours']
-    if homework_submissions_2025['total_homework_hours']:
-        total_hours += homework_submissions_2025['total_homework_hours']
-    if project_submissions_2025['total_project_hours']:
-        total_hours += project_submissions_2025['total_project_hours']
+    total_hours = calculate_total_hours(
+        homework_submissions_2025, 
+        project_submissions_2025
+    )
     
     # Count certificates (enrollments with certificate_url in 2025)
     total_certificates = enrollments_2025.exclude(
@@ -92,7 +101,7 @@ def get_platform_statistics_2025() -> Dict[str, Any]:
 
 def get_user_statistics_2025(user) -> Dict[str, Any]:
     """Calculate user-specific statistics for 2025"""
-    year_start, year_end = get_2025_date_range()
+    year_start, year_end = get_year_date_range(year=2025)
     
     # Get user's enrollments in 2025
     user_enrollments = Enrollment.objects.filter(
@@ -133,13 +142,10 @@ def get_user_statistics_2025(user) -> Dict[str, Any]:
         total_project_hours=Sum('time_spent')
     )
     
-    total_hours = 0
-    if homework_submissions['total_lecture_hours']:
-        total_hours += homework_submissions['total_lecture_hours']
-    if homework_submissions['total_homework_hours']:
-        total_hours += homework_submissions['total_homework_hours']
-    if project_submissions['total_project_hours']:
-        total_hours += project_submissions['total_project_hours']
+    total_hours = calculate_total_hours(
+        homework_submissions,
+        project_submissions
+    )
     
     # Count certificates
     certificates_earned = user_enrollments.exclude(
@@ -156,7 +162,7 @@ def get_user_statistics_2025(user) -> Dict[str, Any]:
 
 def get_2025_leaderboard(limit=1200):
     """Get top participants for 2025 (limited to 1200)"""
-    year_start, year_end = get_2025_date_range()
+    year_start, year_end = get_year_date_range(year=2025)
     
     # Get all enrollments from 2025, ordered by total score
     # We'll aggregate by student and sum their scores across all courses
@@ -198,7 +204,7 @@ def wrapped_view(request: HttpRequest) -> HttpResponse:
         user_stats = get_user_statistics_2025(request.user)
         
         # Find user's rank in the leaderboard
-        year_start, year_end = get_2025_date_range()
+        year_start, year_end = get_year_date_range(year=2025)
         user_enrollments = Enrollment.objects.filter(
             student=request.user,
             enrollment_date__gte=year_start,
