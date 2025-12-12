@@ -154,6 +154,23 @@ class ProjectActionsTestCase(TestCase):
         )
         self.assertEqual(message, expected_message)
 
+    def test_select_random_assignment_4_3(self):
+        """Test assignment with 4 submissions and 3 peer reviews each."""
+        num_submissions = 4
+        self.generate_submissions(num_submissions)
+
+        self.project.number_of_peers_to_evaluate = 3
+        self.project.save()
+
+        status, message = assign_peer_reviews_for_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.OK)
+
+        peer_reviews = PeerReview.objects.filter(
+            submission_under_evaluation__project=self.project
+        )
+        # Should have 4 * 3 = 12 peer reviews
+        self.assertEqual(peer_reviews.count(), 12)
+
     def test_add_optional_project_eval_flow(self):
         num_submissions = 10
         self.generate_submissions(num_submissions)
