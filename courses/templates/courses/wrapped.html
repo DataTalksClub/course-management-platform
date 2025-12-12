@@ -291,6 +291,39 @@
     border-color: #4fd1c5;
 }
 
+.no-data-message {
+    text-align: center;
+    padding: 60px 20px;
+    background: #f7fafc;
+    border-radius: 12px;
+    margin: 40px 0;
+}
+
+.dark-mode .no-data-message {
+    background: #2d3748;
+}
+
+.no-data-message h2 {
+    font-size: 2em;
+    margin-bottom: 20px;
+    color: #555;
+}
+
+.dark-mode .no-data-message h2 {
+    color: #e0e0e0;
+}
+
+.no-data-message p {
+    font-size: 1.2em;
+    color: #666;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.dark-mode .no-data-message p {
+    color: #b0b0b0;
+}
+
 @media (max-width: 768px) {
     .wrapped-hero h1 {
         font-size: 2.5em;
@@ -318,9 +351,9 @@
         <p>Your year of learning in review</p>
     </div>
     
-    <div style="text-align: center; padding: 60px 20px; background: #f7fafc; border-radius: 12px; margin: 40px 0;">
-        <h2 style="font-size: 2em; margin-bottom: 20px; color: #555;">📊 Wrapped Data Not Available Yet</h2>
-        <p style="font-size: 1.2em; color: #666; max-width: 600px; margin: 0 auto;">
+    <div class="no-data-message">
+        <h2>📊 Wrapped Data Not Available Yet</h2>
+        <p>
             The {{ year }} Wrapped statistics are being calculated. Please check back soon to see your year in review!
         </p>
     </div>

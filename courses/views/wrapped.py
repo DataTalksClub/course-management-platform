@@ -306,8 +306,15 @@ def get_2025_leaderboard(limit=100):
     return ranked_leaderboard
 
 
-def wrapped_view(request: HttpRequest, year: int = 2025) -> HttpResponse:
-    """Main view for DataTalks.Club Wrapped - only shows pre-calculated statistics"""
+def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
+    """
+    Main view for DataTalks.Club Wrapped - only shows pre-calculated statistics.
+    
+    Args:
+        year: The year to display wrapped statistics for
+    
+    Note: Only displays data if WrappedStatistics exists with is_visible=True
+    """
     from courses.models import WrappedStatistics, UserWrappedStatistics
     from django.shortcuts import render
     
