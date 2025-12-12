@@ -74,18 +74,17 @@ def select_random_assignment(
             available = [p for p in projects if p not in selected]
             
             if not available:
-                # This shouldn't happen with proper n > num_projects_to_review
-                # But if it does, we fall back to any project not in selected
+                # Pool is depleted for this slot, select from any unselected project
+                # This is safe because n > num_projects_to_review guarantees
+                # we have more projects than we need to select
                 available = [p for p in range(n) if p not in selected]
-                # Pick randomly but don't remove from pool since it wasn't there
-                selected_project_idx = random.choice(available)
-                selected.add(selected_project_idx)
-            else:
-                # Pick a random project from available ones
-                selected_project_idx = random.choice(available)
-                selected.add(selected_project_idx)
-                
-                # Remove from the pool to maintain balance
+            
+            # Select a random project from available ones
+            selected_project_idx = random.choice(available)
+            selected.add(selected_project_idx)
+            
+            # Remove from pool only if it was in the pool
+            if selected_project_idx in projects:
                 projects.remove(selected_project_idx)
             
             selected_project = submissions_list[selected_project_idx]
