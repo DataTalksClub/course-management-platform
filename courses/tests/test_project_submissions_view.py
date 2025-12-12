@@ -158,7 +158,7 @@ class ProjectSubmissionsViewTests(TestCase):
             student=user2,
             course=self.course,
         )
-        submission2 = ProjectSubmission.objects.create(
+        ProjectSubmission.objects.create(
             project=self.project,
             student=user2,
             enrollment=enrollment2,
