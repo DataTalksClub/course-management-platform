@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 
 from .course import Course, Enrollment
 from courses.validators import validate_url_200
-from courses.validators.validating_json_field import ValidatingJSONField
 
 User = get_user_model()
 
@@ -227,18 +226,32 @@ class HomeworkStatistics(models.Model):
     q3_total_score = models.FloatField(null=True, blank=True)
 
     # Fields for learning_in_public_score
-    min_learning_in_public_score = models.IntegerField(null=True, blank=True)
-    max_learning_in_public_score = models.IntegerField(null=True, blank=True)
-    avg_learning_in_public_score = models.FloatField(null=True, blank=True)
-    median_learning_in_public_score = models.FloatField(null=True, blank=True)
-    q1_learning_in_public_score = models.FloatField(null=True, blank=True)
-    q3_learning_in_public_score = models.FloatField(null=True, blank=True)
+    min_learning_in_public_score = models.IntegerField(
+        null=True, blank=True
+    )
+    max_learning_in_public_score = models.IntegerField(
+        null=True, blank=True
+    )
+    avg_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    median_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    q1_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
+    q3_learning_in_public_score = models.FloatField(
+        null=True, blank=True
+    )
 
     # Fields for time_spent_lectures
     min_time_spent_lectures = models.FloatField(null=True, blank=True)
     max_time_spent_lectures = models.FloatField(null=True, blank=True)
     avg_time_spent_lectures = models.FloatField(null=True, blank=True)
-    median_time_spent_lectures = models.FloatField(null=True, blank=True)
+    median_time_spent_lectures = models.FloatField(
+        null=True, blank=True
+    )
     q1_time_spent_lectures = models.FloatField(null=True, blank=True)
     q3_time_spent_lectures = models.FloatField(null=True, blank=True)
 
@@ -246,7 +259,9 @@ class HomeworkStatistics(models.Model):
     min_time_spent_homework = models.FloatField(null=True, blank=True)
     max_time_spent_homework = models.FloatField(null=True, blank=True)
     avg_time_spent_homework = models.FloatField(null=True, blank=True)
-    median_time_spent_homework = models.FloatField(null=True, blank=True)
+    median_time_spent_homework = models.FloatField(
+        null=True, blank=True
+    )
     q1_time_spent_homework = models.FloatField(null=True, blank=True)
     q3_time_spent_homework = models.FloatField(null=True, blank=True)
 
@@ -260,58 +275,194 @@ class HomeworkStatistics(models.Model):
         results = []
 
         results.append(
-            ("Questions score", [
-                (self.min_questions_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_questions_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_questions_score, "Average", "fas fa-equals"),
-                (self.q1_questions_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_questions_score, "Median", "fas fa-percentage"),
-                (self.q3_questions_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-question-circle')
+            (
+                "Questions score",
+                [
+                    (
+                        self.min_questions_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_questions_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_questions_score,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_questions_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_questions_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_questions_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-question-circle",
+            )
         )
 
         results.append(
-            ("Total score", [
-                (self.min_total_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_total_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_total_score, "Average", "fas fa-equals"),
-                (self.q1_total_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_total_score, "Median", "fas fa-percentage"),
-                (self.q3_total_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-star')
+            (
+                "Total score",
+                [
+                    (
+                        self.min_total_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_total_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (self.avg_total_score, "Average", "fas fa-equals"),
+                    (
+                        self.q1_total_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_total_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_total_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-star",
+            )
         )
 
         results.append(
-            ("Time spent on lectures", [
-                (self.min_time_spent_lectures, "Minimum", "fas fa-arrow-down"),
-                (self.max_time_spent_lectures, "Maximum", "fas fa-arrow-up"),
-                (self.avg_time_spent_lectures, "Average", "fas fa-equals"),
-                (self.q1_time_spent_lectures, "25th Percentile", "fas fa-percentage"),
-                (self.median_time_spent_lectures, "Median", "fas fa-percentage"),
-                (self.q3_time_spent_lectures, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-book-reader')
+            (
+                "Time spent on lectures",
+                [
+                    (
+                        self.min_time_spent_lectures,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_time_spent_lectures,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_time_spent_lectures,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_time_spent_lectures,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_time_spent_lectures,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_time_spent_lectures,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-book-reader",
+            )
         )
 
         results.append(
-            ("Time spent on homework", [
-                (self.min_time_spent_homework, "Minimum", "fas fa-arrow-down"),
-                (self.max_time_spent_homework, "Maximum", "fas fa-arrow-up"),
-                (self.avg_time_spent_homework, "Average", "fas fa-equals"),
-                (self.q1_time_spent_homework, "25th Percentile", "fas fa-percentage"),
-                (self.median_time_spent_homework, "Median", "fas fa-percentage"),
-                (self.q3_time_spent_homework, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-clock')
+            (
+                "Time spent on homework",
+                [
+                    (
+                        self.min_time_spent_homework,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_time_spent_homework,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_time_spent_homework,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_time_spent_homework,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_time_spent_homework,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_time_spent_homework,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-clock",
+            )
         )
 
         results.append(
-            ("Learning in public score", [
-                (self.min_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_learning_in_public_score, "Average", "fas fa-equals"),
-                (self.q1_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_learning_in_public_score, "Median", "fas fa-percentage"),
-                (self.q3_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-globe')
+            (
+                "Learning in public score",
+                [
+                    (
+                        self.min_learning_in_public_score,
+                        "Minimum",
+                        "fas fa-arrow-down",
+                    ),
+                    (
+                        self.max_learning_in_public_score,
+                        "Maximum",
+                        "fas fa-arrow-up",
+                    ),
+                    (
+                        self.avg_learning_in_public_score,
+                        "Average",
+                        "fas fa-equals",
+                    ),
+                    (
+                        self.q1_learning_in_public_score,
+                        "25th Percentile",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.median_learning_in_public_score,
+                        "Median",
+                        "fas fa-percentage",
+                    ),
+                    (
+                        self.q3_learning_in_public_score,
+                        "75th Percentile",
+                        "fas fa-percentage",
+                    ),
+                ],
+                "fas fa-globe",
+            )
         )
 
         return results
