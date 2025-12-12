@@ -596,3 +596,39 @@ def project_statistics(request, course_slug, project_slug):
     }
 
     return render(request, "projects/stats.html", context)
+
+
+def project_submissions(request, course_slug, project_slug):
+    # Check if user is admin/staff
+    if not request.user.is_authenticated or not request.user.is_staff:
+        messages.error(
+            request,
+            "You do not have permission to view this page.",
+            extra_tags="project",
+        )
+        return redirect(
+            "project",
+            course_slug=course_slug,
+            project_slug=project_slug,
+        )
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    # Get all submissions for this project with related data prefetched
+    # to avoid N+1 queries
+    submissions = (
+        ProjectSubmission.objects.filter(project=project)
+        .select_related("student", "enrollment")
+        .order_by("-submitted_at")
+    )
+
+    context = {
+        "course": course,
+        "project": project,
+        "submissions": submissions,
+    }
+
+    return render(request, "projects/submissions.html", context)

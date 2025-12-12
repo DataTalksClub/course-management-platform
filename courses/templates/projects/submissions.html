@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block meta_robots %}
+  <meta name="robots" content="noindex">
+{% endblock %}
+
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'project' course.slug project.slug %}">{{ project.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">
+  {{ project.title }} - All Submissions
+</h1>
+
+{% if messages %}
+  {% for message in messages %}
+  {% if 'project' in message.tags %}
+    <div class="alert {{ message.tags }}">
+      <p>{{ message }}</p>
+    </div>
+  {% endif %}
+  {% endfor %}
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">
+      <i class="fas fa-info-circle"></i> Total Submissions
+    </h5>
+    <p class="card-text display-4">{{ submissions|length }}</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">
+      <i class="fas fa-list"></i> Submissions List
+    </h5>
+  </div>
+  <div class="card-body">
+    {% if submissions %}
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Submitted At</th>
+              <th>GitHub Link</th>
+              <th>Commit ID</th>
+              <th>Project Score</th>
+              <th>Peer Review Score</th>
+              <th>FAQ Score</th>
+              <th>Learning in Public Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for submission in submissions %}
+            <tr>
+              <td>{{ submission.student.email }}</td>
+              <td>{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</td>
+              <td>
+                {% if submission.github_link %}
+                  <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-external-link-alt"></i> View
+                  </a>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if submission.commit_id %}
+                  <code>{{ submission.commit_id }}</code>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>{{ submission.project_score }}</td>
+              <td>{{ submission.peer_review_score }}</td>
+              <td>{{ submission.project_faq_score }}</td>
+              <td>{{ submission.project_learning_in_public_score }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted">No submissions yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
