@@ -390,7 +390,6 @@ def wrapped_view(request: HttpRequest) -> HttpResponse:
         'user_stats': user_stats,
         'user_rank': user_rank,
         'leaderboard': leaderboard,
-        'use_precalculated': use_precalculated,
     }
     
     return render(request, 'courses/wrapped.html', context)
@@ -434,7 +433,6 @@ def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
             'user_stats': user_stats,
             'user_rank': user_wrapped.rank,
             'no_activity': False,
-            'use_precalculated': True,
         }
         
         return render(request, 'courses/user_wrapped.html', context)
@@ -453,7 +451,6 @@ def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
             'year': 2025,
             'user': user,
             'no_activity': True,
-            'use_precalculated': False,
         }
         return render(request, 'courses/user_wrapped.html', context)
     
@@ -487,7 +484,6 @@ def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
         'user_stats': user_stats,
         'user_rank': user_rank,
         'no_activity': False,
-        'use_precalculated': False,
     }
     
     return render(request, 'courses/user_wrapped.html', context)

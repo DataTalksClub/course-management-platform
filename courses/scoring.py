@@ -580,7 +580,6 @@ def calculate_wrapped_statistics(year=2025, force=False):
     from .models import WrappedStatistics, UserWrappedStatistics
     from .models.project import PeerReview
     from datetime import datetime
-    from django.utils import timezone
     from django.db.models import Q
     
     # Get or create the wrapped statistics object
@@ -712,14 +711,37 @@ def calculate_wrapped_statistics(year=2025, force=False):
     # Delete old user statistics for this year
     UserWrappedStatistics.objects.filter(wrapped=stats).delete()
     
+    # Pre-group submissions by student for efficiency
+    homework_by_student = defaultdict(list)
+    for hw in homework_submissions_2025:
+        homework_by_student[hw.student].append(hw)
+    
+    project_by_student = defaultdict(list)
+    for proj in project_submissions_2025:
+        project_by_student[proj.student].append(proj)
+    
+    enrollment_by_student = defaultdict(list)
+    for e in enrollments_for_active_students:
+        enrollment_by_student[e.student].append(e)
+    
+    # Bulk fetch peer review counts for all students
+    peer_review_counts = {}
+    peer_reviews = PeerReview.objects.filter(
+        reviewer__student__in=students_with_2025_activity,
+        submitted_at__gte=year_start,
+        submitted_at__lte=year_end
+    ).values('reviewer__student').annotate(count=Count('id'))
+    for pr in peer_reviews:
+        peer_review_counts[pr['reviewer__student']] = pr['count']
+    
     user_stats_objects = []
     for student in students_with_2025_activity:
-        # Get user's submissions
-        user_homework_submissions = [hw for hw in homework_submissions_2025 if hw.student == student]
-        user_project_submissions = [proj for proj in project_submissions_2025 if proj.student == student]
+        # Get user's submissions (now O(1) lookup)
+        user_homework_submissions = homework_by_student.get(student, [])
+        user_project_submissions = project_by_student.get(student, [])
         
-        # Get user's enrollments
-        user_enrollments = [e for e in enrollments_for_active_students if e.student == student]
+        # Get user's enrollments (now O(1) lookup)
+        user_enrollments = enrollment_by_student.get(student, [])
         
         # Calculate user hours
         user_homework_hours = sum(
@@ -732,12 +754,8 @@ def calculate_wrapped_statistics(year=2025, force=False):
         )
         user_total_hours = user_homework_hours + user_project_hours
         
-        # Count peer reviews
-        peer_reviews_count = PeerReview.objects.filter(
-            reviewer__student=student,
-            submitted_at__gte=year_start,
-            submitted_at__lte=year_end
-        ).count()
+        # Get peer review count (pre-fetched)
+        peer_reviews_count = peer_review_counts.get(student.id, 0)
         
         # Count learning in public
         lip_homework = sum(
