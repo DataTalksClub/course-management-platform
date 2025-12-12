@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 import dj_database_url
-from django.templatetags.static import static
+from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
 
@@ -320,4 +320,85 @@ UNFOLD = {
     "SITE_HEADER": _("Course Management"),
     "SITE_TITLE": _("Course Management"),
     "SITE_SYMBOL": "school",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Account"),
+                "items": [
+                    {
+                        "title": "Users",
+                        "icon": "person",
+                        "link": reverse_lazy(
+                            "admin:accounts_customuser_changelist"
+                        ),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": "Groups",
+                        "icon": "groups",
+                        "link": reverse_lazy(
+                            "admin:auth_group_changelist"
+                        ),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": "Tokens",
+                        "icon": "key",
+                        "link": reverse_lazy(
+                            "admin:accounts_token_changelist"
+                        ),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": "Email addresses",
+                        "icon": "email",
+                        "link": reverse_lazy(
+                            "admin:account_emailaddress_changelist"
+                        ),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                ],
+            },
+            {
+                "title": _("Courses"),
+                "items": [
+                    {
+                        "title": "Home",
+                        "icon": "home",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                    {
+                        "title": "Courses",
+                        "icon": "school",
+                        "link": reverse_lazy(
+                            "admin:courses_course_changelist"
+                        ),
+                    },
+                    {
+                        "title": "Homeworks",
+                        "icon": "assignment",
+                        "link": reverse_lazy(
+                            "admin:courses_homework_changelist"
+                        ),
+                    },
+                    {
+                        "title": "Projects",
+                        "icon": "folder_open",
+                        "link": reverse_lazy(
+                            "admin:courses_project_changelist"
+                        ),
+                    },
+                    {
+                        "title": "Review criterias",
+                        "icon": "checklist",
+                        "link": reverse_lazy(
+                            "admin:courses_reviewcriteria_changelist"
+                        ),
+                    },
+                ],
+            },
+        ],
+    },
 }
