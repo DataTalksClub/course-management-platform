@@ -9,8 +9,8 @@ from .views import wrapped
 
 urlpatterns = [
     path("", course.course_list, name="course_list"),
-    path("wrapped/", wrapped.wrapped_view, name="wrapped"),
-    path("wrapped/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
+    path("wrapped/<int:year>/", wrapped.wrapped_view, name="wrapped"),
+    path("wrapped/<int:year>/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
     path(
         "<slug:course_slug>/",
         course.course_view,

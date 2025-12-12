@@ -3,6 +3,14 @@
 
 {% block title %}DataTalks.Club Wrapped {{ year }}{% endblock %}
 
+{% block breadcrumbs %}
+<li class="ml-3">
+  <a href="{% url 'wrapped' year %}" style="color: #667eea; font-weight: bold;">
+    🎉 {{ year }} Wrapped
+  </a>
+</li>
+{% endblock %}
+
 {% block extra_js %}
 <style>
 .wrapped-container {
@@ -19,6 +27,11 @@
     text-align: center;
     margin-bottom: 40px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.dark-mode .wrapped-hero {
+    background: #4a5a9e;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .wrapped-hero h1 {
@@ -79,7 +92,7 @@
 }
 
 .dark-mode .stat-card {
-    background: #424242;
+    background: #2d3748;
     color: #e0e0e0;
 }
 
@@ -89,22 +102,22 @@
 }
 
 .dark-mode .stat-card.green {
-    background: #1b5e20;
+    background: #1b4d20;
     color: #a5d6a7;
 }
 
 .dark-mode .stat-card.orange {
-    background: #663c00;
+    background: #5d3a00;
     color: #ffb74d;
 }
 
 .dark-mode .stat-card.purple {
-    background: #4a148c;
+    background: #3a1b5c;
     color: #ce93d8;
 }
 
 .dark-mode .stat-card.teal {
-    background: #004d40;
+    background: #00443a;
     color: #80cbc4;
 }
 
@@ -298,6 +311,26 @@
 
 {% block content %}
 <div class="wrapped-container">
+    {% if no_data %}
+    <!-- No Data Available -->
+    <div class="wrapped-hero">
+        <h1>🎉 DataTalks.Club Wrapped {{ year }}</h1>
+        <p>Your year of learning in review</p>
+    </div>
+    
+    <div style="text-align: center; padding: 60px 20px; background: #f7fafc; border-radius: 12px; margin: 40px 0;">
+        <h2 style="font-size: 2em; margin-bottom: 20px; color: #555;">📊 Wrapped Data Not Available Yet</h2>
+        <p style="font-size: 1.2em; color: #666; max-width: 600px; margin: 0 auto;">
+            The {{ year }} Wrapped statistics are being calculated. Please check back soon to see your year in review!
+        </p>
+    </div>
+    
+    <div class="wrapped-hero" style="margin-top: 40px;">
+        <h2>Keep Learning! 🚀</h2>
+        <p>Join us for more amazing courses and challenges</p>
+        <a href="{% url 'course_list' %}" class="btn btn-light btn-lg mt-3">Explore Courses</a>
+    </div>
+    {% else %}
     <!-- Hero Section -->
     <div class="wrapped-hero">
         <h1>🎉 DataTalks.Club Wrapped {{ year }}</h1>
@@ -309,7 +342,7 @@
     <h2 class="section-title">✨ Your {{ year }} Highlights</h2>
     
     <div style="text-align: center; margin-bottom: 20px;">
-        <a href="{% url 'user_wrapped' request.user.id %}" class="btn btn-primary">
+        <a href="{% url 'user_wrapped' year request.user.id %}" class="btn btn-primary">
             🔗 View Your Shareable Wrapped Page
         </a>
     </div>
@@ -414,7 +447,11 @@
                     {% if entry.rank == 1 %}🥇{% elif entry.rank == 2 %}🥈{% elif entry.rank == 3 %}🥉{% else %}{{ entry.rank }}{% endif %}
                 </div>
             </div>
-            <div>{{ entry.display_name }}</div>
+            <div>
+                <a href="{% url 'user_wrapped' year entry.student_id %}" style="text-decoration: none; color: inherit;">
+                    {{ entry.display_name }}
+                </a>
+            </div>
             <div><strong>{{ entry.total_score }}</strong></div>
         </div>
         {% empty %}
@@ -428,5 +465,6 @@
         <p>Join us for more amazing courses and challenges</p>
         <a href="{% url 'course_list' %}" class="btn btn-light btn-lg mt-3">Explore Courses</a>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

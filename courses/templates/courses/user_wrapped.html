@@ -7,6 +7,17 @@
 <!-- Allow sharing on social media -->
 {% endblock %}
 
+{% block breadcrumbs %}
+<li class="ml-3">
+  <a href="{% url 'wrapped' year %}" style="color: #667eea; font-weight: bold;">
+    🎉 {{ year }} Wrapped
+  </a>
+</li>
+<li class="ml-3">
+  {{ display_name|default:user.username }}'s Wrapped
+</li>
+{% endblock %}
+
 {% block extra_js %}
 <style>
 .wrapped-container {
@@ -206,6 +217,8 @@
 
 .share-button:hover {
     transform: translateY(-2px);
+    text-decoration: none;
+    color: white;
 }
 
 .share-twitter {
@@ -213,8 +226,16 @@
     color: white;
 }
 
+.share-twitter:hover {
+    color: white;
+}
+
 .share-linkedin {
     background: #0077B5;
+    color: white;
+}
+
+.share-linkedin:hover {
     color: white;
 }
 

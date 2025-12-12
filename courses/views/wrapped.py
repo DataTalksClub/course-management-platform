@@ -306,97 +306,67 @@ def get_2025_leaderboard(limit=100):
     return ranked_leaderboard
 
 
-def wrapped_view(request: HttpRequest) -> HttpResponse:
-    """Main view for DataTalks.Club Wrapped 2025"""
+def wrapped_view(request: HttpRequest, year: int = 2025) -> HttpResponse:
+    """Main view for DataTalks.Club Wrapped - only shows pre-calculated statistics"""
     from courses.models import WrappedStatistics, UserWrappedStatistics
+    from django.shortcuts import render
     
-    # Try to get pre-calculated wrapped statistics
+    # Get pre-calculated wrapped statistics (only show if is_visible=True)
     try:
-        wrapped_stats = WrappedStatistics.objects.get(year=2025, is_visible=True)
-        use_precalculated = True
+        wrapped_stats = WrappedStatistics.objects.get(year=year, is_visible=True)
     except WrappedStatistics.DoesNotExist:
-        use_precalculated = False
-        wrapped_stats = None
-    
-    if use_precalculated:
-        # Use pre-calculated statistics
-        platform_stats = {
-            'total_participants': wrapped_stats.total_participants,
-            'total_enrollments': wrapped_stats.total_enrollments,
-            'course_stats': wrapped_stats.course_stats,
-            'total_hours': wrapped_stats.total_hours,
-            'total_certificates': wrapped_stats.total_certificates,
-            'total_points': wrapped_stats.total_points,
+        # No wrapped data available yet
+        context = {
+            'year': year,
+            'no_data': True,
         }
-        leaderboard = wrapped_stats.leaderboard
-        
-        # Get user statistics if authenticated
-        user_stats = None
-        user_rank = None
-        if request.user.is_authenticated:
-            try:
-                user_wrapped = UserWrappedStatistics.objects.get(
-                    wrapped=wrapped_stats,
-                    user=request.user
-                )
-                user_stats = {
-                    'total_points': user_wrapped.total_points,
-                    'courses_enrolled': user_wrapped.courses,
-                    'total_hours': user_wrapped.total_hours,
-                    'certificates_earned': user_wrapped.certificates_earned,
-                }
-                user_rank = user_wrapped.rank
-            except UserWrappedStatistics.DoesNotExist:
-                # User has no activity in 2025
-                pass
-    else:
-        # Fall back to on-the-fly calculation (old behavior)
-        platform_stats = get_platform_statistics_2025()
-        leaderboard = get_2025_leaderboard(limit=100)
-        
-        # Get user statistics if authenticated
-        user_stats = None
-        user_rank = None
-        if request.user.is_authenticated:
-            user_stats = get_user_statistics_2025(request.user)
-            
-            # Find user's rank in the leaderboard
-            year_start, year_end = get_year_date_range(year=2025)
-            user_enrollments = Enrollment.objects.filter(
-                student=request.user,
-                enrollment_date__gte=year_start,
-                enrollment_date__lte=year_end
+        return render(request, 'courses/wrapped.html', context)
+    
+    # Use pre-calculated statistics
+    platform_stats = {
+        'total_participants': wrapped_stats.total_participants,
+        'total_enrollments': wrapped_stats.total_enrollments,
+        'course_stats': wrapped_stats.course_stats,
+        'total_hours': wrapped_stats.total_hours,
+        'total_certificates': wrapped_stats.total_certificates,
+        'total_points': wrapped_stats.total_points,
+    }
+    leaderboard = wrapped_stats.leaderboard
+    
+    # Get user statistics if authenticated
+    user_stats = None
+    user_rank = None
+    if request.user.is_authenticated:
+        try:
+            user_wrapped = UserWrappedStatistics.objects.get(
+                wrapped=wrapped_stats,
+                user=request.user
             )
-            
-            if user_enrollments.exists():
-                user_total = user_enrollments.aggregate(
-                    total=Sum('total_score')
-                )['total'] or 0
-                
-                # Count how many students have a higher total
-                higher_count = Enrollment.objects.filter(
-                    enrollment_date__gte=year_start,
-                    enrollment_date__lte=year_end,
-                    display_on_leaderboard=True
-                ).values('student_id').annotate(
-                    total=Sum('total_score')
-                ).filter(total__gt=user_total).count()
-                
-                user_rank = higher_count + 1
+            user_stats = {
+                'total_points': user_wrapped.total_points,
+                'courses_enrolled': user_wrapped.courses,
+                'total_hours': user_wrapped.total_hours,
+                'certificates_earned': user_wrapped.certificates_earned,
+            }
+            user_rank = user_wrapped.rank
+        except UserWrappedStatistics.DoesNotExist:
+            # User has no activity in this year
+            pass
     
     context = {
-        'year': 2025,
+        'year': year,
         'platform_stats': platform_stats,
         'user_stats': user_stats,
         'user_rank': user_rank,
         'leaderboard': leaderboard,
+        'no_data': False,
     }
     
     return render(request, 'courses/wrapped.html', context)
 
 
-def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
-    """Individual user wrapped page for sharing on social media"""
+def user_wrapped_view(request: HttpRequest, year: int, student_id: int) -> HttpResponse:
+    """Individual user wrapped page for sharing on social media - only shows pre-calculated data"""
     from django.contrib.auth import get_user_model
     from django.shortcuts import get_object_or_404
     from courses.models import WrappedStatistics, UserWrappedStatistics
@@ -404,85 +374,41 @@ def user_wrapped_view(request: HttpRequest, student_id: int) -> HttpResponse:
     User = get_user_model()
     user = get_object_or_404(User, id=student_id)
     
-    # Try to get pre-calculated statistics first
+    # Get pre-calculated statistics (only show if is_visible=True)
     try:
-        wrapped_stats = WrappedStatistics.objects.get(year=2025, is_visible=True)
+        wrapped_stats = WrappedStatistics.objects.get(year=year, is_visible=True)
         user_wrapped = UserWrappedStatistics.objects.get(
             wrapped=wrapped_stats,
             user=user
         )
-        use_precalculated = True
-        
-        user_stats = {
-            'total_points': user_wrapped.total_points,
-            'courses': user_wrapped.courses,
-            'total_hours': user_wrapped.total_hours,
-            'homework_count': user_wrapped.homework_count,
-            'project_count': user_wrapped.project_count,
-            'peer_reviews_given': user_wrapped.peer_reviews_given,
-            'learning_in_public_count': user_wrapped.learning_in_public_count,
-            'faq_contributions_count': user_wrapped.faq_contributions_count,
-            'certificates_earned': user_wrapped.certificates_earned,
-            'has_activity': True,
-        }
-        
-        context = {
-            'year': 2025,
-            'user': user,
-            'display_name': user_wrapped.display_name,
-            'user_stats': user_stats,
-            'user_rank': user_wrapped.rank,
-            'no_activity': False,
-        }
-        
-        return render(request, 'courses/user_wrapped.html', context)
-        
     except (WrappedStatistics.DoesNotExist, UserWrappedStatistics.DoesNotExist):
-        # Fall back to on-the-fly calculation
-        pass
-    
-    # Get comprehensive statistics (old on-the-fly method)
-    user_stats = get_comprehensive_user_statistics_2025(user)
-    
-    # Check if user has any activity in 2025
-    if not user_stats['has_activity']:
-        # Return a "no activity" page
+        # No wrapped data available for this user
         context = {
-            'year': 2025,
+            'year': year,
             'user': user,
             'no_activity': True,
         }
         return render(request, 'courses/user_wrapped.html', context)
     
-    # Find user's rank
-    year_start, year_end = get_year_date_range(year=2025)
-    
-    # Get all users with 2025 activity and their scores
-    all_users_scores = Enrollment.objects.filter(
-        enrollment_date__gte=year_start,
-        enrollment_date__lte=year_end,
-        display_on_leaderboard=True
-    ).values('student_id').annotate(
-        total=Sum('total_score')
-    ).order_by('-total')
-    
-    # Find user's rank
-    user_rank = None
-    for idx, entry in enumerate(all_users_scores, start=1):
-        if entry['student_id'] == user.id:
-            user_rank = idx
-            break
-    
-    # Get display name from most recent enrollment
-    enrollment = Enrollment.objects.filter(student=user).order_by('-enrollment_date').first()
-    display_name = enrollment.display_name if enrollment else user.username
+    user_stats = {
+        'total_points': user_wrapped.total_points,
+        'courses': user_wrapped.courses,
+        'total_hours': user_wrapped.total_hours,
+        'homework_count': user_wrapped.homework_count,
+        'project_count': user_wrapped.project_count,
+        'peer_reviews_given': user_wrapped.peer_reviews_given,
+        'learning_in_public_count': user_wrapped.learning_in_public_count,
+        'faq_contributions_count': user_wrapped.faq_contributions_count,
+        'certificates_earned': user_wrapped.certificates_earned,
+        'has_activity': True,
+    }
     
     context = {
-        'year': 2025,
+        'year': year,
         'user': user,
-        'display_name': display_name,
+        'display_name': user_wrapped.display_name,
         'user_stats': user_stats,
-        'user_rank': user_rank,
+        'user_rank': user_wrapped.rank,
         'no_activity': False,
     }
     
