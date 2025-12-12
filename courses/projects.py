@@ -35,17 +35,6 @@ class ProjectActionStatus(Enum):
     FAIL = "Warning"
 
 
-def pick(selected, projects):
-    p = random.choice(projects)
-
-    if p in selected:
-        return pick(selected, projects)
-
-    selected.add(p)
-    projects.remove(p)
-    return p
-
-
 def select_random_assignment(
     submissions: list[ProjectSubmission],
     num_projects_to_review: int,
@@ -62,35 +51,52 @@ def select_random_assignment(
     random.seed(seed)
 
     submissions_list = list(submissions)
-
-    reviewer = list(range(n))
-
-    projects_pool = []
-
-    for _ in range(num_projects_to_review):
-        projects = list(range(n))
-        projects_pool.append(projects)
-
     all_assignments = []
 
-    for r_index in reviewer:
-        reviewer_submission = submissions_list[r_index]
+    # Create pools for each review slot to ensure balanced distribution
+    # Each pool tracks which submissions can still be assigned for that slot
+    projects_pool = []
+    for _ in range(num_projects_to_review):
+        projects_pool.append(list(range(n)))
 
-        selected = {r_index}
-
-        for i in range(num_projects_to_review):
-            projects = projects_pool[i]
-            selected_project_index = pick(selected, projects)
-
-            selected_project = submissions_list[selected_project_index]
-
+    # For each reviewer, assign them projects to review
+    for reviewer_idx in range(n):
+        reviewer_submission = submissions_list[reviewer_idx]
+        
+        # Track which projects this reviewer has already been assigned
+        selected = {reviewer_idx}  # Can't review their own submission
+        
+        # Assign one project for each review slot
+        for slot_idx in range(num_projects_to_review):
+            projects = projects_pool[slot_idx]
+            
+            # Find available projects (not already selected and still in pool)
+            available = [p for p in projects if p not in selected]
+            
+            if not available:
+                # This shouldn't happen with proper n > num_projects_to_review
+                # But if it does, we fall back to any project not in selected
+                available = [p for p in range(n) if p not in selected]
+                # Pick randomly but don't remove from pool since it wasn't there
+                selected_project_idx = random.choice(available)
+                selected.add(selected_project_idx)
+            else:
+                # Pick a random project from available ones
+                selected_project_idx = random.choice(available)
+                selected.add(selected_project_idx)
+                
+                # Remove from the pool to maintain balance
+                projects.remove(selected_project_idx)
+            
+            selected_project = submissions_list[selected_project_idx]
+            
             assignment = PeerReview(
                 submission_under_evaluation=selected_project,
                 reviewer=reviewer_submission,
                 state=PeerReviewState.TO_REVIEW.value,
                 optional=False,
             )
-
+            
             all_assignments.append(assignment)
 
     return all_assignments
