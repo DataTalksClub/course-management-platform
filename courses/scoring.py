@@ -623,26 +623,30 @@ def calculate_wrapped_statistics(year=2025, force=False):
         students_from_homeworks | students_from_projects
     )
 
-    logger.info(
-        f"Found {len(students_with_2025_activity)} students with activity in {year}"
+    # Get unique enrollments with activity in 2025
+    enrollment_ids_from_homeworks = {
+        hw.enrollment_id
+        for hw in homework_submissions_2025
+        if hw.enrollment_id
+    }
+    enrollment_ids_from_projects = {
+        proj.enrollment_id
+        for proj in project_submissions_2025
+        if proj.enrollment_id
+    }
+    enrollment_ids_with_2025_activity = (
+        enrollment_ids_from_homeworks | enrollment_ids_from_projects
     )
 
-    # Get courses with activity in 2025
-    courses_from_homeworks = set(
-        hw.homework.course for hw in homework_submissions_2025
-    )
-    courses_from_projects = set(
-        proj.project.course for proj in project_submissions_2025
-    )
-    courses_with_2025_activity = (
-        courses_from_homeworks | courses_from_projects
-    )
-
-    # Get enrollments for students with 2025 activity
+    # Get enrollments with 2025 activity (only those with submissions in the year)
     enrollments_for_active_students = Enrollment.objects.filter(
-        student__in=students_with_2025_activity,
-        course__in=courses_with_2025_activity,
+        id__in=enrollment_ids_with_2025_activity
     ).select_related("course", "student")
+
+    # Get courses with activity in 2025 from these enrollments
+    courses_with_2025_activity = {
+        e.course for e in enrollments_for_active_students
+    }
 
     # Calculate platform-wide statistics
     stats.total_participants = len(students_with_2025_activity)

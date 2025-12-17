@@ -358,7 +358,9 @@ def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
     platform_stats = {
         "total_participants": wrapped_stats.total_participants,
         "total_enrollments": wrapped_stats.total_enrollments,
-        "course_stats": wrapped_stats.course_stats,
+        "course_stats": wrapped_stats.course_stats[:4]
+        if wrapped_stats.course_stats
+        else [],
         "total_hours": wrapped_stats.total_hours,
         "total_certificates": wrapped_stats.total_certificates,
         "total_points": wrapped_stats.total_points,
