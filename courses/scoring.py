@@ -648,13 +648,15 @@ def calculate_wrapped_statistics(year=2025, force=False):
     stats.total_participants = len(students_with_2025_activity)
     stats.total_enrollments = enrollments_for_active_students.count()
 
-    # Calculate total hours
+    # Calculate total hours with safeguards (max 100h per submission to avoid outliers)
+    from django.db.models.functions import Least
+
     homework_hours = homework_submissions_2025.aggregate(
-        total_lecture_hours=Sum("time_spent_lectures"),
-        total_homework_hours=Sum("time_spent_homework"),
+        total_lecture_hours=Sum(Least("time_spent_lectures", 100.0)),
+        total_homework_hours=Sum(Least("time_spent_homework", 100.0)),
     )
     project_hours = project_submissions_2025.aggregate(
-        total_project_hours=Sum("time_spent")
+        total_project_hours=Sum(Least("time_spent", 100.0))
     )
 
     total_hours = 0
@@ -778,16 +780,16 @@ def calculate_wrapped_statistics(year=2025, force=False):
         # Get user's enrollments (now O(1) lookup)
         user_enrollments = enrollment_by_student.get(student, [])
 
-        # Calculate user hours
+        # Calculate user hours (max 100h per submission to avoid outliers)
         user_homework_hours = sum(
-            (hw.time_spent_lectures or 0)
-            + (hw.time_spent_homework or 0)
+            min(hw.time_spent_lectures or 0, 100.0)
+            + min(hw.time_spent_homework or 0, 100.0)
             for hw in user_homework_submissions
         )
-        user_project_hours = sum(
-            proj.time_spent or 0 for proj in user_project_submissions
+        user_total_hours = user_homework_hours + sum(
+            min(proj.time_spent or 0, 100.0)
+            for proj in user_project_submissions
         )
-        user_total_hours = user_homework_hours + user_project_hours
 
         # Get peer review count (pre-fetched)
         peer_reviews_count = peer_review_counts.get(student.id, 0)

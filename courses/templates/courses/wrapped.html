@@ -428,13 +428,8 @@
     <!-- Platform Statistics -->
     <h2 class="section-title">🌍 Community Highlights {{ year }}</h2>
     <div class="stats-grid">
-        <div class="stat-card blue">
-            <div class="stat-label">Total Participants</div>
-            <div class="stat-number">{{ platform_stats.total_participants|default:"0" }}</div>
-        </div>
-
         <div class="stat-card green">
-            <div class="stat-label">Total Enrollments</div>
+            <div class="stat-label">Total Participants</div>
             <div class="stat-number">{{ platform_stats.total_enrollments|default:"0" }}</div>
         </div>
 
@@ -462,7 +457,7 @@
         <a href="{% url 'course' course_stat.slug %}" style="text-decoration: none; color: inherit;">
             <div class="course-card">
                 <h4>{{ course_stat.title }}</h4>
-                <p class="course-enrollment-count">{{ course_stat.enrollment_count }} enrollments</p>
+                <p class="course-enrollment-count">{{ course_stat.enrollment_count }} participants</p>
             </div>
         </a>
         {% endfor %}

@@ -1,33 +1,36 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <h2>DataTalks.Club courses</h2>
-  <div>
-    Welcome to our course management platform! You can learn more about 
-    our courses in our webpage <a href="https://datatalks.club/" target="_blank">https://datatalks.club/</a>.
+<h2>DataTalks.Club courses</h2>
+<div>
+  Welcome to our course management platform! You can learn more about
+  our courses in our webpage <a href="https://datatalks.club/" target="_blank">https://datatalks.club/</a>.
+</div>
+
+{% if SHOW_WRAPPED %}
+<!-- DataTalks.Club Wrapped 2025 Banner -->
+<div class="my-4 p-4" style="background: #6c7ae0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+  <div class="text-white">
+    <h3 class="mb-2">🎉 DataTalks.Club Wrapped 2025</h3>
+    <p class="mb-3">Check out your year of learning in review! See your statistics, course progress, and how you rank on
+      the 2025 leaderboard.</p>
+    <a href="{% url 'wrapped' 2025 %}" class="btn btn-light btn-lg">View Your 2025 Wrapped →</a>
   </div>
+</div>
+{% endif %}
 
-  <!-- DataTalks.Club Wrapped 2025 Banner -->
-  <div class="my-4 p-4" style="background: #6c7ae0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
-    <div class="text-white">
-      <h3 class="mb-2">🎉 DataTalks.Club Wrapped 2025</h3>
-      <p class="mb-3">Check out your year of learning in review! See your statistics, course progress, and how you rank on the 2025 leaderboard.</p>
-      <a href="{% url 'wrapped' 2025 %}" class="btn btn-light btn-lg">View Your 2025 Wrapped →</a>
-    </div>
-  </div>
+<h3 class="pt-4">Active courses</h3>
+<ul>
+  {% for course in active_courses %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  {% endfor %}
+</ul>
 
-  <h3 class="pt-4">Active courses</h3>
-  <ul>
-    {% for course in active_courses %}
-      <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-    {% endfor %}
-  </ul>
+<h3 class="pt-3">Finished courses</h3>
+<ul>
+  {% for course in finished_courses %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  {% endfor %}
+</ul>
 
-  <h3 class="pt-3">Finished courses</h3>
-  <ul>
-    {% for course in finished_courses %}
-      <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-    {% endfor %}
-  </ul>
-  
 {% endblock %}

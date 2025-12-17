@@ -34,18 +34,3 @@ class WrappedStatisticsAdmin(ModelAdmin):
     list_filter = ("is_visible", "year")
     search_fields = ("year",)
     actions = [recalculate_wrapped_stats]
-
-
-@admin.register(UserWrappedStatistics)
-class UserWrappedStatisticsAdmin(ModelAdmin):
-    list_display = (
-        "display_name",
-        "wrapped__year",
-        "rank",
-        "total_points",
-        "homework_count",
-        "project_count",
-    )
-    list_filter = ("wrapped__year",)
-    search_fields = ("display_name", "user__email", "user__username")
-    autocomplete_fields = ("user", "wrapped")

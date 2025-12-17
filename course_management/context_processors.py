@@ -8,4 +8,5 @@ def export_settings(request):
     return {
         "VERSION": settings.VERSION,
         "DARK_MODE": dark_mode,
+        "SHOW_WRAPPED": settings.SHOW_WRAPPED,
     }
