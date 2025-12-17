@@ -1,20 +1,18 @@
+# uv run python -m scripts.wrapped
+
 import logging
 from typing import Dict, Any
 from datetime import datetime
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.db.models import Sum, Count, Q, F
+from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from django.contrib.auth.decorators import login_required
 
 from courses.models import (
-    Course,
     Enrollment,
     Submission,
     ProjectSubmission,
-    Homework,
-    Project,
 )
 from courses.models.project import PeerReview
 
