@@ -5,340 +5,340 @@
 
 {% block breadcrumbs %}
 <li class="ml-3">
-  <a href="{% url 'wrapped' year %}" style="color: #667eea; font-weight: bold;">
-    🎉 {{ year }} Wrapped
-  </a>
+    <a href="{% url 'wrapped' year %}" style="color: #667eea; font-weight: bold;">
+        🎉 {{ year }} Wrapped
+    </a>
 </li>
 {% endblock %}
 
 {% block extra_js %}
 <style>
-.wrapped-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
+    .wrapped-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
 
-.wrapped-hero {
-    background: #6c7ae0;
-    color: white;
-    padding: 50px 40px;
-    border-radius: 12px;
-    text-align: center;
-    margin-bottom: 40px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-}
+    .wrapped-hero {
+        background: #6c7ae0;
+        color: white;
+        padding: 50px 40px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 40px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
 
-.dark-mode .wrapped-hero {
-    background: #4a5a9e;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
+    .dark-mode .wrapped-hero {
+        background: #4a5a9e;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
 
-.wrapped-hero h1 {
-    font-size: 2.5em;
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-.wrapped-hero p {
-    font-size: 1.1em;
-    opacity: 0.95;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
-}
-
-.stat-card {
-    background: #e0e0e0;
-    color: #333;
-    padding: 25px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.stat-card.blue {
-    background: #e3f2fd;
-    color: #1565c0;
-}
-
-.stat-card.green {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
-
-.stat-card.orange {
-    background: #fff3e0;
-    color: #e65100;
-}
-
-.stat-card.purple {
-    background: #f3e5f5;
-    color: #6a1b9a;
-}
-
-.stat-card.teal {
-    background: #e0f2f1;
-    color: #00695c;
-}
-
-.dark-mode .stat-card {
-    background: #2d3748;
-    color: #e0e0e0;
-}
-
-.dark-mode .stat-card.blue {
-    background: #1e3a5f;
-    color: #90caf9;
-}
-
-.dark-mode .stat-card.green {
-    background: #1b4d20;
-    color: #a5d6a7;
-}
-
-.dark-mode .stat-card.orange {
-    background: #5d3a00;
-    color: #ffb74d;
-}
-
-.dark-mode .stat-card.purple {
-    background: #3a1b5c;
-    color: #ce93d8;
-}
-
-.dark-mode .stat-card.teal {
-    background: #00443a;
-    color: #80cbc4;
-}
-
-.stat-number {
-    font-size: 2.5em;
-    font-weight: bold;
-    margin: 10px 0;
-}
-
-.stat-label {
-    font-size: 0.9em;
-    opacity: 0.8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.section-title {
-    font-size: 1.8em;
-    font-weight: bold;
-    margin: 40px 0 25px;
-    text-align: center;
-    color: #555;
-}
-
-.dark-mode .section-title {
-    color: #b0b0b0;
-}
-
-.course-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
-}
-
-.course-card {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    transition: transform 0.2s ease;
-}
-
-.dark-mode .course-card {
-    background: #2d3748;
-    color: white;
-}
-
-.course-card:hover {
-    transform: translateY(-2px);
-}
-
-.course-card h4 {
-    margin-bottom: 15px;
-    color: #555;
-    font-weight: bold;
-}
-
-.dark-mode .course-card h4 {
-    color: #b0b0b0;
-}
-
-.course-enrollment-count {
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #666;
-}
-
-.dark-mode .course-enrollment-count {
-    color: #999;
-}
-
-.leaderboard-container {
-    background: white;
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    margin-bottom: 40px;
-}
-
-.dark-mode .leaderboard-container {
-    background: #2d3748;
-}
-
-.leaderboard-header {
-    display: grid;
-    grid-template-columns: 80px 1fr 150px;
-    gap: 20px;
-    padding: 15px 20px;
-    font-weight: bold;
-    border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 10px;
-}
-
-.dark-mode .leaderboard-header {
-    border-bottom-color: #4a5568;
-}
-
-.leaderboard-row {
-    display: grid;
-    grid-template-columns: 80px 1fr 150px;
-    gap: 20px;
-    padding: 12px 20px;
-    border-radius: 8px;
-    transition: background 0.2s ease;
-}
-
-.leaderboard-row:hover {
-    background: #f7fafc;
-}
-
-.dark-mode .leaderboard-row:hover {
-    background: #374151;
-}
-
-.leaderboard-row.top-3 {
-    background: #fff9e6;
-    font-weight: bold;
-}
-
-.dark-mode .leaderboard-row.top-3 {
-    background: #3d3520;
-}
-
-.rank-badge {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.2em;
-}
-
-.rank-badge.gold {
-    background: #ffd700;
-    color: #333;
-    font-size: 1.4em;
-}
-
-.rank-badge.silver {
-    background: #c0c0c0;
-    color: #333;
-    font-size: 1.4em;
-}
-
-.rank-badge.bronze {
-    background: #cd7f32;
-    color: white;
-    font-size: 1.4em;
-}
-
-.rank-badge.regular {
-    background: #e2e8f0;
-    color: #2d3748;
-}
-
-.dark-mode .rank-badge.regular {
-    background: #4a5568;
-    color: white;
-}
-
-.user-highlight {
-    background: #e6fffa !important;
-    border: 2px solid #38b2ac;
-}
-
-.dark-mode .user-highlight {
-    background: #234e52 !important;
-    border-color: #4fd1c5;
-}
-
-.no-data-message {
-    text-align: center;
-    padding: 60px 20px;
-    background: #f7fafc;
-    border-radius: 12px;
-    margin: 40px 0;
-}
-
-.dark-mode .no-data-message {
-    background: #2d3748;
-}
-
-.no-data-message h2 {
-    font-size: 2em;
-    margin-bottom: 20px;
-    color: #555;
-}
-
-.dark-mode .no-data-message h2 {
-    color: #e0e0e0;
-}
-
-.no-data-message p {
-    font-size: 1.2em;
-    color: #666;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.dark-mode .no-data-message p {
-    color: #b0b0b0;
-}
-
-@media (max-width: 768px) {
     .wrapped-hero h1 {
         font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 10px;
     }
-    
+
+    .wrapped-hero p {
+        font-size: 1.1em;
+        opacity: 0.95;
+    }
+
     .stats-grid {
-        grid-template-columns: 1fr;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
     }
-    
-    .leaderboard-header,
+
+    .stat-card {
+        background: #e0e0e0;
+        color: #333;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card.blue {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .stat-card.green {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .stat-card.orange {
+        background: #fff3e0;
+        color: #e65100;
+    }
+
+    .stat-card.purple {
+        background: #f3e5f5;
+        color: #6a1b9a;
+    }
+
+    .stat-card.teal {
+        background: #e0f2f1;
+        color: #00695c;
+    }
+
+    .dark-mode .stat-card {
+        background: #2d3748;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .stat-card.blue {
+        background: #1e3a5f;
+        color: #90caf9;
+    }
+
+    .dark-mode .stat-card.green {
+        background: #1b4d20;
+        color: #a5d6a7;
+    }
+
+    .dark-mode .stat-card.orange {
+        background: #5d3a00;
+        color: #ffb74d;
+    }
+
+    .dark-mode .stat-card.purple {
+        background: #3a1b5c;
+        color: #ce93d8;
+    }
+
+    .dark-mode .stat-card.teal {
+        background: #00443a;
+        color: #80cbc4;
+    }
+
+    .stat-number {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+
+    .stat-label {
+        font-size: 0.9em;
+        opacity: 0.8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .section-title {
+        font-size: 1.8em;
+        font-weight: bold;
+        margin: 40px 0 25px;
+        text-align: center;
+        color: #555;
+    }
+
+    .dark-mode .section-title {
+        color: #b0b0b0;
+    }
+
+    .course-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+
+    .course-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        transition: transform 0.2s ease;
+    }
+
+    .dark-mode .course-card {
+        background: #2d3748;
+        color: white;
+    }
+
+    .course-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .course-card h4 {
+        margin-bottom: 15px;
+        color: #555;
+        font-weight: bold;
+    }
+
+    .dark-mode .course-card h4 {
+        color: #b0b0b0;
+    }
+
+    .course-enrollment-count {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #666;
+    }
+
+    .dark-mode .course-enrollment-count {
+        color: #999;
+    }
+
+    .leaderboard-container {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        margin-bottom: 40px;
+    }
+
+    .dark-mode .leaderboard-container {
+        background: #2d3748;
+    }
+
+    .leaderboard-header {
+        display: grid;
+        grid-template-columns: 80px 1fr 150px;
+        gap: 20px;
+        padding: 15px 20px;
+        font-weight: bold;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 10px;
+    }
+
+    .dark-mode .leaderboard-header {
+        border-bottom-color: #4a5568;
+    }
+
     .leaderboard-row {
-        grid-template-columns: 60px 1fr 100px;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: 80px 1fr 150px;
+        gap: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        transition: background 0.2s ease;
     }
-}
+
+    .leaderboard-row:hover {
+        background: #f7fafc;
+    }
+
+    .dark-mode .leaderboard-row:hover {
+        background: #374151;
+    }
+
+    .leaderboard-row.top-3 {
+        background: #fff9e6;
+        font-weight: bold;
+    }
+
+    .dark-mode .leaderboard-row.top-3 {
+        background: #3d3520;
+    }
+
+    .rank-badge {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .rank-badge.gold {
+        background: #ffd700;
+        color: #333;
+        font-size: 1.4em;
+    }
+
+    .rank-badge.silver {
+        background: #c0c0c0;
+        color: #333;
+        font-size: 1.4em;
+    }
+
+    .rank-badge.bronze {
+        background: #cd7f32;
+        color: white;
+        font-size: 1.4em;
+    }
+
+    .rank-badge.regular {
+        background: #e2e8f0;
+        color: #2d3748;
+    }
+
+    .dark-mode .rank-badge.regular {
+        background: #4a5568;
+        color: white;
+    }
+
+    .user-highlight {
+        background: #e6fffa !important;
+        border: 2px solid #38b2ac;
+    }
+
+    .dark-mode .user-highlight {
+        background: #234e52 !important;
+        border-color: #4fd1c5;
+    }
+
+    .no-data-message {
+        text-align: center;
+        padding: 60px 20px;
+        background: #f7fafc;
+        border-radius: 12px;
+        margin: 40px 0;
+    }
+
+    .dark-mode .no-data-message {
+        background: #2d3748;
+    }
+
+    .no-data-message h2 {
+        font-size: 2em;
+        margin-bottom: 20px;
+        color: #555;
+    }
+
+    .dark-mode .no-data-message h2 {
+        color: #e0e0e0;
+    }
+
+    .no-data-message p {
+        font-size: 1.2em;
+        color: #666;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .dark-mode .no-data-message p {
+        color: #b0b0b0;
+    }
+
+    @media (max-width: 768px) {
+        .wrapped-hero h1 {
+            font-size: 2.5em;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .leaderboard-header,
+        .leaderboard-row {
+            grid-template-columns: 60px 1fr 100px;
+            gap: 10px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -350,14 +350,14 @@
         <h1>🎉 DataTalks.Club Wrapped {{ year }}</h1>
         <p>Your year of learning in review</p>
     </div>
-    
+
     <div class="no-data-message">
         <h2>📊 Wrapped Data Not Available Yet</h2>
         <p>
             The {{ year }} Wrapped statistics are being calculated. Please check back soon to see your year in review!
         </p>
     </div>
-    
+
     <div class="wrapped-hero" style="margin-top: 40px;">
         <h2>Keep Learning! 🚀</h2>
         <p>Join us for more amazing courses and challenges</p>
@@ -373,34 +373,34 @@
     {% if user_stats %}
     <!-- Personal Statistics -->
     <h2 class="section-title">✨ Your {{ year }} Highlights</h2>
-    
+
     <div style="text-align: center; margin-bottom: 20px;">
         <a href="{% url 'user_wrapped' year request.user.id %}" class="btn btn-primary">
             🔗 View Your Shareable Wrapped Page
         </a>
     </div>
-    
+
     <div class="stats-grid">
         <div class="stat-card purple">
             <div class="stat-label">Total Points Earned</div>
             <div class="stat-number">{{ user_stats.total_points }}</div>
         </div>
-        
+
         <div class="stat-card blue">
             <div class="stat-label">Hours of Learning</div>
             <div class="stat-number">{{ user_stats.total_hours }}</div>
         </div>
-        
+
         <div class="stat-card green">
             <div class="stat-label">Courses Enrolled</div>
             <div class="stat-number">{{ user_stats.courses_enrolled|length }}</div>
         </div>
-        
+
         <div class="stat-card orange">
             <div class="stat-label">Certificates Earned</div>
             <div class="stat-number">{{ user_stats.certificates_earned }}</div>
         </div>
-        
+
         {% if user_rank %}
         <div class="stat-card teal">
             <div class="stat-label">Your Global Rank</div>
@@ -413,10 +413,13 @@
     <h3 style="text-align: center; margin: 30px 0 20px; font-size: 1.8em;">📚 Your Courses</h3>
     <div class="course-list">
         {% for course in user_stats.courses_enrolled %}
-        <div class="course-card">
-            <h4>{{ course.title }}</h4>
-            <p><strong>Score:</strong> {{ course.score }} points</p>
-        </div>
+        <a href="{% url 'leaderboard_score_breakdown' course.slug course.enrollment_id %}"
+            style="text-decoration: none; color: inherit;">
+            <div class="course-card">
+                <h4>{{ course.title }}</h4>
+                <p><strong>Score:</strong> {{ course.score }} points</p>
+            </div>
+        </a>
         {% endfor %}
     </div>
     {% endif %}
@@ -429,22 +432,22 @@
             <div class="stat-label">Total Participants</div>
             <div class="stat-number">{{ platform_stats.total_participants|default:"0" }}</div>
         </div>
-        
+
         <div class="stat-card green">
             <div class="stat-label">Total Enrollments</div>
             <div class="stat-number">{{ platform_stats.total_enrollments|default:"0" }}</div>
         </div>
-        
+
         <div class="stat-card purple">
             <div class="stat-label">Total Hours Learning</div>
             <div class="stat-number">{{ platform_stats.total_hours|default:"0" }}</div>
         </div>
-        
+
         <div class="stat-card orange">
             <div class="stat-label">Certificates Awarded</div>
             <div class="stat-number">{{ platform_stats.total_certificates|default:"0" }}</div>
         </div>
-        
+
         <div class="stat-card teal">
             <div class="stat-label">Total Points Earned</div>
             <div class="stat-number">{{ platform_stats.total_points|default:"0" }}</div>
@@ -456,10 +459,12 @@
     <h3 style="text-align: center; margin: 40px 0 20px; font-size: 1.8em;">🔥 Most Popular Courses in {{ year }}</h3>
     <div class="course-list">
         {% for course_stat in platform_stats.course_stats %}
-        <div class="course-card">
-            <h4>{{ course_stat.course__title }}</h4>
-            <p class="course-enrollment-count">{{ course_stat.enrollment_count }} enrollments</p>
-        </div>
+        <a href="{% url 'course' course_stat.slug %}" style="text-decoration: none; color: inherit;">
+            <div class="course-card">
+                <h4>{{ course_stat.title }}</h4>
+                <p class="course-enrollment-count">{{ course_stat.enrollment_count }} enrollments</p>
+            </div>
+        </a>
         {% endfor %}
     </div>
     {% endif %}
@@ -470,14 +475,17 @@
         <div class="leaderboard-header">
             <div>Rank</div>
             <div>Name</div>
-            <div>Total Score</div>
+            <div style="text-align: right;">Total Score</div>
         </div>
-        
+
         {% for entry in leaderboard %}
-        <div class="leaderboard-row {% if entry.rank <= 3 %}top-3{% endif %} {% if user.is_authenticated and entry.student_id == user.id %}user-highlight{% endif %}">
+        <div
+            class="leaderboard-row {% if entry.rank <= 3 %}top-3{% endif %} {% if user.is_authenticated and entry.student_id == user.id %}user-highlight{% endif %}">
             <div>
-                <div class="rank-badge {% if entry.rank == 1 %}gold{% elif entry.rank == 2 %}silver{% elif entry.rank == 3 %}bronze{% else %}regular{% endif %}">
-                    {% if entry.rank == 1 %}🥇{% elif entry.rank == 2 %}🥈{% elif entry.rank == 3 %}🥉{% else %}{{ entry.rank }}{% endif %}
+                <div
+                    class="rank-badge {% if entry.rank == 1 %}gold{% elif entry.rank == 2 %}silver{% elif entry.rank == 3 %}bronze{% else %}regular{% endif %}">
+                    {% if entry.rank == 1 %}🥇{% elif entry.rank == 2 %}🥈{% elif entry.rank == 3 %}🥉{% else %}
+                    {{ entry.rank }}{% endif %}
                 </div>
             </div>
             <div>
@@ -485,7 +493,7 @@
                     {{ entry.display_name }}
                 </a>
             </div>
-            <div><strong>{{ entry.total_score }}</strong></div>
+            <div style="text-align: right;"><strong>{{ entry.total_score }}</strong></div>
         </div>
         {% empty %}
         <p style="text-align: center; padding: 20px; opacity: 0.6;">No leaderboard data available for {{ year }}</p>
