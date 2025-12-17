@@ -92,7 +92,7 @@ def is_free_form_answer_correct(
     question: Question, answer: Answer
 ) -> bool:
     answer_type = question.answer_type
-    
+
     user_answer = answer.answer_text
     user_answer = (user_answer or "").strip()
 
@@ -560,5 +560,328 @@ def calculate_project_statistics(project, force=False):
             setattr(stats, f"q3_{field}", field_stats["q3"])
 
         stats.save()
+
+    return stats
+
+
+def calculate_wrapped_statistics(year=2025, force=False):
+    """
+    Calculate and save wrapped statistics for a given year.
+    This function pre-calculates all the statistics that would be needed
+    for the wrapped page to avoid slow queries on page load.
+
+    Args:
+        year: The year to calculate statistics for (default: 2025)
+        force: If True, recalculate even if statistics already exist
+
+    Returns:
+        WrappedStatistics object
+    """
+    from .models import WrappedStatistics, UserWrappedStatistics
+    from .models.project import PeerReview
+    from datetime import datetime
+    from django.db.models import Q
+
+    # Get or create the wrapped statistics object
+    stats, created = WrappedStatistics.objects.get_or_create(year=year)
+
+    if not force and not created:
+        logger.info(
+            f"Wrapped statistics for {year} already exist. Use force=True to recalculate."
+        )
+        return stats
+
+    logger.info(f"Calculating wrapped statistics for {year}...")
+    start_time = time()
+
+    # Define year date range
+    year_start = timezone.make_aware(datetime(year, 1, 1))
+    year_end = timezone.make_aware(datetime(year, 12, 31, 23, 59, 59))
+
+    # Get all homework submissions in the year
+    homework_submissions_2025 = Submission.objects.filter(
+        submitted_at__gte=year_start, submitted_at__lte=year_end
+    ).select_related(
+        "homework", "homework__course", "enrollment", "student"
+    )
+
+    # Get all project submissions in the year
+    project_submissions_2025 = ProjectSubmission.objects.filter(
+        submitted_at__gte=year_start, submitted_at__lte=year_end
+    ).select_related(
+        "project", "project__course", "enrollment", "student"
+    )
+
+    # Get unique students with activity in 2025
+    students_from_homeworks = set(
+        hw.student for hw in homework_submissions_2025
+    )
+    students_from_projects = set(
+        proj.student for proj in project_submissions_2025
+    )
+    students_with_2025_activity = (
+        students_from_homeworks | students_from_projects
+    )
+
+    logger.info(
+        f"Found {len(students_with_2025_activity)} students with activity in {year}"
+    )
+
+    # Get courses with activity in 2025
+    courses_from_homeworks = set(
+        hw.homework.course for hw in homework_submissions_2025
+    )
+    courses_from_projects = set(
+        proj.project.course for proj in project_submissions_2025
+    )
+    courses_with_2025_activity = (
+        courses_from_homeworks | courses_from_projects
+    )
+
+    # Get enrollments for students with 2025 activity
+    enrollments_for_active_students = Enrollment.objects.filter(
+        student__in=students_with_2025_activity,
+        course__in=courses_with_2025_activity,
+    ).select_related("course", "student")
+
+    # Calculate platform-wide statistics
+    stats.total_participants = len(students_with_2025_activity)
+    stats.total_enrollments = enrollments_for_active_students.count()
+
+    # Calculate total hours
+    homework_hours = homework_submissions_2025.aggregate(
+        total_lecture_hours=Sum("time_spent_lectures"),
+        total_homework_hours=Sum("time_spent_homework"),
+    )
+    project_hours = project_submissions_2025.aggregate(
+        total_project_hours=Sum("time_spent")
+    )
+
+    total_hours = 0
+    if homework_hours["total_lecture_hours"]:
+        total_hours += homework_hours["total_lecture_hours"]
+    if homework_hours["total_homework_hours"]:
+        total_hours += homework_hours["total_homework_hours"]
+    if project_hours["total_project_hours"]:
+        total_hours += project_hours["total_project_hours"]
+
+    stats.total_hours = round(total_hours, 1) if total_hours else 0
+
+    # Count certificates
+    stats.total_certificates = enrollments_for_active_students.exclude(
+        Q(certificate_url__isnull=True) | Q(certificate_url="")
+    ).count()
+
+    # Calculate total points
+    stats.total_points = (
+        enrollments_for_active_students.aggregate(
+            total_score=Sum("total_score")
+        )["total_score"]
+        or 0
+    )
+
+    # Calculate course popularity
+    course_stats_list = []
+    for course in courses_with_2025_activity:
+        enrollment_count = enrollments_for_active_students.filter(
+            course=course
+        ).count()
+        course_stats_list.append(
+            {
+                "title": course.title,
+                "slug": course.slug,
+                "enrollment_count": enrollment_count,
+            }
+        )
+
+    # Sort by enrollment count
+    course_stats_list.sort(
+        key=lambda x: x["enrollment_count"], reverse=True
+    )
+    stats.course_stats = course_stats_list
+
+    # Calculate leaderboard (top 100)
+    user_scores = {}
+    for enrollment in enrollments_for_active_students:
+        if enrollment.student_id not in user_scores:
+            user_scores[enrollment.student_id] = {
+                "student": enrollment.student,
+                "total_score": 0,
+                "display_name": enrollment.display_name,
+            }
+        user_scores[enrollment.student_id]["total_score"] += (
+            enrollment.total_score or 0
+        )
+
+    # Sort and get top 100
+    sorted_users = sorted(
+        user_scores.values(),
+        key=lambda x: x["total_score"],
+        reverse=True,
+    )[:100]
+
+    leaderboard_data = []
+    for idx, user_data in enumerate(sorted_users, start=1):
+        leaderboard_data.append(
+            {
+                "rank": idx,
+                "display_name": user_data["display_name"],
+                "total_score": user_data["total_score"],
+                "student_id": user_data["student"].id,
+            }
+        )
+
+    stats.leaderboard = leaderboard_data
+    stats.save()
+
+    logger.info(
+        "Platform statistics calculated. Now calculating individual user statistics..."
+    )
+
+    # Calculate individual user statistics
+    # Delete old user statistics for this year
+    UserWrappedStatistics.objects.filter(wrapped=stats).delete()
+
+    # Pre-group submissions by student for efficiency
+    homework_by_student = defaultdict(list)
+    for hw in homework_submissions_2025:
+        homework_by_student[hw.student].append(hw)
+
+    project_by_student = defaultdict(list)
+    for proj in project_submissions_2025:
+        project_by_student[proj.student].append(proj)
+
+    enrollment_by_student = defaultdict(list)
+    for e in enrollments_for_active_students:
+        enrollment_by_student[e.student].append(e)
+
+    # Bulk fetch peer review counts for all students
+    peer_review_counts = {}
+    peer_reviews = (
+        PeerReview.objects.filter(
+            reviewer__student__in=students_with_2025_activity,
+            submitted_at__gte=year_start,
+            submitted_at__lte=year_end,
+        )
+        .values("reviewer__student")
+        .annotate(count=Count("id"))
+    )
+    for pr in peer_reviews:
+        peer_review_counts[pr["reviewer__student"]] = pr["count"]
+
+    user_stats_objects = []
+    for student in students_with_2025_activity:
+        # Get user's submissions (now O(1) lookup)
+        user_homework_submissions = homework_by_student.get(student, [])
+        user_project_submissions = project_by_student.get(student, [])
+
+        # Get user's enrollments (now O(1) lookup)
+        user_enrollments = enrollment_by_student.get(student, [])
+
+        # Calculate user hours
+        user_homework_hours = sum(
+            (hw.time_spent_lectures or 0)
+            + (hw.time_spent_homework or 0)
+            for hw in user_homework_submissions
+        )
+        user_project_hours = sum(
+            proj.time_spent or 0 for proj in user_project_submissions
+        )
+        user_total_hours = user_homework_hours + user_project_hours
+
+        # Get peer review count (pre-fetched)
+        peer_reviews_count = peer_review_counts.get(student.id, 0)
+
+        # Count learning in public
+        lip_homework = sum(
+            len(hw.learning_in_public_links)
+            if hw.learning_in_public_links
+            else 0
+            for hw in user_homework_submissions
+        )
+        lip_projects = sum(
+            len(proj.learning_in_public_links)
+            if proj.learning_in_public_links
+            else 0
+            for proj in user_project_submissions
+        )
+        learning_in_public_count = lip_homework + lip_projects
+
+        # Count FAQ contributions
+        faq_homework = sum(
+            1
+            for hw in user_homework_submissions
+            if hw.faq_contribution and hw.faq_contribution.strip()
+        )
+        faq_projects = sum(
+            1
+            for proj in user_project_submissions
+            if proj.faq_contribution and proj.faq_contribution.strip()
+        )
+        faq_count = faq_homework + faq_projects
+
+        # Get courses
+        courses_list = [
+            {
+                "title": e.course.title,
+                "score": e.total_score,
+                "slug": e.course.slug,
+                "enrollment_id": e.id,
+            }
+            for e in user_enrollments
+        ]
+
+        # Get certificates
+        certificates_count = sum(
+            1
+            for e in user_enrollments
+            if e.certificate_url and e.certificate_url.strip()
+        )
+
+        # Get total points
+        total_points = sum(e.total_score or 0 for e in user_enrollments)
+
+        # Get rank
+        rank = None
+        for lb_entry in leaderboard_data:
+            if lb_entry["student_id"] == student.id:
+                rank = lb_entry["rank"]
+                break
+
+        # Get display name
+        display_name = (
+            user_enrollments[0].display_name
+            if user_enrollments
+            else student.username
+        )
+
+        # Create user statistics object
+        user_stat = UserWrappedStatistics(
+            wrapped=stats,
+            user=student,
+            total_points=total_points,
+            total_hours=round(user_total_hours, 1),
+            homework_count=len(user_homework_submissions),
+            project_count=len(user_project_submissions),
+            peer_reviews_given=peer_reviews_count,
+            learning_in_public_count=learning_in_public_count,
+            faq_contributions_count=faq_count,
+            certificates_earned=certificates_count,
+            courses=courses_list,
+            rank=rank,
+            display_name=display_name,
+        )
+        user_stats_objects.append(user_stat)
+
+    # Bulk create all user statistics
+    UserWrappedStatistics.objects.bulk_create(
+        user_stats_objects, batch_size=500
+    )
+
+    elapsed_time = time() - start_time
+    logger.info(
+        f"Wrapped statistics for {year} calculated successfully in {elapsed_time:.2f} seconds. "
+        f"Processed {len(user_stats_objects)} users."
+    )
 
     return stats

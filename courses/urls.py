@@ -4,10 +4,13 @@ from .views import course
 from .views import homework
 from .views import project
 from .views import data
+from .views import wrapped
 
 
 urlpatterns = [
     path("", course.course_list, name="course_list"),
+    path("wrapped/<int:year>/", wrapped.wrapped_view, name="wrapped"),
+    path("wrapped/<int:year>/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
     path(
         "<slug:course_slug>/",
         course.course_view,
