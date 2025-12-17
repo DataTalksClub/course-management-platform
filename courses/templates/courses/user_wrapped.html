@@ -363,7 +363,7 @@
     <div class="share-section">
         <h3>Share Your {{ year }} Wrapped!</h3>
         <p>Show off your learning achievements on social media</p>
-        <a href="https://twitter.com/intent/tweet?text=Check%20out%20my%20DataTalks.Club%20Wrapped%20{{ year }}!%20I%20earned%20{{ user_stats.total_points|urlencode }}%20points%20and%20spent%20{{ user_stats.total_hours|urlencode }}%20hours%20learning!&url={{ request.build_absolute_uri|urlencode }}"
+        <a href="https://twitter.com/intent/tweet?text={{ twitter_text|urlencode }}&url={{ request.build_absolute_uri|urlencode }}"
             target="_blank" rel="noopener noreferrer" class="share-button share-twitter">
             Share on Twitter
         </a>

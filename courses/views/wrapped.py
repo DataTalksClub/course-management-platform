@@ -378,7 +378,9 @@ def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
             user_stats = {
                 "total_points": user_wrapped.total_points,
                 "courses_enrolled": user_wrapped.courses,
-                "total_hours": user_wrapped.total_hours,
+                "total_hours": user_wrapped.total_hours
+                if user_wrapped.total_hours > 0
+                else "N/A",
                 "certificates_earned": user_wrapped.certificates_earned,
             }
             user_rank = user_wrapped.rank
@@ -432,7 +434,9 @@ def user_wrapped_view(
     user_stats = {
         "total_points": user_wrapped.total_points,
         "courses": user_wrapped.courses,
-        "total_hours": user_wrapped.total_hours,
+        "total_hours": user_wrapped.total_hours
+        if user_wrapped.total_hours > 0
+        else "N/A",
         "homework_count": user_wrapped.homework_count,
         "project_count": user_wrapped.project_count,
         "peer_reviews_given": user_wrapped.peer_reviews_given,
@@ -442,12 +446,21 @@ def user_wrapped_view(
         "has_activity": True,
     }
 
+    # Prepare Twitter sharing text
+    twitter_text = f"Check out my @DataTalksClub Wrapped {year}! I earned {user_wrapped.total_points} points"
+    if user_wrapped.total_hours and user_wrapped.total_hours > 0:
+        twitter_text += (
+            f" and spent {user_wrapped.total_hours} hours learning"
+        )
+    twitter_text += "!"
+
     context = {
         "year": year,
         "viewed_user": user,
         "display_name": user_wrapped.display_name,
         "user_stats": user_stats,
         "user_rank": user_wrapped.rank,
+        "twitter_text": twitter_text,
         "no_activity": False,
     }
 
