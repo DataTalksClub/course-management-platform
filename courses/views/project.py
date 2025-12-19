@@ -625,6 +625,33 @@ def project_submissions(request, course_slug, project_slug):
         .order_by("-submitted_at")
     )
 
+    # Get peer review data for each submission
+    # We need to count how many peer reviews each student has completed
+    # out of the total assigned to them
+    peer_reviews = PeerReview.objects.filter(
+        reviewer__project=project
+    ).select_related("reviewer")
+
+    # Build a dictionary mapping submission_id to review counts
+    review_counts = {}
+    for submission in submissions:
+        # Get reviews where this submission is the reviewer
+        assigned_reviews = [r for r in peer_reviews if r.reviewer_id == submission.id]
+        completed_reviews = [
+            r for r in assigned_reviews
+            if r.state == PeerReviewState.SUBMITTED.value and not r.optional
+        ]
+        review_counts[submission.id] = {
+            'completed': len(completed_reviews),
+            'total': sum(1 for r in assigned_reviews if not r.optional)
+        }
+
+    # Add review count data to each submission
+    for submission in submissions:
+        counts = review_counts.get(submission.id, {'completed': 0, 'total': 0})
+        submission.peer_reviews_completed = counts['completed']
+        submission.peer_reviews_total = counts['total']
+
     context = {
         "course": course,
         "project": project,
