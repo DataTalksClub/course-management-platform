@@ -231,3 +231,82 @@ class ProjectSubmissionsViewTests(TestCase):
         self.assertNotContains(
             response, "View all submissions (Admin only)"
         )
+
+    def test_peer_review_completion_displayed(self):
+        """Test that peer review completion is displayed correctly"""
+        from courses.models import PeerReview, PeerReviewState
+
+        # Create another user and submission
+        user2 = User.objects.create_user(
+            username="user2@test.com",
+            email="user2@test.com",
+            password="12345",
+        )
+        enrollment2 = Enrollment.objects.create(
+            student=user2,
+            course=self.course,
+        )
+        submission2 = ProjectSubmission.objects.create(
+            project=self.project,
+            student=user2,
+            enrollment=enrollment2,
+            github_link="https://github.com/test/repo2",
+            commit_id="def5678",
+            project_score=90,
+        )
+
+        # Create peer reviews for user1
+        # user1 reviews user2's submission (completed)
+        PeerReview.objects.create(
+            submission_under_evaluation=submission2,
+            reviewer=self.submission,
+            state=PeerReviewState.SUBMITTED.value,
+            optional=False,
+        )
+
+        # user1 has another review to do (not completed)
+        user3 = User.objects.create_user(
+            username="user3@test.com",
+            email="user3@test.com",
+            password="12345",
+        )
+        enrollment3 = Enrollment.objects.create(
+            student=user3,
+            course=self.course,
+        )
+        submission3 = ProjectSubmission.objects.create(
+            project=self.project,
+            student=user3,
+            enrollment=enrollment3,
+            github_link="https://github.com/test/repo3",
+            commit_id="ghi9012",
+            project_score=85,
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=submission3,
+            reviewer=self.submission,
+            state=PeerReviewState.TO_REVIEW.value,
+            optional=False,
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that the page contains the peer review completion data
+        submissions = list(response.context["submissions"])
+        user1_submission = [s for s in submissions if s.student == self.user][0]
+        
+        # user1 has completed 1 out of 2 peer reviews
+        self.assertEqual(user1_submission.peer_reviews_completed, 1)
+        self.assertEqual(user1_submission.peer_reviews_total, 2)
