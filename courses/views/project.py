@@ -1,6 +1,7 @@
 import logging
 
 from typing import Iterable
+from collections import defaultdict
 
 from django.http import HttpRequest
 
@@ -633,22 +634,18 @@ def project_submissions(request, course_slug, project_slug):
     ).select_related("reviewer")
 
     # Build a dictionary mapping submission_id to review counts
-    review_counts = {}
-    for submission in submissions:
-        # Get reviews where this submission is the reviewer
-        assigned_reviews = [r for r in peer_reviews if r.reviewer_id == submission.id]
-        completed_reviews = [
-            r for r in assigned_reviews
-            if r.state == PeerReviewState.SUBMITTED.value and not r.optional
-        ]
-        review_counts[submission.id] = {
-            'completed': len(completed_reviews),
-            'total': sum(1 for r in assigned_reviews if not r.optional)
-        }
+    # This is more efficient than nested loops
+    review_counts = defaultdict(lambda: {'completed': 0, 'total': 0})
+    
+    for review in peer_reviews:
+        if not review.optional:
+            review_counts[review.reviewer_id]['total'] += 1
+            if review.state == PeerReviewState.SUBMITTED.value:
+                review_counts[review.reviewer_id]['completed'] += 1
 
     # Add review count data to each submission
     for submission in submissions:
-        counts = review_counts.get(submission.id, {'completed': 0, 'total': 0})
+        counts = review_counts[submission.id]
         submission.peer_reviews_completed = counts['completed']
         submission.peer_reviews_total = counts['total']
 
