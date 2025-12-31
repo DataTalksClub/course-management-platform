@@ -53,9 +53,7 @@
               <th>GitHub Link</th>
               <th>Commit ID</th>
               <th>Project Score</th>
-              <th>Peer Review Score</th>
-              <th>FAQ Score</th>
-              <th>Learning in Public Score</th>
+              <th>Peer Reviews Completed</th>
             </tr>
           </thead>
           <tbody>
@@ -80,9 +78,7 @@
                 {% endif %}
               </td>
               <td>{{ submission.project_score }}</td>
-              <td>{{ submission.peer_review_score }}</td>
-              <td>{{ submission.project_faq_score }}</td>
-              <td>{{ submission.project_learning_in_public_score }}</td>
+              <td>{{ submission.peer_reviews_completed }}/{{ submission.peer_reviews_total }}</td>
             </tr>
             {% endfor %}
           </tbody>
