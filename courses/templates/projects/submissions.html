@@ -33,6 +33,14 @@
       <i class="fas fa-info-circle"></i> Total Submissions
     </h5>
     <p class="card-text display-4">{{ submissions|length }}</p>
+    {% if submissions %}
+    <button id="copyEmailsBtn" class="btn btn-primary mt-3">
+      <i class="fas fa-clipboard"></i> Copy All Emails
+    </button>
+    <span id="copyFeedback" class="ml-2 text-success" style="display: none;">
+      <i class="fas fa-check-circle"></i> Copied!
+    </span>
+    {% endif %}
   </div>
 </div>
 
@@ -90,4 +98,42 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const copyEmailsBtn = document.getElementById('copyEmailsBtn');
+    const copyFeedback = document.getElementById('copyFeedback');
+    
+    if (copyEmailsBtn) {
+        copyEmailsBtn.addEventListener('click', function() {
+            // Get all email cells from the table
+            const emailCells = document.querySelectorAll('tbody tr td:first-child');
+            const emails = Array.from(emailCells).map(cell => cell.textContent.trim());
+            
+            // Join emails with comma and space
+            const emailList = emails.join(', ');
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(emailList).then(function() {
+                // Show success feedback
+                copyFeedback.style.display = 'inline';
+                copyEmailsBtn.classList.add('btn-success');
+                copyEmailsBtn.classList.remove('btn-primary');
+                
+                // Reset button after 2 seconds
+                setTimeout(function() {
+                    copyFeedback.style.display = 'none';
+                    copyEmailsBtn.classList.remove('btn-success');
+                    copyEmailsBtn.classList.add('btn-primary');
+                }, 2000);
+            }).catch(function(err) {
+                // Show error feedback
+                alert('Failed to copy emails: ' + err);
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
