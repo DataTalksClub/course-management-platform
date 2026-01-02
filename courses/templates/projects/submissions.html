@@ -115,23 +115,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // Join emails with comma and space
             const emailList = emails.join(', ');
             
-            // Copy to clipboard
-            navigator.clipboard.writeText(emailList).then(function() {
-                // Show success feedback
-                copyFeedback.style.display = 'inline';
-                copyEmailsBtn.classList.add('btn-success');
-                copyEmailsBtn.classList.remove('btn-primary');
-                
-                // Reset button after 2 seconds
-                setTimeout(function() {
-                    copyFeedback.style.display = 'none';
-                    copyEmailsBtn.classList.remove('btn-success');
-                    copyEmailsBtn.classList.add('btn-primary');
-                }, 2000);
-            }).catch(function(err) {
-                // Show error feedback
-                alert('Failed to copy emails: ' + err);
-            });
+            // Check if clipboard API is available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                // Copy to clipboard
+                navigator.clipboard.writeText(emailList).then(function() {
+                    // Show success feedback
+                    copyFeedback.style.display = 'inline';
+                    copyEmailsBtn.classList.add('btn-success');
+                    copyEmailsBtn.classList.remove('btn-primary');
+                    
+                    // Reset button after 2 seconds
+                    setTimeout(function() {
+                        copyFeedback.style.display = 'none';
+                        copyEmailsBtn.classList.remove('btn-success');
+                        copyEmailsBtn.classList.add('btn-primary');
+                    }, 2000);
+                }).catch(function(err) {
+                    // Show error feedback
+                    alert(`Failed to copy emails to clipboard. Error: ${err.message || err}`);
+                });
+            } else {
+                // Fallback for browsers without clipboard API
+                alert('Clipboard API not available. Please copy manually:\n\n' + emailList);
+            }
         });
     }
 });
