@@ -310,3 +310,52 @@ class ProjectSubmissionsViewTests(TestCase):
         # user1 has completed 1 out of 2 peer reviews
         self.assertEqual(user1_submission.peer_reviews_completed, 1)
         self.assertEqual(user1_submission.peer_reviews_total, 2)
+
+    def test_copy_emails_button_present(self):
+        """Test that the copy emails button is present for admin users"""
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        # Check that the copy button is present
+        self.assertContains(response, 'id="copyEmailsBtn"')
+        self.assertContains(response, 'Copy All Emails')
+        # Check that the feedback span is present
+        self.assertContains(response, 'id="copyFeedback"')
+
+    def test_copy_emails_button_not_present_when_no_submissions(self):
+        """Test that the copy emails button is not present when there are no submissions"""
+        # Create a new project with no submissions
+        new_project = Project.objects.create(
+            course=self.course,
+            slug="empty-project",
+            title="Empty Project",
+            submission_due_date=timezone.now() + timedelta(days=7),
+            peer_review_due_date=timezone.now() + timedelta(days=14),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+        
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": new_project.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        # Check that the copy button is not present
+        self.assertNotContains(response, 'id="copyEmailsBtn"')
