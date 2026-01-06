@@ -819,7 +819,7 @@ class CourseDetailViewTests(TestCase):
         # Should show submission deadline for the PR project
         submission_deadline_str = pr_project.submission_due_date.strftime('%Y-%m-%d')
         self.assertIn(submission_deadline_str, content)
-        
+
         # Test 3: Authenticated user WITH submission should see peer review deadline
         self.client.logout()
         self.client.login(username="submitted@test.com", password="12345")
