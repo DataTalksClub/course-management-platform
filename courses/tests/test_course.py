@@ -770,3 +770,65 @@ class CourseDetailViewTests(TestCase):
         # Test that visibility was preserved
         self.assertFalse(new_course.visible)
 
+    def test_project_deadline_display_for_peer_review_state(self):
+        """Test that the correct deadline is shown based on submission status when project is in PR state"""
+        # Create a project in peer review state
+        pr_project = Project.objects.create(
+            course=self.course,
+            title="Peer Review Project",
+            slug="pr-project",
+            state=ProjectState.PEER_REVIEWING.value,
+            submission_due_date=timezone.now() - timezone.timedelta(days=1),
+            peer_review_due_date=timezone.now() + timezone.timedelta(days=7),
+        )
+
+        # Create another user who submitted the project
+        user_with_submission = User.objects.create_user(
+            username="submitted@test.com",
+            email="submitted@test.com",
+            password="12345"
+        )
+        enrollment_with_submission = Enrollment.objects.create(
+            student=user_with_submission,
+            course=self.course
+        )
+        ProjectSubmission.objects.create(
+            project=pr_project,
+            student=user_with_submission,
+            enrollment=enrollment_with_submission,
+            github_link="https://github.com/test/pr-repo",
+        )
+
+        # Test 1: Unauthenticated user should see submission deadline
+        response = self.client.get(
+            reverse("course", kwargs={"course_slug": self.course.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        # Should show submission deadline date
+        submission_deadline_str = pr_project.submission_due_date.strftime('%Y-%m-%d')
+        self.assertIn(submission_deadline_str, content)
+
+        # Test 2: Authenticated user WITHOUT submission should see submission deadline
+        self.client.login(username="test@test.com", password="12345")
+        response = self.client.get(
+            reverse("course", kwargs={"course_slug": self.course.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        # Should show submission deadline for the PR project
+        submission_deadline_str = pr_project.submission_due_date.strftime('%Y-%m-%d')
+        self.assertIn(submission_deadline_str, content)
+
+        # Test 3: Authenticated user WITH submission should see peer review deadline
+        self.client.logout()
+        self.client.login(username="submitted@test.com", password="12345")
+        response = self.client.get(
+            reverse("course", kwargs={"course_slug": self.course.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        # Should show peer review deadline
+        peer_review_deadline_str = pr_project.peer_review_due_date.strftime('%Y-%m-%d')
+        self.assertIn(peer_review_deadline_str, content)
+
