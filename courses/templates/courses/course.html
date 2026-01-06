@@ -99,9 +99,15 @@
           <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
         </div>
       {% elif project.state == 'PR' %}
-        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_pr_due }} days left to review your peers">
-          <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
-        </div>
+        {% if project.submitted %}
+          <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_pr_due }} days left to review your peers">
+            <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
+          </div>
+        {% else %}
+          <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_submission_due }} days left to submit your project">
+            <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
+          </div>
+        {% endif %}
       {% elif project.state == 'CO' %}
         <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="Project is completed">
           <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
