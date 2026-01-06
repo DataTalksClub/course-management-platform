@@ -810,17 +810,15 @@ class CourseDetailViewTests(TestCase):
         self.assertIn(submission_deadline_str, content)
 
         # Test 2: Authenticated user WITHOUT submission should see submission deadline
-        self.client.login(**credentials)
+        self.client.login(username="test@test.com", password="12345")
         response = self.client.get(
             reverse("course", kwargs={"course_slug": self.course.slug})
         )
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
-        # Should show submission deadline, not peer review deadline
+        # Should show submission deadline for the PR project
         submission_deadline_str = pr_project.submission_due_date.strftime('%Y-%m-%d')
-        peer_review_deadline_str = pr_project.peer_review_due_date.strftime('%Y-%m-%d')
         self.assertIn(submission_deadline_str, content)
-        # The peer review deadline should still be in content but for a different project
         
         # Test 3: Authenticated user WITH submission should see peer review deadline
         self.client.logout()
