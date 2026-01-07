@@ -514,7 +514,6 @@ class DashboardProjectStatsTestCase(TestCase):
         self.enrollments[1].save()
 
         # Leave others as None (should not count)
-
         url = reverse("dashboard", args=[self.course.slug])
         response = self.client.get(url)
 
