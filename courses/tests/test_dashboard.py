@@ -465,6 +465,62 @@ class DashboardProjectStatsTestCase(TestCase):
             response.context["avg_total_score"], expected_avg, places=1
         )
 
+    def test_project_total_submissions(self):
+        """Test that project_total_submissions is calculated correctly"""
+        # Create mix of passing and failing submissions
+        submission_data = [
+            {"total_score": 90, "time_spent": 8.0, "passed": True},
+            {"total_score": 85, "time_spent": 10.0, "passed": True},
+            {"total_score": 75, "time_spent": 12.0, "passed": True},
+            {"total_score": 60, "time_spent": 6.0, "passed": False},
+            {"total_score": 55, "time_spent": 5.0, "passed": False},
+        ]
+
+        self.create_bulk_project_submissions(submission_data)
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assertIn("project_total_submissions", response.context)
+        self.assertIn("project_pass_count", response.context)
+        self.assertIn("project_fail_count", response.context)
+
+        # 3 passed + 2 failed = 5 total
+        self.assertEqual(response.context["project_pass_count"], 3)
+        self.assertEqual(response.context["project_fail_count"], 2)
+        self.assertEqual(response.context["project_total_submissions"], 5)
+
+    def test_graduates_count(self):
+        """Test that graduates_count is calculated correctly"""
+        # Add certificate URLs to some enrollments
+        for i, enrollment in enumerate(self.enrollments[:3]):
+            enrollment.certificate_url = f"https://example.com/cert{i}.pdf"
+            enrollment.save()
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assertIn("graduates_count", response.context)
+        self.assertEqual(response.context["graduates_count"], 3)
+
+    def test_graduates_count_excludes_empty_certificates(self):
+        """Test that graduates_count excludes enrollments with empty certificate URLs"""
+        # Add certificate URLs to some enrollments
+        self.enrollments[0].certificate_url = "https://example.com/cert1.pdf"
+        self.enrollments[0].save()
+
+        # Add empty certificate URL (should not count)
+        self.enrollments[1].certificate_url = ""
+        self.enrollments[1].save()
+
+        # Leave others as None (should not count)
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assertIn("graduates_count", response.context)
+        self.assertEqual(response.context["graduates_count"], 1)
+
 
 class DashboardIntegrationTestCase(TestCase):
     """Integration tests for dashboard with complete data"""
