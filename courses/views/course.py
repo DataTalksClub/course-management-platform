@@ -537,6 +537,14 @@ def dashboard_view(request, course_slug: str):
             }
         )
 
+    # Calculate total project submissions
+    project_total_submissions = project_pass_count + project_fail_count
+
+    # Get graduates count (enrollments with certificates)
+    graduates_count = Enrollment.objects.filter(
+        course=course, certificate_url__isnull=False
+    ).exclude(certificate_url="").count()
+
     context = {
         "course": course,
         "total_enrollments": total_enrollments,
@@ -550,7 +558,9 @@ def dashboard_view(request, course_slug: str):
         "avg_total_score": round(avg_total_score, 1),
         "project_pass_count": project_pass_count,
         "project_fail_count": project_fail_count,
+        "project_total_submissions": project_total_submissions,
         "project_passing_score": course.project_passing_score,
+        "graduates_count": graduates_count,
         "homework_stats": homework_stats,
     }
 
