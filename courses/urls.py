@@ -128,6 +128,11 @@ urlpatterns = [
         name="data_update_certificate",
     ),
     path(
+        "data/<slug:course_slug>/create-content",
+        data.create_course_content_view,
+        name="data_create_content",
+    ),
+    path(
         "<slug:course_slug>/course-criteria.yaml",
         data.course_criteria_yaml_view,
         name="course_criteria_yaml",
