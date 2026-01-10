@@ -14,9 +14,11 @@
 
 <!-- Navigation Links -->
 <div class="mb-4">
+  {% if course.first_homework_scored %}
   <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">
     <i class="fas fa-trophy"></i> View Leaderboard
   </a>
+  {% endif %}
 </div>
 
 <!-- Total Enrollment -->
