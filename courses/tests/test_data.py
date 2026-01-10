@@ -2302,3 +2302,87 @@ class HomeworkContentAPITestCase(TestCase):
         # Both should succeed since they're valid
         self.assertEqual(len(result["created_questions"]), 2)
         self.assertEqual(len(result["errors"]), 0)
+
+    def test_post_update_state_from_closed_to_open(self):
+        """Test POST updates homework state from closed to open"""
+        self.assertEqual(self.homework.state, "CL")
+
+        data = {
+            "questions": [
+                {"text": "New question", "question_type": "FF"}
+            ],
+            "state": "OP"
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertIn("homework_state", result)
+        self.assertEqual(result["homework_state"]["old"], "CL")
+        self.assertEqual(result["homework_state"]["new"], "OP")
+
+        # Verify state was updated in DB
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.state, "OP")
+
+    def test_post_update_state_only(self):
+        """Test POST can update state without adding questions"""
+        self.assertEqual(self.homework.state, "CL")
+
+        data = {"state": "OP"}
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertEqual(result["homework_state"]["old"], "CL")
+        self.assertEqual(result["homework_state"]["new"], "OP")
+        self.assertEqual(len(result["created_questions"]), 0)
+
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.state, "OP")
+
+    def test_post_update_state_invalid(self):
+        """Test POST with invalid state returns error"""
+        data = {
+            "questions": [{"text": "Question", "question_type": "FF"}],
+            "state": "INVALID"
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        result = response.json()
+        self.assertIn("Invalid state", result["error"])
+
+    def test_post_update_all_states(self):
+        """Test POST can update to all valid states"""
+        # CL -> OP
+        data = {"state": "OP"}
+        response = self.client.post(self.url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.state, "OP")
+
+        # OP -> SC
+        data = {"state": "SC"}
+        response = self.client.post(self.url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.state, "SC")
+
+        # SC -> CL
+        data = {"state": "CL"}
+        response = self.client.post(self.url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.state, "CL")

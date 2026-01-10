@@ -548,7 +548,7 @@ def homework_content_view(request, course_slug: str, homework_slug: str):
     Get or create questions for a homework.
 
     GET: Returns homework details and all questions.
-    POST: Creates questions for the homework.
+    POST: Creates questions for the homework and optionally updates state.
 
     POST Expected JSON payload:
     {
@@ -561,7 +561,8 @@ def homework_content_view(request, course_slug: str, homework_slug: str):
                 "correct_answer": "2",
                 "scores_for_correct_answer": 1
             }
-        ]
+        ],
+        "state": "OP"  // Optional: Update homework state (CL=closed, OP=open, SC=scored)
     }
     """
     try:
@@ -603,11 +604,26 @@ def homework_content_view(request, course_slug: str, homework_slug: str):
                 "questions": questions_data,
             })
 
-        # POST: Create new questions
+        # POST: Create new questions and optionally update state
         if request.method != "POST":
             return JsonResponse({"error": "Method not allowed"}, status=405)
 
         data = json.loads(request.body)
+
+        # Update homework state if provided
+        state_updated = False
+        new_state = data.get("state")
+        if new_state:
+            valid_states = [s.value for s in HomeworkState]
+            if new_state not in valid_states:
+                return JsonResponse({
+                    "error": f"Invalid state. Must be one of: {valid_states}"
+                }, status=400)
+            old_state = homework.state
+            homework.state = new_state
+            homework.save()
+            state_updated = True
+
         questions_data = data.get("questions", [])
         created_questions = []
         errors = []
@@ -634,13 +650,21 @@ def homework_content_view(request, course_slug: str, homework_slug: str):
                     "error": str(e)
                 })
 
-        return JsonResponse({
+        response_data = {
             "success": True,
             "course": course_slug,
             "homework": homework_slug,
             "created_questions": created_questions,
             "errors": errors,
-        })
+        }
+
+        if state_updated:
+            response_data["homework_state"] = {
+                "old": old_state,
+                "new": new_state
+            }
+
+        return JsonResponse(response_data)
 
     except Http404:
         return JsonResponse({"error": "Course or homework not found"}, status=404)

@@ -153,6 +153,57 @@ curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homewo
   }'
 ```
 
+### Update Homework State
+
+You can also update the homework state when creating questions:
+
+```bash
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questions": [
+      {
+        "text": "What is 2+2?",
+        "question_type": "MC",
+        "answer_type": "INT",
+        "possible_answers": ["3", "4", "5"],
+        "correct_answer": "2"
+      }
+    ],
+    "state": "OP"
+  }'
+```
+
+**States:**
+- `CL` - Closed (not visible to students)
+- `OP` - Open (students can submit)
+- `SC` - Scored (grading completed)
+
+You can also update state without adding questions:
+
+```bash
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"state": "OP"}'
+```
+
+**Response includes state change:**
+```json
+{
+  "success": true,
+  "course": "ml-zoomcamp",
+  "homework": "hw-1",
+  "created_questions": [],
+  "errors": [],
+  "homework_state": {
+    "old": "CL",
+    "new": "OP"
+  }
+}
+```
+
 ## Field Reference
 
 | Field | Type | Required | Description |
@@ -163,6 +214,7 @@ curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homewo
 | `possible_answers` | array | No | Array of answer options (for MC/CB questions) |
 | `correct_answer` | string | No | Correct answer (1-based index for MC/CB, value for others) |
 | `scores_for_correct_answer` | int | No | Points for correct answer (default: 1) |
+| `state` | string | No | Homework state: `CL`, `OP`, or `SC` |
 
 ## Question Types
 

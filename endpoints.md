@@ -432,6 +432,15 @@ Creates questions for a homework.
 | `possible_answers` | array | No | Array of answer options (for MC/CB) |
 | `correct_answer` | string | No | Correct answer (index for MC/CB, value for others) |
 | `scores_for_correct_answer` | int | No | Points for correct answer (default: 1) |
+| `state` | string | No | Homework state: `CL`, `OP`, or `SC` |
+
+### Homework States
+
+| Code | Name | Description |
+|------|------|-------------|
+| `CL` | Closed | Not visible to students |
+| `OP` | Open | Students can submit |
+| `SC` | Scored | Grading completed |
 
 ### Response
 
@@ -451,9 +460,25 @@ Creates questions for a homework.
 }
 ```
 
+If `state` is provided, response includes state change:
+
+```json
+{
+  "success": true,
+  "course": "ml-zoomcamp",
+  "homework": "hw-1",
+  "created_questions": [],
+  "errors": [],
+  "homework_state": {
+    "old": "CL",
+    "new": "OP"
+  }
+}
+```
+
 ### Error Responses
 
-- `400 Bad Request`: Invalid JSON
+- `400 Bad Request`: Invalid JSON or invalid state value
 - `401 Unauthorized`: Missing or invalid authentication token
 - `404 Not Found`: Course or homework not found
 - `405 Method Not Allowed`: Wrong HTTP method (only GET and POST allowed)
@@ -482,5 +507,22 @@ curl -X POST \
       }
     ]
   }' \
+  https://courses.datatalks.club/data/ml-zoomcamp/homework/hw-1/content
+
+# Create questions and open homework
+curl -X POST \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questions": [{"text": "What is 2+2?", "question_type": "MC"}],
+    "state": "OP"
+  }' \
+  https://courses.datatalks.club/data/ml-zoomcamp/homework/hw-1/content
+
+# Update homework state only (no new questions)
+curl -X POST \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"state": "OP"}' \
   https://courses.datatalks.club/data/ml-zoomcamp/homework/hw-1/content
 ```
