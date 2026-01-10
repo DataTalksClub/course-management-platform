@@ -231,13 +231,14 @@ def leaderboard_view(request, course_slug: str):
     current_student_enrollment_id = None
 
     if user.is_authenticated:
-        current_student_enrollment, _ = (
-            Enrollment.objects.get_or_create(
+        try:
+            current_student_enrollment = Enrollment.objects.get(
                 student=user,
                 course=course,
             )
-        )
-        current_student_enrollment_id = current_student_enrollment.id
+            current_student_enrollment_id = current_student_enrollment.id
+        except Enrollment.DoesNotExist:
+            pass
 
     enrollments = Enrollment.objects.filter(course=course).order_by(
         Coalesce("position_on_leaderboard", Value(999999)),

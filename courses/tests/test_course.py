@@ -360,6 +360,7 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(actual_positions, expected_positions)
 
     def test_not_enrolled_yet_but_leaderboard_displays(self):
+        """Test that the leaderboard displays even when user is not enrolled"""
         self.create_enrollment("e1", 100, 1)
         self.create_enrollment("e2", 90, 2)
         self.create_enrollment("e3", 80, 3)
@@ -377,16 +378,20 @@ class CourseDetailViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
+        # Current enrollment should be None (no auto-enrollment)
         current_enrollment = response.context[
             "current_student_enrollment"
         ]
-        self.assertEqual(current_enrollment.student.id, self.user.id)
-        self.assertEqual(current_enrollment.total_score, 0)
-        self.assertIsNone(current_enrollment.position_on_leaderboard)
+        self.assertIsNone(current_enrollment)
 
+        # Leaderboard should still show other enrollments
         enrollments = response.context["enrollments"]
-        last_enrollment = enrollments[len(enrollments) - 1]
-        self.assertEqual(last_enrollment.id, current_enrollment.id)
+        self.assertEqual(len(enrollments), 5)
+
+        # Verify the order is correct
+        expected_order = ["e1", "e2", "e3", "e4", "e5"]
+        actual_order = [e.display_name for e in enrollments]
+        self.assertEqual(actual_order, expected_order)
 
     def test_not_enrolled_but_can_edit_details(self):
         self.enrollment.delete()
@@ -831,4 +836,188 @@ class CourseDetailViewTests(TestCase):
         # Should show peer review deadline
         peer_review_deadline_str = pr_project.peer_review_due_date.strftime('%Y-%m-%d')
         self.assertIn(peer_review_deadline_str, content)
+
+    def test_course_view_does_not_auto_enroll(self):
+        """Test that visiting the course page does not auto-enroll a user"""
+        # Delete the existing enrollment
+        self.enrollment.delete()
+
+        # Verify enrollment is deleted
+        enrollment_count = Enrollment.objects.filter(
+            student=self.user,
+            course=self.course
+        ).count()
+        self.assertEqual(enrollment_count, 0)
+
+        # Login and visit the course page
+        self.client.login(**credentials)
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify NO enrollment was created
+        enrollment_count = Enrollment.objects.filter(
+            student=self.user,
+            course=self.course
+        ).count()
+        self.assertEqual(enrollment_count, 0,
+                        "Course view should not auto-enroll users")
+
+    def test_leaderboard_view_does_not_auto_enroll(self):
+        """Test that visiting the leaderboard page does not auto-enroll a user"""
+        # Create some other users' enrollments
+        self.create_enrollment("e1", 100, 1)
+        self.create_enrollment("e2", 90, 2)
+
+        # Delete the existing enrollment
+        self.enrollment.delete()
+
+        # Verify enrollment is deleted
+        enrollment_count = Enrollment.objects.filter(
+            student=self.user,
+            course=self.course
+        ).count()
+        self.assertEqual(enrollment_count, 0)
+
+        # Login and visit the leaderboard page
+        self.client.login(**credentials)
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify NO enrollment was created
+        enrollment_count = Enrollment.objects.filter(
+            student=self.user,
+            course=self.course
+        ).count()
+        self.assertEqual(enrollment_count, 0,
+                        "Leaderboard view should not auto-enroll users")
+
+        # Verify the context shows None for current enrollment
+        current_enrollment = response.context.get("current_student_enrollment")
+        self.assertIsNone(current_enrollment,
+                         "Current student enrollment should be None when not enrolled")
+
+    def test_leaderboard_unauthenticated_user(self):
+        """Test leaderboard for unauthenticated users"""
+        # Create some enrollments for the leaderboard
+        self.create_enrollment("Alice", 100, 1)
+        self.create_enrollment("Bob", 90, 2)
+        self.create_enrollment("Charlie", 80, 3)
+
+        # Logout and visit leaderboard without authentication
+        self.client.logout()
+
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        # Context checks
+        current_enrollment = response.context.get("current_student_enrollment")
+        self.assertIsNone(current_enrollment)
+        current_enrollment_id = response.context.get("current_student_enrollment_id")
+        self.assertIsNone(current_enrollment_id)
+
+        enrollments = response.context["enrollments"]
+        self.assertEqual(len(enrollments), 4)  # Alice, Bob, Charlie, and self.enrollment
+
+        # HTML content checks - should NOT show "Your Record" section
+        self.assertNotContains(response, "Your Record")
+        self.assertNotContains(response, "Your total score")
+        self.assertNotContains(response, "Display name")
+        self.assertNotContains(response, "Jump to your record")
+
+        # Should show the leaderboard with other students
+        self.assertContains(response, "Alice")
+        self.assertContains(response, "Bob")
+        self.assertContains(response, "Charlie")
+
+    def test_leaderboard_authenticated_without_enrollment(self):
+        """Test leaderboard for authenticated users who are not enrolled"""
+        # Create some enrollments for the leaderboard
+        self.create_enrollment("Alice", 100, 1)
+        self.create_enrollment("Bob", 90, 2)
+        self.create_enrollment("Charlie", 80, 3)
+
+        # Delete the test user's enrollment
+        self.enrollment.delete()
+
+        # Login and visit leaderboard
+        self.client.login(**credentials)
+
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        # Context checks
+        current_enrollment = response.context.get("current_student_enrollment")
+        self.assertIsNone(current_enrollment)
+        current_enrollment_id = response.context.get("current_student_enrollment_id")
+        self.assertIsNone(current_enrollment_id)
+
+        enrollments = response.context["enrollments"]
+        self.assertEqual(len(enrollments), 3)  # Only Alice, Bob, Charlie
+
+        # HTML content checks - should NOT show "Your Record" section
+        self.assertNotContains(response, "Your Record")
+        self.assertNotContains(response, "Your total score")
+        self.assertNotContains(response, "Display name")
+        self.assertNotContains(response, "Jump to your record")
+
+        # Should show the leaderboard with other students
+        self.assertContains(response, "Alice")
+        self.assertContains(response, "Bob")
+        self.assertContains(response, "Charlie")
+
+    def test_leaderboard_authenticated_with_enrollment(self):
+        """Test leaderboard for authenticated users who are enrolled"""
+        # Create some other enrollments
+        e1 = self.create_enrollment("Alice", 100, 1)
+        e2 = self.create_enrollment("Bob", 90, 2)
+        e3 = self.create_enrollment("Charlie", 80, 3)
+
+        # Set up test user's enrollment
+        self.enrollment.display_name = "TestUser"
+        self.enrollment.total_score = 95
+        self.enrollment.position_on_leaderboard = 2
+        self.enrollment.save()
+
+        # Login and visit leaderboard
+        self.client.login(**credentials)
+
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        # Context checks
+        current_enrollment = response.context.get("current_student_enrollment")
+        self.assertIsNotNone(current_enrollment)
+        self.assertEqual(current_enrollment.id, self.enrollment.id)
+        self.assertEqual(current_enrollment.display_name, "TestUser")
+        self.assertEqual(current_enrollment.total_score, 95)
+
+        current_enrollment_id = response.context.get("current_student_enrollment_id")
+        self.assertEqual(current_enrollment_id, self.enrollment.id)
+
+        enrollments = response.context["enrollments"]
+        self.assertEqual(len(enrollments), 4)  # Alice, TestUser, Bob, Charlie
+
+        # HTML content checks - should show "Your Record" section
+        self.assertContains(response, "Your Record")
+        self.assertContains(response, "Your total score: 95")
+        self.assertContains(response, "Position: 2")
+        self.assertContains(response, "Display name: TestUser")
+        self.assertContains(response, "Jump to your record")
+        self.assertContains(response, f"record-{self.enrollment.id}")
+
+        # Should show the leaderboard with all students
+        self.assertContains(response, "Alice")
+        self.assertContains(response, "Bob")
+        self.assertContains(response, "Charlie")
+        self.assertContains(response, "TestUser")
 
