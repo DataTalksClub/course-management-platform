@@ -9,6 +9,7 @@ on:
       - 'terraform/**'
       - 'db/**'
       - 'notebooks/**'
+      - '.prod-versions'
 
 jobs:
   test:
