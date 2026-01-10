@@ -38,5 +38,6 @@ DJANGO_SETTINGS_MODULE = "course_management.settings"
 python_files = ["test_*.py"]
 
 testpaths = [
-    "courses/tests"
+    "courses/tests",
+    "data/tests",
 ]
