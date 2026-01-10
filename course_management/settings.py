@@ -313,4 +313,4 @@ UNFOLD = {
     "SITE_SYMBOL": "school",
 }
 
-SHOW_WRAPPED = True
+SHOW_WRAPPED = False
