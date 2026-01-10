@@ -1,24 +1,30 @@
 ---
 name: course-content
-description: Add homeworks and projects to courses via API using curl
+description: Get or add homeworks and projects to courses via API using curl
 ---
 
 # Course Content API
 
 ## Overview
 
-This skill provides commands to create homeworks and projects for courses via the API endpoint. All items are created with `state=CLOSED` (not visible to students).
+This skill provides commands to get and create homeworks and projects for courses via the API endpoint. All items are created with `state=CLOSED` (not visible to students).
 
 ## Configuration
 
 - **Production instance**: `https://courses.datatalks.club`
+- **Dev instance**: `https://dev.courses.datatalks.club`
 - **Auth token**: Available as `AUTH_TOKEN` environment variable
 
 ## API Endpoint
 
 ```
-POST /courses/data/<course_slug>/create-content
+GET /data/<course_slug>/content - Get all homeworks and projects
+POST /data/<course_slug>/content - Create new homeworks and projects
 ```
+
+Full URLs:
+- Production: `https://courses.datatalks.club/data/<course_slug>/content`
+- Dev: `https://dev.courses.datatalks.club/data/<course_slug>/content`
 
 ## Authentication
 
@@ -30,12 +36,47 @@ TOKEN=${AUTH_TOKEN}
 TOKEN="your-token-here"
 ```
 
+## Getting Course Content (GET)
+
+```bash
+curl -X GET "https://courses.datatalks.club/data/<course_slug>/content" \
+  -H "Authorization: Token ${AUTH_TOKEN}"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "course": "course-slug",
+  "homeworks": [
+    {
+      "id": 123,
+      "slug": "hw-1",
+      "title": "Homework 1",
+      "due_date": "2025-03-15T23:59:59Z",
+      "state": "CL",
+      "questions_count": 5
+    }
+  ],
+  "projects": [
+    {
+      "id": 456,
+      "slug": "project-1",
+      "title": "Project 1",
+      "submission_due_date": "2025-03-20T23:59:59Z",
+      "peer_review_due_date": "2025-03-27T23:59:59Z",
+      "state": "CL"
+    }
+  ]
+}
+```
+
 ## Creating Homeworks
 
 ### Basic Homework (No Questions)
 
 ```bash
-curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-content" \
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -53,7 +94,7 @@ curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-c
 ### Homework With Questions
 
 ```bash
-curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-content" \
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -88,7 +129,7 @@ curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-c
 ### Multiple Homeworks
 
 ```bash
-curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-content" \
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -114,7 +155,7 @@ curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-c
 ### Basic Project
 
 ```bash
-curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-content" \
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -133,7 +174,7 @@ curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-c
 ### Multiple Projects
 
 ```bash
-curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-content" \
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -155,7 +196,7 @@ curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-c
 ## Creating Both Homeworks and Projects
 
 ```bash
-curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-content" \
+curl -X POST "https://courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -210,18 +251,22 @@ curl -X POST "https://courses.datatalks.club/courses/data/<course_slug>/create-c
 
 ## Question Types
 
-- `MC` - **Multiple Choice**: Single correct answer from options
-- `FF` - **Free Form**: Short text answer
-- `FL` - **Free Form Long**: Long text answer
-- `CB` - **Checkboxes**: Multiple correct answers
+| Code | Name | Description |
+|------|------|-------------|
+| `MC` | Multiple Choice | Single correct answer from a list of options |
+| `FF` | Free Form | Short text answer (1-2 sentences) |
+| `FL` | Free Form Long | Long text answer (essays, explanations) |
+| `CB` | Checkboxes | Multiple correct answers from a list of options |
 
 ## Answer Types
 
-- `ANY` - Any input accepted
-- `FLT` - Float number
-- `INT` - Integer
-- `EXS` - Exact string match
-- `CTS` - Contains string
+| Code | Name | Description |
+|------|------|-------------|
+| `ANY` | Any | Any input is accepted (no validation) |
+| `FLT` | Float | Decimal number validation (e.g., 3.14, -0.5) |
+| `INT` | Integer | Whole number validation (e.g., 1, 42, -7) |
+| `EXS` | Exact String | Answer must match exactly (case-sensitive) |
+| `CTS` | Contains String | Answer must contain the specified text |
 
 ## Date Formats
 
@@ -231,6 +276,35 @@ Both ISO formats are supported:
 
 ## Response Format
 
+### GET Response
+```json
+{
+  "success": true,
+  "course": "course-slug",
+  "homeworks": [
+    {
+      "id": 123,
+      "slug": "hw-1",
+      "title": "Homework 1",
+      "due_date": "2025-03-15T23:59:59Z",
+      "state": "CL",
+      "questions_count": 5
+    }
+  ],
+  "projects": [
+    {
+      "id": 456,
+      "slug": "project-1",
+      "title": "Project 1",
+      "submission_due_date": "2025-03-20T23:59:59Z",
+      "peer_review_due_date": "2025-03-27T23:59:59Z",
+      "state": "CL"
+    }
+  ]
+}
+```
+
+### POST Response
 ```json
 {
   "success": true,

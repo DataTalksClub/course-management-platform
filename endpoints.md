@@ -154,11 +154,49 @@ curl -X POST \
 
 ---
 
-## Create Course Content
+## Course Content
 
-**Endpoint:** `POST /data/{course_slug}/create-content`
+**Endpoints:**
+- `GET /data/{course_slug}/content` - Get all homeworks and projects
+- `POST /data/{course_slug}/content` - Create homeworks and projects
 
-**Description:** Creates homeworks and projects for a course. All items are created with `state=CLOSED` (not visible to students until manually opened).
+**Description:** Get or create homeworks and projects for a course. All created items have `state=CLOSED` (not visible to students until manually opened).
+
+### GET Request
+
+Retrieves all homeworks and projects for a course.
+
+**Response:**
+```json
+{
+  "success": true,
+  "course": "course-slug",
+  "homeworks": [
+    {
+      "id": 123,
+      "slug": "hw-1",
+      "title": "Homework 1",
+      "due_date": "2025-03-15T23:59:59Z",
+      "state": "CL",
+      "questions_count": 5
+    }
+  ],
+  "projects": [
+    {
+      "id": 456,
+      "slug": "project-1",
+      "title": "Project 1",
+      "submission_due_date": "2025-03-20T23:59:59Z",
+      "peer_review_due_date": "2025-03-27T23:59:59Z",
+      "state": "CL"
+    }
+  ]
+}
+```
+
+### POST Request
+
+Creates homeworks and projects for a course.
 
 **Request Body:**
 ```json
@@ -221,18 +259,22 @@ curl -X POST \
 
 ### Question Types
 
-- `MC` - **Multiple Choice**: Single correct answer from options
-- `FF` - **Free Form**: Short text answer
-- `FL` - **Free Form Long**: Long text answer
-- `CB` - **Checkboxes**: Multiple correct answers
+| Code | Name | Description |
+|------|------|-------------|
+| `MC` | Multiple Choice | Single correct answer from a list of options |
+| `FF` | Free Form | Short text answer (1-2 sentences) |
+| `FL` | Free Form Long | Long text answer (essays, explanations) |
+| `CB` | Checkboxes | Multiple correct answers from a list of options |
 
 ### Answer Types
 
-- `ANY` - Any input accepted
-- `FLT` - Float number
-- `INT` - Integer
-- `EXS` - Exact string match
-- `CTS` - Contains string
+| Code | Name | Description |
+|------|------|-------------|
+| `ANY` | Any | Any input is accepted (no validation) |
+| `FLT` | Float | Decimal number validation (e.g., 3.14, -0.5) |
+| `INT` | Integer | Whole number validation (e.g., 1, 42, -7) |
+| `EXS` | Exact String | Answer must match exactly (case-sensitive) |
+| `CTS` | Contains String | Answer must contain the specified text |
 
 ### Response
 
@@ -269,29 +311,34 @@ curl -X POST \
 - `400 Bad Request`: Invalid JSON
 - `401 Unauthorized`: Missing or invalid authentication token
 - `404 Not Found`: Course not found
-- `405 Method Not Allowed`: Wrong HTTP method (only POST allowed)
+- `405 Method Not Allowed`: Wrong HTTP method (only GET and POST allowed)
 - `500 Internal Server Error`: Server error
 
-### Partial Success
+### Partial Success (POST only)
 
 If some items fail (e.g., duplicate slug), others are still created. Check the `errors` array for details.
 
 ### Example Usage
 
 ```bash
+# Get all course content
+curl -X GET \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  https://courses.datatalks.club/data/ml-zoomcamp/content
+
 # Create homeworks only
 curl -X POST \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"homeworks": [{"name": "Week 1", "due_date": "2025-03-15T23:59:59Z"}]}' \
-  https://courses.datatalks.club/courses/data/ml-zoomcamp/create-content
+  https://courses.datatalks.club/data/ml-zoomcamp/content
 
 # Create projects only
 curl -X POST \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"projects": [{"name": "Project 1", "submission_due_date": "2025-03-20T23:59:59Z", "peer_review_due_date": "2025-03-27T23:59:59Z"}]}' \
-  https://courses.datatalks.club/courses/data/ml-zoomcamp/create-content
+  https://courses.datatalks.club/data/ml-zoomcamp/content
 
 # Create both
 curl -X POST \
@@ -301,5 +348,139 @@ curl -X POST \
     "homeworks": [{"name": "Homework 1", "due_date": "2025-03-15T23:59:59Z"}],
     "projects": [{"name": "Project 1", "submission_due_date": "2025-03-20T23:59:59Z", "peer_review_due_date": "2025-03-27T23:59:59Z"}]
   }' \
-  https://courses.datatalks.club/courses/data/ml-zoomcamp/create-content
+  https://courses.datatalks.club/data/ml-zoomcamp/content
+```
+
+---
+
+## Homework Content
+
+**Endpoints:**
+- `GET /data/{course_slug}/homework/{homework_slug}/content` - Get homework details and questions
+- `POST /data/{course_slug}/homework/{homework_slug}/content` - Create questions for homework
+
+**Description:** Get homework details with all questions, or create new questions for a homework.
+
+### GET Request
+
+Retrieves homework details and all questions.
+
+**Response:**
+```json
+{
+  "success": true,
+  "course": "ml-zoomcamp",
+  "homework": {
+    "id": 123,
+    "slug": "hw-1",
+    "title": "Homework 1",
+    "description": "Introduction to ML",
+    "due_date": "2025-03-15T23:59:59Z",
+    "state": "CL",
+    "learning_in_public_cap": 7,
+    "homework_url_field": true,
+    "time_spent_lectures_field": true,
+    "time_spent_homework_field": true,
+    "faq_contribution_field": true
+  },
+  "questions": [
+    {
+      "id": 1,
+      "text": "What is 2+2?",
+      "question_type": "MC",
+      "answer_type": "INT",
+      "possible_answers": ["3", "4", "5"],
+      "correct_answer": "2",
+      "scores_for_correct_answer": 1
+    }
+  ]
+}
+```
+
+### POST Request
+
+Creates questions for a homework.
+
+**Request Body:**
+```json
+{
+  "questions": [
+    {
+      "text": "What is the capital of France?",
+      "question_type": "MC",
+      "answer_type": "EXS",
+      "possible_answers": ["London", "Paris", "Berlin"],
+      "correct_answer": "2",
+      "scores_for_correct_answer": 2
+    },
+    {
+      "text": "Explain your answer",
+      "question_type": "FL",
+      "answer_type": "ANY"
+    }
+  ]
+}
+```
+
+### Field Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `text` | string | No | Question text |
+| `question_type` | string | No | `MC`, `FF`, `FL`, or `CB` (defaults to `FF`) |
+| `answer_type` | string | No | `ANY`, `FLT`, `INT`, `EXS`, or `CTS` |
+| `possible_answers` | array | No | Array of answer options (for MC/CB) |
+| `correct_answer` | string | No | Correct answer (index for MC/CB, value for others) |
+| `scores_for_correct_answer` | int | No | Points for correct answer (default: 1) |
+
+### Response
+
+```json
+{
+  "success": true,
+  "course": "ml-zoomcamp",
+  "homework": "hw-1",
+  "created_questions": [
+    {
+      "id": 456,
+      "text": "What is the capital of France?",
+      "question_type": "MC"
+    }
+  ],
+  "errors": []
+}
+```
+
+### Error Responses
+
+- `400 Bad Request`: Invalid JSON
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: Course or homework not found
+- `405 Method Not Allowed`: Wrong HTTP method (only GET and POST allowed)
+
+### Example Usage
+
+```bash
+# Get homework content
+curl -X GET \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  https://courses.datatalks.club/data/ml-zoomcamp/homework/hw-1/content
+
+# Create questions
+curl -X POST \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questions": [
+      {
+        "text": "What is 2+2?",
+        "question_type": "MC",
+        "answer_type": "INT",
+        "possible_answers": ["3", "4", "5"],
+        "correct_answer": "2",
+        "scores_for_correct_answer": 1
+      }
+    ]
+  }' \
+  https://courses.datatalks.club/data/ml-zoomcamp/homework/hw-1/content
 ```

@@ -885,7 +885,7 @@ class CreateCourseContentAPITestCase(TestCase):
         )
 
         self.url = reverse(
-            "data_create_content",
+            "data_content",
             kwargs={"course_slug": self.course.slug},
         )
 
@@ -1410,7 +1410,7 @@ class CreateCourseContentAPITestCase(TestCase):
     def test_nonexistent_course(self):
         """Test with non-existent course"""
         url = reverse(
-            "data_create_content",
+            "data_content",
             kwargs={"course_slug": "nonexistent-course"},
         )
 
@@ -1470,15 +1470,112 @@ class CreateCourseContentAPITestCase(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_wrong_http_method(self):
-        """Test that only POST is allowed"""
+        """Test that only GET and POST are allowed"""
+        # GET should work
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 200)
 
+        # PUT should not work
         response = self.client.put(self.url)
         self.assertEqual(response.status_code, 405)
 
+        # DELETE should not work
         response = self.client.delete(self.url)
         self.assertEqual(response.status_code, 405)
+
+    def test_get_endpoint_returns_all_content(self):
+        """Test GET request returns all homeworks and projects"""
+        # Create some homeworks and projects first
+        Homework.objects.create(
+            course=self.course,
+            slug="existing-hw",
+            title="Existing Homework",
+            due_date=timezone.now() + timezone.timedelta(days=7),
+            state=HomeworkState.CLOSED.value,
+        )
+        Project.objects.create(
+            course=self.course,
+            slug="existing-proj",
+            title="Existing Project",
+            submission_due_date=timezone.now() + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now() + timezone.timedelta(days=14),
+            state="CL",
+        )
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["course"], self.course.slug)
+        self.assertIn("homeworks", result)
+        self.assertIn("projects", result)
+
+        # Should have the existing homework
+        self.assertEqual(len(result["homeworks"]), 1)
+        hw = result["homeworks"][0]
+        self.assertEqual(hw["slug"], "existing-hw")
+        self.assertEqual(hw["title"], "Existing Homework")
+        self.assertEqual(hw["state"], HomeworkState.CLOSED.value)
+        self.assertIn("id", hw)
+        self.assertIn("due_date", hw)
+        self.assertIn("questions_count", hw)
+
+        # Should have the existing project
+        self.assertEqual(len(result["projects"]), 1)
+        proj = result["projects"][0]
+        self.assertEqual(proj["slug"], "existing-proj")
+        self.assertEqual(proj["title"], "Existing Project")
+        self.assertEqual(proj["state"], "CL")
+        self.assertIn("id", proj)
+        self.assertIn("submission_due_date", proj)
+        self.assertIn("peer_review_due_date", proj)
+
+    def test_get_endpoint_empty_course(self):
+        """Test GET request for course with no content"""
+        # Ensure no homeworks or projects
+        Homework.objects.filter(course=self.course).delete()
+        Project.objects.filter(course=self.course).delete()
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(len(result["homeworks"]), 0)
+        self.assertEqual(len(result["projects"]), 0)
+
+    def test_get_then_post(self):
+        """Test GET after POST returns newly created content"""
+        # First, create content via POST
+        data = {
+            "homeworks": [
+                {"name": "New Homework", "slug": "new-hw", "due_date": "2025-03-15T23:59:59Z"}
+            ],
+            "projects": [
+                {
+                    "name": "New Project",
+                    "slug": "new-proj",
+                    "submission_due_date": "2025-03-20T23:59:59Z",
+                    "peer_review_due_date": "2025-03-27T23:59:59Z"
+                }
+            ]
+        }
+
+        post_response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(post_response.status_code, 200)
+
+        # Now GET to verify content was created
+        get_response = self.client.get(self.url)
+        self.assertEqual(get_response.status_code, 200)
+        result = get_response.json()
+
+        self.assertEqual(len(result["homeworks"]), 1)
+        self.assertEqual(len(result["projects"]), 1)
+        self.assertEqual(result["homeworks"][0]["slug"], "new-hw")
+        self.assertEqual(result["projects"][0]["slug"], "new-proj")
 
     def test_invalid_json(self):
         """Test with invalid JSON payload"""
@@ -1885,3 +1982,323 @@ class CreateCourseContentAPITestCase(TestCase):
 
         project = Project.objects.first()
         self.assertEqual(project.description, "")
+
+
+class HomeworkContentAPITestCase(TestCase):
+    """Tests for the homework_content_view endpoint"""
+
+    def setUp(self):
+        self.user = CustomUser.objects.create(
+            username="testuser",
+            email="testuser@example.com",
+            password="password",
+        )
+        self.token = Token.objects.create(user=self.user)
+
+        self.course = Course.objects.create(
+            title="Test Course", slug="test-course"
+        )
+
+        self.homework = Homework.objects.create(
+            course=self.course,
+            slug="test-homework",
+            title="Test Homework",
+            description="Test Description",
+            due_date="2025-03-15T23:59:59Z",
+            state="CL",
+        )
+
+        self.client = Client()
+        self.client.defaults["HTTP_AUTHORIZATION"] = (
+            f"Token {self.token.key}"
+        )
+
+        self.url = reverse(
+            "data_homework_content",
+            kwargs={"course_slug": self.course.slug, "homework_slug": self.homework.slug}
+        )
+
+    def test_get_homework_content_returns_homework_and_questions(self):
+        """Test GET returns homework details and questions"""
+        # Create some questions
+        Question.objects.create(
+            homework=self.homework,
+            text="What is 2+2?",
+            question_type="MC",
+            answer_type="INT",
+            possible_answers="3\n4\n5",
+            correct_answer="2",
+            scores_for_correct_answer=1,
+        )
+        Question.objects.create(
+            homework=self.homework,
+            text="Explain your answer",
+            question_type="FF",
+            answer_type="CTS",
+            correct_answer="4",
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["course"], "test-course")
+        self.assertEqual(result["homework"]["slug"], "test-homework")
+        self.assertEqual(result["homework"]["title"], "Test Homework")
+        self.assertEqual(result["homework"]["description"], "Test Description")
+        self.assertEqual(result["homework"]["state"], "CL")
+        self.assertEqual(result["homework"]["learning_in_public_cap"], 7)
+        self.assertTrue(result["homework"]["homework_url_field"])
+        self.assertTrue(result["homework"]["time_spent_lectures_field"])
+        self.assertTrue(result["homework"]["time_spent_homework_field"])
+        self.assertTrue(result["homework"]["faq_contribution_field"])
+
+        # Check questions
+        self.assertEqual(len(result["questions"]), 2)
+        self.assertEqual(result["questions"][0]["text"], "What is 2+2?")
+        self.assertEqual(result["questions"][0]["question_type"], "MC")
+        self.assertEqual(result["questions"][0]["possible_answers"], ["3", "4", "5"])
+        self.assertEqual(result["questions"][1]["text"], "Explain your answer")
+
+    def test_get_homework_content_empty_questions(self):
+        """Test GET returns empty questions list when no questions exist"""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertEqual(len(result["questions"]), 0)
+
+    def test_post_creates_questions(self):
+        """Test POST creates questions for homework"""
+        data = {
+            "questions": [
+                {
+                    "text": "What is the capital of France?",
+                    "question_type": "MC",
+                    "answer_type": "EXS",
+                    "possible_answers": ["London", "Paris", "Berlin"],
+                    "correct_answer": "2",
+                    "scores_for_correct_answer": 2,
+                },
+                {
+                    "text": "Describe Paris",
+                    "question_type": "FL",
+                    "answer_type": "ANY",
+                },
+            ]
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(len(result["created_questions"]), 2)
+        self.assertEqual(result["created_questions"][0]["text"], "What is the capital of France?")
+        self.assertEqual(len(result["errors"]), 0)
+
+        # Verify questions were created in DB
+        self.assertEqual(Question.objects.count(), 2)
+
+    def test_post_empty_questions_list(self):
+        """Test POST with empty questions list"""
+        data = {"questions": []}
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertEqual(len(result["created_questions"]), 0)
+
+    def test_post_no_questions_key(self):
+        """Test POST without questions key (defaults to empty list)"""
+        data = {}
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertEqual(len(result["created_questions"]), 0)
+
+    def test_post_all_question_types(self):
+        """Test POST with all question types"""
+        data = {
+            "questions": [
+                {
+                    "text": "Multiple Choice",
+                    "question_type": "MC",
+                    "answer_type": "INT",
+                    "possible_answers": ["1", "2", "3"],
+                    "correct_answer": "1",
+                },
+                {
+                    "text": "Free Form",
+                    "question_type": "FF",
+                    "answer_type": "CTS",
+                    "correct_answer": "answer",
+                },
+                {
+                    "text": "Free Form Long",
+                    "question_type": "FL",
+                    "answer_type": "ANY",
+                },
+                {
+                    "text": "Checkboxes",
+                    "question_type": "CB",
+                    "answer_type": "INT",
+                    "possible_answers": ["A", "B", "C"],
+                    "correct_answer": "1,2",
+                },
+            ]
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        self.assertEqual(len(result["created_questions"]), 4)
+
+        # Verify in DB
+        mc_question = Question.objects.get(text="Multiple Choice")
+        self.assertEqual(mc_question.question_type, "MC")
+
+        ff_question = Question.objects.get(text="Free Form")
+        self.assertEqual(ff_question.question_type, "FF")
+
+        fl_question = Question.objects.get(text="Free Form Long")
+        self.assertEqual(fl_question.question_type, "FL")
+
+        cb_question = Question.objects.get(text="Checkboxes")
+        self.assertEqual(cb_question.question_type, "CB")
+
+    def test_post_all_answer_types(self):
+        """Test POST with all answer types"""
+        data = {
+            "questions": [
+                {"text": "ANY", "question_type": "FF", "answer_type": "ANY"},
+                {"text": "FLT", "question_type": "FF", "answer_type": "FLT"},
+                {"text": "INT", "question_type": "FF", "answer_type": "INT"},
+                {"text": "EXS", "question_type": "FF", "answer_type": "EXS"},
+                {"text": "CTS", "question_type": "FF", "answer_type": "CTS"},
+            ]
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["created_questions"]), 5)
+
+    def test_post_default_values(self):
+        """Test POST uses default values for optional fields"""
+        data = {
+            "questions": [
+                {
+                    "text": "Minimal question",
+                }
+            ]
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        question = Question.objects.first()
+        self.assertEqual(question.text, "Minimal question")
+        self.assertEqual(question.question_type, "FF")  # default
+        self.assertIsNone(question.answer_type)
+        self.assertEqual(question.possible_answers, "")
+        self.assertEqual(question.correct_answer, "")
+        self.assertEqual(question.scores_for_correct_answer, 1)  # default
+
+    def test_nonexistent_course(self):
+        """Test with non-existent course"""
+        url = reverse(
+            "data_homework_content",
+            kwargs={"course_slug": "nonexistent", "homework_slug": "hw"}
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 404)
+        result = response.json()
+        self.assertEqual(result["error"], "Course or homework not found")
+
+    def test_nonexistent_homework(self):
+        """Test with non-existent homework"""
+        url = reverse(
+            "data_homework_content",
+            kwargs={"course_slug": self.course.slug, "homework_slug": "nonexistent"}
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 404)
+        result = response.json()
+        self.assertEqual(result["error"], "Course or homework not found")
+
+    def test_wrong_http_method(self):
+        """Test with wrong HTTP method"""
+        response = self.client.put(self.url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_invalid_json(self):
+        """Test POST with invalid JSON"""
+        response = self.client.post(
+            self.url, "invalid json", content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        result = response.json()
+        self.assertEqual(result["error"], "Invalid JSON")
+
+    def test_no_authentication(self):
+        """Test without authentication token"""
+        unauth_client = Client()
+        response = unauth_client.get(self.url)
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_post_partial_success(self):
+        """Test POST continues even if some questions fail"""
+        # This will create questions, some might have validation issues
+        # but we're testing the error handling pattern
+        data = {
+            "questions": [
+                {
+                    "text": "Valid question",
+                    "question_type": "FF",
+                },
+                {
+                    "text": "Another valid question",
+                    "question_type": "FL",
+                },
+            ]
+        }
+
+        response = self.client.post(
+            self.url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        # Both should succeed since they're valid
+        self.assertEqual(len(result["created_questions"]), 2)
+        self.assertEqual(len(result["errors"]), 0)

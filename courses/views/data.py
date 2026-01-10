@@ -298,11 +298,14 @@ def course_criteria_yaml_view(request, course_slug: str):
 
 @token_required
 @csrf_exempt
-def create_course_content_view(request, course_slug: str):
+def course_content_view(request, course_slug: str):
     """
-    Create homeworks and projects for a course as closed.
+    Get or create homeworks and projects for a course.
 
-    Expected JSON payload:
+    GET: Returns all homeworks and projects for the course.
+    POST: Creates homeworks and projects with state=CLOSED.
+
+    POST Expected JSON payload:
     {
         "homeworks": [
             {
@@ -335,13 +338,48 @@ def create_course_content_view(request, course_slug: str):
 
     All homeworks and projects will be created with state="CL" (CLOSED).
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
     try:
         course = get_object_or_404(Course, slug=course_slug)
-        data = json.loads(request.body)
 
+        # GET: Return all homeworks and projects
+        if request.method == "GET":
+            homeworks = Homework.objects.filter(course=course)
+            projects = Project.objects.filter(course=course)
+
+            homeworks_data = []
+            for hw in homeworks:
+                homeworks_data.append({
+                    "id": hw.id,
+                    "slug": hw.slug,
+                    "title": hw.title,
+                    "due_date": hw.due_date.isoformat(),
+                    "state": hw.state,
+                    "questions_count": hw.question_set.count(),
+                })
+
+            projects_data = []
+            for proj in projects:
+                projects_data.append({
+                    "id": proj.id,
+                    "slug": proj.slug,
+                    "title": proj.title,
+                    "submission_due_date": proj.submission_due_date.isoformat(),
+                    "peer_review_due_date": proj.peer_review_due_date.isoformat(),
+                    "state": proj.state,
+                })
+
+            return JsonResponse({
+                "success": True,
+                "course": course_slug,
+                "homeworks": homeworks_data,
+                "projects": projects_data,
+            })
+
+        # POST: Create new homeworks and projects
+        if request.method != "POST":
+            return JsonResponse({"error": "Method not allowed"}, status=405)
+
+        data = json.loads(request.body)
         created_homeworks = []
         created_projects = []
         errors = []
@@ -495,5 +533,118 @@ def create_course_content_view(request, course_slug: str):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Http404:
         return JsonResponse({"error": "Course not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Backwards compatible alias
+create_course_content_view = course_content_view
+
+
+@token_required
+@csrf_exempt
+def homework_content_view(request, course_slug: str, homework_slug: str):
+    """
+    Get or create questions for a homework.
+
+    GET: Returns homework details and all questions.
+    POST: Creates questions for the homework.
+
+    POST Expected JSON payload:
+    {
+        "questions": [
+            {
+                "text": "What is 2+2?",
+                "question_type": "MC",
+                "answer_type": "INT",
+                "possible_answers": ["3", "4", "5"],
+                "correct_answer": "2",
+                "scores_for_correct_answer": 1
+            }
+        ]
+    }
+    """
+    try:
+        course = get_object_or_404(Course, slug=course_slug)
+        homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+
+        # GET: Return homework details and questions
+        if request.method == "GET":
+            questions = Question.objects.filter(homework=homework).order_by('id')
+
+            questions_data = []
+            for q in questions:
+                questions_data.append({
+                    "id": q.id,
+                    "text": q.text,
+                    "question_type": q.question_type,
+                    "answer_type": q.answer_type,
+                    "possible_answers": q.get_possible_answers(),
+                    "correct_answer": q.correct_answer,
+                    "scores_for_correct_answer": q.scores_for_correct_answer,
+                })
+
+            return JsonResponse({
+                "success": True,
+                "course": course_slug,
+                "homework": {
+                    "id": homework.id,
+                    "slug": homework.slug,
+                    "title": homework.title,
+                    "description": homework.description,
+                    "due_date": homework.due_date.isoformat(),
+                    "state": homework.state,
+                    "learning_in_public_cap": homework.learning_in_public_cap,
+                    "homework_url_field": homework.homework_url_field,
+                    "time_spent_lectures_field": homework.time_spent_lectures_field,
+                    "time_spent_homework_field": homework.time_spent_homework_field,
+                    "faq_contribution_field": homework.faq_contribution_field,
+                },
+                "questions": questions_data,
+            })
+
+        # POST: Create new questions
+        if request.method != "POST":
+            return JsonResponse({"error": "Method not allowed"}, status=405)
+
+        data = json.loads(request.body)
+        questions_data = data.get("questions", [])
+        created_questions = []
+        errors = []
+
+        for q_data in questions_data:
+            try:
+                question = Question.objects.create(
+                    homework=homework,
+                    text=q_data.get("text", ""),
+                    question_type=q_data.get("question_type", "FF"),
+                    answer_type=q_data.get("answer_type"),
+                    possible_answers="\n".join(q_data.get("possible_answers", [])),
+                    correct_answer=q_data.get("correct_answer", ""),
+                    scores_for_correct_answer=q_data.get("scores_for_correct_answer", 1),
+                )
+                created_questions.append({
+                    "id": question.id,
+                    "text": question.text,
+                    "question_type": question.question_type,
+                })
+            except Exception as e:
+                errors.append({
+                    "question": q_data.get("text", "unknown"),
+                    "error": str(e)
+                })
+
+        return JsonResponse({
+            "success": True,
+            "course": course_slug,
+            "homework": homework_slug,
+            "created_questions": created_questions,
+            "errors": errors,
+        })
+
+    except Http404:
+        return JsonResponse({"error": "Course or homework not found"}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
