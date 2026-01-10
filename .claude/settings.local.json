@@ -4,7 +4,8 @@
       "Bash(uv run pytest:*)",
       "Bash(echo:*)",
       "Bash(curl:*)",
-      "Bash(git add:*)"
+      "Bash(git:*)",
+      "Bash(uv run python manage.py:*)"
     ]
   }
 }

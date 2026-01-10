@@ -3,7 +3,6 @@ from django.urls import path
 from .views import course
 from .views import homework
 from .views import project
-from .views import data
 from .views import wrapped
 
 
@@ -104,42 +103,5 @@ urlpatterns = [
         "<slug:course_slug>/homework/<slug:homework_slug>/submissions",
         homework.homework_submissions,
         name="homework_submissions",
-    ),
-
-    # API
-    path(
-        "data/<slug:course_slug>/homework/<slug:homework_slug>",
-        data.homework_data_view,
-        name="data_homework",
-    ),
-    path(
-        "data/<slug:course_slug>/project/<slug:project_slug>",
-        data.project_data_view,
-        name="data_project",
-    ),
-    path(
-        "data/<slug:course_slug>/graduates",
-        data.graduates_data_view,
-        name="data_graduates",
-    ),
-    path(
-        "data/<slug:course_slug>/update-certificate",
-        data.update_enrollment_certificate_view,
-        name="data_update_certificate",
-    ),
-    path(
-        "data/<slug:course_slug>/content",
-        data.course_content_view,
-        name="data_content",
-    ),
-    path(
-        "data/<slug:course_slug>/homework/<slug:homework_slug>/content",
-        data.homework_content_view,
-        name="data_homework_content",
-    ),
-    path(
-        "<slug:course_slug>/course-criteria.yaml",
-        data.course_criteria_yaml_view,
-        name="course_criteria_yaml",
     ),
 ]

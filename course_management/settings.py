@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "loginas",
     "accounts.apps.AccountsConfig",
     "courses.apps.CoursesConfig",
+    "data.apps.DataConfig",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",

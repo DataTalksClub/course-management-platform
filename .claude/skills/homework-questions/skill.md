@@ -13,7 +13,16 @@ This skill provides commands to get and create questions for homeworks via the A
 
 - **Production instance**: `https://courses.datatalks.club`
 - **Dev instance**: `https://dev.courses.datatalks.club`
-- **Auth token**: Available as `AUTH_TOKEN` environment variable
+- **Auth token**: Available as `AUTH_TOKEN` environment variable, works for both dev and prod
+
+## Workflow
+
+0. **Find homework slugs**: If you don't know the homework slug, first use the `course-content` skill to list all homeworks and get their slugs
+1. **Read the homework file**: typically it's named homework.md
+2. **Read solutions file**: Analyze the content of the homework folder. There could be the solutions.md file (or similar) with the ansers
+3. **Create questions**: POST questions with correct answers to the homework
+4. **Open homework**: Always include `"state": "OP"` when creating questions to open the homework
+5. **Provide summary**: List all questions with their answers and include the homework link
 
 ## API Endpoint
 
@@ -28,63 +37,34 @@ Full URLs:
 
 ## Authentication
 
-```bash
-# Get auth token from env
-TOKEN=${AUTH_TOKEN}
+`AUTH_TOKEN` environment varialbe
 
-# Or set it manually
-TOKEN="your-token-here"
-```
+## Step 1: Find Homework Slugs
 
-## Getting Homework Content (GET)
-
-Returns homework details and all questions.
+Use the course-content endpoint to list all homeworks:
 
 ```bash
-curl -X GET "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+curl -X GET "https://dev.courses.datatalks.club/data/<course_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}"
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "course": "ml-zoomcamp",
-  "homework": {
-    "id": 123,
-    "slug": "hw-1",
-    "title": "Homework 1",
-    "description": "Introduction to ML",
-    "due_date": "2025-03-15T23:59:59Z",
-    "state": "CL",
-    "learning_in_public_cap": 7,
-    "homework_url_field": true,
-    "time_spent_lectures_field": true,
-    "time_spent_homework_field": true,
-    "faq_contribution_field": true
-  },
-  "questions": [
-    {
-      "id": 1,
-      "text": "What is 2+2?",
-      "question_type": "MC",
-      "answer_type": "INT",
-      "possible_answers": ["3", "4", "5"],
-      "correct_answer": "2",
-      "scores_for_correct_answer": 1
-    }
-  ]
-}
-```
+This returns all homeworks with their slugs, titles, and due dates. Find the target homework's `slug`.
 
-## Creating Questions (POST)
+## Step 2: Read Solutions File
 
-Create questions for an existing homework.
-
-### Basic Question
+Read the solutions from the cohort directory to get correct answers:
 
 ```bash
-curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+# Example path
+~/git/data-engineering-zoomcamp/cohorts/2026/01-docker-terraform/solution.md
+```
+
+## Step 3: Create Questions
+
+### Basic Question (Single Answer - MC)
+
+```bash
+curl -X POST "https://dev.courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -96,112 +76,49 @@ curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homewo
         "possible_answers": ["Structured Query Language", "Simple Query Language", "Standard Query Language"],
         "correct_answer": "1",
         "scores_for_correct_answer": 1
-      }
-    ]
-  }'
-```
-
-### Multiple Questions
-
-```bash
-curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
-  -H "Authorization: Token ${AUTH_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "questions": [
-      {
-        "text": "What does SQL stand for?",
-        "question_type": "MC",
-        "answer_type": "EXS",
-        "possible_answers": ["Structured Query Language", "Simple Query Language", "Standard Query Language"],
-        "correct_answer": "1",
-        "scores_for_correct_answer": 1
-      },
-      {
-        "text": "Write a SELECT statement to get all users from the 'users' table",
-        "question_type": "FF",
-        "answer_type": "CTS",
-        "correct_answer": "SELECT",
-        "scores_for_correct_answer": 2
-      },
-      {
-        "text": "Explain your approach to solving this problem",
-        "question_type": "FL",
-        "answer_type": "ANY"
-      }
-    ]
-  }'
-```
-
-### Checkbox Question
-
-```bash
-curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
-  -H "Authorization: Token ${AUTH_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "questions": [
-      {
-        "text": "Which of the following are SQL databases? (select all that apply)",
-        "question_type": "CB",
-        "answer_type": "INT",
-        "possible_answers": ["PostgreSQL", "MongoDB", "MySQL", "Redis"],
-        "correct_answer": "1,3",
-        "scores_for_correct_answer": 2
-      }
-    ]
-  }'
-```
-
-### Update Homework State
-
-You can also update the homework state when creating questions:
-
-```bash
-curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
-  -H "Authorization: Token ${AUTH_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "questions": [
-      {
-        "text": "What is 2+2?",
-        "question_type": "MC",
-        "answer_type": "INT",
-        "possible_answers": ["3", "4", "5"],
-        "correct_answer": "2"
       }
     ],
     "state": "OP"
   }'
 ```
 
-**States:**
-- `CL` - Closed (not visible to students)
-- `OP` - Open (students can submit)
-- `SC` - Scored (grading completed)
+### Question with Multiple Correct Answers (CB)
 
-You can also update state without adding questions:
+When a question has **multiple correct answers**, provide comma-separated indices in `correct_answer`:
 
 ```bash
-curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+curl -X POST "https://dev.courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
   -H "Authorization: Token ${AUTH_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"state": "OP"}'
+  -d '{
+    "questions": [
+      {
+        "text": "Which hostnames can pgadmin use to connect to postgres? (select all that apply)",
+        "question_type": "MC",
+        "answer_type": "EXS",
+        "possible_answers": ["postgres:5433", "localhost:5432", "db:5433", "postgres:5432", "db:5432"],
+        "correct_answer": "4,5",
+        "scores_for_correct_answer": 2
+      }
+    ],
+    "state": "OP"
+  }'
 ```
 
-**Response includes state change:**
-```json
-{
-  "success": true,
-  "course": "ml-zoomcamp",
-  "homework": "hw-1",
-  "created_questions": [],
-  "errors": [],
-  "homework_state": {
-    "old": "CL",
-    "new": "OP"
-  }
-}
+### State Update
+
+Always include `"state": "OP"` to open the homework when creating questions:
+
+```bash
+curl -X POST "https://dev.courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+  -H "Authorization: Token ${AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questions": [
+      ...
+    ],
+    "state": "OP"
+  }'
 ```
 
 ## Field Reference
@@ -209,68 +126,55 @@ curl -X POST "https://courses.datatalks.club/data/<course_slug>/homework/<homewo
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `text` | string | No | Question text |
-| `question_type` | string | No | `MC`, `FF`, `FL`, or `CB` (defaults to `FF`) |
+| `question_type` | string | No | `MC` (single), `FF`, `FL`, or `CB` (multiple) |
 | `answer_type` | string | No | `ANY`, `FLT`, `INT`, `EXS`, or `CTS` |
 | `possible_answers` | array | No | Array of answer options (for MC/CB questions) |
-| `correct_answer` | string | No | Correct answer (1-based index for MC/CB, value for others) |
+| `correct_answer` | string | No | For MC/CB: 1-based indices (`"1"` or `"1,3"`) |
 | `scores_for_correct_answer` | int | No | Points for correct answer (default: 1) |
-| `state` | string | No | Homework state: `CL`, `OP`, or `SC` |
+| `state` | string | No | Include `"OP"` to open homework when creating |
 
 ## Question Types
 
-| Code | Name | Description |
-|------|------|-------------|
-| `MC` | Multiple Choice | Single correct answer from a list of options |
-| `FF` | Free Form | Short text answer (1-2 sentences) |
-| `FL` | Free Form Long | Long text answer (essays, explanations) |
-| `CB` | Checkboxes | Multiple correct answers from a list of options |
+| Code | Name | Correct Answer Format |
+|------|------|----------------------|
+| `MC` | Multiple Choice | Single index: `"1"` |
+| `FF` | Free Form | Text value: `"answer"` |
+| `FL` | Free Form Long | Text value: `"answer"` |
+| `CB` | Checkboxes | Comma-separated indices: `"1,3,4"` |
 
 ## Answer Types
 
 | Code | Name | Description |
 |------|------|-------------|
-| `ANY` | Any | Any input is accepted (no validation) |
-| `FLT` | Float | Decimal number validation (e.g., 3.14, -0.5) |
-| `INT` | Integer | Whole number validation (e.g., 1, 42, -7) |
-| `EXS` | Exact String | Answer must match exactly (case-sensitive) |
-| `CTS` | Contains String | Answer must contain the specified text |
+| `ANY` | Any | No validation |
+| `FLT` | Float | Decimal number |
+| `INT` | Integer | Whole number |
+| `EXS` | Exact String | Exact match |
+| `CTS` | Contains String | Contains text |
 
-## Response Format
+## Step 4: Verify and Provide Summary
 
-### POST Response
+After creating questions, verify and provide a summary:
 
-```json
-{
-  "success": true,
-  "course": "ml-zoomcamp",
-  "homework": "hw-1",
-  "created_questions": [
-    {
-      "id": 456,
-      "text": "What does SQL stand for?",
-      "question_type": "MC"
-    }
-  ],
-  "errors": []
-}
+```bash
+# Verify questions were created
+curl -X GET "https://dev.courses.datatalks.club/data/<course_slug>/homework/<homework_slug>/content" \
+  -H "Authorization: Token ${AUTH_TOKEN}"
 ```
 
-## Error Handling
+## Step 5. Give the user the URL to check the homework
 
-Partial success is supported - if some questions fail, others are still created:
 
-```json
-{
-  "success": true,
-  "course": "ml-zoomcamp",
-  "homework": "hw-1",
-  "created_questions": [
-    {"id": 456, "text": "Valid question", ...}
-  ],
-  "errors": [
-    {"question": "Invalid question", "error": "error details"}
-  ]
-}
+```
+Created N questions for "<Homework Title>"
+
+Homework link: https://dev.courses.datatalks.club/<course_slug>/<homework_slug>
+
+
+| # | Question | Correct Answer | Options |
+|---|----------|----------------|---------|
+| 1 | What is... | Option A | A, B, C, D |
+| 2 | Select all... | Option A, C | A, B, C, D |
 ```
 
 ## Common Errors
@@ -278,5 +182,5 @@ Partial success is supported - if some questions fail, others are still created:
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `Authentication token required` | Missing/invalid token | Check `AUTH_TOKEN` env var |
-| `Course or homework not found` | Invalid course or homework slug | Verify both exist |
-| `Invalid JSON` | Malformed JSON payload | Check JSON syntax |
+| `Course or homework not found` | Invalid slugs | Use course-content to find slugs first |
+| `Invalid JSON` | Malformed JSON | Check JSON syntax |
