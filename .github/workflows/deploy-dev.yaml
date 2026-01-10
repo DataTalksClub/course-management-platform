@@ -9,7 +9,9 @@ on:
       - 'terraform/**'
       - 'db/**'
       - 'notebooks/**'
+      - '.claude/**'
       - '.prod-versions'
+      - '*.md'
 
 jobs:
   test:
