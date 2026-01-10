@@ -531,6 +531,7 @@ class DashboardIntegrationTestCase(TestCase):
             slug="test-course",
             title="Test Course",
             project_passing_score=70,
+            first_homework_scored=True,  # Course has scored homeworks
         )
 
         # Create multiple homeworks and projects
