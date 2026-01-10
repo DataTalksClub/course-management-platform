@@ -1,5 +1,4 @@
-Read other instructions from AGENTS.md
-
+@AGENTS.md
 
 ## CRITICAL: File Editing on Windows
 
