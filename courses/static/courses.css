@@ -371,6 +371,30 @@ body.dark-mode .btn-secondary:hover {
   border-color: #5a6578;
 }
 
+body.dark-mode .btn-primary {
+  background-color: #2c5282;
+  border-color: #2c5282;
+  color: #eaeaea;
+}
+
+body.dark-mode .btn-primary:hover {
+  background-color: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #eaeaea;
+}
+
+body.dark-mode .btn-info {
+  background-color: #285e61;
+  border-color: #285e61;
+  color: #eaeaea;
+}
+
+body.dark-mode .btn-info:hover {
+  background-color: #2c7a7b;
+  border-color: #2c7a7b;
+  color: #eaeaea;
+}
+
 body.dark-mode .card {
   background-color: #16213e;
   border-color: #0f3460;
@@ -414,11 +438,14 @@ body.dark-mode .badge.bg-warning {
 }
 
 /* Row striping in dark mode */
-body.dark-mode .row.bg-light,
 body.dark-mode .row.bg-white,
-body.dark-mode div.bg-white,
+body.dark-mode div.bg-white {
+  background-color: #1e2a45 !important;
+}
+
+body.dark-mode .row.bg-light,
 body.dark-mode div.bg-light {
-  background-color: transparent !important;
+  background-color: #1a2840 !important;
 }
 
 body.dark-mode .p-2.bg-white {
