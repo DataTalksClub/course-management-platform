@@ -39,8 +39,6 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"] + extra_allowed_hosts_parsed
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
 print(f"IS_LOCAL={IS_LOCAL}")
 
-VERSION = os.getenv("VERSION", "N/A")
-
 CSRF_TRUSTED_ORIGINS = []
 
 for host in ALLOWED_HOSTS:
