@@ -5,7 +5,9 @@
       "Bash(echo:*)",
       "Bash(curl:*)",
       "Bash(git:*)",
-      "Bash(uv run python manage.py:*)"
+      "Bash(uv run python manage.py:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ]
   }
 }
