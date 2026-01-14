@@ -131,8 +131,12 @@ def update_project_with_additional_info(project: Project) -> None:
         project.badge_css_class = "bg-info"
 
     elif project.state == ProjectState.PEER_REVIEWING.value:
-        project.badge_state_name = "Review"
-        project.badge_css_class = "bg-danger"
+        if submission.reviewed_enough_peers:
+            project.badge_state_name = "Review completed"
+            project.badge_css_class = "bg-success"
+        else:
+            project.badge_state_name = "Review"
+            project.badge_css_class = "bg-danger"
 
     elif project.state == ProjectState.COMPLETED.value:
         project.score = submission.total_score
