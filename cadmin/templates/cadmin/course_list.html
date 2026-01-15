@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+{% endblock %}
+
+{% block content %}
+<h2>Course Administration</h2>
+
+<div class="alert alert-info" role="alert">
+  This is the admin panel for managing courses. Only staff members can access this area.
+</div>
+
+<div class="table-responsive">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Course</th>
+        <th>Visible</th>
+        <th>Finished</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+      <tr>
+        <td>
+          <a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a>
+        </td>
+        <td>
+          {% if course.visible %}
+            <span class="badge badge-success">Yes</span>
+          {% else %}
+            <span class="badge badge-secondary">No</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if course.finished %}
+            <span class="badge badge-info">Yes</span>
+          {% else %}
+            <span class="badge badge-warning">No</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-sm btn-primary">
+            Manage
+          </a>
+          <a href="{% url 'course' course.slug %}" class="btn btn-sm btn-secondary">
+            View
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="text-center">No courses found</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
