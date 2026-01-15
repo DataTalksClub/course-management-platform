@@ -1594,7 +1594,7 @@ class HomeworkSubmissionsViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "cadmin/homework_submissions.html")
@@ -1639,7 +1639,7 @@ class HomeworkSubmissionsViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         submissions_data = response.context["submissions_data"]
@@ -1721,7 +1721,7 @@ class HomeworkSubmissionsViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         
@@ -1784,7 +1784,7 @@ class HomeworkSubmissionsViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
@@ -1795,7 +1795,7 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.assertNotIn('class="btn btn-sm btn-outline-primary mt-1 toggle-answer"', content)
 
     def test_submissions_view_long_answers_have_toggle(self):
-        """Test that long answers (>= 1000 chars) have a toggle button"""
+        """Test that long answers are displayed with truncation and tooltip in cadmin view"""
         # Create a question with a long answer
         q1 = Question.objects.create(
             homework=self.homework,
@@ -1820,15 +1820,12 @@ class HomeworkSubmissionsViewTests(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
         
-        # Check that there's a toggle button for long answers in the table
-        self.assertIn('class="btn btn-sm btn-outline-primary mt-1 toggle-answer"', content)
-        # Check that the truncated version is present (using Django's truncatechars which uses "…")
-        self.assertIn("…", content)
-        # Check that both short and full divs are present
-        self.assertIn('id="answer-short-', content)
-        self.assertIn('id="answer-full-', content)
+        # Check that the cadmin view shows truncated long answers with full text in title attribute
+        self.assertIn('title="' + long_answer, content)
+        # Check that the truncated version is present with ellipsis
+        self.assertIn("...", content)

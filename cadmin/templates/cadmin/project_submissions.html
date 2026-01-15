@@ -21,6 +21,15 @@
 </div>
 
 {% if submissions %}
+<div class="mb-3">
+  <button id="copyEmailsBtn" class="btn btn-primary btn-sm" onclick="copyEmails()">
+    <i class="fas fa-copy"></i> Copy All Emails
+  </button>
+  <span id="copyFeedback" class="ml-2 text-success" style="display: none;">
+    <i class="fas fa-check"></i> Copied!
+  </span>
+</div>
+
 <div class="table-responsive">
   <table class="table table-striped">
     <thead>
@@ -90,4 +99,31 @@
 {% else %}
 <p>No submissions yet.</p>
 {% endif %}
+
+<script>
+function copyEmails() {
+  const emails = [
+    {% for submission in submissions %}
+    "{{ submission.student.email }}"{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  const emailText = emails.join(', ');
+  
+  // Create a temporary textarea to copy the emails
+  const textarea = document.createElement('textarea');
+  textarea.value = emailText;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  
+  // Show feedback
+  const feedback = document.getElementById('copyFeedback');
+  feedback.style.display = 'inline';
+  setTimeout(() => {
+    feedback.style.display = 'none';
+  }, 2000);
+}
+</script>
 {% endblock %}

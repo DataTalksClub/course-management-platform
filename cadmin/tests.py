@@ -97,6 +97,7 @@ class CadminViewTests(TestCase):
 
     def test_homework_submissions_redirect_from_courses(self):
         """Test that homework submissions view redirects to cadmin"""
+        self.client.login(username="admin@test.com", password="admin123")
         url = reverse(
             "homework_submissions",
             kwargs={
@@ -110,6 +111,7 @@ class CadminViewTests(TestCase):
 
     def test_project_submissions_redirect_from_courses(self):
         """Test that project submissions view redirects to cadmin"""
+        self.client.login(username="admin@test.com", password="admin123")
         url = reverse(
             "project_submissions",
             kwargs={
