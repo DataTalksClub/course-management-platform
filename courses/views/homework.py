@@ -424,7 +424,20 @@ def homework_statistics(request, course_slug, homework_slug):
 
 
 def homework_submissions(request, course_slug, homework_slug):
-    # Redirect to cadmin view
+    # Check if user is staff - if not, redirect to homework view with error
+    if not request.user.is_authenticated or not request.user.is_staff:
+        messages.error(
+            request,
+            "You do not have permission to view this page.",
+            extra_tags="homework",
+        )
+        return redirect(
+            "homework",
+            course_slug=course_slug,
+            homework_slug=homework_slug,
+        )
+    
+    # Staff users: redirect to cadmin view
     return redirect(
         "cadmin_homework_submissions",
         course_slug=course_slug,

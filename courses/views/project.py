@@ -600,7 +600,20 @@ def project_statistics(request, course_slug, project_slug):
 
 
 def project_submissions(request, course_slug, project_slug):
-    # Redirect to cadmin view
+    # Check if user is staff - if not, redirect to project view with error
+    if not request.user.is_authenticated or not request.user.is_staff:
+        messages.error(
+            request,
+            "You do not have permission to view this page.",
+            extra_tags="project",
+        )
+        return redirect(
+            "project",
+            course_slug=course_slug,
+            project_slug=project_slug,
+        )
+    
+    # Staff users: redirect to cadmin view
     return redirect(
         "cadmin_project_submissions",
         course_slug=course_slug,
