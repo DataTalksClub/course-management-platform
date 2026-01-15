@@ -25,6 +25,8 @@ from courses.models import (
     ProjectSubmission,
     ProjectState,
     User,
+    PeerReview,
+    PeerReviewState,
 )
 
 from .forms import EnrollmentForm
@@ -131,8 +133,24 @@ def update_project_with_additional_info(project: Project) -> None:
         project.badge_css_class = "bg-info"
 
     elif project.state == ProjectState.PEER_REVIEWING.value:
-        project.badge_state_name = "Review"
-        project.badge_css_class = "bg-danger"
+        # Calculate if reviews are completed by counting submitted reviews
+        # This provides real-time feedback during the peer review phase
+        completed_reviews_count = PeerReview.objects.filter(
+            reviewer=submission,
+            optional=False,
+            state=PeerReviewState.SUBMITTED.value
+        ).count()
+        
+        reviews_completed = (
+            completed_reviews_count >= project.number_of_peers_to_evaluate
+        )
+        
+        if reviews_completed:
+            project.badge_state_name = "Review completed"
+            project.badge_css_class = "bg-success"
+        else:
+            project.badge_state_name = "Review"
+            project.badge_css_class = "bg-danger"
 
     elif project.state == ProjectState.COMPLETED.value:
         project.score = submission.total_score
