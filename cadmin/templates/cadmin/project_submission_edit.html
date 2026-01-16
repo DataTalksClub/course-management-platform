@@ -125,8 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
   function calculateTotal() {
     let total = 0;
     scoreFields.forEach(function(fieldId) {
-      const value = parseInt(document.getElementById(fieldId).value) || 0;
-      total += value;
+      const field = document.getElementById(fieldId);
+      if (field) {
+        const value = parseInt(field.value, 10) || 0;
+        total += value;
+      }
     });
     document.getElementById('total_score').value = total;
   }
@@ -134,8 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add event listeners to all score fields
   scoreFields.forEach(function(fieldId) {
     const field = document.getElementById(fieldId);
-    field.addEventListener('input', calculateTotal);
-    field.addEventListener('change', calculateTotal);
+    if (field) {
+      field.addEventListener('input', calculateTotal);
+      field.addEventListener('change', calculateTotal);
+    }
   });
 });
 </script>
