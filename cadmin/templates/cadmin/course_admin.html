@@ -16,6 +16,13 @@
   <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">Leaderboard</a>
 </div>
 
+<div class="mb-3">
+  <strong>Django Admin:</strong>
+  <a href="/admin/courses/course/{{ course.id }}/change/">
+    <i class="fas fa-edit"></i> Edit Course
+  </a>
+</div>
+
 <div class="alert alert-info" role="alert">
   <strong>Total Enrollments:</strong> {{ total_enrollments }}
 </div>
@@ -43,6 +50,9 @@
           <tr>
             <td>
               <a href="{% url 'homework' course.slug hw.slug %}">{{ hw.title }}</a>
+              | <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin">
+                <i class="fas fa-edit"></i>
+              </a>
             </td>
             <td>{{ hw.due_date|date:"Y-m-d H:i" }}</td>
             <td>
@@ -118,6 +128,9 @@
           <tr>
             <td>
               <a href="{% url 'project' course.slug proj.slug %}">{{ proj.title }}</a>
+              | <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin">
+                <i class="fas fa-edit"></i>
+              </a>
             </td>
             <td>{{ proj.submission_due_date|date:"Y-m-d H:i" }}</td>
             <td>{{ proj.peer_review_due_date|date:"Y-m-d H:i" }}</td>

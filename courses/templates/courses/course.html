@@ -24,7 +24,9 @@
       <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
     {% endif %}
     {% if user.is_staff %}
-      <a class="btn btn-warning" href="{% url 'cadmin_course' course.slug %}" role="button">Manage course</a>
+      <a href="{% url 'cadmin_course' course.slug %}">
+        <i class="fas fa-cog"></i> Manage course (Admin only)
+      </a>
     {% endif %}
   </p>  
 </div>

@@ -3,7 +3,7 @@ from unfold.admin import ModelAdmin
 
 from django.contrib import messages
 
-from courses.models import Project, ReviewCriteria, ProjectState
+from courses.models import Project, ReviewCriteria, ProjectState, ProjectSubmission
 
 from courses.projects import (
     assign_peer_reviews_for_project,
@@ -91,3 +91,52 @@ class ProjectAdmin(ModelAdmin):
 @admin.register(ReviewCriteria)
 class ReviewCriteriaAdmin(ModelAdmin):
     pass
+
+
+@admin.register(ProjectSubmission)
+class ProjectSubmissionAdmin(ModelAdmin):
+    """Admin interface for ProjectSubmission to allow editing results after evaluation"""
+    
+    list_display = [
+        "id",
+        "student",
+        "project",
+        "submitted_at",
+        "total_score",
+        "passed",
+    ]
+    
+    list_filter = ["project__course__slug", "project", "passed"]
+    
+    search_fields = [
+        "student__username",
+        "student__email",
+        "project__title",
+    ]
+    
+    # Fields that can be edited
+    fields = [
+        "project",
+        "student",
+        "enrollment",
+        "github_link",
+        "commit_id",
+        "learning_in_public_links",
+        "faq_contribution",
+        "time_spent",
+        "problems_comments",
+        "submitted_at",
+        "project_score",
+        "project_faq_score",
+        "project_learning_in_public_score",
+        "peer_review_score",
+        "peer_review_learning_in_public_score",
+        "total_score",
+        "reviewed_enough_peers",
+        "passed",
+    ]
+    
+    readonly_fields = ["submitted_at"]
+    
+    # Allow editing all score fields and pass/fail status
+    # This enables manual corrections after the evaluation phase
