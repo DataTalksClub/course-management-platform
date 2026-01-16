@@ -40,4 +40,5 @@ python_files = ["test_*.py"]
 testpaths = [
     "courses/tests",
     "data/tests",
+    "cadmin/tests",
 ]
