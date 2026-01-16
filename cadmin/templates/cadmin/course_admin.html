@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+{% endblock %}
+
+{% block content %}
+<h2>{{ course.title }} - Admin Panel</h2>
+
+<div class="mb-3">
+  <a href="{% url 'course' course.slug %}" class="btn btn-secondary">View Course Page</a>
+  <a href="{% url 'dashboard' course.slug %}" class="btn btn-info">Course Dashboard</a>
+  <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">Leaderboard</a>
+</div>
+
+<div class="alert alert-info" role="alert">
+  <strong>Total Enrollments:</strong> {{ total_enrollments }}
+</div>
+
+<!-- Homework Section -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3>Homework</h3>
+  </div>
+  <div class="card-body">
+    {% if homeworks %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Due Date</th>
+            <th>State</th>
+            <th>Submissions</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hw in homeworks %}
+          <tr>
+            <td>
+              <a href="{% url 'homework' course.slug hw.slug %}">{{ hw.title }}</a>
+            </td>
+            <td>{{ hw.due_date|date:"Y-m-d H:i" }}</td>
+            <td>
+              {% if hw.state == 'OP' %}
+                <span class="badge badge-success">Open</span>
+              {% elif hw.state == 'CL' %}
+                <span class="badge badge-secondary">Closed</span>
+              {% elif hw.state == 'SC' %}
+                <span class="badge badge-primary">Scored</span>
+              {% else %}
+                <span class="badge badge-warning">{{ hw.get_state_display }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}">
+                {{ hw.submissions_count }}
+              </a>
+            </td>
+            <td>
+              <div class="btn-group" role="group">
+                <a href="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" 
+                   class="btn btn-sm btn-warning"
+                   onclick="return confirm('Set correct answers to most popular for {{ hw.title }}?')">
+                  Set Correct
+                </a>
+                <a href="{% url 'cadmin_homework_score' course.slug hw.slug %}" 
+                   class="btn btn-sm btn-primary"
+                   onclick="return confirm('Score homework {{ hw.title }}?')">
+                  Score
+                </a>
+                <a href="{% url 'homework_statistics' course.slug hw.slug %}" 
+                   class="btn btn-sm btn-info">
+                  Stats
+                </a>
+                <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" 
+                   class="btn btn-sm btn-secondary">
+                  Submissions
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>No homework found for this course.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Project Section -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3>Projects</h3>
+  </div>
+  <div class="card-body">
+    {% if projects %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Submission Due</th>
+            <th>Review Due</th>
+            <th>State</th>
+            <th>Submissions</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proj in projects %}
+          <tr>
+            <td>
+              <a href="{% url 'project' course.slug proj.slug %}">{{ proj.title }}</a>
+            </td>
+            <td>{{ proj.submission_due_date|date:"Y-m-d H:i" }}</td>
+            <td>{{ proj.peer_review_due_date|date:"Y-m-d H:i" }}</td>
+            <td>
+              {% if proj.state == 'CL' %}
+                <span class="badge badge-secondary">Closed</span>
+              {% elif proj.state == 'CS' %}
+                <span class="badge badge-success">Collecting</span>
+              {% elif proj.state == 'PR' %}
+                <span class="badge badge-warning">Peer Review</span>
+              {% elif proj.state == 'CO' %}
+                <span class="badge badge-primary">Completed</span>
+              {% else %}
+                <span class="badge badge-info">{{ proj.get_state_display }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}">
+                {{ proj.submissions_count }}
+              </a>
+            </td>
+            <td>
+              <div class="btn-group" role="group">
+                <a href="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" 
+                   class="btn btn-sm btn-warning"
+                   onclick="return confirm('Assign peer reviews for {{ proj.title }}?')">
+                  Assign Reviews
+                </a>
+                <a href="{% url 'cadmin_project_score' course.slug proj.slug %}" 
+                   class="btn btn-sm btn-primary"
+                   onclick="return confirm('Score project {{ proj.title }}?')">
+                  Score
+                </a>
+                <a href="{% url 'project_statistics' course.slug proj.slug %}" 
+                   class="btn btn-sm btn-info">
+                  Stats
+                </a>
+                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" 
+                   class="btn btn-sm btn-secondary">
+                  Submissions
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>No projects found for this course.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

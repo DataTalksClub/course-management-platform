@@ -133,10 +133,10 @@ class ProjectSubmissionsViewTests(TestCase):
                 "project_slug": self.project.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/submissions.html")
+        self.assertTemplateUsed(response, "cadmin/project_submissions.html")
 
         context = response.context
         self.assertEqual(context["course"], self.course)
@@ -180,7 +180,7 @@ class ProjectSubmissionsViewTests(TestCase):
                 "project_slug": self.project.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         submissions = list(response.context["submissions"])
@@ -299,7 +299,7 @@ class ProjectSubmissionsViewTests(TestCase):
                 "project_slug": self.project.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         
@@ -323,7 +323,7 @@ class ProjectSubmissionsViewTests(TestCase):
                 "project_slug": self.project.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         # Check that the copy button is present
@@ -354,7 +354,7 @@ class ProjectSubmissionsViewTests(TestCase):
                 "project_slug": new_project.slug,
             },
         )
-        response = self.client.get(url)
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         # Check that the copy button is not present

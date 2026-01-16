@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'cadmin_project_submissions' course.slug project.slug %}">{{ project.title }} Submissions</a></li>
+{% endblock %}
+
+{% block content %}
+<h2>{{ project.title }} - Submissions</h2>
+
+<div class="mb-3">
+  <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-secondary">Back to Course Admin</a>
+  <a href="{% url 'project' course.slug project.slug %}" class="btn btn-info">View Project</a>
+</div>
+
+<div class="alert alert-info" role="alert">
+  <strong>Total Submissions:</strong> {{ submissions|length }}
+</div>
+
+{% if submissions %}
+<div class="mb-3">
+  <button id="copyEmailsBtn" class="btn btn-primary btn-sm" onclick="copyEmails()">
+    <i class="fas fa-copy"></i> Copy All Emails
+  </button>
+  <span id="copyFeedback" class="ml-2 text-success" style="display: none;">
+    <i class="fas fa-check"></i> Copied!
+  </span>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Email</th>
+        <th>Submitted At</th>
+        <th>Time Spent (hours)</th>
+        <th>Reviews Completed</th>
+        <th>Project Score</th>
+        <th>Total Score</th>
+        <th>Passed</th>
+        <th>Repository URL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for submission in submissions %}
+      <tr>
+        <td>{{ submission.student.username }}</td>
+        <td>{{ submission.student.email }}</td>
+        <td>{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          {% if submission.time_spent %}
+            {{ submission.time_spent }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          {{ submission.peer_reviews_completed }} / {{ submission.peer_reviews_total }}
+        </td>
+        <td>
+          {% if submission.project_score is not None %}
+            {{ submission.project_score }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          {% if submission.total_score is not None %}
+            {{ submission.total_score }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          {% if submission.passed %}
+            <span class="badge badge-success">Yes</span>
+          {% elif submission.passed is not None %}
+            <span class="badge badge-danger">No</span>
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          {% if submission.repository_url %}
+            <a href="{{ submission.repository_url }}" target="_blank">View</a>
+          {% else %}
+            -
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p>No submissions yet.</p>
+{% endif %}
+
+<script>
+function copyEmails() {
+  const emails = [
+    {% for submission in submissions %}
+    "{{ submission.student.email }}"{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  const emailText = emails.join(', ');
+  
+  // Create a temporary textarea to copy the emails
+  const textarea = document.createElement('textarea');
+  textarea.value = emailText;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  
+  // Show feedback
+  const feedback = document.getElementById('copyFeedback');
+  feedback.style.display = 'inline';
+  setTimeout(() => {
+    feedback.style.display = 'none';
+  }, 2000);
+}
+</script>
+{% endblock %}

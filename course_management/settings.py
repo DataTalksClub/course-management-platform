@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "accounts.apps.AccountsConfig",
     "courses.apps.CoursesConfig",
     "data.apps.DataConfig",
+    "cadmin.apps.CadminConfig",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",

@@ -600,7 +600,7 @@ def project_statistics(request, course_slug, project_slug):
 
 
 def project_submissions(request, course_slug, project_slug):
-    # Check if user is admin/staff
+    # Check if user is staff - if not, redirect to project view with error
     if not request.user.is_authenticated or not request.user.is_staff:
         messages.error(
             request,
@@ -612,47 +612,10 @@ def project_submissions(request, course_slug, project_slug):
             course_slug=course_slug,
             project_slug=project_slug,
         )
-
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
-    )
-
-    # Get all submissions for this project with related data prefetched
-    # to avoid N+1 queries
-    submissions = (
-        ProjectSubmission.objects.filter(project=project)
-        .select_related("student", "enrollment")
-        .order_by("-submitted_at")
-    )
-
-    # Get peer review data for each submission
-    # We need to count how many peer reviews each student has completed
-    # out of the total assigned to them
-    peer_reviews = PeerReview.objects.filter(
-        reviewer__project=project
-    ).select_related("reviewer")
-
-    # Build a dictionary mapping submission_id to review counts
-    # This is more efficient than nested loops
-    review_counts = defaultdict(lambda: {'completed': 0, 'total': 0})
     
-    for review in peer_reviews:
-        if not review.optional:
-            review_counts[review.reviewer_id]['total'] += 1
-            if review.state == PeerReviewState.SUBMITTED.value:
-                review_counts[review.reviewer_id]['completed'] += 1
-
-    # Add review count data to each submission
-    for submission in submissions:
-        counts = review_counts[submission.id]
-        submission.peer_reviews_completed = counts['completed']
-        submission.peer_reviews_total = counts['total']
-
-    context = {
-        "course": course,
-        "project": project,
-        "submissions": submissions,
-    }
-
-    return render(request, "projects/submissions.html", context)
+    # Staff users: redirect to cadmin view
+    return redirect(
+        "cadmin_project_submissions",
+        course_slug=course_slug,
+        project_slug=project_slug,
+    )

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">{{ homework.title }} Submissions</a></li>
+{% endblock %}
+
+{% block content %}
+<h2>{{ homework.title }} - Submissions</h2>
+
+<div class="mb-3">
+  <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-secondary">Back to Course Admin</a>
+  <a href="{% url 'homework' course.slug homework.slug %}" class="btn btn-info">View Homework</a>
+</div>
+
+<div class="alert alert-info" role="alert">
+  <strong>Total Submissions:</strong> {{ submissions_data|length }}
+</div>
+
+{% if submissions_data %}
+<div class="table-responsive">
+  <table class="table table-striped table-sm">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Email</th>
+        <th>Submitted At</th>
+        <th>Score</th>
+        {% for question in questions %}
+        <th>Q{{ forloop.counter }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for data in submissions_data %}
+      <tr>
+        <td>{{ data.submission.student.username }}</td>
+        <td>{{ data.submission.student.email }}</td>
+        <td>{{ data.submission.submitted_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          {% if data.submission.total_score is not None %}
+            {{ data.submission.total_score }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        {% for answer in data.answers %}
+        <td>
+          <span title="{{ answer }}">
+            {% if answer|length > 20 %}
+              {{ answer|slice:":20" }}...
+            {% else %}
+              {{ answer }}
+            {% endif %}
+          </span>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p>No submissions yet.</p>
+{% endif %}
+{% endblock %}

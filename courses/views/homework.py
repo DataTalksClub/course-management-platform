@@ -424,7 +424,7 @@ def homework_statistics(request, course_slug, homework_slug):
 
 
 def homework_submissions(request, course_slug, homework_slug):
-    # Check if user is admin/staff
+    # Check if user is staff - if not, redirect to homework view with error
     if not request.user.is_authenticated or not request.user.is_staff:
         messages.error(
             request,
@@ -436,50 +436,10 @@ def homework_submissions(request, course_slug, homework_slug):
             course_slug=course_slug,
             homework_slug=homework_slug,
         )
-
-    course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
+    
+    # Staff users: redirect to cadmin view
+    return redirect(
+        "cadmin_homework_submissions",
+        course_slug=course_slug,
+        homework_slug=homework_slug,
     )
-
-    # Get all questions for this homework
-    questions = Question.objects.filter(homework=homework).order_by("id")
-
-    # Get all submissions for this homework with answers prefetched
-    # to avoid N+1 queries
-    submissions = (
-        Submission.objects.filter(homework=homework)
-        .select_related("student", "enrollment")
-        .prefetch_related("answer_set__question")
-        .order_by("-submitted_at")
-    )
-
-    # Build a list of submissions with their answers organized by question
-    submissions_data = []
-    for submission in submissions:
-        # Create a map of question_id -> answer for this submission
-        answer_map = {
-            answer.question_id: answer 
-            for answer in submission.answer_set.all()
-        }
-        
-        # Build list of answers in question order
-        answers = []
-        for question in questions:
-            answer = answer_map.get(question.id)
-            answer_text = answer.answer_text if answer else ""
-            answers.append(answer_text or "")
-        
-        submissions_data.append({
-            "submission": submission,
-            "answers": answers,
-        })
-
-    context = {
-        "course": course,
-        "homework": homework,
-        "questions": questions,
-        "submissions_data": submissions_data,
-    }
-
-    return render(request, "homework/submissions.html", context)
