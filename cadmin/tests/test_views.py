@@ -14,6 +14,9 @@ from courses.models import (
     Enrollment,
     Homework,
     HomeworkState,
+    ReviewCriteria,
+    ReviewCriteriaTypes,
+    ProjectEvaluationScore,
 )
 
 
@@ -62,6 +65,29 @@ class CadminViewTests(TestCase):
             submission_due_date=timezone.now() + timedelta(days=7),
             peer_review_due_date=timezone.now() + timedelta(days=14),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
+        # Create review criteria for testing
+        self.criteria1 = ReviewCriteria.objects.create(
+            course=self.course,
+            description="Problem Description",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 1},
+                {"criteria": "Excellent", "score": 2},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        )
+
+        self.criteria2 = ReviewCriteria.objects.create(
+            course=self.course,
+            description="Code Quality",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 2},
+                {"criteria": "Excellent", "score": 4},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
 
     def test_course_list_unauthenticated_redirects(self):
@@ -150,3 +176,245 @@ class CadminViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.project.title)
+
+    def test_project_submission_edit_get(self):
+        """Test that staff users can access the project submission edit page"""
+        # Create a project submission
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=enrollment,
+            github_link="https://github.com/test/repo",
+            commit_id="abc123",
+            project_score=6,  # 2 + 4 from criteria
+            project_faq_score=5,
+            project_learning_in_public_score=3,
+            peer_review_score=7,
+            peer_review_learning_in_public_score=2,
+            total_score=23,  # 6 + 5 + 3 + 7 + 2
+        )
+        
+        # Create evaluation scores for the criteria
+        ProjectEvaluationScore.objects.create(
+            submission=submission,
+            review_criteria=self.criteria1,
+            score=2,
+        )
+        ProjectEvaluationScore.objects.create(
+            submission=submission,
+            review_criteria=self.criteria2,
+            score=4,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_project_submission_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+                "submission_id": submission.id,
+            }
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit Project Submission")
+        self.assertContains(response, self.user.username)
+        self.assertContains(response, "Problem Description")  # criteria1
+        self.assertContains(response, "Code Quality")  # criteria2
+        self.assertContains(response, 'value="6"')  # project_score (readonly)
+        self.assertContains(response, 'value="23"')  # total_score
+
+    def test_project_submission_edit_post_calculates_total(self):
+        """Test that editing individual criteria scores automatically calculates the total"""
+        # Create a project submission
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=enrollment,
+            github_link="https://github.com/test/repo",
+            commit_id="abc123",
+            project_score=0,
+            project_faq_score=0,
+            project_learning_in_public_score=0,
+            peer_review_score=0,
+            peer_review_learning_in_public_score=0,
+            total_score=0,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_project_submission_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+                "submission_id": submission.id,
+            }
+        )
+
+        # Post new scores - now using criteria scores instead of project_score
+        response = self.client.post(url, {
+            f"criteria_score_{self.criteria1.id}": 2,
+            f"criteria_score_{self.criteria2.id}": 4,
+            "project_faq_score": 5,
+            "project_learning_in_public_score": 3,
+            "peer_review_score": 7,
+            "peer_review_learning_in_public_score": 2,
+        })
+
+        # Should redirect back to submissions list
+        self.assertEqual(response.status_code, 302)
+
+        # Refresh submission from database
+        submission.refresh_from_db()
+
+        # Check that project_score was calculated from criteria scores (2 + 4 = 6)
+        self.assertEqual(submission.project_score, 6)
+        self.assertEqual(submission.project_faq_score, 5)
+        self.assertEqual(submission.project_learning_in_public_score, 3)
+        self.assertEqual(submission.peer_review_score, 7)
+        self.assertEqual(submission.peer_review_learning_in_public_score, 2)
+        # Check total: 6 + 5 + 3 + 7 + 2 = 23
+        self.assertEqual(submission.total_score, 23)
+        
+        # Verify evaluation scores were created
+        eval_scores = ProjectEvaluationScore.objects.filter(submission=submission)
+        self.assertEqual(eval_scores.count(), 2)
+        
+        # Check individual criteria scores
+        criteria1_score = ProjectEvaluationScore.objects.get(
+            submission=submission,
+            review_criteria=self.criteria1
+        )
+        self.assertEqual(criteria1_score.score, 2)
+        
+        criteria2_score = ProjectEvaluationScore.objects.get(
+            submission=submission,
+            review_criteria=self.criteria2
+        )
+        self.assertEqual(criteria2_score.score, 4)
+
+    def test_project_submission_edit_post_with_checkboxes(self):
+        """Test that editing submission with checkboxes works correctly"""
+        # Create a project submission
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=enrollment,
+            github_link="https://github.com/test/repo",
+            commit_id="abc123",
+            project_score=6,
+            project_faq_score=5,
+            project_learning_in_public_score=3,
+            peer_review_score=7,
+            peer_review_learning_in_public_score=2,
+            total_score=23,
+            reviewed_enough_peers=False,
+            passed=False,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_project_submission_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+                "submission_id": submission.id,
+            }
+        )
+
+        # Post with checkboxes checked
+        response = self.client.post(url, {
+            f"criteria_score_{self.criteria1.id}": 2,
+            f"criteria_score_{self.criteria2.id}": 4,
+            "project_faq_score": 5,
+            "project_learning_in_public_score": 3,
+            "peer_review_score": 7,
+            "peer_review_learning_in_public_score": 2,
+            "reviewed_enough_peers": "on",
+            "passed": "on",
+        })
+
+        # Refresh submission from database
+        submission.refresh_from_db()
+
+        # Check that checkboxes were saved correctly
+        self.assertTrue(submission.reviewed_enough_peers)
+        self.assertTrue(submission.passed)
+
+    def test_homework_score_shows_message(self):
+        """Test that scoring homework shows a message on the course admin page"""
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_homework_score",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            }
+        )
+        response = self.client.post(url, follow=True)
+        
+        # Should redirect to course admin page
+        self.assertRedirects(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug})
+        )
+        
+        # Check that a message was added
+        messages = list(response.context['messages'])
+        self.assertEqual(len(messages), 1)
+
+    def test_project_score_shows_message(self):
+        """Test that scoring project shows a message on the course admin page"""
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_project_score",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            }
+        )
+        response = self.client.post(url, follow=True)
+        
+        # Should redirect to course admin page
+        self.assertRedirects(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug})
+        )
+        
+        # Check that a message was added
+        messages = list(response.context['messages'])
+        self.assertEqual(len(messages), 1)
+
+    def test_project_assign_reviews_shows_message(self):
+        """Test that assigning peer reviews shows a message on the course admin page"""
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_project_assign_reviews",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            }
+        )
+        response = self.client.post(url, follow=True)
+        
+        # Should redirect to course admin page
+        self.assertRedirects(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug})
+        )
+        
+        # Check that a message was added
+        messages = list(response.context['messages'])
+        self.assertEqual(len(messages), 1)

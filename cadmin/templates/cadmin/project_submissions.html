@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'cadmin/base.html' %}
 
 {% load custom_filters %}
 
@@ -8,7 +8,7 @@
   <li><a href="{% url 'cadmin_project_submissions' course.slug project.slug %}">{{ project.title }} Submissions</a></li>
 {% endblock %}
 
-{% block content %}
+{% block cadmin_content %}
 <h2>{{ project.title }} - Submissions</h2>
 
 <div class="mb-3">
