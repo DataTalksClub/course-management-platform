@@ -83,6 +83,8 @@
 </div>
 
 <script>
+const MISSING_SCORE_VALUE = -999; // Used for sorting when score is missing
+
 function sortTable() {
   const table = document.getElementById('submissionsTable');
   const tbody = table.querySelector('tbody');
@@ -102,8 +104,8 @@ function sortTable() {
     } else if (sortBy === 'score') {
       aVal = a.cells[2].textContent.trim();
       bVal = b.cells[2].textContent.trim();
-      aVal = aVal === '-' ? -999 : parseFloat(aVal);
-      bVal = bVal === '-' ? -999 : parseFloat(bVal);
+      aVal = aVal === '-' ? MISSING_SCORE_VALUE : parseFloat(aVal);
+      bVal = bVal === '-' ? MISSING_SCORE_VALUE : parseFloat(bVal);
       return bVal - aVal; // Descending
     }
     return 0;

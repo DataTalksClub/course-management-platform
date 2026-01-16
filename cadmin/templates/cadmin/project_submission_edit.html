@@ -187,9 +187,13 @@ document.addEventListener('DOMContentLoaded', function() {
       totalField.value = total;
     }
     
-    // Auto-check "passed" if total >= passing threshold
-    if (passedCheckbox && total >= passingThreshold) {
-      passedCheckbox.checked = true;
+    // Auto-check or uncheck "passed" based on total score vs passing threshold
+    if (passedCheckbox) {
+      if (total >= passingThreshold) {
+        passedCheckbox.checked = true;
+      } else {
+        passedCheckbox.checked = false;
+      }
     }
     
     return total;

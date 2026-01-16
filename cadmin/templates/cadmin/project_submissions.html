@@ -111,6 +111,8 @@
 {% endif %}
 
 <script>
+const MISSING_SCORE_VALUE = -999; // Used for sorting when score is missing
+
 function copyEmails() {
   const emails = [
     {% for submission in submissions %}
@@ -155,14 +157,14 @@ function sortTable() {
     } else if (sortBy === 'project_score') {
       aVal = a.cells[2].textContent.trim();
       bVal = b.cells[2].textContent.trim();
-      aVal = aVal === '-' ? -999 : parseFloat(aVal);
-      bVal = bVal === '-' ? -999 : parseFloat(bVal);
+      aVal = aVal === '-' ? MISSING_SCORE_VALUE : parseFloat(aVal);
+      bVal = bVal === '-' ? MISSING_SCORE_VALUE : parseFloat(bVal);
       return bVal - aVal; // Descending
     } else if (sortBy === 'total_score') {
       aVal = a.cells[3].textContent.trim();
       bVal = b.cells[3].textContent.trim();
-      aVal = aVal === '-' ? -999 : parseFloat(aVal);
-      bVal = bVal === '-' ? -999 : parseFloat(bVal);
+      aVal = aVal === '-' ? MISSING_SCORE_VALUE : parseFloat(aVal);
+      bVal = bVal === '-' ? MISSING_SCORE_VALUE : parseFloat(bVal);
       return bVal - aVal; // Descending
     }
     return 0;
