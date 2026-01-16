@@ -70,11 +70,13 @@
         </td>
         {% endfor %}
         <td>
-          <a href="/admin/login/user/{{ data.submission.student.id }}/?next={% url 'cadmin_homework_submissions' course.slug homework.slug %}" 
-             class="btn btn-sm btn-info" 
-             title="Log in as {{ data.submission.student.email }}">
-            <i class="fas fa-user-circle"></i> Log in as
-          </a>
+          <form method="post" action="{% url 'loginas-user-login' data.submission.student.id %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
+            <button type="submit" class="btn btn-sm btn-info" title="Log in as {{ data.submission.student.email }}">
+              <i class="fas fa-user-circle"></i> Log in as
+            </button>
+          </form>
         </td>
       </tr>
       {% endfor %}

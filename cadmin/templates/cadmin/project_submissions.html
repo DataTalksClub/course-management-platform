@@ -95,11 +95,13 @@
           <a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}" class="btn btn-sm btn-primary">
             <i class="fas fa-edit"></i> Edit
           </a>
-          <a href="/admin/login/user/{{ submission.student.id }}/?next={% url 'cadmin_project_submissions' course.slug project.slug %}" 
-             class="btn btn-sm btn-info" 
-             title="Log in as {{ submission.student.email }}">
-            <i class="fas fa-user-circle"></i> Log in as
-          </a>
+          <form method="post" action="{% url 'loginas-user-login' submission.student.id %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'cadmin_project_submissions' course.slug project.slug %}">
+            <button type="submit" class="btn btn-sm btn-info" title="Log in as {{ submission.student.email }}">
+              <i class="fas fa-user-circle"></i> Log in as
+            </button>
+          </form>
         </td>
       </tr>
       {% endfor %}
