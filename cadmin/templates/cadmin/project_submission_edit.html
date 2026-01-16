@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'cadmin/base.html' %}
 
 {% load custom_filters %}
 
@@ -9,21 +9,8 @@
   <li><a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}">Edit Submission</a></li>
 {% endblock %}
 
-{% block content %}
+{% block cadmin_content %}
 <h2>Edit Project Submission</h2>
-
-{% if messages %}
-<div class="messages">
-  {% for message in messages %}
-  <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-      <span aria-hidden="true">&times;</span>
-    </button>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
 
 <div class="mb-3">
   <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="btn btn-secondary">Back to Submissions</a>
