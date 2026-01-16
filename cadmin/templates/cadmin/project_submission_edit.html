@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'cadmin_project_submissions' course.slug project.slug %}">{{ project.title }} Submissions</a></li>
+  <li><a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}">Edit Submission</a></li>
+{% endblock %}
+
+{% block content %}
+<h2>Edit Project Submission</h2>
+
+<div class="mb-3">
+  <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="btn btn-secondary">Back to Submissions</a>
+</div>
+
+<div class="alert alert-info" role="alert">
+  <strong>Student:</strong> {{ submission.student.username }} ({{ submission.student.email }})<br>
+  <strong>Project:</strong> {{ project.title }}<br>
+  <strong>Submitted:</strong> {{ submission.submitted_at|date:"Y-m-d H:i" }}<br>
+  <strong>Repository:</strong> <a href="{{ submission.github_link }}" target="_blank">{{ submission.github_link }}</a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Project Scores</h4>
+    </div>
+    <div class="card-body">
+      <div class="form-group mb-3">
+        <label for="project_score">Project Score</label>
+        <input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" required>
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="project_faq_score">Project FAQ Score</label>
+        <input type="number" class="form-control" id="project_faq_score" name="project_faq_score" value="{{ submission.project_faq_score }}" required>
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="project_learning_in_public_score">Project Learning in Public Score</label>
+        <input type="number" class="form-control" id="project_learning_in_public_score" name="project_learning_in_public_score" value="{{ submission.project_learning_in_public_score }}" required>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Peer Review Scores</h4>
+    </div>
+    <div class="card-body">
+      <div class="form-group mb-3">
+        <label for="peer_review_score">Peer Review Score</label>
+        <input type="number" class="form-control" id="peer_review_score" name="peer_review_score" value="{{ submission.peer_review_score }}" required>
+      </div>
+      
+      <div class="form-group mb-3">
+        <label for="peer_review_learning_in_public_score">Peer Review Learning in Public Score</label>
+        <input type="number" class="form-control" id="peer_review_learning_in_public_score" name="peer_review_learning_in_public_score" value="{{ submission.peer_review_learning_in_public_score }}" required>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Overall Results</h4>
+    </div>
+    <div class="card-body">
+      <div class="form-group mb-3">
+        <label for="total_score">Total Score</label>
+        <input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" required>
+      </div>
+      
+      <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="reviewed_enough_peers" name="reviewed_enough_peers" {% if submission.reviewed_enough_peers %}checked{% endif %}>
+        <label class="form-check-label" for="reviewed_enough_peers">
+          Reviewed Enough Peers
+        </label>
+      </div>
+      
+      <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="passed" name="passed" {% if submission.passed %}checked{% endif %}>
+        <label class="form-check-label" for="passed">
+          Passed
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

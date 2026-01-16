@@ -35,4 +35,9 @@ urlpatterns = [
         views.project_submissions,
         name="cadmin_project_submissions",
     ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/submissions/<int:submission_id>/edit",
+        views.project_submission_edit,
+        name="cadmin_project_submission_edit",
+    ),
 ]
