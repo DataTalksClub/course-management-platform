@@ -14,6 +14,9 @@ from courses.models import (
     Enrollment,
     Homework,
     HomeworkState,
+    ReviewCriteria,
+    ReviewCriteriaTypes,
+    ProjectEvaluationScore,
 )
 
 
@@ -62,6 +65,29 @@ class CadminViewTests(TestCase):
             submission_due_date=timezone.now() + timedelta(days=7),
             peer_review_due_date=timezone.now() + timedelta(days=14),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
+        # Create review criteria for testing
+        self.criteria1 = ReviewCriteria.objects.create(
+            course=self.course,
+            description="Problem Description",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 1},
+                {"criteria": "Excellent", "score": 2},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        )
+
+        self.criteria2 = ReviewCriteria.objects.create(
+            course=self.course,
+            description="Code Quality",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 2},
+                {"criteria": "Excellent", "score": 4},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
 
     def test_course_list_unauthenticated_redirects(self):
@@ -164,12 +190,24 @@ class CadminViewTests(TestCase):
             enrollment=enrollment,
             github_link="https://github.com/test/repo",
             commit_id="abc123",
-            project_score=10,
+            project_score=6,  # 2 + 4 from criteria
             project_faq_score=5,
             project_learning_in_public_score=3,
             peer_review_score=7,
             peer_review_learning_in_public_score=2,
-            total_score=27,
+            total_score=23,  # 6 + 5 + 3 + 7 + 2
+        )
+        
+        # Create evaluation scores for the criteria
+        ProjectEvaluationScore.objects.create(
+            submission=submission,
+            review_criteria=self.criteria1,
+            score=2,
+        )
+        ProjectEvaluationScore.objects.create(
+            submission=submission,
+            review_criteria=self.criteria2,
+            score=4,
         )
 
         self.client.login(username="admin@test.com", password="admin123")
@@ -185,11 +223,13 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit Project Submission")
         self.assertContains(response, self.user.username)
-        self.assertContains(response, 'value="10"')  # project_score
-        self.assertContains(response, 'value="27"')  # total_score
+        self.assertContains(response, "Problem Description")  # criteria1
+        self.assertContains(response, "Code Quality")  # criteria2
+        self.assertContains(response, 'value="6"')  # project_score (readonly)
+        self.assertContains(response, 'value="23"')  # total_score
 
     def test_project_submission_edit_post_calculates_total(self):
-        """Test that editing individual scores automatically calculates the total"""
+        """Test that editing individual criteria scores automatically calculates the total"""
         # Create a project submission
         enrollment = Enrollment.objects.create(
             student=self.user,
@@ -219,9 +259,10 @@ class CadminViewTests(TestCase):
             }
         )
 
-        # Post new scores
+        # Post new scores - now using criteria scores instead of project_score
         response = self.client.post(url, {
-            "project_score": 10,
+            f"criteria_score_{self.criteria1.id}": 2,
+            f"criteria_score_{self.criteria2.id}": 4,
             "project_faq_score": 5,
             "project_learning_in_public_score": 3,
             "peer_review_score": 7,
@@ -234,13 +275,31 @@ class CadminViewTests(TestCase):
         # Refresh submission from database
         submission.refresh_from_db()
 
-        # Check that total was calculated correctly
-        self.assertEqual(submission.project_score, 10)
+        # Check that project_score was calculated from criteria scores (2 + 4 = 6)
+        self.assertEqual(submission.project_score, 6)
         self.assertEqual(submission.project_faq_score, 5)
         self.assertEqual(submission.project_learning_in_public_score, 3)
         self.assertEqual(submission.peer_review_score, 7)
         self.assertEqual(submission.peer_review_learning_in_public_score, 2)
-        self.assertEqual(submission.total_score, 27)  # Sum of all scores
+        # Check total: 6 + 5 + 3 + 7 + 2 = 23
+        self.assertEqual(submission.total_score, 23)
+        
+        # Verify evaluation scores were created
+        eval_scores = ProjectEvaluationScore.objects.filter(submission=submission)
+        self.assertEqual(eval_scores.count(), 2)
+        
+        # Check individual criteria scores
+        criteria1_score = ProjectEvaluationScore.objects.get(
+            submission=submission,
+            review_criteria=self.criteria1
+        )
+        self.assertEqual(criteria1_score.score, 2)
+        
+        criteria2_score = ProjectEvaluationScore.objects.get(
+            submission=submission,
+            review_criteria=self.criteria2
+        )
+        self.assertEqual(criteria2_score.score, 4)
 
     def test_project_submission_edit_post_with_checkboxes(self):
         """Test that editing submission with checkboxes works correctly"""
@@ -255,12 +314,12 @@ class CadminViewTests(TestCase):
             enrollment=enrollment,
             github_link="https://github.com/test/repo",
             commit_id="abc123",
-            project_score=10,
+            project_score=6,
             project_faq_score=5,
             project_learning_in_public_score=3,
             peer_review_score=7,
             peer_review_learning_in_public_score=2,
-            total_score=27,
+            total_score=23,
             reviewed_enough_peers=False,
             passed=False,
         )
@@ -277,7 +336,8 @@ class CadminViewTests(TestCase):
 
         # Post with checkboxes checked
         response = self.client.post(url, {
-            "project_score": 10,
+            f"criteria_score_{self.criteria1.id}": 2,
+            f"criteria_score_{self.criteria2.id}": 4,
             "project_faq_score": 5,
             "project_learning_in_public_score": 3,
             "peer_review_score": 7,

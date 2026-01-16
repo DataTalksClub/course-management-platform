@@ -41,22 +41,62 @@
   
   <div class="card mb-3">
     <div class="card-header">
-      <h4>Project Scores</h4>
+      <h4>Review Criteria Scores</h4>
+    </div>
+    <div class="card-body">
+      {% if criteria_with_scores %}
+        {% for item in criteria_with_scores %}
+        <div class="card mb-3 border-secondary">
+          <div class="card-header bg-light">
+            <strong>{{ item.criteria.description }}</strong>
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <strong>Score Options:</strong>
+              <ul class="mb-2">
+                {% for option in item.criteria.options %}
+                <li>{{ option.criteria }}: {{ option.score }} points</li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="form-group">
+              <label for="criteria_score_{{ item.criteria.id }}">Score for this criteria:</label>
+              <input type="number" 
+                     class="form-control criteria-score" 
+                     id="criteria_score_{{ item.criteria.id }}" 
+                     name="criteria_score_{{ item.criteria.id }}" 
+                     value="{{ item.score }}" 
+                     min="0"
+                     required>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No review criteria defined for this course.</p>
+      {% endif %}
+      
+      <div class="form-group mb-3">
+        <label for="project_score">Total Project Score (from criteria above)</label>
+        <input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" readonly>
+        <small class="form-text text-muted">This is automatically calculated from the criteria scores above.</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Additional Project Scores</h4>
     </div>
     <div class="card-body">
       <div class="form-group mb-3">
-        <label for="project_score">Project Score</label>
-        <input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" required>
-      </div>
-      
-      <div class="form-group mb-3">
         <label for="project_faq_score">Project FAQ Score</label>
-        <input type="number" class="form-control" id="project_faq_score" name="project_faq_score" value="{{ submission.project_faq_score }}" required>
+        <input type="number" class="form-control additional-score" id="project_faq_score" name="project_faq_score" value="{{ submission.project_faq_score }}" required>
       </div>
       
       <div class="form-group mb-3">
         <label for="project_learning_in_public_score">Project Learning in Public Score</label>
-        <input type="number" class="form-control" id="project_learning_in_public_score" name="project_learning_in_public_score" value="{{ submission.project_learning_in_public_score }}" required>
+        <input type="number" class="form-control additional-score" id="project_learning_in_public_score" name="project_learning_in_public_score" value="{{ submission.project_learning_in_public_score }}" required>
       </div>
     </div>
   </div>
@@ -112,36 +152,80 @@
 </form>
 
 <script>
-// Auto-calculate total score when individual scores change
+// Auto-calculate scores when individual scores change
 document.addEventListener('DOMContentLoaded', function() {
-  const scoreFields = [
-    'project_score',
-    'project_faq_score',
-    'project_learning_in_public_score',
+  const criteriaScoreFields = document.querySelectorAll('.criteria-score');
+  const additionalScoreFields = document.querySelectorAll('.additional-score');
+  const peerReviewScoreFields = [
     'peer_review_score',
     'peer_review_learning_in_public_score'
   ];
   
+  function calculateProjectScore() {
+    // Calculate project score from criteria scores
+    let projectScore = 0;
+    criteriaScoreFields.forEach(function(field) {
+      const value = parseInt(field.value, 10) || 0;
+      projectScore += value;
+    });
+    const projectScoreField = document.getElementById('project_score');
+    if (projectScoreField) {
+      projectScoreField.value = projectScore;
+    }
+    return projectScore;
+  }
+  
   function calculateTotal() {
-    let total = 0;
-    scoreFields.forEach(function(fieldId) {
+    // Calculate project score first
+    const projectScore = calculateProjectScore();
+    
+    // Calculate total from all components
+    let total = projectScore;
+    
+    // Add additional project scores
+    additionalScoreFields.forEach(function(field) {
+      const value = parseInt(field.value, 10) || 0;
+      total += value;
+    });
+    
+    // Add peer review scores
+    peerReviewScoreFields.forEach(function(fieldId) {
       const field = document.getElementById(fieldId);
       if (field) {
         const value = parseInt(field.value, 10) || 0;
         total += value;
       }
     });
-    document.getElementById('total_score').value = total;
+    
+    const totalField = document.getElementById('total_score');
+    if (totalField) {
+      totalField.value = total;
+    }
   }
   
-  // Add event listeners to all score fields
-  scoreFields.forEach(function(fieldId) {
+  // Add event listeners to criteria score fields
+  criteriaScoreFields.forEach(function(field) {
+    field.addEventListener('input', calculateTotal);
+    field.addEventListener('change', calculateTotal);
+  });
+  
+  // Add event listeners to additional score fields
+  additionalScoreFields.forEach(function(field) {
+    field.addEventListener('input', calculateTotal);
+    field.addEventListener('change', calculateTotal);
+  });
+  
+  // Add event listeners to peer review score fields
+  peerReviewScoreFields.forEach(function(fieldId) {
     const field = document.getElementById(fieldId);
     if (field) {
       field.addEventListener('input', calculateTotal);
       field.addEventListener('change', calculateTotal);
     }
   });
+  
+  // Calculate initial values
+  calculateTotal();
 });
 </script>
 

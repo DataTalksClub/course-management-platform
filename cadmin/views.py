@@ -17,6 +17,8 @@ from courses.models import (
     Answer,
     PeerReview,
     PeerReviewState,
+    ReviewCriteria,
+    ProjectEvaluationScore,
 )
 from courses.scoring import (
     score_homework_submissions,
@@ -261,17 +263,52 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
         id=submission_id, 
         project=project
     )
+    
+    # Get all review criteria for this course
+    review_criteria = ReviewCriteria.objects.filter(course=course).order_by('id')
+    
+    # Get existing evaluation scores for this submission
+    evaluation_scores = {
+        score.review_criteria_id: score 
+        for score in ProjectEvaluationScore.objects.filter(submission=submission)
+    }
+    
+    # Build a list of criteria with their current scores
+    criteria_with_scores = []
+    for criteria in review_criteria:
+        score_obj = evaluation_scores.get(criteria.id)
+        criteria_with_scores.append({
+            'criteria': criteria,
+            'score': score_obj.score if score_obj else 0,
+            'score_id': score_obj.id if score_obj else None,
+        })
 
     if request.method == "POST":
         # Update the submission fields
         try:
-            submission.project_score = int(request.POST.get("project_score", 0))
+            # Update or create evaluation scores for each criteria
+            project_score = 0
+            for criteria in review_criteria:
+                score_value = int(request.POST.get(f"criteria_score_{criteria.id}", 0))
+                project_score += score_value
+                
+                # Update or create the evaluation score
+                ProjectEvaluationScore.objects.update_or_create(
+                    submission=submission,
+                    review_criteria=criteria,
+                    defaults={'score': score_value}
+                )
+            
+            # Update the aggregate project score
+            submission.project_score = project_score
+            
+            # Update other scores
             submission.project_faq_score = int(request.POST.get("project_faq_score", 0))
             submission.project_learning_in_public_score = int(request.POST.get("project_learning_in_public_score", 0))
             submission.peer_review_score = int(request.POST.get("peer_review_score", 0))
             submission.peer_review_learning_in_public_score = int(request.POST.get("peer_review_learning_in_public_score", 0))
             
-            # Calculate total score from individual scores
+            # Calculate total score from all components
             submission.total_score = (
                 submission.project_score +
                 submission.project_faq_score +
@@ -297,6 +334,7 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
         "course": course,
         "project": project,
         "submission": submission,
+        "criteria_with_scores": criteria_with_scores,
     }
 
     return render(request, "cadmin/project_submission_edit.html", context)
