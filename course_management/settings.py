@@ -308,6 +308,10 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+# django-loginas settings
+# Allow staff users to log in as other users
+CAN_LOGIN_AS = lambda request, target_user: request.user.is_staff
+
 # Unfold Configurations
 UNFOLD = {
     "SITE_HEADER": _("Course Management"),

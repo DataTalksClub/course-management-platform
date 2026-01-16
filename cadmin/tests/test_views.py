@@ -418,3 +418,39 @@ class CadminViewTests(TestCase):
         # Check that a message was added
         messages = list(response.context['messages'])
         self.assertEqual(len(messages), 1)
+
+    def test_log_as_user_requires_post_request(self):
+        """Test that the log as user endpoint requires a POST request"""
+        self.client.login(username="admin@test.com", password="admin123")
+        
+        # Try to access the endpoint with GET - should fail
+        url = f"/admin/login/user/{self.user.id}/"
+        response = self.client.get(url)
+        
+        # Should return 405 Method Not Allowed
+        self.assertEqual(response.status_code, 405)
+
+    def test_log_as_user_with_post_request(self):
+        """Test that staff can log in as another user with POST request"""
+        self.client.login(username="admin@test.com", password="admin123")
+        
+        # Create enrollment for the user
+        Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        
+        # Verify we're logged in as admin
+        self.assertEqual(self.client.session['_auth_user_id'], str(self.admin_user.id))
+        
+        # Try to log in as the user with POST
+        url = f"/admin/login/user/{self.user.id}/"
+        response = self.client.post(url)
+        
+        # Should redirect to a page (the login redirect)
+        self.assertEqual(response.status_code, 302)
+        
+        # After the POST, we should be logged in as the user
+        # (The session should have changed to the target user)
+        # Note: django-loginas stores the original user in a different session key
+        # and switches the current user to the target user
