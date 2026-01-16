@@ -309,8 +309,8 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # django-loginas settings
-# Allow staff users to log in as other users
-CAN_LOGIN_AS = lambda request, target_user: request.user.is_staff
+# Allow staff users to log in as other users, but prevent impersonating staff/superusers
+CAN_LOGIN_AS = lambda request, target_user: request.user.is_staff and not target_user.is_staff
 
 # Unfold Configurations
 UNFOLD = {

@@ -454,3 +454,23 @@ class CadminViewTests(TestCase):
         # (The session should have changed to the target user)
         # Note: django-loginas stores the original user in a different session key
         # and switches the current user to the target user
+
+    def test_staff_cannot_impersonate_other_staff(self):
+        """Test that staff users cannot impersonate other staff users"""
+        # Create another staff user
+        other_staff = User.objects.create_user(
+            username="staff2@test.com",
+            email="staff2@test.com",
+            password="staff123",
+            is_staff=True,
+        )
+        
+        self.client.login(username="admin@test.com", password="admin123")
+        
+        # Try to log in as another staff user with POST
+        url = f"/admin/login/user/{other_staff.id}/"
+        response = self.client.post(url, follow=True)
+        
+        # Should be redirected back with an error message
+        # Check that we're still logged in as the original admin user
+        self.assertEqual(response.wsgi_request.user.username, "admin@test.com")
