@@ -49,12 +49,12 @@
           {% for hw in homeworks %}
           <tr>
             <td>
-              <a href="{% url 'homework' course.slug hw.slug %}">{{ hw.title }}</a>
-              | <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin">
-                <i class="fas fa-edit"></i>
+              <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}">{{ hw.title }}</a>
+              <a href="{% url 'homework' course.slug hw.slug %}" title="View Public Homework Page" class="ml-2">
+                <i class="fas fa-external-link-alt"></i>
               </a>
             </td>
-            <td>{{ hw.due_date|date:"Y-m-d H:i" }}</td>
+            <td>{{ hw.due_date|date:"Y-m-d" }}</td>
             <td>
               {% if hw.state == 'OP' %}
                 <span class="badge badge-success">Open</span>
@@ -66,32 +66,20 @@
                 <span class="badge badge-warning">{{ hw.get_state_display }}</span>
               {% endif %}
             </td>
+            <td>{{ hw.submissions_count }}</td>
             <td>
-              <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}">
-                {{ hw.submissions_count }}
-              </a>
-            </td>
-            <td>
-              <div class="btn-group" role="group">
-                <a href="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" 
-                   class="btn btn-sm btn-warning"
-                   onclick="return confirm('Set correct answers to most popular for {{ hw.title }}?')">
-                  Set Correct
-                </a>
-                <a href="{% url 'cadmin_homework_score' course.slug hw.slug %}" 
-                   class="btn btn-sm btn-primary"
-                   onclick="return confirm('Score homework {{ hw.title }}?')">
-                  Score
-                </a>
-                <a href="{% url 'homework_statistics' course.slug hw.slug %}" 
-                   class="btn btn-sm btn-info">
-                  Stats
-                </a>
-                <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" 
-                   class="btn btn-sm btn-secondary">
-                  Submissions
-                </a>
-              </div>
+              <form method="post" style="display: inline;">
+                {% csrf_token %}
+                <select class="form-control form-control-sm d-inline-block" style="width: auto;" name="action" id="hw-action-{{ hw.id }}">
+                  <option value="">Select action...</option>
+                  {% if hw.state == 'CL' %}
+                    <option value="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}">Set Correct Answers</option>
+                    <option value="{% url 'cadmin_homework_score' course.slug hw.slug %}">Score</option>
+                  {% endif %}
+                  <option value="{% url 'homework_statistics' course.slug hw.slug %}">View Statistics</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-primary" onclick="applyAction('hw-action-{{ hw.id }}')">Apply</button>
+              </form>
             </td>
           </tr>
           {% endfor %}
@@ -116,8 +104,7 @@
         <thead>
           <tr>
             <th>Title</th>
-            <th>Submission Due</th>
-            <th>Review Due</th>
+            <th>Due Dates</th>
             <th>State</th>
             <th>Submissions</th>
             <th>Actions</th>
@@ -127,13 +114,15 @@
           {% for proj in projects %}
           <tr>
             <td>
-              <a href="{% url 'project' course.slug proj.slug %}">{{ proj.title }}</a>
-              | <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin">
-                <i class="fas fa-edit"></i>
+              <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}">{{ proj.title }}</a>
+              <a href="{% url 'project' course.slug proj.slug %}" title="View Public Project Page" class="ml-2">
+                <i class="fas fa-external-link-alt"></i>
               </a>
             </td>
-            <td>{{ proj.submission_due_date|date:"Y-m-d H:i" }}</td>
-            <td>{{ proj.peer_review_due_date|date:"Y-m-d H:i" }}</td>
+            <td>
+              Sub: {{ proj.submission_due_date|date:"Y-m-d" }}<br>
+              Rev: {{ proj.peer_review_due_date|date:"Y-m-d" }}
+            </td>
             <td>
               {% if proj.state == 'CL' %}
                 <span class="badge badge-secondary">Closed</span>
@@ -147,32 +136,22 @@
                 <span class="badge badge-info">{{ proj.get_state_display }}</span>
               {% endif %}
             </td>
+            <td>{{ proj.submissions_count }}</td>
             <td>
-              <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}">
-                {{ proj.submissions_count }}
-              </a>
-            </td>
-            <td>
-              <div class="btn-group" role="group">
-                <a href="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" 
-                   class="btn btn-sm btn-warning"
-                   onclick="return confirm('Assign peer reviews for {{ proj.title }}?')">
-                  Assign Reviews
-                </a>
-                <a href="{% url 'cadmin_project_score' course.slug proj.slug %}" 
-                   class="btn btn-sm btn-primary"
-                   onclick="return confirm('Score project {{ proj.title }}?')">
-                  Score
-                </a>
-                <a href="{% url 'project_statistics' course.slug proj.slug %}" 
-                   class="btn btn-sm btn-info">
-                  Stats
-                </a>
-                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" 
-                   class="btn btn-sm btn-secondary">
-                  Submissions
-                </a>
-              </div>
+              <form method="post" style="display: inline;">
+                {% csrf_token %}
+                <select class="form-control form-control-sm d-inline-block" style="width: auto;" name="action" id="proj-action-{{ proj.id }}">
+                  <option value="">Select action...</option>
+                  {% if proj.state == 'CS' %}
+                    <option value="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}">Assign Reviews</option>
+                  {% endif %}
+                  {% if proj.state == 'PR' %}
+                    <option value="{% url 'cadmin_project_score' course.slug proj.slug %}">Score</option>
+                  {% endif %}
+                  <option value="{% url 'project_statistics' course.slug proj.slug %}">View Statistics</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-primary" onclick="applyAction('proj-action-{{ proj.id }}')">Apply</button>
+              </form>
             </td>
           </tr>
           {% endfor %}
@@ -184,4 +163,27 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+function applyAction(selectId) {
+  const select = document.getElementById(selectId);
+  const url = select.value;
+  
+  if (!url) {
+    alert('Please select an action');
+    return;
+  }
+  
+  // For statistics, open in same tab
+  if (url.includes('statistics')) {
+    window.location.href = url;
+    return;
+  }
+  
+  // For other actions, confirm first
+  if (confirm('Are you sure you want to perform this action?')) {
+    window.location.href = url;
+  }
+}
+</script>
 {% endblock %}
