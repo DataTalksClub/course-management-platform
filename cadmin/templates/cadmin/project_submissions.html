@@ -43,6 +43,7 @@
         <th>Total Score</th>
         <th>Passed</th>
         <th>Repository URL</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -90,6 +91,11 @@
           {% else %}
             -
           {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-edit"></i> Edit
+          </a>
         </td>
       </tr>
       {% endfor %}

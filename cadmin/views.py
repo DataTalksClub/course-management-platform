@@ -250,3 +250,45 @@ def project_submissions(request, course_slug, project_slug):
 
     return render(request, "cadmin/project_submissions.html", context)
 
+
+@staff_required
+def project_submission_edit(request, course_slug, project_slug, submission_id):
+    """Edit a project submission"""
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(Project, course=course, slug=project_slug)
+    submission = get_object_or_404(
+        ProjectSubmission, 
+        id=submission_id, 
+        project=project
+    )
+
+    if request.method == "POST":
+        # Update the submission fields
+        try:
+            submission.project_score = int(request.POST.get("project_score", 0))
+            submission.project_faq_score = int(request.POST.get("project_faq_score", 0))
+            submission.project_learning_in_public_score = int(request.POST.get("project_learning_in_public_score", 0))
+            submission.peer_review_score = int(request.POST.get("peer_review_score", 0))
+            submission.peer_review_learning_in_public_score = int(request.POST.get("peer_review_learning_in_public_score", 0))
+            submission.total_score = int(request.POST.get("total_score", 0))
+            submission.reviewed_enough_peers = request.POST.get("reviewed_enough_peers") == "on"
+            submission.passed = request.POST.get("passed") == "on"
+            
+            submission.save()
+            
+            messages.success(
+                request,
+                f"Project submission for {submission.student.username} updated successfully",
+            )
+            return redirect("cadmin_project_submissions", course_slug=course_slug, project_slug=project_slug)
+        except ValueError as e:
+            messages.error(request, f"Error updating submission: {e}")
+
+    context = {
+        "course": course,
+        "project": project,
+        "submission": submission,
+    }
+
+    return render(request, "cadmin/project_submission_edit.html", context)
+

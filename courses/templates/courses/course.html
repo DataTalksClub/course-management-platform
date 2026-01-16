@@ -23,12 +23,14 @@
     {% if is_authenticated %}
       <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
     {% endif %}
-    {% if user.is_staff %}
-      <a href="{% url 'cadmin_course' course.slug %}">
-        <i class="fas fa-cog"></i> Manage course (Admin only)
-      </a>
-    {% endif %}
-  </p>  
+  </p>
+  {% if user.is_staff %}
+  <p>
+    <a href="{% url 'cadmin_course' course.slug %}">
+      <i class="fas fa-cog"></i> Manage course (Admin only)
+    </a>
+  </p>
+  {% endif %}
 </div>
 
 
