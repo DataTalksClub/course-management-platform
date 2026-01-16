@@ -11,6 +11,19 @@
 {% block content %}
 <h2>{{ homework.title }} - Submissions</h2>
 
+{% if messages %}
+<div class="messages">
+  {% for message in messages %}
+  <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="mb-3">
   <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-secondary">Back to Course Admin</a>
   <a href="{% url 'homework' course.slug homework.slug %}" class="btn btn-info">View Homework</a>

@@ -270,7 +270,16 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
             submission.project_learning_in_public_score = int(request.POST.get("project_learning_in_public_score", 0))
             submission.peer_review_score = int(request.POST.get("peer_review_score", 0))
             submission.peer_review_learning_in_public_score = int(request.POST.get("peer_review_learning_in_public_score", 0))
-            submission.total_score = int(request.POST.get("total_score", 0))
+            
+            # Calculate total score from individual scores
+            submission.total_score = (
+                submission.project_score +
+                submission.project_faq_score +
+                submission.project_learning_in_public_score +
+                submission.peer_review_score +
+                submission.peer_review_learning_in_public_score
+            )
+            
             submission.reviewed_enough_peers = request.POST.get("reviewed_enough_peers") == "on"
             submission.passed = request.POST.get("passed") == "on"
             

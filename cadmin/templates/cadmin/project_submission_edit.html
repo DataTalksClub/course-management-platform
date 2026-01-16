@@ -12,6 +12,19 @@
 {% block content %}
 <h2>Edit Project Submission</h2>
 
+{% if messages %}
+<div class="messages">
+  {% for message in messages %}
+  <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="mb-3">
   <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="btn btn-secondary">Back to Submissions</a>
 </div>
@@ -71,8 +84,9 @@
     </div>
     <div class="card-body">
       <div class="form-group mb-3">
-        <label for="total_score">Total Score</label>
-        <input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" required>
+        <label for="total_score">Total Score (automatically calculated)</label>
+        <input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" readonly>
+        <small class="form-text text-muted">This field is automatically calculated from the individual scores above.</small>
       </div>
       
       <div class="form-check mb-3">
@@ -96,5 +110,34 @@
     <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="btn btn-secondary">Cancel</a>
   </div>
 </form>
+
+<script>
+// Auto-calculate total score when individual scores change
+document.addEventListener('DOMContentLoaded', function() {
+  const scoreFields = [
+    'project_score',
+    'project_faq_score',
+    'project_learning_in_public_score',
+    'peer_review_score',
+    'peer_review_learning_in_public_score'
+  ];
+  
+  function calculateTotal() {
+    let total = 0;
+    scoreFields.forEach(function(fieldId) {
+      const value = parseInt(document.getElementById(fieldId).value) || 0;
+      total += value;
+    });
+    document.getElementById('total_score').value = total;
+  }
+  
+  // Add event listeners to all score fields
+  scoreFields.forEach(function(fieldId) {
+    const field = document.getElementById(fieldId);
+    field.addEventListener('input', calculateTotal);
+    field.addEventListener('change', calculateTotal);
+  });
+});
+</script>
 
 {% endblock %}
