@@ -144,6 +144,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const criteriaScoreFields = document.querySelectorAll('.criteria-score');
   const additionalScoreFields = document.querySelectorAll('.additional-score');
   const peerReviewScoreFields = document.querySelectorAll('.peer-review-score');
+  const passedCheckbox = document.getElementById('passed');
+  
+  // Get passing threshold from the project
+  const passingThreshold = {{ project.points_to_pass }};
   
   function calculateProjectScore() {
     // Calculate project score from criteria scores
@@ -182,6 +186,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (totalField) {
       totalField.value = total;
     }
+    
+    // Auto-check "passed" if total >= passing threshold
+    if (passedCheckbox && total >= passingThreshold) {
+      passedCheckbox.checked = true;
+    }
+    
+    return total;
   }
   
   // Add event listeners to criteria score fields
