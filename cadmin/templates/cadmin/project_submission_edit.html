@@ -60,7 +60,7 @@
               </ul>
             </div>
             <div class="form-group">
-              <label for="criteria_score_{{ item.criteria.id }}">Score for this criteria:</label>
+              <label for="criteria_score_{{ item.criteria.id }}">Score for this criterion:</label>
               <input type="number" 
                      class="form-control criteria-score" 
                      id="criteria_score_{{ item.criteria.id }}" 
@@ -108,12 +108,12 @@
     <div class="card-body">
       <div class="form-group mb-3">
         <label for="peer_review_score">Peer Review Score</label>
-        <input type="number" class="form-control" id="peer_review_score" name="peer_review_score" value="{{ submission.peer_review_score }}" required>
+        <input type="number" class="form-control peer-review-score" id="peer_review_score" name="peer_review_score" value="{{ submission.peer_review_score }}" required>
       </div>
       
       <div class="form-group mb-3">
         <label for="peer_review_learning_in_public_score">Peer Review Learning in Public Score</label>
-        <input type="number" class="form-control" id="peer_review_learning_in_public_score" name="peer_review_learning_in_public_score" value="{{ submission.peer_review_learning_in_public_score }}" required>
+        <input type="number" class="form-control peer-review-score" id="peer_review_learning_in_public_score" name="peer_review_learning_in_public_score" value="{{ submission.peer_review_learning_in_public_score }}" required>
       </div>
     </div>
   </div>
@@ -156,10 +156,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   const criteriaScoreFields = document.querySelectorAll('.criteria-score');
   const additionalScoreFields = document.querySelectorAll('.additional-score');
-  const peerReviewScoreFields = [
-    'peer_review_score',
-    'peer_review_learning_in_public_score'
-  ];
+  const peerReviewScoreFields = document.querySelectorAll('.peer-review-score');
   
   function calculateProjectScore() {
     // Calculate project score from criteria scores
@@ -189,12 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Add peer review scores
-    peerReviewScoreFields.forEach(function(fieldId) {
-      const field = document.getElementById(fieldId);
-      if (field) {
-        const value = parseInt(field.value, 10) || 0;
-        total += value;
-      }
+    peerReviewScoreFields.forEach(function(field) {
+      const value = parseInt(field.value, 10) || 0;
+      total += value;
     });
     
     const totalField = document.getElementById('total_score');
@@ -216,12 +210,9 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   // Add event listeners to peer review score fields
-  peerReviewScoreFields.forEach(function(fieldId) {
-    const field = document.getElementById(fieldId);
-    if (field) {
-      field.addEventListener('input', calculateTotal);
-      field.addEventListener('change', calculateTotal);
-    }
+  peerReviewScoreFields.forEach(function(field) {
+    field.addEventListener('input', calculateTotal);
+    field.addEventListener('change', calculateTotal);
   });
   
   // Calculate initial values

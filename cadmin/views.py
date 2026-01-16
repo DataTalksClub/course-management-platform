@@ -289,7 +289,14 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
             # Update or create evaluation scores for each criteria
             project_score = 0
             for criteria in review_criteria:
-                score_value = int(request.POST.get(f"criteria_score_{criteria.id}", 0))
+                score_value_str = request.POST.get(f"criteria_score_{criteria.id}", "0")
+                try:
+                    score_value = int(score_value_str)
+                    if score_value < 0:
+                        raise ValueError(f"Score for {criteria.description} cannot be negative")
+                except (ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid score for {criteria.description}: {score_value_str}")
+                
                 project_score += score_value
                 
                 # Update or create the evaluation score
