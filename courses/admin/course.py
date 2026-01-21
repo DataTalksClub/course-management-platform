@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.widgets import (
     UnfoldAdminTextInputWidget,
@@ -11,6 +12,7 @@ from django.contrib import messages
 
 from courses.models import Course, ReviewCriteria
 from courses.scoring import update_leaderboard
+from courses.validators import validate_review_criteria_options
 
 
 class CriteriaForm(forms.ModelForm):
@@ -25,6 +27,28 @@ class CriteriaForm(forms.ModelForm):
                 attrs={"cols": 60, "rows": 4}
             ),
         }
+    
+    def clean_options(self):
+        """Validate the options field to ensure it has the correct structure."""
+        options = self.cleaned_data.get('options')
+        
+        if options is None:
+            raise ValidationError("Options field cannot be empty.")
+        
+        # Run the validator
+        try:
+            validate_review_criteria_options(options)
+        except ValidationError as e:
+            # Re-raise with additional helpful message
+            error_msg = str(e.message) if hasattr(e, 'message') else str(e)
+            raise ValidationError(
+                f"Invalid options format. {error_msg}\n\n"
+                f"Expected format:\n"
+                f'[{{"criteria": "Poor", "score": 0}}, '
+                f'{{"criteria": "Good", "score": 1}}, ...]'
+            )
+        
+        return options
 
 
 class CriteriaInline(TabularInline):
