@@ -39,8 +39,12 @@ class CriteriaForm(forms.ModelForm):
         try:
             validate_review_criteria_options(options)
         except ValidationError as e:
-            # Re-raise with additional helpful message
-            error_msg = str(e.message) if hasattr(e, 'message') else str(e)
+            # Extract error message properly for modern Django
+            if hasattr(e, 'messages') and e.messages:
+                error_msg = e.messages[0]
+            else:
+                error_msg = str(e)
+            
             raise ValidationError(
                 f"Invalid options format. {error_msg}\n\n"
                 f"Expected format:\n"
