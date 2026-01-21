@@ -7,7 +7,7 @@ from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
 
 from .course import Course, Enrollment
-from courses.validators import validate_url_200
+from courses.validators import validate_url_200, validate_review_criteria_options
 
 User = get_user_model()
 
@@ -101,7 +101,7 @@ class ReviewCriteria(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     description = models.CharField(max_length=255)
 
-    options = models.JSONField()
+    options = models.JSONField(validators=[validate_review_criteria_options])
     # example:
     # options=[
     #     {"criteria": "Poor", "score": 0},
