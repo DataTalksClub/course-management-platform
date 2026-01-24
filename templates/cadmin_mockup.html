@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Course Admin - Mockup</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { padding: 20px; background-color: #f5f5f5; }
+        .card { margin-bottom: 20px; }
+        .ml-2 { margin-left: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Fake Course - Admin Panel</h2>
+        
+        <div class="mb-3">
+            <strong>Django Admin:</strong>
+            <a href="#"><i class="fas fa-edit"></i> Edit Course</a>
+        </div>
+        
+        <!-- Homework Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Homework</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Due Date</th>
+                                <th>State</th>
+                                <th>Submissions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <a href="#">Homework 1</a>
+                                    <a href="#" title="View Public Homework Page" class="ml-2">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    <a href="#" title="Edit in Django Admin" class="ml-2" style="color: #007bff;">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                                <td>2036-01-22</td>
+                                <td><span class="badge badge-success">Open</span></td>
+                                <td>0</td>
+                                <td>
+                                    <select class="form-control form-control-sm d-inline-block" style="width: auto;">
+                                        <option value="">Select action...</option>
+                                        <option value="#">Set Correct Answers</option>
+                                        <option value="#">Score</option>
+                                        <option value="#">View Statistics</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-primary">Apply</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Projects Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Projects</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Due Dates</th>
+                                <th>State</th>
+                                <th>Submissions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <a href="#">Project 1</a>
+                                    <a href="#" title="View Public Project Page" class="ml-2">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    <a href="#" title="Edit in Django Admin" class="ml-2" style="color: #007bff;">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                                <td>
+                                    Sub: 2036-01-22<br>
+                                    Rev: 2036-01-29
+                                </td>
+                                <td><span class="badge badge-success">Collecting</span></td>
+                                <td>0</td>
+                                <td>
+                                    <select class="form-control form-control-sm d-inline-block" style="width: auto;">
+                                        <option value="">Select action...</option>
+                                        <option value="#">Assign Reviews</option>
+                                        <option value="#">View Statistics</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-primary">Apply</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

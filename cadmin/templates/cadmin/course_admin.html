@@ -53,6 +53,9 @@
               <a href="{% url 'homework' course.slug hw.slug %}" title="View Public Homework Page" class="ml-2">
                 <i class="fas fa-external-link-alt"></i>
               </a>
+              <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin" class="ml-2">
+                <i class="fas fa-edit"></i>
+              </a>
             </td>
             <td>{{ hw.due_date|date:"Y-m-d" }}</td>
             <td>
@@ -72,7 +75,7 @@
                 {% csrf_token %}
                 <select class="form-control form-control-sm d-inline-block" style="width: auto;" name="action" id="hw-action-{{ hw.id }}">
                   <option value="">Select action...</option>
-                  {% if hw.state == 'CL' %}
+                  {% if hw.state == 'OP' or hw.state == 'CL' %}
                     <option value="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}">Set Correct Answers</option>
                     <option value="{% url 'cadmin_homework_score' course.slug hw.slug %}">Score</option>
                   {% endif %}
@@ -117,6 +120,9 @@
               <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}">{{ proj.title }}</a>
               <a href="{% url 'project' course.slug proj.slug %}" title="View Public Project Page" class="ml-2">
                 <i class="fas fa-external-link-alt"></i>
+              </a>
+              <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin" class="ml-2">
+                <i class="fas fa-edit"></i>
               </a>
             </td>
             <td>
