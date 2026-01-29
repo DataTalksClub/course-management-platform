@@ -131,7 +131,8 @@ class DisableLearningInPublicTestCase(TestCase):
         self.enrollment1.save()
         
         # Zero out homework learning in public scores
-        homework_submissions = Submission.objects.filter(enrollment=self.enrollment1)
+        homework_submissions = list(Submission.objects.filter(enrollment=self.enrollment1))
+        submissions_to_update = []
         for submission in homework_submissions:
             if submission.learning_in_public_score > 0:
                 submission.learning_in_public_score = 0
@@ -140,13 +141,17 @@ class DisableLearningInPublicTestCase(TestCase):
                     submission.faq_score + 
                     submission.learning_in_public_score
                 )
-        Submission.objects.bulk_update(
-            homework_submissions,
-            ['learning_in_public_score', 'total_score']
-        )
+                submissions_to_update.append(submission)
+        
+        if submissions_to_update:
+            Submission.objects.bulk_update(
+                submissions_to_update,
+                ['learning_in_public_score', 'total_score']
+            )
         
         # Zero out project learning in public scores
-        project_submissions = ProjectSubmission.objects.filter(enrollment=self.enrollment1)
+        project_submissions = list(ProjectSubmission.objects.filter(enrollment=self.enrollment1))
+        project_submissions_to_update = []
         for submission in project_submissions:
             if submission.project_learning_in_public_score > 0 or submission.peer_review_learning_in_public_score > 0:
                 submission.project_learning_in_public_score = 0
@@ -158,10 +163,13 @@ class DisableLearningInPublicTestCase(TestCase):
                     submission.peer_review_score +
                     submission.peer_review_learning_in_public_score
                 )
-        ProjectSubmission.objects.bulk_update(
-            project_submissions,
-            ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
-        )
+                project_submissions_to_update.append(submission)
+        
+        if project_submissions_to_update:
+            ProjectSubmission.objects.bulk_update(
+                project_submissions_to_update,
+                ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
+            )
         
         # Verify scores are zeroed
         submission1.refresh_from_db()

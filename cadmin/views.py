@@ -352,17 +352,15 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
 @staff_required
 def enrollments_list(request, course_slug):
     """List all enrollments for a course"""
+    from django.db.models import Count
+    
     course = get_object_or_404(Course, slug=course_slug)
     
-    # Get all enrollments with related student data, ordered by leaderboard position
-    enrollments = Enrollment.objects.filter(course=course).select_related('student').order_by(
-        'position_on_leaderboard', 'id'
-    )
-    
-    # Get submission counts for each enrollment
-    for enrollment in enrollments:
-        enrollment.homework_count = Submission.objects.filter(enrollment=enrollment).count()
-        enrollment.project_count = ProjectSubmission.objects.filter(enrollment=enrollment).count()
+    # Get all enrollments with related student data and submission counts, ordered by leaderboard position
+    enrollments = Enrollment.objects.filter(course=course).select_related('student').annotate(
+        homework_count=Count('submission', distinct=True),
+        project_count=Count('projectsubmission', distinct=True)
+    ).order_by('position_on_leaderboard', 'id')
     
     context = {
         "course": course,
@@ -390,7 +388,8 @@ def enrollment_edit(request, course_slug, enrollment_id):
             # If we're disabling, zero out all learning in public scores
             if enrollment.disable_learning_in_public:
                 # Zero out homework learning in public scores
-                homework_submissions = Submission.objects.filter(enrollment=enrollment)
+                homework_submissions = list(Submission.objects.filter(enrollment=enrollment))
+                submissions_to_update = []
                 for submission in homework_submissions:
                     if submission.learning_in_public_score > 0:
                         submission.learning_in_public_score = 0
@@ -400,13 +399,17 @@ def enrollment_edit(request, course_slug, enrollment_id):
                             submission.faq_score + 
                             submission.learning_in_public_score
                         )
-                Submission.objects.bulk_update(
-                    homework_submissions,
-                    ['learning_in_public_score', 'total_score']
-                )
+                        submissions_to_update.append(submission)
+                
+                if submissions_to_update:
+                    Submission.objects.bulk_update(
+                        submissions_to_update,
+                        ['learning_in_public_score', 'total_score']
+                    )
                 
                 # Zero out project learning in public scores
-                project_submissions = ProjectSubmission.objects.filter(enrollment=enrollment)
+                project_submissions = list(ProjectSubmission.objects.filter(enrollment=enrollment))
+                project_submissions_to_update = []
                 for submission in project_submissions:
                     if submission.project_learning_in_public_score > 0 or submission.peer_review_learning_in_public_score > 0:
                         submission.project_learning_in_public_score = 0
@@ -419,10 +422,13 @@ def enrollment_edit(request, course_slug, enrollment_id):
                             submission.peer_review_score +
                             submission.peer_review_learning_in_public_score
                         )
-                ProjectSubmission.objects.bulk_update(
-                    project_submissions,
-                    ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
-                )
+                        project_submissions_to_update.append(submission)
+                
+                if project_submissions_to_update:
+                    ProjectSubmission.objects.bulk_update(
+                        project_submissions_to_update,
+                        ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
+                    )
                 
                 messages.success(
                     request,
