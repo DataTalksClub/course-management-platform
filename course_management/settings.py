@@ -186,6 +186,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 VERSION = os.getenv("VERSION", "N/A")
 
+# Cache configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "default-cache",
+    }
+}
+
 # authentication
 
 AUTHENTICATION_BACKENDS = (

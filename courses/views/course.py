@@ -14,6 +14,7 @@ from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 
 from courses.models import (
     Course,
@@ -258,10 +259,24 @@ def leaderboard_view(request, course_slug: str):
         except Enrollment.DoesNotExist:
             pass
 
-    enrollments = Enrollment.objects.filter(course=course).order_by(
-        Coalesce("position_on_leaderboard", Value(999999)),
-        "id",
-    )
+    # Try to get enrollments from cache
+    cache_key = f"leaderboard:{course.id}"
+    enrollments = cache.get(cache_key)
+
+    if enrollments is None:
+        logger.info(f"Cache miss for leaderboard of course {course.slug}")
+        # Cache miss, fetch from database
+        enrollments = list(
+            Enrollment.objects.filter(course=course).order_by(
+                Coalesce("position_on_leaderboard", Value(999999)),
+                "id",
+            )
+        )
+        # Cache for 1 hour (3600 seconds)
+        # The cache will be invalidated when leaderboard is recalculated
+        cache.set(cache_key, enrollments, 3600)
+    else:
+        logger.info(f"Cache hit for leaderboard of course {course.slug}")
 
     context = {
         "enrollments": enrollments,
