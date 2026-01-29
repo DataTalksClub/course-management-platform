@@ -19,12 +19,14 @@ from courses.models import (
     PeerReviewState,
     ReviewCriteria,
     ProjectEvaluationScore,
+    Enrollment,
 )
 from courses.scoring import (
     score_homework_submissions,
     fill_correct_answers,
     calculate_homework_statistics,
     calculate_project_statistics,
+    update_leaderboard,
 )
 from courses.projects import (
     assign_peer_reviews_for_project,
@@ -345,4 +347,94 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
     }
 
     return render(request, "cadmin/project_submission_edit.html", context)
+
+
+@staff_required
+def enrollment_edit(request, course_slug, enrollment_id):
+    """Edit an enrollment - mainly to disable learning in public"""
+    course = get_object_or_404(Course, slug=course_slug)
+    enrollment = get_object_or_404(Enrollment, id=enrollment_id, course=course)
+    
+    if request.method == "POST":
+        # Handle the disable learning in public toggle
+        action = request.POST.get("action")
+        
+        if action == "toggle_learning_in_public":
+            # Toggle the flag
+            enrollment.disable_learning_in_public = not enrollment.disable_learning_in_public
+            enrollment.save()
+            
+            # If we're disabling, zero out all learning in public scores
+            if enrollment.disable_learning_in_public:
+                # Zero out homework learning in public scores
+                homework_submissions = Submission.objects.filter(enrollment=enrollment)
+                for submission in homework_submissions:
+                    if submission.learning_in_public_score > 0:
+                        submission.learning_in_public_score = 0
+                        # Recalculate total score
+                        submission.total_score = (
+                            submission.questions_score + 
+                            submission.faq_score + 
+                            submission.learning_in_public_score
+                        )
+                Submission.objects.bulk_update(
+                    homework_submissions,
+                    ['learning_in_public_score', 'total_score']
+                )
+                
+                # Zero out project learning in public scores
+                project_submissions = ProjectSubmission.objects.filter(enrollment=enrollment)
+                for submission in project_submissions:
+                    if submission.project_learning_in_public_score > 0 or submission.peer_review_learning_in_public_score > 0:
+                        submission.project_learning_in_public_score = 0
+                        submission.peer_review_learning_in_public_score = 0
+                        # Recalculate total score
+                        submission.total_score = (
+                            submission.project_score +
+                            submission.project_faq_score +
+                            submission.project_learning_in_public_score +
+                            submission.peer_review_score +
+                            submission.peer_review_learning_in_public_score
+                        )
+                ProjectSubmission.objects.bulk_update(
+                    project_submissions,
+                    ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
+                )
+                
+                messages.success(
+                    request,
+                    f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out."
+                )
+            else:
+                messages.success(
+                    request,
+                    f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects."
+                )
+            
+            # Recalculate the leaderboard for the course
+            update_leaderboard(course)
+            
+            return redirect("cadmin_enrollment_edit", course_slug=course_slug, enrollment_id=enrollment_id)
+    
+    # Get some stats about this enrollment
+    homework_submissions = Submission.objects.filter(enrollment=enrollment)
+    project_submissions = ProjectSubmission.objects.filter(enrollment=enrollment)
+    
+    total_homework_lip_score = sum(s.learning_in_public_score for s in homework_submissions)
+    total_project_lip_score = sum(
+        s.project_learning_in_public_score + s.peer_review_learning_in_public_score 
+        for s in project_submissions
+    )
+    
+    context = {
+        "course": course,
+        "enrollment": enrollment,
+        "homework_submissions_count": homework_submissions.count(),
+        "project_submissions_count": project_submissions.count(),
+        "total_homework_lip_score": total_homework_lip_score,
+        "total_project_lip_score": total_project_lip_score,
+    }
+    
+    return render(request, "cadmin/enrollment_edit.html", context)
+
 
