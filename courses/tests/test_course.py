@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
+from django.core.cache import cache
 
 from courses.models import (
     User,
@@ -27,6 +28,9 @@ credentials = dict(
 
 class CourseDetailViewTests(TestCase):
     def setUp(self):
+        # Clear cache before each test to ensure fresh state
+        cache.clear()
+        
         self.client = Client()
 
         self.user = User.objects.create_user(**credentials)
