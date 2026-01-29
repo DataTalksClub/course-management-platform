@@ -25,6 +25,7 @@
 
 <div class="alert alert-info" role="alert">
   <strong>Total Enrollments:</strong> {{ total_enrollments }}
+  <a href="{% url 'cadmin_enrollments' course.slug %}" class="btn btn-sm btn-primary ml-3">Manage Enrollments</a>
 </div>
 
 <!-- Homework Section -->

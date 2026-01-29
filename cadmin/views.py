@@ -350,6 +350,29 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
 
 
 @staff_required
+def enrollments_list(request, course_slug):
+    """List all enrollments for a course"""
+    course = get_object_or_404(Course, slug=course_slug)
+    
+    # Get all enrollments with related student data, ordered by leaderboard position
+    enrollments = Enrollment.objects.filter(course=course).select_related('student').order_by(
+        'position_on_leaderboard', 'id'
+    )
+    
+    # Get submission counts for each enrollment
+    for enrollment in enrollments:
+        enrollment.homework_count = Submission.objects.filter(enrollment=enrollment).count()
+        enrollment.project_count = ProjectSubmission.objects.filter(enrollment=enrollment).count()
+    
+    context = {
+        "course": course,
+        "enrollments": enrollments,
+    }
+    
+    return render(request, "cadmin/enrollments.html", context)
+
+
+@staff_required
 def enrollment_edit(request, course_slug, enrollment_id):
     """Edit an enrollment - mainly to disable learning in public"""
     course = get_object_or_404(Course, slug=course_slug)
