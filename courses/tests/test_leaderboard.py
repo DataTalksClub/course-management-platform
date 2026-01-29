@@ -59,6 +59,9 @@ class LeaderboardTestCase(TestCase):
         )
 
     def setUp(self):
+        # Clear cache before each test to ensure fresh state
+        cache.clear()
+        
         self.course = Course.objects.create(
             slug="test-course",
             title="Test Course",

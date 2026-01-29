@@ -30,7 +30,7 @@ class CourseDetailViewTests(TestCase):
     def setUp(self):
         # Clear cache before each test to ensure fresh state
         cache.clear()
-        
+
         self.client = Client()
 
         self.user = User.objects.create_user(**credentials)
@@ -317,7 +317,7 @@ class CourseDetailViewTests(TestCase):
             self.enrollment.display_name,
         ]
 
-        actual_order = [e.display_name for e in enrollments]
+        actual_order = [e['display_name'] for e in enrollments]
 
         self.assertEqual(actual_order, expected_order)
 
@@ -353,13 +353,13 @@ class CourseDetailViewTests(TestCase):
             e5.display_name,
         ]
 
-        actual_order = [e.display_name for e in enrollments]
+        actual_order = [e['display_name'] for e in enrollments]
 
         self.assertEqual(actual_order, expected_order)
 
         expected_positions = [1, 2, 3, 4, None, None]
         actual_positions = [
-            e.position_on_leaderboard for e in enrollments
+            e['position_on_leaderboard'] for e in enrollments
         ]
         self.assertEqual(actual_positions, expected_positions)
 
@@ -394,7 +394,7 @@ class CourseDetailViewTests(TestCase):
 
         # Verify the order is correct
         expected_order = ["e1", "e2", "e3", "e4", "e5"]
-        actual_order = [e.display_name for e in enrollments]
+        actual_order = [e['display_name'] for e in enrollments]
         self.assertEqual(actual_order, expected_order)
 
     def test_not_enrolled_but_can_edit_details(self):
