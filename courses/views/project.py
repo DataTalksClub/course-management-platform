@@ -1,6 +1,6 @@
 import logging
 
-from typing import Iterable
+from typing import Iterable, Optional
 from collections import defaultdict
 
 from django.http import HttpRequest
@@ -195,6 +195,7 @@ def project_view(request, course_slug, project_slug):
         "disabled": disabled,
         "accepting_submissions": accepting_submissions,
         "ceritificate_name": ceritificate_name,
+        "disable_learning_in_public": enrollment.disable_learning_in_public if is_authenticated else False,
     }
 
     return render(request, "projects/project.html", context)
@@ -302,6 +303,7 @@ def project_eval_build_context(
     project: Project,
     review: PeerReview,
     review_criteria: Iterable[ReviewCriteria],
+    enrollment: Optional['Enrollment'] = None,
 ):
     submission = review.submission_under_evaluation
 
@@ -310,6 +312,9 @@ def project_eval_build_context(
     )
 
     disabled = not accepting_submissions
+    
+    # Check if learning in public is disabled for this enrollment
+    disable_learning_in_public = enrollment.disable_learning_in_public if enrollment else False
 
     review_responses = review.get_criteria_responses()
 
@@ -343,6 +348,7 @@ def project_eval_build_context(
         "criteria_response_pairs": criteria_response_pairs,
         "accepting_submissions": accepting_submissions,
         "disabled": disabled,
+        "disable_learning_in_public": disable_learning_in_public,
     }
 
     return context
@@ -431,6 +437,12 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     review_criteria = ReviewCriteria.objects.filter(
         course=course
     ).order_by("id")
+    
+    # Get the enrollment for the reviewer
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=request.user,
+        course=course,
+    )
 
     if request.method == "POST":
         project_eval_post_submission(
@@ -444,7 +456,7 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         )
 
     context = project_eval_build_context(
-        project, review, review_criteria
+        project, review, review_criteria, enrollment
     )
     context["course"] = course
 

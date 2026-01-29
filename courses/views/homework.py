@@ -306,6 +306,7 @@ def homework_detail_build_context_authenticated(
     homework: Homework,
     questions: List[Question],
     submission: Optional[Submission],
+    enrollment: Optional['Enrollment'] = None,
 ) -> dict:
     if submission:
         answers = Answer.objects.filter(
@@ -332,6 +333,9 @@ def homework_detail_build_context_authenticated(
 
     disabled = homework.state != HomeworkState.OPEN.value
     accepting_submissions = homework.state == HomeworkState.OPEN.value
+    
+    # Check if learning in public is disabled for this enrollment
+    disable_learning_in_public = enrollment.disable_learning_in_public if enrollment else False
 
     context = {
         "course": course,
@@ -341,6 +345,7 @@ def homework_detail_build_context_authenticated(
         "is_authenticated": True,
         "disabled": disabled,
         "accepting_submissions": accepting_submissions,
+        "disable_learning_in_public": disable_learning_in_public,
     }
 
     return context
@@ -369,12 +374,19 @@ def homework_view(
     submission = Submission.objects.filter(
         homework=homework, student=user
     ).first()
+    
+    # Get or create enrollment for the user
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=user,
+        course=course,
+    )
 
     context = homework_detail_build_context_authenticated(
         course=course,
         homework=homework,
         questions=questions,
         submission=submission,
+        enrollment=enrollment,
     )
 
     # Process the form submission
