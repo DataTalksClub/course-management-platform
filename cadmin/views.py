@@ -532,8 +532,8 @@ def enrollment_edit(request, course_slug, enrollment_id):
             return redirect("cadmin_enrollment_edit", course_slug=course_slug, enrollment_id=enrollment_id)
     
     # Get some stats about this enrollment
-    homework_submissions = Submission.objects.filter(enrollment=enrollment)
-    project_submissions = ProjectSubmission.objects.filter(enrollment=enrollment)
+    homework_submissions = Submission.objects.filter(enrollment=enrollment).select_related('homework').order_by('-submitted_at')
+    project_submissions = ProjectSubmission.objects.filter(enrollment=enrollment).select_related('project').order_by('-submitted_at')
     
     total_homework_lip_score = sum(s.learning_in_public_score for s in homework_submissions)
     total_project_lip_score = sum(
@@ -544,7 +544,9 @@ def enrollment_edit(request, course_slug, enrollment_id):
     context = {
         "course": course,
         "enrollment": enrollment,
+        "homework_submissions": homework_submissions,
         "homework_submissions_count": homework_submissions.count(),
+        "project_submissions": project_submissions,
         "project_submissions_count": project_submissions.count(),
         "total_homework_lip_score": total_homework_lip_score,
         "total_project_lip_score": total_project_lip_score,

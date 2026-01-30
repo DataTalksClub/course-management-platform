@@ -136,8 +136,19 @@
           Enter URLs separated by commas. Each link contributes to the learning in public score (capped at {{ homework.learning_in_public_cap }}).
         </small>
       </div>
+      <button type="button" class="btn btn-warning" id="clear-lip-links" onclick="clearLearningInPublicLinks()">
+        <i class="fas fa-trash"></i> Remove Learning in Public Links
+      </button>
     </div>
   </div>
+
+<script>
+function clearLearningInPublicLinks() {
+  if (confirm('Are you sure you want to remove all learning in public links for this submission? This will set the learning in public score to 0.')) {
+    document.getElementById('learning_in_public_links').value = '';
+  }
+}
+</script>
 
   <div class="card mb-3">
     <div class="card-header">

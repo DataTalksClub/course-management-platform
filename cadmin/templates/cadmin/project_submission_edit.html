@@ -84,6 +84,9 @@
       <div class="form-group mb-3">
         <label for="project_learning_in_public_score">Project Learning in Public Score</label>
         <input type="number" class="form-control additional-score" id="project_learning_in_public_score" name="project_learning_in_public_score" value="{{ submission.project_learning_in_public_score }}" required>
+        <button type="button" class="btn btn-sm btn-warning mt-2" onclick="clearProjectLearningInPublicScore()">
+          <i class="fas fa-trash"></i> Remove Project Learning in Public Score
+        </button>
       </div>
     </div>
   </div>
@@ -101,6 +104,9 @@
       <div class="form-group mb-3">
         <label for="peer_review_learning_in_public_score">Peer Review Learning in Public Score</label>
         <input type="number" class="form-control peer-review-score" id="peer_review_learning_in_public_score" name="peer_review_learning_in_public_score" value="{{ submission.peer_review_learning_in_public_score }}" required>
+        <button type="button" class="btn btn-sm btn-warning mt-2" onclick="clearPeerReviewLearningInPublicScore()">
+          <i class="fas fa-trash"></i> Remove Peer Review Learning in Public Score
+        </button>
       </div>
     </div>
   </div>
@@ -220,6 +226,22 @@ document.addEventListener('DOMContentLoaded', function() {
   // Calculate initial values
   calculateTotal();
 });
+
+function clearProjectLearningInPublicScore() {
+  if (confirm('Are you sure you want to remove the project learning in public score? This will set it to 0.')) {
+    document.getElementById('project_learning_in_public_score').value = '0';
+    // Trigger recalculation
+    document.getElementById('project_learning_in_public_score').dispatchEvent(new Event('input'));
+  }
+}
+
+function clearPeerReviewLearningInPublicScore() {
+  if (confirm('Are you sure you want to remove the peer review learning in public score? This will set it to 0.')) {
+    document.getElementById('peer_review_learning_in_public_score').value = '0';
+    // Trigger recalculation
+    document.getElementById('peer_review_learning_in_public_score').dispatchEvent(new Event('input'));
+  }
+}
 </script>
 
 {% endblock %}
