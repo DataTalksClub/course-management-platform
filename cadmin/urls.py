@@ -40,4 +40,14 @@ urlpatterns = [
         views.project_submission_edit,
         name="cadmin_project_submission_edit",
     ),
+    path(
+        "<slug:course_slug>/enrollments/",
+        views.enrollments_list,
+        name="cadmin_enrollments",
+    ),
+    path(
+        "<slug:course_slug>/enrollment/<int:enrollment_id>/edit",
+        views.enrollment_edit,
+        name="cadmin_enrollment_edit",
+    ),
 ]

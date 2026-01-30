@@ -126,6 +126,12 @@ class Enrollment(models.Model):
         help_text="Any information about you",
     )
 
+    disable_learning_in_public = models.BooleanField(
+        default=False,
+        verbose_name="Disable learning in public",
+        help_text="When enabled, all learning in public scores are removed and future submissions are not counted"
+    )
+
     def save(self, *args, **kwargs):
         if not self.display_name:
             self.display_name = generate_random_name()

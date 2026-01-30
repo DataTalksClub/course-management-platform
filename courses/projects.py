@@ -317,17 +317,19 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
             project_learning_in_public_score = 0
 
-            if submission.learning_in_public_links:
-                project_learning_in_public_score = len(
-                    submission.learning_in_public_links
-                )
-            if (
-                project_learning_in_public_score
-                > learning_in_public_cap_project
-            ):
-                project_learning_in_public_score = (
-                    learning_in_public_cap_project
-                )
+            # Check if learning in public is disabled for this enrollment
+            if not submission.enrollment.disable_learning_in_public:
+                if submission.learning_in_public_links:
+                    project_learning_in_public_score = len(
+                        submission.learning_in_public_links
+                    )
+                if (
+                    project_learning_in_public_score
+                    > learning_in_public_cap_project
+                ):
+                    project_learning_in_public_score = (
+                        learning_in_public_cap_project
+                    )
 
             submission.project_learning_in_public_score = (
                 project_learning_in_public_score
@@ -335,16 +337,18 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
             peer_review_learning_in_public_score = 0
 
-            for review in reviewed:
-                if not review.learning_in_public_links:
-                    continue
-                points_for_review = len(review.learning_in_public_links)
-                cap = project.learning_in_public_cap_review
-                if points_for_review > cap:
-                    points_for_review = cap
-                peer_review_learning_in_public_score += (
-                    points_for_review
-                )
+            # Check if learning in public is disabled for this enrollment
+            if not submission.enrollment.disable_learning_in_public:
+                for review in reviewed:
+                    if not review.learning_in_public_links:
+                        continue
+                    points_for_review = len(review.learning_in_public_links)
+                    cap = project.learning_in_public_cap_review
+                    if points_for_review > cap:
+                        points_for_review = cap
+                    peer_review_learning_in_public_score += (
+                        points_for_review
+                    )
 
             submission.peer_review_learning_in_public_score = (
                 peer_review_learning_in_public_score

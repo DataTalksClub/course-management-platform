@@ -141,6 +141,11 @@ def is_answer_correct(question: Question, answer: Answer) -> bool:
 def update_learning_in_public_score(submission: Submission) -> int:
     learning_in_public_score = 0
 
+    # Check if learning in public is disabled for this enrollment
+    if submission.enrollment.disable_learning_in_public:
+        submission.learning_in_public_score = 0
+        return 0
+
     if submission.learning_in_public_links:
         learning_in_public_score = len(
             submission.learning_in_public_links
