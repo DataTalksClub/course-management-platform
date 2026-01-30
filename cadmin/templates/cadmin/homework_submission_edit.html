@@ -1,0 +1,185 @@
+{% extends 'cadmin/base.html' %}
+
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">{{ homework.title }} Submissions</a></li>
+  <li><a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug submission.id %}">Edit Submission</a></li>
+{% endblock %}
+
+{% block cadmin_content %}
+<h2>Edit Homework Submission</h2>
+
+<div class="mb-3">
+  <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="btn btn-secondary">Back to Submissions</a>
+</div>
+
+<div class="alert alert-info" role="alert">
+  <strong>Student:</strong> {{ submission.student.username }} ({{ submission.student.email }})<br>
+  <strong>Homework:</strong> {{ homework.title }}<br>
+  <strong>Submitted:</strong> {{ submission.submitted_at|date:"Y-m-d H:i" }}<br>
+  <strong>Current Total Score:</strong> {{ submission.total_score }}
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Question Answers</h4>
+    </div>
+    <div class="card-body">
+      {% if questions_with_answers %}
+        {% for item in questions_with_answers %}
+        <div class="card mb-3 border-secondary">
+          <div class="card-header bg-light">
+            <strong>Question {{ forloop.counter }}:</strong> {{ item.question.text }}
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <strong>Question Type:</strong> {{ item.question.get_question_type_display }}<br>
+              {% if item.question.correct_answer %}
+                <strong>Correct Answer:</strong> {{ item.question.correct_answer }}
+              {% endif %}
+            </div>
+            
+            {% if item.question.question_type == "MC" %}
+              {# Multiple choice question #}
+              <div class="form-group">
+                <label for="answer_{{ item.question.id }}">Answer (option number):</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="answer_{{ item.question.id }}" 
+                       name="answer_{{ item.question.id }}" 
+                       value="{{ item.answer_text }}"
+                       placeholder="Enter option number">
+                {% if item.question.possible_answers %}
+                  <small class="form-text text-muted">
+                    Options: 
+                    {% for option in item.question.get_possible_answers %}
+                      {{ forloop.counter }}. {{ option }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  </small>
+                {% endif %}
+              </div>
+            {% elif item.question.question_type == "CB" %}
+              {# Checkbox question #}
+              <div class="form-group">
+                <label for="answer_{{ item.question.id }}">Answer (comma-separated option numbers):</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="answer_{{ item.question.id }}" 
+                       name="answer_{{ item.question.id }}" 
+                       value="{{ item.answer_text }}"
+                       placeholder="e.g., 1,3,4">
+                {% if item.question.possible_answers %}
+                  <small class="form-text text-muted">
+                    Options: 
+                    {% for option in item.question.get_possible_answers %}
+                      {{ forloop.counter }}. {{ option }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  </small>
+                {% endif %}
+              </div>
+            {% elif item.question.question_type == "FL" %}
+              {# Free form long #}
+              <div class="form-group">
+                <label for="answer_{{ item.question.id }}">Answer:</label>
+                <textarea class="form-control" 
+                          id="answer_{{ item.question.id }}" 
+                          name="answer_{{ item.question.id }}" 
+                          rows="4">{{ item.answer_text }}</textarea>
+              </div>
+            {% else %}
+              {# Free form or other #}
+              <div class="form-group">
+                <label for="answer_{{ item.question.id }}">Answer:</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="answer_{{ item.question.id }}" 
+                       name="answer_{{ item.question.id }}" 
+                       value="{{ item.answer_text }}">
+              </div>
+            {% endif %}
+            
+            {% if item.answer %}
+              <div class="mt-2">
+                <span class="badge {% if item.answer.is_correct %}badge-success{% else %}badge-danger{% endif %}">
+                  {% if item.answer.is_correct %}Correct{% else %}Incorrect{% endif %}
+                </span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No questions found for this homework.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Learning in Public Links</h4>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="learning_in_public_links">Links (comma-separated):</label>
+        <textarea class="form-control" 
+                  id="learning_in_public_links" 
+                  name="learning_in_public_links" 
+                  rows="3"
+                  placeholder="https://example.com/post1, https://example.com/post2">{% if submission.learning_in_public_links %}{{ submission.learning_in_public_links|join:", " }}{% endif %}</textarea>
+        <small class="form-text text-muted">
+          Enter URLs separated by commas. Each link contributes to the learning in public score (capped at {{ homework.learning_in_public_cap }}).
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <h4>Current Scores (Read-Only)</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>Questions Score</label>
+            <input type="text" class="form-control" value="{{ submission.questions_score }}" readonly>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>FAQ Score</label>
+            <input type="text" class="form-control" value="{{ submission.faq_score }}" readonly>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>Learning in Public Score</label>
+            <input type="text" class="form-control" value="{{ submission.learning_in_public_score }}" readonly>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>Total Score</label>
+            <input type="text" class="form-control" value="{{ submission.total_score }}" readonly>
+          </div>
+        </div>
+      </div>
+      <small class="form-text text-muted">
+        Scores will be automatically recalculated when you save. If the total score changes, the leaderboard will be updated.
+      </small>
+    </div>
+  </div>
+
+  <div class="text-center">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

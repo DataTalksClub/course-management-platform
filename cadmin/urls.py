@@ -21,6 +21,11 @@ urlpatterns = [
         name="cadmin_homework_submissions",
     ),
     path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/submissions/<int:submission_id>/edit",
+        views.homework_submission_edit,
+        name="cadmin_homework_submission_edit",
+    ),
+    path(
         "<slug:course_slug>/project/<slug:project_slug>/assign-reviews",
         views.project_assign_reviews,
         name="cadmin_project_assign_reviews",

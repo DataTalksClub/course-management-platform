@@ -176,6 +176,92 @@ def homework_submissions(request, course_slug, homework_slug):
 
 
 @staff_required
+def homework_submission_edit(request, course_slug, homework_slug, submission_id):
+    """Edit a homework submission"""
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+    submission = get_object_or_404(
+        Submission, 
+        id=submission_id, 
+        homework=homework
+    )
+    
+    # Get all questions for this homework
+    questions = Question.objects.filter(homework=homework).order_by("id")
+    
+    # Get all answers for this submission
+    answers = Answer.objects.filter(submission=submission).select_related("question")
+    answer_map = {answer.question_id: answer for answer in answers}
+    
+    # Build a list of questions with their current answers
+    questions_with_answers = []
+    for question in questions:
+        answer = answer_map.get(question.id)
+        questions_with_answers.append({
+            'question': question,
+            'answer': answer,
+            'answer_text': answer.answer_text if answer else "",
+        })
+    
+    if request.method == "POST":
+        # Store the old score to check if it changed
+        old_total_score = submission.total_score
+        
+        try:
+            # Update answers
+            for question in questions:
+                answer_text = request.POST.get(f"answer_{question.id}", "")
+                
+                # Get or create the answer
+                answer, created = Answer.objects.get_or_create(
+                    submission=submission,
+                    question=question,
+                    defaults={'answer_text': answer_text}
+                )
+                
+                if not created:
+                    answer.answer_text = answer_text
+                    answer.save()
+            
+            # Update learning in public links
+            lip_links_str = request.POST.get("learning_in_public_links", "")
+            if lip_links_str.strip():
+                # Parse the links (comma-separated)
+                links = [link.strip() for link in lip_links_str.split(",") if link.strip()]
+                submission.learning_in_public_links = links
+            else:
+                submission.learning_in_public_links = None
+            
+            # Recalculate the score
+            from courses.scoring import update_score
+            
+            # Get updated answers
+            updated_answers = list(Answer.objects.filter(submission=submission).select_related("question"))
+            update_score(submission, updated_answers, save=True)
+            
+            # If the score changed, update the leaderboard
+            if submission.total_score != old_total_score:
+                update_leaderboard(course)
+            
+            messages.success(
+                request,
+                f"Homework submission for {submission.student.username} updated successfully",
+            )
+            return redirect("cadmin_homework_submissions", course_slug=course_slug, homework_slug=homework_slug)
+        except Exception as e:
+            messages.error(request, f"Error updating submission: {e}")
+    
+    context = {
+        "course": course,
+        "homework": homework,
+        "submission": submission,
+        "questions_with_answers": questions_with_answers,
+    }
+    
+    return render(request, "cadmin/homework_submission_edit.html", context)
+
+
+@staff_required
 def project_assign_reviews(request, course_slug, project_slug):
     """Assign peer reviews for a project"""
     course = get_object_or_404(Course, slug=course_slug)
