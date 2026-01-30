@@ -70,6 +70,11 @@
         </td>
         {% endfor %}
         <td>
+          <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}" 
+             class="btn btn-sm btn-primary" 
+             title="Edit submission">
+            <i class="fas fa-edit"></i> Edit
+          </a>
           <form method="post" action="{% url 'loginas-user-login' data.submission.student.id %}" style="display: inline;">
             {% csrf_token %}
             <input type="hidden" name="next" value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
