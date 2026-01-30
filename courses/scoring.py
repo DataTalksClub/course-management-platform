@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.db.models import Sum, Count
 
 from django.db import transaction
+from django.core.cache import cache
 
 
 from .models import (
@@ -344,6 +345,11 @@ def update_leaderboard(course: Course):
         enrollments,
         ["total_score", "position_on_leaderboard"],
     )
+
+    # Invalidate the leaderboard cache
+    cache_key = f"leaderboard:{course.id}"
+    cache.delete(cache_key)
+    logger.info(f"Invalidated cache for leaderboard of course {course.id}")
 
     t1 = time()
     logger.info(f"Updated leaderboard in {(t1 - t0):.2f} seconds")
