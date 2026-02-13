@@ -33,6 +33,14 @@
 
 <p><strong>Total Score:</strong> {{ enrollment.total_score }}</p>
 
+{% if request.user.is_staff %}
+  <p>
+    <a href="{% url 'cadmin_enrollment_edit' course_slug=enrollment.course.slug enrollment_id=enrollment.id %}" class="badge badge-primary" title="Admin: Edit Enrollment">
+      <i class="fas fa-cog"></i> Admin
+    </a>
+  </p>
+{% endif %}
+
 <h3 class="mt-4">Homework submissions</h3>
 {% for submission in submissions %}
   {% if submission.homework.is_scored %}

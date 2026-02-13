@@ -34,11 +34,6 @@
         <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}">
           {{ enrollment.display_name }}
         </a>
-        {% if request.user.is_staff %}
-          <a href="{% url 'cadmin_enrollment_edit' course_slug=course.slug enrollment_id=enrollment.id %}" class="badge badge-primary ml-2" title="Admin: Edit Enrollment">
-            <i class="fas fa-cog"></i> Admin
-          </a>
-        {% endif %}
       </div>
       <div class="col-3 text-right">{{ enrollment.total_score }}</div>
     </div>
