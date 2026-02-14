@@ -61,7 +61,7 @@ jobs:
         python-version: '3.13.5'
 
     - name: Build Docker image
-      run: DOCKER_BUILDKIT=0 docker build -t course_management:${{ env.TAG }} .
+      run: docker build -t course_management:${{ env.TAG }} .
 
     - name: Log in to Amazon ECR
       run: |
