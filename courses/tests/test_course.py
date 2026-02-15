@@ -576,6 +576,21 @@ class CourseDetailViewTests(TestCase):
         self.assertIsNone(response.context["certificate_url"])
         self.assertNotContains(response, "Download Certificate")
 
+    def test_course_view_certificate_not_shown_when_not_authenticated(self):
+        """Test that the certificate button is not shown to unauthenticated users even if certificate exists"""
+        # Set a certificate URL for the enrollment
+        self.enrollment.certificate_url = "https://example.com/certificate.pdf"
+        self.enrollment.save()
+
+        # Don't login - access as unauthenticated user
+        response = self.client.get(
+            reverse("course", args=[self.course.slug])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "courses/course.html")
+        # certificate_url should be None for unauthenticated users
+        self.assertIsNone(response.context["certificate_url"])
+        self.assertNotContains(response, "Download Certificate")
 
     def test_list_all_submissions_view(self):
         """Test the list all submissions view shows submissions in correct order"""
