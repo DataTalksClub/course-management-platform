@@ -545,6 +545,38 @@ class CourseDetailViewTests(TestCase):
         self.assertFalse(response.context["has_completed_projects"])
         self.assertNotContains(response, "See all submitted projects")
 
+    def test_course_view_with_certificate(self):
+        """Test that the course view shows the certificate download button when a certificate is available"""
+        # Set a certificate URL for the enrollment
+        self.enrollment.certificate_url = "https://example.com/certificate.pdf"
+        self.enrollment.save()
+
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse("course", args=[self.course.slug])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "courses/course.html")
+        self.assertEqual(response.context["certificate_url"], "https://example.com/certificate.pdf")
+        self.assertContains(response, "Download Certificate")
+        self.assertContains(response, 'href="https://example.com/certificate.pdf"')
+
+    def test_course_view_without_certificate(self):
+        """Test that the course view doesn't show the certificate download button when no certificate is available"""
+        # Ensure no certificate URL is set
+        self.enrollment.certificate_url = None
+        self.enrollment.save()
+
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse("course", args=[self.course.slug])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "courses/course.html")
+        self.assertIsNone(response.context["certificate_url"])
+        self.assertNotContains(response, "Download Certificate")
+
+
     def test_list_all_submissions_view(self):
         """Test the list all submissions view shows submissions in correct order"""
         self.client.login(**credentials)
