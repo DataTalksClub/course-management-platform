@@ -249,10 +249,12 @@ body.dark-mode .form-check-label {
 
 body.dark-mode footer {
   color: #b0b0b0;
+  text-align: center;
 }
 
 body.dark-mode footer a {
   color: #64b5f6;
+  text-align: center;
 }
 
 body.dark-mode .text-muted {
