@@ -25,14 +25,21 @@ def get_error_message(status_code, url):
 def validate_url_200(
     url, get_method=None, code=None, params=None
 ):
+    # Since the 
     if get_method is None:
-        get_method = requests.get
+        get_method = requests.head
         
     try:
         response = get_method(url)
+
+        if response.status_code in [403, 405, 501]:
+            response = requests.get(url)
+
         status_code = response.status_code
+            
         if status_code == 200:
             return
+            
         error_message = get_error_message(status_code, url)
         raise ValidationError(error_message, code=code, params=params)
     except requests.exceptions.RequestException as e:
