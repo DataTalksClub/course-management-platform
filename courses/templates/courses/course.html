@@ -23,6 +23,9 @@
     {% if is_authenticated %}
       <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
     {% endif %}
+    {% if is_authenticated and certificate_url %}
+      <a class="btn btn-success" href="{{ certificate_url }}" target="_blank" role="button"><i class="fas fa-certificate"></i> Download Certificate</a>
+    {% endif %}
   </p>
   {% if user.is_staff %}
   <p>

@@ -176,6 +176,7 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
             has_completed_projects = True
 
     total_score = None
+    certificate_url = None
     if user.is_authenticated:
         try:
             enrollment = Enrollment.objects.get(
@@ -183,6 +184,7 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
                 course=course,
             )
             total_score = enrollment.total_score
+            certificate_url = enrollment.certificate_url
         except Enrollment.DoesNotExist:
             pass
 
@@ -193,6 +195,7 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         "has_completed_projects": has_completed_projects,
         "is_authenticated": user.is_authenticated,
         "total_score": total_score,
+        "certificate_url": certificate_url,
     }
 
     return render(request, "courses/course.html", context)
