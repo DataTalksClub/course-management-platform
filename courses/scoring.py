@@ -346,9 +346,9 @@ def update_leaderboard(course: Course):
         ["total_score", "position_on_leaderboard"],
     )
 
-    # Invalidate the leaderboard cache
-    cache_key = f"leaderboard:{course.id}"
-    cache.delete(cache_key)
+    # Invalidate the leaderboard caches
+    cache.delete(f"leaderboard:{course.id}")
+    cache.delete(f"leaderboard_data:{course.id}")
     logger.info(f"Invalidated cache for leaderboard of course {course.id}")
 
     t1 = time()

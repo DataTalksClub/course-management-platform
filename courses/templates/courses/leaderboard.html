@@ -39,4 +39,10 @@
     </div>
   {% endfor %}
 
+  <div class="mt-4 text-center text-muted">
+    <small>
+      <a href="{% url 'data_leaderboard' course_slug=course.slug %}">Leaderboard data (YAML)</a>
+    </small>
+  </div>
+
 {% endblock %}

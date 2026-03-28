@@ -18,6 +18,13 @@ urlpatterns = [
         name="course_criteria_yaml",
     ),
 
+    # Leaderboard data (public, no auth required)
+    path(
+        "<slug:course_slug>/leaderboard.yaml",
+        data_views.leaderboard_data_view,
+        name="data_leaderboard",
+    ),
+
     # Data API endpoints (require auth)
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>",
