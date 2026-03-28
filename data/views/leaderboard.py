@@ -27,7 +27,7 @@ from courses.models.project import ProjectState
 
 logger = logging.getLogger(__name__)
 
-LEADERBOARD_DATA_CACHE_TTL = None  # Cache forever, invalidated by update_leaderboard()
+LEADERBOARD_DATA_CACHE_TTL = 86400  # 24 hours; also invalidated by update_leaderboard()
 
 
 def _build_leaderboard_data(course):
