@@ -8,6 +8,7 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("accounts/", include("allauth.urls")),
 
+    path("api/", include("api.urls")),
     path("data/", include("data.urls")),
     path("cadmin/", include("cadmin.urls")),
     path("", include("courses.urls")),

@@ -39,14 +39,4 @@ urlpatterns = [
         data_views.update_enrollment_certificate_view,
         name="data_update_certificate",
     ),
-    path(
-        "<slug:course_slug>/content",
-        data_views.course_content_view,
-        name="data_content",
-    ),
-    path(
-        "<slug:course_slug>/homework/<slug:homework_slug>/content",
-        data_views.homework_content_view,
-        name="data_homework_content",
-    ),
 ]
