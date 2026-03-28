@@ -192,6 +192,17 @@ nav .breadcrumbs ul li:not(:first-child)::before {
   margin-top: 10px;
 }
 
+.lip-links li {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  margin-bottom: 8px;
+}
+
+.lip-links li a {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
 /* Dark Mode Styles */
 html.dark-mode,
 body.dark-mode {
