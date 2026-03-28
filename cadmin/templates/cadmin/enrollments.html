@@ -2,94 +2,169 @@
 
 {% block title %}Enrollments - {{ course.title }}{% endblock %}
 
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li>Enrollments</li>
+{% endblock %}
+
 {% block cadmin_content %}
-<div class="container-fluid my-4">
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="{% url 'cadmin_course_list' %}">Admin</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
-      <li class="breadcrumb-item active">Enrollments</li>
-    </ol>
-  </nav>
+<h2>Enrollments for {{ course.title }}</h2>
 
-  <h1>Enrollments for {{ course.title }}</h1>
+<div class="mb-3">
+  <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-secondary">Back to Course Admin</a>
+  <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">View Leaderboard</a>
+</div>
 
-  <div class="my-3">
-    <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-secondary">Back to Admin</a>
-    <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">View Leaderboard</a>
-  </div>
+<div class="alert alert-info" role="alert">
+  <strong>Total Enrollments:</strong> {{ enrollments.count }}
+</div>
 
-  <div class="card my-4">
-    <div class="card-header">
-      <h3>All Enrollments ({{ enrollments.count }})</h3>
-    </div>
-    <div class="card-body">
-      {% if enrollments %}
-      <div class="table-responsive">
-        <table class="table table-striped table-hover">
-          <thead>
-            <tr>
-              <th>Position</th>
-              <th>Student</th>
-              <th>Display Name</th>
-              <th>Total Score</th>
-              <th>HW Submissions</th>
-              <th>Project Submissions</th>
-              <th>LiP Status</th>
-              <th>Enrolled</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for enrollment in enrollments %}
-            <tr {% if enrollment.disable_learning_in_public %}class="table-warning"{% endif %}>
-              <td>
-                {% if enrollment.position_on_leaderboard %}
-                  {{ enrollment.position_on_leaderboard }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>
-                <strong>{{ enrollment.student.username }}</strong>
-                {% if enrollment.student.email %}
-                  <br><small class="text-muted">{{ enrollment.student.email }}</small>
-                {% endif %}
-              </td>
-              <td>{{ enrollment.display_name }}</td>
-              <td><strong>{{ enrollment.total_score }}</strong></td>
-              <td>{{ enrollment.homework_count }}</td>
-              <td>{{ enrollment.project_count }}</td>
-              <td>
-                {% if enrollment.disable_learning_in_public %}
-                  <span class="badge badge-danger">DISABLED</span>
-                {% else %}
-                  <span class="badge badge-success">Enabled</span>
-                {% endif %}
-              </td>
-              <td>{{ enrollment.enrollment_date|date:"Y-m-d" }}</td>
-              <td>
-                <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="btn btn-sm btn-primary">
-                  <i class="fas fa-edit"></i> Manage
-                </a>
-                <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="btn btn-sm btn-info">
-                  <i class="fas fa-chart-line"></i> Scores
-                </a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <p>No enrollments found for this course.</p>
-      {% endif %}
-    </div>
-  </div>
+{% if enrollments %}
+<div class="mb-3">
+  <input type="text" id="searchBox" class="form-control form-control-sm d-inline-block" placeholder="Search by email or username..." style="width: 300px;" onkeyup="filterTable()">
+</div>
 
-  <div class="alert alert-info">
-    <strong>Note:</strong> Enrollments with <span class="badge badge-danger">DISABLED</span> LiP status have learning in public disabled.
-    All their learning in public scores are set to zero and they cannot earn new learning in public points.
-  </div>
+<div class="table-responsive">
+  <table class="table table-striped table-hover" id="enrollmentsTable">
+    <thead>
+      <tr>
+        <th style="cursor: pointer" onclick="sortTable('position')">Position <span id="arrow-position"></span></th>
+        <th style="cursor: pointer" onclick="sortTable('student')">Student <span id="arrow-student"></span></th>
+        <th>Display Name</th>
+        <th style="cursor: pointer" onclick="sortTable('total_score')">Total Score <span id="arrow-total_score"></span></th>
+        <th style="cursor: pointer" onclick="sortTable('hw_count')">HW Submissions <span id="arrow-hw_count"></span></th>
+        <th style="cursor: pointer" onclick="sortTable('proj_count')">Project Submissions <span id="arrow-proj_count"></span></th>
+        <th>LiP Status</th>
+        <th style="cursor: pointer" onclick="sortTable('enrolled')">Enrolled <span id="arrow-enrolled"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for enrollment in enrollments %}
+      <tr {% if enrollment.disable_learning_in_public %}class="table-warning"{% endif %}>
+        <td>
+          {% if enrollment.position_on_leaderboard %}
+            {{ enrollment.position_on_leaderboard }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          <strong>{{ enrollment.student.username }}</strong>
+          {% if enrollment.student.email %}
+            <br><small class="text-muted">{{ enrollment.student.email }}</small>
+          {% endif %}
+        </td>
+        <td>{{ enrollment.display_name }}</td>
+        <td><strong>{{ enrollment.total_score }}</strong></td>
+        <td>{{ enrollment.homework_count }}</td>
+        <td>{{ enrollment.project_count }}</td>
+        <td>
+          {% if enrollment.disable_learning_in_public %}
+            <span class="badge badge-danger">DISABLED</span>
+          {% else %}
+            <span class="badge badge-success">Enabled</span>
+          {% endif %}
+        </td>
+        <td>{{ enrollment.enrollment_date|date:"Y-m-d" }}</td>
+        <td>
+          <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-edit"></i> Manage
+          </a>
+          <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="btn btn-sm btn-info">
+            <i class="fas fa-chart-line"></i> Scores
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+const MISSING_VALUE = -999;
+let currentSort = 'position';
+let currentDir = 'asc';
+
+const defaultDirs = {
+  position: 'asc', student: 'asc', total_score: 'desc',
+  hw_count: 'desc', proj_count: 'desc', enrolled: 'desc'
+};
+
+function sortTable(column) {
+  if (column === currentSort) {
+    currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort = column;
+    currentDir = defaultDirs[column] || 'desc';
+  }
+
+  const table = document.getElementById('enrollmentsTable');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  rows.sort((a, b) => {
+    let aVal, bVal, result;
+    if (column === 'position') {
+      aVal = a.cells[0].textContent.trim();
+      bVal = b.cells[0].textContent.trim();
+      aVal = aVal === '-' ? MISSING_VALUE : parseInt(aVal);
+      bVal = bVal === '-' ? MISSING_VALUE : parseInt(bVal);
+      result = aVal - bVal;
+    } else if (column === 'student') {
+      aVal = a.cells[1].textContent.trim().toLowerCase();
+      bVal = b.cells[1].textContent.trim().toLowerCase();
+      result = aVal.localeCompare(bVal);
+    } else if (column === 'total_score') {
+      aVal = parseFloat(a.cells[3].textContent.trim()) || 0;
+      bVal = parseFloat(b.cells[3].textContent.trim()) || 0;
+      result = aVal - bVal;
+    } else if (column === 'hw_count') {
+      aVal = parseInt(a.cells[4].textContent.trim()) || 0;
+      bVal = parseInt(b.cells[4].textContent.trim()) || 0;
+      result = aVal - bVal;
+    } else if (column === 'proj_count') {
+      aVal = parseInt(a.cells[5].textContent.trim()) || 0;
+      bVal = parseInt(b.cells[5].textContent.trim()) || 0;
+      result = aVal - bVal;
+    } else if (column === 'enrolled') {
+      aVal = a.cells[7].textContent.trim();
+      bVal = b.cells[7].textContent.trim();
+      result = aVal.localeCompare(bVal);
+    }
+    return currentDir === 'desc' ? -result : result;
+  });
+
+  rows.forEach(row => tbody.appendChild(row));
+  updateArrows();
+}
+
+function updateArrows() {
+  document.querySelectorAll('[id^="arrow-"]').forEach(el => el.textContent = '');
+  const arrowEl = document.getElementById('arrow-' + currentSort);
+  if (arrowEl) arrowEl.textContent = currentDir === 'asc' ? ' ▲' : ' ▼';
+}
+
+function filterTable() {
+  const filter = document.getElementById('searchBox').value.toLowerCase();
+  const rows = document.querySelectorAll('#enrollmentsTable tbody tr');
+
+  rows.forEach(row => {
+    const text = row.cells[1].textContent.toLowerCase();
+    row.style.display = text.includes(filter) ? '' : 'none';
+  });
+}
+
+updateArrows();
+</script>
+
+{% else %}
+<p>No enrollments found for this course.</p>
+{% endif %}
+
+<div class="alert alert-info">
+  <strong>Note:</strong> Enrollments with <span class="badge badge-danger">DISABLED</span> LiP status have learning in public disabled.
+  All their learning in public scores are set to zero and they cannot earn new learning in public points.
 </div>
 {% endblock %}

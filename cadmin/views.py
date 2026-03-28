@@ -95,9 +95,11 @@ def course_admin(request, course_slug):
 @staff_required
 def homework_score(request, course_slug, homework_slug):
     """Score a homework"""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(Homework, course=course, slug=homework_slug)
-    
+
     status, message = score_homework_submissions(homework.id)
     
     if status:
@@ -111,9 +113,11 @@ def homework_score(request, course_slug, homework_slug):
 @staff_required
 def homework_set_correct_answers(request, course_slug, homework_slug):
     """Set correct answers to most popular for a homework"""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(Homework, course=course, slug=homework_slug)
-    
+
     fill_correct_answers(homework)
     
     messages.success(
@@ -264,9 +268,11 @@ def homework_submission_edit(request, course_slug, homework_slug, submission_id)
 @staff_required
 def project_assign_reviews(request, course_slug, project_slug):
     """Assign peer reviews for a project"""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(Project, course=course, slug=project_slug)
-    
+
     status, message = assign_peer_reviews_for_project(project)
     
     if status == ProjectActionStatus.OK:
@@ -280,9 +286,11 @@ def project_assign_reviews(request, course_slug, project_slug):
 @staff_required
 def project_score(request, course_slug, project_slug):
     """Score a project"""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(Project, course=course, slug=project_slug)
-    
+
     status, message = score_project(project)
     
     if status == ProjectActionStatus.OK:

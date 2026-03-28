@@ -14,12 +14,8 @@
   <a href="{% url 'course' course.slug %}" class="btn btn-secondary">View Course Page</a>
   <a href="{% url 'dashboard' course.slug %}" class="btn btn-info">Course Dashboard</a>
   <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">Leaderboard</a>
-</div>
-
-<div class="mb-3">
-  <strong>Django Admin:</strong>
-  <a href="/admin/courses/course/{{ course.id }}/change/">
-    <i class="fas fa-edit"></i> Edit Course
+  <a href="/admin/courses/course/{{ course.id }}/change/" class="btn btn-outline-secondary">
+    <i class="fas fa-edit"></i> Django Admin
   </a>
 </div>
 
@@ -72,18 +68,17 @@
             </td>
             <td>{{ hw.submissions_count }}</td>
             <td>
-              <form method="post" style="display: inline;">
-                {% csrf_token %}
-                <select class="form-control form-control-sm d-inline-block" style="width: auto;" name="action" id="hw-action-{{ hw.id }}">
-                  <option value="">Select action...</option>
-                  {% if hw.state == 'OP' or hw.state == 'CL' %}
-                    <option value="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}">Set Correct Answers</option>
-                    <option value="{% url 'cadmin_homework_score' course.slug hw.slug %}">Score</option>
-                  {% endif %}
-                  <option value="{% url 'homework_statistics' course.slug hw.slug %}">View Statistics</option>
-                </select>
-                <button type="button" class="btn btn-sm btn-primary" onclick="applyAction('hw-action-{{ hw.id }}')">Apply</button>
-              </form>
+              {% if hw.state == 'OP' or hw.state == 'CL' %}
+                <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" style="display: inline;" onsubmit="return confirm('Set correct answers to most popular for {{ hw.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-warning">Set Correct Answers</button>
+                </form>
+                <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" style="display: inline;" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-success">Score</button>
+                </form>
+              {% endif %}
+              <a href="{% url 'homework_statistics' course.slug hw.slug %}" class="btn btn-sm btn-outline-primary">Statistics</a>
             </td>
           </tr>
           {% endfor %}
@@ -145,20 +140,19 @@
             </td>
             <td>{{ proj.submissions_count }}</td>
             <td>
-              <form method="post" style="display: inline;">
-                {% csrf_token %}
-                <select class="form-control form-control-sm d-inline-block" style="width: auto;" name="action" id="proj-action-{{ proj.id }}">
-                  <option value="">Select action...</option>
-                  {% if proj.state == 'CS' %}
-                    <option value="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}">Assign Reviews</option>
-                  {% endif %}
-                  {% if proj.state == 'PR' %}
-                    <option value="{% url 'cadmin_project_score' course.slug proj.slug %}">Score</option>
-                  {% endif %}
-                  <option value="{% url 'project_statistics' course.slug proj.slug %}">View Statistics</option>
-                </select>
-                <button type="button" class="btn btn-sm btn-primary" onclick="applyAction('proj-action-{{ proj.id }}')">Apply</button>
-              </form>
+              {% if proj.state == 'CS' %}
+                <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" style="display: inline;" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-warning">Assign Reviews</button>
+                </form>
+              {% endif %}
+              {% if proj.state == 'PR' %}
+                <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" style="display: inline;" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-success">Score</button>
+                </form>
+              {% endif %}
+              <a href="{% url 'project_statistics' course.slug proj.slug %}" class="btn btn-sm btn-outline-primary">Statistics</a>
             </td>
           </tr>
           {% endfor %}
@@ -170,27 +164,4 @@
     {% endif %}
   </div>
 </div>
-
-<script>
-function applyAction(selectId) {
-  const select = document.getElementById(selectId);
-  const url = select.value;
-  
-  if (!url) {
-    alert('Please select an action');
-    return;
-  }
-  
-  // For statistics, open in same tab
-  if (url.includes('statistics')) {
-    window.location.href = url;
-    return;
-  }
-  
-  // For other actions, confirm first
-  if (confirm('Are you sure you want to perform this action?')) {
-    window.location.href = url;
-  }
-}
-</script>
 {% endblock %}

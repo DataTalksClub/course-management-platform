@@ -29,15 +29,6 @@
     <i class="fas fa-check"></i> Copied!
   </span>
   
-  <label for="sortBy" class="ml-3">Sort by:</label>
-  <select id="sortBy" class="form-control form-control-sm d-inline-block" style="width: auto;">
-    <option value="email">Email</option>
-    <option value="reviews">Reviews Completed</option>
-    <option value="project_score">Project Score</option>
-    <option value="total_score" selected>Total Score</option>
-  </select>
-  <button onclick="sortTable()" class="btn btn-sm btn-primary">Sort</button>
-  
   <input type="text" id="searchBox" class="form-control form-control-sm d-inline-block ml-3" placeholder="Search by email..." style="width: 250px;" onkeyup="filterTable()">
 </div>
 
@@ -45,10 +36,10 @@
   <table class="table table-striped" id="submissionsTable">
     <thead>
       <tr>
-        <th>Email</th>
-        <th>Reviews Completed</th>
-        <th>Project Score</th>
-        <th>Total Score</th>
+        <th style="cursor: pointer" onclick="sortTable('email')">Email <span id="arrow-email"></span></th>
+        <th style="cursor: pointer" onclick="sortTable('reviews')">Reviews Completed <span id="arrow-reviews"></span></th>
+        <th style="cursor: pointer" onclick="sortTable('project_score')">Project Score <span id="arrow-project_score"></span></th>
+        <th style="cursor: pointer" onclick="sortTable('total_score')">Total Score <span id="arrow-total_score"></span></th>
         <th>Passed</th>
         <th>Repository URL</th>
         <th>Actions</th>
@@ -113,7 +104,11 @@
 {% endif %}
 
 <script>
-const MISSING_SCORE_VALUE = -999; // Used for sorting when score is missing
+const MISSING_SCORE_VALUE = -999;
+let currentSort = 'total_score';
+let currentDir = 'desc';
+
+const defaultDirs = { email: 'asc', reviews: 'desc', project_score: 'desc', total_score: 'desc' };
 
 function copyEmails() {
   const emails = [
@@ -121,18 +116,16 @@ function copyEmails() {
     "{{ submission.student.email }}"{% if not forloop.last %},{% endif %}
     {% endfor %}
   ];
-  
+
   const emailText = emails.join(', ');
-  
-  // Create a temporary textarea to copy the emails
+
   const textarea = document.createElement('textarea');
   textarea.value = emailText;
   document.body.appendChild(textarea);
   textarea.select();
   document.execCommand('copy');
   document.body.removeChild(textarea);
-  
-  // Show feedback
+
   const feedback = document.getElementById('copyFeedback');
   feedback.style.display = 'inline';
   setTimeout(() => {
@@ -140,55 +133,64 @@ function copyEmails() {
   }, 2000);
 }
 
-function sortTable() {
+function sortTable(column) {
+  if (column === currentSort) {
+    currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort = column;
+    currentDir = defaultDirs[column] || 'desc';
+  }
+
   const table = document.getElementById('submissionsTable');
   const tbody = table.querySelector('tbody');
   const rows = Array.from(tbody.querySelectorAll('tr'));
-  const sortBy = document.getElementById('sortBy').value;
-  
+
   rows.sort((a, b) => {
-    let aVal, bVal;
-    if (sortBy === 'email') {
+    let aVal, bVal, result;
+    if (column === 'email') {
       aVal = a.cells[0].textContent.trim();
       bVal = b.cells[0].textContent.trim();
-      return aVal.localeCompare(bVal);
-    } else if (sortBy === 'reviews') {
-      aVal = a.cells[1].textContent.trim().split('/')[0];
-      bVal = b.cells[1].textContent.trim().split('/')[0];
-      return parseInt(bVal) - parseInt(aVal); // Descending
-    } else if (sortBy === 'project_score') {
+      result = aVal.localeCompare(bVal);
+    } else if (column === 'reviews') {
+      aVal = parseInt(a.cells[1].textContent.trim().split('/')[0]) || 0;
+      bVal = parseInt(b.cells[1].textContent.trim().split('/')[0]) || 0;
+      result = aVal - bVal;
+    } else if (column === 'project_score') {
       aVal = a.cells[2].textContent.trim();
       bVal = b.cells[2].textContent.trim();
       aVal = aVal === '-' ? MISSING_SCORE_VALUE : parseFloat(aVal);
       bVal = bVal === '-' ? MISSING_SCORE_VALUE : parseFloat(bVal);
-      return bVal - aVal; // Descending
-    } else if (sortBy === 'total_score') {
+      result = aVal - bVal;
+    } else if (column === 'total_score') {
       aVal = a.cells[3].textContent.trim();
       bVal = b.cells[3].textContent.trim();
       aVal = aVal === '-' ? MISSING_SCORE_VALUE : parseFloat(aVal);
       bVal = bVal === '-' ? MISSING_SCORE_VALUE : parseFloat(bVal);
-      return bVal - aVal; // Descending
+      result = aVal - bVal;
     }
-    return 0;
+    return currentDir === 'desc' ? -result : result;
   });
-  
+
   rows.forEach(row => tbody.appendChild(row));
+  updateArrows();
+}
+
+function updateArrows() {
+  document.querySelectorAll('[id^="arrow-"]').forEach(el => el.textContent = '');
+  const arrowEl = document.getElementById('arrow-' + currentSort);
+  if (arrowEl) arrowEl.textContent = currentDir === 'asc' ? ' ▲' : ' ▼';
 }
 
 function filterTable() {
-  const searchBox = document.getElementById('searchBox');
-  const filter = searchBox.value.toLowerCase();
-  const table = document.getElementById('submissionsTable');
-  const rows = table.querySelectorAll('tbody tr');
-  
+  const filter = document.getElementById('searchBox').value.toLowerCase();
+  const rows = document.querySelectorAll('#submissionsTable tbody tr');
+
   rows.forEach(row => {
     const email = row.cells[0].textContent.toLowerCase();
-    if (email.includes(filter)) {
-      row.style.display = '';
-    } else {
-      row.style.display = 'none';
-    }
+    row.style.display = email.includes(filter) ? '' : 'none';
   });
 }
+
+updateArrows();
 </script>
 {% endblock %}

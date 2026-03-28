@@ -2,201 +2,198 @@
 
 {% block title %}Edit Enrollment - {{ course.title }}{% endblock %}
 
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'cadmin_enrollments' course.slug %}">Enrollments</a></li>
+  <li>Edit Enrollment</li>
+{% endblock %}
+
 {% block cadmin_content %}
-<div class="container-fluid my-4">
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="{% url 'cadmin_course_list' %}">Admin</a></li>
-      <li class="breadcrumb-item"><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
-      <li class="breadcrumb-item active">Edit Enrollment</li>
-    </ol>
-  </nav>
+<h2>Edit Enrollment</h2>
 
-  <h1>Edit Enrollment</h1>
-
-  <div class="card my-4">
-    <div class="card-header">
-      <h3>Student Information</h3>
+<div class="card mb-4">
+  <div class="card-header">
+    <h4>Student Information</h4>
+  </div>
+  <div class="card-body">
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Student Username:</div>
+      <div class="col-md-9">{{ enrollment.student.username }}</div>
     </div>
-    <div class="card-body">
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Student Username:</div>
-        <div class="col-md-9">{{ enrollment.student.username }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Display Name:</div>
-        <div class="col-md-9">{{ enrollment.display_name }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Total Score:</div>
-        <div class="col-md-9">{{ enrollment.total_score }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Leaderboard Position:</div>
-        <div class="col-md-9">{{ enrollment.position_on_leaderboard|default:"Not ranked" }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Enrollment Date:</div>
-        <div class="col-md-9">{{ enrollment.enrollment_date }}</div>
-      </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Display Name:</div>
+      <div class="col-md-9">{{ enrollment.display_name }}</div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Total Score:</div>
+      <div class="col-md-9">{{ enrollment.total_score }}</div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Leaderboard Position:</div>
+      <div class="col-md-9">{{ enrollment.position_on_leaderboard|default:"Not ranked" }}</div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Enrollment Date:</div>
+      <div class="col-md-9">{{ enrollment.enrollment_date }}</div>
     </div>
   </div>
+</div>
 
-  <div class="card my-4">
-    <div class="card-header">
-      <h3>Learning in Public Statistics</h3>
+<div class="card mb-4">
+  <div class="card-header">
+    <h4>Learning in Public Statistics</h4>
+  </div>
+  <div class="card-body">
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Homework Submissions:</div>
+      <div class="col-md-9">{{ homework_submissions_count }}</div>
     </div>
-    <div class="card-body">
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Homework Submissions:</div>
-        <div class="col-md-9">{{ homework_submissions_count }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Total Homework LiP Score:</div>
-        <div class="col-md-9">{{ total_homework_lip_score }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Project Submissions:</div>
-        <div class="col-md-9">{{ project_submissions_count }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Total Project LiP Score:</div>
-        <div class="col-md-9">{{ total_project_lip_score }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-md-3 font-weight-bold">Total LiP Score:</div>
-        <div class="col-md-9"><strong>{{ total_homework_lip_score|add:total_project_lip_score }}</strong></div>
-      </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Total Homework LiP Score:</div>
+      <div class="col-md-9">{{ total_homework_lip_score }}</div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Project Submissions:</div>
+      <div class="col-md-9">{{ project_submissions_count }}</div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Total Project LiP Score:</div>
+      <div class="col-md-9">{{ total_project_lip_score }}</div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-3 font-weight-bold">Total LiP Score:</div>
+      <div class="col-md-9"><strong>{{ total_homework_lip_score|add:total_project_lip_score }}</strong></div>
     </div>
   </div>
+</div>
 
-  <div class="card my-4 {% if enrollment.disable_learning_in_public %}border-danger{% endif %}">
-    <div class="card-header {% if enrollment.disable_learning_in_public %}bg-danger text-white{% endif %}">
-      <h3>Learning in Public Control</h3>
+<div class="card mb-4 {% if enrollment.disable_learning_in_public %}border-danger{% endif %}">
+  <div class="card-header {% if enrollment.disable_learning_in_public %}bg-danger text-white{% endif %}">
+    <h4>Learning in Public Control</h4>
+  </div>
+  <div class="card-body">
+    <div class="row mb-3">
+      <div class="col-md-3 font-weight-bold">Status:</div>
+      <div class="col-md-9">
+        {% if enrollment.disable_learning_in_public %}
+          <span class="badge badge-danger">DISABLED</span>
+        {% else %}
+          <span class="badge badge-success">ENABLED</span>
+        {% endif %}
+      </div>
     </div>
-    <div class="card-body">
-      <div class="row mb-3">
-        <div class="col-md-3 font-weight-bold">Status:</div>
-        <div class="col-md-9">
-          {% if enrollment.disable_learning_in_public %}
-            <span class="badge badge-danger">DISABLED</span>
-          {% else %}
-            <span class="badge badge-success">ENABLED</span>
-          {% endif %}
-        </div>
+
+    <form method="post" onsubmit="return confirm('Are you sure you want to {% if enrollment.disable_learning_in_public %}enable{% else %}disable{% endif %} learning in public for this student? {% if not enrollment.disable_learning_in_public %}This will zero out all their learning in public scores and recalculate the leaderboard.{% endif %}');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="toggle_learning_in_public">
+
+      <div class="alert {% if enrollment.disable_learning_in_public %}alert-info{% else %}alert-warning{% endif %}">
+        {% if enrollment.disable_learning_in_public %}
+          <strong>Note:</strong> Learning in public is currently disabled for this student.
+          All their learning in public scores are set to zero and they cannot submit new learning in public links.
+          Click the button below to re-enable it.
+        {% else %}
+          <strong>Warning:</strong> Disabling learning in public will:
+          <ul class="mb-0">
+            <li>Set all homework learning in public scores to zero</li>
+            <li>Set all project learning in public scores to zero</li>
+            <li>Recalculate the leaderboard</li>
+            <li>Prevent future learning in public submissions from being counted</li>
+          </ul>
+        {% endif %}
       </div>
 
-      <form method="post" onsubmit="return confirm('Are you sure you want to {% if enrollment.disable_learning_in_public %}enable{% else %}disable{% endif %} learning in public for this student? {% if not enrollment.disable_learning_in_public %}This will zero out all their learning in public scores and recalculate the leaderboard.{% endif %}');">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="toggle_learning_in_public">
-        
-        <div class="alert {% if enrollment.disable_learning_in_public %}alert-info{% else %}alert-warning{% endif %}">
-          {% if enrollment.disable_learning_in_public %}
-            <strong>Note:</strong> Learning in public is currently disabled for this student. 
-            All their learning in public scores are set to zero and they cannot submit new learning in public links.
-            Click the button below to re-enable it.
-          {% else %}
-            <strong>Warning:</strong> Disabling learning in public will:
-            <ul class="mb-0">
-              <li>Set all homework learning in public scores to zero</li>
-              <li>Set all project learning in public scores to zero</li>
-              <li>Recalculate the leaderboard</li>
-              <li>Prevent future learning in public submissions from being counted</li>
-            </ul>
-          {% endif %}
-        </div>
-
-        <button type="submit" class="btn {% if enrollment.disable_learning_in_public %}btn-success{% else %}btn-danger{% endif %} btn-lg">
-          {% if enrollment.disable_learning_in_public %}
-            Enable Learning in Public
-          {% else %}
-            Disable Learning in Public
-          {% endif %}
-        </button>
-      </form>
-    </div>
+      <button type="submit" class="btn {% if enrollment.disable_learning_in_public %}btn-success{% else %}btn-danger{% endif %} btn-lg">
+        {% if enrollment.disable_learning_in_public %}
+          Enable Learning in Public
+        {% else %}
+          Disable Learning in Public
+        {% endif %}
+      </button>
+    </form>
   </div>
+</div>
 
-  <div class="card my-4">
-    <div class="card-header">
-      <h3>Homework Submissions</h3>
-    </div>
-    <div class="card-body">
-      {% if homework_submissions %}
-      <div class="table-responsive">
-        <table class="table table-striped table-hover">
-          <thead>
-            <tr>
-              <th>Homework</th>
-              <th>Submitted</th>
-              <th>Score</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for submission in homework_submissions %}
-            <tr>
-              <td>{{ submission.homework.title }}</td>
-              <td>{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
-              <td>{{ submission.total_score }}</td>
-              <td>
-                <a href="{% url 'cadmin_homework_submission_edit' course.slug submission.homework.slug submission.id %}" class="btn btn-sm btn-primary">
-                  <i class="fas fa-edit"></i> Edit
-                </a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <p class="text-muted">No homework submissions yet.</p>
-      {% endif %}
-    </div>
+<div class="card mb-4">
+  <div class="card-header">
+    <h4>Homework Submissions</h4>
   </div>
+  <div class="card-body">
+    {% if homework_submissions %}
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Homework</th>
+            <th>Submitted</th>
+            <th>Score</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for submission in homework_submissions %}
+          <tr>
+            <td>{{ submission.homework.title }}</td>
+            <td>{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ submission.total_score }}</td>
+            <td>
+              <a href="{% url 'cadmin_homework_submission_edit' course.slug submission.homework.slug submission.id %}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit"></i> Edit
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No homework submissions yet.</p>
+    {% endif %}
+  </div>
+</div>
 
-  <div class="card my-4">
-    <div class="card-header">
-      <h3>Project Submissions</h3>
-    </div>
-    <div class="card-body">
-      {% if project_submissions %}
-      <div class="table-responsive">
-        <table class="table table-striped table-hover">
-          <thead>
-            <tr>
-              <th>Project</th>
-              <th>Submitted</th>
-              <th>Score</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for submission in project_submissions %}
-            <tr>
-              <td>{{ submission.project.title }}</td>
-              <td>{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
-              <td>{{ submission.total_score }}</td>
-              <td>
-                <a href="{% url 'cadmin_project_submission_edit' course.slug submission.project.slug submission.id %}" class="btn btn-sm btn-primary">
-                  <i class="fas fa-edit"></i> Edit
-                </a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <p class="text-muted">No project submissions yet.</p>
-      {% endif %}
-    </div>
+<div class="card mb-4">
+  <div class="card-header">
+    <h4>Project Submissions</h4>
   </div>
+  <div class="card-body">
+    {% if project_submissions %}
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Submitted</th>
+            <th>Score</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for submission in project_submissions %}
+          <tr>
+            <td>{{ submission.project.title }}</td>
+            <td>{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ submission.total_score }}</td>
+            <td>
+              <a href="{% url 'cadmin_project_submission_edit' course.slug submission.project.slug submission.id %}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit"></i> Edit
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No project submissions yet.</p>
+    {% endif %}
+  </div>
+</div>
 
-  <div class="my-4">
-    <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="btn btn-secondary">View Score Breakdown</a>
-    <a href="{% url 'leaderboard' course.slug %}" class="btn btn-secondary">View Leaderboard</a>
-    <a href="{% url 'cadmin_course' course.slug %}" class="btn btn-secondary">Back to Admin</a>
-  </div>
+<div class="mb-4">
+  <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="btn btn-secondary">View Score Breakdown</a>
+  <a href="{% url 'leaderboard' course.slug %}" class="btn btn-secondary">View Leaderboard</a>
+  <a href="{% url 'cadmin_enrollments' course.slug %}" class="btn btn-secondary">Back to Enrollments</a>
 </div>
 {% endblock %}
