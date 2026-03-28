@@ -69,6 +69,10 @@ def _build_leaderboard_data(course):
                 "faq_score": sub.faq_score,
                 "learning_in_public_score": sub.learning_in_public_score,
             }
+            if sub.homework_link:
+                hw_entry["homework_link"] = sub.homework_link
+            if sub.faq_contribution:
+                hw_entry["faq_contribution"] = sub.faq_contribution
             if sub.learning_in_public_links:
                 hw_entry["learning_in_public_links"] = sub.learning_in_public_links
             hw_data.append(hw_entry)
@@ -86,6 +90,10 @@ def _build_leaderboard_data(course):
                 "project_faq_score": sub.project_faq_score,
                 "passed": sub.passed,
             }
+            if sub.github_link:
+                proj_entry["github_link"] = sub.github_link
+            if sub.faq_contribution:
+                proj_entry["faq_contribution"] = sub.faq_contribution
             if sub.learning_in_public_links:
                 proj_entry["learning_in_public_links"] = sub.learning_in_public_links
             proj_data.append(proj_entry)
