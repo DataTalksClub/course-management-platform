@@ -2,7 +2,7 @@
 header nav {
   max-width: 720px;
   margin: 0 auto; /* Centers the navigation horizontally */
-  padding: 20px 0; /* Vertical padding to match your content block */
+  padding: 16px 0; /* Vertical padding to match your content block */
   display: flex;
   justify-content: space-between; /* This will space your list and logout/login */
   align-items: center; /* This will align the items vertically */
@@ -29,16 +29,34 @@ nav .breadcrumbs ul {
 
 /* Style each list item */
 nav .breadcrumbs ul li {
-  margin-right: 0.25rem; /* Add some space between the breadcrumbs */
+  margin-right: 0.5rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+nav .breadcrumbs ul li a {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 /* Add ">" before each li except the first one using a pseudo-element */
 nav .breadcrumbs ul li:not(:first-child)::before {
   content: "\f105"; /* FontAwesome's right arrow icon */
   font-family: "Font Awesome 5 Free";
-  color: #000;
-  padding-right: 0.25rem; /* Add some space before the breadcrumb text */
-  font-weight: 900; /* Bold */
+  color: #6c757d;
+  padding-right: 0.5rem;
+  font-weight: 900;
+  font-size: 0.75em;
+  vertical-align: middle;
+}
+
+/* Right-side controls */
+header nav > div:last-child ul li {
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 
@@ -92,6 +110,34 @@ nav .breadcrumbs ul li:not(:first-child)::before {
   .form-container {
     max-width: 100%;
     padding: 15px; /* Smaller padding on smaller screens */
+  }
+}
+
+@media (max-width: 768px) {
+  header nav {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 12px 0;
+  }
+
+  nav .breadcrumbs ul {
+    flex-wrap: wrap;
+    gap: 0.25rem 0;
+  }
+
+  nav .breadcrumbs ul li a {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  nav .breadcrumbs ul li {
+    font-size: 0.8rem;
+  }
+
+  nav .breadcrumbs ul li a {
+    max-width: 100px;
   }
 }
 
@@ -239,7 +285,7 @@ body.dark-mode .breadcrumbs a {
 }
 
 body.dark-mode nav .breadcrumbs ul li:not(:first-child)::before {
-  color: #eaeaea;
+  color: #b0b0b0;
 }
 
 body.dark-mode .form-control {
