@@ -29,7 +29,7 @@
         <i class="fas fa-trophy"></i> Course leaderboard
       </a>
     {% endif %}
-    <a href="{% url 'dashboard' course.slug %}" class="primer-button whitespace-nowrap">
+    <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
       <i class="fas fa-chart-bar"></i> Course dashboard
     </a>
     {% if is_authenticated %}
@@ -38,8 +38,8 @@
       </a>
     {% endif %}
     {% if is_authenticated and certificate_url %}
-      <a href="{{ certificate_url }}" target="_blank" class="primer-button primer-button-success whitespace-nowrap">
-        <i class="fas fa-certificate"></i> Download Certificate
+      <a href="{{ certificate_url }}" target="_blank" class="primer-button primer-button-secondary whitespace-nowrap">
+        Download Certificate
       </a>
     {% endif %}
   </div>
@@ -67,7 +67,7 @@
       <p class="mt-2 app-text">Complete the homework and submit your solutions.</p>
     </div>
 
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:gap-5">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:gap-4">
       <div>Homework</div>
       <div>Deadline</div>
       <div class="text-right">Status</div>
@@ -75,7 +75,7 @@
 
     <div class="divide-y app-divide">
       {% for hw in homeworks %}
-        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:items-center md:gap-5">
+        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:items-center md:gap-4">
           <div class="flex min-w-0 items-start gap-3">
             <i class="far fa-file-alt mt-1 hidden app-muted md:inline"></i>
             <div class="min-w-0">
@@ -91,7 +91,7 @@
 
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
-            <span>Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
+            <span class="md:whitespace-nowrap">Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
             <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}" data-past-tone="muted"></div>
           </div>
 
@@ -121,7 +121,7 @@
       <p class="mt-2 app-text">Build and submit course projects. Review status and next actions are shown for each project.</p>
     </div>
 
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:gap-5">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:gap-4">
       <div>Project</div>
       <div>Deadline</div>
       <div class="text-right">Status</div>
@@ -129,7 +129,7 @@
 
     <div class="divide-y app-divide">
       {% for project in projects %}
-        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:items-center md:gap-5">
+        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:items-center md:gap-4">
           <div class="flex min-w-0 items-start gap-3">
             <i class="far fa-folder mt-1 hidden app-muted md:inline"></i>
             <div class="min-w-0">
@@ -148,12 +148,12 @@
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             {% if project.state == 'PR' and project.submitted %}
-              <span>Review due: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap">Review due: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.peer_review_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% elif project.state == 'CO' %}
-              <span>Completed: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap">Completed: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
             {% else %}
-              <span>Due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap">Due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span></span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% endif %}
           </div>

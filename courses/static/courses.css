@@ -11,18 +11,18 @@
   --input-bg: #ffffff;
   --input-border: #d0d7de;
   --input-text: #24292f;
-  --success-bg: #dafbe1;
+  --success-bg: #e6f6ea;
   --success-text: #116329;
-  --success-border: #aceebb;
-  --warning-bg: #fff8c5;
+  --success-border: #b7dfc2;
+  --warning-bg: #fff6d7;
   --warning-text: #7d4e00;
-  --warning-border: rgba(191, 135, 0, 0.4);
-  --danger-bg: #ffebe9;
+  --warning-border: rgba(191, 135, 0, 0.32);
+  --danger-bg: #fff0ee;
   --danger-text: #cf222e;
-  --danger-border: rgba(207, 34, 46, 0.3);
-  --info-bg: #ddf4ff;
+  --danger-border: rgba(207, 34, 46, 0.24);
+  --info-bg: #edf5ff;
   --info-text: #315f8f;
-  --info-border: rgba(49, 95, 143, 0.3);
+  --info-border: rgba(49, 95, 143, 0.22);
 }
 
 body.dark-mode {
@@ -149,6 +149,24 @@ body {
 .app-badge-danger {
   background: var(--danger-bg);
   color: var(--danger-text);
+}
+
+.app-badge-neutral,
+.app-badge-info,
+.app-badge-success,
+.app-badge-warning,
+.app-badge-danger {
+  border-radius: 6px;
+  letter-spacing: 0;
+}
+
+.dense-utility-links a {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.dense-utility-links a:hover {
+  color: var(--link-hover);
 }
 
 /* Apply to the header nav or a div inside the header if it wraps your content */
@@ -304,13 +322,43 @@ form select {
 }
 
 .settings-section-title,
-.settings-label,
-.settings-meta-value {
+.settings-label {
   color: var(--text-heading);
+}
+
+.settings-meta-value {
+  color: var(--text-muted);
 }
 
 .settings-link {
   color: var(--link-color);
+}
+
+.footer-version {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.625rem;
+}
+
+@media (max-width: 640px) {
+  .settings-form {
+    margin-top: 1.25rem;
+  }
+
+  .settings-form > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.5rem !important;
+  }
+
+  .settings-section {
+    gap: 1rem;
+    padding-top: 1.25rem;
+  }
+
+  .settings-section-copy,
+  .settings-helper {
+    line-height: 1.4;
+    margin-top: 0.25rem;
+  }
 }
 
 /* Buttons */
@@ -411,13 +459,38 @@ form select {
 .cadmin-shell .primer-button-success {
   background: #f6f8fa;
   border-color: #d0d7de;
-  color: #116329;
+  color: #24292f;
 }
 
 .cadmin-shell .primer-button-success:hover {
   background: #eef1f4;
   border-color: #d0d7de;
-  color: #116329;
+  color: #24292f;
+}
+
+.cadmin-row-actions form {
+  display: inline-flex;
+}
+
+.cadmin-row-actions .primer-button {
+  width: auto;
+}
+
+.readonly-value {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.readonly-value-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.readonly-value-content {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .cadmin-meta-grid > * {
@@ -644,21 +717,21 @@ body.dark-mode [class*="text-red-700"] {
   }
 
   .breadcrumbs ul li a {
-    max-width: 150px;
+    max-width: none;
   }
 }
 
 @media (max-width: 480px) {
-  .breadcrumbs ul li:not(:first-child):not(:last-child) {
-    display: none;
-  }
-
   .breadcrumbs ul li {
     font-size: 0.8rem;
+    white-space: normal;
   }
 
   .breadcrumbs ul li a {
-    max-width: 220px;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 }
 
@@ -978,7 +1051,7 @@ body.dark-mode .cadmin-shell .primer-button.cadmin-primary:hover {
 body.dark-mode .cadmin-shell .primer-button-success {
   background: #21262d;
   border-color: #30363d;
-  color: #7ee787;
+  color: #c9d1d9;
 }
 
 body.dark-mode .cadmin-shell table tbody tr:hover {

@@ -54,7 +54,7 @@
             <div class="flex min-w-0 items-start justify-between gap-3 md:block">
               <div class="min-w-0">
                 <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="block truncate font-medium app-link hover:underline">{{ hw.title }}</a>
-                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                <div class="dense-utility-links mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                   <a href="{% url 'homework' course.slug hw.slug %}" title="View Public Homework Page" class="app-link">
                     <i class="fas fa-external-link-alt"></i> Public
                   </a>
@@ -95,15 +95,15 @@
               {% endif %}
             </div>
 
-            <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end">
+            <div class="cadmin-row-actions flex flex-wrap justify-start gap-2 md:justify-end">
               {% if hw.state == 'OP' or hw.state == 'CL' %}
                 <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
                   {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-success w-full">Score</button>
+                  <button type="submit" class="primer-button primer-button-success">Score</button>
                 </form>
                 <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set correct answers to most popular for {{ hw.title }}?');">
                   {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-secondary w-full">Set Answers</button>
+                  <button type="submit" class="primer-button primer-button-secondary">Answers</button>
                 </form>
               {% else %}
                 <span class="hidden text-sm app-muted md:inline">No action</span>
@@ -139,7 +139,7 @@
             <div class="flex min-w-0 items-start justify-between gap-3 md:block">
               <div class="min-w-0">
                 <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="block truncate font-medium app-link hover:underline">{{ proj.title }}</a>
-                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                <div class="dense-utility-links mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                   <a href="{% url 'project' course.slug proj.slug %}" title="View Public Project Page" class="app-link">
                     <i class="fas fa-external-link-alt"></i> Public
                   </a>
@@ -185,17 +185,17 @@
               {% endif %}
             </div>
 
-            <div class="grid grid-cols-1 gap-2 md:flex md:flex-wrap md:justify-end">
+            <div class="cadmin-row-actions flex flex-wrap justify-start gap-2 md:justify-end">
               {% if proj.state == 'CS' %}
                 <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
                   {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-secondary w-full">Assign Reviews</button>
+                  <button type="submit" class="primer-button primer-button-secondary">Assign Reviews</button>
                 </form>
               {% endif %}
               {% if proj.state == 'PR' %}
                 <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
                   {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-success w-full">Score</button>
+                  <button type="submit" class="primer-button primer-button-success">Score</button>
                 </form>
               {% endif %}
               {% if proj.state != 'CS' and proj.state != 'PR' %}

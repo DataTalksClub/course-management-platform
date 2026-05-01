@@ -283,10 +283,10 @@ score_project(p1)
 
 # Create homeworks with varied upcoming deadlines to test "time left" display
 upcoming_hw_data = [
-    ("upcoming-hw-urgent", "Upcoming HW: Urgent (6h left)", timedelta(hours=6), HomeworkState.OPEN.value),
-    ("upcoming-hw-soon", "Upcoming HW: Soon (2.5 days left)", timedelta(days=2, hours=12), HomeworkState.OPEN.value),
-    ("upcoming-hw-normal", "Upcoming HW: Normal (7 days left)", timedelta(days=7), HomeworkState.OPEN.value),
-    ("upcoming-hw-later", "Upcoming HW: Later (14 days left)", timedelta(days=14), HomeworkState.OPEN.value),
+    ("upcoming-hw-urgent", "Time-sensitive homework: Urgent", timedelta(hours=6), HomeworkState.OPEN.value),
+    ("upcoming-hw-soon", "Time-sensitive homework: Soon", timedelta(days=2, hours=12), HomeworkState.OPEN.value),
+    ("upcoming-hw-normal", "Time-sensitive homework: Normal", timedelta(days=7), HomeworkState.OPEN.value),
+    ("upcoming-hw-later", "Time-sensitive homework: Later", timedelta(days=14), HomeworkState.OPEN.value),
 ]
 
 for slug, title, delta, state in upcoming_hw_data:
@@ -312,8 +312,8 @@ for slug, title, delta, state in upcoming_hw_data:
 
 # Create projects with upcoming deadlines
 upcoming_proj_data = [
-    ("upcoming-proj-urgent", "Upcoming Project: Urgent (2h left)", timedelta(hours=2), timedelta(days=5)),
-    ("upcoming-proj-normal", "Upcoming Project: Normal (10 days left)", timedelta(days=10), timedelta(days=17)),
+    ("upcoming-proj-urgent", "Time-sensitive project: Urgent", timedelta(hours=2), timedelta(days=5)),
+    ("upcoming-proj-normal", "Time-sensitive project: Normal", timedelta(days=10), timedelta(days=17)),
 ]
 
 for slug, title, sub_delta, pr_delta in upcoming_proj_data:
