@@ -42,3 +42,6 @@ testpaths = [
     "data/tests",
     "cadmin/tests",
 ]
+
+[tool.uv]
+exclude-newer = "7 days"

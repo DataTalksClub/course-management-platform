@@ -1,47 +1,8 @@
-{% extends 'base.html' %}
-
-{% load static %}
-
-{% block meta_robots %}
-  <meta name="robots" content="noindex">
+{% extends 'base.html' %} {% block meta_robots %} <meta name="robots" content="noindex">
+{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+{% endblock %} {% block content %}
+<section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading md:text-3xl">All Project Submissions</h1> <p class="mt-1 max-w-2xl text-sm app-muted">Browse submitted project repositories across this course.</p> </div> <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary w-fit">Back to Course</a> </div>
+</section> <section class="mt-6 rounded-md border app-border app-surface-muted px-4 py-3 "> <p class="text-xs font-semibold uppercase app-muted">Total submissions</p> <p class="mt-1 text-2xl font-semibold app-heading">{{ submissions|length }}</p>
+</section> <section class="mt-6 overflow-hidden rounded-md border app-border app-surface "> {% if submissions %} <div class="divide-y app-divide md:hidden"> {% for submission in submissions %} <article class="px-4 py-3"> <div class="flex items-start justify-between gap-3"> <div class="min-w-0"> <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="font-medium app-link hover:underline "> {{ submission.enrollment.display_name }} <i class="fas fa-external-link-alt ml-1 text-xs"></i> </a> <p class="mt-1 text-xs app-muted">{{ submission.project.title }}</p> </div> <span class="shrink-0 rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold "> {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %} </span> </div> </article> {% endfor %} </div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="px-4 py-3">Student</th> <th class="px-4 py-3">Project</th> <th class="px-4 py-3 text-right">Score</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for submission in submissions %} <tr> <td class="px-4 py-3"> <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="font-medium app-link hover:underline "> {{ submission.enrollment.display_name }} <i class="fas fa-external-link-alt ml-1 text-xs"></i> </a> </td> <td class="px-4 py-3 app-text">{{ submission.project.title }}</td> <td class="px-4 py-3 text-right font-semibold app-heading"> {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %} </td> </tr> {% endfor %} </tbody> </table> </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No project submissions yet.</p> {% endif %}
+</section>
 {% endblock %}
-
-{% block breadcrumbs %}
-  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-{% endblock %}
-
-{% block content %}
-
-<h2 class="mb-3 text-center">All Project Submissions for {{ course.title }}</h2>
-
-<div class="list-group">
-  {% for submission in submissions %}
-    <div class="list-group-item">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <a href="{{ submission.github_link }}" target="_blank" class="text-decoration-none">
-            {{ submission.enrollment.display_name }}
-            <span
-                class="ms-2"
-                data-bs-toggle="tooltip"
-                data-bs-placement="bottom"
-                title="{{ submission.github_link }}">
-              <i class="fas fa-external-link-alt"></i>
-            </span>
-          </a>
-          <span class="text-muted">({{ submission.project.title }})</span>
-        </div>
-        
-        <div>
-          {% if submission.display_score == -1 %}
-            N/A
-          {% else %}
-            {{ submission.display_score }}
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  {% endfor %}
-</div>
-
-{% endblock %} 

@@ -1,5 +1,4 @@
 {% extends 'cadmin/base.html' %}
-
 {% load custom_filters %}
 
 {% block breadcrumbs %}
@@ -8,160 +7,207 @@
 {% endblock %}
 
 {% block cadmin_content %}
-<h2>{{ course.title }} - Admin Panel</h2>
-
-<div class="mb-3">
-  <a href="{% url 'course' course.slug %}" class="btn btn-secondary">View Course Page</a>
-  <a href="{% url 'dashboard' course.slug %}" class="btn btn-info">Course Dashboard</a>
-  <a href="{% url 'leaderboard' course.slug %}" class="btn btn-primary">Leaderboard</a>
-  <a href="/admin/courses/course/{{ course.id }}/change/" class="btn btn-outline-secondary">
-    <i class="fas fa-edit"></i> Django Admin
-  </a>
-</div>
-
-<div class="alert alert-info" role="alert">
-  <strong>Total Enrollments:</strong> {{ total_enrollments }}
-  <a href="{% url 'cadmin_enrollments' course.slug %}" class="btn btn-sm btn-primary ml-3">Manage Enrollments</a>
-</div>
-
-<!-- Homework Section -->
-<div class="card mb-4">
-  <div class="card-header">
-    <h3>Homework</h3>
-  </div>
-  <div class="card-body">
-    {% if homeworks %}
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Due Date</th>
-            <th>State</th>
-            <th>Submissions</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for hw in homeworks %}
-          <tr>
-            <td>
-              <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}">{{ hw.title }}</a>
-              <a href="{% url 'homework' course.slug hw.slug %}" title="View Public Homework Page" class="ml-2">
-                <i class="fas fa-external-link-alt"></i>
-              </a>
-              <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin" class="ml-2">
-                <i class="fas fa-edit"></i>
-              </a>
-            </td>
-            <td>{{ hw.due_date|date:"Y-m-d" }}</td>
-            <td>
-              {% if hw.state == 'OP' %}
-                <span class="badge badge-success">Open</span>
-              {% elif hw.state == 'CL' %}
-                <span class="badge badge-secondary">Closed</span>
-              {% elif hw.state == 'SC' %}
-                <span class="badge badge-primary">Scored</span>
-              {% else %}
-                <span class="badge badge-warning">{{ hw.get_state_display }}</span>
-              {% endif %}
-            </td>
-            <td>{{ hw.submissions_count }}</td>
-            <td>
-              {% if hw.state == 'OP' or hw.state == 'CL' %}
-                <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" style="display: inline;" onsubmit="return confirm('Set correct answers to most popular for {{ hw.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-warning">Set Correct Answers</button>
-                </form>
-                <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" style="display: inline;" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-success">Score</button>
-                </form>
-              {% endif %}
-              <a href="{% url 'homework_statistics' course.slug hw.slug %}" class="btn btn-sm btn-outline-primary">Statistics</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<section class="border-b app-border pb-5">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wide app-muted">Admin Panel</p>
+      <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ course.title }}</h1>
+      <p class="mt-1 text-sm app-muted">Operational controls for homework, projects, enrollments, and public course surfaces.</p>
     </div>
-    {% else %}
-    <p>No homework found for this course.</p>
-    {% endif %}
+    <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
+      <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary">View Course Page</a>
+      <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary">Course Dashboard</a>
+      <a href="{% url 'leaderboard' course.slug %}" class="primer-button">Leaderboard</a>
+      <a href="/admin/courses/course/{{ course.id }}/change/" class="primer-button primer-button-secondary">
+        <i class="fas fa-edit"></i> Django Admin
+      </a>
+    </div>
   </div>
-</div>
 
-<!-- Project Section -->
-<div class="card mb-4">
-  <div class="card-header">
-    <h3>Projects</h3>
+  <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase app-muted">Total Enrollments</p>
+      <p class="mt-0.5 text-xl font-semibold app-heading">{{ total_enrollments }}</p>
+    </div>
+    <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button w-fit">Manage Enrollments</a>
   </div>
-  <div class="card-body">
-    {% if projects %}
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Due Dates</th>
-            <th>State</th>
-            <th>Submissions</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for proj in projects %}
-          <tr>
-            <td>
-              <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}">{{ proj.title }}</a>
-              <a href="{% url 'project' course.slug proj.slug %}" title="View Public Project Page" class="ml-2">
-                <i class="fas fa-external-link-alt"></i>
-              </a>
-              <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin" class="ml-2">
-                <i class="fas fa-edit"></i>
-              </a>
-            </td>
-            <td>
-              Sub: {{ proj.submission_due_date|date:"Y-m-d" }}<br>
-              Rev: {{ proj.peer_review_due_date|date:"Y-m-d" }}
-            </td>
-            <td>
-              {% if proj.state == 'CL' %}
-                <span class="badge badge-secondary">Closed</span>
-              {% elif proj.state == 'CS' %}
-                <span class="badge badge-success">Collecting</span>
-              {% elif proj.state == 'PR' %}
-                <span class="badge badge-warning">Peer Review</span>
-              {% elif proj.state == 'CO' %}
-                <span class="badge badge-primary">Completed</span>
+</section>
+
+<section class="mt-6">
+  <div class="mb-3">
+    <h2 class="text-base font-semibold app-heading">Homework</h2>
+    <p class="mt-1 text-sm app-muted">Review submissions first; scoring actions are grouped at the end of each row.</p>
+  </div>
+
+  {% if homeworks %}
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_7rem_14rem] md:gap-3">
+      <div>Homework</div>
+      <div>Due date</div>
+      <div class="text-right">State</div>
+      <div class="text-right">Actions</div>
+    </div>
+
+    <div class="divide-y app-divide">
+      {% for hw in homeworks %}
+        <article class="py-2.5 md:py-3">
+          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_7rem_14rem] md:items-center md:gap-3">
+            <div class="flex min-w-0 items-start justify-between gap-3 md:block">
+              <div class="min-w-0">
+                <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="block truncate font-medium app-link hover:underline">{{ hw.title }}</a>
+                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  <a href="{% url 'homework' course.slug hw.slug %}" title="View Public Homework Page" class="app-link">
+                    <i class="fas fa-external-link-alt"></i> Public
+                  </a>
+                  <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin" class="app-link">
+                    <i class="fas fa-edit"></i> Django
+                  </a>
+                  <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="app-link">
+                    <i class="fas fa-list"></i> Submissions ({{ hw.submissions_count }})
+                  </a>
+                </div>
+              </div>
+              <div class="shrink-0 md:hidden">
+                {% if hw.state == 'OP' %}
+                  <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Open</span>
+                {% elif hw.state == 'CL' %}
+                  <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+                {% elif hw.state == 'SC' %}
+                  <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Scored</span>
+                {% else %}
+                  <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">{{ hw.get_state_display }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="text-xs app-muted md:text-sm">
+              <span class="md:hidden">Due </span><span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date|date:"j F Y, H:i" }}</span>
+            </div>
+
+            <div class="hidden md:block md:text-right">
+              {% if hw.state == 'OP' %}
+                <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Open</span>
+              {% elif hw.state == 'CL' %}
+                <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+              {% elif hw.state == 'SC' %}
+                <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Scored</span>
               {% else %}
-                <span class="badge badge-info">{{ proj.get_state_display }}</span>
+                <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">{{ hw.get_state_display }}</span>
               {% endif %}
-            </td>
-            <td>{{ proj.submissions_count }}</td>
-            <td>
-              {% if proj.state == 'CS' %}
-                <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" style="display: inline;" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end">
+              {% if hw.state == 'OP' or hw.state == 'CL' %}
+                <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-warning">Assign Reviews</button>
+                  <button type="submit" class="primer-button primer-button-success w-full">Score</button>
+                </form>
+                <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set correct answers to most popular for {{ hw.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="primer-button primer-button-secondary w-full">Set Answers</button>
+                </form>
+              {% else %}
+                <span class="hidden text-sm app-muted md:inline">No action</span>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="py-4 text-sm app-muted">No homework found for this course.</p>
+  {% endif %}
+</section>
+
+<section class="mt-6 border-t app-border pt-5">
+  <div class="mb-3">
+    <h2 class="text-base font-semibold app-heading">Projects</h2>
+    <p class="mt-1 text-sm app-muted">Keep peer-review operations separate from public project links and Django Admin edits.</p>
+  </div>
+
+  {% if projects %}
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_8rem_12rem] md:gap-3">
+      <div>Project</div>
+      <div>Due dates</div>
+      <div class="text-right">State</div>
+      <div class="text-right">Actions</div>
+    </div>
+
+    <div class="divide-y app-divide">
+      {% for proj in projects %}
+        <article class="py-2.5 md:py-3">
+          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_8rem_12rem] md:items-center md:gap-3">
+            <div class="flex min-w-0 items-start justify-between gap-3 md:block">
+              <div class="min-w-0">
+                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="block truncate font-medium app-link hover:underline">{{ proj.title }}</a>
+                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  <a href="{% url 'project' course.slug proj.slug %}" title="View Public Project Page" class="app-link">
+                    <i class="fas fa-external-link-alt"></i> Public
+                  </a>
+                  <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin" class="app-link">
+                    <i class="fas fa-edit"></i> Django
+                  </a>
+                  <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="app-link">
+                    <i class="fas fa-list"></i> Submissions ({{ proj.submissions_count }})
+                  </a>
+                </div>
+              </div>
+              <div class="shrink-0 md:hidden">
+                {% if proj.state == 'CL' %}
+                  <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+                {% elif proj.state == 'CS' %}
+                  <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Collecting</span>
+                {% elif proj.state == 'PR' %}
+                  <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Peer Review</span>
+                {% elif proj.state == 'CO' %}
+                  <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Completed</span>
+                {% else %}
+                  <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">{{ proj.get_state_display }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs app-muted md:block md:text-sm">
+              <span class="md:block">Sub <span class="local-date" data-timestamp="{{ proj.submission_due_date|date:'U' }}">{{ proj.submission_due_date|date:"j F Y, H:i" }}</span></span>
+              <span class="md:block">Rev <span class="local-date" data-timestamp="{{ proj.peer_review_due_date|date:'U' }}">{{ proj.peer_review_due_date|date:"j F Y, H:i" }}</span></span>
+            </div>
+
+            <div class="hidden md:block md:text-right">
+              {% if proj.state == 'CL' %}
+                <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+              {% elif proj.state == 'CS' %}
+                <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Collecting</span>
+              {% elif proj.state == 'PR' %}
+                <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Peer Review</span>
+              {% elif proj.state == 'CO' %}
+                <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Completed</span>
+              {% else %}
+                <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">{{ proj.get_state_display }}</span>
+              {% endif %}
+            </div>
+
+            <div class="grid grid-cols-1 gap-2 md:flex md:flex-wrap md:justify-end">
+              {% if proj.state == 'CS' %}
+                <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="primer-button primer-button-secondary w-full">Assign Reviews</button>
                 </form>
               {% endif %}
               {% if proj.state == 'PR' %}
-                <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" style="display: inline;" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
+                <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-success">Score</button>
+                  <button type="submit" class="primer-button primer-button-success w-full">Score</button>
                 </form>
               {% endif %}
-              <a href="{% url 'project_statistics' course.slug proj.slug %}" class="btn btn-sm btn-outline-primary">Statistics</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              {% if proj.state != 'CS' and proj.state != 'PR' %}
+                <span class="hidden text-sm app-muted md:inline">No action</span>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
     </div>
-    {% else %}
-    <p>No projects found for this course.</p>
-    {% endif %}
-  </div>
-</div>
+  {% else %}
+    <p class="py-4 text-sm app-muted">No projects found for this course.</p>
+  {% endif %}
+</section>
 {% endblock %}

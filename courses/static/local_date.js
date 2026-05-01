@@ -1,17 +1,20 @@
-$(document).ready(function () {
-  var utc_dates = document.querySelectorAll(".local-date");
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.local-date').forEach(function(date) {
+    var timestamp = date.getAttribute('data-timestamp');
+    var originalValue = date.getAttribute('datetime') || date.getAttribute('data-date') || date.textContent.trim();
+    var formattedDate = timestamp ? new Date(Number(timestamp) * 1000) : new Date(originalValue);
 
-  utc_dates.forEach((date) => {
-    var formattedDate = new Date(date.innerHTML);
+    if (Number.isNaN(formattedDate.getTime())) {
+      return;
+    }
 
     var day = formattedDate.getDate();
-    var month = formattedDate.toLocaleString('default', { month: 'long' });
+    var month = formattedDate.toLocaleString(undefined, { month: 'long' });
     var year = formattedDate.getFullYear();
     var hours = formattedDate.getHours().toString().padStart(2, '0');
     var minutes = formattedDate.getMinutes().toString().padStart(2, '0');
 
-    var formattedDateString = `${day} ${month} ${year} ${hours}:${minutes}`;
-
-    date.innerHTML = formattedDateString;
+    date.textContent = day + ' ' + month + ' ' + year + ', ' + hours + ':' + minutes;
+    date.setAttribute('datetime', originalValue);
   });
 });

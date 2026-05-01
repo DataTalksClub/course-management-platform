@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% load tz %}
 {% load custom_filters %}
 
@@ -7,156 +6,190 @@
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
+{% block nav_links %}
+  <a href="{% url 'course' course.slug %}" class="hidden min-w-0 truncate app-link sm:inline">
+    {{ course.title }}
+  </a>
+{% endblock %}
+
 {% block content %}
-<h2>{{ course.title }}</h2>
+<section class="border-b app-border pb-5">
+  <div class="max-w-3xl">
+    <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">
+      {{ course.title }}
+    </h1>
+    <div class="mt-3 text-base leading-7 app-text md:text-lg">
+      {{ course.description | urlize_target_blank }}
+    </div>
+  </div>
 
-<div>
-  <p>{{ course.description | urlize_target_blank }}</p>
-</div>
-
-<div>
-  <p>
+  <div class="course-actions mt-5 flex flex-wrap gap-3 md:mt-8 md:gap-4">
     {% if course.first_homework_scored %}
-      <a class="btn btn-primary" href="{% url 'leaderboard' course.slug %}" role="button">Course leaderboard</a>
+      <a href="{% url 'leaderboard' course.slug %}" class="primer-button whitespace-nowrap">
+        <i class="fas fa-trophy"></i> Course leaderboard
+      </a>
     {% endif %}
-    <a class="btn btn-secondary" href="{% url 'dashboard' course.slug %}" role="button">Course dashboard</a>
+    <a href="{% url 'dashboard' course.slug %}" class="primer-button whitespace-nowrap">
+      <i class="fas fa-chart-bar"></i> Course dashboard
+    </a>
     {% if is_authenticated %}
-      <a class="btn btn-info" href="{% url 'enrollment' course.slug %}" role="button">Edit course profile</a>
+      <a href="{% url 'enrollment' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
+        <i class="fas fa-user-edit"></i> Edit course profile
+      </a>
     {% endif %}
     {% if is_authenticated and certificate_url %}
-      <a class="btn btn-success" href="{{ certificate_url }}" target="_blank" role="button"><i class="fas fa-certificate"></i> Download Certificate</a>
+      <a href="{{ certificate_url }}" target="_blank" class="primer-button primer-button-success whitespace-nowrap">
+        <i class="fas fa-certificate"></i> Download Certificate
+      </a>
     {% endif %}
-  </p>
+  </div>
+
   {% if user.is_staff %}
-  <p>
-    <a href="{% url 'cadmin_course' course.slug %}">
-      <i class="fas fa-cog"></i> Manage course (Admin only)
-    </a>
-  </p>
-  {% endif %}
-</div>
-
-
-{% if is_authenticated and course.first_homework_scored %}
-<div class="alert alert-info" role="alert">
-  <p>Total score: {{ total_score }}</p>
-</div>
-{% endif %}
-
-{% if homeworks %}
-<div class="pb-3">
-  <h2>Homework</h2>
-
-  {% for hw in homeworks %}
-  <div class="p-2 {% cycle 'bg-white' '' %}">
-    <div class="row align-items-center">
-      <div class="col-5">
-        {% if hw.state == 'CL' %}
-          {{ hw.title }}
-        {% else %}
-          <a href="{% url 'homework' course.slug hw.slug %}">
-            {{ hw.title }}
-          </a>
-        {% endif %}
-      </div>
-      <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ hw.days_until_due }} days left">
-        <span class="local-date">{{ hw.due_date | date:"c" }}</span>
-      </div>
-      <div class="col-3 text-md-right">
-        {% if hw.state == 'CL' %}
-          <span class="badge bg-secondary">Closed</span>
-        {% elif hw.is_scored and hw.submitted %}
-          <span class="badge bg-success">Scored ({{ hw.score }})</span>
-        {% elif hw.is_scored %}
-          <span class="badge bg-secondary">Scored</span>
-        {% elif not hw.is_scored and hw.submitted %}
-          <span class="badge bg-info">Submitted</span>
-        {% else %}
-          <span class="badge bg-warning">Open</span>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if projects %}
-<div class="pb-3">
-  <h2>Projects</h2>
-  {% for project in projects %}
-  <div class="p-2 {% cycle 'bg-white' '' %}">
-    <div class="row align-items-center">
-      <div class="col-5">
-        {% if project.state == 'CS' %}
-          <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">
-            {{ project.title }}
-          </a>
-        {% elif project.state == 'PR' %}
-          <a href="{% url 'projects_eval' course.slug project.slug %}">
-            {{ project.title }}
-          </a>
-        {% elif project.state == 'CO' %}
-          <a href="{% url 'project_results' course.slug project.slug %}">
-            {{ project.title }}
-          </a>
-        {% else %}
-          {{ project.title }}
-        {% endif %}
-      </div>
-      {% if project.state == 'CS' or project.state == 'CL' %}
-        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_submission_due }} days left to submit your project">
-          <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
-        </div>
-      {% elif project.state == 'PR' %}
-        {% if project.submitted %}
-          <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_pr_due }} days left to review your peers">
-            <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
-          </div>
-        {% else %}
-          <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_submission_due }} days left to submit your project">
-            <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
-          </div>
-        {% endif %}
-      {% elif project.state == 'CO' %}
-        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="Project is completed">
-          <span class="local-date">{{ project.peer_review_due_date | date:"c" }}</span>
-        </div>
-      {% else %}
-        <div class="col-4 text-md-right" data-toggle="tooltip" data-placement="right" title="{{ project.days_until_submission_due }} days left to submit your project">
-          <span class="local-date">{{ project.submission_due_date | date:"c" }}</span>
-        </div>
-      {% endif %}
-      <div class="col-3 text-md-right">
-        <span class="badge {{ project.badge_css_class }}">{{ project.badge_state_name }}</span>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-  
-  {% if has_completed_projects %}
-    <div class="text-center mb-2">
-      <a href="{% url 'list_all_project_submissions' course.slug %}"
-          class="btn btn-secondary mt-3">
-        See all submitted projects
+    <div class="mt-6">
+      <a href="{% url 'cadmin_course' course.slug %}" class="inline-flex items-center text-sm font-medium app-link">
+        <i class="fas fa-cog mr-2"></i> Manage course in cadmin
       </a>
     </div>
   {% endif %}
-</div>
+
+  {% if is_authenticated and course.first_homework_scored %}
+    <div class="mt-6 flex items-baseline gap-2 text-sm">
+      <span class="app-muted">Total score</span>
+      <span class="text-base font-semibold app-heading">{{ total_score }}</span>
+    </div>
+  {% endif %}
+</section>
+
+{% if homeworks %}
+  <section class="mt-8">
+    <div class="mb-4">
+      <h2 class="text-2xl font-semibold">Homework</h2>
+      <p class="mt-2 app-text">Complete the homework and submit your solutions.</p>
+    </div>
+
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:gap-5">
+      <div>Homework</div>
+      <div>Deadline</div>
+      <div class="text-right">Status</div>
+    </div>
+
+    <div class="divide-y app-divide">
+      {% for hw in homeworks %}
+        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:items-center md:gap-5">
+          <div class="flex min-w-0 items-start gap-3">
+            <i class="far fa-file-alt mt-1 hidden app-muted md:inline"></i>
+            <div class="min-w-0">
+              {% if hw.state == 'CL' %}
+                <div class="font-semibold app-heading">{{ hw.title }}</div>
+              {% else %}
+                <a href="{% url 'homework' course.slug hw.slug %}" class="font-semibold app-link">
+                  {{ hw.title }}
+                </a>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="text-sm app-text">
+            <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
+            <span>Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
+            <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}"></div>
+          </div>
+
+          <div class="md:text-right">
+            {% if hw.state == 'CL' %}
+              <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase">Closed</span>
+            {% elif hw.is_scored and hw.submitted %}
+              <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Scored ({{ hw.score }})</span>
+            {% elif hw.is_scored %}
+              <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase">Scored</span>
+            {% elif not hw.is_scored and hw.submitted %}
+              <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
+            {% else %}
+              <span class="inline-flex rounded-md app-badge-warning px-3 py-1 text-xs font-semibold uppercase">Open</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if projects %}
+  <section class="mt-8 border-t app-border pt-6">
+    <div class="mb-4">
+      <h2 class="text-2xl font-semibold">Projects</h2>
+      <p class="mt-2 app-text">Build and submit course projects. Review status and next actions are shown for each project.</p>
+    </div>
+
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:gap-5">
+      <div>Project</div>
+      <div>Deadline</div>
+      <div class="text-right">Status</div>
+    </div>
+
+    <div class="divide-y app-divide">
+      {% for project in projects %}
+        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_17rem_10rem] md:items-center md:gap-5">
+          <div class="flex min-w-0 items-start gap-3">
+            <i class="far fa-folder mt-1 hidden app-muted md:inline"></i>
+            <div class="min-w-0">
+              {% if project.state == 'CS' %}
+                <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}" class="font-semibold app-link">{{ project.title }}</a>
+              {% elif project.state == 'PR' %}
+                <a href="{% url 'projects_eval' course.slug project.slug %}" class="font-semibold app-link">{{ project.title }}</a>
+              {% elif project.state == 'CO' %}
+                <a href="{% url 'project_results' course.slug project.slug %}" class="font-semibold app-link">{{ project.title }}</a>
+              {% else %}
+                <div class="font-semibold app-heading">{{ project.title }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="text-sm app-text">
+            <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
+            {% if project.state == 'PR' and project.submitted %}
+              <span>Review due: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
+              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.peer_review_due_date | date:"c" }}"></div>
+            {% elif project.state == 'CO' %}
+              <span>Completed: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
+            {% else %}
+              <span>Due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span></span>
+              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}"></div>
+            {% endif %}
+          </div>
+
+          <div class="md:text-right">
+            {% if project.badge_css_class == 'bg-success' or project.badge_css_class == 'bg-info' %}
+              <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+            {% elif project.badge_css_class == 'bg-warning' %}
+              <span class="inline-flex rounded-md app-badge-warning px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+            {% elif project.badge_css_class == 'bg-danger' %}
+              <span class="inline-flex rounded-md app-badge-danger px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+            {% else %}
+              <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if has_completed_projects %}
+      <div class="mt-7 text-center">
+        <a href="{% url 'list_all_project_submissions' course.slug %}" class="inline-flex items-center font-medium app-link">
+          See all submitted projects <span class="ml-2" aria-hidden="true">&rarr;</span>
+        </a>
+      </div>
+    {% endif %}
+  </section>
 {% endif %}
 
 {% if not homeworks and not projects %}
-<div class="alert alert-info" role="alert">
-  <p>There are no homeworks or projects available for this course yet. Come back later.</p>
-</div>
+  <div class="mt-10 rounded-md border app-alert-info p-5 app-heading" role="alert">
+    There are no homeworks or projects available for this course yet. Come back later.
+  </div>
 {% endif %}
 
-<div class="mt-2">All deadlines are in your local timezone</div>
-
-<script>
-  $(function() {
-    $('[data-toggle="tooltip"]').tooltip()
-  })
-</script>
-
+<div class="mt-8 text-sm app-muted">
+  All deadlines are in your local timezone.
+</div>
 {% endblock %}

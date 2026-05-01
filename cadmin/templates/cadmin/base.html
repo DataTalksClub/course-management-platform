@@ -1,19 +1,9 @@
-{% extends 'base.html' %}
-
-{% block content %}
+{% extends 'base.html' %} {% block body_class %}cadmin-page{% endblock %} {% block content %}
 {% if messages %}
-<div class="messages">
-  {% for message in messages %}
-  <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-      <span aria-hidden="true">&times;</span>
-    </button>
-  </div>
-  {% endfor %}
+<div class="space-y-3"> {% for message in messages %} <div class="rounded-md border app-alert-warning px-4 py-3 text-sm  " role="alert"> <div class="flex items-start justify-between gap-3"> <span>{{ message }}</span> <button type="button" class="text-lg leading-none opacity-70 hover:opacity-100" data-dismiss="alert" aria-label="Close">&times;</button> </div> </div> {% endfor %}
 </div>
-{% endif %}
-
+{% endif %} <div class="cadmin-shell">
 {% block cadmin_content %}
 {% endblock %}
+</div>
 {% endblock %}

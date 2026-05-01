@@ -1,86 +1,78 @@
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
   var STORAGE_KEY = 'darkMode';
+  var body = document.body;
+  var toggle = document.getElementById('dark-mode-toggle');
+  var icon = document.getElementById('dark-mode-icon');
 
-  // Initialize dark mode based on localStorage or server-side setting
-  function initDarkMode() {
-    var isAuthenticated = $('body').attr('data-authenticated') === 'true';
-    var serverDarkMode = $('body').attr('data-dark-mode') === 'true';
-    
-    if (isAuthenticated) {
-      // For authenticated users, use server-side preference (already set)
-      return serverDarkMode;
-    } else {
-      // For unauthenticated users, use localStorage
-      var storedPreference = localStorage.getItem(STORAGE_KEY);
-      if (storedPreference !== null) {
-        var isDarkMode = storedPreference === 'true';
-        if (isDarkMode !== serverDarkMode) {
-          applyDarkMode(isDarkMode);
-        }
-        return isDarkMode;
-      }
-      return serverDarkMode;
-    }
-  }
-
-  // Apply dark mode classes to the page
   function applyDarkMode(isDarkMode) {
-    var $html = $('html');
-    var $body = $('body');
-    var $toggle = $('#dark-mode-toggle');
-    var $icon = $('#dark-mode-icon');
-    var $header = $('#header-container');
-    var $content = $('#main-content');
+    body.classList.toggle('dark', isDarkMode);
+    body.classList.toggle('dark-mode', isDarkMode);
+    body.setAttribute('data-dark-mode', isDarkMode ? 'true' : 'false');
 
-    if (isDarkMode) {
-      $html.addClass('dark-mode');
-      $body.addClass('dark-mode').attr('data-dark-mode', 'true');
-      $toggle.removeClass('btn-dark').addClass('btn-light');
-      $icon.removeClass('fa-moon').addClass('fa-sun');
-      $header.removeClass('bg-light border-bottom').addClass('bg-dark border-dark');
-      $content.removeClass('bg-light').addClass('bg-dark');
-    } else {
-      $html.removeClass('dark-mode');
-      $body.removeClass('dark-mode').attr('data-dark-mode', 'false');
-      $toggle.removeClass('btn-light').addClass('btn-dark');
-      $icon.removeClass('fa-sun').addClass('fa-moon');
-      $header.removeClass('bg-dark border-dark').addClass('bg-light border-bottom');
-      $content.removeClass('bg-dark').addClass('bg-light');
+    if (toggle) {
+      toggle.setAttribute('aria-pressed', isDarkMode ? 'true' : 'false');
+    }
+
+    if (icon) {
+      icon.classList.toggle('fa-moon', !isDarkMode);
+      icon.classList.toggle('fa-sun', isDarkMode);
     }
   }
 
-  // Handle dark mode toggle click
-  $('#dark-mode-toggle').click(function() {
-    var isAuthenticated = $('body').attr('data-authenticated') === 'true';
-    var currentDarkMode = $('body').attr('data-dark-mode') === 'true';
-    var newDarkMode = !currentDarkMode;
+  function initDarkMode() {
+    var isAuthenticated = body.getAttribute('data-authenticated') === 'true';
+    var serverDarkMode = body.getAttribute('data-dark-mode') === 'true';
 
     if (isAuthenticated) {
-      // For authenticated users, save to server
-      var csrfToken = $('#csrf-token').val();
-      var toggleUrl = $('body').attr('data-toggle-url');
-      $.ajax({
-        url: toggleUrl,
-        type: 'POST',
-        headers: {
-          'X-CSRFToken': csrfToken
-        },
-        success: function(data) {
-          applyDarkMode(data.dark_mode);
-          // Also save to localStorage for consistency
-          localStorage.setItem(STORAGE_KEY, data.dark_mode.toString());
-        },
-        error: function(xhr, status, error) {
-          console.error('Error toggling dark mode:', error);
-        }
-      });
-    } else {
-      // For unauthenticated users, save to localStorage only
-      localStorage.setItem(STORAGE_KEY, newDarkMode.toString());
-      applyDarkMode(newDarkMode);
+      return serverDarkMode;
     }
-  });
 
-  // Initialize on page load
+    var storedPreference = localStorage.getItem(STORAGE_KEY);
+    if (storedPreference !== null) {
+      var isDarkMode = storedPreference === 'true';
+      if (isDarkMode !== serverDarkMode) {
+        applyDarkMode(isDarkMode);
+      }
+      return isDarkMode;
+    }
+
+    return serverDarkMode;
+  }
+
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      var isAuthenticated = body.getAttribute('data-authenticated') === 'true';
+      var currentDarkMode = body.getAttribute('data-dark-mode') === 'true';
+      var newDarkMode = !currentDarkMode;
+
+      if (!isAuthenticated) {
+        localStorage.setItem(STORAGE_KEY, newDarkMode.toString());
+        applyDarkMode(newDarkMode);
+        return;
+      }
+
+      fetch(body.getAttribute('data-toggle-url'), {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': document.getElementById('csrf-token')?.value || '',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error('Dark mode toggle failed');
+          }
+          return response.json();
+        })
+        .then(function(data) {
+          applyDarkMode(data.dark_mode);
+          localStorage.setItem(STORAGE_KEY, data.dark_mode.toString());
+        })
+        .catch(function(error) {
+          console.error('Error toggling dark mode:', error);
+        });
+    });
+  }
+
   initDarkMode();
 });

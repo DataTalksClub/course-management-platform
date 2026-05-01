@@ -279,3 +279,53 @@ for p in [p1, p2]:
 
 p1.peer_review_due_date = timezone.now()
 score_project(p1)
+
+
+# Create homeworks with varied upcoming deadlines to test "time left" display
+upcoming_hw_data = [
+    ("upcoming-hw-urgent", "Upcoming HW: Urgent (6h left)", timedelta(hours=6), HomeworkState.OPEN.value),
+    ("upcoming-hw-soon", "Upcoming HW: Soon (2.5 days left)", timedelta(days=2, hours=12), HomeworkState.OPEN.value),
+    ("upcoming-hw-normal", "Upcoming HW: Normal (7 days left)", timedelta(days=7), HomeworkState.OPEN.value),
+    ("upcoming-hw-later", "Upcoming HW: Later (14 days left)", timedelta(days=14), HomeworkState.OPEN.value),
+]
+
+for slug, title, delta, state in upcoming_hw_data:
+    hw, created = Homework.objects.get_or_create(
+        course=course,
+        slug=slug,
+        defaults={
+            "title": title,
+            "description": f"Test homework to verify time-left display.",
+            "due_date": timezone.now() + delta,
+            "state": state,
+        },
+    )
+    if created:
+        Question.objects.create(
+            homework=hw,
+            text="Sample question?",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.ANY.value,
+            correct_answer="answer",
+        )
+    print(f"Created homework: {title}")
+
+# Create projects with upcoming deadlines
+upcoming_proj_data = [
+    ("upcoming-proj-urgent", "Upcoming Project: Urgent (2h left)", timedelta(hours=2), timedelta(days=5)),
+    ("upcoming-proj-normal", "Upcoming Project: Normal (10 days left)", timedelta(days=10), timedelta(days=17)),
+]
+
+for slug, title, sub_delta, pr_delta in upcoming_proj_data:
+    proj, _ = Project.objects.get_or_create(
+        course=course,
+        slug=slug,
+        defaults={
+            "title": title,
+            "description": "Test project to verify time-left display.",
+            "submission_due_date": timezone.now() + sub_delta,
+            "peer_review_due_date": timezone.now() + pr_delta,
+            "state": ProjectState.COLLECTING_SUBMISSIONS.value,
+        },
+    )
+    print(f"Created project: {title}")

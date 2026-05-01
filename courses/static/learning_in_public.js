@@ -1,13 +1,25 @@
-$(document).ready(function () {
-  $('#add-learning-public-link').click(function () {
-    let currentLinkCount = $('#learning-in-public-links input[type="url"]').length;
-    let cap = global_learning_in_public_cap;
+document.addEventListener('DOMContentLoaded', function() {
+  var addButton = document.getElementById('add-learning-public-link');
+  var linksContainer = document.getElementById('learning-in-public-links');
+
+  if (!addButton || !linksContainer) {
+    return;
+  }
+
+  addButton.addEventListener('click', function() {
+    var currentLinkCount = linksContainer.querySelectorAll('input[type="url"]').length;
+    var cap = window.global_learning_in_public_cap || 0;
+
     if (currentLinkCount < cap) {
-        let html = '<input type="url" class="form-control" name="learning_in_public_links[]">';
-        $('#learning-in-public-links').append(html);
+      var input = document.createElement('input');
+      input.type = 'url';
+      input.className = 'form-control';
+      input.name = 'learning_in_public_links[]';
+      linksContainer.appendChild(input);
     }
+
     if (currentLinkCount + 1 >= cap) {
-        $(this).prop('disabled', true);
+      addButton.disabled = true;
     }
   });
 });
