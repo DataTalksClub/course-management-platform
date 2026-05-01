@@ -115,18 +115,8 @@
                             {% if course.home_registration_open %}
                                 <div class="flex flex-wrap gap-3 md:justify-end">
                                     <a href="{{ course.registration_url }}"
-                                       class="primer-button primer-button-secondary whitespace-nowrap">
-                                        <i class="fas fa-user-plus"></i>
+                                       class="inline-flex items-center font-medium app-link">
                                         Register
-                                    </a>
-                                </div>
-                            {% endif %}
-                            {% if course.home_is_enrolled %}
-                                <div class="flex flex-wrap gap-3 md:justify-end">
-                                    <a href="{% url 'enrollment' course.slug %}"
-                                       class="primer-button primer-button-secondary whitespace-nowrap">
-                                        <i class="fas fa-user-edit"></i>
-                                        Edit profile
                                     </a>
                                 </div>
                             {% endif %}
@@ -161,11 +151,6 @@
                                         <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm app-muted md:justify-end">
                                             <span>{{ course.homework_count }} homework</span>
                                             <span>{{ course.project_count }} projects</span>
-                                            {% if course.home_is_enrolled %}
-                                                <span>
-                                                    <a href="{% url 'enrollment' course.slug %}" class="app-link">Edit profile</a>
-                                                </span>
-                                            {% endif %}
                                         </div>
                                         <span class="hidden shrink-0 app-link md:block" aria-hidden="true">&rarr;</span>
                                     </a>

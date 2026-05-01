@@ -983,36 +983,6 @@ class CourseDetailViewTests(TestCase):
             response,
             "https://courses.datatalks.club/test-course/register",
         )
-
-    def test_course_list_shows_edit_profile_for_enrolled_courses(self):
-        other_course = Course.objects.create(
-            title="Other Course",
-            slug="other-course",
-            visible=True,
-        )
-
-        self.client.login(**credentials)
-
-        url = reverse("course_list")
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-
-        courses_by_slug = {
-            course.slug: course
-            for course in response.context["active_courses"]
-        }
-
-        self.assertTrue(courses_by_slug[self.course.slug].home_is_enrolled)
-        self.assertFalse(courses_by_slug[other_course.slug].home_is_enrolled)
-        self.assertContains(
-            response,
-            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
-        )
-        self.assertNotContains(
-            response,
-            reverse("enrollment", kwargs={"course_slug": other_course.slug}),
-        )
     
     def test_hidden_course_accessible_via_direct_link(self):
         """Test that non-visible courses are still accessible via direct link"""
