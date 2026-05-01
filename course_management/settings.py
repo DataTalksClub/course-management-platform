@@ -185,7 +185,7 @@ if is_test:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-VERSION = os.getenv("VERSION", "N/A")
+VERSION = os.getenv("VERSION", "local-development-build-version-not-configured")
 
 # Cache configuration
 CACHES = {

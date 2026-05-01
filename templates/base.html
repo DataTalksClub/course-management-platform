@@ -111,19 +111,22 @@
                 </div>
             </main>
         </div>
-        <footer class="mt-10 border-t app-border app-surface app-muted">
+        <footer class="site-footer mt-10 border-t app-border app-surface app-muted">
             <div class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-8">
-                <div>
+                <div class="site-footer-brand">
                     <div class="font-semibold app-heading">DataTalks.Club</div>
                     <div class="mt-1">Free courses to learn data.</div>
                 </div>
-                <div class="flex flex-wrap items-center gap-5">
+                <div class="site-footer-meta flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
                     <a href="https://github.com/DataTalksClub/course-management-platform"
                        target="_blank"
-                       class="app-link app-link">
+                       class="site-footer-link app-link app-link">
                         GitHub Repository <i class="fas fa-external-link-alt ml-1 text-xs"></i>
                     </a>
-                    <span class="footer-version rounded-md border app-border app-muted">Version: {{ VERSION }}</span>
+                    <span class="footer-version rounded-md border app-border app-muted">
+                        <span class="footer-version-label">Version</span>
+                        <span class="footer-version-value">{{ VERSION }}</span>
+                    </span>
                 </div>
             </div>
         </footer>

@@ -344,13 +344,62 @@ form select {
   color: var(--link-color);
 }
 
+.site-footer-brand {
+  min-width: 0;
+}
+
+.site-footer-meta {
+  max-width: 100%;
+}
+
+.site-footer-link {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.25rem;
+  width: fit-content;
+}
+
 .footer-version {
+  align-items: baseline;
+  background: var(--surface-muted);
   color: var(--text-muted);
-  font-size: 0.8125rem;
-  padding: 0.25rem 0.625rem;
+  display: inline-flex;
+  gap: 0.5rem;
+  max-width: min(100%, 34rem);
+  min-width: 0;
+  padding: 0.375rem 0.625rem;
+}
+
+.footer-version-label {
+  color: var(--text-heading);
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.footer-version-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 640px) {
+  .site-footer-link,
+  .footer-version {
+    width: 100%;
+  }
+
+  .footer-version {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
   .settings-form {
     margin-top: 1.25rem;
   }
