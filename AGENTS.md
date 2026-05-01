@@ -33,7 +33,7 @@ One-time scripts and temporary files should be in .tmp. It's in .gitignore so we
 There is a public health check endpoint that returns the current version:
 
 ```
-GET /data/health/
+GET /api/health/
 ```
 
 **Response:**
@@ -51,6 +51,6 @@ This endpoint requires no authentication and can be used to:
 
 **Example:**
 ```bash
-curl https://dev.courses.datatalks.club/data/health/
+curl https://dev.courses.datatalks.club/api/health/
 # {"status": "ok", "version": "0.1.0"}
 ```

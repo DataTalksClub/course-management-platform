@@ -126,7 +126,7 @@ docker exec -it course_management bash
 
 ## Getting the data
 
-There are `/data` endpoints for getting the data
+There are `/api` endpoints for getting the data
 
 Using them:
 
@@ -137,8 +137,8 @@ COURSE="fake-course"
 HOMEWORK="hw1"
 
 curl \
-    -H "Authorization: ${TOKEN}" \
-    "${HOST}/data/${COURSE}/homework/${HOMEWORK}"
+    -H "Authorization: Token ${TOKEN}" \
+    "${HOST}/api/courses/${COURSE}/homeworks/${HOMEWORK}/submissions"
 ```
 
 Make sure to run `make data` to create the admin user and 
@@ -242,5 +242,4 @@ See [endpoints.md](./endpoints.md) for complete API documentation including:
 - Graduates Data
 - Update Enrollment Certificate
 - Create Course Content
-
 

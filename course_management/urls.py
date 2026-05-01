@@ -9,7 +9,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
 
     path("api/", include("api.urls")),
-    path("data/", include("data.urls")),
+    path("api/", include("data.urls")),
     path("cadmin/", include("cadmin.urls")),
     path("", include("courses.urls")),
 ]

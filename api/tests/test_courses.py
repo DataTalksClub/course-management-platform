@@ -39,6 +39,42 @@ class CoursesAPITestCase(TestCase):
         response = client.get("/api/courses/")
         self.assertEqual(response.status_code, 401)
 
+    def test_create_course(self):
+        payload = {
+            "slug": "new-course",
+            "title": "New Course",
+            "description": "Created by API",
+            "social_media_hashtag": "newcourse",
+            "project_passing_score": 12,
+        }
+
+        response = self.client.post(
+            "/api/courses/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(data["slug"], "new-course")
+        self.assertEqual(data["project_passing_score"], 12)
+        self.assertTrue(Course.objects.filter(slug="new-course").exists())
+
+    def test_create_course_duplicate_slug(self):
+        payload = {
+            "slug": self.course.slug,
+            "title": "Duplicate",
+        }
+
+        response = self.client.post(
+            "/api/courses/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "course_slug_exists")
+
     def test_course_detail(self):
         hw = Homework.objects.create(
             course=self.course,
@@ -64,6 +100,34 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(data["slug"], "ml-zoomcamp")
         self.assertEqual(len(data["homeworks"]), 1)
         self.assertEqual(len(data["projects"]), 1)
+        self.assertIn("visible", data)
+
+    def test_patch_course(self):
+        response = self.client.patch(
+            "/api/courses/ml-zoomcamp/",
+            json.dumps({
+                "title": "Updated ML Zoomcamp",
+                "visible": False,
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["title"], "Updated ML Zoomcamp")
+        self.assertFalse(data["visible"])
+        self.course.refresh_from_db()
+        self.assertFalse(self.course.visible)
+
+    def test_patch_course_invalid_field(self):
+        response = self.client.patch(
+            "/api/courses/ml-zoomcamp/",
+            json.dumps({"slug": "changed"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "invalid_field")
 
     def test_course_detail_not_found(self):
         response = self.client.get("/api/courses/nonexistent/")

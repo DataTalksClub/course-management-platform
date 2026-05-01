@@ -32,7 +32,7 @@ class LeaderboardDataViewTestCase(TestCase):
             description="Test",
         )
         self.url = reverse(
-            "data_leaderboard",
+            "api_course_leaderboard",
             kwargs={"course_slug": self.course.slug},
         )
 
@@ -233,5 +233,7 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(data["leaderboard"][0]["display_name"], "Alice Changed")
 
     def test_nonexistent_course(self):
-        response = self.client.get("/data/nonexistent/leaderboard.yaml")
+        response = self.client.get(
+            "/api/courses/nonexistent/leaderboard.yaml"
+        )
         self.assertEqual(response.status_code, 404)

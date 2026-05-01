@@ -2,7 +2,7 @@
 Tests for homework-related data API views.
 
 Tests for homework_data_view.
-The old HomeworkContentAPITestCase (for /data/<slug>/homework/<hw>/content) has been
+The old HomeworkContentAPITestCase has been
 replaced by tests in api/tests/ for the new /api/ endpoints.
 """
 
@@ -91,7 +91,7 @@ class HomeworkDataAPITestCase(TestCase):
         )
 
         url = reverse(
-            "data_homework",
+            "api_homework_submissions_export",
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,

@@ -1,8 +1,15 @@
 from django.urls import path
 
+from .openapi import openapi_json_view
 from . import views
 
 urlpatterns = [
+    path(
+        "openapi.json",
+        openapi_json_view,
+        name="api_openapi_json",
+    ),
+
     # Courses
     path(
         "courses/",
@@ -26,6 +33,11 @@ urlpatterns = [
         views.homework_detail_view,
         name="api_homework_detail",
     ),
+    path(
+        "courses/<slug:course_slug>/homeworks/by-slug/<slug:homework_slug>/",
+        views.homework_detail_by_slug_view,
+        name="api_homework_detail_by_slug",
+    ),
 
     # Projects
     path(
@@ -38,6 +50,11 @@ urlpatterns = [
         views.project_detail_view,
         name="api_project_detail",
     ),
+    path(
+        "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/",
+        views.project_detail_by_slug_view,
+        name="api_project_detail_by_slug",
+    ),
 
     # Questions
     path(
@@ -46,7 +63,10 @@ urlpatterns = [
         name="api_questions",
     ),
     path(
-        "courses/<slug:course_slug>/homeworks/<int:homework_id>/questions/<int:question_id>/",
+        (
+            "courses/<slug:course_slug>/homeworks/<int:homework_id>/"
+            "questions/<int:question_id>/"
+        ),
         views.question_detail_view,
         name="api_question_detail",
     ),

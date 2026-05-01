@@ -202,7 +202,7 @@ class ProjectActionsTestCase(TestCase):
         submissions = list_context["submissions"]
 
         for submission in submissions:
-            if not submission.to_evaluate:
+            if not submission.to_evaluate and not submission.own:
                 other_submission_id = submission.id
                 break
         else:

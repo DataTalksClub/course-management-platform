@@ -66,7 +66,7 @@ class ProjectDataAPITestCase(TestCase):
         self.project_submission.save()
 
         url = reverse(
-            "data_project",
+            "api_project_submissions_export",
             kwargs={
                 "course_slug": self.course.slug,
                 "project_slug": self.project.slug,

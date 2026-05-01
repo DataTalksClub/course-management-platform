@@ -4,7 +4,7 @@ from django.test import TestCase, Client
 from django.utils import timezone
 
 from accounts.models import CustomUser, Token
-from courses.models import Course, Homework, Question
+from courses.models import Answer, Course, Enrollment, Homework, Question, Submission
 from courses.models.homework import HomeworkState
 
 
@@ -35,7 +35,10 @@ class QuestionsAPITestCase(TestCase):
         )
 
     def _url(self, question_id=None):
-        base = f"/api/courses/{self.course.slug}/homeworks/{self.homework.id}/questions/"
+        base = (
+            f"/api/courses/{self.course.slug}/homeworks/"
+            f"{self.homework.id}/questions/"
+        )
         if question_id:
             return f"{base}{question_id}/"
         return base
@@ -50,6 +53,8 @@ class QuestionsAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data["questions"]), 1)
+        self.assertEqual(data["questions"][0]["answers_count"], 0)
+        self.assertTrue(data["questions"][0]["can_delete"])
 
     def test_create_question(self):
         payload = {
@@ -106,6 +111,21 @@ class QuestionsAPITestCase(TestCase):
         self.assertEqual(q.text, "New text")
         self.assertEqual(q.scores_for_correct_answer, 3)
 
+    def test_get_question_detail(self):
+        q = Question.objects.create(
+            homework=self.homework,
+            text="Question detail",
+            question_type="FF",
+        )
+
+        response = self.client.get(self._url(q.id))
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], q.id)
+        self.assertEqual(data["answers_count"], 0)
+        self.assertTrue(data["can_delete"])
+
     def test_patch_question_possible_answers_as_list(self):
         q = Question.objects.create(
             homework=self.homework,
@@ -133,6 +153,7 @@ class QuestionsAPITestCase(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "invalid_field")
 
     def test_delete_question(self):
         q = Question.objects.create(
@@ -143,3 +164,36 @@ class QuestionsAPITestCase(TestCase):
         response = self.client.delete(self._url(q.id))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Question.objects.filter(id=q.id).exists())
+
+    def test_delete_question_with_answers_is_blocked(self):
+        q = Question.objects.create(
+            homework=self.homework,
+            text="Answered question",
+            question_type="FF",
+        )
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=enrollment,
+        )
+        answer = Answer.objects.create(
+            submission=submission,
+            question=q,
+            answer_text="answer",
+        )
+
+        response = self.client.delete(self._url(q.id))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["error"],
+            "Cannot delete question with existing answers",
+        )
+        self.assertEqual(response.json()["code"], "question_has_answers")
+        self.assertEqual(response.json()["details"]["answers_count"], 1)
+        self.assertTrue(Question.objects.filter(id=q.id).exists())
+        self.assertTrue(Answer.objects.filter(id=answer.id).exists())

@@ -1,7 +1,7 @@
 """
 Tests for enrollment-related data API views.
 
-Tests for graduates_data_view, update_enrollment_certificate_view, and get_passed_enrollments helper.
+Tests for enrollment-related data views and helpers.
 """
 
 import json
@@ -116,7 +116,7 @@ class EnrollmentDataAPITestCase(TestCase):
         )
 
         url = reverse(
-            "data_graduates",
+            "api_course_graduates",
             kwargs={"course_slug": self.course.slug},
         )
         response = self.client.get(url)
@@ -274,18 +274,92 @@ class EnrollmentDataAPITestCase(TestCase):
         with self.assertRaises(AssertionError):
             result = get_passed_enrollments(passed_submissions, 0)
 
-    def test_update_enrollment_certificate_view(self):
-        """Test updating enrollment certificate URL."""
-        url = reverse(
-            "data_update_certificate",
-            kwargs={"course_slug": self.course.slug},
+    def test_bulk_update_enrollment_certificates_view(self):
+        """Test bulk updating enrollment certificate URLs."""
+        second_user = CustomUser.objects.create(
+            username="seconduser",
+            email="second@example.com",
+            password="password",
+        )
+        second_enrollment = Enrollment.objects.create(
+            student=second_user,
+            course=self.course,
+        )
+        other_user = CustomUser.objects.create(
+            username="otheruser",
+            email="other@example.com",
+            password="password",
         )
 
-        # Test successful update
+        url = reverse(
+            "api_course_certificates",
+            kwargs={"course_slug": self.course.slug},
+        )
         data = {
-            "email": self.user.email,
-            "certificate_path": "/certificates/test-certificate.pdf",
+            "certificates": [
+                {
+                    "email": self.user.email,
+                    "certificate_path": "/certificates/first.pdf",
+                },
+                {
+                    "email": second_user.email,
+                    "certificate_path": "/certificates/second.pdf",
+                },
+                {
+                    "email": "missing@example.com",
+                    "certificate_path": "/certificates/missing.pdf",
+                },
+                {
+                    "email": other_user.email,
+                    "certificate_path": "/certificates/other.pdf",
+                },
+                {"email": self.user.email},
+            ]
         }
+
+        response = self.client.post(
+            url, json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertFalse(result["success"])
+        self.assertEqual(result["updated_count"], 2)
+        self.assertEqual(result["error_count"], 3)
+
+        error_codes = {error["code"] for error in result["errors"]}
+        self.assertEqual(
+            error_codes,
+            {"missing_fields", "not_enrolled", "user_not_found"},
+        )
+
+        self.enrollment.refresh_from_db()
+        second_enrollment.refresh_from_db()
+        self.assertEqual(
+            self.enrollment.certificate_url,
+            "/certificates/first.pdf",
+        )
+        self.assertEqual(
+            second_enrollment.certificate_url,
+            "/certificates/second.pdf",
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_bulk_update_enrollment_certificates_accepts_array_payload(self):
+        """Test bulk certificate updates with a bare array payload."""
+        url = reverse(
+            "api_course_certificates",
+            kwargs={"course_slug": self.course.slug},
+        )
+        data = [
+            {
+                "email": self.user.email,
+                "certificate_path": "/certificates/array.pdf",
+            }
+        ]
+
         response = self.client.post(
             url, json.dumps(data), content_type="application/json"
         )
@@ -293,57 +367,11 @@ class EnrollmentDataAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertTrue(result["success"])
-        self.assertEqual(
-            result["certificate_url"],
-            "/certificates/test-certificate.pdf",
-        )
+        self.assertEqual(result["updated_count"], 1)
+        self.assertEqual(result["error_count"], 0)
 
-        # Verify the enrollment was updated
         self.enrollment.refresh_from_db()
         self.assertEqual(
             self.enrollment.certificate_url,
-            "/certificates/test-certificate.pdf",
+            "/certificates/array.pdf",
         )
-
-        # Test missing email
-        data = {"certificate_path": "/certificates/test.pdf"}
-        response = self.client.post(
-            url, json.dumps(data), content_type="application/json"
-        )
-        self.assertEqual(response.status_code, 400)
-
-        # Test missing certificate_path
-        data = {"email": self.user.email}
-        response = self.client.post(
-            url, json.dumps(data), content_type="application/json"
-        )
-        self.assertEqual(response.status_code, 400)
-
-        # Test non-existent user
-        data = {
-            "email": "nonexistent@example.com",
-            "certificate_path": "/certificates/test.pdf",
-        }
-        response = self.client.post(
-            url, json.dumps(data), content_type="application/json"
-        )
-        self.assertEqual(response.status_code, 404)
-
-        # Test non-enrolled user
-        other_user = CustomUser.objects.create(
-            username="otheruser",
-            email="other@example.com",
-            password="password",
-        )
-        data = {
-            "email": other_user.email,
-            "certificate_path": "/certificates/test.pdf",
-        }
-        response = self.client.post(
-            url, json.dumps(data), content_type="application/json"
-        )
-        self.assertEqual(response.status_code, 404)
-
-        # Test wrong HTTP method
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 405)

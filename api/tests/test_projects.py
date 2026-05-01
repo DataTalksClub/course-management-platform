@@ -4,7 +4,7 @@ from django.test import TestCase, Client
 from django.utils import timezone
 
 from accounts.models import CustomUser, Token
-from courses.models import Course, Project
+from courses.models import Course, Enrollment, Project, ProjectSubmission
 from courses.models.project import ProjectState
 
 
@@ -43,6 +43,8 @@ class ProjectsAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data["projects"]), 1)
+        self.assertEqual(data["projects"][0]["submissions_count"], 0)
+        self.assertTrue(data["projects"][0]["can_delete"])
 
     def test_create_project(self):
         payload = {
@@ -101,6 +103,103 @@ class ProjectsAPITestCase(TestCase):
         proj.refresh_from_db()
         self.assertEqual(proj.state, "CS")
 
+    def test_get_project_detail(self):
+        proj = self._create_project()
+
+        response = self.client.get(
+            f"/api/courses/{self.course.slug}/projects/{proj.id}/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], proj.id)
+        self.assertEqual(data["slug"], "proj1")
+        self.assertTrue(data["can_delete"])
+
+    def test_patch_project_by_slug(self):
+        self._create_project(slug="project-by-slug")
+
+        response = self.client.patch(
+            f"/api/courses/{self.course.slug}/projects/by-slug/project-by-slug/",
+            json.dumps({"description": "Updated by slug"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["description"], "Updated by slug")
+        self.assertEqual(data["slug"], "project-by-slug")
+
+    def test_put_project_by_slug_creates_project(self):
+        payload = {
+            "name": "Project From Put",
+            "submission_due_date": "2026-04-01T23:59:59Z",
+            "peer_review_due_date": "2026-04-08T23:59:59Z",
+            "description": "Created idempotently",
+        }
+
+        response = self.client.put(
+            f"/api/courses/{self.course.slug}/projects/by-slug/project-put/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(data["slug"], "project-put")
+        self.assertEqual(data["title"], "Project From Put")
+
+    def test_put_project_by_slug_updates_project(self):
+        project = self._create_project(slug="project-put")
+        payload = {
+            "title": "Updated Project",
+            "submission_due_date": "2026-04-01T23:59:59Z",
+            "peer_review_due_date": "2026-04-08T23:59:59Z",
+            "description": "Updated idempotently",
+        }
+
+        response = self.client.put(
+            f"/api/courses/{self.course.slug}/projects/by-slug/project-put/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        project.refresh_from_db()
+        self.assertEqual(project.title, "Updated Project")
+        self.assertEqual(project.description, "Updated idempotently")
+
+    def test_put_project_by_slug_missing_create_fields(self):
+        response = self.client.put(
+            f"/api/courses/{self.course.slug}/projects/by-slug/project-put/",
+            json.dumps({"title": "Missing dates"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "missing_required_fields")
+
+    def test_put_project_invalid_state_does_not_create(self):
+        response = self.client.put(
+            f"/api/courses/{self.course.slug}/projects/by-slug/project-put/",
+            json.dumps({
+                "name": "Bad State",
+                "submission_due_date": "2026-04-01T23:59:59Z",
+                "peer_review_due_date": "2026-04-08T23:59:59Z",
+                "state": "XX",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "invalid_project_state")
+        self.assertFalse(
+            Project.objects.filter(
+                course=self.course,
+                slug="project-put",
+            ).exists()
+        )
+
     def test_patch_project_invalid_state(self):
         proj = self._create_project()
         response = self.client.patch(
@@ -124,4 +223,46 @@ class ProjectsAPITestCase(TestCase):
             f"/api/courses/{self.course.slug}/projects/{proj.id}/"
         )
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "project_not_closed")
         self.assertTrue(Project.objects.filter(id=proj.id).exists())
+
+    def test_delete_project_with_submissions_is_blocked(self):
+        proj = self._create_project(state=ProjectState.CLOSED.value)
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = ProjectSubmission.objects.create(
+            project=proj,
+            student=self.user,
+            enrollment=enrollment,
+            github_link="https://github.com/test/repo",
+            commit_id="abc123",
+        )
+
+        response = self.client.delete(
+            f"/api/courses/{self.course.slug}/projects/{proj.id}/"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["error"],
+            "Cannot delete project with existing submissions",
+        )
+        self.assertEqual(response.json()["code"], "project_has_submissions")
+        self.assertEqual(
+            response.json()["details"]["submissions_count"],
+            1,
+        )
+        self.assertTrue(Project.objects.filter(id=proj.id).exists())
+        self.assertTrue(ProjectSubmission.objects.filter(id=submission.id).exists())
+
+    def test_delete_project_by_slug_closed_without_submissions(self):
+        proj = self._create_project(slug="draft-project")
+
+        response = self.client.delete(
+            f"/api/courses/{self.course.slug}/projects/by-slug/draft-project/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Project.objects.filter(id=proj.id).exists())

@@ -2,7 +2,7 @@
 Tests for course-related data API views.
 
 Tests for course_criteria_yaml_view.
-The old CourseContentAPITestCase (for /data/<slug>/content) has been replaced
+The old CourseContentAPITestCase has been replaced
 by tests in api/tests/ for the new /api/ endpoints.
 """
 
@@ -65,7 +65,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
 
         # Test the endpoint
         url = reverse(
-            "course_criteria_yaml",
+            "api_course_criteria_yaml",
             kwargs={"course_slug": self.course.slug}
         )
         response = self.client.get(url)
@@ -116,7 +116,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
         )
 
         url = reverse(
-            "course_criteria_yaml",
+            "api_course_criteria_yaml",
             kwargs={"course_slug": empty_course.slug}
         )
         response = self.client.get(url)
@@ -135,7 +135,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
     def test_course_criteria_yaml_view_nonexistent_course(self):
         """Test the endpoint with non-existent course."""
         url = reverse(
-            "course_criteria_yaml",
+            "api_course_criteria_yaml",
             kwargs={"course_slug": "nonexistent-course"}
         )
         response = self.client.get(url)
@@ -149,7 +149,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
         unauth_client = Client()
 
         url = reverse(
-            "course_criteria_yaml",
+            "api_course_criteria_yaml",
             kwargs={"course_slug": self.course.slug}
         )
         response = unauth_client.get(url)

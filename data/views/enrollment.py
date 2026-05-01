@@ -85,71 +85,152 @@ def graduates_data_view(request, course_slug: str):
 
 @token_required
 @csrf_exempt
-def update_enrollment_certificate_view(request, course_slug: str):
+def bulk_update_enrollment_certificates_view(request, course_slug: str):
     """
-    Update enrollment certificate URL for a user in a specific course.
+    Update enrollment certificate URLs for many users in a course.
 
     Expected JSON payload:
     {
-        "email": "user@example.com",
-        "certificate_path": "/path/to/certificate.pdf"
+        "certificates": [
+            {
+                "email": "user@example.com",
+                "certificate_path": "/path/to/certificate.pdf"
+            }
+        ]
     }
+
+    A bare JSON array with the same objects is also accepted.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
     try:
         data = json.loads(request.body)
-        email = data.get("email")
-        certificate_path = data.get("certificate_path")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    if isinstance(data, list):
+        certificate_updates = data
+    elif isinstance(data, dict):
+        certificate_updates = data.get("certificates")
+    else:
+        certificate_updates = None
+
+    if not isinstance(certificate_updates, list):
+        return JsonResponse(
+            {"error": "Expected a certificates array"},
+            status=400,
+        )
+
+    if not certificate_updates:
+        return JsonResponse(
+            {"error": "At least one certificate update is required"},
+            status=400,
+        )
+
+    course = get_object_or_404(Course, slug=course_slug)
+    valid_updates = []
+    errors = []
+
+    for index, update in enumerate(certificate_updates):
+        if not isinstance(update, dict):
+            errors.append(
+                {
+                    "index": index,
+                    "code": "invalid_item",
+                    "error": "Each certificate update must be an object",
+                }
+            )
+            continue
+
+        email = update.get("email")
+        certificate_path = update.get("certificate_path")
 
         if not email or not certificate_path:
-            return JsonResponse(
+            errors.append(
                 {
-                    "error": "Both email and certificate_path are required"
-                },
-                status=400,
+                    "index": index,
+                    "email": email,
+                    "code": "missing_fields",
+                    "error": "Both email and certificate_path are required",
+                }
             )
+            continue
 
-        # Find the course
-        course = get_object_or_404(Course, slug=course_slug)
-
-        # Find the user by email
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return JsonResponse(
-                {"error": f"User with email {email} not found"},
-                status=404,
-            )
-
-        # Find the enrollment
-        try:
-            enrollment = Enrollment.objects.get(
-                student=user, course=course
-            )
-        except Enrollment.DoesNotExist:
-            return JsonResponse(
-                {
-                    "error": f"User {email} is not enrolled in course {course_slug}"
-                },
-                status=404,
-            )
-
-        # Update the certificate URL
-        enrollment.certificate_url = certificate_path
-        enrollment.save()
-
-        return JsonResponse(
+        valid_updates.append(
             {
-                "success": True,
-                "message": f"Certificate URL updated for {email} in course {course_slug}",
+                "index": index,
+                "email": email,
+                "certificate_path": certificate_path,
+            }
+        )
+
+    emails = [update["email"] for update in valid_updates]
+    users_by_email = {
+        user.email: user
+        for user in User.objects.filter(email__in=emails)
+    }
+    enrollments_by_email = {
+        enrollment.student.email: enrollment
+        for enrollment in Enrollment.objects.filter(
+            course=course,
+            student__email__in=emails,
+        ).select_related("student")
+    }
+
+    enrollments_to_update = {}
+    updated = []
+
+    for update in valid_updates:
+        email = update["email"]
+        certificate_path = update["certificate_path"]
+
+        if email not in users_by_email:
+            errors.append(
+                {
+                    "index": update["index"],
+                    "email": email,
+                    "code": "user_not_found",
+                    "error": f"User with email {email} not found",
+                }
+            )
+            continue
+
+        enrollment = enrollments_by_email.get(email)
+        if enrollment is None:
+            errors.append(
+                {
+                    "index": update["index"],
+                    "email": email,
+                    "code": "not_enrolled",
+                    "error": f"User {email} is not enrolled in course {course_slug}",
+                }
+            )
+            continue
+
+        enrollment.certificate_url = certificate_path
+        enrollments_to_update[enrollment.id] = enrollment
+        updated.append(
+            {
+                "index": update["index"],
+                "email": email,
                 "enrollment_id": enrollment.id,
                 "certificate_url": certificate_path,
             }
         )
 
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+    if enrollments_to_update:
+        Enrollment.objects.bulk_update(
+            enrollments_to_update.values(),
+            ["certificate_url"],
+        )
+
+    return JsonResponse(
+        {
+            "success": len(errors) == 0,
+            "updated_count": len(updated),
+            "error_count": len(errors),
+            "updated": updated,
+            "errors": errors,
+        }
+    )
