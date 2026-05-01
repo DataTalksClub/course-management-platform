@@ -54,7 +54,11 @@
         {% if active_courses %}
             <section class="mt-6 grid gap-4 lg:grid-cols-2">
                 {% for course in active_courses %}
-                    <article class="grid gap-4 rounded-md border app-border app-surface p-4 md:p-5">
+                    <article class="grid cursor-pointer gap-4 rounded-md border app-border app-surface p-4 md:p-5"
+                             role="link"
+                             tabindex="0"
+                             onclick="if (!event.target.closest('a, button')) window.location.href='{% url 'course' course.slug %}'"
+                             onkeydown="if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('a, button')) { event.preventDefault(); window.location.href='{% url 'course' course.slug %}'; }">
                         <div>
                             <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
                             <h3 class="mt-2 text-xl font-semibold md:text-2xl">
@@ -112,10 +116,11 @@
                                     <p class="mt-1 font-semibold app-heading">TBA</p>
                                 {% endif %}
                             </div>
-                            {% if course.home_registration_open %}
+                            {% if course.registration_url %}
                                 <div class="flex flex-wrap gap-3 md:justify-end">
                                     <a href="{{ course.registration_url }}"
-                                       class="inline-flex items-center font-medium app-link">
+                                       class="primer-button primer-button-secondary whitespace-nowrap">
+                                        <i class="fas fa-user-plus"></i>
                                         Register
                                     </a>
                                 </div>

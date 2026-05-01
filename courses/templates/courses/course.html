@@ -24,6 +24,11 @@
   </div>
 
   <div class="course-actions mt-5 flex flex-wrap gap-3 md:mt-8 md:gap-4">
+    {% if course.registration_url %}
+      <a href="{{ course.registration_url }}" class="primer-button primer-button-secondary whitespace-nowrap">
+        <i class="fas fa-user-plus"></i> Register
+      </a>
+    {% endif %}
     {% if course.first_homework_scored %}
       <a href="{% url 'leaderboard' course.slug %}" class="primer-button whitespace-nowrap">
         <i class="fas fa-trophy"></i> Course leaderboard
@@ -31,6 +36,9 @@
     {% endif %}
     <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
       <i class="fas fa-chart-bar"></i> Course dashboard
+    </a>
+    <a href="{% url 'course_calendar' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
+      <i class="far fa-calendar-alt"></i> Calendar feed
     </a>
     {% if is_authenticated %}
       <a href="{% url 'enrollment' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
@@ -43,6 +51,9 @@
       </a>
     {% endif %}
   </div>
+  <p class="mt-2 text-sm app-muted">
+    Use the calendar feed link to subscribe to course deadlines in Google Calendar or another calendar app.
+  </p>
 
   {% if user.is_staff %}
     <div class="mt-6">

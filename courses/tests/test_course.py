@@ -168,6 +168,71 @@ class CourseDetailViewTests(TestCase):
             self.assertIsNone(hw.score)
             self.assertFalse(hasattr(hw, "submitted_at"))
 
+    def test_course_detail_shows_registration_url(self):
+        self.course.registration_url = (
+            "https://courses.datatalks.club/test-course/register"
+        )
+        self.course.save()
+
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Register")
+        self.assertContains(
+            response,
+            "https://courses.datatalks.club/test-course/register",
+        )
+
+    def test_course_detail_shows_calendar_feed_link(self):
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Calendar feed")
+        self.assertContains(
+            response,
+            (
+                "Use the calendar feed link to subscribe to course "
+                "deadlines in Google Calendar or another calendar app."
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "course_calendar",
+                kwargs={"course_slug": self.course.slug},
+            ),
+        )
+
+    def test_course_calendar_feed(self):
+        url = reverse(
+            "course_calendar",
+            kwargs={"course_slug": self.course.slug},
+        )
+
+        response = self.client.get(url)
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "text/calendar; charset=utf-8",
+        )
+        self.assertIn("BEGIN:VCALENDAR", content)
+        self.assertIn("VERSION:2.0", content)
+        self.assertIn("X-WR-CALNAME:Test Course deadlines", content)
+        self.assertIn("SUMMARY:Test Course: Submitted Homework deadline", content)
+        self.assertIn("SUMMARY:Test Course: Open Project submission deadline", content)
+        self.assertIn("SUMMARY:Test Course: Open Project peer review deadline", content)
+        self.assertEqual(content.count("BEGIN:VEVENT"), 7)
+
     def test_course_detail_authenticated_user(self):
         # Test the view for an authenticated user
 
@@ -952,7 +1017,7 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "Apr 15, 2026")
         self.assertContains(response, "13 weeks")
         self.assertContains(response, "Submitted Homework")
-        self.assertNotContains(
+        self.assertContains(
             response,
             "https://courses.datatalks.club/test-course/register",
         )

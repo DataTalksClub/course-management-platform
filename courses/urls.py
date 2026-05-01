@@ -11,6 +11,11 @@ urlpatterns = [
     path("wrapped/<int:year>/", wrapped.wrapped_view, name="wrapped"),
     path("wrapped/<int:year>/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
     path(
+        "<slug:course_slug>/calendar.ics",
+        course.course_calendar_view,
+        name="course_calendar",
+    ),
+    path(
         "<slug:course_slug>/",
         course.course_view,
         name="course",

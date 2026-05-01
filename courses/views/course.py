@@ -2,6 +2,7 @@ import logging
 import statistics
 
 from collections import defaultdict
+from datetime import timedelta, timezone as datetime_timezone
 from typing import List
 
 from django.http import HttpRequest, HttpResponse
@@ -10,6 +11,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 
 from django.db.models import Prefetch, Value, Count
 from django.db.models import Case, When, IntegerField
@@ -391,6 +393,144 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     }
 
     return render(request, "courses/course.html", context)
+
+
+def escape_ics_text(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+    )
+
+
+def format_ics_datetime(value) -> str:
+    if timezone.is_naive(value):
+        value = timezone.make_aware(
+            value, timezone.get_current_timezone()
+        )
+
+    value = value.astimezone(datetime_timezone.utc)
+    return value.strftime("%Y%m%dT%H%M%SZ")
+
+
+def calendar_event(
+    *,
+    uid: str,
+    summary: str,
+    start,
+    url: str,
+    description: str,
+    dtstamp,
+) -> list[str]:
+    end = start + timedelta(minutes=30)
+
+    return [
+        "BEGIN:VEVENT",
+        f"UID:{escape_ics_text(uid)}",
+        f"DTSTAMP:{format_ics_datetime(dtstamp)}",
+        f"DTSTART:{format_ics_datetime(start)}",
+        f"DTEND:{format_ics_datetime(end)}",
+        f"SUMMARY:{escape_ics_text(summary)}",
+        f"DESCRIPTION:{escape_ics_text(description)}",
+        f"URL:{escape_ics_text(url)}",
+        "END:VEVENT",
+    ]
+
+
+def course_calendar_view(
+    request: HttpRequest,
+    course_slug: str,
+) -> HttpResponse:
+    course = get_object_or_404(Course, slug=course_slug, visible=True)
+    dtstamp = timezone.now()
+    events = []
+
+    homeworks = Homework.objects.filter(course=course).order_by("due_date")
+    for homework in homeworks:
+        url = request.build_absolute_uri(
+            reverse(
+                "homework",
+                kwargs={
+                    "course_slug": course.slug,
+                    "homework_slug": homework.slug,
+                },
+            )
+        )
+        events.extend(
+            calendar_event(
+                uid=f"homework-{homework.id}@courses.datatalks.club",
+                summary=f"{course.title}: {homework.title} deadline",
+                start=homework.due_date,
+                url=url,
+                description=(
+                    f"Homework deadline for {homework.title}. "
+                    f"Open the assignment: {url}"
+                ),
+                dtstamp=dtstamp,
+            )
+        )
+
+    projects = Project.objects.filter(course=course).order_by(
+        "submission_due_date",
+        "peer_review_due_date",
+    )
+    for project in projects:
+        project_url = request.build_absolute_uri(
+            reverse(
+                "project",
+                kwargs={
+                    "course_slug": course.slug,
+                    "project_slug": project.slug,
+                },
+            )
+        )
+        events.extend(
+            calendar_event(
+                uid=f"project-{project.id}-submission@courses.datatalks.club",
+                summary=f"{course.title}: {project.title} submission deadline",
+                start=project.submission_due_date,
+                url=project_url,
+                description=(
+                    f"Project submission deadline for {project.title}. "
+                    f"Open the project: {project_url}"
+                ),
+                dtstamp=dtstamp,
+            )
+        )
+        events.extend(
+            calendar_event(
+                uid=f"project-{project.id}-peer-review@courses.datatalks.club",
+                summary=f"{course.title}: {project.title} peer review deadline",
+                start=project.peer_review_due_date,
+                url=project_url,
+                description=(
+                    f"Project peer review deadline for {project.title}. "
+                    f"Open the project: {project_url}"
+                ),
+                dtstamp=dtstamp,
+            )
+        )
+
+    calendar_lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//DataTalks.Club//Course Management Platform//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        f"X-WR-CALNAME:{escape_ics_text(course.title)} deadlines",
+        *events,
+        "END:VCALENDAR",
+    ]
+
+    response = HttpResponse(
+        "\r\n".join(calendar_lines) + "\r\n",
+        content_type="text/calendar; charset=utf-8",
+    )
+    response["Content-Disposition"] = (
+        f'inline; filename="{course.slug}-deadlines.ics"'
+    )
+    return response
 
 
 def get_homeworks_for_course(course: Course, user) -> List[Homework]:
