@@ -57,7 +57,7 @@ def _get_cache_version(course):
     return cache.get(version_key, 1)
 
 
-def _build_leaderboard_data(course, page_number, page_size):
+def _build_leaderboard_data(course, page_number):
     """Build the full leaderboard JSON structure with score breakdowns."""
     enrollments = (
         Enrollment.objects.filter(course=course)
@@ -84,7 +84,7 @@ def _build_leaderboard_data(course, page_number, page_size):
         )
     )
 
-    paginator = Paginator(enrollments, page_size)
+    paginator = Paginator(enrollments, LEADERBOARD_DATA_PAGE_SIZE)
     page_obj = paginator.get_page(page_number)
 
     results = []
@@ -143,7 +143,6 @@ def _build_leaderboard_data(course, page_number, page_size):
     return {
         "course": course.slug,
         "page": page_obj.number,
-        "page_size": page_size,
         "total_pages": paginator.num_pages,
         "total_entries": paginator.count,
         "has_next": page_obj.has_next(),
@@ -162,12 +161,11 @@ def leaderboard_data_view(request, course_slug: str):
     """Public endpoint returning the full leaderboard with score breakdowns."""
     course = get_object_or_404(Course, slug=course_slug)
     page = _get_positive_int(request.GET.get("page"), 1)
-    page_size = LEADERBOARD_DATA_PAGE_SIZE
     cache_version = _get_cache_version(course)
 
     yaml_cache_key = (
         f"leaderboard_yaml:{course.id}:v{cache_version}:"
-        f"page:{page}:size:{page_size}"
+        f"page:{page}"
     )
     yaml_content = cache.get(yaml_cache_key)
     if yaml_content is not None:
@@ -176,13 +174,13 @@ def leaderboard_data_view(request, course_slug: str):
 
     data_cache_key = (
         f"leaderboard_data:{course.id}:v{cache_version}:"
-        f"page:{page}:size:{page_size}"
+        f"page:{page}"
     )
     data = cache.get(data_cache_key)
 
     if data is None:
         logger.info("Cache miss for leaderboard data of course %s", course.slug)
-        data = _build_leaderboard_data(course, page, page_size)
+        data = _build_leaderboard_data(course, page)
         cache.set(data_cache_key, data, LEADERBOARD_DATA_CACHE_TTL)
     else:
         logger.info("Cache hit for leaderboard data of course %s", course.slug)

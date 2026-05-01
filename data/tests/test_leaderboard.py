@@ -194,7 +194,7 @@ class LeaderboardDataViewTestCase(TestCase):
         data = yaml.safe_load(response.content)
 
         self.assertEqual(data["page"], 1)
-        self.assertEqual(data["page_size"], 100)
+        self.assertNotIn("page_size", data)
         self.assertEqual(data["total_entries"], 105)
         self.assertEqual(data["total_pages"], 2)
         self.assertTrue(data["has_next"])
