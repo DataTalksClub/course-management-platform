@@ -157,11 +157,17 @@ def current_assignment_info(course: Course, now) -> tuple[str, dict | None]:
     return "Last assignment", assignments[-1]
 
 
-def add_course_homepage_info(course: Course, now) -> None:
+def add_course_homepage_info(
+    course: Course,
+    now,
+    enrolled_course_ids: set[int] | None = None,
+) -> None:
     today = timezone.localdate(now)
+    enrolled_course_ids = enrolled_course_ids or set()
 
     course.home_outcome = get_course_outcome(course)
     course.home_year = course_year(course)
+    course.home_is_enrolled = course.id in enrolled_course_ids
     course.home_duration_label = course_duration_label(course)
     course.home_registration_open = (
         bool(course.registration_url)
@@ -176,6 +182,16 @@ def add_course_homepage_info(course: Course, now) -> None:
 
 def course_list(request):
     now = timezone.now()
+    enrolled_course_ids = set()
+
+    if request.user.is_authenticated:
+        enrolled_course_ids = set(
+            Enrollment.objects.filter(student=request.user).values_list(
+                "course_id",
+                flat=True,
+            )
+        )
+
     courses = (
         Course.objects.filter(visible=True)
         .annotate(
@@ -192,7 +208,7 @@ def course_list(request):
     archive_courses_by_year = defaultdict(list)
 
     for course in courses:
-        add_course_homepage_info(course, now)
+        add_course_homepage_info(course, now, enrolled_course_ids)
 
         if course.finished:
             finished_courses.append(course)
