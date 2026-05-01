@@ -107,11 +107,44 @@ class CadminViewTests(TestCase):
 
     def test_course_list_staff_allowed(self):
         """Test that staff users can access course list"""
+        finished_course = Course.objects.create(
+            slug="finished-course",
+            title="Finished Course",
+            description="Finished Course Description",
+            finished=True,
+        )
+        active_course = Course.objects.create(
+            slug="active-course",
+            title="Active Course",
+            description="Active Course Description",
+            finished=False,
+        )
+
         self.client.login(username="admin@test.com", password="admin123")
         url = reverse("cadmin_course_list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Course Administration")
+        self.assertContains(response, "Course admin")
+        self.assertNotContains(response, 'aria-label="Breadcrumb"')
+        self.assertEqual(
+            list(response.context["courses"])[:2],
+            [active_course, self.course],
+        )
+        self.assertEqual(list(response.context["courses"])[-1], finished_course)
+        self.assertContains(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug}),
+        )
+        self.assertContains(
+            response,
+            reverse("course", kwargs={"course_slug": self.course.slug}),
+        )
+        self.assertContains(
+            response,
+            f"/admin/courses/course/{self.course.id}/change/",
+        )
+        self.assertNotContains(response, "> Manage <")
+        self.assertNotContains(response, "> View <")
 
     def test_course_admin_staff_allowed(self):
         """Test that staff users can access course admin page"""
@@ -121,6 +154,14 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.course.title)
         self.assertContains(response, "Admin Panel")
+        self.assertContains(response, 'aria-label="Breadcrumb"')
+        self.assertContains(response, "Course Admin")
+        self.assertContains(response, reverse("course", kwargs={"course_slug": self.course.slug}))
+        self.assertContains(response, f"/admin/courses/course/{self.course.id}/change/")
+        self.assertContains(response, 'title="View public course page"')
+        self.assertContains(response, 'title="Edit in Django Admin"')
+        self.assertNotContains(response, "Course Page")
+        self.assertNotContains(response, "Dashboard")
 
     def test_leaderboard_complaints_sorted_by_open_count(self):
         self.client.login(username="admin@test.com", password="admin123")
@@ -356,6 +397,45 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "project-student-29@example.com")
         self.assertNotContains(response, "project-student-00@example.com")
+
+    def test_project_submissions_paginated_by_50(self):
+        for index in range(55):
+            user = User.objects.create_user(
+                username=f"project-page-student-{index:02d}",
+                email=f"project-page-student-{index:02d}@example.com",
+                password="test",
+            )
+            enrollment = Enrollment.objects.create(student=user, course=self.course)
+            ProjectSubmission.objects.create(
+                project=self.project,
+                student=user,
+                enrollment=enrollment,
+                total_score=index,
+            )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["submissions"]), 50)
+        self.assertContains(response, 'href="?page=2"')
+        self.assertContains(response, 'aria-label="Next page"')
+        self.assertNotContains(response, "First")
+        self.assertNotContains(response, "Last")
+
+        response = self.client.get(url, {"page": 2})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["submissions"]), 5)
+        self.assertContains(response, 'href="?page=1"')
+        self.assertContains(response, 'aria-label="Previous page"')
 
     def test_project_submission_edit_get(self):
         """Test that staff users can access the project submission edit page"""
@@ -656,6 +736,33 @@ class CadminViewTests(TestCase):
         # Check that we're still logged in as the original admin user
         self.assertEqual(response.wsgi_request.user.username, "admin@test.com")
 
+    def test_enrollment_edit_has_login_as_button(self):
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_enrollment_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": enrollment.id,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Log in as student")
+        self.assertContains(
+            response,
+            reverse("loginas-user-login", kwargs={"user_id": self.user.id}),
+        )
+        self.assertContains(
+            response,
+            f'value="{reverse("course", kwargs={"course_slug": self.course.slug})}"',
+        )
+
     def test_homework_submission_edit_get(self):
         """Test that staff users can access the homework submission edit page"""
         from courses.models import Submission, Question, Answer, QuestionTypes, AnswerTypes
@@ -726,6 +833,17 @@ class CadminViewTests(TestCase):
         self.assertContains(response, "What is 2+2?")
         self.assertContains(response, "What is the capital of France?")
         self.assertContains(response, 'value="3"')  # total_score
+        self.assertContains(response, "Manage enrollment")
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_enrollment_edit",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "enrollment_id": enrollment.id,
+                },
+            ),
+        )
 
     def test_homework_submission_edit_post_updates_answers(self):
         """Test that editing homework answers updates the submission correctly"""
@@ -795,7 +913,10 @@ class CadminViewTests(TestCase):
         response = self.client.post(url, {
             f"answer_{question1.id}": "4",  # Correct answer
             f"answer_{question2.id}": "2",  # Correct answer
-            "learning_in_public_links": "https://example.com/post1, https://example.com/post2",
+            "learning_in_public_links": (
+                "https://example.com/post1\n"
+                "https://example.com/post2"
+            ),
         })
         
         # Should redirect back to submissions list

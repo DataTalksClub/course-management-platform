@@ -9,7 +9,11 @@ os.environ.setdefault(
 )
 django.setup()
 
+from allauth.socialaccount.models import SocialApp  # noqa: E402
+from django.conf import settings  # noqa: E402
 from django.contrib.auth import get_user_model  # noqa: E402
+from django.contrib.sites.models import Site  # noqa: E402
+from django.core.cache import cache  # noqa: E402
 
 # This will retrieve your 'CustomUser' model
 from courses.models import (  # noqa: E402
@@ -33,6 +37,39 @@ from courses.models import (  # noqa: E402
 from accounts.models import Token  # noqa: E402
 
 User = get_user_model()
+
+
+def configure_local_social_apps():
+    site, _ = Site.objects.update_or_create(
+        id=settings.SITE_ID,
+        defaults={
+            "domain": "localhost:8000",
+            "name": "localhost:8000",
+        },
+    )
+
+    providers = [
+        ("google", "GoogleDTC"),
+        ("github", "GitHubDTC"),
+        ("slack", "SlackDTC"),
+    ]
+
+    for provider, name in providers:
+        social_app, _ = SocialApp.objects.update_or_create(
+            provider=provider,
+            name=name,
+            defaults={
+                "client_id": f"fake-local-{provider}-client-id",
+                "secret": f"fake-local-{provider}-secret",
+                "key": "",
+            },
+        )
+        social_app.sites.set([site])
+
+    cache.delete("available_providers")
+
+
+configure_local_social_apps()
 
 admin_user, created = User.objects.get_or_create(
     username="admin", defaults={"email": "alexey@datatalks.club"}
@@ -244,10 +281,10 @@ project_submission = ProjectSubmission(
     enrollment=admin_enrollment,
     github_link="https://github.com/DataTalksClub/data-engineering-zoomcamp",
     commit_id="8c45587",
-    learning_in_public_links={
-        "link1": "http://example.com",
-        "link2": "http://example.org",
-    },
+    learning_in_public_links=[
+        "http://example.com",
+        "http://example.org",
+    ],
     faq_contribution="Contributed to the following FAQs...",
     time_spent=10.0,
     problems_comments="This is a test submission.",

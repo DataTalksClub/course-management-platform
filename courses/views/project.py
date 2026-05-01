@@ -585,6 +585,9 @@ def projects_list_view(request, course_slug, project_slug):
         "project": project,
         "submissions": submissions_page.object_list,
         "submissions_page": submissions_page,
+        "page_range": submissions_page.paginator.get_elided_page_range(
+            submissions_page.number
+        ),
         "is_authenticated": is_authenticated,
         "has_submission": has_submission,
     }

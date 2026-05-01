@@ -8,19 +8,18 @@
 
 {% block cadmin_content %}
 <section class="border-b app-border pb-5">
-  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-    <div>
-      <p class="text-sm font-semibold uppercase tracking-wide app-muted">Admin Panel</p>
-      <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ course.title }}</h1>
-      <p class="mt-1 text-sm app-muted">Start with operational tasks, then use the full lists for reference and maintenance.</p>
-    </div>
-    <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
-      <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary">Course Page</a>
-      <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary">Dashboard</a>
-      <a href="{% url 'leaderboard' course.slug %}" class="primer-button">Leaderboard</a>
-      <a href="/admin/courses/course/{{ course.id }}/change/" class="primer-button primer-button-secondary">
-        <i class="fas fa-edit"></i> Django Admin
-      </a>
+  <div>
+    <p class="text-sm font-semibold uppercase tracking-wide app-muted">Admin Panel</p>
+    <div class="mt-2 flex flex-wrap items-center gap-3">
+      <h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ course.title }}</h1>
+      <div class="dense-utility-links flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        <a href="{% url 'course' course.slug %}" title="View public course page" class="app-link">
+          <i class="fas fa-external-link-alt"></i> Public
+        </a>
+        <a href="/admin/courses/course/{{ course.id }}/change/" title="Edit in Django Admin" class="app-link">
+          <i class="fas fa-edit"></i> Django
+        </a>
+      </div>
     </div>
   </div>
 </section>

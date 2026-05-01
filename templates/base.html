@@ -85,6 +85,12 @@
                                         <i class="fas fa-user-cog" aria-hidden="true"></i>
                                         Account settings
                                     </a>
+                                    {% if user.is_staff %}
+                                        <a href="{% url 'cadmin_course_list' %}" class="user-menu-item app-link">
+                                            <i class="fas fa-tools" aria-hidden="true"></i>
+                                            Course admin
+                                        </a>
+                                    {% endif %}
                                     <button id="dark-mode-toggle"
                                             class="user-menu-item user-menu-button app-link"
                                             aria-pressed="{% if DARK_MODE %}true{% else %}false{% endif %}"
@@ -126,12 +132,14 @@
             </nav>
         </header>
         <div class="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-8 md:py-10">
-            <nav class="breadcrumbs mb-6 text-sm app-muted md:mb-8"
-                 aria-label="Breadcrumb">
-                <ul class="flex list-none flex-wrap items-center gap-y-2 p-0 m-0">
-                    {% block breadcrumbs %}{% endblock %}
-                </ul>
-            </nav>
+            {% block breadcrumbs_nav %}
+                <nav class="breadcrumbs mb-6 text-sm app-muted md:mb-8"
+                     aria-label="Breadcrumb">
+                    <ul class="flex list-none flex-wrap items-center gap-y-2 p-0 m-0">
+                        {% block breadcrumbs %}{% endblock %}
+                    </ul>
+                </nav>
+            {% endblock %}
             <main id="content">
                 <div class="form-container app-surface" id="main-content">
                     {% block content %}{% endblock %}

@@ -1,0 +1,37 @@
+{% if pagination_page.has_other_pages %}
+  <nav class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t app-border px-4 py-3 text-sm"
+       aria-label="{{ pagination_label|default:'Pagination' }}">
+    <div class="min-w-0">
+      {% if pagination_page.has_previous %}
+        <a href="?page={{ pagination_page.previous_page_number }}{{ pagination_querystring|default:'' }}"
+           class="app-link text-lg font-medium hover:underline"
+           aria-label="Previous page">&larr;</a>
+      {% else %}
+        <span class="app-muted text-lg" aria-label="Previous page">&larr;</span>
+      {% endif %}
+    </div>
+
+    <div class="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:gap-x-3">
+      {% for page_number in pagination_range %}
+        {% if page_number == pagination_page.paginator.ELLIPSIS %}
+          <span class="app-muted">{{ page_number }}</span>
+        {% elif page_number == pagination_page.number %}
+          <span class="font-semibold app-heading" aria-current="page">{{ page_number }}</span>
+        {% else %}
+          <a href="?page={{ page_number }}{{ pagination_querystring|default:'' }}"
+             class="app-link hover:underline">{{ page_number }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="min-w-0 text-right">
+      {% if pagination_page.has_next %}
+        <a href="?page={{ pagination_page.next_page_number }}{{ pagination_querystring|default:'' }}"
+           class="app-link text-lg font-medium hover:underline"
+           aria-label="Next page">&rarr;</a>
+      {% else %}
+        <span class="app-muted text-lg" aria-label="Next page">&rarr;</span>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}

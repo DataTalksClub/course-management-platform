@@ -59,44 +59,11 @@
     {% endfor %}
   </div>
 
-  {% if page_obj.has_other_pages %}
-    <nav class="flex flex-wrap items-center justify-between gap-3 border-t app-border px-4 py-3 text-sm" aria-label="Leaderboard pagination">
-      <div class="flex gap-2">
-        {% if page_obj.has_previous %}
-          <a href="?page=1" class="primer-button primer-button-secondary">First</a>
-          <a href="?page={{ page_obj.previous_page_number }}" class="primer-button primer-button-secondary">Previous</a>
-        {% else %}
-          <span class="primer-button primer-button-secondary opacity-50">First</span>
-          <span class="primer-button primer-button-secondary opacity-50">Previous</span>
-        {% endif %}
-      </div>
+  {% include 'include/pagination.html' with pagination_page=page_obj pagination_range=page_range pagination_label='Leaderboard pagination' %}
 
-      <div class="flex flex-wrap items-center justify-center gap-1">
-        {% for page_number in page_range %}
-          {% if page_number == page_obj.paginator.ELLIPSIS %}
-            <span class="px-2 app-muted">{{ page_number }}</span>
-          {% elif page_number == page_obj.number %}
-            <span class="primer-button" aria-current="page">{{ page_number }}</span>
-          {% else %}
-            <a href="?page={{ page_number }}" class="primer-button primer-button-secondary">{{ page_number }}</a>
-          {% endif %}
-        {% endfor %}
-      </div>
-
-      <div class="flex gap-2">
-        {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}" class="primer-button primer-button-secondary">Next</a>
-          <a href="?page={{ page_obj.paginator.num_pages }}" class="primer-button primer-button-secondary">Last</a>
-        {% else %}
-          <span class="primer-button primer-button-secondary opacity-50">Next</span>
-          <span class="primer-button primer-button-secondary opacity-50">Last</span>
-        {% endif %}
-      </div>
-    </nav>
-  {% endif %}
-
-  <div class="border-t app-border px-4 py-3 text-sm">
-    <a href="{% url 'api_course_leaderboard' course_slug=course.slug %}" class="primer-button primer-button-secondary w-fit">Leaderboard data (YAML)</a>
+  <div class="border-t app-border px-4 py-3 text-xs app-muted">
+    <a href="{% url 'api_course_leaderboard' course_slug=course.slug %}"
+       class="app-link hover:underline">Leaderboard data (YAML)</a>
   </div>
 </section>
 

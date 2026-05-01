@@ -17,26 +17,31 @@
 <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary w-fit">Back to Submissions</a>
 </div>
 </section>
-<section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Student</p>
-<p class="mt-1 font-semibold app-heading">{{ submission.student.username }}</p>
+<section class="mt-6 rounded-md border app-border app-surface px-4 py-3 text-sm">
+<dl class="grid gap-x-6 gap-y-3 md:grid-cols-[minmax(0,1fr)_10rem_7rem] md:items-start">
+<div class="min-w-0">
+<dt class="text-xs font-semibold uppercase app-muted">Student</dt>
+<dd class="mt-1 min-w-0">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+<span class="font-semibold app-heading">{{ submission.student.username }}</span>
+<a href="{% url 'cadmin_enrollment_edit' course.slug submission.enrollment.id %}" class="app-link">
+<i class="fas fa-user-edit"></i> Manage enrollment
+</a>
+</div>
 {% if submission.student.email %}
-<p class="mt-1 text-xs app-muted">{{ submission.student.email }}</p>
+<div class="mt-1 truncate text-xs app-muted">{{ submission.student.email }}</div>
 {% endif %}
+</dd>
 </div>
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Homework</p>
-<p class="mt-1 font-semibold app-heading">{{ homework.title }}</p>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Submitted</dt>
+<dd class="mt-1 font-medium app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</dd>
 </div>
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Submitted</p>
-<p class="mt-1 font-semibold app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Total score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading">{{ submission.total_score }}</dd>
 </div>
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Current Total Score</p>
-<p class="mt-1 text-2xl font-semibold app-heading">{{ submission.total_score }}</p>
-</div>
+</dl>
 </section>
 <form class="mt-6 space-y-6" method="post">
 {% csrf_token %}
@@ -104,10 +109,11 @@ Incorrect
 <h2 class="text-base font-semibold app-heading">Learning in Public Links</h2>
 </div>
 <div class="p-4">
-<label class="mb-2 block text-sm font-semibold app-heading" for="learning_in_public_links">Links (comma-separated)</label>
-<textarea class="form-control" id="learning_in_public_links" name="learning_in_public_links" rows="3" placeholder="https://example.com/post1, https://example.com/post2">
+<label class="mb-2 block text-sm font-semibold app-heading" for="learning_in_public_links">Links (one per line)</label>
+<textarea class="form-control" id="learning_in_public_links" name="learning_in_public_links" rows="4" placeholder="https://example.com/post1&#10;https://example.com/post2">
 {% if submission.learning_in_public_links %}
-{{ submission.learning_in_public_links|join:", " }}
+{{ submission.learning_in_public_links|join:"
+" }}
 {% endif %}
 </textarea>
 <p class="mt-2 text-sm app-muted">Each link contributes to the learning in public score, capped at {{ homework.learning_in_public_cap }}.</p>

@@ -175,6 +175,11 @@ class LeaderboardTestCase(TestCase):
         self.assertContains(response, "Student 001")
         self.assertNotContains(response, "Student 101")
         self.assertNotContains(response, "Showing 1-100 of 105")
+        self.assertContains(response, 'href="?page=2"')
+        self.assertContains(response, 'aria-label="Next page"')
+        self.assertNotContains(response, "First")
+        self.assertNotContains(response, "Last")
+        self.assertContains(response, "Leaderboard data (YAML)")
 
         response = self.client.get(url, {"page": 2})
 
@@ -183,6 +188,7 @@ class LeaderboardTestCase(TestCase):
         self.assertContains(response, "Student 101")
         self.assertNotContains(response, "Student 001")
         self.assertNotContains(response, "Showing 101-105 of 105")
+        self.assertNotContains(response, 'href="?page=3"')
 
     def test_leaderboard_jump_to_current_student_uses_their_page(self):
         target_user = None

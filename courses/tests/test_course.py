@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import strip_tags
 from django.core.cache import cache
 
 from courses.models import (
@@ -415,6 +416,53 @@ class CourseDetailViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Flag this record")
+
+    def test_score_breakdown_shows_score_equations(self):
+        self.submission1.questions_score = 7
+        self.submission1.faq_score = 2
+        self.submission1.learning_in_public_score = 1
+        self.submission1.total_score = 10
+        self.submission1.learning_in_public_links = [
+            "https://example.com/homework-post",
+        ]
+        self.submission1.save()
+
+        self.completed_submission.project_score = 20
+        self.completed_submission.peer_review_score = 5
+        self.completed_submission.project_learning_in_public_score = 3
+        self.completed_submission.peer_review_learning_in_public_score = 2
+        self.completed_submission.project_faq_score = 1
+        self.completed_submission.total_score = 31
+        self.completed_submission.learning_in_public_links = [
+            "https://example.com/project-post",
+        ]
+        self.completed_submission.save()
+
+        url = reverse(
+            "leaderboard_score_breakdown",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": self.enrollment.id,
+            },
+        )
+        response = self.client.get(url)
+
+        content = " ".join(strip_tags(response.content.decode()).split())
+        self.assertIn(
+            "Score: 10 = 7 (questions) + 2 (FAQ) + 1 "
+            "(learning in public)",
+            content,
+        )
+        self.assertIn(
+            "Score: 31 = 20 (project) + 5 (peer review) + 3 "
+            "(learning in public / project) + 2 "
+            "(learning in public / peer review) + 1 (FAQ)",
+            content,
+        )
+        self.assertContains(response, "<details", count=2)
+        self.assertContains(response, "<summary", count=2)
+        self.assertContains(response, "https://example.com/homework-post")
+        self.assertContains(response, "https://example.com/project-post")
 
     def test_authenticated_user_can_report_leaderboard_record(self):
         target = self.create_enrollment("e1", 100, 1)

@@ -17,6 +17,13 @@ Edit Enrollment - {{ course.title }}
 <p class="mt-1 text-sm app-muted">Review a student record, inspect submissions, and manage learning-in-public eligibility.</p>
 </div>
 <div class="flex flex-wrap gap-2">
+<form method="post" action="{% url 'loginas-user-login' enrollment.student.id %}">
+{% csrf_token %}
+<input type="hidden" name="next" value="{% url 'course' course.slug %}">
+<button type="submit" class="primer-button primer-button-secondary">
+<i class="fas fa-sign-in-alt"></i> Log in as student
+</button>
+</form>
 <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary">View Score Breakdown</a>
 <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">View Leaderboard</a>
 <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button">Back to Enrollments</a>

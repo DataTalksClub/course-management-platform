@@ -12,9 +12,9 @@
             <p class="mt-1 text-sm app-muted">Choose your preferred login method</p>
         </div>
 
-        <div class="flex flex-col items-start gap-3 px-5 py-5">
+        <div class="flex flex-col gap-3 px-5 py-5">
             {% for provider in providers %}
-                <a href="{{ provider.login_url }}" class="primer-button primer-button-secondary">
+                <a href="{{ provider.login_url }}" class="primer-button primer-button-secondary w-full justify-center">
                     {% if 'Google' in provider.name %}
                         <i class="fab fa-google text-danger"></i>
                     {% elif 'GitHub' in provider.name %}

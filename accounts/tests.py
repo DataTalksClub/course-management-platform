@@ -83,6 +83,18 @@ class AccountSettingsTestCase(TestCase):
         self.assertContains(response, "student@example.com")
         self.assertContains(response, "Data Course")
         self.assertContains(response, "Student One")
+        self.assertNotContains(response, reverse("cadmin_course_list"))
+
+    def test_account_menu_shows_cadmin_for_staff(self):
+        self.user.is_staff = True
+        self.user.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("cadmin_course_list"))
+        self.assertContains(response, "Course admin")
 
     def test_account_settings_updates_profile(self):
         self.client.force_login(self.user)

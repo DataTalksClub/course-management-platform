@@ -81,22 +81,7 @@
             {% endif %}
         </section>
 
-        {% if submissions_page.paginator.num_pages > 1 %}
-            <nav class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm app-text"
-                 aria-label="Project submission pages">
-                <span class="app-muted">Page {{ submissions_page.number }} of {{ submissions_page.paginator.num_pages }}</span>
-                <div class="flex flex-wrap gap-2">
-                    {% if submissions_page.has_previous %}
-                        <a class="primer-button primer-button-secondary"
-                           href="?page={{ submissions_page.previous_page_number }}">Previous</a>
-                    {% endif %}
-                    {% if submissions_page.has_next %}
-                        <a class="primer-button"
-                           href="?page={{ submissions_page.next_page_number }}">Next</a>
-                    {% endif %}
-                </div>
-            </nav>
-        {% endif %}
+        {% include 'include/pagination.html' with pagination_page=submissions_page pagination_range=page_range pagination_label='Project submission pages' %}
     {% endif %}
 
     {% if project.state == 'CO' %}

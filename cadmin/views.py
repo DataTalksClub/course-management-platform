@@ -39,6 +39,7 @@ from courses.projects import (
 
 logger = logging.getLogger(__name__)
 CADMIN_PAGE_SIZE = 25
+CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE = 50
 
 
 def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
@@ -65,7 +66,7 @@ def staff_required(function):
 @staff_required
 def course_list(request):
     """List all courses with admin actions"""
-    courses = Course.objects.all().order_by("-id")
+    courses = Course.objects.all().order_by("finished", "-id")
     
     context = {
         "courses": courses,
@@ -288,8 +289,11 @@ def homework_submission_edit(request, course_slug, homework_slug, submission_id)
             # Update learning in public links
             lip_links_str = request.POST.get("learning_in_public_links", "")
             if lip_links_str.strip():
-                # Parse the links (comma-separated)
-                links = [link.strip() for link in lip_links_str.split(",") if link.strip()]
+                links = [
+                    link.strip()
+                    for link in lip_links_str.splitlines()
+                    if link.strip()
+                ]
                 submission.learning_in_public_links = links
             else:
                 submission.learning_in_public_links = None
@@ -439,13 +443,20 @@ def project_submissions(request, course_slug, project_slug):
     elif status_filter == "not-passed":
         submissions = [submission for submission in submissions if submission.passed is False]
 
-    submissions_page = paginate_queryset(request, submissions)
+    submissions_page = paginate_queryset(
+        request,
+        submissions,
+        per_page=CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE,
+    )
 
     context = {
         "course": course,
         "project": project,
         "submissions": submissions_page.object_list,
         "submissions_page": submissions_page,
+        "page_range": submissions_page.paginator.get_elided_page_range(
+            submissions_page.number
+        ),
         "project_filter_counts": project_filter_counts,
         "search_query": search_query,
         "status_filter": status_filter,
