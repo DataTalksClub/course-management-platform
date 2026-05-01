@@ -180,7 +180,10 @@ header nav li:not(:last-child) {
 
 /* Style each list item */
 .breadcrumbs ul li {
+  align-items: center;
+  display: inline-flex;
   margin-right: 0.5rem;
+  min-width: 0;
   font-size: 0.9rem;
   white-space: nowrap;
 }
@@ -406,15 +409,15 @@ form select {
 }
 
 .cadmin-shell .primer-button-success {
-  background: #1f883d;
-  border-color: #1f883d;
-  color: #ffffff;
+  background: #f6f8fa;
+  border-color: #d0d7de;
+  color: #116329;
 }
 
 .cadmin-shell .primer-button-success:hover {
-  background: #1a7f37;
-  border-color: #1a7f37;
-  color: #ffffff;
+  background: #eef1f4;
+  border-color: #d0d7de;
+  color: #116329;
 }
 
 .cadmin-meta-grid > * {
@@ -635,23 +638,27 @@ body.dark-mode [class*="text-red-700"] {
 
 /* Adjustments for smaller screens */
 @media (max-width: 768px) {
-  nav .breadcrumbs ul {
+  .breadcrumbs ul {
     flex-wrap: wrap;
     gap: 0.25rem 0;
   }
 
-  nav .breadcrumbs ul li a {
+  .breadcrumbs ul li a {
     max-width: 150px;
   }
 }
 
 @media (max-width: 480px) {
-  nav .breadcrumbs ul li {
+  .breadcrumbs ul li:not(:first-child):not(:last-child) {
+    display: none;
+  }
+
+  .breadcrumbs ul li {
     font-size: 0.8rem;
   }
 
-  nav .breadcrumbs ul li a {
-    max-width: 100px;
+  .breadcrumbs ul li a {
+    max-width: 220px;
   }
 }
 
@@ -661,6 +668,15 @@ body.dark-mode [class*="text-red-700"] {
 
 .alert p {
   margin-bottom: 0;
+}
+
+.invalid-feedback {
+  display: none;
+}
+
+.was-validated .form-control:invalid ~ .invalid-feedback,
+.form-control.is-invalid ~ .invalid-feedback {
+  display: block;
 }
 
 
@@ -960,9 +976,9 @@ body.dark-mode .cadmin-shell .primer-button.cadmin-primary:hover {
 }
 
 body.dark-mode .cadmin-shell .primer-button-success {
-  background: #238636;
-  border-color: #238636;
-  color: #ffffff;
+  background: #21262d;
+  border-color: #30363d;
+  color: #7ee787;
 }
 
 body.dark-mode .cadmin-shell table tbody tr:hover {
@@ -1030,13 +1046,13 @@ body.dark-mode .alert-danger {
 
 /* Subtle correct/incorrect answer colors for dark mode */
 body.dark-mode .option-answer-correct {
-  background-color: rgba(31, 111, 59, 0.28);
-  color: #7ee787;
+  background: transparent;
+  color: var(--text-primary);
 }
 
 body.dark-mode .option-answer-incorrect {
-  background-color: rgba(218, 54, 51, 0.18);
-  color: #ff7b72;
+  background: transparent;
+  color: var(--text-primary);
 }
 
 body.dark-mode .error-message {

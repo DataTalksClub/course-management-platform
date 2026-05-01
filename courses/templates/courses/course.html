@@ -92,7 +92,7 @@
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             <span>Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
-            <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}"></div>
+            <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}" data-past-tone="muted"></div>
           </div>
 
           <div class="md:text-right">
@@ -149,12 +149,12 @@
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             {% if project.state == 'PR' and project.submitted %}
               <span>Review due: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
-              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.peer_review_due_date | date:"c" }}"></div>
+              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.peer_review_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% elif project.state == 'CO' %}
               <span>Completed: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
             {% else %}
               <span>Due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span></span>
-              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}"></div>
+              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% endif %}
           </div>
 

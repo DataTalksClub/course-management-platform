@@ -44,7 +44,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var diff = deadline - new Date();
     var days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    el.classList.remove('text-slate-500', 'text-[#9a6700]', 'text-[#cf222e]', 'dark:text-[#8b949e]');
+    el.classList.remove('text-slate-500', 'text-[#9a6700]', 'text-[#cf222e]', 'dark:text-[#8b949e]', 'app-muted');
+
+    if (diff <= 0 && el.getAttribute('data-past-tone') === 'muted') {
+      el.classList.add('app-muted');
+      return;
+    }
 
     if (diff <= 0 || days < 1) {
       el.classList.add('text-[#cf222e]');
