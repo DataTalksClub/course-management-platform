@@ -335,7 +335,8 @@ def update_leaderboard(course: Course):
         enrollment.total_score = homework_score + project_score
 
     enrollments = sorted(
-        enrollments, key=lambda x: x.total_score, reverse=True
+        enrollments,
+        key=lambda x: (-(x.total_score or 0), x.id),
     )
 
     for rank, enrollment in enumerate(enrollments, 1):
@@ -349,6 +350,9 @@ def update_leaderboard(course: Course):
     # Invalidate the leaderboard caches
     cache.delete(f"leaderboard:{course.id}")
     cache.delete(f"leaderboard_data:{course.id}")
+    cache.delete(f"leaderboard_yaml:{course.id}")
+    version_key = f"leaderboard_cache_version:{course.id}"
+    cache.set(version_key, cache.get(version_key, 1) + 1, None)
     logger.info(f"Invalidated cache for leaderboard of course {course.id}")
 
     t1 = time()

@@ -1,2 +1,107 @@
-{% extends 'base.html' %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-{% endblock %} {% block content %} <section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading md:text-3xl">Leaderboard</h1> <p class="mt-1 text-sm app-muted">Scores, positions, and public student profiles for this course.</p> </div> <a href="{% url 'data_leaderboard' course_slug=course.slug %}" class="primer-button primer-button-secondary w-fit">Leaderboard data (YAML)</a> </div> </section> {% if current_student_enrollment %} <section class="mt-6 rounded-md border app-alert-info p-4 "> <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"> <div> <h2 class="text-base font-semibold app-heading">Your Record</h2> <p class="mt-1 text-sm app-text"> <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=current_student_enrollment.id %}" class="font-medium app-link hover:underline "> Your total score: {{ current_student_enrollment.total_score }} </a> <span>(Position: {{ current_student_enrollment.position_on_leaderboard }})</span> </p> <p class="mt-1 text-sm app-text">Display name: {{ current_student_enrollment.display_name }} (<a href="{% url 'enrollment' course.slug %}" class="app-link hover:underline ">change</a>)</p> </div> <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to your record on leaderboard</a> </div> </section> {% endif %} <section class="mt-6 overflow-hidden rounded-md border app-border app-surface "> <div class="grid grid-cols-[44px_minmax(0,1fr)_72px] border-b app-border app-surface-muted px-4 py-2 text-xs font-semibold uppercase app-muted md:grid-cols-[56px_minmax(0,1fr)_96px]"> <div>#</div> <div>Name</div> <div class="text-right">Score</div> </div> <div class="divide-y app-divide"> {% for enrollment in enrollments %} <div id="record-{{ enrollment.id }}" class="grid grid-cols-[44px_minmax(0,1fr)_72px] items-center px-4 py-3 text-sm md:grid-cols-[56px_minmax(0,1fr)_96px] {% if enrollment.id == current_student_enrollment_id %}app-alert-info {% endif %}"> <div class="font-medium app-muted">{{ enrollment.position_on_leaderboard }}</div> <div class="min-w-0"> <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="block font-medium leading-snug app-link hover:underline md:truncate"> {{ enrollment.display_name }} </a> </div> <div class="text-right font-semibold app-heading">{{ enrollment.total_score }}</div> </div> {% endfor %} </div> </section> {% endblock %}
+{% extends 'base.html' %}
+
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li>Leaderboard</li>
+{% endblock %}
+
+{% block content %}
+<section class="border-b app-border pb-5">
+  <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+  <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold app-heading md:text-3xl">Leaderboard</h1>
+      <p class="mt-1 text-sm app-muted">Scores, positions, and public student profiles for this course.</p>
+    </div>
+    <a href="{% url 'data_leaderboard' course_slug=course.slug %}" class="primer-button primer-button-secondary w-fit">Leaderboard data (YAML)</a>
+  </div>
+</section>
+
+{% if current_student_enrollment %}
+<section class="mt-6 rounded-md border app-alert-info p-4">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-base font-semibold app-heading">Your Record</h2>
+      <p class="mt-1 text-sm app-text">
+        <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=current_student_enrollment.id %}" class="font-medium app-link hover:underline">
+          Your total score: {{ current_student_enrollment.total_score }}
+        </a>
+        <span>(Position: {{ current_student_enrollment.position_on_leaderboard }})</span>
+      </p>
+      <p class="mt-1 text-sm app-text">Display name: {{ current_student_enrollment.display_name }} (<a href="{% url 'enrollment' course.slug %}" class="app-link hover:underline">change</a>)</p>
+    </div>
+    {% if current_student_page_number %}
+      <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to your record on leaderboard</a>
+    {% else %}
+      <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to your record on leaderboard</a>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+  <div class="flex flex-col gap-2 border-b app-border app-surface-muted px-4 py-3 text-sm app-muted sm:flex-row sm:items-center sm:justify-between">
+    <span>
+      Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_enrollments }}
+    </span>
+    {% if page_obj.has_other_pages %}
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-[44px_minmax(0,1fr)_72px] border-b app-border app-surface-muted px-4 py-2 text-xs font-semibold uppercase app-muted md:grid-cols-[56px_minmax(0,1fr)_96px]">
+    <div>#</div>
+    <div>Name</div>
+    <div class="text-right">Score</div>
+  </div>
+  <div class="divide-y app-divide">
+    {% for enrollment in enrollments %}
+      <div id="record-{{ enrollment.id }}" class="grid grid-cols-[44px_minmax(0,1fr)_72px] items-center px-4 py-3 text-sm md:grid-cols-[56px_minmax(0,1fr)_96px] {% if enrollment.id == current_student_enrollment_id %}app-alert-info{% endif %}">
+        <div class="font-medium app-muted">{{ enrollment.position_on_leaderboard }}</div>
+        <div class="min-w-0">
+          <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="block font-medium leading-snug app-link hover:underline md:truncate">
+            {{ enrollment.display_name }}
+          </a>
+        </div>
+        <div class="text-right font-semibold app-heading">{{ enrollment.total_score }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <nav class="flex flex-wrap items-center justify-between gap-3 border-t app-border px-4 py-3 text-sm" aria-label="Leaderboard pagination">
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+          <a href="?page=1" class="primer-button primer-button-secondary">First</a>
+          <a href="?page={{ page_obj.previous_page_number }}" class="primer-button primer-button-secondary">Previous</a>
+        {% else %}
+          <span class="primer-button primer-button-secondary opacity-50">First</span>
+          <span class="primer-button primer-button-secondary opacity-50">Previous</span>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-wrap items-center justify-center gap-1">
+        {% for page_number in page_range %}
+          {% if page_number == page_obj.paginator.ELLIPSIS %}
+            <span class="px-2 app-muted">{{ page_number }}</span>
+          {% elif page_number == page_obj.number %}
+            <span class="primer-button" aria-current="page">{{ page_number }}</span>
+          {% else %}
+            <a href="?page={{ page_number }}" class="primer-button primer-button-secondary">{{ page_number }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div class="flex gap-2">
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}" class="primer-button primer-button-secondary">Next</a>
+          <a href="?page={{ page_obj.paginator.num_pages }}" class="primer-button primer-button-secondary">Last</a>
+        {% else %}
+          <span class="primer-button primer-button-secondary opacity-50">Next</span>
+          <span class="primer-button primer-button-secondary opacity-50">Last</span>
+        {% endif %}
+      </div>
+    </nav>
+  {% endif %}
+</section>
+{% endblock %}

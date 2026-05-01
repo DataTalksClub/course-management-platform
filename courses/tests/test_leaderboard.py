@@ -158,6 +158,62 @@ class LeaderboardTestCase(TestCase):
         # Cache should be invalidated (None)
         self.assertIsNone(cache.get(cache_key))
 
+    def test_leaderboard_is_paginated_by_100(self):
+        for i in range(1, 106):
+            student = User.objects.create_user(username=f"student-{i:03d}")
+            Enrollment.objects.create(
+                course=self.course,
+                student=student,
+                display_name=f"Student {i:03d}",
+                position_on_leaderboard=i,
+                total_score=1000 - i,
+            )
+
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["enrollments"]), 100)
+        self.assertContains(response, "Student 001")
+        self.assertNotContains(response, "Student 101")
+        self.assertContains(response, "Showing 1-100 of 105")
+
+        response = self.client.get(url, {"page": 2})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["enrollments"]), 5)
+        self.assertContains(response, "Student 101")
+        self.assertNotContains(response, "Student 001")
+        self.assertContains(response, "Showing 101-105 of 105")
+
+    def test_leaderboard_jump_to_current_student_uses_their_page(self):
+        target_user = None
+        target_enrollment = None
+
+        for i in range(1, 106):
+            student = User.objects.create_user(username=f"student-{i:03d}")
+            enrollment = Enrollment.objects.create(
+                course=self.course,
+                student=student,
+                display_name=f"Student {i:03d}",
+                position_on_leaderboard=i,
+                total_score=1000 - i,
+            )
+            if i == 101:
+                target_user = student
+                target_enrollment = enrollment
+
+        self.client.force_login(target_user)
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["current_student_page_number"], 2)
+        self.assertContains(
+            response,
+            f'?page=2#record-{target_enrollment.id}',
+        )
+
     def test_score_breakdown_admin_button_visible_for_staff(self):
         """Test that admin edit button is visible on score breakdown page for staff users"""
         enrollment = self.create_student("student1")

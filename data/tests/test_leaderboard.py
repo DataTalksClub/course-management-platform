@@ -1,6 +1,7 @@
 """Tests for the public leaderboard data endpoint."""
 
 import yaml
+from unittest.mock import patch
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -18,6 +19,7 @@ from courses.models import (
 )
 from courses.models.homework import HomeworkState
 from courses.models.project import ProjectState
+from courses.scoring import update_leaderboard
 
 
 class LeaderboardDataViewTestCase(TestCase):
@@ -175,14 +177,76 @@ class LeaderboardDataViewTestCase(TestCase):
         data = yaml.safe_load(response.content)
         self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
 
+    def test_leaderboard_is_paginated(self):
+        for i in range(3, 106):
+            user = CustomUser.objects.create(
+                username=f"user{i}", email=f"user{i}@example.com"
+            )
+            Enrollment.objects.create(
+                student=user,
+                course=self.course,
+                display_name=f"User {i}",
+                total_score=100 - i,
+                position_on_leaderboard=i,
+            )
+
+        response = self.client.get(self.url)
+        data = yaml.safe_load(response.content)
+
+        self.assertEqual(data["page"], 1)
+        self.assertEqual(data["page_size"], 100)
+        self.assertEqual(data["total_entries"], 105)
+        self.assertEqual(data["total_pages"], 2)
+        self.assertTrue(data["has_next"])
+        self.assertEqual(data["next_page"], 2)
+        self.assertEqual(len(data["leaderboard"]), 100)
+        self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
+        self.assertEqual(data["leaderboard"][-1]["display_name"], "User 100")
+
+        response = self.client.get(self.url, {"page": 2})
+        data = yaml.safe_load(response.content)
+
+        self.assertEqual(data["page"], 2)
+        self.assertEqual(len(data["leaderboard"]), 5)
+        self.assertFalse(data["has_next"])
+        self.assertEqual(data["previous_page"], 1)
+        self.assertEqual(data["leaderboard"][0]["display_name"], "User 101")
+
+    def test_page_size_can_be_overridden(self):
+        for i in range(3, 8):
+            user = CustomUser.objects.create(
+                username=f"user{i}", email=f"user{i}@example.com"
+            )
+            Enrollment.objects.create(
+                student=user,
+                course=self.course,
+                display_name=f"User {i}",
+                total_score=100 - i,
+                position_on_leaderboard=i,
+            )
+
+        response = self.client.get(self.url, {"page_size": 3})
+        data = yaml.safe_load(response.content)
+
+        self.assertEqual(data["page_size"], 3)
+        self.assertEqual(data["total_pages"], 3)
+        self.assertEqual(len(data["leaderboard"]), 3)
+
+    def test_rendered_yaml_response_is_cached(self):
+        self.client.get(self.url)
+
+        with patch("data.views.leaderboard.yaml.dump") as yaml_dump:
+            response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        yaml_dump.assert_not_called()
+
     def test_cache_invalidation(self):
         self.client.get(self.url)
 
-        # Simulate what update_leaderboard does
-        cache.delete(f"leaderboard_data:{self.course.id}")
-
         self.enrollment1.display_name = "Alice Changed"
         self.enrollment1.save()
+        update_leaderboard(self.course)
 
         response = self.client.get(self.url)
         data = yaml.safe_load(response.content)

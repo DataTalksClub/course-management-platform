@@ -6,6 +6,7 @@ from typing import List
 from django.http import HttpRequest, HttpResponse
 
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 
@@ -33,6 +34,8 @@ from courses.models import (
 from .forms import EnrollmentForm
 
 logger = logging.getLogger(__name__)
+
+LEADERBOARD_PAGE_SIZE = 100
 
 
 def course_list(request):
@@ -293,11 +296,28 @@ def leaderboard_view(request, course_slug: str):
     else:
         logger.info(f"Cache hit for leaderboard of course {course.slug}")
 
+    paginator = Paginator(enrollments_data, LEADERBOARD_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    enrollments_page = page_obj.object_list
+
+    current_student_page_number = None
+    if current_student_enrollment_id is not None:
+        for index, enrollment in enumerate(enrollments_data):
+            if enrollment["id"] == current_student_enrollment_id:
+                current_student_page_number = (
+                    index // LEADERBOARD_PAGE_SIZE
+                ) + 1
+                break
+
     context = {
-        "enrollments": enrollments_data,
+        "enrollments": enrollments_page,
+        "page_obj": page_obj,
+        "page_range": paginator.get_elided_page_range(page_obj.number),
+        "total_enrollments": paginator.count,
         "course": course,
         "current_student_enrollment": current_student_enrollment,
         "current_student_enrollment_id": current_student_enrollment_id,
+        "current_student_page_number": current_student_page_number,
     }
 
     return render(request, "courses/leaderboard.html", context)
