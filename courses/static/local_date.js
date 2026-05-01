@@ -14,7 +14,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var hours = formattedDate.getHours().toString().padStart(2, '0');
     var minutes = formattedDate.getMinutes().toString().padStart(2, '0');
 
-    date.textContent = day + ' ' + month + ' ' + year + ', ' + hours + ':' + minutes;
+    var timezone = '';
+    if (date.dataset.showTimezone === 'true') {
+      var timezoneName = formattedDate.toLocaleTimeString(undefined, { timeZoneName: 'short' }).split(' ').pop();
+      timezone = timezoneName ? ' (' + timezoneName + ')' : '';
+    }
+
+    date.textContent = day + ' ' + month + ' ' + year + ', ' + hours + ':' + minutes + timezone;
     date.setAttribute('datetime', originalValue);
   });
 });

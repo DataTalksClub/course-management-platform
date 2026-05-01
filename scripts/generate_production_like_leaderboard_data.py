@@ -310,6 +310,16 @@ def stable_slug(prefix, title, index):
     return f"{prefix}-{index:02d}-{slugify(title)[:45]}"
 
 
+def course_description(spec):
+    parts = [
+        "Free course with practical lessons",
+        f"{len(spec['homeworks'])} homework assignments",
+    ]
+    if spec["projects"]:
+        parts.append(f"{len(spec['projects'])} project attempts")
+    return f"{', '.join(parts)} for {spec['title']}."
+
+
 def list_courses():
     for spec in COURSE_SPECS:
         selected = "selected" if spec["slug"] in DEFAULT_SELECTED_COURSES else "catalog"
@@ -329,6 +339,21 @@ def ensure_full_catalog():
             f"{course.slug}: catalog ready "
             f"({len(homeworks)} homeworks, {len(projects)} projects)"
         )
+    hide_legacy_demo_duplicates()
+
+
+def hide_legacy_demo_duplicates():
+    production_titles = {
+        spec["title"]
+        for spec in COURSE_SPECS
+    }
+    updated = Course.objects.filter(
+        slug__startswith="demo-",
+        title__in=production_titles,
+        visible=True,
+    ).update(visible=False)
+    if updated:
+        print(f"hid {updated} legacy demo course duplicates")
 
 
 def ensure_course_materials(spec):
@@ -336,7 +361,7 @@ def ensure_course_materials(spec):
         slug=spec["slug"],
         defaults={
             "title": spec["title"],
-            "description": f"Production-like test data for {spec['title']}.",
+            "description": course_description(spec),
             "finished": spec["finished"],
             "visible": True,
             "first_homework_scored": True,

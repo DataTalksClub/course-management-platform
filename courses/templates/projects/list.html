@@ -1,5 +1,5 @@
 {% extends 'base.html' %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li> <li>Project submissions</li>
 {% endblock %} {% block content %}
 <section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading">Projects for {{ project.title }}</h1> <p class="mt-1 max-w-2xl text-sm app-muted">Review peer submissions and open repositories for this project.</p> </div> <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary w-fit">Back to Course</a> </div>
 </section> {% if project.state == 'CL' %} <p class="mt-6 rounded-md border app-border app-surface-muted px-4 py-4 text-sm app-muted ">The project is closed. Come back later to see the submissions.</p>

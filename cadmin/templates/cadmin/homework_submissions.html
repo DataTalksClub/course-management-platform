@@ -1,19 +1,206 @@
-{% extends 'cadmin/base.html' %} {% load custom_filters %} {% block breadcrumbs %} <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li> <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">{{ homework.title }} Submissions</a></li>
-{% endblock %} {% block cadmin_content %}
-<section class="border-b app-border pb-5 "> <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"> <div> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ homework.title }} - Submissions</h1> <p class="mt-1 text-sm app-muted">Search, sort, edit scores, or inspect answers without leaving the course team workflow.</p> </div> <div class="flex flex-wrap gap-2"> <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a> <a href="{% url 'homework' course.slug homework.slug %}" class="primer-button">View Homework</a> </div> </div> <div class="mt-4 rounded-md border app-border app-surface-muted px-4 py-3 " role="status"> <p class="text-xs font-semibold uppercase app-muted">Total Submissions</p> <p class="mt-0.5 text-xl font-semibold app-heading">{{ submissions_data|length }}</p> </div>
-</section> {% if submissions_data %}
-<section class="mt-6 overflow-hidden rounded-md border app-border app-surface "> <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between"> <h2 class="text-base font-semibold app-heading">Submission table</h2> <input type="text" id="searchBox" class="form-control w-full sm:w-72" placeholder="Search by email..." onkeyup="filterTable()"> </div> <div class="divide-y app-divide md:hidden"> {% for data in submissions_data %} <article class="cadmin-filter-card px-4 py-4" data-filter="{{ data.submission.student.email|lower }} {{ data.submission.student.username|lower }}"> <div class="flex items-start justify-between gap-3"> <div> <p class="font-medium app-heading">{% if data.submission.student.email %}{{ data.submission.student.email }}{% else %}{{ data.submission.student.username }}{% endif %}</p> <p class="mt-1 text-xs app-muted">{{ data.submission.submitted_at|date:"Y-m-d H:i" }}</p> </div> <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold "> {% if data.submission.total_score is not None %}{{ data.submission.total_score }}{% else %}-{% endif %} </span> </div> <details class="mt-3"> <summary class="cursor-pointer text-sm font-medium app-link">Answers</summary> <dl class="mt-2 space-y-2 text-sm"> {% for answer in data.answers %} <div> <dt class="text-xs font-semibold uppercase app-muted">Q{{ forloop.counter }}</dt> <dd class="mt-0.5 break-words app-text">{{ answer }}</dd> </div> {% endfor %} </dl> </details> <div class="mt-3 flex flex-wrap gap-2"> <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}" class="primer-button" title="Edit submission"> <i class="fas fa-edit"></i> Edit </a> <form method="post" action="{% url 'loginas-user-login' data.submission.student.id %}"> {% csrf_token %} <input type="hidden" name="next" value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}"> <button type="submit" class="primer-button primer-button-secondary" title="Log in as {{ data.submission.student.email }}"> <i class="fas fa-user-circle"></i> Log in as </button> </form> </div> </article> {% endfor %}
-</div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm" id="submissionsTable"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="cursor-pointer px-3 py-2" onclick="sortTable('email')">Email <span class="inline-block w-3" id="arrow-email"></span></th> <th class="cursor-pointer whitespace-nowrap px-3 py-2" onclick="sortTable('submitted')">Submitted At <span class="inline-block w-3" id="arrow-submitted"></span></th> <th class="cursor-pointer px-3 py-2 text-right" onclick="sortTable('score')">Score <span class="inline-block w-3" id="arrow-score"></span></th> {% for question in questions %} <th class="px-3 py-2">Q{{ forloop.counter }}</th> {% endfor %} <th class="px-3 py-2 text-right">Actions</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for data in submissions_data %} <tr class="align-top"> <td class="px-3 py-2 font-medium app-heading">{% if data.submission.student.email %}{{ data.submission.student.email }}{% else %}{{ data.submission.student.username }}{% endif %}</td> <td class="whitespace-nowrap px-3 py-2 app-text">{{ data.submission.submitted_at|date:"Y-m-d H:i" }}</td> <td class="px-3 py-2 text-right font-medium app-heading"> {% if data.submission.total_score is not None %} {{ data.submission.total_score }} {% else %} - {% endif %} </td> {% for answer in data.answers %} <td class="max-w-[180px] px-3 py-2 app-text"> <span class="block truncate" title="{{ answer }}"> {% if answer|length > 20 %} {{ answer|slice:":20" }}... {% else %} {{ answer }} {% endif %} </span> </td> {% endfor %} <td class="px-3 py-2"> <div class="flex flex-wrap justify-end gap-2"> <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}" class="primer-button" title="Edit submission"> <i class="fas fa-edit"></i> Edit </a> <form method="post" action="{% url 'loginas-user-login' data.submission.student.id %}" style="display: inline;"> {% csrf_token %} <input type="hidden" name="next" value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}"> <button type="submit" class="primer-button primer-button-secondary" title="Log in as {{ data.submission.student.email }}"> <i class="fas fa-user-circle"></i> Log in as </button> </form> </div> </td> </tr> {% endfor %} </tbody> </table>
-</div>
-</section> <script>
-const MISSING_SCORE_VALUE = -999;
-let currentSort = 'submitted';
-let currentDir = 'desc'; const defaultDirs = { email: 'asc', submitted: 'desc', score: 'desc' }; function sortTable(column) { if (column === currentSort) { currentDir = currentDir === 'asc' ? 'desc' : 'asc'; } else { currentSort = column; currentDir = defaultDirs[column] || 'desc'; } const table = document.getElementById('submissionsTable'); const tbody = table.querySelector('tbody'); const rows = Array.from(tbody.querySelectorAll('tr')); rows.sort((a, b) => { let aVal, bVal, result; if (column === 'email') { aVal = a.cells[0].textContent.trim(); bVal = b.cells[0].textContent.trim(); result = aVal.localeCompare(bVal); } else if (column === 'submitted') { aVal = a.cells[1].textContent.trim(); bVal = b.cells[1].textContent.trim(); result = aVal.localeCompare(bVal); } else if (column === 'score') { aVal = a.cells[2].textContent.trim(); bVal = b.cells[2].textContent.trim(); aVal = aVal === '-' ? MISSING_SCORE_VALUE : parseFloat(aVal); bVal = bVal === '-' ? MISSING_SCORE_VALUE : parseFloat(bVal); result = aVal - bVal; } return currentDir === 'desc' ? -result : result; }); rows.forEach(row => tbody.appendChild(row)); updateArrows();
-} function updateArrows() { document.querySelectorAll('[id^="arrow-"]').forEach(el => el.textContent = ''); const arrowEl = document.getElementById('arrow-' + currentSort); if (arrowEl) arrowEl.textContent = currentDir === 'asc' ? ' ▲' : ' ▼';
-} function filterTable() { const filter = document.getElementById('searchBox').value.toLowerCase(); const rows = document.querySelectorAll('#submissionsTable tbody tr'); const cards = document.querySelectorAll('.cadmin-filter-card'); rows.forEach(row => { const email = row.cells[0].textContent.toLowerCase(); row.style.display = email.includes(filter) ? '' : 'none'; }); cards.forEach(card => { const text = card.dataset.filter || card.textContent.toLowerCase(); card.style.display = text.includes(filter) ? '' : 'none'; });
-} updateArrows();
-</script>
-{% else %}
-<p class="mt-6 rounded-md border app-border app-surface px-4 py-6 text-sm app-muted ">No submissions yet.</p>
-{% endif %}
+{% extends 'cadmin/base.html' %}
+{% load custom_filters %}
+{% block breadcrumbs %}
+    <li>
+        <a href="{% url 'cadmin_course_list' %}">Course Admin</a>
+    </li>
+    <li>
+        <a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a>
+    </li>
+    <li>
+        <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">{{ homework.title }} Submissions</a>
+    </li>
+{% endblock %}
+{% block cadmin_content %}
+    <section class="border-b app-border pb-5 ">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+                <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ homework.title }} - Submissions</h1>
+                <p class="mt-1 text-sm app-muted">Review submissions and open individual records when details are needed.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'cadmin_course' course.slug %}"
+                   class="primer-button primer-button-secondary">Back to Course Admin</a>
+                <a href="{% url 'homework' course.slug homework.slug %}" class="primer-button">View Homework</a>
+            </div>
+        </div>
+    </section>
+    {% if submissions_data %}
+        <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+            <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-base font-semibold app-heading">Submissions</h2>
+                    <p class="mt-0.5 text-sm app-muted">{{ submissions_data|length }} total</p>
+                </div>
+                <input type="text"
+                       id="searchBox"
+                       class="form-control w-full sm:w-72"
+                       placeholder="Search by email..."
+                       onkeyup="filterTable()">
+            </div>
+            <div class="divide-y app-divide md:hidden">
+                {% for data in submissions_data %}
+                    <article class="cadmin-filter-card px-4 py-3"
+                             data-filter="{{ data.submission.student.email|lower }} {{ data.submission.student.username|lower }}">
+                        <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate font-medium app-heading">
+                                    {% if data.submission.student.email %}
+                                        {{ data.submission.student.email }}
+                                    {% else %}
+                                        {{ data.submission.student.username }}
+                                    {% endif %}
+                                </p>
+                                <p class="mt-1 text-xs app-muted">{{ data.submission.submitted_at|date:"Y-m-d H:i" }}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="inline-flex min-w-8 justify-center rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold app-heading">
+                                    {% if data.submission.total_score is not None %}
+                                        {{ data.submission.total_score }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="sr-only">
+                            {% for answer in data.answers %}
+                                Q{{ forloop.counter }}
+                                <span title="{{ answer }}">
+                                    {% if answer|length > 120 %}{{ answer|slice:":120" }}...{% else %}{{ answer }}{% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-2">
+                            <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}"
+                               class="text-sm font-medium app-link">Open submission <span aria-hidden="true">&rarr;</span></a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <div class="hidden overflow-x-auto md:block">
+                <table class="min-w-full text-sm" id="submissionsTable">
+                    <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
+                        <tr>
+                            <th class="cursor-pointer px-3 py-2" onclick="sortTable('email')">
+                                Email <span class="inline-block w-3" id="arrow-email"></span>
+                            </th>
+                            <th class="cursor-pointer whitespace-nowrap px-3 py-2"
+                                onclick="sortTable('submitted')">
+                                Submitted At <span class="inline-block w-3" id="arrow-submitted"></span>
+                            </th>
+                            <th class="cursor-pointer px-3 py-2 text-right"
+                                onclick="sortTable('score')">
+                                Score <span class="inline-block w-3" id="arrow-score"></span>
+                            </th>
+                            <th class="px-3 py-2 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y app-divide">
+                        {% for data in submissions_data %}
+                            <tr class="align-top">
+                                <td class="px-3 py-2 font-medium app-heading">
+                                    {% if data.submission.student.email %}
+                                        {{ data.submission.student.email }}
+                                    {% else %}
+                                        {{ data.submission.student.username }}
+                                    {% endif %}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-2 app-text">{{ data.submission.submitted_at|date:"Y-m-d H:i" }}</td>
+                                <td class="px-3 py-2 text-right font-medium app-heading">
+                                    {% if data.submission.total_score is not None %}
+                                        {{ data.submission.total_score }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-2">
+                                    <div class="sr-only">
+                                        {% for answer in data.answers %}
+                                            Q{{ forloop.counter }}
+                                            <span title="{{ answer }}">
+                                                {% if answer|length > 120 %}{{ answer|slice:":120" }}...{% else %}{{ answer }}{% endif %}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                    <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}"
+                                       class="font-medium app-link">Open</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <script>
+          const MISSING_SCORE_VALUE = -999;
+          let currentSort = 'submitted';
+          let currentDir = 'desc';
+          const defaultDirs = { email: 'asc', submitted: 'desc', score: 'desc' };
+
+          function sortTable(column) {
+            currentDir = column === currentSort
+              ? (currentDir === 'asc' ? 'desc' : 'asc')
+              : (defaultDirs[column] || 'desc');
+            currentSort = column;
+
+            const table = document.getElementById('submissionsTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+              let result = 0;
+
+              if (column === 'email') {
+                result = a.cells[0].textContent.trim().localeCompare(b.cells[0].textContent.trim());
+              } else if (column === 'submitted') {
+                result = a.cells[1].textContent.trim().localeCompare(b.cells[1].textContent.trim());
+              } else if (column === 'score') {
+                const aText = a.cells[2].textContent.trim();
+                const bText = b.cells[2].textContent.trim();
+                const aVal = aText === '-' ? MISSING_SCORE_VALUE : parseFloat(aText);
+                const bVal = bText === '-' ? MISSING_SCORE_VALUE : parseFloat(bText);
+                result = aVal - bVal;
+              }
+
+              return currentDir === 'desc' ? -result : result;
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+            updateArrows();
+          }
+
+          function updateArrows() {
+            document.querySelectorAll('[id^="arrow-"]').forEach(el => {
+              el.textContent = '';
+            });
+
+            const arrowEl = document.getElementById('arrow-' + currentSort);
+            if (arrowEl) {
+              arrowEl.textContent = currentDir === 'asc' ? ' ▲' : ' ▼';
+            }
+          }
+
+          function filterTable() {
+            const filter = document.getElementById('searchBox').value.toLowerCase();
+            const rows = document.querySelectorAll('#submissionsTable tbody tr');
+            const cards = document.querySelectorAll('.cadmin-filter-card');
+
+            rows.forEach(row => {
+              const email = row.cells[0].textContent.toLowerCase();
+              row.style.display = email.includes(filter) ? '' : 'none';
+            });
+
+            cards.forEach(card => {
+              const text = card.dataset.filter || card.textContent.toLowerCase();
+              card.style.display = text.includes(filter) ? '' : 'none';
+            });
+          }
+
+          updateArrows();
+        </script>
+    {% else %}
+        <p class="mt-6 rounded-md border app-border app-surface px-4 py-6 text-sm app-muted ">No submissions yet.</p>
+    {% endif %}
 {% endblock %}

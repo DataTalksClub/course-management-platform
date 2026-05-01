@@ -1,5 +1,5 @@
 {% extends 'base.html' %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course.slug project.slug %}">{{ project.title }}</a></li>
+{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course.slug project.slug %}">{{ project.title }}</a></li> <li>Statistics</li>
 {% endblock %} {% block content %}
 <section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ project.title }} statistics</h1> <p class="mt-1 text-sm app-muted">Aggregate project submission and scoring metrics.</p>
 </section> <section class="mt-6 rounded-md border app-border app-surface-muted p-4 "> <p class="text-xs font-semibold uppercase app-muted">Total submissions</p> <p class="mt-1 text-3xl font-semibold app-heading">{{ stats.total_submissions }}</p>

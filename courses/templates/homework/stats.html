@@ -1,9 +1,199 @@
-{% extends 'base.html' %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'homework' course.slug homework.slug %}">{{ homework.title }}</a></li>
-{% endblock %} {% block content %}
-<section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ homework.title }} Statistics</h1> <p class="mt-1 text-sm app-muted">Aggregate homework submission and scoring metrics.</p>
-</section> <section class="mt-6 rounded-md border app-border app-surface-muted p-4 "> <p class="text-xs font-semibold uppercase app-muted">Total submissions</p> <p class="mt-1 text-3xl font-semibold app-heading">{{ stats.total_submissions }}</p>
-</section> <section class="mt-6 grid gap-4 md:grid-cols-2"> {% for field_name, field_stats, field_icon in stats.get_stat_fields %} <article class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading"><i class="{{ field_icon }} mr-2"></i>{{ field_name }}</h2> </div> <dl class="grid grid-cols-2 gap-3 p-4 text-sm sm:grid-cols-3"> {% for value, label, icon in field_stats %} <div> <dt class="text-xs font-semibold uppercase app-muted"><i class="{{ icon }} mr-1"></i>{{ label }}</dt> <dd class="mt-1 text-xl font-semibold app-heading">{{ value|floatformat:0 }}</dd> </div> {% endfor %} </dl> </article> {% endfor %}
-</section> <p class="mt-4 text-sm app-muted"> <i class="fas fa-calendar-alt"></i> Calculated: {{ stats.last_calculated }}
-</p>
+{% extends 'base.html' %}
+
+{% block meta_robots %}
+  <meta name="robots" content="noindex">
+{% endblock %}
+
+{% block breadcrumbs %}
+  <li>
+    <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+  </li>
+  <li>
+    <a href="{% url 'homework' course.slug homework.slug %}">{{ homework.title }}</a>
+  </li>
+  <li>Statistics</li>
+{% endblock %}
+
+{% block content %}
+  <section class="border-b app-border pb-5">
+    <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+    <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ homework.title }} Statistics</h1>
+    <p class="mt-1 text-sm app-muted">
+      Distribution of scores and reported study time for this homework.
+    </p>
+  </section>
+
+  <section class="mt-6 grid gap-3 sm:grid-cols-3">
+    <div class="border-l-2 app-border pl-4">
+      <p class="text-xs font-semibold uppercase app-muted">Submissions</p>
+      <p class="mt-1 text-2xl font-semibold app-heading">{{ stats.total_submissions }}</p>
+    </div>
+    <div class="border-l-2 app-border pl-4">
+      <p class="text-xs font-semibold uppercase app-muted">Median total score</p>
+      <p class="mt-1 text-2xl font-semibold app-heading">
+        {% if stats.median_total_score is not None %}{{ stats.median_total_score|floatformat:0 }}{% else %}-{% endif %}
+      </p>
+    </div>
+    <div class="border-l-2 app-border pl-4">
+      <p class="text-xs font-semibold uppercase app-muted">Average total score</p>
+      <p class="mt-1 text-2xl font-semibold app-heading">
+        {% if stats.avg_total_score is not None %}{{ stats.avg_total_score|floatformat:0 }}{% else %}-{% endif %}
+      </p>
+    </div>
+  </section>
+
+  <section class="mt-8">
+    <h2 class="text-lg font-semibold app-heading">Score distribution</h2>
+    <p class="mt-1 text-sm app-muted">All values are points.</p>
+    <div class="mt-3 hidden overflow-x-auto rounded-md border app-border md:block">
+      <table class="min-w-full text-sm">
+        <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
+          <tr>
+            <th class="px-3 py-2">Metric</th>
+            <th class="px-3 py-2 text-right">Min</th>
+            <th class="px-3 py-2 text-right">Q1</th>
+            <th class="px-3 py-2 text-right">Median</th>
+            <th class="px-3 py-2 text-right">Average</th>
+            <th class="px-3 py-2 text-right">Q3</th>
+            <th class="px-3 py-2 text-right">Max</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y app-divide">
+          <tr>
+            <td class="px-3 py-2 font-medium app-heading">Questions score</td>
+            <td class="px-3 py-2 text-right">{{ stats.min_questions_score|default:"-" }}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q1_questions_score is not None %}{{ stats.q1_questions_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right font-semibold app-heading">{% if stats.median_questions_score is not None %}{{ stats.median_questions_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.avg_questions_score is not None %}{{ stats.avg_questions_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q3_questions_score is not None %}{{ stats.q3_questions_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{{ stats.max_questions_score|default:"-" }}</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 font-medium app-heading">Learning in public score</td>
+            <td class="px-3 py-2 text-right">{{ stats.min_learning_in_public_score|default:"-" }}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q1_learning_in_public_score is not None %}{{ stats.q1_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right font-semibold app-heading">{% if stats.median_learning_in_public_score is not None %}{{ stats.median_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.avg_learning_in_public_score is not None %}{{ stats.avg_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q3_learning_in_public_score is not None %}{{ stats.q3_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{{ stats.max_learning_in_public_score|default:"-" }}</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 font-medium app-heading">Total score</td>
+            <td class="px-3 py-2 text-right">{{ stats.min_total_score|default:"-" }}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q1_total_score is not None %}{{ stats.q1_total_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right font-semibold app-heading">{% if stats.median_total_score is not None %}{{ stats.median_total_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.avg_total_score is not None %}{{ stats.avg_total_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q3_total_score is not None %}{{ stats.q3_total_score|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{{ stats.max_total_score|default:"-" }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-3 divide-y rounded-md border app-border app-divide md:hidden">
+      <article class="p-3">
+        <h3 class="font-medium app-heading">Questions score</h3>
+        <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+          <div><dt class="app-muted">Min</dt><dd class="font-semibold app-heading">{{ stats.min_questions_score|default:"-" }}</dd></div>
+          <div><dt class="app-muted">Median</dt><dd class="font-semibold app-heading">{% if stats.median_questions_score is not None %}{{ stats.median_questions_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Max</dt><dd class="font-semibold app-heading">{{ stats.max_questions_score|default:"-" }}</dd></div>
+          <div><dt class="app-muted">Q1</dt><dd>{% if stats.q1_questions_score is not None %}{{ stats.q1_questions_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Avg</dt><dd>{% if stats.avg_questions_score is not None %}{{ stats.avg_questions_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q3</dt><dd>{% if stats.q3_questions_score is not None %}{{ stats.q3_questions_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+        </dl>
+      </article>
+      <article class="p-3">
+        <h3 class="font-medium app-heading">Learning in public score</h3>
+        <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+          <div><dt class="app-muted">Min</dt><dd class="font-semibold app-heading">{{ stats.min_learning_in_public_score|default:"-" }}</dd></div>
+          <div><dt class="app-muted">Median</dt><dd class="font-semibold app-heading">{% if stats.median_learning_in_public_score is not None %}{{ stats.median_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Max</dt><dd class="font-semibold app-heading">{{ stats.max_learning_in_public_score|default:"-" }}</dd></div>
+          <div><dt class="app-muted">Q1</dt><dd>{% if stats.q1_learning_in_public_score is not None %}{{ stats.q1_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Avg</dt><dd>{% if stats.avg_learning_in_public_score is not None %}{{ stats.avg_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q3</dt><dd>{% if stats.q3_learning_in_public_score is not None %}{{ stats.q3_learning_in_public_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+        </dl>
+      </article>
+      <article class="p-3">
+        <h3 class="font-medium app-heading">Total score</h3>
+        <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+          <div><dt class="app-muted">Min</dt><dd class="font-semibold app-heading">{{ stats.min_total_score|default:"-" }}</dd></div>
+          <div><dt class="app-muted">Median</dt><dd class="font-semibold app-heading">{% if stats.median_total_score is not None %}{{ stats.median_total_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Max</dt><dd class="font-semibold app-heading">{{ stats.max_total_score|default:"-" }}</dd></div>
+          <div><dt class="app-muted">Q1</dt><dd>{% if stats.q1_total_score is not None %}{{ stats.q1_total_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Avg</dt><dd>{% if stats.avg_total_score is not None %}{{ stats.avg_total_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q3</dt><dd>{% if stats.q3_total_score is not None %}{{ stats.q3_total_score|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <section class="mt-8">
+    <h2 class="text-lg font-semibold app-heading">Time distribution</h2>
+    <p class="mt-1 text-sm app-muted">All values are hours reported by students.</p>
+    <div class="mt-3 hidden overflow-x-auto rounded-md border app-border md:block">
+      <table class="min-w-full text-sm">
+        <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
+          <tr>
+            <th class="px-3 py-2">Metric</th>
+            <th class="px-3 py-2 text-right">Min</th>
+            <th class="px-3 py-2 text-right">Q1</th>
+            <th class="px-3 py-2 text-right">Median</th>
+            <th class="px-3 py-2 text-right">Average</th>
+            <th class="px-3 py-2 text-right">Q3</th>
+            <th class="px-3 py-2 text-right">Max</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y app-divide">
+          <tr>
+            <td class="px-3 py-2 font-medium app-heading">Lectures</td>
+            <td class="px-3 py-2 text-right">{% if stats.min_time_spent_lectures is not None %}{{ stats.min_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q1_time_spent_lectures is not None %}{{ stats.q1_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right font-semibold app-heading">{% if stats.median_time_spent_lectures is not None %}{{ stats.median_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.avg_time_spent_lectures is not None %}{{ stats.avg_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q3_time_spent_lectures is not None %}{{ stats.q3_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.max_time_spent_lectures is not None %}{{ stats.max_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 font-medium app-heading">Homework</td>
+            <td class="px-3 py-2 text-right">{% if stats.min_time_spent_homework is not None %}{{ stats.min_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q1_time_spent_homework is not None %}{{ stats.q1_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right font-semibold app-heading">{% if stats.median_time_spent_homework is not None %}{{ stats.median_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.avg_time_spent_homework is not None %}{{ stats.avg_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.q3_time_spent_homework is not None %}{{ stats.q3_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</td>
+            <td class="px-3 py-2 text-right">{% if stats.max_time_spent_homework is not None %}{{ stats.max_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-3 divide-y rounded-md border app-border app-divide md:hidden">
+      <article class="p-3">
+        <h3 class="font-medium app-heading">Lectures</h3>
+        <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+          <div><dt class="app-muted">Min</dt><dd class="font-semibold app-heading">{% if stats.min_time_spent_lectures is not None %}{{ stats.min_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Median</dt><dd class="font-semibold app-heading">{% if stats.median_time_spent_lectures is not None %}{{ stats.median_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Max</dt><dd class="font-semibold app-heading">{% if stats.max_time_spent_lectures is not None %}{{ stats.max_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q1</dt><dd>{% if stats.q1_time_spent_lectures is not None %}{{ stats.q1_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Avg</dt><dd>{% if stats.avg_time_spent_lectures is not None %}{{ stats.avg_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q3</dt><dd>{% if stats.q3_time_spent_lectures is not None %}{{ stats.q3_time_spent_lectures|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+        </dl>
+      </article>
+      <article class="p-3">
+        <h3 class="font-medium app-heading">Homework</h3>
+        <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+          <div><dt class="app-muted">Min</dt><dd class="font-semibold app-heading">{% if stats.min_time_spent_homework is not None %}{{ stats.min_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Median</dt><dd class="font-semibold app-heading">{% if stats.median_time_spent_homework is not None %}{{ stats.median_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Max</dt><dd class="font-semibold app-heading">{% if stats.max_time_spent_homework is not None %}{{ stats.max_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q1</dt><dd>{% if stats.q1_time_spent_homework is not None %}{{ stats.q1_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Avg</dt><dd>{% if stats.avg_time_spent_homework is not None %}{{ stats.avg_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+          <div><dt class="app-muted">Q3</dt><dd>{% if stats.q3_time_spent_homework is not None %}{{ stats.q3_time_spent_homework|floatformat:1 }}{% else %}-{% endif %}</dd></div>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <p class="mt-4 text-sm app-muted">
+    Calculated:
+    <span class="local-date" data-timestamp="{{ stats.last_calculated|date:'U' }}">
+      {{ stats.last_calculated|date:"j F Y, H:i" }}
+    </span>
+  </p>
 {% endblock %}

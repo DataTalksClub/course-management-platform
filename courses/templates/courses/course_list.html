@@ -1,7 +1,73 @@
-{% extends 'base.html' %} {% block content %}
-<section class="max-w-4xl py-8 md:py-14"> <h1 class="max-w-3xl text-4xl font-semibold leading-tight tracking-normal sm:text-5xl md:text-6xl"> Learn Data Engineering.<br> For Free. Together. </h1> <p class="mt-5 max-w-2xl text-lg leading-7 app-text md:mt-6 md:text-xl md:leading-8"> Free, community-created courses to help you learn modern data skills and build real-world projects. </p> <a href="#courses" class="mt-6 inline-flex items-center text-lg font-medium app-link app-link md:mt-8 md:text-xl"> View all courses <span class="ml-2" aria-hidden="true">&rarr;</span> </a>
-</section> {% if SHOW_WRAPPED %}
-<section class="mb-12 border-y app-border py-8"> <div class="max-w-3xl"> <h2 class="text-2xl font-semibold">DataTalks.Club Wrapped 2025</h2> <p class="mt-3 text-lg leading-7 app-text"> Check out your year of learning in review: statistics, course progress, and your 2025 leaderboard rank. </p> <a href="{% url 'wrapped' 2025 %}" class="mt-5 inline-flex items-center rounded-md border app-border px-5 py-3 font-medium app-link hover:border-blue-600"> View your 2025 wrapped <span class="ml-2" aria-hidden="true">&rarr;</span> </a> </div>
-</section>
-{% endif %} <div id="courses" class="space-y-10 border-t app-border pt-9 md:space-y-12 md:pt-12"> <section> <h2 class="text-2xl font-semibold md:text-3xl">Start here</h2> <div class="mt-5 space-y-6 md:mt-6"> {% for course in active_courses %} {% if forloop.first %} <a href="{% url 'course' course.slug %}" class="group block max-w-2xl"> <span class="text-xl font-semibold app-link app-link md:text-2xl"> {{ course.title }} <span class="ml-2" aria-hidden="true">&rarr;</span> </span> <span class="mt-2 block max-w-xl text-base leading-7 app-text md:mt-3 md:text-lg"> {{ course.description|default:"Start learning with practical lessons, homework, projects, and peer review."|truncatewords:24 }} </span> </a> {% endif %} {% empty %} <p class="text-lg app-text">No active courses right now.</p> {% endfor %} </div> </section> <section class="border-t app-border pt-9 md:pt-12"> <h2 class="text-2xl font-semibold md:text-3xl">More courses</h2> <div class="mt-5 space-y-7 md:mt-6 md:space-y-8"> {% for course in active_courses %} {% if not forloop.first %} <a href="{% url 'course' course.slug %}" class="group block max-w-2xl"> <span class="text-xl font-semibold app-link app-link md:text-2xl"> {{ course.title }} <span class="ml-2" aria-hidden="true">&rarr;</span> </span> <span class="mt-2 block text-base leading-7 app-text md:text-lg"> {{ course.description|default:"Learn by building practical course projects."|truncatewords:18 }} </span> </a> {% endif %} {% endfor %} {% for course in finished_courses|slice:":2" %} <a href="{% url 'course' course.slug %}" class="group block max-w-2xl"> <span class="text-xl font-semibold app-link app-link md:text-2xl"> {{ course.title }} <span class="ml-2" aria-hidden="true">&rarr;</span> </span> <span class="mt-2 block text-base leading-7 app-text md:text-lg"> {{ course.description|default:"Course materials remain available for self-paced study."|truncatewords:18 }} </span> </a> {% endfor %} </div> </section> <section class="border-t app-border pt-9 md:pt-12"> <h2 class="text-2xl font-semibold md:text-3xl">All courses</h2> <div class="mt-6 grid gap-x-12 md:mt-8 md:grid-cols-2"> {% for course in active_courses %} <a href="{% url 'course' course.slug %}" class="group flex items-center justify-between border-b app-border py-4 text-lg font-medium app-link app-link md:text-xl"> <span>{{ course.title }}</span> <span aria-hidden="true">&rarr;</span> </a> {% endfor %} {% for course in finished_courses %} <a href="{% url 'course' course.slug %}" class="group flex items-center justify-between border-b app-border py-4 text-lg font-medium app-link app-link md:text-xl"> <span>{{ course.title }}</span> <span aria-hidden="true">&rarr;</span> </a> {% endfor %} </div> </section>
-</div> {% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+    <section class="max-w-3xl py-6 md:py-10">
+        <h1 class="text-3xl font-semibold leading-tight tracking-normal sm:text-4xl md:text-5xl">
+            Learn data skills. For free. Together.
+        </h1>
+        <p class="mt-4 max-w-2xl text-base leading-7 app-text md:text-lg md:leading-8">
+            Free, community-created courses in data, analytics, engineering, machine learning, and practical projects.
+        </p>
+    </section>
+    {% if SHOW_WRAPPED %}
+        <section class="mb-8 border-y app-border py-6">
+            <div class="max-w-3xl">
+                <h2 class="text-xl font-semibold md:text-2xl">DataTalks.Club Wrapped 2025</h2>
+                <p class="mt-2 text-base leading-7 app-text">
+                    Check out your year of learning in review: statistics, course progress, and your 2025 leaderboard rank.
+                </p>
+                <a href="{% url 'wrapped' 2025 %}"
+                   class="mt-4 inline-flex items-center font-medium app-link">
+                    View your 2025 wrapped <span class="ml-2" aria-hidden="true">&rarr;</span>
+                </a>
+            </div>
+        </section>
+    {% endif %}
+    <div id="courses" class="border-t app-border pt-8">
+        <section>
+            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                    <h2 class="text-2xl font-semibold md:text-3xl">Courses</h2>
+                    <p class="mt-1 text-sm app-muted">Browse active courses and the course archive.</p>
+                </div>
+            </div>
+            <div class="mt-6 divide-y app-divide">
+                {% for course in active_courses %}
+                    <a href="{% url 'course' course.slug %}"
+                       class="group grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-xl font-semibold app-link md:text-2xl">{{ course.title }}</h3>
+                                <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
+                            </div>
+                            <p class="mt-2 max-w-3xl text-base leading-7 app-text">
+                                {{ course.description|default:"Practical lessons, homework, projects, and peer review."|truncatewords:30 }}
+                            </p>
+                        </div>
+                        <span class="hidden text-xl app-link md:block" aria-hidden="true">&rarr;</span>
+                    </a>
+                {% empty %}
+                    <p class="py-5 text-base app-text">No active courses right now.</p>
+                {% endfor %}
+            </div>
+        </section>
+        {% if finished_courses %}
+            <section class="mt-8 border-t app-border pt-8">
+                <h2 class="text-xl font-semibold md:text-2xl">Course archive</h2>
+                <div class="mt-4 divide-y app-divide">
+                    {% for course in finished_courses %}
+                        <a href="{% url 'course' course.slug %}"
+                           class="group flex items-start justify-between gap-4 py-4">
+                            <div class="min-w-0">
+                                <h3 class="text-lg font-semibold app-link md:text-xl">{{ course.title }}</h3>
+                                <p class="mt-1 max-w-3xl text-sm leading-6 app-text md:text-base">
+                                    {{ course.description|default:"Course materials remain available for self-paced study."|truncatewords:24 }}
+                                </p>
+                            </div>
+                            <span class="shrink-0 app-link" aria-hidden="true">&rarr;</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

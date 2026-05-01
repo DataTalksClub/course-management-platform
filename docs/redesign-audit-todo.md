@@ -12,6 +12,9 @@ Scope: UI/UX fixes only. Do not add migrations or change the database schema.
 - [x] Course demo data: resolve titles like `Upcoming HW...` showing `Deadline passed`, or avoid relative urgency wording in titles.
 - [x] Breadcrumbs: show the full breadcrumb trail on mobile instead of collapsing to only the last page.
 - [x] Breadcrumbs: remove the redundant `Home / Courses` prefix; course-platform pages should start with the course name.
+- [x] Homework statistics: replace card/pill-heavy layout with a clearer report/table structure.
+- [x] Course dashboard: make homework/project metrics easier to scan than current small mobile pills.
+- [x] Breadcrumbs: audit all action pages, including leaderboard statistics, and ensure the full action path is reflected.
 
 ## Polish
 
@@ -19,6 +22,9 @@ Scope: UI/UX fixes only. Do not add migrations or change the database schema.
 - [x] Footer mobile: make the `Version: N/A` pill quieter.
 - [x] Enrollment page: make `Certificate: Not available` quieter supporting metadata.
 - [x] Dense lists: keep title links strong and utility links muted until hover.
+- [x] Cadmin submissions: continue improving mobile and desktop readability after the first table/detail pass.
+- [x] Production-like demo data: review captured production content locally and tune placeholders if needed.
+- [x] Course list imagery: remove placeholder thumbnail blocks unless real course assets are introduced later.
 
 ## Verification Checklist
 
