@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 LEADERBOARD_DATA_CACHE_TTL = 86400  # 24 hours; also invalidated by update_leaderboard()
 LEADERBOARD_YAML_CACHE_TTL = LEADERBOARD_DATA_CACHE_TTL
 LEADERBOARD_DATA_PAGE_SIZE = 100
-LEADERBOARD_DATA_MAX_PAGE_SIZE = 500
 
 
 try:
@@ -163,11 +162,7 @@ def leaderboard_data_view(request, course_slug: str):
     """Public endpoint returning the full leaderboard with score breakdowns."""
     course = get_object_or_404(Course, slug=course_slug)
     page = _get_positive_int(request.GET.get("page"), 1)
-    page_size = _get_positive_int(
-        request.GET.get("page_size"),
-        LEADERBOARD_DATA_PAGE_SIZE,
-        LEADERBOARD_DATA_MAX_PAGE_SIZE,
-    )
+    page_size = LEADERBOARD_DATA_PAGE_SIZE
     cache_version = _get_cache_version(course)
 
     yaml_cache_key = (

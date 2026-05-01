@@ -212,26 +212,6 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(data["previous_page"], 1)
         self.assertEqual(data["leaderboard"][0]["display_name"], "User 101")
 
-    def test_page_size_can_be_overridden(self):
-        for i in range(3, 8):
-            user = CustomUser.objects.create(
-                username=f"user{i}", email=f"user{i}@example.com"
-            )
-            Enrollment.objects.create(
-                student=user,
-                course=self.course,
-                display_name=f"User {i}",
-                total_score=100 - i,
-                position_on_leaderboard=i,
-            )
-
-        response = self.client.get(self.url, {"page_size": 3})
-        data = yaml.safe_load(response.content)
-
-        self.assertEqual(data["page_size"], 3)
-        self.assertEqual(data["total_pages"], 3)
-        self.assertEqual(len(data["leaderboard"]), 3)
-
     def test_rendered_yaml_response_is_cached(self):
         self.client.get(self.url)
 
