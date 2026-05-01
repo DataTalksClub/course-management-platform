@@ -827,6 +827,11 @@ def dashboard_view(request, course_slug: str):
             {
                 "homework": homework,
                 "submissions_count": len(hw_submissions),
+                "completion_rate": round(
+                    len(hw_submissions) / total_enrollments * 100, 1
+                )
+                if total_enrollments > 0
+                else 0.0,
                 "time_lecture_q25": hw_time_lecture_q25,
                 "time_lecture_median": hw_time_lecture_median,
                 "time_lecture_q75": hw_time_lecture_q75,
@@ -860,6 +865,22 @@ def dashboard_view(request, course_slug: str):
             }
         )
 
+    homework_difficulty_stats = [
+        hw_stat
+        for hw_stat in homework_stats
+        if hw_stat["score_median"] is not None
+    ]
+    homework_difficulty_stats.sort(
+        key=lambda hw_stat: (
+            hw_stat["score_median"],
+            -hw_stat["submissions_count"],
+            hw_stat["homework"].title,
+        )
+    )
+
+    for rank, hw_stat in enumerate(homework_difficulty_stats, start=1):
+        hw_stat["difficulty_rank"] = rank
+
     # Calculate total project submissions
     project_total_submissions = project_pass_count + project_fail_count
 
@@ -885,6 +906,7 @@ def dashboard_view(request, course_slug: str):
         "project_passing_score": course.project_passing_score,
         "graduates_count": graduates_count,
         "homework_stats": homework_stats,
+        "homework_difficulty_stats": homework_difficulty_stats,
     }
 
     return render(request, "courses/dashboard.html", context)

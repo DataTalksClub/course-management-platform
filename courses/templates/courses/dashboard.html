@@ -42,6 +42,10 @@
           <dt class="app-muted">Project completion rate</dt>
           <dd class="font-semibold app-heading">{{ project_completion_rate }}%</dd>
         </div>
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3">
+          <dt class="app-muted">Average total score</dt>
+          <dd class="font-semibold app-heading">{{ avg_total_score }}</dd>
+        </div>
         {% if graduates_count > 0 %}
           <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3">
             <dt class="app-muted">Graduates</dt>
@@ -97,6 +101,7 @@
             <tr>
               <th class="px-3 py-2">Homework</th>
               <th class="px-3 py-2 text-right">Submissions</th>
+              <th class="px-3 py-2 text-right">Completion</th>
               <th class="px-3 py-2 text-right">Lecture time</th>
               <th class="px-3 py-2 text-right">Homework time</th>
               <th class="px-3 py-2 text-right">Total time</th>
@@ -108,6 +113,7 @@
               <tr>
                 <td class="min-w-48 px-3 py-2 font-medium app-heading">{{ hw_stat.homework.title }}</td>
                 <td class="px-3 py-2 text-right">{{ hw_stat.submissions_count }}</td>
+                <td class="px-3 py-2 text-right">{{ hw_stat.completion_rate }}%</td>
                 <td class="px-3 py-2 text-right">
                   {% if hw_stat.time_lecture_median %}
                     <span title="Most students spent between {{ hw_stat.time_lecture_q25|floatformat:1 }} and {{ hw_stat.time_lecture_q75|floatformat:1 }} hours on lectures">
@@ -153,6 +159,10 @@
                 <dd class="font-semibold app-heading">{{ hw_stat.submissions_count }}</dd>
               </div>
               <div>
+                <dt class="app-muted">Completion</dt>
+                <dd class="font-semibold app-heading">{{ hw_stat.completion_rate }}%</dd>
+              </div>
+              <div>
                 <dt class="app-muted">Median score</dt>
                 <dd class="font-semibold app-heading">{% if hw_stat.score_median %}{{ hw_stat.score_median|floatformat:0 }}{% else %}-{% endif %}</dd>
               </div>
@@ -171,6 +181,39 @@
             </dl>
           </article>
         {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if homework_difficulty_stats %}
+    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+      <div class="border-b app-border app-surface-muted px-4 py-3">
+        <h2 class="text-base font-semibold app-heading">Assignment difficulty</h2>
+        <p class="mt-1 text-sm app-muted">
+          Ranked by lowest median homework score. Lower median scores usually indicate harder assignments.
+        </p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
+            <tr>
+              <th class="px-3 py-2">Rank</th>
+              <th class="px-3 py-2">Homework</th>
+              <th class="px-3 py-2 text-right">Median score</th>
+              <th class="px-3 py-2 text-right">Completion</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y app-divide">
+            {% for hw_stat in homework_difficulty_stats %}
+              <tr>
+                <td class="px-3 py-2 font-semibold app-heading">{{ hw_stat.difficulty_rank }}</td>
+                <td class="min-w-48 px-3 py-2 font-medium app-heading">{{ hw_stat.homework.title }}</td>
+                <td class="px-3 py-2 text-right">{{ hw_stat.score_median|floatformat:0 }}</td>
+                <td class="px-3 py-2 text-right">{{ hw_stat.completion_rate }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </section>
   {% endif %}

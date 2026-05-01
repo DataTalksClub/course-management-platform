@@ -93,6 +93,7 @@ class DashboardViewTestCase(TestCase):
         self.assertIn("course", response.context)
         self.assertIn("total_enrollments", response.context)
         self.assertIn("homework_stats", response.context)
+        self.assertIn("homework_difficulty_stats", response.context)
         self.assertIn("project_passing_score", response.context)
 
         self.assertEqual(response.context["course"], self.course)
@@ -216,6 +217,7 @@ class DashboardHomeworkStatsTestCase(TestCase):
         hw_stat = hw_stats[0]
         self.assertEqual(hw_stat["homework"], self.homework)
         self.assertEqual(hw_stat["submissions_count"], 5)
+        self.assertEqual(hw_stat["completion_rate"], 100.0)
 
         # Check quartile calculations (median should be middle value)
         self.assertEqual(hw_stat["time_lecture_median"], 3.0)
@@ -241,6 +243,51 @@ class DashboardHomeworkStatsTestCase(TestCase):
         self.assertIsNone(hw_stat["time_lecture_q25"])
         self.assertIsNone(hw_stat["time_lecture_median"])
         self.assertIsNone(hw_stat["time_lecture_q75"])
+        self.assertEqual(hw_stat["completion_rate"], 40.0)
+
+    def test_homework_difficulty_ranking(self):
+        """Test homework difficulty ranking by lowest median score."""
+        harder_homework = Homework.objects.create(
+            course=self.course,
+            slug="hw2",
+            title="Homework 2",
+            due_date=timezone.now() + timedelta(days=14),
+            state=HomeworkState.OPEN.value,
+        )
+
+        for i, (user, enrollment) in enumerate(
+            zip(self.users, self.enrollments)
+        ):
+            Submission.objects.create(
+                homework=self.homework,
+                student=user,
+                enrollment=enrollment,
+                time_spent_lectures=2.0,
+                time_spent_homework=3.0,
+                total_score=90 + i,
+            )
+            Submission.objects.create(
+                homework=harder_homework,
+                student=user,
+                enrollment=enrollment,
+                time_spent_lectures=2.0,
+                time_spent_homework=3.0,
+                total_score=50 + i,
+            )
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        difficulty_stats = response.context["homework_difficulty_stats"]
+
+        self.assertEqual(difficulty_stats[0]["homework"], harder_homework)
+        self.assertEqual(difficulty_stats[0]["difficulty_rank"], 1)
+        self.assertEqual(difficulty_stats[0]["score_median"], 52)
+        self.assertEqual(difficulty_stats[1]["homework"], self.homework)
+        self.assertEqual(difficulty_stats[1]["difficulty_rank"], 2)
+
+        self.assertContains(response, "Assignment difficulty")
+        self.assertContains(response, "Completion")
 
     def test_homework_statistics_with_null_values(self):
         """Test homework statistics with some null time values"""
