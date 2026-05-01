@@ -196,13 +196,8 @@ class CourseDetailViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Calendar feed")
-        self.assertContains(
-            response,
-            (
-                "Use the calendar feed link to subscribe to course "
-                "deadlines in Google Calendar or another calendar app."
-            ),
-        )
+        self.assertNotContains(response, "primer-button\">Calendar feed")
+        self.assertContains(response, "All deadlines are in your local timezone.")
         self.assertContains(
             response,
             reverse(

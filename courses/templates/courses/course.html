@@ -37,9 +37,6 @@
     <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
       <i class="fas fa-chart-bar"></i> Course dashboard
     </a>
-    <a href="{% url 'course_calendar' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
-      <i class="far fa-calendar-alt"></i> Calendar feed
-    </a>
     {% if is_authenticated %}
       <a href="{% url 'enrollment' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
         <i class="fas fa-user-edit"></i> Edit course profile
@@ -51,9 +48,6 @@
       </a>
     {% endif %}
   </div>
-  <p class="mt-2 text-sm app-muted">
-    Use the calendar feed link to subscribe to course deadlines in Google Calendar or another calendar app.
-  </p>
 
   {% if user.is_staff %}
     <div class="mt-6">
@@ -202,5 +196,6 @@
 
 <div class="mt-8 text-sm app-muted">
   All deadlines are in your local timezone.
+  <a href="{% url 'course_calendar' course.slug %}" class="app-link">Calendar feed</a>
 </div>
 {% endblock %}
