@@ -227,9 +227,14 @@
         <div class="mt-6 flex flex-col gap-4 border-t app-border pt-6 md:flex-row md:items-center md:justify-between">
             <div class="text-sm app-muted">
                 {% if submission %}
-                    Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}
+                    Last saved at: {{ submission.submitted_at|date:"F d, Y H:i" }}
                 {% else %}
-                    Status: Not submitted
+                    Status: Not saved yet
+                {% endif %}
+                {% if accepting_submissions and is_authenticated %}
+                    <div class="mt-1">
+                        You can save your project now and keep working on it. Update the commit ID before the deadline when you have a newer version.
+                    </div>
                 {% endif %}
             </div>
             {% if accepting_submissions %}
@@ -239,13 +244,13 @@
                             <button id="submit-button"
                                     type="submit"
                                     class="primer-button">
-                                Submit
+                                Save submission
                             </button>
                         {% else %}
                             <button id="submit-button"
                                     type="submit"
                                     class="primer-button">
-                                Update
+                                Update submission
                             </button>
                             <button id="delete-button"
                                     type="button"

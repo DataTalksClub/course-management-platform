@@ -364,9 +364,14 @@
             <div class="mt-6 flex flex-col gap-4 border-t app-border pt-6 md:flex-row md:items-center md:justify-between">
                 <div class="text-sm app-muted">
                     {% if submission %}
-                        Status: Submitted at {{ submission.submitted_at|date:"F d, Y H:i" }}
+                        Status: Last saved at {{ submission.submitted_at|date:"F d, Y H:i" }}
                     {% else %}
-                        Status: Not submitted
+                        Status: Not saved yet
+                    {% endif %}
+                    {% if not homework.is_scored and is_authenticated %}
+                        <div class="mt-1">
+                            You can save partial answers and update them until the deadline. Your latest saved version will be scored.
+                        </div>
                     {% endif %}
                 </div>
                 {% if not homework.is_scored %}
@@ -375,9 +380,9 @@
                                 type="submit"
                                 class="primer-button w-fit">
                             {% if not submission %}
-                                Submit
+                                Save submission
                             {% else %}
-                                Update
+                                Update submission
                             {% endif %}
                         </button>
                     {% else %}

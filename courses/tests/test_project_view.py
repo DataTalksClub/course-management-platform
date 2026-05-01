@@ -157,6 +157,43 @@ class ProjectViewTestCase(TestCase):
         self.assertIsNone(submission)
 
         self.assertTrue(context["is_authenticated"])
+        self.assertContains(response, "Status: Not saved yet")
+        self.assertContains(response, "Save submission")
+        self.assertContains(
+            response,
+            (
+                "You can save your project now and keep working on it. "
+                "Update the commit ID before the deadline when you have "
+                "a newer version."
+            ),
+        )
+
+    def test_project_detail_authenticated_with_submission_copy(self):
+        ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/test/project",
+            commit_id="abc1234",
+        )
+
+        self.client.login(**credentials)
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Last saved at:")
+        self.assertContains(response, "Update submission")
+        self.assertContains(
+            response,
+            (
+                "You can save your project now and keep working on it. "
+                "Update the commit ID before the deadline when you have "
+                "a newer version."
+            ),
+        )
 
     def test_project_detail_when_peer_reviewing(self):
         self.project.state = ProjectState.PEER_REVIEWING.value

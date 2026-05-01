@@ -296,6 +296,15 @@ class HomeworkDetailViewTests(TestCase):
             {"value": "Green", "is_selected": False, "index": 4},
         ]
         self.assertEqual(answer6["options"], expected_options6)
+        self.assertContains(response, "Status: Not saved yet")
+        self.assertContains(response, "Save submission")
+        self.assertContains(
+            response,
+            (
+                "You can save partial answers and update them until the "
+                "deadline. Your latest saved version will be scored."
+            ),
+        )
 
     def test_homework_detail_authenticated_with_submission(self):
         self.enrollment = Enrollment.objects.create(
@@ -421,6 +430,15 @@ class HomeworkDetailViewTests(TestCase):
             {"value": "Green", "is_selected": False, "index": 4},
         ]
         self.assertEqual(answer6["options"], expected_options6)
+        self.assertContains(response, "Status: Last saved at")
+        self.assertContains(response, "Update submission")
+        self.assertContains(
+            response,
+            (
+                "You can save partial answers and update them until the "
+                "deadline. Your latest saved version will be scored."
+            ),
+        )
 
     def test_homework_detail_with_scored_homework(self):
         self.enrollment = Enrollment.objects.create(
