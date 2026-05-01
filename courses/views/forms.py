@@ -1,6 +1,6 @@
 from django import forms
 
-from courses.models import Answer, Enrollment
+from courses.models import Answer, Enrollment, LeaderboardComplaint
 
 
 class AnswerForm(forms.ModelForm):
@@ -55,3 +55,26 @@ class EnrollmentForm(forms.ModelForm):
                     class_name = attrs.get("class", "")
                     attrs["class"] = class_name + " is-invalid"
         return valid
+
+
+class LeaderboardComplaintForm(forms.ModelForm):
+    class Meta:
+        model = LeaderboardComplaint
+        fields = ["issue_type", "description"]
+        labels = {
+            "issue_type": "What is wrong?",
+            "description": "Describe the issue",
+        }
+        widgets = {
+            "issue_type": forms.Select(attrs={"class": "form-control"}),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 5,
+                    "placeholder": (
+                        "Include the homework, project, or link that looks "
+                        "incorrect and why it should be reviewed."
+                    ),
+                }
+            ),
+        }

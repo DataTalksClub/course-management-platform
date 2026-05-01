@@ -46,7 +46,8 @@
   </div>
   <div class="divide-y app-divide">
     {% for enrollment in enrollments %}
-      <div id="record-{{ enrollment.id }}" class="grid grid-cols-[44px_minmax(0,1fr)_72px] items-center px-4 py-3 text-sm md:grid-cols-[56px_minmax(0,1fr)_96px] {% if enrollment.id == current_student_enrollment_id %}app-alert-info{% endif %}">
+      <div id="record-{{ enrollment.id }}"
+           class="grid grid-cols-[44px_minmax(0,1fr)_72px] items-center px-4 py-3 text-sm md:grid-cols-[56px_minmax(0,1fr)_96px] {% if enrollment.id == current_student_enrollment_id %}app-alert-info{% endif %}">
         <div class="font-medium app-muted">{{ enrollment.position_on_leaderboard }}</div>
         <div class="min-w-0">
           <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="block font-medium leading-snug app-link hover:underline md:truncate">
@@ -98,4 +99,5 @@
     <a href="{% url 'api_course_leaderboard' course_slug=course.slug %}" class="primer-button primer-button-secondary w-fit">Leaderboard data (YAML)</a>
   </div>
 </section>
+
 {% endblock %}

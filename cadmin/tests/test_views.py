@@ -17,6 +17,7 @@ from courses.models import (
     ReviewCriteria,
     ReviewCriteriaTypes,
     ProjectEvaluationScore,
+    LeaderboardComplaint,
 )
 
 
@@ -120,6 +121,95 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.course.title)
         self.assertContains(response, "Admin Panel")
+
+    def test_leaderboard_complaints_sorted_by_open_count(self):
+        self.client.login(username="admin@test.com", password="admin123")
+        reporter = User.objects.create_user(
+            username="reporter@test.com",
+            email="reporter@test.com",
+            password="12345",
+        )
+        first = Enrollment.objects.create(
+            student=User.objects.create_user(username="first@test.com"),
+            course=self.course,
+            display_name="First Student",
+            total_score=10,
+            position_on_leaderboard=2,
+        )
+        second = Enrollment.objects.create(
+            student=User.objects.create_user(username="second@test.com"),
+            course=self.course,
+            display_name="Second Student",
+            total_score=20,
+            position_on_leaderboard=1,
+        )
+        LeaderboardComplaint.objects.create(
+            enrollment=first,
+            reporter=reporter,
+            issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
+            description="Incorrect homework.",
+        )
+        LeaderboardComplaint.objects.create(
+            enrollment=second,
+            reporter=reporter,
+            issue_type=LeaderboardComplaint.IssueType.PROJECT,
+            description="Incorrect project.",
+        )
+        LeaderboardComplaint.objects.create(
+            enrollment=second,
+            reporter=reporter,
+            issue_type=LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
+            description="Incorrect learning links.",
+        )
+
+        response = self.client.get(
+            reverse(
+                "cadmin_leaderboard_complaints",
+                kwargs={"course_slug": self.course.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        rows = response.context["enrollment_rows"]
+        self.assertEqual(rows[0]["enrollment"], second)
+        self.assertEqual(rows[0]["enrollment"].open_complaints, 2)
+        self.assertContains(response, "Second Student")
+
+    def test_staff_can_resolve_leaderboard_complaint(self):
+        self.client.login(username="admin@test.com", password="admin123")
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+            display_name="Reported Student",
+            total_score=10,
+        )
+        complaint = LeaderboardComplaint.objects.create(
+            enrollment=enrollment,
+            reporter=self.user,
+            issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
+            description="Incorrect homework.",
+        )
+
+        response = self.client.post(
+            reverse(
+                "cadmin_leaderboard_complaint_resolve",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "complaint_id": complaint.id,
+                },
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "cadmin_leaderboard_complaints",
+                kwargs={"course_slug": self.course.slug},
+            ),
+        )
+        complaint.refresh_from_db()
+        self.assertTrue(complaint.resolved)
+        self.assertEqual(complaint.resolved_by, self.admin_user)
 
     def test_homework_submissions_redirect_from_courses(self):
         """Test that homework submissions view redirects to cadmin"""

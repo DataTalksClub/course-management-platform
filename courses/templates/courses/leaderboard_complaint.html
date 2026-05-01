@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'leaderboard' course.slug %}">Leaderboard</a></li>
+  <li><a href="{% url 'leaderboard_score_breakdown' course.slug enrollment.id %}">{{ enrollment.display_name }}</a></li>
+  <li>Flag record</li>
+{% endblock %}
+
+{% block content %}
+<section class="border-b app-border pb-5">
+  <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+  <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold app-heading md:text-3xl">Flag leaderboard record</h1>
+      <p class="mt-1 text-sm app-muted">Record: {{ enrollment.display_name }} · {{ enrollment.total_score }} points</p>
+    </div>
+    <a href="{% url 'leaderboard_score_breakdown' course.slug enrollment.id %}" class="primer-button primer-button-secondary w-fit">Back to record</a>
+  </div>
+</section>
+
+<form method="post" class="mt-6 max-w-2xl space-y-5">
+  {% csrf_token %}
+  <div>
+    <label for="{{ form.issue_type.id_for_label }}" class="mb-2 block text-sm font-semibold app-heading">{{ form.issue_type.label }}</label>
+    {{ form.issue_type }}
+    {% if form.issue_type.errors %}
+      <p class="mt-2 text-sm font-medium">{{ form.issue_type.errors|join:" " }}</p>
+    {% endif %}
+  </div>
+  <div>
+    <label for="{{ form.description.id_for_label }}" class="mb-2 block text-sm font-semibold app-heading">{{ form.description.label }}</label>
+    {{ form.description }}
+    <p class="mt-1 text-xs app-muted">Flags are visible to course staff only.</p>
+    {% if form.description.errors %}
+      <p class="mt-2 text-sm font-medium">{{ form.description.errors|join:" " }}</p>
+    {% endif %}
+  </div>
+  <div class="flex flex-wrap gap-3 border-t app-border pt-5">
+    <button type="submit" class="primer-button">Submit flag</button>
+    <a href="{% url 'leaderboard_score_breakdown' course.slug enrollment.id %}" class="primer-button primer-button-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

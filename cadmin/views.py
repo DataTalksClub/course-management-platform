@@ -7,6 +7,7 @@ from django.db.models import Count, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
+from django.utils import timezone
 
 from courses.models import (
     Course,
@@ -23,6 +24,7 @@ from courses.models import (
     ReviewCriteria,
     ProjectEvaluationScore,
     Enrollment,
+    LeaderboardComplaint,
 )
 from courses.scoring import (
     score_homework_submissions,
@@ -109,6 +111,10 @@ def course_admin(request, course_slug):
         "disabled_lip": enrollments.filter(disable_learning_in_public=True).count(),
         "zero_score": enrollments.filter(total_score=0).count(),
         "hidden_leaderboard": enrollments.filter(display_on_leaderboard=False).count(),
+        "open_complaints": LeaderboardComplaint.objects.filter(
+            enrollment__course=course,
+            resolved=False,
+        ).count(),
     }
     needs_attention_count = (
         len(homework_needing_score)
@@ -116,6 +122,7 @@ def course_admin(request, course_slug):
         + len(projects_needing_score)
         + support_metrics["disabled_lip"]
         + support_metrics["hidden_leaderboard"]
+        + support_metrics["open_complaints"]
     )
     project_action_count = len(projects_needing_reviews) + len(projects_needing_score)
 
@@ -618,6 +625,76 @@ def enrollments_list(request, course_slug):
     }
 
     return render(request, "cadmin/enrollments.html", context)
+
+
+@staff_required
+def leaderboard_complaints(request, course_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+
+    enrollments = (
+        Enrollment.objects.filter(course=course)
+        .select_related("student")
+        .annotate(
+            open_complaints=Count(
+                "complaints",
+                filter=Q(complaints__resolved=False),
+            ),
+            total_complaints=Count("complaints"),
+        )
+        .filter(total_complaints__gt=0)
+        .order_by("-open_complaints", "-total_complaints", "position_on_leaderboard")
+    )
+
+    complaints_by_enrollment = defaultdict(list)
+    complaints = (
+        LeaderboardComplaint.objects.filter(enrollment__course=course)
+        .select_related("enrollment", "reporter", "resolved_by")
+        .order_by("resolved", "-created_at")
+    )
+    for complaint in complaints:
+        complaints_by_enrollment[complaint.enrollment_id].append(complaint)
+
+    enrollment_rows = []
+    for enrollment in enrollments:
+        enrollment_rows.append(
+            {
+                "enrollment": enrollment,
+                "complaints": complaints_by_enrollment[enrollment.id],
+            }
+        )
+
+    context = {
+        "course": course,
+        "enrollment_rows": enrollment_rows,
+        "open_complaints_count": LeaderboardComplaint.objects.filter(
+            enrollment__course=course,
+            resolved=False,
+        ).count(),
+        "total_complaints_count": LeaderboardComplaint.objects.filter(
+            enrollment__course=course,
+        ).count(),
+    }
+    return render(request, "cadmin/leaderboard_complaints.html", context)
+
+
+@staff_required
+def leaderboard_complaint_resolve(request, course_slug, complaint_id):
+    if request.method != "POST":
+        return redirect("cadmin_leaderboard_complaints", course_slug=course_slug)
+
+    course = get_object_or_404(Course, slug=course_slug)
+    complaint = get_object_or_404(
+        LeaderboardComplaint,
+        id=complaint_id,
+        enrollment__course=course,
+    )
+    complaint.resolved = True
+    complaint.resolved_at = timezone.now()
+    complaint.resolved_by = request.user
+    complaint.save(update_fields=["resolved", "resolved_at", "resolved_by"])
+
+    messages.success(request, "Flag marked as resolved.")
+    return redirect("cadmin_leaderboard_complaints", course_slug=course_slug)
 
 
 @staff_required

@@ -148,3 +148,51 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student} enrolled in {self.course}"
+
+
+class LeaderboardComplaint(models.Model):
+    class IssueType(models.TextChoices):
+        LEARNING_IN_PUBLIC = (
+            "learning_in_public",
+            "Incorrect learning in public links",
+        )
+        HOMEWORK = "homework", "Incorrect homework"
+        PROJECT = "project", "Incorrect project"
+        OTHER = "other", "Other leaderboard issue"
+
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name="complaints",
+    )
+    reporter = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leaderboard_complaints",
+    )
+    issue_type = models.CharField(
+        max_length=32,
+        choices=IssueType.choices,
+    )
+    description = models.TextField()
+    resolved = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_leaderboard_complaints",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["resolved", "-created_at"]
+
+    def __str__(self):
+        return (
+            f"{self.get_issue_type_display()} for "
+            f"{self.enrollment.display_name}"
+        )

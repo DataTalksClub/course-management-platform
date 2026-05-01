@@ -51,6 +51,16 @@ urlpatterns = [
         name="cadmin_enrollments",
     ),
     path(
+        "<slug:course_slug>/leaderboard-complaints/",
+        views.leaderboard_complaints,
+        name="cadmin_leaderboard_complaints",
+    ),
+    path(
+        "<slug:course_slug>/leaderboard-complaints/<int:complaint_id>/resolve",
+        views.leaderboard_complaint_resolve,
+        name="cadmin_leaderboard_complaint_resolve",
+    ),
+    path(
         "<slug:course_slug>/enrollment/<int:enrollment_id>/edit",
         views.enrollment_edit,
         name="cadmin_enrollment_edit",

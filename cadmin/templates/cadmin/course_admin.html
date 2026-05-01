@@ -130,10 +130,15 @@
         <p class="text-xs font-semibold uppercase app-muted">Hidden</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.hidden_leaderboard }}</p>
       </div>
+      <div class="rounded-md app-surface-muted p-3">
+        <p class="text-xs font-semibold uppercase app-muted">Open flags</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.open_complaints }}</p>
+      </div>
     </div>
     <div class="mt-4 flex flex-wrap gap-2">
       <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button cadmin-primary">Find student</a>
       <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">Open leaderboard</a>
+      <a href="{% url 'cadmin_leaderboard_complaints' course.slug %}" class="primer-button primer-button-secondary">Review flags</a>
     </div>
   </article>
 </section>

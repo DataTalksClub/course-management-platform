@@ -1,0 +1,102 @@
+{% extends 'cadmin/base.html' %}
+
+{% block title %}Leaderboard flags - {{ course.title }}{% endblock %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li>Leaderboard flags</li>
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="border-b app-border pb-5">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wide app-muted">Leaderboard moderation</p>
+      <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Flags for {{ course.title }}</h1>
+      <p class="mt-1 text-sm app-muted">Student records are sorted by open flag count, then total flag count.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a>
+      <a href="{% url 'leaderboard' course.slug %}" class="primer-button">View Leaderboard</a>
+    </div>
+  </div>
+
+  <div class="mt-4 grid grid-cols-2 gap-2 sm:max-w-md">
+    <div class="rounded-md border app-border app-surface-muted px-3 py-2">
+      <span class="block text-xs font-semibold uppercase app-muted">Open</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ open_complaints_count }}</span>
+    </div>
+    <div class="rounded-md border app-border app-surface-muted px-3 py-2">
+      <span class="block text-xs font-semibold uppercase app-muted">Total</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ total_complaints_count }}</span>
+    </div>
+  </div>
+</section>
+
+<section class="mt-6 space-y-4">
+  {% for row in enrollment_rows %}
+    {% with enrollment=row.enrollment %}
+      <article class="overflow-hidden rounded-md border app-border app-surface">
+        <div class="border-b app-border app-surface-muted px-4 py-3">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 class="font-semibold app-heading">{{ enrollment.display_name }}</h2>
+              <p class="mt-1 text-sm app-muted">
+                {{ enrollment.student.email|default:enrollment.student.username }} ·
+                position {% if enrollment.position_on_leaderboard %}{{ enrollment.position_on_leaderboard }}{% else %}-{% endif %} ·
+                {{ enrollment.total_score }} points
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="rounded-md app-badge-danger px-2 py-1 text-sm font-semibold">{{ enrollment.open_complaints }} open</span>
+              <span class="rounded-md app-badge-neutral px-2 py-1 text-sm font-semibold">{{ enrollment.total_complaints }} total</span>
+              <a href="{% url 'leaderboard_score_breakdown' course.slug enrollment.id %}" class="primer-button primer-button-secondary">Scores</a>
+              <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="primer-button primer-button-secondary">Manage</a>
+            </div>
+          </div>
+        </div>
+        <div class="divide-y app-divide">
+          {% for complaint in row.complaints %}
+            <div class="px-4 py-4">
+              <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-medium app-heading">{{ complaint.get_issue_type_display }}</span>
+                    {% if complaint.resolved %}
+                      <span class="rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Resolved</span>
+                    {% else %}
+                      <span class="rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Open</span>
+                    {% endif %}
+                  </div>
+                  <p class="mt-1 text-xs app-muted">
+                    Reported {{ complaint.created_at|date:"Y-m-d H:i" }}
+                    {% if complaint.reporter %}by {{ complaint.reporter.email|default:complaint.reporter.username }}{% endif %}
+                  </p>
+                  <p class="mt-3 whitespace-pre-wrap text-sm app-text">{{ complaint.description }}</p>
+                  {% if complaint.resolved %}
+                    <p class="mt-2 text-xs app-muted">
+                      Resolved {{ complaint.resolved_at|date:"Y-m-d H:i" }}
+                      {% if complaint.resolved_by %}by {{ complaint.resolved_by.email|default:complaint.resolved_by.username }}{% endif %}
+                    </p>
+                  {% endif %}
+                </div>
+                {% if not complaint.resolved %}
+                  <form method="post" action="{% url 'cadmin_leaderboard_complaint_resolve' course.slug complaint.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="primer-button">Mark resolved</button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+    {% endwith %}
+  {% empty %}
+    <div class="rounded-md border app-border app-surface p-6">
+      <p class="text-sm app-muted">No leaderboard flags yet.</p>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

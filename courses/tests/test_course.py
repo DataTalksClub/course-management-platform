@@ -9,6 +9,7 @@ from courses.models import (
     Homework,
     Submission,
     Enrollment,
+    LeaderboardComplaint,
     Question,
     QuestionTypes,
     HomeworkState,
@@ -388,14 +389,83 @@ class CourseDetailViewTests(TestCase):
         ]
         self.assertIsNone(current_enrollment)
 
-        # Leaderboard should still show other enrollments
-        enrollments = response.context["enrollments"]
-        self.assertEqual(len(enrollments), 5)
+    def test_leaderboard_links_to_score_breakdown_without_flag_button(self):
+        self.create_enrollment("e1", 100, 1)
 
-        # Verify the order is correct
-        expected_order = ["e1", "e2", "e3", "e4", "e5"]
-        actual_order = [e['display_name'] for e in enrollments]
-        self.assertEqual(actual_order, expected_order)
+        url = reverse(
+            "leaderboard", kwargs={"course_slug": self.course.slug}
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "e1")
+        self.assertNotContains(response, "Flag this record")
+
+    def test_score_breakdown_has_flag_button(self):
+        target = self.create_enrollment("e1", 100, 1)
+
+        url = reverse(
+            "leaderboard_score_breakdown",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": target.id,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Flag this record")
+
+    def test_authenticated_user_can_report_leaderboard_record(self):
+        target = self.create_enrollment("e1", 100, 1)
+        self.client.login(**credentials)
+
+        url = reverse(
+            "leaderboard_complaint",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": target.id,
+            },
+        )
+        response = self.client.post(
+            url,
+            {
+                "issue_type": LeaderboardComplaint.IssueType.HOMEWORK,
+                "description": "Homework score looks incorrect.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "leaderboard_score_breakdown",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "enrollment_id": target.id,
+                },
+            ),
+        )
+        complaint = LeaderboardComplaint.objects.get(enrollment=target)
+        self.assertEqual(complaint.reporter, self.user)
+        self.assertEqual(
+            complaint.issue_type,
+            LeaderboardComplaint.IssueType.HOMEWORK,
+        )
+
+    def test_anonymous_user_is_redirected_when_reporting(self):
+        target = self.create_enrollment("e1", 100, 1)
+
+        url = reverse(
+            "leaderboard_complaint",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": target.id,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.url)
 
     def test_not_enrolled_but_can_edit_details(self):
         self.enrollment.delete()

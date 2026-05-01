@@ -8,6 +8,7 @@ from django.http import HttpRequest, HttpResponse
 
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 
 from django.db.models import Prefetch, Value, Count
@@ -31,7 +32,7 @@ from courses.models import (
     PeerReviewState,
 )
 
-from .forms import EnrollmentForm
+from .forms import EnrollmentForm, LeaderboardComplaintForm
 
 logger = logging.getLogger(__name__)
 
@@ -457,6 +458,43 @@ def leaderboard_score_breakdown_view(
     return render(
         request, "courses/leaderboard_score_breakdown.html", context
     )
+
+
+@login_required
+def leaderboard_complaint_view(
+    request, course_slug: str, enrollment_id: int
+):
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("course", "student"),
+        id=enrollment_id,
+        course__slug=course_slug,
+    )
+
+    if request.method == "POST":
+        form = LeaderboardComplaintForm(request.POST)
+        if form.is_valid():
+            complaint = form.save(commit=False)
+            complaint.enrollment = enrollment
+            complaint.reporter = request.user
+            complaint.save()
+            messages.success(
+                request,
+                "Thanks. The course team will review this leaderboard record.",
+            )
+            return redirect(
+                "leaderboard_score_breakdown",
+                course_slug=course_slug,
+                enrollment_id=enrollment.id,
+            )
+    else:
+        form = LeaderboardComplaintForm()
+
+    context = {
+        "enrollment": enrollment,
+        "course": enrollment.course,
+        "form": form,
+    }
+    return render(request, "courses/leaderboard_complaint.html", context)
 
 
 @login_required

@@ -31,6 +31,11 @@ urlpatterns = [
         name="leaderboard_score_breakdown",
     ),
     path(
+        "<slug:course_slug>/leaderboard/<int:enrollment_id>/report",
+        course.leaderboard_complaint_view,
+        name="leaderboard_complaint",
+    ),
+    path(
         "<slug:course_slug>/enrollment",
         course.enrollment_view,
         name="enrollment",

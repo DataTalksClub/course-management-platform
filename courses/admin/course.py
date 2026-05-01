@@ -10,7 +10,7 @@ from unfold.widgets import (
 
 from django.contrib import messages
 
-from courses.models import Course, ReviewCriteria
+from courses.models import Course, LeaderboardComplaint, ReviewCriteria
 from courses.scoring import update_leaderboard
 from courses.validators import validate_review_criteria_options
 
@@ -130,3 +130,22 @@ class CourseAdmin(ModelAdmin):
     actions = [update_leaderboard_admin, duplicate_course]
     inlines = [CriteriaInline]
     list_display = ["title", "visible", "finished"]
+
+
+@admin.register(LeaderboardComplaint)
+class LeaderboardComplaintAdmin(ModelAdmin):
+    list_display = [
+        "enrollment",
+        "issue_type",
+        "resolved",
+        "created_at",
+        "resolved_at",
+    ]
+    list_filter = ["resolved", "issue_type", "enrollment__course"]
+    search_fields = [
+        "description",
+        "enrollment__display_name",
+        "enrollment__student__email",
+        "reporter__email",
+    ]
+    readonly_fields = ["created_at"]
