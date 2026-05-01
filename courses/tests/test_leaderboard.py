@@ -16,12 +16,10 @@ from courses.models import (
     Project,
     ProjectSubmission,
 )
+from courses.scoring import update_leaderboard
 
 
 logger = logging.getLogger(__name__)
-
-
-from courses.scoring import update_leaderboard
 
 
 class LeaderboardTestCase(TestCase):
@@ -176,7 +174,7 @@ class LeaderboardTestCase(TestCase):
         self.assertEqual(len(response.context["enrollments"]), 100)
         self.assertContains(response, "Student 001")
         self.assertNotContains(response, "Student 101")
-        self.assertContains(response, "Showing 1-100 of 105")
+        self.assertNotContains(response, "Showing 1-100 of 105")
 
         response = self.client.get(url, {"page": 2})
 
@@ -184,7 +182,7 @@ class LeaderboardTestCase(TestCase):
         self.assertEqual(len(response.context["enrollments"]), 5)
         self.assertContains(response, "Student 101")
         self.assertNotContains(response, "Student 001")
-        self.assertContains(response, "Showing 101-105 of 105")
+        self.assertNotContains(response, "Showing 101-105 of 105")
 
     def test_leaderboard_jump_to_current_student_uses_their_page(self):
         target_user = None
@@ -209,6 +207,40 @@ class LeaderboardTestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["current_student_page_number"], 2)
+        self.assertContains(
+            response,
+            f'?page=2#record-{target_enrollment.id}',
+        )
+
+    def test_leaderboard_refreshes_stale_cache_for_current_student(self):
+        for i in range(1, 102):
+            student = User.objects.create_user(username=f"student-{i:03d}")
+            Enrollment.objects.create(
+                course=self.course,
+                student=student,
+                display_name=f"Student {i:03d}",
+                position_on_leaderboard=i,
+                total_score=1000 - i,
+            )
+
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        self.client.get(url)
+
+        target_user = User.objects.create_user(username="current-student")
+        target_enrollment = Enrollment.objects.create(
+            course=self.course,
+            student=target_user,
+            display_name="Current Student",
+            total_score=0,
+            position_on_leaderboard=None,
+        )
+
+        self.client.force_login(target_user)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["current_student_page_number"], 2)
+        self.assertContains(response, f"record-{target_enrollment.id}")
         self.assertContains(
             response,
             f'?page=2#record-{target_enrollment.id}',

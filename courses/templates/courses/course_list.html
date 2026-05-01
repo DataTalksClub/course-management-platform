@@ -1,12 +1,32 @@
 {% extends 'base.html' %}
 {% block content %}
-    <section class="max-w-3xl py-6 md:py-10">
-        <h1 class="text-3xl font-semibold leading-tight tracking-normal sm:text-4xl md:text-5xl">
-            Learn data skills. For free. Together.
-        </h1>
-        <p class="mt-4 max-w-2xl text-base leading-7 app-text md:text-lg md:leading-8">
-            Free, community-created courses in data, analytics, engineering, machine learning, and practical projects.
-        </p>
+    <section class="home-hero grid gap-8 py-6 md:grid-cols-[minmax(0,1fr)_22rem] md:items-end md:py-10">
+        <div class="max-w-3xl">
+            <h1 class="text-3xl font-semibold leading-tight tracking-normal sm:text-4xl md:text-5xl">
+                Learn data skills. For free. Together.
+            </h1>
+            <p class="mt-4 max-w-2xl text-base leading-7 app-text md:text-lg md:leading-8">
+                Community-created courses with practical homework, projects, public leaderboards, and peer review.
+            </p>
+        </div>
+        <dl class="home-stats-grid grid grid-cols-2 gap-px overflow-hidden rounded-md border app-border app-surface-muted text-sm">
+            <div class="app-surface p-3">
+                <dt class="text-xs font-semibold uppercase app-muted">Active</dt>
+                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.active_courses }}</dd>
+            </div>
+            <div class="app-surface p-3">
+                <dt class="text-xs font-semibold uppercase app-muted">Archive</dt>
+                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.archive_courses }}</dd>
+            </div>
+            <div class="app-surface p-3">
+                <dt class="text-xs font-semibold uppercase app-muted">Homework</dt>
+                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.homeworks }}</dd>
+            </div>
+            <div class="app-surface p-3">
+                <dt class="text-xs font-semibold uppercase app-muted">Projects</dt>
+                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.projects }}</dd>
+            </div>
+        </dl>
     </section>
     {% if SHOW_WRAPPED %}
         <section class="mb-8 border-y app-border py-6">
@@ -23,48 +43,77 @@
         </section>
     {% endif %}
     <div id="courses" class="border-t app-border pt-8">
-        <section>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div>
-                    <h2 class="text-2xl font-semibold md:text-3xl">Courses</h2>
-                    <p class="mt-1 text-sm app-muted">Browse active courses and the course archive.</p>
-                </div>
-            </div>
-            <div class="mt-6 divide-y app-divide">
-                {% for course in active_courses %}
-                    <a href="{% url 'course' course.slug %}"
-                       class="group grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-                        <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h3 class="text-xl font-semibold app-link md:text-2xl">{{ course.title }}</h3>
-                                <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
-                            </div>
-                            <p class="mt-2 max-w-3xl text-base leading-7 app-text">
-                                {{ course.description|default:"Practical lessons, homework, projects, and peer review."|truncatewords:30 }}
-                            </p>
-                        </div>
-                        <span class="hidden text-xl app-link md:block" aria-hidden="true">&rarr;</span>
-                    </a>
-                {% empty %}
-                    <p class="py-5 text-base app-text">No active courses right now.</p>
-                {% endfor %}
+        <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wide app-muted">Start now</p>
+                <h2 class="mt-2 text-2xl font-semibold md:text-3xl">Active courses</h2>
+                <p class="mt-1 text-sm app-muted">Courses listed here are open for participation and assignment submissions.</p>
             </div>
         </section>
-        {% if finished_courses %}
-            <section class="mt-8 border-t app-border pt-8">
-                <h2 class="text-xl font-semibold md:text-2xl">Course archive</h2>
-                <div class="mt-4 divide-y app-divide">
-                    {% for course in finished_courses %}
-                        <a href="{% url 'course' course.slug %}"
-                           class="group flex items-start justify-between gap-4 py-4">
-                            <div class="min-w-0">
-                                <h3 class="text-lg font-semibold app-link md:text-xl">{{ course.title }}</h3>
-                                <p class="mt-1 max-w-3xl text-sm leading-6 app-text md:text-base">
-                                    {{ course.description|default:"Course materials remain available for self-paced study."|truncatewords:24 }}
-                                </p>
+
+        {% if active_courses %}
+            <section class="mt-6 divide-y app-divide">
+                {% for course in active_courses %}
+                    <a href="{% url 'course' course.slug %}"
+                       class="group grid gap-3 py-5 md:grid-cols-[minmax(0,1fr)_14rem_auto] md:items-center">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
                             </div>
-                            <span class="shrink-0 app-link" aria-hidden="true">&rarr;</span>
-                        </a>
+                            <h3 class="mt-2 text-xl font-semibold app-link md:text-2xl">{{ course.title }}</h3>
+                            <p class="mt-1 max-w-3xl text-sm leading-6 app-text md:text-base">{{ course.home_outcome }}</p>
+                        </div>
+                        <dl class="grid grid-cols-3 gap-3 text-sm md:text-right">
+                            <div>
+                                <dt class="text-xs font-semibold uppercase app-muted">Homework</dt>
+                                <dd class="mt-1 font-semibold app-heading">{{ course.homework_count }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-semibold uppercase app-muted">Projects</dt>
+                                <dd class="mt-1 font-semibold app-heading">{{ course.project_count }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-semibold uppercase app-muted">Learners</dt>
+                                <dd class="mt-1 font-semibold app-heading">{{ course.learner_count }}</dd>
+                            </div>
+                        </dl>
+                        <span class="hidden shrink-0 app-link md:block" aria-hidden="true">&rarr;</span>
+                    </a>
+                {% endfor %}
+            </section>
+        {% else %}
+            <p class="mt-6 text-base app-text">No active courses right now.</p>
+        {% endif %}
+
+        {% if archive_groups %}
+            <section class="mt-8 border-t app-border pt-8">
+                <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold md:text-2xl">Course archive</h2>
+                        <p class="mt-1 text-sm app-muted">Past cohorts remain open for self check; late submissions are not possible.</p>
+                    </div>
+                </div>
+                <div class="mt-5 space-y-7">
+                    {% for group in archive_groups %}
+                        <section>
+                            <h3 class="text-sm font-semibold uppercase tracking-wide app-muted">{{ group.year }}</h3>
+                            <div class="mt-2 divide-y app-divide">
+                                {% for course in group.courses %}
+                                    <a href="{% url 'course' course.slug %}"
+                                       class="group grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_9rem_auto] md:items-center">
+                                        <div class="min-w-0">
+                                            <h4 class="text-lg font-semibold app-link md:text-xl">{{ course.title }}</h4>
+                                            <p class="mt-1 max-w-3xl text-sm leading-6 app-text">{{ course.home_outcome }}</p>
+                                        </div>
+                                        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm app-muted md:justify-end">
+                                            <span>{{ course.homework_count }} homework</span>
+                                            <span>{{ course.project_count }} projects</span>
+                                        </div>
+                                        <span class="hidden shrink-0 app-link md:block" aria-hidden="true">&rarr;</span>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </section>
                     {% endfor %}
                 </div>
             </section>

@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', function() {
       input.type = 'url';
       input.className = 'form-control';
       input.name = 'learning_in_public_links[]';
+      input.autocomplete = 'url';
+      input.inputMode = 'url';
       linksContainer.appendChild(input);
     }
 

@@ -26,23 +26,30 @@
             </div>
         </div>
     </section>
-    {% if submissions_data %}
+    {% if submissions_data or search_query %}
         <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
             <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-base font-semibold app-heading">Submissions</h2>
-                    <p class="mt-0.5 text-sm app-muted">{{ submissions_data|length }} total</p>
+                    <p class="mt-0.5 text-sm app-muted">
+                        {{ submissions_page.paginator.count }} total{% if search_query %} matching "{{ search_query }}"{% endif %}
+                    </p>
                 </div>
-                <input type="text"
-                       id="searchBox"
-                       class="form-control w-full sm:w-72"
-                       placeholder="Search by email..."
-                       onkeyup="filterTable()">
+                <form method="get" class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <input type="search"
+                           name="q"
+                           value="{{ search_query }}"
+                           class="form-control w-full sm:w-72"
+                           placeholder="Search by email or username...">
+                    <button type="submit" class="primer-button">Search</button>
+                    {% if search_query %}
+                        <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary">Clear</a>
+                    {% endif %}
+                </form>
             </div>
             <div class="divide-y app-divide md:hidden">
                 {% for data in submissions_data %}
-                    <article class="cadmin-filter-card px-4 py-3"
-                             data-filter="{{ data.submission.student.email|lower }} {{ data.submission.student.username|lower }}">
+                    <article class="px-4 py-3">
                         <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                             <div class="min-w-0">
                                 <p class="truncate font-medium app-heading">
@@ -64,19 +71,24 @@
                                 </span>
                             </div>
                         </div>
-                        <div class="sr-only">
-                            {% for answer in data.answers %}
-                                Q{{ forloop.counter }}
-                                <span title="{{ answer }}">
-                                    {% if answer|length > 120 %}{{ answer|slice:":120" }}...{% else %}{{ answer }}{% endif %}
-                                </span>
-                            {% endfor %}
-                        </div>
+                        <details class="mt-2 text-sm">
+                            <summary class="cursor-pointer font-medium app-muted">Answer preview</summary>
+                            <dl class="mt-2 space-y-2">
+                                {% for answer in data.answers %}
+                                    <div>
+                                        <dt class="text-xs font-semibold uppercase app-muted">Q{{ forloop.counter }}</dt>
+                                        <dd class="mt-0.5 break-words app-text" title="{{ answer|default:'No answer' }}">{{ answer|default:"No answer"|truncatechars:160 }}</dd>
+                                    </div>
+                                {% endfor %}
+                            </dl>
+                        </details>
                         <div class="mt-2">
                             <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}"
                                class="text-sm font-medium app-link">Open submission <span aria-hidden="true">&rarr;</span></a>
                         </div>
                     </article>
+                {% empty %}
+                    <p class="px-4 py-6 text-sm app-muted">No submissions match this search.</p>
                 {% endfor %}
             </div>
             <div class="hidden overflow-x-auto md:block">
@@ -116,17 +128,24 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-3 py-2">
-                                    <div class="sr-only">
-                                        {% for answer in data.answers %}
-                                            Q{{ forloop.counter }}
-                                            <span title="{{ answer }}">
-                                                {% if answer|length > 120 %}{{ answer|slice:":120" }}...{% else %}{{ answer }}{% endif %}
-                                            </span>
-                                        {% endfor %}
-                                    </div>
+                                    <details class="text-sm">
+                                        <summary class="cursor-pointer font-medium app-link">Answers</summary>
+                                        <dl class="mt-2 max-w-xl space-y-2 text-left">
+                                            {% for answer in data.answers %}
+                                                <div>
+                                                    <dt class="text-xs font-semibold uppercase app-muted">Q{{ forloop.counter }}</dt>
+                                                    <dd class="mt-0.5 break-words app-text" title="{{ answer|default:'No answer' }}">{{ answer|default:"No answer"|truncatechars:220 }}</dd>
+                                                </div>
+                                            {% endfor %}
+                                        </dl>
+                                    </details>
                                     <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}"
                                        class="font-medium app-link">Open</a>
                                 </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-3 py-6 text-center text-sm app-muted">No submissions match this search.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -182,24 +201,21 @@
             }
           }
 
-          function filterTable() {
-            const filter = document.getElementById('searchBox').value.toLowerCase();
-            const rows = document.querySelectorAll('#submissionsTable tbody tr');
-            const cards = document.querySelectorAll('.cadmin-filter-card');
-
-            rows.forEach(row => {
-              const email = row.cells[0].textContent.toLowerCase();
-              row.style.display = email.includes(filter) ? '' : 'none';
-            });
-
-            cards.forEach(card => {
-              const text = card.dataset.filter || card.textContent.toLowerCase();
-              card.style.display = text.includes(filter) ? '' : 'none';
-            });
-          }
-
           updateArrows();
         </script>
+        {% if submissions_page.paginator.num_pages > 1 %}
+            <nav class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm app-text" aria-label="Submission pages">
+                <span class="app-muted">Page {{ submissions_page.number }} of {{ submissions_page.paginator.num_pages }}</span>
+                <div class="flex flex-wrap gap-2">
+                    {% if submissions_page.has_previous %}
+                        <a class="primer-button primer-button-secondary" href="?page={{ submissions_page.previous_page_number }}{{ pagination_querystring }}">Previous</a>
+                    {% endif %}
+                    {% if submissions_page.has_next %}
+                        <a class="primer-button" href="?page={{ submissions_page.next_page_number }}{{ pagination_querystring }}">Next</a>
+                    {% endif %}
+                </div>
+            </nav>
+        {% endif %}
     {% else %}
         <p class="mt-6 rounded-md border app-border app-surface px-4 py-6 text-sm app-muted ">No submissions yet.</p>
     {% endif %}

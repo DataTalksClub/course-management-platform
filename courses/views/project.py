@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 
 from courses.models import (
@@ -31,6 +32,12 @@ from courses.scoring import calculate_project_statistics
 from .homework import tryparsefloat, clean_learning_in_public_links
 
 logger = logging.getLogger(__name__)
+PROJECT_SUBMISSIONS_PAGE_SIZE = 25
+
+
+def paginate_project_submissions(request, submissions):
+    paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
+    return paginator.get_page(request.GET.get("page"))
 
 
 def project_submit_post(request: HttpRequest, project: Project) -> None:
@@ -536,6 +543,8 @@ def projects_list_view(request, course_slug, project_slug):
 
     if project.state == ProjectState.COMPLETED.value:
         submissions = submissions.order_by('-project_score')
+    else:
+        submissions = submissions.order_by("-submitted_at")
 
     user = request.user
     is_authenticated = user.is_authenticated
@@ -562,7 +571,9 @@ def projects_list_view(request, course_slug, project_slug):
             review_ids[eval_id] = review
 
 
-    for submission in submissions:
+    submissions_page = paginate_project_submissions(request, submissions)
+
+    for submission in submissions_page.object_list:
         if submission.id in review_ids:
             submission.to_evaluate = True
             submission.review = review_ids[submission.id]
@@ -574,7 +585,8 @@ def projects_list_view(request, course_slug, project_slug):
     context = {
         "course": course,
         "project": project,
-        "submissions": submissions,
+        "submissions": submissions_page.object_list,
+        "submissions_page": submissions_page,
         "is_authenticated": is_authenticated,
         "has_submission": has_submission,
     }

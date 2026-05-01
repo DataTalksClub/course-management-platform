@@ -1052,6 +1052,47 @@ class HomeworkDetailViewTests(TestCase):
             expected_learning_in_public_links,
         )
 
+    def test_submit_homework_learning_in_public_rejects_non_http_url(
+        self,
+    ):
+        self.homework.learning_in_public_cap = 7
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            f"answer_{self.question2.id}": ["Some other text"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["1", "2"],
+            "learning_in_public_links[]": [
+                "javascript:alert('payment')",
+            ],
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Learning in public links must be valid HTTP or HTTPS URLs.",
+        )
+        self.assertFalse(
+            Submission.objects.filter(
+                homework=self.homework, student=self.user
+            ).exists()
+        )
+
     def test_submit_homework_submission_artifacts(self):
         post_data = {
             f"answer_{self.question1.id}": ["1\r\n"],
@@ -1426,9 +1467,16 @@ class HomeworkDetailViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        
-        # Check the response content to ensure "No answer was submitted" is NOT present
-        content = response.content.decode('utf-8')
+
+        content = response.content.decode("utf-8")
+        self.assertIn("Correct answers are available below", content)
+        self.assertIn("Log in to view my results", content)
+        self.assertIn("Correct answers", content)
+        self.assertIn("Review the expected answers", content)
+        self.assertNotIn("Log in to submit this homework", content)
+        self.assertNotIn("You can preview the questions", content)
+        self.assertNotIn("Submission details", content)
+        self.assertNotIn("Status: Not submitted", content)
         self.assertNotIn("No answer was submitted for this question", content)
 
     def test_homework_detail_authenticated_scored_with_answer_warning(self):

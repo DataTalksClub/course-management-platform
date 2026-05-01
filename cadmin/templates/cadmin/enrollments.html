@@ -1,20 +1,296 @@
-{% extends 'cadmin/base.html' %} {% block title %}Enrollments - {{ course.title }}{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li> <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li> <li>Enrollments</li>
-{% endblock %} {% block cadmin_content %}
-<section class="border-b app-border pb-5 "> <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"> <div> <p class="text-sm font-semibold uppercase tracking-wide app-muted">Course roster</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Enrollments for {{ course.title }}</h1> <p class="mt-1 text-sm app-muted">Manage score visibility, learning-in-public status, and per-student breakdowns.</p> </div> <div class="flex flex-wrap gap-2"> <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a> <a href="{% url 'leaderboard' course.slug %}" class="primer-button">View Leaderboard</a> </div> </div> <div class="mt-4 rounded-md border app-border app-surface-muted px-4 py-3 " role="status"> <p class="text-xs font-semibold uppercase app-muted">Total Enrollments</p> <p class="mt-0.5 text-xl font-semibold app-heading">{{ enrollments.count }}</p> </div>
-</section> {% if enrollments %}
-<section class="mt-6 overflow-hidden rounded-md border app-border app-surface "> <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between"> <h2 class="text-base font-semibold app-heading">Student records</h2> <input type="text" id="searchBox" class="form-control w-full sm:w-80" placeholder="Search by email or username..." onkeyup="filterTable()"> </div> <div class="divide-y app-divide md:hidden"> {% for enrollment in enrollments %} <article class="cadmin-filter-card px-4 py-4" data-filter="{{ enrollment.student.username|lower }} {{ enrollment.student.email|lower }} {{ enrollment.display_name|lower }}"> <div class="flex items-start justify-between gap-3"> <div> <p class="font-medium app-heading">{{ enrollment.student.username }}</p> {% if enrollment.student.email %} <p class="mt-1 text-xs app-muted">{{ enrollment.student.email }}</p> {% endif %} </div> <div class="text-right"> <p class="text-sm font-semibold app-heading">{{ enrollment.total_score }}</p> <p class="text-xs app-muted">points</p> </div> </div> <div class="mt-2 flex flex-wrap items-center gap-2 text-xs"> <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text ">Pos {% if enrollment.position_on_leaderboard %}{{ enrollment.position_on_leaderboard }}{% else %}-{% endif %}</span> <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text ">HW {{ enrollment.homework_count }}</span> <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text ">Projects {{ enrollment.project_count }}</span> {% if enrollment.disable_learning_in_public %} <span class="inline-flex rounded-full app-badge-danger px-2 py-1 font-medium  ">LiP disabled</span> {% else %} <span class="inline-flex rounded-full app-badge-success px-2 py-1 font-medium  ">LiP enabled</span> {% endif %} </div> <details class="mt-2 text-sm"> <summary class="cursor-pointer font-medium app-muted">Details</summary> <dl class="mt-2 grid grid-cols-2 gap-3"> <div> <dt class="text-xs font-semibold uppercase app-muted">Display</dt> <dd class="mt-0.5 app-text">{{ enrollment.display_name }}</dd> </div> <div> <dt class="text-xs font-semibold uppercase app-muted">Enrolled</dt> <dd class="mt-0.5 app-text">{{ enrollment.enrollment_date|date:"Y-m-d" }}</dd> </div> </dl> </details> <div class="mt-3 flex flex-wrap gap-2"> <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="primer-button"> <i class="fas fa-edit"></i> Manage </a> <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary"> <i class="fas fa-chart-line"></i> Scores </a> </div> </article> {% endfor %}
-</div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm" id="enrollmentsTable"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="cursor-pointer px-2 py-2 text-right" onclick="sortTable('position')">Pos <span class="inline-block w-3" id="arrow-position"></span></th> <th class="cursor-pointer px-2 py-2" onclick="sortTable('student')">Student <span class="inline-block w-3" id="arrow-student"></span></th> <th class="px-2 py-2">Display</th> <th class="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onclick="sortTable('total_score')">Score <span class="inline-block w-3" id="arrow-total_score"></span></th> <th class="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onclick="sortTable('hw_count')">HW <span class="inline-block w-3" id="arrow-hw_count"></span></th> <th class="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onclick="sortTable('proj_count')">Projects <span class="inline-block w-3" id="arrow-proj_count"></span></th> <th class="px-2 py-2">LiP</th> <th class="cursor-pointer px-2 py-2" onclick="sortTable('enrolled')">Enrolled <span class="inline-block w-3" id="arrow-enrolled"></span></th> <th class="px-2 py-2 text-right">Actions</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for enrollment in enrollments %} <tr class="align-top"> <td class="px-2 py-2 text-right font-medium app-heading"> {% if enrollment.position_on_leaderboard %} {{ enrollment.position_on_leaderboard }} {% else %} - {% endif %} </td> <td class="px-2 py-2"> <strong>{{ enrollment.student.username }}</strong> {% if enrollment.student.email %} <br><small class="app-muted">{{ enrollment.student.email }}</small> {% endif %} </td> <td class="px-2 py-2 app-text">{{ enrollment.display_name }}</td> <td class="px-2 py-2 text-right font-semibold app-heading">{{ enrollment.total_score }}</td> <td class="px-2 py-2 text-right app-text">{{ enrollment.homework_count }}</td> <td class="px-2 py-2 text-right app-text">{{ enrollment.project_count }}</td> <td class="px-2 py-2"> {% if enrollment.disable_learning_in_public %} <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">DISABLED</span> {% else %} <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Enabled</span> {% endif %} </td> <td class="whitespace-nowrap px-2 py-2 app-text">{{ enrollment.enrollment_date|date:"Y-m-d" }}</td> <td class="px-2 py-2"> <div class="flex flex-nowrap justify-end gap-1"> <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="primer-button cadmin-compact-button" title="Manage enrollment"> <i class="fas fa-edit"></i><span class="sr-only"> Manage</span> </a> <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary cadmin-compact-button" title="Scores"> <i class="fas fa-chart-line"></i><span class="sr-only"> Scores</span> </a> </div> </td> </tr> {% endfor %} </tbody> </table>
-</div>
-</section> <script>
+{% extends 'cadmin/base.html' %}
+
+{% block title %}Enrollments - {{ course.title }}{% endblock %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  <li>Enrollments</li>
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="border-b app-border pb-5">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wide app-muted">Student support</p>
+      <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Enrollments for {{ course.title }}</h1>
+      <p class="mt-1 text-sm app-muted">Find students, inspect score visibility, and handle Learning in Public exceptions.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a>
+      <a href="{% url 'leaderboard' course.slug %}" class="primer-button">View Leaderboard</a>
+    </div>
+  </div>
+
+  <div class="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
+    <a href="?{% if search_query %}q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'all' %}cadmin-active-filter{% endif %}">
+      <span class="block text-xs font-semibold uppercase app-muted">All</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ enrollment_filter_counts.all }}</span>
+    </a>
+    <a href="?status=lip-disabled{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'lip-disabled' %}cadmin-active-filter{% endif %}">
+      <span class="block text-xs font-semibold uppercase app-muted">LiP disabled</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ enrollment_filter_counts.lip_disabled }}</span>
+    </a>
+    <a href="?status=zero-score{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'zero-score' %}cadmin-active-filter{% endif %}">
+      <span class="block text-xs font-semibold uppercase app-muted">Zero score</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ enrollment_filter_counts.zero_score }}</span>
+    </a>
+    <a href="?status=hidden{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'hidden' %}cadmin-active-filter{% endif %}">
+      <span class="block text-xs font-semibold uppercase app-muted">Hidden</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ enrollment_filter_counts.hidden }}</span>
+    </a>
+    <a href="?status=no-submissions{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'no-submissions' %}cadmin-active-filter{% endif %}">
+      <span class="block text-xs font-semibold uppercase app-muted">No submissions</span>
+      <span class="mt-1 block text-lg font-semibold app-heading">{{ enrollment_filter_counts.no_submissions }}</span>
+    </a>
+  </div>
+</section>
+
+{% if enrollments or search_query or status_filter != 'all' %}
+<section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+  <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-base font-semibold app-heading">Student records</h2>
+      <p class="mt-0.5 text-sm app-muted">
+        {{ total_enrollments }} result{{ total_enrollments|pluralize }}{% if search_query %} for "{{ search_query }}"{% endif %}
+      </p>
+    </div>
+    <form method="get" class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+      {% if status_filter != 'all' %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <input
+        type="search"
+        name="q"
+        value="{{ search_query }}"
+        class="form-control w-full sm:w-80"
+        placeholder="Search by email, username, or display name..."
+      >
+      <button type="submit" class="primer-button">Search</button>
+      {% if search_query %}
+        <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="divide-y app-divide md:hidden">
+    {% for enrollment in enrollments %}
+      <article class="px-4 py-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="font-medium app-heading">{{ enrollment.student.username }}</p>
+            {% if enrollment.student.email %}
+              <p class="mt-1 break-all text-xs app-muted">{{ enrollment.student.email }}</p>
+            {% endif %}
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-semibold app-heading">{{ enrollment.total_score }}</p>
+            <p class="text-xs app-muted">points</p>
+          </div>
+        </div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text">
+            Pos {% if enrollment.position_on_leaderboard %}{{ enrollment.position_on_leaderboard }}{% else %}-{% endif %}
+          </span>
+          <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text">HW {{ enrollment.homework_count }}</span>
+          <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text">Projects {{ enrollment.project_count }}</span>
+          {% if enrollment.disable_learning_in_public %}
+            <span class="inline-flex rounded-full app-badge-danger px-2 py-1 font-medium">LiP disabled</span>
+          {% else %}
+            <span class="inline-flex rounded-full app-badge-success px-2 py-1 font-medium">LiP enabled</span>
+          {% endif %}
+          {% if not enrollment.display_on_leaderboard %}
+            <span class="inline-flex rounded-full app-badge-warning px-2 py-1 font-medium">Hidden</span>
+          {% endif %}
+          {% if enrollment.has_no_submissions %}
+            <span class="inline-flex rounded-full app-badge-neutral px-2 py-1 font-medium">No submissions</span>
+          {% endif %}
+        </div>
+
+        <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt class="text-xs font-semibold uppercase app-muted">Display</dt>
+            <dd class="mt-0.5 app-text">{{ enrollment.display_name }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase app-muted">Enrolled</dt>
+            <dd class="mt-0.5 app-text">{{ enrollment.enrollment_date|date:"Y-m-d" }}</dd>
+          </div>
+        </dl>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="primer-button">
+            <i class="fas fa-edit"></i> Manage
+          </a>
+          <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary">
+            <i class="fas fa-chart-line"></i> Scores
+          </a>
+        </div>
+      </article>
+    {% empty %}
+      <p class="px-4 py-6 text-sm app-muted">No students match this view.</p>
+    {% endfor %}
+  </div>
+
+  <div class="hidden overflow-x-auto md:block">
+    <table class="min-w-full text-sm" id="enrollmentsTable">
+      <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
+        <tr>
+          <th class="cursor-pointer px-2 py-2 text-right" onclick="sortTable('position')">Pos <span class="inline-block w-3" id="arrow-position"></span></th>
+          <th class="cursor-pointer px-2 py-2" onclick="sortTable('student')">Student <span class="inline-block w-3" id="arrow-student"></span></th>
+          <th class="px-2 py-2">Display</th>
+          <th class="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onclick="sortTable('total_score')">Score <span class="inline-block w-3" id="arrow-total_score"></span></th>
+          <th class="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onclick="sortTable('hw_count')">HW <span class="inline-block w-3" id="arrow-hw_count"></span></th>
+          <th class="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onclick="sortTable('proj_count')">Projects <span class="inline-block w-3" id="arrow-proj_count"></span></th>
+          <th class="px-2 py-2">Flags</th>
+          <th class="cursor-pointer px-2 py-2" onclick="sortTable('enrolled')">Enrolled <span class="inline-block w-3" id="arrow-enrolled"></span></th>
+          <th class="px-2 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y app-divide">
+        {% for enrollment in enrollments %}
+          <tr class="align-top">
+            <td class="px-2 py-2 text-right font-medium app-heading">
+              {% if enrollment.position_on_leaderboard %}{{ enrollment.position_on_leaderboard }}{% else %}-{% endif %}
+            </td>
+            <td class="px-2 py-2">
+              <strong>{{ enrollment.student.username }}</strong>
+              {% if enrollment.student.email %}
+                <br><small class="app-muted">{{ enrollment.student.email }}</small>
+              {% endif %}
+            </td>
+            <td class="px-2 py-2 app-text">{{ enrollment.display_name }}</td>
+            <td class="px-2 py-2 text-right font-semibold app-heading">{{ enrollment.total_score }}</td>
+            <td class="px-2 py-2 text-right app-text">{{ enrollment.homework_count }}</td>
+            <td class="px-2 py-2 text-right app-text">{{ enrollment.project_count }}</td>
+            <td class="px-2 py-2">
+              <div class="flex flex-wrap gap-1">
+                {% if enrollment.disable_learning_in_public %}
+                  <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium">LiP disabled</span>
+                {% endif %}
+                {% if not enrollment.display_on_leaderboard %}
+                  <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Hidden</span>
+                {% endif %}
+                {% if enrollment.has_no_submissions %}
+                  <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">No submissions</span>
+                {% endif %}
+                {% if not enrollment.has_support_flags %}
+                  <span class="app-muted">-</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="whitespace-nowrap px-2 py-2 app-text">{{ enrollment.enrollment_date|date:"Y-m-d" }}</td>
+            <td class="px-2 py-2">
+              <div class="flex flex-nowrap justify-end gap-1">
+                <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="primer-button cadmin-compact-button" title="Manage enrollment">
+                  <i class="fas fa-edit"></i><span class="sr-only"> Manage</span>
+                </a>
+                <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary cadmin-compact-button" title="Scores">
+                  <i class="fas fa-chart-line"></i><span class="sr-only"> Scores</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="9" class="px-3 py-6 text-center text-sm app-muted">No students match this view.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% if enrollments_page.paginator.num_pages > 1 %}
+<nav class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm app-text" aria-label="Enrollment pages">
+  <span class="app-muted">Page {{ enrollments_page.number }} of {{ enrollments_page.paginator.num_pages }}</span>
+  <div class="flex flex-wrap gap-2">
+    {% if enrollments_page.has_previous %}
+      <a class="primer-button primer-button-secondary" href="?page={{ enrollments_page.previous_page_number }}{{ pagination_querystring }}">Previous</a>
+    {% endif %}
+    {% if enrollments_page.has_next %}
+      <a class="primer-button" href="?page={{ enrollments_page.next_page_number }}{{ pagination_querystring }}">Next</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
+
+<script>
 const MISSING_VALUE = -999;
 let currentSort = 'position';
-let currentDir = 'asc'; const defaultDirs = { position: 'asc', student: 'asc', total_score: 'desc', hw_count: 'desc', proj_count: 'desc', enrolled: 'desc'
-}; function sortTable(column) { if (column === currentSort) { currentDir = currentDir === 'asc' ? 'desc' : 'asc'; } else { currentSort = column; currentDir = defaultDirs[column] || 'desc'; } const table = document.getElementById('enrollmentsTable'); const tbody = table.querySelector('tbody'); const rows = Array.from(tbody.querySelectorAll('tr')); rows.sort((a, b) => { let aVal, bVal, result; if (column === 'position') { aVal = a.cells[0].textContent.trim(); bVal = b.cells[0].textContent.trim(); aVal = aVal === '-' ? MISSING_VALUE : parseInt(aVal); bVal = bVal === '-' ? MISSING_VALUE : parseInt(bVal); result = aVal - bVal; } else if (column === 'student') { aVal = a.cells[1].textContent.trim().toLowerCase(); bVal = b.cells[1].textContent.trim().toLowerCase(); result = aVal.localeCompare(bVal); } else if (column === 'total_score') { aVal = parseFloat(a.cells[3].textContent.trim()) || 0; bVal = parseFloat(b.cells[3].textContent.trim()) || 0; result = aVal - bVal; } else if (column === 'hw_count') { aVal = parseInt(a.cells[4].textContent.trim()) || 0; bVal = parseInt(b.cells[4].textContent.trim()) || 0; result = aVal - bVal; } else if (column === 'proj_count') { aVal = parseInt(a.cells[5].textContent.trim()) || 0; bVal = parseInt(b.cells[5].textContent.trim()) || 0; result = aVal - bVal; } else if (column === 'enrolled') { aVal = a.cells[7].textContent.trim(); bVal = b.cells[7].textContent.trim(); result = aVal.localeCompare(bVal); } return currentDir === 'desc' ? -result : result; }); rows.forEach(row => tbody.appendChild(row)); updateArrows();
-} function updateArrows() { document.querySelectorAll('[id^="arrow-"]').forEach(el => el.textContent = ''); const arrowEl = document.getElementById('arrow-' + currentSort); if (arrowEl) arrowEl.textContent = currentDir === 'asc' ? ' ▲' : ' ▼';
-} function filterTable() { const filter = document.getElementById('searchBox').value.toLowerCase(); const rows = document.querySelectorAll('#enrollmentsTable tbody tr'); const cards = document.querySelectorAll('.cadmin-filter-card'); rows.forEach(row => { const text = row.cells[1].textContent.toLowerCase(); row.style.display = text.includes(filter) ? '' : 'none'; }); cards.forEach(card => { const text = card.dataset.filter || card.textContent.toLowerCase(); card.style.display = text.includes(filter) ? '' : 'none'; });
-} updateArrows();
-</script> {% else %}
-<p class="mt-6 rounded-md border app-border app-surface px-4 py-6 text-sm app-muted ">No enrollments found for this course.</p>
-{% endif %} <div class="mt-6 rounded-md border app-border app-surface-muted px-4 py-3 text-sm app-text "> <strong>Note:</strong> Enrollments with <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">DISABLED</span> LiP status have learning in public disabled. All their learning in public scores are set to zero and they cannot earn new learning in public points.
+let currentDir = 'asc';
+const defaultDirs = {
+  position: 'asc',
+  student: 'asc',
+  total_score: 'desc',
+  hw_count: 'desc',
+  proj_count: 'desc',
+  enrolled: 'desc',
+};
+
+function sortTable(column) {
+  if (column === currentSort) {
+    currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort = column;
+    currentDir = defaultDirs[column] || 'desc';
+  }
+
+  const table = document.getElementById('enrollmentsTable');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  rows.sort((a, b) => {
+    let aVal;
+    let bVal;
+    let result;
+
+    if (column === 'position') {
+      aVal = a.cells[0].textContent.trim();
+      bVal = b.cells[0].textContent.trim();
+      aVal = aVal === '-' ? MISSING_VALUE : parseInt(aVal);
+      bVal = bVal === '-' ? MISSING_VALUE : parseInt(bVal);
+      result = aVal - bVal;
+    } else if (column === 'student') {
+      aVal = a.cells[1].textContent.trim().toLowerCase();
+      bVal = b.cells[1].textContent.trim().toLowerCase();
+      result = aVal.localeCompare(bVal);
+    } else if (column === 'total_score') {
+      aVal = parseFloat(a.cells[3].textContent.trim()) || 0;
+      bVal = parseFloat(b.cells[3].textContent.trim()) || 0;
+      result = aVal - bVal;
+    } else if (column === 'hw_count') {
+      aVal = parseInt(a.cells[4].textContent.trim()) || 0;
+      bVal = parseInt(b.cells[4].textContent.trim()) || 0;
+      result = aVal - bVal;
+    } else if (column === 'proj_count') {
+      aVal = parseInt(a.cells[5].textContent.trim()) || 0;
+      bVal = parseInt(b.cells[5].textContent.trim()) || 0;
+      result = aVal - bVal;
+    } else if (column === 'enrolled') {
+      aVal = a.cells[7].textContent.trim();
+      bVal = b.cells[7].textContent.trim();
+      result = aVal.localeCompare(bVal);
+    }
+
+    return currentDir === 'desc' ? -result : result;
+  });
+
+  rows.forEach(row => tbody.appendChild(row));
+  updateArrows();
+}
+
+function updateArrows() {
+  document.querySelectorAll('[id^="arrow-"]').forEach(el => el.textContent = '');
+  const arrowEl = document.getElementById('arrow-' + currentSort);
+  if (arrowEl) arrowEl.textContent = currentDir === 'asc' ? ' ▲' : ' ▼';
+}
+
+updateArrows();
+</script>
+{% else %}
+<p class="mt-6 rounded-md border app-border app-surface px-4 py-6 text-sm app-muted">No enrollments found for this course.</p>
+{% endif %}
+
+<div class="mt-6 rounded-md border app-border app-surface-muted px-4 py-3 text-sm app-text">
+  <strong>Note:</strong> LiP-disabled enrollments have learning-in-public scores set to zero and cannot earn new learning-in-public points until re-enabled.
 </div>
 {% endblock %}

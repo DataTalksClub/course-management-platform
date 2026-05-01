@@ -1,9 +1,12 @@
 import logging
 
+from collections import defaultdict
+
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Count, Q
+from django.contrib.auth.decorators import user_passes_test
 
 from courses.models import (
     Course,
@@ -24,8 +27,6 @@ from courses.models import (
 from courses.scoring import (
     score_homework_submissions,
     fill_correct_answers,
-    calculate_homework_statistics,
-    calculate_project_statistics,
     update_leaderboard,
 )
 from courses.projects import (
@@ -34,9 +35,20 @@ from courses.projects import (
     ProjectActionStatus,
 )
 
-from collections import defaultdict
-
 logger = logging.getLogger(__name__)
+CADMIN_PAGE_SIZE = 25
+
+
+def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
+    paginator = Paginator(queryset, per_page)
+    return paginator.get_page(request.GET.get("page"))
+
+
+def pagination_querystring(request):
+    params = request.GET.copy()
+    params.pop("page", None)
+    encoded = params.urlencode()
+    return f"&{encoded}" if encoded else ""
 
 
 def staff_required(function):
@@ -64,31 +76,62 @@ def course_list(request):
 def course_admin(request, course_slug):
     """Admin panel for a specific course"""
     course = get_object_or_404(Course, slug=course_slug)
-    
-    # Get all homeworks for the course
-    homeworks = Homework.objects.filter(course=course).order_by("due_date")
-    
-    # Get all projects for the course
-    projects = Project.objects.filter(course=course).order_by("id")
-    
-    # Get statistics
+
+    homeworks = list(Homework.objects.filter(course=course).order_by("due_date"))
+    projects = list(Project.objects.filter(course=course).order_by("id"))
     total_enrollments = course.enrollment_set.count()
-    
-    # Get completion statistics for homeworks
+
+    homework_needing_score = []
     for hw in homeworks:
         hw.submissions_count = Submission.objects.filter(homework=hw).count()
-    
-    # Get completion statistics for projects
+        hw.can_score = hw.state in [
+            HomeworkState.OPEN.value,
+            HomeworkState.CLOSED.value,
+        ]
+        if hw.can_score and hw.submissions_count:
+            homework_needing_score.append(hw)
+
+    projects_needing_reviews = []
+    projects_needing_score = []
     for proj in projects:
         proj.submissions_count = ProjectSubmission.objects.filter(project=proj).count()
-    
+        proj.needs_review_assignment = (
+            proj.state == ProjectState.COLLECTING_SUBMISSIONS.value
+        )
+        proj.needs_scoring = proj.state == ProjectState.PEER_REVIEWING.value
+        if proj.needs_review_assignment:
+            projects_needing_reviews.append(proj)
+        if proj.needs_scoring:
+            projects_needing_score.append(proj)
+
+    enrollments = Enrollment.objects.filter(course=course)
+    support_metrics = {
+        "disabled_lip": enrollments.filter(disable_learning_in_public=True).count(),
+        "zero_score": enrollments.filter(total_score=0).count(),
+        "hidden_leaderboard": enrollments.filter(display_on_leaderboard=False).count(),
+    }
+    needs_attention_count = (
+        len(homework_needing_score)
+        + len(projects_needing_reviews)
+        + len(projects_needing_score)
+        + support_metrics["disabled_lip"]
+        + support_metrics["hidden_leaderboard"]
+    )
+    project_action_count = len(projects_needing_reviews) + len(projects_needing_score)
+
     context = {
         "course": course,
         "homeworks": homeworks,
         "projects": projects,
         "total_enrollments": total_enrollments,
+        "homework_needing_score": homework_needing_score,
+        "projects_needing_reviews": projects_needing_reviews,
+        "projects_needing_score": projects_needing_score,
+        "project_action_count": project_action_count,
+        "support_metrics": support_metrics,
+        "needs_attention_count": needs_attention_count,
     }
-    
+
     return render(request, "cadmin/course_admin.html", context)
 
 
@@ -139,8 +182,8 @@ def homework_submissions(request, course_slug, homework_slug):
     # Get all questions for this homework
     questions = Question.objects.filter(homework=homework).order_by("id")
 
-    # Get all submissions for this homework with answers prefetched
-    # to avoid N+1 queries
+    search_query = request.GET.get("q", "").strip()
+
     submissions = (
         Submission.objects.filter(homework=homework)
         .select_related("student", "enrollment")
@@ -148,22 +191,27 @@ def homework_submissions(request, course_slug, homework_slug):
         .order_by("-submitted_at")
     )
 
-    # Build a list of submissions with their answers organized by question
+    if search_query:
+        submissions = submissions.filter(
+            Q(student__email__icontains=search_query)
+            | Q(student__username__icontains=search_query)
+        )
+
+    submissions_page = paginate_queryset(request, submissions)
+
     submissions_data = []
-    for submission in submissions:
-        # Create a map of question_id -> answer for this submission
+    for submission in submissions_page.object_list:
         answer_map = {
             answer.question_id: answer 
             for answer in submission.answer_set.all()
         }
-        
-        # Build list of answers in question order
+
         answers = []
         for question in questions:
             answer = answer_map.get(question.id)
             answer_text = answer.answer_text if answer else ""
             answers.append(answer_text or "")
-        
+
         submissions_data.append({
             "submission": submission,
             "answers": answers,
@@ -174,6 +222,9 @@ def homework_submissions(request, course_slug, homework_slug):
         "homework": homework,
         "questions": questions,
         "submissions_data": submissions_data,
+        "submissions_page": submissions_page,
+        "search_query": search_query,
+        "pagination_querystring": pagination_querystring(request),
     }
 
     return render(request, "cadmin/homework_submissions.html", context)
@@ -308,14 +359,20 @@ def project_submissions(request, course_slug, project_slug):
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
+    search_query = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "all")
 
-    # Get all submissions for this project with related data prefetched
-    # to avoid N+1 queries
     submissions = (
         ProjectSubmission.objects.filter(project=project)
         .select_related("student", "enrollment")
         .order_by("-submitted_at")
     )
+
+    if search_query:
+        submissions = submissions.filter(
+            Q(student__email__icontains=search_query)
+            | Q(student__username__icontains=search_query)
+        )
 
     # Get peer review data for each submission
     # We need to count how many peer reviews each student has completed
@@ -334,16 +391,58 @@ def project_submissions(request, course_slug, project_slug):
             if review.state == PeerReviewState.SUBMITTED.value:
                 review_counts[review.reviewer_id]['completed'] += 1
 
-    # Add review count data to each submission
+    submissions = list(submissions)
     for submission in submissions:
         counts = review_counts[submission.id]
         submission.peer_reviews_completed = counts['completed']
         submission.peer_reviews_total = counts['total']
 
+    project_filter_counts = {
+        "all": len(submissions),
+        "incomplete_reviews": sum(
+            1
+            for submission in submissions
+            if submission.peer_reviews_completed < submission.peer_reviews_total
+        ),
+        "missing_repository": sum(
+            1 for submission in submissions if not submission.github_link
+        ),
+        "unscored": sum(
+            1 for submission in submissions if submission.total_score is None
+        ),
+        "not_passed": sum(
+            1 for submission in submissions if submission.passed is False
+        ),
+    }
+
+    if status_filter == "incomplete-reviews":
+        submissions = [
+            submission
+            for submission in submissions
+            if submission.peer_reviews_completed < submission.peer_reviews_total
+        ]
+    elif status_filter == "missing-repository":
+        submissions = [
+            submission for submission in submissions if not submission.github_link
+        ]
+    elif status_filter == "unscored":
+        submissions = [
+            submission for submission in submissions if submission.total_score is None
+        ]
+    elif status_filter == "not-passed":
+        submissions = [submission for submission in submissions if submission.passed is False]
+
+    submissions_page = paginate_queryset(request, submissions)
+
     context = {
         "course": course,
         "project": project,
-        "submissions": submissions,
+        "submissions": submissions_page.object_list,
+        "submissions_page": submissions_page,
+        "project_filter_counts": project_filter_counts,
+        "search_query": search_query,
+        "status_filter": status_filter,
+        "pagination_querystring": pagination_querystring(request),
     }
 
     return render(request, "cadmin/project_submissions.html", context)
@@ -390,7 +489,7 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
                     score_value = int(score_value_str)
                     if score_value < 0:
                         raise ValueError(f"Score for {criteria.description} cannot be negative")
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError):
                     raise ValueError(f"Invalid score for {criteria.description}: {score_value_str}")
                 
                 project_score += score_value
@@ -446,21 +545,78 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
 @staff_required
 def enrollments_list(request, course_slug):
     """List all enrollments for a course"""
-    from django.db.models import Count
-    
     course = get_object_or_404(Course, slug=course_slug)
-    
-    # Get all enrollments with related student data and submission counts, ordered by leaderboard position
-    enrollments = Enrollment.objects.filter(course=course).select_related('student').annotate(
-        homework_count=Count('submission', distinct=True),
-        project_count=Count('projectsubmission', distinct=True)
-    ).order_by('position_on_leaderboard', 'id')
-    
+    search_query = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "all")
+
+    enrollments_queryset = (
+        Enrollment.objects.filter(course=course)
+        .select_related("student")
+        .annotate(
+            homework_count=Count("submission", distinct=True),
+            project_count=Count("projectsubmission", distinct=True),
+        )
+        .order_by("position_on_leaderboard", "id")
+    )
+    if search_query:
+        enrollments_queryset = enrollments_queryset.filter(
+            Q(student__email__icontains=search_query)
+            | Q(student__username__icontains=search_query)
+            | Q(display_name__icontains=search_query)
+        )
+
+    enrollments = list(enrollments_queryset)
+    enrollment_filter_counts = {
+        "all": len(enrollments),
+        "lip_disabled": sum(
+            1 for enrollment in enrollments if enrollment.disable_learning_in_public
+        ),
+        "zero_score": sum(1 for enrollment in enrollments if enrollment.total_score == 0),
+        "hidden": sum(
+            1 for enrollment in enrollments if not enrollment.display_on_leaderboard
+        ),
+        "no_submissions": sum(
+            1
+            for enrollment in enrollments
+            if enrollment.homework_count == 0 and enrollment.project_count == 0
+        ),
+    }
+    for enrollment in enrollments:
+        enrollment.has_no_submissions = (
+            enrollment.homework_count == 0 and enrollment.project_count == 0
+        )
+        enrollment.has_support_flags = (
+            enrollment.disable_learning_in_public
+            or not enrollment.display_on_leaderboard
+            or enrollment.has_no_submissions
+        )
+
+    if status_filter == "lip-disabled":
+        enrollments = [
+            enrollment for enrollment in enrollments if enrollment.disable_learning_in_public
+        ]
+    elif status_filter == "zero-score":
+        enrollments = [enrollment for enrollment in enrollments if enrollment.total_score == 0]
+    elif status_filter == "hidden":
+        enrollments = [
+            enrollment for enrollment in enrollments if not enrollment.display_on_leaderboard
+        ]
+    elif status_filter == "no-submissions":
+        enrollments = [enrollment for enrollment in enrollments if enrollment.has_no_submissions]
+
+    enrollments_page = paginate_queryset(request, enrollments)
+
     context = {
         "course": course,
-        "enrollments": enrollments,
+        "enrollments": enrollments_page.object_list,
+        "enrollments_page": enrollments_page,
+        "total_enrollments": len(enrollments),
+        "enrollment_filter_counts": enrollment_filter_counts,
+        "search_query": search_query,
+        "status_filter": status_filter,
+        "pagination_querystring": pagination_querystring(request),
     }
-    
+
     return render(request, "cadmin/enrollments.html", context)
 
 
@@ -561,5 +717,3 @@ def enrollment_edit(request, course_slug, enrollment_id):
     }
     
     return render(request, "cadmin/enrollment_edit.html", context)
-
-

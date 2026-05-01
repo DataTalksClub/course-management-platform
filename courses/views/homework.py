@@ -8,6 +8,8 @@ from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.db import transaction
 
 from courses.models import (
     Course,
@@ -166,18 +168,25 @@ def tryparsefloat(value: str) -> Optional[float]:
         return None
 
 
-def clean_learning_in_public_links(
-    links: List[str], cap: int
-) -> List[str]:
+def clean_learning_in_public_links(links: List[str], cap: int) -> List[str]:
+    url_validator = URLValidator(schemes=["http", "https"])
     cleaned_links = []
 
     for link in links:
+        link = link.strip()
         if len(link) == 0:
             continue
         if link in cleaned_links:
             continue
         if len(cleaned_links) >= cap:
             break
+
+        try:
+            url_validator(link)
+        except ValidationError:
+            raise ValidationError(
+                "Learning in public links must be valid HTTP or HTTPS URLs."
+            )
 
         cleaned_links.append(link)
 
@@ -392,13 +401,14 @@ def homework_view(
     # Process the form submission
     if request.method == "POST":
         try:
-            return process_homework_submission(
-                request=request,
-                course=course,
-                homework=homework,
-                questions=questions,
-                submission=submission,
-            )
+            with transaction.atomic():
+                return process_homework_submission(
+                    request=request,
+                    course=course,
+                    homework=homework,
+                    questions=questions,
+                    submission=submission,
+                )
         except ValidationError as e:
             context["errors"] = e.messages
 

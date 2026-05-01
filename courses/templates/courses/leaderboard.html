@@ -39,15 +39,6 @@
 {% endif %}
 
 <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
-  <div class="flex flex-col gap-2 border-b app-border app-surface-muted px-4 py-3 text-sm app-muted sm:flex-row sm:items-center sm:justify-between">
-    <span>
-      Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_enrollments }}
-    </span>
-    {% if page_obj.has_other_pages %}
-      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    {% endif %}
-  </div>
-
   <div class="grid grid-cols-[44px_minmax(0,1fr)_72px] border-b app-border app-surface-muted px-4 py-2 text-xs font-semibold uppercase app-muted md:grid-cols-[56px_minmax(0,1fr)_96px]">
     <div>#</div>
     <div>Name</div>

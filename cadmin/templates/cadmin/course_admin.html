@@ -12,50 +12,154 @@
     <div>
       <p class="text-sm font-semibold uppercase tracking-wide app-muted">Admin Panel</p>
       <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ course.title }}</h1>
-      <p class="mt-1 text-sm app-muted">Operational controls for homework, projects, enrollments, and public course surfaces.</p>
+      <p class="mt-1 text-sm app-muted">Start with operational tasks, then use the full lists for reference and maintenance.</p>
     </div>
     <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
-      <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary">View Course Page</a>
-      <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary">Course Dashboard</a>
+      <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary">Course Page</a>
+      <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary">Dashboard</a>
       <a href="{% url 'leaderboard' course.slug %}" class="primer-button">Leaderboard</a>
       <a href="/admin/courses/course/{{ course.id }}/change/" class="primer-button primer-button-secondary">
         <i class="fas fa-edit"></i> Django Admin
       </a>
     </div>
   </div>
+</section>
 
-  <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<section class="mt-6">
+  <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <p class="text-xs font-semibold uppercase app-muted">Total Enrollments</p>
-      <p class="mt-0.5 text-xl font-semibold app-heading">{{ total_enrollments }}</p>
+      <h2 class="text-base font-semibold app-heading">Needs attention</h2>
+      <p class="mt-1 text-sm app-muted">Operational work that is easy to miss in the full homework and project lists.</p>
     </div>
-    <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button w-fit">Manage Enrollments</a>
+    <span class="inline-flex w-fit rounded-full app-badge-info px-2.5 py-1 text-xs font-semibold">
+      {{ needs_attention_count }} items
+    </span>
+  </div>
+
+  <div class="grid gap-3 lg:grid-cols-2">
+    <article class="rounded-md border app-border app-surface p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-semibold app-heading">Homework scoring</h3>
+          <p class="mt-1 text-sm app-muted">Recalculate homework scores when submissions need staff attention.</p>
+        </div>
+        <span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold app-heading">{{ homework_needing_score|length }}</span>
+      </div>
+      {% if homework_needing_score %}
+        <div class="mt-3 divide-y app-divide">
+          {% for hw in homework_needing_score %}
+            <div class="py-3">
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                  <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="font-medium app-link hover:underline">{{ hw.title }}</a>
+                  <p class="mt-1 text-xs app-muted">{{ hw.submissions_count }} submissions · due <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date|date:"j F Y, H:i" }}</span></p>
+                </div>
+                <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
+                  {% csrf_token %}
+                  <button type="submit" class="primer-button cadmin-primary">Score submissions</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="mt-3 text-sm app-muted">No homework with submissions is waiting for scoring.</p>
+      {% endif %}
+    </article>
+
+    <article class="rounded-md border app-border app-surface p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-semibold app-heading">Project review flow</h3>
+          <p class="mt-1 text-sm app-muted">Assign peer reviews or score projects when the course reaches those stages.</p>
+        </div>
+        <span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold app-heading">{{ project_action_count }}</span>
+      </div>
+      {% if projects_needing_reviews or projects_needing_score %}
+        <div class="mt-3 divide-y app-divide">
+          {% for proj in projects_needing_reviews %}
+            <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="font-medium app-link hover:underline">{{ proj.title }}</a>
+                <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions · collecting submissions</p>
+              </div>
+              <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
+                {% csrf_token %}
+                <button type="submit" class="primer-button">Assign peer reviews</button>
+              </form>
+            </div>
+          {% endfor %}
+          {% for proj in projects_needing_score %}
+            <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="font-medium app-link hover:underline">{{ proj.title }}</a>
+                <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions · peer review finished</p>
+              </div>
+              <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
+                {% csrf_token %}
+                <button type="submit" class="primer-button cadmin-primary">Score projects</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="mt-3 text-sm app-muted">No project review action is currently due.</p>
+      {% endif %}
+    </article>
   </div>
 </section>
 
 <section class="mt-6">
+  <article class="rounded-md border app-border app-surface p-4">
+    <h2 class="text-base font-semibold app-heading">Student support</h2>
+    <p class="mt-1 text-sm app-muted">Find students, inspect score breakdowns, and handle Learning in Public exceptions.</p>
+    <div class="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+      <div class="rounded-md app-surface-muted p-3">
+        <p class="text-xs font-semibold uppercase app-muted">Enrollments</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ total_enrollments }}</p>
+      </div>
+      <div class="rounded-md app-surface-muted p-3">
+        <p class="text-xs font-semibold uppercase app-muted">LiP disabled</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.disabled_lip }}</p>
+      </div>
+      <div class="rounded-md app-surface-muted p-3">
+        <p class="text-xs font-semibold uppercase app-muted">Zero score</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.zero_score }}</p>
+      </div>
+      <div class="rounded-md app-surface-muted p-3">
+        <p class="text-xs font-semibold uppercase app-muted">Hidden</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.hidden_leaderboard }}</p>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-2">
+      <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button cadmin-primary">Find student</a>
+      <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">Open leaderboard</a>
+    </div>
+  </article>
+</section>
+
+<section class="mt-6 border-t app-border pt-5">
   <div class="mb-3">
-    <h2 class="text-base font-semibold app-heading">Homework</h2>
-    <p class="mt-1 text-sm app-muted">Review submissions first; scoring actions are grouped at the end of each row.</p>
+    <h2 class="text-base font-semibold app-heading">All homework</h2>
+    <p class="mt-1 text-sm app-muted">Reference list for public pages, Django edits, submissions, and per-homework operations.</p>
   </div>
 
   {% if homeworks %}
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_7rem_14rem] md:gap-3">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_7rem] md:gap-3">
       <div>Homework</div>
       <div>Due date</div>
       <div class="text-right">State</div>
-      <div class="text-right">Actions</div>
     </div>
 
     <div class="divide-y app-divide">
       {% for hw in homeworks %}
         <article class="py-2.5 md:py-3">
-          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_7rem_14rem] md:items-center md:gap-3">
+          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_7rem] md:items-center md:gap-3">
             <div class="flex min-w-0 items-start justify-between gap-3 md:block">
               <div class="min-w-0">
                 <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="block truncate font-medium app-link hover:underline">{{ hw.title }}</a>
                 <div class="dense-utility-links mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <a href="{% url 'homework' course.slug hw.slug %}" title="View Public Homework Page" class="app-link">
+                  <a href="{% url 'homework' course.slug hw.slug %}" title="View public homework page" class="app-link">
                     <i class="fas fa-external-link-alt"></i> Public
                   </a>
                   <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin" class="app-link">
@@ -95,20 +199,6 @@
               {% endif %}
             </div>
 
-            <div class="cadmin-row-actions flex flex-wrap justify-start gap-2 md:justify-end">
-              {% if hw.state == 'OP' or hw.state == 'CL' %}
-                <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-success">Score</button>
-                </form>
-                <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set correct answers to most popular for {{ hw.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-secondary">Answers</button>
-                </form>
-              {% else %}
-                <span class="hidden text-sm app-muted md:inline">No action</span>
-              {% endif %}
-            </div>
           </div>
         </article>
       {% endfor %}
@@ -120,27 +210,26 @@
 
 <section class="mt-6 border-t app-border pt-5">
   <div class="mb-3">
-    <h2 class="text-base font-semibold app-heading">Projects</h2>
-    <p class="mt-1 text-sm app-muted">Keep peer-review operations separate from public project links and Django Admin edits.</p>
+    <h2 class="text-base font-semibold app-heading">All projects</h2>
+    <p class="mt-1 text-sm app-muted">Reference list for public pages, Django edits, submissions, and review operations.</p>
   </div>
 
   {% if projects %}
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_8rem_12rem] md:gap-3">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_8rem] md:gap-3">
       <div>Project</div>
       <div>Due dates</div>
       <div class="text-right">State</div>
-      <div class="text-right">Actions</div>
     </div>
 
     <div class="divide-y app-divide">
       {% for proj in projects %}
         <article class="py-2.5 md:py-3">
-          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_8rem_12rem] md:items-center md:gap-3">
+          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_8rem] md:items-center md:gap-3">
             <div class="flex min-w-0 items-start justify-between gap-3 md:block">
               <div class="min-w-0">
                 <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="block truncate font-medium app-link hover:underline">{{ proj.title }}</a>
                 <div class="dense-utility-links mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <a href="{% url 'project' course.slug proj.slug %}" title="View Public Project Page" class="app-link">
+                  <a href="{% url 'project' course.slug proj.slug %}" title="View public project page" class="app-link">
                     <i class="fas fa-external-link-alt"></i> Public
                   </a>
                   <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin" class="app-link">
@@ -185,23 +274,6 @@
               {% endif %}
             </div>
 
-            <div class="cadmin-row-actions flex flex-wrap justify-start gap-2 md:justify-end">
-              {% if proj.state == 'CS' %}
-                <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-secondary">Assign Reviews</button>
-                </form>
-              {% endif %}
-              {% if proj.state == 'PR' %}
-                <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="primer-button primer-button-success">Score</button>
-                </form>
-              {% endif %}
-              {% if proj.state != 'CS' and proj.state != 'PR' %}
-                <span class="hidden text-sm app-muted md:inline">No action</span>
-              {% endif %}
-            </div>
           </div>
         </article>
       {% endfor %}

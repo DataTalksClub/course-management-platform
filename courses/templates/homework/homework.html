@@ -53,18 +53,20 @@
                     <span class="time-left app-muted"
                           data-deadline="{{ homework.due_date | date:"c" }}"
                           data-prefix="false"></span>
-                    <span class="app-muted">Status</span>
-                    {% if submission %}
-                        <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
-                    {% else %}
-                        <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase app-text">Not submitted</span>
+                    {% if is_authenticated %}
+                        <span class="app-muted">Status</span>
+                        {% if submission %}
+                            <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
+                        {% else %}
+                            <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase app-text">Not submitted</span>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
             <div class="mt-5 flex flex-wrap gap-4">
                 {% if homework.is_scored %}
                     <a href="{% url 'homework_statistics' course.slug homework.slug %}"
-                       class="inline-flex items-center font-medium app-link app-link">Statistics</a>
+                       class="inline-flex items-center font-medium app-link app-link">View public statistics</a>
                 {% endif %}
                 {% if user.is_staff %}
                     <a href="{% url 'homework_submissions' course.slug homework.slug %}"
@@ -72,7 +74,7 @@
                 {% endif %}
             </div>
         </div>
-        {% if not is_authenticated %}
+        {% if not is_authenticated and not homework.is_scored %}
             <div class="auth-required-panel mt-6 rounded-md border app-border app-surface-muted p-4 app-heading ">
                 <div class="font-semibold">Log in to submit this homework</div>
                 <p class="mt-1 mb-0 text-sm app-text ">
@@ -103,8 +105,13 @@
                         </div>
                     {% endif %}
                 {% else %}
-                    <div class="rounded-md border app-alert-info p-4 app-heading ">
-                        This homework is already scored. <a href="{% url 'login' %}" class="app-link app-link">Log in</a> to see your submission.
+                    <div class="rounded-md border app-alert-info p-4 app-heading">
+                        <div class="font-semibold">Correct answers are available below</div>
+                        <p class="mt-1 mb-0 text-sm app-text">
+                            This homework has already been scored. Log in to view your own submission, score, and feedback.
+                        </p>
+                        <a href="{% url 'login' %}"
+                           class="primer-button mt-3 inline-flex min-h-8 items-center rounded-md bg-[#315f8f] px-3 py-1.5 text-white hover:bg-[#244d78]">Log in to view my results</a>
                     </div>
                 {% endif %}
             {% endif %}
@@ -115,8 +122,20 @@
             {% endif %}
             <section>
                 <div class="mb-4 md:mb-5">
-                    <h2 class="text-2xl font-semibold">Questions</h2>
-                    <p class="mt-2 hidden md:block app-text">Answer the questions below to complete your homework.</p>
+                    <h2 class="text-2xl font-semibold">
+                        {% if homework.is_scored and not is_authenticated %}
+                            Correct answers
+                        {% else %}
+                            Questions
+                        {% endif %}
+                    </h2>
+                    <p class="mt-2 hidden md:block app-text">
+                        {% if homework.is_scored and not is_authenticated %}
+                            Review the expected answers for this scored homework.
+                        {% else %}
+                            Answer the questions below to complete your homework.
+                        {% endif %}
+                    </p>
                 </div>
                 <div class="space-y-5">
                     {% for question, answer in question_answers %}
@@ -138,17 +157,23 @@
                                 <div class="space-y-2">
                                     {% for option in answer.options %}
                                         <div class="form-check {{ option.correctly_selected_class }}">
-                                            <input class="form-check-input"
-                                                   id="radio-{{ question.id }}-{{ forloop.counter }}"
-                                                   type="radio"
-                                                   name="answer_{{ question.id }}"
-                                                   value="{{ option.index }}"
-                                                   {% if option.is_selected %}checked{% endif %}
-                                                   {% if disabled %}disabled{% endif %} />
-                                            <label class="form-check-label"
-                                                   for="radio-{{ question.id }}-{{ forloop.counter }}">
+                                            {% if homework.is_scored and not is_authenticated %}
+                                                <span class="form-check-label">
+                                                    {{ option.value }}
+                                                </span>
+                                            {% else %}
+                                                <input class="form-check-input"
+                                                       id="radio-{{ question.id }}-{{ forloop.counter }}"
+                                                       type="radio"
+                                                       name="answer_{{ question.id }}"
+                                                       value="{{ option.index }}"
+                                                       {% if option.is_selected %}checked{% endif %}
+                                                       {% if disabled %}disabled{% endif %} />
+                                                <label class="form-check-label"
+                                                       for="radio-{{ question.id }}-{{ forloop.counter }}">
                                                 {{ option.value }}
-                                            </label>
+                                                </label>
+                                            {% endif %}
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -161,17 +186,23 @@
                                 <div class="space-y-2">
                                     {% for option in answer.options %}
                                         <div class="form-check {{ option.correctly_selected_class }}">
-                                            <input class="form-check-input"
-                                                   id="checkbox-{{ question.id }}-{{ forloop.counter }}"
-                                                   type="checkbox"
-                                                   name="answer_{{ question.id }}"
-                                                   value="{{ option.index }}"
-                                                   {% if option.is_selected %}checked{% endif %}
-                                                   {% if disabled %}disabled{% endif %} />
-                                            <label class="form-check-label"
-                                                   for="checkbox-{{ question.id }}-{{ forloop.counter }}">
+                                            {% if homework.is_scored and not is_authenticated %}
+                                                <span class="form-check-label">
+                                                    {{ option.value }}
+                                                </span>
+                                            {% else %}
+                                                <input class="form-check-input"
+                                                       id="checkbox-{{ question.id }}-{{ forloop.counter }}"
+                                                       type="checkbox"
+                                                       name="answer_{{ question.id }}"
+                                                       value="{{ option.index }}"
+                                                       {% if option.is_selected %}checked{% endif %}
+                                                       {% if disabled %}disabled{% endif %} />
+                                                <label class="form-check-label"
+                                                       for="checkbox-{{ question.id }}-{{ forloop.counter }}">
                                                 {{ option.value }}
-                                            </label>
+                                                </label>
+                                            {% endif %}
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -181,26 +212,43 @@
                                         <i class="fas fa-exclamation-triangle"></i> No answer was submitted for this question
                                     </div>
                                 {% endif %}
-                                <input class="form-control {% if answer.correctly_selected_class %}{{ answer.correctly_selected_class }}{% endif %}"
-                                       type="text"
-                                       name="answer_{{ question.id }}"
-                                       value="{{ answer.text|default:'' }}"
-                                       {% if disabled %}disabled{% endif %} />
+                                {% if homework.is_scored and not is_authenticated %}
+                                    <div class="readonly-value mt-2">
+                                        <span class="readonly-value-label">Correct answer</span><span class="readonly-value-content">{{ answer.text|default:'Not available' }}</span>
+                                    </div>
+                                {% else %}
+                                    <input class="form-control {% if answer.correctly_selected_class %}{{ answer.correctly_selected_class }}{% endif %}"
+                                           type="text"
+                                           name="answer_{{ question.id }}"
+                                           value="{{ answer.text|default:'' }}"
+                                           {% if disabled %}disabled{% endif %} />
+                                {% endif %}
                             {% elif question.question_type == 'FL' %}
                                 {% if is_authenticated and answer.no_answer_submitted %}
                                     <div class="no-answer-indicator mb-3 rounded-md border app-alert-warning px-3 py-2 text-sm  ">
                                         <i class="fas fa-exclamation-triangle"></i> No answer was submitted for this question
                                     </div>
                                 {% endif %}
-                                <textarea class="form-control {% if answer.correctly_selected_class %}{{ answer.correctly_selected_class }}{% endif %}"
-                                          name="answer_{{ question.id }}"
-                                          rows="5"
-                                          {% if disabled %}disabled{% endif %}>{{ answer.text|default:'' }}</textarea>
+                                {% if homework.is_scored and not is_authenticated %}
+                                    <div class="readonly-value mt-2">
+                                        <span class="readonly-value-label">Correct answer</span><span class="readonly-value-content">{{ answer.text|default:'Not available' }}</span>
+                                    </div>
+                                {% else %}
+                                    <textarea class="form-control {% if answer.correctly_selected_class %}{{ answer.correctly_selected_class }}{% endif %}"
+                                              name="answer_{{ question.id }}"
+                                              rows="5"
+                                              {% if disabled %}disabled{% endif %}>{{ answer.text|default:'' }}</textarea>
+                                {% endif %}
                             {% endif %}
+                        </div>
+                    {% empty %}
+                        <div class="rounded-md border app-border app-surface-muted p-4 app-text">
+                            No public answers are available for this homework yet.
                         </div>
                     {% endfor %}
                 </div>
             </section>
+            {% if is_authenticated or not homework.is_scored %}
             <section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
                 <h2 class="text-2xl font-semibold">Submission details</h2>
                 <div class="mt-5 space-y-5">
@@ -230,7 +278,7 @@
                     {% if homework.time_spent_lectures_field %}
                         <div class="question">
                             <label for="time_spent_lectures" class="question-text font-medium">
-                                Time spent on lectures (hours) <span class="text-muted">(optional)</span> <i class="fas fa-question-circle text-muted"
+                                Time spent on lectures (hours) <span class="app-muted">(optional)</span> <i class="fas fa-question-circle app-muted"
     title="How much time (in hours) did you spend on watching lectures and reading?"> </i>
                             </label>
                             {% if homework.is_scored %}
@@ -250,7 +298,7 @@
                     {% if homework.time_spent_homework_field %}
                         <div class="question">
                             <label for="time_spent_homework" class="question-text font-medium">
-                                Time spent on homework (hours) <span class="text-muted">(optional)</span> <i class="fas fa-question-circle text-muted"
+                                Time spent on homework (hours) <span class="app-muted">(optional)</span> <i class="fas fa-question-circle app-muted"
     title="How much time (in hours) did you spend on homework?"> </i>
                             </label>
                             {% if homework.is_scored %}
@@ -270,7 +318,7 @@
                     {% if course.homework_problems_comments_field %}
                         <div class="question">
                             <label for="problems_comments" class="question-text font-medium">
-                                Problems or comments <span class="text-muted">(optional)</span>
+                                Problems or comments <span class="app-muted">(optional)</span>
                             </label>
                             <textarea class="form-control mt-2"
                                       name="problems_comments"
@@ -281,7 +329,7 @@
                     {% if course.faq_document_url and homework.faq_contribution_field %}
                         <div class="question">
                             <label for="faq_contribution" class="question-text font-medium">
-                                FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, optional)</span> <i class="fas fa-question-circle text-muted"
+                                FAQ contribution (<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, <span class="app-muted">optional</span>) <i class="fas fa-question-circle app-muted"
     title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?"> </i>
                             </label>
                             <textarea class="form-control mt-2"
@@ -317,6 +365,7 @@
                     {% endif %}
                 {% endif %}
             </div>
+            {% endif %}
         </form>
         <script src="{% static 'homework.js' %}"></script>
     </section>

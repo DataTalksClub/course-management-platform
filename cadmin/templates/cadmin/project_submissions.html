@@ -26,15 +26,19 @@
             </div>
         </div>
     </section>
-    {% if submissions %}
+    {% if submissions or search_query or status_filter != 'all' %}
         <section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
             <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 class="text-base font-semibold app-heading">Submissions</h2>
-                    <p class="mt-0.5 text-sm app-muted">{{ submissions|length }} total</p>
+                    <p class="mt-0.5 text-sm app-muted">
+                        {{ submissions_page.paginator.count }} result{{ submissions_page.paginator.count|pluralize }}{% if search_query %} for "{{ search_query }}"{% endif %}
+                    </p>
                 </div>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    {% if status_filter != 'all' %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
                     <button id="copyEmailsBtn"
+                            type="button"
                             class="primer-button primer-button-secondary w-fit"
                             onclick="copyEmails()">
                         <i class="fas fa-copy"></i> Copy All Emails
@@ -42,17 +46,42 @@
                     <span id="copyFeedback"
                           class="text-sm font-medium app-badge-success "
                           style="display: none"> <i class="fas fa-check"></i> Copied! </span>
-                    <input type="text"
-                           id="searchBox"
+                    <input type="search"
+                           name="q"
+                           value="{{ search_query }}"
                            class="form-control w-full sm:w-72"
-                           placeholder="Search by email..."
-                           onkeyup="filterTable()">
-                </div>
+                           placeholder="Search by email or username...">
+                    <button type="submit" class="primer-button">Search</button>
+                    {% if search_query %}
+                        <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="grid grid-cols-2 gap-2 border-b app-border px-4 py-3 md:grid-cols-5">
+                <a href="?{% if search_query %}q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'all' %}cadmin-active-filter{% endif %}">
+                    <span class="block text-xs font-semibold uppercase app-muted">All</span>
+                    <span class="mt-1 block text-lg font-semibold app-heading">{{ project_filter_counts.all }}</span>
+                </a>
+                <a href="?status=incomplete-reviews{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'incomplete-reviews' %}cadmin-active-filter{% endif %}">
+                    <span class="block text-xs font-semibold uppercase app-muted">Incomplete reviews</span>
+                    <span class="mt-1 block text-lg font-semibold app-heading">{{ project_filter_counts.incomplete_reviews }}</span>
+                </a>
+                <a href="?status=missing-repository{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'missing-repository' %}cadmin-active-filter{% endif %}">
+                    <span class="block text-xs font-semibold uppercase app-muted">Missing repo</span>
+                    <span class="mt-1 block text-lg font-semibold app-heading">{{ project_filter_counts.missing_repository }}</span>
+                </a>
+                <a href="?status=unscored{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'unscored' %}cadmin-active-filter{% endif %}">
+                    <span class="block text-xs font-semibold uppercase app-muted">Unscored</span>
+                    <span class="mt-1 block text-lg font-semibold app-heading">{{ project_filter_counts.unscored }}</span>
+                </a>
+                <a href="?status=not-passed{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'not-passed' %}cadmin-active-filter{% endif %}">
+                    <span class="block text-xs font-semibold uppercase app-muted">Not passed</span>
+                    <span class="mt-1 block text-lg font-semibold app-heading">{{ project_filter_counts.not_passed }}</span>
+                </a>
             </div>
             <div class="divide-y app-divide md:hidden">
                 {% for submission in submissions %}
-                    <article class="cadmin-filter-card px-4 py-4"
-                             data-filter="{{ submission.student.email|lower }} {{ submission.student.username|lower }}">
+                    <article class="px-4 py-4">
                         <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                             <div class="min-w-0">
                                 <p class="font-medium app-heading">
@@ -120,6 +149,8 @@
                             </form>
                         </div>
                     </article>
+                {% empty %}
+                    <p class="px-4 py-6 text-sm app-muted">No project submissions match this view.</p>
                 {% endfor %}
             </div>
             <div class="hidden overflow-x-auto md:block">
@@ -216,6 +247,10 @@
                                     </div>
                                 </td>
                             </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="px-3 py-6 text-center text-sm app-muted">No project submissions match this view.</td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -306,22 +341,19 @@
         }
       }
 
-      function filterTable() {
-        const filter = document.getElementById('searchBox').value.toLowerCase();
-        const rows = document.querySelectorAll('#submissionsTable tbody tr');
-        const cards = document.querySelectorAll('.cadmin-filter-card');
-
-        rows.forEach(row => {
-          const email = row.cells[0].textContent.toLowerCase();
-          row.style.display = email.includes(filter) ? '' : 'none';
-        });
-
-        cards.forEach(card => {
-          const text = card.dataset.filter || card.textContent.toLowerCase();
-          card.style.display = text.includes(filter) ? '' : 'none';
-        });
-      }
-
       updateArrows();
     </script>
+    {% if submissions_page.paginator.num_pages > 1 %}
+        <nav class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm app-text" aria-label="Project submission pages">
+            <span class="app-muted">Page {{ submissions_page.number }} of {{ submissions_page.paginator.num_pages }}</span>
+            <div class="flex flex-wrap gap-2">
+                {% if submissions_page.has_previous %}
+                    <a class="primer-button primer-button-secondary" href="?page={{ submissions_page.previous_page_number }}{{ pagination_querystring }}">Previous</a>
+                {% endif %}
+                {% if submissions_page.has_next %}
+                    <a class="primer-button" href="?page={{ submissions_page.next_page_number }}{{ pagination_querystring }}">Next</a>
+                {% endif %}
+            </div>
+        </nav>
+    {% endif %}
 {% endblock %}

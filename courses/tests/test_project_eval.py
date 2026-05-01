@@ -633,3 +633,36 @@ class ProjectEvaluationTestCase(TestCase):
             "Add to Evaluation",
             status_code=200,
         )
+
+    def test_project_list_view_is_paginated(self):
+        """Test that the project submissions list limits results per page."""
+        for index in range(30):
+            user = User.objects.create_user(
+                username=f"student-{index}",
+                email=f"student-{index}@example.com",
+                password="12345",
+            )
+            enrollment = Enrollment.objects.create(
+                student=user,
+                course=self.course,
+                display_name=f"Student {index}",
+            )
+            ProjectSubmission.objects.create(
+                project=self.project,
+                student=user,
+                enrollment=enrollment,
+                github_link=f"https://github.com/student-{index}/project",
+                commit_id="1234567",
+            )
+
+        url = reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["submissions_page"].paginator.count, 32)
+        self.assertEqual(len(response.context["submissions"]), 25)
+        self.assertTrue(response.context["submissions_page"].has_next())

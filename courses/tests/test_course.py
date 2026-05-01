@@ -611,6 +611,37 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(submissions[1].project, self.open_project)
         self.assertEqual(submissions[1].display_score, -1)
 
+    def test_list_all_submissions_view_is_paginated(self):
+        """Test the list all submissions view limits results per page."""
+        for index in range(30):
+            user = User.objects.create_user(
+                username=f"student-{index}",
+                email=f"student-{index}@example.com",
+                password="12345",
+            )
+            enrollment = Enrollment.objects.create(
+                student=user,
+                course=self.course,
+                display_name=f"Student {index}",
+            )
+            ProjectSubmission.objects.create(
+                project=self.open_project,
+                student=user,
+                enrollment=enrollment,
+                github_link=f"https://github.com/test/repo-{index}",
+            )
+
+        response = self.client.get(
+            reverse(
+                "list_all_project_submissions", args=[self.course.slug]
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["submissions_page"].paginator.count, 32)
+        self.assertEqual(len(response.context["submissions"]), 25)
+        self.assertTrue(response.context["submissions_page"].has_next())
+
     def test_list_all_submissions_view_unauthorized(self):
         """Test that unauthorized users can access the submissions list"""
         response = self.client.get(
@@ -1071,4 +1102,3 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "Bob")
         self.assertContains(response, "Charlie")
         self.assertContains(response, "TestUser")
-

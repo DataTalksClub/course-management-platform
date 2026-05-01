@@ -1,16 +1,16 @@
 import logging
 import statistics
 
+from collections import defaultdict
 from typing import List
 
 from django.http import HttpRequest, HttpResponse
 
-from django.contrib import messages
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 
-from django.db.models import Prefetch, Value, Count, Q
+from django.db.models import Prefetch, Value, Count
 from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
@@ -36,23 +36,113 @@ from .forms import EnrollmentForm
 logger = logging.getLogger(__name__)
 
 LEADERBOARD_PAGE_SIZE = 100
+PROJECT_SUBMISSIONS_PAGE_SIZE = 25
+
+
+COURSE_OUTCOMES = {
+    "de": {
+        "outcome": "Build reliable data pipelines, warehouses, and batch or streaming workflows.",
+    },
+    "ml": {
+        "outcome": "Train, evaluate, deploy, and operate practical machine learning systems.",
+    },
+    "llm": {
+        "outcome": "Build search, retrieval, evaluation, and application workflows with language models.",
+    },
+    "mlops": {
+        "outcome": "Ship models with experiment tracking, orchestration, deployment, and monitoring.",
+    },
+    "sma": {
+        "outcome": "Work with market data, analytics workflows, and practical financial modeling.",
+    },
+    "ai-dev-tools": {
+        "outcome": "Use modern AI tooling to build, inspect, and ship software projects.",
+    },
+}
+
+
+def get_course_outcome(course: Course) -> str:
+    for slug_prefix, presentation in COURSE_OUTCOMES.items():
+        if course.slug.startswith(slug_prefix):
+            return presentation["outcome"]
+
+    return course.description or "Practical lessons, homework, projects, and peer review."
+
+
+def course_year(course: Course) -> str:
+    for part in reversed(course.title.split()):
+        if part.isdigit() and len(part) == 4:
+            return part
+    return "Archive"
 
 
 def course_list(request):
-    courses = Course.objects.filter(visible=True).order_by("-id")
+    courses = (
+        Course.objects.filter(visible=True)
+        .annotate(
+            homework_count=Count("homework", distinct=True),
+            project_count=Count("project", distinct=True),
+            learner_count=Count("enrollment", distinct=True),
+        )
+        .order_by("-id")
+    )
 
     active_courses = []
     finished_courses = []
+    archive_courses_by_year = defaultdict(list)
 
     for course in courses:
+        course.home_outcome = get_course_outcome(course)
+        course.home_year = course_year(course)
+
         if course.finished:
             finished_courses.append(course)
+            archive_courses_by_year[course.home_year].append(course)
         else:
             active_courses.append(course)
 
+    featured_course = None
+    for course in active_courses:
+        if not course.title.lower().startswith("fake"):
+            featured_course = course
+            break
+
+    if featured_course is None and active_courses:
+        featured_course = active_courses[0]
+
+    other_active_courses = [
+        course for course in active_courses if course != featured_course
+    ]
+
+    archive_years = sorted(
+        archive_courses_by_year.keys(),
+        key=lambda year: (year == "Archive", year),
+        reverse=True,
+    )
+    if "Archive" in archive_years:
+        archive_years.remove("Archive")
+        archive_years.append("Archive")
+
+    archive_groups = [
+        {
+            "year": year,
+            "courses": archive_courses_by_year[year],
+        }
+        for year in archive_years
+    ]
+
     context = {
         "active_courses": active_courses,
+        "archive_groups": archive_groups,
+        "featured_course": featured_course,
         "finished_courses": finished_courses,
+        "other_active_courses": other_active_courses,
+        "home_stats": {
+            "active_courses": len(active_courses),
+            "archive_courses": len(finished_courses),
+            "homeworks": sum(course.homework_count for course in courses),
+            "projects": sum(course.project_count for course in courses),
+        },
     }
 
     return render(
@@ -265,13 +355,10 @@ def leaderboard_view(request, course_slug: str):
         except Enrollment.DoesNotExist:
             pass
 
-    # Try to get enrollments from cache
     cache_key = f"leaderboard:{course.id}"
-    enrollments_data = cache.get(cache_key)
 
-    if enrollments_data is None:
+    def build_leaderboard_data():
         logger.info(f"Cache miss for leaderboard of course {course.slug}")
-        # Cache miss, fetch from database
         enrollments = list(
             Enrollment.objects.filter(course=course)
             .select_related('student')
@@ -290,11 +377,25 @@ def leaderboard_view(request, course_slug: str):
             }
             for e in enrollments
         ]
-        # Cache for 1 hour (3600 seconds)
-        # The cache will be invalidated when leaderboard is recalculated
         cache.set(cache_key, enrollments_data, 3600)
+        return enrollments_data
+
+    # Try to get enrollments from cache. If the current student enrolled after
+    # the cache was built, refresh so the jump link points to a rendered row.
+    enrollments_data = cache.get(cache_key)
+
+    if enrollments_data is None:
+        enrollments_data = build_leaderboard_data()
     else:
         logger.info(f"Cache hit for leaderboard of course {course.slug}")
+        if (
+            current_student_enrollment_id is not None
+            and not any(
+                enrollment["id"] == current_student_enrollment_id
+                for enrollment in enrollments_data
+            )
+        ):
+            enrollments_data = build_leaderboard_data()
 
     paginator = Paginator(enrollments_data, LEADERBOARD_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -410,9 +511,14 @@ def list_all_project_submissions_view(request, course_slug: str):
         .order_by("-display_score", "project__id", "submitted_at")
     )
 
+    submissions_page = Paginator(
+        submissions, PROJECT_SUBMISSIONS_PAGE_SIZE
+    ).get_page(request.GET.get("page"))
+
     context = {
         "course": course,
-        "submissions": submissions,
+        "submissions": submissions_page.object_list,
+        "submissions_page": submissions_page,
         "is_authenticated": request.user.is_authenticated,
     }
 
@@ -485,7 +591,7 @@ def dashboard_view(request, course_slug: str):
         try:
             q25, median, q75 = statistics.quantiles(data, n=4)
             return q25, median, q75
-        except:
+        except statistics.StatisticsError:
             return None, None, None
 
     # Calculate quartiles for project metrics

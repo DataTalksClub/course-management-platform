@@ -37,6 +37,9 @@ from courses.models import (
     Enrollment,
     Homework,
     HomeworkState,
+    Question,
+    QuestionTypes,
+    AnswerTypes,
     Project,
     ProjectState,
     ProjectSubmission,
@@ -320,6 +323,66 @@ def course_description(spec):
     return f"{', '.join(parts)} for {spec['title']}."
 
 
+def homework_description(title):
+    return (
+        f"Practice assignment for {title}. "
+        "Use it to check your understanding before moving to the next module."
+    )
+
+
+def ensure_homework_questions(homework):
+    question_specs = [
+        {
+            "text": f"What is the primary goal of {homework.title}?",
+            "question_type": QuestionTypes.MULTIPLE_CHOICE.value,
+            "answer_type": None,
+            "possible_answers": "\n".join(
+                [
+                    "Complete the assignment deliverables",
+                    "Skip the hands-on work",
+                    "Only read the course notes",
+                    "Submit an unrelated project",
+                ]
+            ),
+            "correct_answer": "1",
+        },
+        {
+            "text": "Which items are usually part of a complete submission?",
+            "question_type": QuestionTypes.CHECKBOXES.value,
+            "answer_type": None,
+            "possible_answers": "\n".join(
+                [
+                    "Working code or commands",
+                    "An empty repository",
+                    "Answers for the required tasks",
+                    "Unrelated screenshots",
+                ]
+            ),
+            "correct_answer": "1,3",
+        },
+        {
+            "text": "What should a short written answer include?",
+            "question_type": QuestionTypes.FREE_FORM.value,
+            "answer_type": AnswerTypes.CONTAINS_STRING.value,
+            "possible_answers": "",
+            "correct_answer": "explanation",
+        },
+    ]
+
+    for question_spec in question_specs:
+        Question.objects.update_or_create(
+            homework=homework,
+            text=question_spec["text"],
+            defaults={
+                "question_type": question_spec["question_type"],
+                "answer_type": question_spec["answer_type"],
+                "possible_answers": question_spec["possible_answers"],
+                "correct_answer": question_spec["correct_answer"],
+                "scores_for_correct_answer": 1,
+            },
+        )
+
+
 def list_courses():
     for spec in COURSE_SPECS:
         selected = "selected" if spec["slug"] in DEFAULT_SELECTED_COURSES else "catalog"
@@ -375,11 +438,12 @@ def ensure_course_materials(spec):
             slug=stable_slug("homework", title, index),
             defaults={
                 "title": title,
-                "description": f"Production-like generated homework: {title}",
+                "description": homework_description(title),
                 "due_date": parse_date(due_date),
                 "state": HomeworkState.SCORED.value,
             },
         )
+        ensure_homework_questions(homework)
         homeworks.append(homework)
 
     projects = []

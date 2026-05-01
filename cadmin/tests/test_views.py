@@ -177,6 +177,96 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.project.title)
 
+    def test_enrollments_search_finds_records_beyond_first_page(self):
+        """Enrollment search is server-side, not limited to the visible page."""
+        for index in range(30):
+            user = User.objects.create_user(
+                username=f"student-{index:02d}",
+                email=f"student-{index:02d}@example.com",
+                password="test",
+            )
+            Enrollment.objects.create(
+                student=user,
+                course=self.course,
+                display_name=f"Student {index:02d}",
+            )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        response = self.client.get(
+            reverse("cadmin_enrollments", kwargs={"course_slug": self.course.slug}),
+            {"q": "student-29"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "student-29@example.com")
+        self.assertNotContains(response, "student-00@example.com")
+
+    def test_homework_submission_search_finds_records_beyond_first_page(self):
+        """Homework submission search is server-side across all submissions."""
+        from courses.models import Submission
+
+        for index in range(30):
+            user = User.objects.create_user(
+                username=f"hw-student-{index:02d}",
+                email=f"hw-student-{index:02d}@example.com",
+                password="test",
+            )
+            enrollment = Enrollment.objects.create(student=user, course=self.course)
+            Submission.objects.create(
+                homework=self.homework,
+                student=user,
+                enrollment=enrollment,
+                total_score=index,
+            )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        response = self.client.get(
+            reverse(
+                "cadmin_homework_submissions",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+            {"q": "hw-student-29"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "hw-student-29@example.com")
+        self.assertNotContains(response, "hw-student-00@example.com")
+
+    def test_project_submission_search_finds_records_beyond_first_page(self):
+        """Project submission search is server-side across all submissions."""
+        for index in range(30):
+            user = User.objects.create_user(
+                username=f"project-student-{index:02d}",
+                email=f"project-student-{index:02d}@example.com",
+                password="test",
+            )
+            enrollment = Enrollment.objects.create(student=user, course=self.course)
+            ProjectSubmission.objects.create(
+                project=self.project,
+                student=user,
+                enrollment=enrollment,
+                total_score=index,
+            )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        response = self.client.get(
+            reverse(
+                "cadmin_project_submissions",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.project.slug,
+                },
+            ),
+            {"q": "project-student-29"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "project-student-29@example.com")
+        self.assertNotContains(response, "project-student-00@example.com")
+
     def test_project_submission_edit_get(self):
         """Test that staff users can access the project submission edit page"""
         # Create a project submission
@@ -345,6 +435,7 @@ class CadminViewTests(TestCase):
             "reviewed_enough_peers": "on",
             "passed": "on",
         })
+        self.assertEqual(response.status_code, 302)
 
         # Refresh submission from database
         submission.refresh_from_db()
@@ -709,4 +800,3 @@ class CadminViewTests(TestCase):
         # Check that leaderboard was updated (total_score should be updated)
         # The update_leaderboard function should have been called and updated the enrollment
         self.assertEqual(enrollment.total_score, 10)  # Score from the corrected answer
-

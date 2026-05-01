@@ -486,6 +486,11 @@ form select {
   width: auto;
 }
 
+.cadmin-active-filter {
+  border-color: var(--link-color);
+  box-shadow: inset 0 0 0 1px var(--link-color);
+}
+
 .readonly-value {
   display: grid;
   gap: 0.15rem;
