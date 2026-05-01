@@ -916,6 +916,73 @@ class CourseDetailViewTests(TestCase):
         
         self.assertIn("visible-course", course_slugs)
         self.assertNotIn("hidden-course", course_slugs)
+
+    def test_course_list_shows_active_course_metadata(self):
+        self.course.start_date = timezone.datetime(2026, 1, 15).date()
+        self.course.end_date = timezone.datetime(2026, 4, 15).date()
+        self.course.registration_url = (
+            "https://courses.datatalks.club/test-course/register"
+        )
+        self.course.github_repo_url = (
+            "https://github.com/DataTalksClub/test-course"
+        )
+        self.course.save()
+
+        url = reverse("course_list")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        course = next(
+            course for course in response.context["active_courses"]
+            if course.slug == self.course.slug
+        )
+
+        self.assertEqual(course.home_duration_label, "13 weeks")
+        self.assertEqual(
+            course.home_current_assignment_label,
+            "Next assignment",
+        )
+        self.assertEqual(
+            course.home_current_assignment["title"],
+            "Submitted Homework",
+        )
+
+        self.assertContains(response, "Jan 15, 2026")
+        self.assertContains(response, "Apr 15, 2026")
+        self.assertContains(response, "13 weeks")
+        self.assertContains(response, "Submitted Homework")
+        self.assertNotContains(
+            response,
+            "https://courses.datatalks.club/test-course/register",
+        )
+        self.assertContains(
+            response,
+            "https://github.com/DataTalksClub/test-course",
+        )
+        self.assertContains(response, "Projects")
+        self.assertNotContains(response, "Course page")
+
+    def test_course_list_shows_registration_before_course_start(self):
+        self.course.start_date = timezone.localdate() + timezone.timedelta(
+            days=7
+        )
+        self.course.end_date = timezone.localdate() + timezone.timedelta(
+            days=77
+        )
+        self.course.registration_url = (
+            "https://courses.datatalks.club/test-course/register"
+        )
+        self.course.save()
+
+        url = reverse("course_list")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "https://courses.datatalks.club/test-course/register",
+        )
     
     def test_hidden_course_accessible_via_direct_link(self):
         """Test that non-visible courses are still accessible via direct link"""

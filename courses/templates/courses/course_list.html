@@ -52,18 +52,33 @@
         </section>
 
         {% if active_courses %}
-            <section class="mt-6 divide-y app-divide">
+            <section class="mt-6 grid gap-4 lg:grid-cols-2">
                 {% for course in active_courses %}
-                    <a href="{% url 'course' course.slug %}"
-                       class="group grid gap-3 py-5 md:grid-cols-[minmax(0,1fr)_14rem_auto] md:items-center">
-                        <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
-                            </div>
-                            <h3 class="mt-2 text-xl font-semibold app-link md:text-2xl">{{ course.title }}</h3>
+                    <article class="grid gap-4 rounded-md border app-border app-surface p-4 md:p-5">
+                        <div>
+                            <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
+                            <h3 class="mt-2 text-xl font-semibold md:text-2xl">
+                                <a href="{% url 'course' course.slug %}" class="app-link">{{ course.title }}</a>
+                            </h3>
                             <p class="mt-1 max-w-3xl text-sm leading-6 app-text md:text-base">{{ course.home_outcome }}</p>
                         </div>
-                        <dl class="grid grid-cols-3 gap-3 text-sm md:text-right">
+                        <dl class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                            <div>
+                                <dt class="text-xs font-semibold uppercase app-muted">Starts</dt>
+                                <dd class="mt-1 font-semibold app-heading">
+                                    {% if course.start_date %}{{ course.start_date|date:"M j, Y" }}{% else %}TBA{% endif %}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-semibold uppercase app-muted">Ends</dt>
+                                <dd class="mt-1 font-semibold app-heading">
+                                    {% if course.end_date %}{{ course.end_date|date:"M j, Y" }}{% else %}TBA{% endif %}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-semibold uppercase app-muted">Duration</dt>
+                                <dd class="mt-1 font-semibold app-heading">{{ course.home_duration_label }}</dd>
+                            </div>
                             <div>
                                 <dt class="text-xs font-semibold uppercase app-muted">Homework</dt>
                                 <dd class="mt-1 font-semibold app-heading">{{ course.homework_count }}</dd>
@@ -73,12 +88,40 @@
                                 <dd class="mt-1 font-semibold app-heading">{{ course.project_count }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Learners</dt>
-                                <dd class="mt-1 font-semibold app-heading">{{ course.learner_count }}</dd>
+                                <dt class="text-xs font-semibold uppercase app-muted">Repository</dt>
+                                <dd class="mt-1 font-semibold app-heading">
+                                    {% if course.github_repo_url %}
+                                        <a href="{{ course.github_repo_url }}" class="app-link">GitHub</a>
+                                    {% else %}
+                                        TBA
+                                    {% endif %}
+                                </dd>
                             </div>
                         </dl>
-                        <span class="hidden shrink-0 app-link md:block" aria-hidden="true">&rarr;</span>
-                    </a>
+                        <div class="grid gap-3 border-t app-border pt-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                            <div>
+                                <p class="text-xs font-semibold uppercase app-muted">{{ course.home_current_assignment_label }}</p>
+                                {% if course.home_current_assignment %}
+                                    <p class="mt-1 font-semibold app-heading">
+                                        {{ course.home_current_assignment.label }}: {{ course.home_current_assignment.title }}
+                                    </p>
+                                    <p class="mt-1 app-muted">
+                                        Due {{ course.home_current_assignment.due_date|date:"M j, Y" }}
+                                    </p>
+                                {% else %}
+                                    <p class="mt-1 font-semibold app-heading">TBA</p>
+                                {% endif %}
+                            </div>
+                            {% if course.home_registration_open %}
+                                <div class="flex flex-wrap gap-3 md:justify-end">
+                                    <a href="{{ course.registration_url }}"
+                                       class="inline-flex items-center font-medium app-link">
+                                        Register
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </article>
                 {% endfor %}
             </section>
         {% else %}

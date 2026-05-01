@@ -420,11 +420,26 @@ def hide_legacy_demo_duplicates():
 
 
 def ensure_course_materials(spec):
+    due_dates = [
+        parse_date(due_date)
+        for _, due_date in [*spec["homeworks"], *spec["projects"]]
+    ]
+    start_date = min(due_dates).date()
+    end_date = max(due_dates).date()
+
     course, _ = Course.objects.update_or_create(
         slug=spec["slug"],
         defaults={
             "title": spec["title"],
             "description": course_description(spec),
+            "start_date": start_date,
+            "end_date": end_date,
+            "registration_url": (
+                f"https://courses.datatalks.club/{spec['slug']}/register"
+            ),
+            "github_repo_url": (
+                f"https://github.com/DataTalksClub/{spec['slug']}"
+            ),
             "finished": spec["finished"],
             "visible": True,
             "first_homework_scored": True,

@@ -43,6 +43,14 @@ from courses.projects import (  # noqa: E402
 User = get_user_model()
 
 course = Course.objects.get(slug="fake-course")
+today = timezone.localdate()
+course.start_date = today + timedelta(days=7)
+course.end_date = today + timedelta(days=77)
+course.registration_url = (
+    "https://courses.datatalks.club/fake-course/register"
+)
+course.github_repo_url = "https://github.com/DataTalksClub/fake-course"
+course.save()
 
 
 def create_random_question(homework: Homework):

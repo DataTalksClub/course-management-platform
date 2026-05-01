@@ -25,6 +25,10 @@ class CoursesAPITestCase(TestCase):
             title="ML Zoomcamp",
             slug="ml-zoomcamp",
             description="Machine Learning course",
+            start_date=timezone.datetime(2026, 1, 15).date(),
+            end_date=timezone.datetime(2026, 4, 15).date(),
+            registration_url="https://courses.datatalks.club/ml/register",
+            github_repo_url="https://github.com/DataTalksClub/ml-zoomcamp",
         )
 
     def test_list_courses(self):
@@ -33,6 +37,16 @@ class CoursesAPITestCase(TestCase):
         data = response.json()
         self.assertEqual(len(data["courses"]), 1)
         self.assertEqual(data["courses"][0]["slug"], "ml-zoomcamp")
+        self.assertEqual(data["courses"][0]["start_date"], "2026-01-15")
+        self.assertEqual(data["courses"][0]["end_date"], "2026-04-15")
+        self.assertEqual(
+            data["courses"][0]["registration_url"],
+            "https://courses.datatalks.club/ml/register",
+        )
+        self.assertEqual(
+            data["courses"][0]["github_repo_url"],
+            "https://github.com/DataTalksClub/ml-zoomcamp",
+        )
 
     def test_list_courses_requires_auth(self):
         client = Client()
@@ -44,6 +58,10 @@ class CoursesAPITestCase(TestCase):
             "slug": "new-course",
             "title": "New Course",
             "description": "Created by API",
+            "start_date": "2026-02-01",
+            "end_date": "2026-05-01",
+            "registration_url": "https://courses.datatalks.club/new",
+            "github_repo_url": "https://github.com/DataTalksClub/new",
             "social_media_hashtag": "newcourse",
             "project_passing_score": 12,
         }
@@ -57,6 +75,16 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["slug"], "new-course")
+        self.assertEqual(data["start_date"], "2026-02-01")
+        self.assertEqual(data["end_date"], "2026-05-01")
+        self.assertEqual(
+            data["registration_url"],
+            "https://courses.datatalks.club/new",
+        )
+        self.assertEqual(
+            data["github_repo_url"],
+            "https://github.com/DataTalksClub/new",
+        )
         self.assertEqual(data["project_passing_score"], 12)
         self.assertTrue(Course.objects.filter(slug="new-course").exists())
 
@@ -100,6 +128,16 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["slug"], "ml-zoomcamp")
+        self.assertEqual(data["start_date"], "2026-01-15")
+        self.assertEqual(data["end_date"], "2026-04-15")
+        self.assertEqual(
+            data["registration_url"],
+            "https://courses.datatalks.club/ml/register",
+        )
+        self.assertEqual(
+            data["github_repo_url"],
+            "https://github.com/DataTalksClub/ml-zoomcamp",
+        )
         self.assertEqual(len(data["homeworks"]), 1)
         self.assertEqual(len(data["projects"]), 1)
         self.assertIn("visible", data)
@@ -109,6 +147,10 @@ class CoursesAPITestCase(TestCase):
             "/api/courses/ml-zoomcamp/",
             json.dumps({
                 "title": "Updated ML Zoomcamp",
+                "start_date": "2026-01-20",
+                "end_date": "2026-04-20",
+                "registration_url": "https://courses.datatalks.club/updated",
+                "github_repo_url": "https://github.com/DataTalksClub/updated",
                 "visible": False,
             }),
             content_type="application/json",
@@ -117,9 +159,43 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["title"], "Updated ML Zoomcamp")
+        self.assertEqual(data["start_date"], "2026-01-20")
+        self.assertEqual(data["end_date"], "2026-04-20")
+        self.assertEqual(
+            data["registration_url"],
+            "https://courses.datatalks.club/updated",
+        )
+        self.assertEqual(
+            data["github_repo_url"],
+            "https://github.com/DataTalksClub/updated",
+        )
         self.assertFalse(data["visible"])
         self.course.refresh_from_db()
         self.assertFalse(self.course.visible)
+        self.assertEqual(str(self.course.start_date), "2026-01-20")
+
+    def test_patch_course_rejects_invalid_date_range(self):
+        response = self.client.patch(
+            "/api/courses/ml-zoomcamp/",
+            json.dumps({
+                "start_date": "2026-05-01",
+                "end_date": "2026-04-01",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+
+    def test_patch_course_rejects_invalid_date_format(self):
+        response = self.client.patch(
+            "/api/courses/ml-zoomcamp/",
+            json.dumps({"start_date": "01/15/2026"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "invalid_date")
 
     def test_patch_course_invalid_field(self):
         response = self.client.patch(

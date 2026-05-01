@@ -98,6 +98,10 @@ def duplicate_course(modeladmin, request, queryset):
             title=new_title,
             slug=new_slug,
             description=course.description,
+            start_date=course.start_date,
+            end_date=course.end_date,
+            registration_url=course.registration_url,
+            github_repo_url=course.github_repo_url,
             social_media_hashtag=course.social_media_hashtag,
             first_homework_scored=False,
             finished=False,
@@ -129,7 +133,13 @@ duplicate_course.short_description = "Duplicate selected courses"
 class CourseAdmin(ModelAdmin):
     actions = [update_leaderboard_admin, duplicate_course]
     inlines = [CriteriaInline]
-    list_display = ["title", "visible", "finished"]
+    list_display = [
+        "title",
+        "start_date",
+        "end_date",
+        "visible",
+        "finished",
+    ]
 
 
 @admin.register(LeaderboardComplaint)

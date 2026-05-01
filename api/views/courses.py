@@ -1,7 +1,9 @@
 from django.views.decorators.csrf import csrf_exempt
 
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_date
 
 from accounts.auth import token_required
 from courses.models import Course
@@ -14,6 +16,10 @@ from api.utils import require_methods
 COURSE_PATCH_FIELDS = {
     "title",
     "description",
+    "start_date",
+    "end_date",
+    "registration_url",
+    "github_repo_url",
     "social_media_hashtag",
     "faq_document_url",
     "min_projects_to_pass",
@@ -23,12 +29,62 @@ COURSE_PATCH_FIELDS = {
     "visible",
 }
 
+COURSE_DATE_FIELDS = {"start_date", "end_date"}
+
+
+def _date_to_iso(value):
+    if value is None:
+        return None
+    return value.isoformat()
+
+
+def _normalize_course_data(data):
+    result = data.copy()
+
+    for field in COURSE_DATE_FIELDS:
+        if field not in result:
+            continue
+
+        value = result[field]
+        if value in ("", None):
+            result[field] = None
+            continue
+
+        parsed = parse_date(value)
+        if parsed is None:
+            return None, error_response(
+                f"{field} must use YYYY-MM-DD format",
+                "invalid_date",
+                details={"field": field},
+            )
+
+        result[field] = parsed
+
+    return result, None
+
+
+def _validation_error_response(exc):
+    if hasattr(exc, "message_dict"):
+        details = exc.message_dict
+    else:
+        details = {"errors": exc.messages}
+
+    return error_response(
+        "Course validation failed",
+        "validation_error",
+        details=details,
+    )
+
 
 def _course_to_dict(course):
     return {
         "slug": course.slug,
         "title": course.title,
         "description": course.description,
+        "start_date": _date_to_iso(course.start_date),
+        "end_date": _date_to_iso(course.end_date),
+        "registration_url": course.registration_url,
+        "github_repo_url": course.github_repo_url,
         "finished": course.finished,
         "visible": course.visible,
         "social_media_hashtag": course.social_media_hashtag,
@@ -72,6 +128,10 @@ def courses_list_view(request):
     if err:
         return err
 
+    data, err = _normalize_course_data(data)
+    if err:
+        return err
+
     title = data.get("title")
     slug = data.get("slug")
     if not title or not slug:
@@ -87,10 +147,14 @@ def courses_list_view(request):
             details={"slug": slug},
         )
 
-    course = Course.objects.create(
+    course = Course(
         slug=slug,
         title=title,
         description=data.get("description", ""),
+        start_date=data.get("start_date"),
+        end_date=data.get("end_date"),
+        registration_url=data.get("registration_url", ""),
+        github_repo_url=data.get("github_repo_url", ""),
         social_media_hashtag=data.get("social_media_hashtag", ""),
         faq_document_url=data.get("faq_document_url", ""),
         min_projects_to_pass=data.get("min_projects_to_pass", 1),
@@ -101,6 +165,12 @@ def courses_list_view(request):
         finished=data.get("finished", False),
         visible=data.get("visible", True),
     )
+    try:
+        course.full_clean()
+    except ValidationError as exc:
+        return _validation_error_response(exc)
+
+    course.save()
     return JsonResponse(_course_to_dict(course), status=201)
 
 
@@ -126,7 +196,18 @@ def course_detail_view(request, course_slug):
                     "invalid_field",
                     details={"field": field},
                 )
+
+        data, err = _normalize_course_data(data)
+        if err:
+            return err
+
+        for field, value in data.items():
             setattr(course, field, value)
+
+        try:
+            course.full_clean()
+        except ValidationError as exc:
+            return _validation_error_response(exc)
 
         course.save()
         return JsonResponse(_course_to_dict(course))

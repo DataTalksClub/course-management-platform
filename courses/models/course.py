@@ -1,6 +1,7 @@
 from django.db import models
 
 from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
 from accounts.models import CustomUser
 
 from courses.random_names import generate_random_name
@@ -13,6 +14,26 @@ class Course(models.Model):
     title = models.CharField(max_length=200)
 
     description = models.TextField()
+    start_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="The public start date for the course.",
+    )
+    end_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="The public end date for the course.",
+    )
+    registration_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+        help_text="Optional external registration page for the course.",
+    )
+    github_repo_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+        help_text="Optional GitHub repository URL for the course.",
+    )
     students = models.ManyToManyField(
         User, through="Enrollment", related_name="courses_enrolled"
     )
@@ -67,6 +88,19 @@ class Course(models.Model):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        super().clean()
+
+        if self.start_date and self.end_date:
+            if self.end_date < self.start_date:
+                raise ValidationError(
+                    {
+                        "end_date": (
+                            "End date cannot be earlier than start date."
+                        )
+                    }
+                )
 
 
 class Enrollment(models.Model):

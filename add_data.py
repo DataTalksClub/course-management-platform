@@ -84,10 +84,16 @@ if created:
     TOKEN = "TEST_TOKEN"
     Token.objects.get_or_create(key=TOKEN, user=admin_user)  
 
+today = datetime.now().date()
+
 course = Course(
     title="Fake Course",
     description="This is a fake course.",
     slug="fake-course",
+    start_date=today + timedelta(days=7),
+    end_date=today + timedelta(days=77),
+    registration_url="https://courses.datatalks.club/fake-course/register",
+    github_repo_url="https://github.com/DataTalksClub/fake-course",
     finished=False,
 )
 course.save()
@@ -431,6 +437,10 @@ course2 = Course(
     title="Fake Course 2",
     description="This is a fake course.",
     slug="fake-course-2",
+    start_date=today - timedelta(days=147),
+    end_date=today - timedelta(days=77),
+    registration_url="https://courses.datatalks.club/fake-course-2/register",
+    github_repo_url="https://github.com/DataTalksClub/fake-course-2",
     finished=True,
 )
 course2.save()

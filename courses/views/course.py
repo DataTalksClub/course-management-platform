@@ -39,6 +39,12 @@ logger = logging.getLogger(__name__)
 LEADERBOARD_PAGE_SIZE = 100
 PROJECT_SUBMISSIONS_PAGE_SIZE = 25
 
+ASSIGNMENT_TYPE_ORDER = {
+    "homework": 1,
+    "project": 2,
+    "peer_review": 3,
+}
+
 
 COURSE_OUTCOMES = {
     "de": {
@@ -77,7 +83,99 @@ def course_year(course: Course) -> str:
     return "Archive"
 
 
+def course_duration_label(course: Course) -> str:
+    if not course.start_date or not course.end_date:
+        return "Dates to be announced"
+
+    duration_days = (course.end_date - course.start_date).days + 1
+    duration_days = max(duration_days, 1)
+
+    if duration_days >= 14:
+        duration_weeks = round(duration_days / 7)
+        return f"{duration_weeks} weeks"
+
+    if duration_days == 1:
+        return "1 day"
+
+    return f"{duration_days} days"
+
+
+def get_course_assignments(course: Course) -> list[dict]:
+    assignments = []
+
+    for homework in course.homework_set.all():
+        assignments.append(
+            {
+                "type": "homework",
+                "label": "Homework",
+                "title": homework.title,
+                "due_date": homework.due_date,
+            }
+        )
+
+    for project in course.project_set.all():
+        assignments.append(
+            {
+                "type": "project",
+                "label": "Project",
+                "title": project.title,
+                "due_date": project.submission_due_date,
+            }
+        )
+        assignments.append(
+            {
+                "type": "peer_review",
+                "label": "Peer review",
+                "title": project.title,
+                "due_date": project.peer_review_due_date,
+            }
+        )
+
+    return sorted(
+        assignments,
+        key=lambda assignment: (
+            assignment["due_date"],
+            ASSIGNMENT_TYPE_ORDER[assignment["type"]],
+        ),
+    )
+
+
+def current_assignment_info(course: Course, now) -> tuple[str, dict | None]:
+    assignments = get_course_assignments(course)
+
+    if not assignments:
+        return "Current assignment", None
+
+    upcoming_assignments = [
+        assignment for assignment in assignments
+        if assignment["due_date"] >= now
+    ]
+
+    if upcoming_assignments:
+        return "Next assignment", upcoming_assignments[0]
+
+    return "Last assignment", assignments[-1]
+
+
+def add_course_homepage_info(course: Course, now) -> None:
+    today = timezone.localdate(now)
+
+    course.home_outcome = get_course_outcome(course)
+    course.home_year = course_year(course)
+    course.home_duration_label = course_duration_label(course)
+    course.home_registration_open = (
+        bool(course.registration_url)
+        and bool(course.start_date)
+        and today < course.start_date
+    )
+    (
+        course.home_current_assignment_label,
+        course.home_current_assignment,
+    ) = current_assignment_info(course, now)
+
+
 def course_list(request):
+    now = timezone.now()
     courses = (
         Course.objects.filter(visible=True)
         .annotate(
@@ -85,6 +183,7 @@ def course_list(request):
             project_count=Count("project", distinct=True),
             learner_count=Count("enrollment", distinct=True),
         )
+        .prefetch_related("homework_set", "project_set")
         .order_by("-id")
     )
 
@@ -93,8 +192,7 @@ def course_list(request):
     archive_courses_by_year = defaultdict(list)
 
     for course in courses:
-        course.home_outcome = get_course_outcome(course)
-        course.home_year = course_year(course)
+        add_course_homepage_info(course, now)
 
         if course.finished:
             finished_courses.append(course)
