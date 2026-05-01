@@ -429,7 +429,9 @@ def leaderboard_score_breakdown_view(
     request, course_slug: str, enrollment_id: int
 ):
     enrollment = get_object_or_404(
-        Enrollment, id=enrollment_id, course__slug=course_slug
+        Enrollment.objects.select_related("student", "course"),
+        id=enrollment_id,
+        course__slug=course_slug,
     )
 
     state_order = Case(
@@ -451,6 +453,9 @@ def leaderboard_score_breakdown_view(
 
     context = {
         "enrollment": enrollment,
+        "public_profile": enrollment.student
+        if enrollment.display_public_profile
+        else None,
         "submissions": homework_submissions,
         "project_submissions": project_submissions,
     }
@@ -507,7 +512,11 @@ def enrollment_view(request, course_slug):
     )
 
     if request.method == "POST":
-        form = EnrollmentForm(request.POST, instance=enrollment)
+        form = EnrollmentForm(
+            request.POST,
+            instance=enrollment,
+            user=request.user,
+        )
         if form.is_valid():
             form.save()
             return redirect("course", course_slug=course_slug)
@@ -519,7 +528,7 @@ def enrollment_view(request, course_slug):
             }
             return render(request, "courses/enrollment.html", context)
 
-    form = EnrollmentForm(instance=enrollment)
+    form = EnrollmentForm(instance=enrollment, user=request.user)
 
     context = {
         "form": form,

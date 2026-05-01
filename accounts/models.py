@@ -18,6 +18,26 @@ class CustomUser(AbstractUser):
         null=True,
         help_text="Your actual name that will appear on your certificates"
     )
+    github_url = models.URLField(
+        verbose_name="GitHub URL",
+        blank=True,
+        null=True,
+    )
+    linkedin_url = models.URLField(
+        verbose_name="LinkedIn URL",
+        blank=True,
+        null=True,
+    )
+    personal_website_url = models.URLField(
+        verbose_name="Personal website URL",
+        blank=True,
+        null=True,
+    )
+    about_me = models.TextField(
+        verbose_name="About me",
+        blank=True,
+        null=True,
+    )
     dark_mode = models.BooleanField(
         verbose_name="Dark mode",
         default=False,

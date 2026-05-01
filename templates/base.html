@@ -64,28 +64,55 @@
                     DataTalks.Club
                 </a>
                 <div class="flex min-w-0 items-center gap-3 text-sm md:gap-7 md:text-base">
-                    <a href="{% url 'course_list' %}" class="shrink-0 app-heading app-link">Courses</a>
                     {% block nav_links %}{% endblock %}
-                    <button id="dark-mode-toggle"
-                            class="primer-button inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border app-border app-surface app-heading app-hover-muted app-link"
-                            title="Toggle dark mode"
-                            aria-label="Toggle dark mode"
-                            aria-pressed="{% if DARK_MODE %}true{% else %}false{% endif %}"
-                            type="button">
-                        <i id="dark-mode-icon"
-                           class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"></i>
-                    </button>
                     {% if user.is_authenticated %}
-                        <span class="hidden app-muted sm:inline">{{ user.username }}</span>
-                        <a href="{% url 'account_logout' %}"
-                           class="shrink-0 app-heading app-link"
-                           title="Logout"
-                           aria-label="Logout">
-                            <span class="hidden sm:inline">Logout</span>
-                            <i class="fas fa-sign-out-alt text-lg sm:hidden" aria-hidden="true"></i>
-                            <span class="sr-only sm:hidden">Logout</span>
-                        </a>
+                        <details class="user-menu relative shrink-0">
+                            <summary class="user-menu-toggle inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md app-heading app-hover-muted app-link"
+                                     title="Account menu"
+                                     aria-label="Account menu">
+                                <i class="fas fa-user" aria-hidden="true"></i>
+                            </summary>
+                            <div class="user-menu-panel absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-md border app-border app-surface shadow-subtle">
+                                <div class="border-b app-border px-3 py-1.5">
+                                    <p class="text-xs font-semibold uppercase app-muted">Signed in as</p>
+                                    <p class="mt-1 truncate text-sm font-medium app-heading"
+                                       title="{{ user.email|default:user.username }}">
+                                        {{ user.email|default:user.username }}
+                                    </p>
+                                </div>
+                                <div class="user-menu-actions">
+                                    <a href="{% url 'account_settings' %}" class="user-menu-item app-link">
+                                        <i class="fas fa-user-cog" aria-hidden="true"></i>
+                                        Account settings
+                                    </a>
+                                    <button id="dark-mode-toggle"
+                                            class="user-menu-item user-menu-button app-link"
+                                            aria-pressed="{% if DARK_MODE %}true{% else %}false{% endif %}"
+                                            type="button">
+                                        <i id="dark-mode-icon"
+                                           class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"
+                                           aria-hidden="true"></i>
+                                        <span id="dark-mode-label">
+                                            {% if DARK_MODE %}Light mode{% else %}Dark mode{% endif %}
+                                        </span>
+                                    </button>
+                                    <a href="{% url 'account_logout' %}" class="user-menu-item app-link">
+                                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+                                        Logout
+                                    </a>
+                                </div>
+                            </div>
+                        </details>
                     {% else %}
+                        <button id="dark-mode-toggle"
+                                class="user-menu-toggle inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md app-heading app-hover-muted app-link"
+                                title="Toggle dark mode"
+                                aria-label="Toggle dark mode"
+                                aria-pressed="{% if DARK_MODE %}true{% else %}false{% endif %}"
+                                type="button">
+                            <i id="dark-mode-icon"
+                               class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"></i>
+                        </button>
                         <a href="{% url 'login' %}"
                            class="shrink-0 app-heading app-link"
                            title="Login"
@@ -112,18 +139,21 @@
             </main>
         </div>
         <footer class="site-footer mt-10 border-t app-border app-surface app-muted">
-            <div class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-8">
+            <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 md:items-center md:px-8 md:py-8">
                 <div class="site-footer-brand">
-                    <div class="font-semibold app-heading">DataTalks.Club</div>
-                    <div class="mt-1">Free courses to learn data.</div>
+                    <span class="font-semibold app-heading">DataTalks.Club</span>
+                    <span class="site-footer-tagline">Free courses to learn data.</span>
                 </div>
-                <div class="site-footer-meta flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
+                <div class="site-footer-meta flex min-w-0 flex-nowrap items-center gap-2 md:justify-center">
                     <a href="https://github.com/DataTalksClub/course-management-platform"
                        target="_blank"
-                       class="site-footer-link app-link app-link">
-                        GitHub Repository <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                       class="site-footer-link app-link"
+                       title="GitHub repository"
+                       aria-label="GitHub repository">
+                        <i class="fab fa-github" aria-hidden="true"></i>
+                        <span class="sr-only">GitHub repository</span>
                     </a>
-                    <span class="footer-version rounded-md border app-border app-muted">
+                    <span class="footer-version app-muted">
                         <span class="footer-version-label">Version</span>
                         <span class="footer-version-value">{{ VERSION }}</span>
                     </span>

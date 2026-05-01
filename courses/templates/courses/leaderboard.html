@@ -30,9 +30,9 @@
       <p class="mt-1 text-sm app-text">Display name: {{ current_student_enrollment.display_name }} (<a href="{% url 'enrollment' course.slug %}" class="app-link hover:underline">change</a>)</p>
     </div>
     {% if current_student_page_number %}
-      <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to your record on leaderboard</a>
+      <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
     {% else %}
-      <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to your record on leaderboard</a>
+      <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
     {% endif %}
   </div>
 </section>

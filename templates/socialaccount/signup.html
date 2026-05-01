@@ -1,4 +1,39 @@
-{% extends 'base.html' %} {% block title %}Welcome - Course Management{% endblock %} {% block content %}
-<section class="mx-auto max-w-lg overflow-hidden rounded-md border app-border app-surface shadow-subtle "> <div class="border-b app-border app-surface-muted px-5 py-4 text-center "> <h1 class="text-xl font-semibold app-heading"><i class="fas fa-check-circle app-badge-success"></i> Welcome</h1> <p class="mt-1 text-sm app-muted">Your account has been created successfully.</p> </div> <div class="p-5"> <div class="rounded-md border app-badge-success px-4 py-3 text-sm  "> You are ready to start learning with us. </div> <div class="mt-5 grid grid-cols-3 gap-3 text-center text-sm app-muted"> <div><i class="fas fa-graduation-cap text-lg app-link"></i><p class="mt-1">Courses</p></div> <div><i class="fas fa-certificate text-lg app-badge-success"></i><p class="mt-1">Certificates</p></div> <div><i class="fas fa-users text-lg text-[#8250df]"></i><p class="mt-1">Community</p></div> </div> <div class="mt-5 flex justify-end"> <a href="{% url 'course_list' %}" class="primer-button"><i class="fas fa-rocket"></i> Start Learning</a> </div> </div>
+{% extends 'base.html' %}
+
+{% block title %}Welcome - Course Management{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-lg overflow-hidden rounded-md border app-border app-surface shadow-subtle">
+    <div class="border-b app-border app-surface-muted px-5 py-4 text-center">
+        <h1 class="text-xl font-semibold app-heading">
+            <i class="fas fa-check-circle app-badge-success"></i> Welcome
+        </h1>
+        <p class="mt-1 text-sm app-muted">Your account has been created successfully.</p>
+    </div>
+
+    <div class="p-5">
+        <div class="rounded-md border app-badge-success px-4 py-3 text-sm">
+            You are ready to start learning with us.
+        </div>
+        <div class="mt-5 grid grid-cols-3 gap-3 text-center text-sm app-muted">
+            <div>
+                <i class="fas fa-graduation-cap text-lg app-link"></i>
+                <p class="mt-1">Courses</p>
+            </div>
+            <div>
+                <i class="fas fa-certificate text-lg app-badge-success"></i>
+                <p class="mt-1">Certificates</p>
+            </div>
+            <div>
+                <i class="fas fa-users text-lg text-[#8250df]"></i>
+                <p class="mt-1">Community</p>
+            </div>
+        </div>
+        <div class="mt-5 flex justify-end">
+            <a href="{% url 'course_list' %}" class="primer-button">
+                <i class="fas fa-rocket"></i> Start Learning
+            </a>
+        </div>
+    </div>
 </section>
 {% endblock %}

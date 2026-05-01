@@ -24,7 +24,13 @@ class Project(models.Model):
     slug = models.SlugField(blank=False)
 
     title = models.CharField(max_length=200)
-    description = models.TextField()
+    description = models.TextField(blank=True)
+    instructions_url = models.URLField(
+        blank=True,
+        null=True,
+        validators=[URLValidator(schemes=["http", "https"])],
+        help_text="Optional link to the project instructions.",
+    )
 
     submission_due_date = models.DateTimeField()
 

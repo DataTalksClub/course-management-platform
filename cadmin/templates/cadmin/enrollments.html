@@ -55,7 +55,7 @@
         {{ total_enrollments }} result{{ total_enrollments|pluralize }}{% if search_query %} for "{{ search_query }}"{% endif %}
       </p>
     </div>
-    <form method="get" class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+    <form method="get" class="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row">
       {% if status_filter != 'all' %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
       <input
         type="search"
@@ -64,7 +64,7 @@
         class="form-control w-full sm:w-80"
         placeholder="Search by email, username, or display name..."
       >
-      <button type="submit" class="primer-button">Search</button>
+      <button type="submit" class="primer-button w-fit">Search</button>
       {% if search_query %}
         <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
       {% endif %}

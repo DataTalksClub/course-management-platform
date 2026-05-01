@@ -1,2 +1,47 @@
-{% if learning_in_public_cap > 0 and not disable_learning_in_public %} <div id="learning-in-public-links-container" class="question"> <label for="learning_in_public_links[]" class="question-text font-medium"> Learning in public links <span class="app-muted">(optional)</span> <i class="fas fa-question-circle app-muted" title="Links to social media posts where you share your progress (LinkedIn, Twitter, etc). {% if course.social_media_hashtag %} Use {{ course.social_media_hashtag }} tag.{% endif %} The scores are capped at {{ learning_in_public_cap }} point."> </i> </label> <div id="learning-in-public-links" class="mt-2 space-y-2"> {% for link in learning_in_public_links %} <input type="url" class="form-control" name="learning_in_public_links[]" value="{{ link }}" autocomplete="url" inputmode="url" {% if disabled or not user.is_authenticated %} disabled {% endif %}> {% empty %} {% if disabled %} <p class="mt-2 text-sm app-muted">No learning in public links submitted.</p> {% endif %} {% endfor %} {% if learning_in_public_links|length < learning_in_public_cap and not disabled %} <input type="url" class="form-control" name="learning_in_public_links[]" autocomplete="url" inputmode="url" {% if disabled or not user.is_authenticated %} disabled {% endif %}> {% endif %} </div> {% if accepting_submissions and not disabled and user.is_authenticated %} <button type="button" id="add-learning-public-link" class="primer-button primer-button-secondary mt-2"> Add Link </button> {% endif %} </div> <script> global_learning_in_public_cap = {{ learning_in_public_cap }}; </script>
+{% if learning_in_public_cap > 0 and not disable_learning_in_public %}
+    <div id="learning-in-public-links-container" class="question">
+        <label for="learning_in_public_links[]" class="question-text font-medium">
+            Learning in public links <span class="app-muted">(optional)</span>
+            <i class="fas fa-question-circle app-muted"
+               title="Links to social media posts where you share your progress (LinkedIn, Twitter, etc). {% if course.social_media_hashtag %} Use {{ course.social_media_hashtag }} tag.{% endif %} The scores are capped at {{ learning_in_public_cap }} point.">
+            </i>
+        </label>
+
+        <div id="learning-in-public-links" class="mt-2 space-y-2">
+            {% for link in learning_in_public_links %}
+                <input type="url"
+                       class="form-control"
+                       name="learning_in_public_links[]"
+                       value="{{ link }}"
+                       autocomplete="url"
+                       inputmode="url"
+                       {% if disabled or not user.is_authenticated %}disabled{% endif %}>
+            {% empty %}
+                {% if disabled %}
+                    <p class="mt-2 text-sm app-muted">No learning in public links submitted.</p>
+                {% endif %}
+            {% endfor %}
+
+            {% if learning_in_public_links|length < learning_in_public_cap and not disabled %}
+                <input type="url"
+                       class="form-control"
+                       name="learning_in_public_links[]"
+                       autocomplete="url"
+                       inputmode="url"
+                       {% if disabled or not user.is_authenticated %}disabled{% endif %}>
+            {% endif %}
+        </div>
+
+        {% if accepting_submissions and not disabled and user.is_authenticated %}
+            <button type="button"
+                    id="add-learning-public-link"
+                    class="primer-button primer-button-secondary mt-2">
+                Add Link
+            </button>
+        {% endif %}
+    </div>
+
+    <script>
+        global_learning_in_public_cap = {{ learning_in_public_cap }};
+    </script>
 {% endif %}

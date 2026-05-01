@@ -23,7 +23,13 @@ class Homework(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     title = models.CharField(max_length=200)
-    description = models.TextField()
+    description = models.TextField(blank=True)
+    instructions_url = models.URLField(
+        blank=True,
+        null=True,
+        validators=[URLValidator(schemes=["http", "https"])],
+        help_text="Optional link to the homework instructions.",
+    )
     due_date = models.DateTimeField()
 
     learning_in_public_cap = models.IntegerField(default=7)

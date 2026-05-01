@@ -10,41 +10,56 @@ class AnswerForm(forms.ModelForm):
 
 
 class EnrollmentForm(forms.ModelForm):
+    certificate_name = forms.CharField(
+        label="Certificate name",
+        required=False,
+        help_text="Used for certificates across your course enrollments.",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Your name for certificates",
+            }
+        ),
+    )
+
     class Meta:
         model = Enrollment
         fields = [
             "display_name",
             "certificate_name",
-            "github_url",
-            "linkedin_url",
-            "personal_website_url",
-            "about_me",
+            "display_public_profile",
         ]
         widgets = {
             "display_name": forms.TextInput(
                 attrs={"class": "form-control"}
             ),
-            "certificate_name": forms.TextInput(
-                attrs={"class": "form-control"}
-            ),
-            "github_url": forms.TextInput(
-                attrs={"class": "form-control", "optional": True}
-            ),
-            "linkedin_url": forms.TextInput(
-                attrs={"class": "form-control", "optional": True}
-            ),
-            "personal_website_url": forms.TextInput(
-                attrs={"class": "form-control", "optional": True}
-            ),
-            "about_me": forms.Textarea(
-                attrs={
-                    "rows": 3,
-                    "style": "height: 100px;",
-                    "class": "form-control",
-                    "optional": True,
-                }
+            "display_public_profile": forms.CheckboxInput(
+                attrs={"class": "h-4 w-4"}
             ),
         }
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+        self.enrollment_certificate_name = self.instance.certificate_name
+        if self.user is not None and not self.is_bound:
+            self.initial["certificate_name"] = self.user.certificate_name
+
+    def save(self, commit=True):
+        enrollment = super().save(commit=False)
+        enrollment.certificate_name = self.enrollment_certificate_name
+
+        if commit:
+            enrollment.save()
+            self.save_m2m()
+
+        if self.user is not None:
+            certificate_name = self.cleaned_data.get("certificate_name") or None
+            if self.user.certificate_name != certificate_name:
+                self.user.certificate_name = certificate_name
+                if commit:
+                    self.user.save(update_fields=["certificate_name"])
+        return enrollment
 
     def is_valid(self):
         valid = super().is_valid()

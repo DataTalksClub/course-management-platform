@@ -1,9 +1,153 @@
-{% extends 'cadmin/base.html' %} {% load custom_filters %} {% block breadcrumbs %} <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li> <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">{{ homework.title }} Submissions</a></li> <li><a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug submission.id %}">Edit Submission</a></li>
-{% endblock %} {% block cadmin_content %}
-<section class="border-b app-border pb-5 "> <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"> <div> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ homework.title }}</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Homework Submission</h1> <p class="mt-1 text-sm app-muted">Update answers and learning-in-public links, then recalculate the submission score.</p> </div> <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary w-fit">Back to Submissions</a> </div>
-</section> <section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4"> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Student</p> <p class="mt-1 font-semibold app-heading">{{ submission.student.username }}</p> {% if submission.student.email %}<p class="mt-1 text-xs app-muted">{{ submission.student.email }}</p>{% endif %} </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Homework</p> <p class="mt-1 font-semibold app-heading">{{ homework.title }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Submitted</p> <p class="mt-1 font-semibold app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Current Total Score</p> <p class="mt-1 text-2xl font-semibold app-heading">{{ submission.total_score }}</p> </div>
-</section> <form class="mt-6 space-y-6" method="post"> {% csrf_token %} <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Question Answers</h2> </div> {% if questions_with_answers %} <div class="divide-y app-divide"> {% for item in questions_with_answers %} <article class="px-4 py-4"> <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"> <div class="min-w-0"> <h3 class="font-medium app-heading">Question {{ forloop.counter }}: {{ item.question.text }}</h3> <p class="mt-1 text-sm app-muted"> Type: {{ item.question.get_question_type_display }} {% if item.question.correct_answer %} · Correct Answer: {{ item.question.correct_answer }} {% endif %} </p> </div> {% if item.answer %} <span class="w-fit rounded-full px-2 py-0.5 text-xs font-medium {% if item.answer.is_correct %}app-badge-success  {% else %}app-badge-danger  {% endif %}"> {% if item.answer.is_correct %}Correct{% else %}Incorrect{% endif %} </span> {% endif %} </div> <div class="mt-4"> {% if item.question.question_type == "MC" %} <label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer (option number)</label> <input type="text" class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" value="{{ item.answer_text }}" placeholder="Enter option number"> {% elif item.question.question_type == "CB" %} <label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer (comma-separated option numbers)</label> <input type="text" class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" value="{{ item.answer_text }}" placeholder="e.g., 1,3,4"> {% elif item.question.question_type == "FL" %} <label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer</label> <textarea class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" rows="4">{{ item.answer_text }}</textarea> {% else %} <label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer</label> <input type="text" class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" value="{{ item.answer_text }}"> {% endif %} {% if item.question.possible_answers %} <p class="mt-2 text-sm app-muted"> Options: {% for option in item.question.get_possible_answers %} {{ forloop.counter }}. {{ option }}{% if not forloop.last %}, {% endif %} {% endfor %} </p> {% endif %} </div> </article> {% endfor %} </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No questions found for this homework.</p> {% endif %} </section> <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"> <div class="rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Learning in Public Links</h2> </div> <div class="p-4"> <label class="mb-2 block text-sm font-semibold app-heading" for="learning_in_public_links">Links (comma-separated)</label> <textarea class="form-control" id="learning_in_public_links" name="learning_in_public_links" rows="3" placeholder="https://example.com/post1, https://example.com/post2">{% if submission.learning_in_public_links %}{{ submission.learning_in_public_links|join:", " }}{% endif %}</textarea> <p class="mt-2 text-sm app-muted">Each link contributes to the learning in public score, capped at {{ homework.learning_in_public_cap }}.</p> <button type="button" class="primer-button primer-button-secondary mt-3" id="clear-lip-links" onclick="clearLearningInPublicLinks()"> <i class="fas fa-trash"></i> Remove LiP Links </button> </div> </div> <div class="rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Current Scores (Read-Only)</h2> </div> <dl class="grid grid-cols-2 gap-3 p-4 text-sm"> <div class="rounded-md app-surface-muted p-3 "> <dt class="text-xs font-semibold uppercase app-muted">Questions Score</dt> <dd class="mt-1 text-lg font-semibold app-heading">{{ submission.questions_score }}</dd> </div> <div class="rounded-md app-surface-muted p-3 "> <dt class="text-xs font-semibold uppercase app-muted">FAQ Score</dt> <dd class="mt-1 text-lg font-semibold app-heading">{{ submission.faq_score }}</dd> </div> <div class="rounded-md app-surface-muted p-3 "> <dt class="text-xs font-semibold uppercase app-muted">LiP Score</dt> <dd class="mt-1 text-lg font-semibold app-heading">{{ submission.learning_in_public_score }}</dd> </div> <div class="rounded-md app-surface-muted p-3 "> <dt class="text-xs font-semibold uppercase app-muted">Total Score</dt> <dd class="mt-1 text-lg font-semibold app-heading">{{ submission.total_score }}</dd> <input type="hidden" value="{{ submission.total_score }}" readonly> </div> </dl> <p class="border-t app-border px-4 py-3 text-sm app-muted ">Scores are recalculated on save. If the total changes, the leaderboard is updated.</p> </div> </section> <div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 "> <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary">Cancel</a> <button type="submit" class="primer-button cadmin-primary">Save Changes</button> </div>
-</form> <script>
+{% extends 'cadmin/base.html' %}
+{% load custom_filters %}
+{% block breadcrumbs %}
+<li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+<li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">{{ homework.title }} Submissions</a></li>
+<li><a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug submission.id %}">Edit Submission</a></li>
+{% endblock %}
+{% block cadmin_content %}
+<section class="border-b app-border pb-5 ">
+<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+<div>
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ homework.title }}</p>
+<h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Homework Submission</h1>
+<p class="mt-1 text-sm app-muted">Update answers and learning-in-public links, then recalculate the submission score.</p>
+</div>
+<a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary w-fit">Back to Submissions</a>
+</div>
+</section>
+<section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Student</p>
+<p class="mt-1 font-semibold app-heading">{{ submission.student.username }}</p>
+{% if submission.student.email %}
+<p class="mt-1 text-xs app-muted">{{ submission.student.email }}</p>
+{% endif %}
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Homework</p>
+<p class="mt-1 font-semibold app-heading">{{ homework.title }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Submitted</p>
+<p class="mt-1 font-semibold app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Current Total Score</p>
+<p class="mt-1 text-2xl font-semibold app-heading">{{ submission.total_score }}</p>
+</div>
+</section>
+<form class="mt-6 space-y-6" method="post">
+{% csrf_token %}
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Question Answers</h2>
+</div>
+{% if questions_with_answers %}
+<div class="divide-y app-divide">
+{% for item in questions_with_answers %}
+<article class="px-4 py-4">
+<div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+<div class="min-w-0">
+<h3 class="font-medium app-heading">Question {{ forloop.counter }}: {{ item.question.text }}</h3>
+<p class="mt-1 text-sm app-muted"> Type: {{ item.question.get_question_type_display }}
+{% if item.question.correct_answer %}
+· Correct Answer: {{ item.question.correct_answer }}
+{% endif %}
+</p>
+</div>
+{% if item.answer %}
+<span class="w-fit rounded-full px-2 py-0.5 text-xs font-medium
+{% if item.answer.is_correct %}
+app-badge-success
+{% else %}
+app-badge-danger
+{% endif %}
+">
+{% if item.answer.is_correct %}
+Correct
+{% else %}
+Incorrect
+{% endif %}
+</span>
+{% endif %}
+</div>
+<div class="mt-4">
+{% if item.question.question_type == "MC" %}
+<label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer (option number)</label>
+<input type="text" class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" value="{{ item.answer_text }}" placeholder="Enter option number">
+{% elif item.question.question_type == "CB" %}
+<label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer (comma-separated option numbers)</label>
+<input type="text" class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" value="{{ item.answer_text }}" placeholder="e.g., 1,3,4">
+{% elif item.question.question_type == "FL" %}
+<label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer</label>
+<textarea class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" rows="4">{{ item.answer_text }}</textarea>
+{% else %}
+<label class="mb-2 block text-sm font-semibold app-heading" for="answer_{{ item.question.id }}">Answer</label>
+<input type="text" class="form-control" id="answer_{{ item.question.id }}" name="answer_{{ item.question.id }}" value="{{ item.answer_text }}">
+{% endif %}
+{% if item.question.possible_answers %}
+<p class="mt-2 text-sm app-muted"> Options: {% for option in item.question.get_possible_answers %} {{ forloop.counter }}. {{ option }}{% if not forloop.last %}, {% endif %}{% endfor %} </p>
+{% endif %}
+</div>
+</article>
+{% endfor %}
+</div>
+{% else %}
+<p class="px-4 py-6 text-sm app-muted">No questions found for this homework.</p>
+{% endif %}
+</section>
+<section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+<div class="rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Learning in Public Links</h2>
+</div>
+<div class="p-4">
+<label class="mb-2 block text-sm font-semibold app-heading" for="learning_in_public_links">Links (comma-separated)</label>
+<textarea class="form-control" id="learning_in_public_links" name="learning_in_public_links" rows="3" placeholder="https://example.com/post1, https://example.com/post2">
+{% if submission.learning_in_public_links %}
+{{ submission.learning_in_public_links|join:", " }}
+{% endif %}
+</textarea>
+<p class="mt-2 text-sm app-muted">Each link contributes to the learning in public score, capped at {{ homework.learning_in_public_cap }}.</p>
+<button type="button" class="primer-button primer-button-secondary mt-3" id="clear-lip-links" onclick="clearLearningInPublicLinks()">
+<i class="fas fa-trash"></i> Remove LiP Links </button>
+</div>
+</div>
+<div class="rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Current Scores (Read-Only)</h2>
+</div>
+<dl class="grid grid-cols-2 gap-3 p-4 text-sm">
+<div class="rounded-md app-surface-muted p-3 ">
+<dt class="text-xs font-semibold uppercase app-muted">Questions Score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading">{{ submission.questions_score }}</dd>
+</div>
+<div class="rounded-md app-surface-muted p-3 ">
+<dt class="text-xs font-semibold uppercase app-muted">FAQ Score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading">{{ submission.faq_score }}</dd>
+</div>
+<div class="rounded-md app-surface-muted p-3 ">
+<dt class="text-xs font-semibold uppercase app-muted">LiP Score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading">{{ submission.learning_in_public_score }}</dd>
+</div>
+<div class="rounded-md app-surface-muted p-3 ">
+<dt class="text-xs font-semibold uppercase app-muted">Total Score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading">{{ submission.total_score }}</dd>
+<input type="hidden" value="{{ submission.total_score }}" readonly>
+</div>
+</dl>
+<p class="border-t app-border px-4 py-3 text-sm app-muted ">Scores are recalculated on save. If the total changes, the leaderboard is updated.</p>
+</div>
+</section>
+<div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 ">
+<a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+<button type="submit" class="primer-button cadmin-primary">Save Changes</button>
+</div>
+</form>
+<script>
 function clearLearningInPublicLinks() { if (confirm('Are you sure you want to remove all learning in public links for this submission? This will set the learning in public score to 0.')) { document.getElementById('learning_in_public_links').value = ''; }
 }
-</script> {% endblock %}
+</script>
+{% endblock %}

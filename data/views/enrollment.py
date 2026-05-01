@@ -70,7 +70,7 @@ def graduates_data_view(request, course_slug: str):
     for enrollment in passed_enrollments:
         student = enrollment.student
         email = student.email
-        name = enrollment.certificate_name or enrollment.display_name
+        name = student.certificate_name or enrollment.display_name
 
         graduates.append(
             {

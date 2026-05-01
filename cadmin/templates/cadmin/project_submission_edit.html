@@ -1,11 +1,222 @@
-{% extends 'cadmin/base.html' %} {% load custom_filters %} {% block breadcrumbs %} <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li> <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'cadmin_project_submissions' course.slug project.slug %}">{{ project.title }} Submissions</a></li> <li><a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}">Edit Submission</a></li>
-{% endblock %} {% block cadmin_content %}
-<section class="border-b app-border pb-5 "> <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"> <div> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Project Submission</h1> <p class="mt-1 text-sm app-muted">Adjust criteria scores, peer-review points, and pass status for this project submission.</p> </div> <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary w-fit">Back to Submissions</a> </div>
-</section> <section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4"> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Student</p> <p class="mt-1 font-semibold app-heading">{{ submission.student.username }}</p> {% if submission.student.email %}<p class="mt-1 text-xs app-muted">{{ submission.student.email }}</p>{% endif %} </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Project</p> <p class="mt-1 font-semibold app-heading">{{ project.title }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Submitted</p> <p class="mt-1 font-semibold app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Repository</p> {% if submission.github_link %} <a href="{{ submission.github_link }}" target="_blank" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">View repository</a> {% else %} <p class="mt-1 text-sm app-muted">Not provided</p> {% endif %} </div>
-</section> <form class="mt-6 space-y-6" method="post"> {% csrf_token %} <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Review Criteria Scores</h2> </div> {% if criteria_with_scores %} <div class="divide-y app-divide"> {% for item in criteria_with_scores %} <article class="px-4 py-4"> <div class="cadmin-criteria-row grid items-start gap-3"> <div> <h3 class="font-medium app-heading">{{ item.criteria.description }}</h3> <details class="mt-1 text-sm app-muted"> <summary class="cursor-pointer font-medium">Score options</summary> <ul class="mt-2 list-disc pl-5"> {% for option in item.criteria.options %} <li>{{ option.criteria }}: {{ option.score }} points</li> {% endfor %} </ul> </details> </div> <div> <label class="mb-1 block text-xs font-semibold app-heading" for="criteria_score_{{ item.criteria.id }}">Score</label> <input type="number" class="form-control cadmin-score-input criteria-score" id="criteria_score_{{ item.criteria.id }}" name="criteria_score_{{ item.criteria.id }}" value="{{ item.score }}" min="0" required> </div> </div> </article> {% endfor %} </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No review criteria defined for this course.</p> {% endif %} <div class="border-t app-border app-surface-muted px-4 py-4 "> <label class="mb-2 block text-sm font-semibold app-heading" for="project_score">Total Project Score (from criteria above)</label> <input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" readonly> <p class="mt-2 text-sm app-muted">This is automatically calculated from the criteria scores above.</p> </div> </section> <section class="grid gap-6 lg:grid-cols-2"> <div class="rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Additional Project Scores</h2> </div> <div class="space-y-4 p-4"> <div> <label class="mb-2 block text-sm font-semibold app-heading" for="project_faq_score">Project FAQ Score</label> <input type="number" class="form-control additional-score" id="project_faq_score" name="project_faq_score" value="{{ submission.project_faq_score }}" required> </div> <div> <label class="mb-2 block text-sm font-semibold app-heading" for="project_learning_in_public_score">Project Learning in Public Score</label> <input type="number" class="form-control additional-score" id="project_learning_in_public_score" name="project_learning_in_public_score" value="{{ submission.project_learning_in_public_score }}" required> <button type="button" class="primer-button primer-button-secondary mt-2" onclick="clearProjectLearningInPublicScore()"> <i class="fas fa-trash"></i> Remove LiP Score </button> </div> </div> </div> <div class="rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Peer Review Scores</h2> </div> <div class="space-y-4 p-4"> <div> <label class="mb-2 block text-sm font-semibold app-heading" for="peer_review_score">Peer Review Score</label> <input type="number" class="form-control peer-review-score" id="peer_review_score" name="peer_review_score" value="{{ submission.peer_review_score }}" required> </div> <div> <label class="mb-2 block text-sm font-semibold app-heading" for="peer_review_learning_in_public_score">Peer Review Learning in Public Score</label> <input type="number" class="form-control peer-review-score" id="peer_review_learning_in_public_score" name="peer_review_learning_in_public_score" value="{{ submission.peer_review_learning_in_public_score }}" required> <button type="button" class="primer-button primer-button-secondary mt-2" onclick="clearPeerReviewLearningInPublicScore()"> <i class="fas fa-trash"></i> Remove LiP Score </button> </div> </div> </div> </section> <section class="rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Overall Results</h2> </div> <div class="grid gap-4 p-4 md:grid-cols-3"> <div> <label class="mb-2 block text-sm font-semibold app-heading" for="total_score">Total Score (automatically calculated)</label> <input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" readonly> <p class="mt-2 text-sm app-muted">Calculated from the individual scores above.</p> </div> <label class="flex items-center gap-2 text-sm font-medium app-heading"> <input type="checkbox" class="form-check-input" id="reviewed_enough_peers" name="reviewed_enough_peers" {% if submission.reviewed_enough_peers %}checked{% endif %}> Reviewed Enough Peers </label> <label class="flex items-center gap-2 text-sm font-medium app-heading"> <input type="checkbox" class="form-check-input" id="passed" name="passed" {% if submission.passed %}checked{% endif %}> Passed </label> </div> </section> <div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 "> <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a> <button type="submit" class="primer-button cadmin-primary">Save Changes</button> </div>
-</form> <script>
-document.addEventListener('DOMContentLoaded', function() { const criteriaScoreFields = document.querySelectorAll('.criteria-score'); const additionalScoreFields = document.querySelectorAll('.additional-score'); const peerReviewScoreFields = document.querySelectorAll('.peer-review-score'); const passedCheckbox = document.getElementById('passed'); const passingThreshold = {{ project.points_to_pass }}; function calculateProjectScore() { let projectScore = 0; criteriaScoreFields.forEach(function(field) { const value = parseInt(field.value, 10) || 0; projectScore += value; }); const projectScoreField = document.getElementById('project_score'); if (projectScoreField) { projectScoreField.value = projectScore; } return projectScore; } function calculateTotal() { const projectScore = calculateProjectScore(); let total = projectScore; additionalScoreFields.forEach(function(field) { total += parseInt(field.value, 10) || 0; }); peerReviewScoreFields.forEach(function(field) { total += parseInt(field.value, 10) || 0; }); const totalField = document.getElementById('total_score'); if (totalField) { totalField.value = total; } if (passedCheckbox) { passedCheckbox.checked = total >= passingThreshold; } return total; } criteriaScoreFields.forEach(function(field) { field.addEventListener('input', calculateTotal); field.addEventListener('change', calculateTotal); }); additionalScoreFields.forEach(function(field) { field.addEventListener('input', calculateTotal); field.addEventListener('change', calculateTotal); }); peerReviewScoreFields.forEach(function(field) { field.addEventListener('input', calculateTotal); field.addEventListener('change', calculateTotal); }); calculateTotal();
-}); function clearProjectLearningInPublicScore() { if (confirm('Are you sure you want to remove the project learning in public score? This will set it to 0.')) { document.getElementById('project_learning_in_public_score').value = '0'; document.getElementById('project_learning_in_public_score').dispatchEvent(new Event('input')); }
-} function clearPeerReviewLearningInPublicScore() { if (confirm('Are you sure you want to remove the peer review learning in public score? This will set it to 0.')) { document.getElementById('peer_review_learning_in_public_score').value = '0'; document.getElementById('peer_review_learning_in_public_score').dispatchEvent(new Event('input')); }
+{% extends 'cadmin/base.html' %}
+{% load custom_filters %}
+{% block breadcrumbs %}
+<li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+<li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'cadmin_project_submissions' course.slug project.slug %}">{{ project.title }} Submissions</a></li>
+<li><a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}">Edit Submission</a></li>
+{% endblock %}
+{% block cadmin_content %}
+<section class="border-b app-border pb-5 ">
+<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+<div>
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
+<h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Project Submission</h1>
+<p class="mt-1 text-sm app-muted">Adjust criteria scores, peer-review points, and pass status for this project submission.</p>
+</div>
+<a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary w-fit">Back to Submissions</a>
+</div>
+</section>
+<section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Student</p>
+<p class="mt-1 font-semibold app-heading">{{ submission.student.username }}</p>
+{% if submission.student.email %}
+<p class="mt-1 text-xs app-muted">{{ submission.student.email }}</p>
+{% endif %}
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Project</p>
+<p class="mt-1 font-semibold app-heading">{{ project.title }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Submitted</p>
+<p class="mt-1 font-semibold app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Repository</p>
+{% if submission.github_link %}
+<a href="{{ submission.github_link }}" target="_blank" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">View repository</a>
+{% else %}
+<p class="mt-1 text-sm app-muted">Not provided</p>
+{% endif %}
+</div>
+</section>
+<form class="mt-6 space-y-6" method="post">
+{% csrf_token %}
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Review Criteria Scores</h2>
+</div>
+{% if criteria_with_scores %}
+<div class="divide-y app-divide">
+{% for item in criteria_with_scores %}
+<article class="px-4 py-4">
+<div class="cadmin-criteria-row grid items-start gap-3">
+<div>
+<h3 class="font-medium app-heading">{{ item.criteria.description }}</h3>
+<details class="mt-1 text-sm app-muted">
+<summary class="cursor-pointer font-medium">Score options</summary>
+<ul class="mt-2 list-disc pl-5">
+{% for option in item.criteria.options %}
+<li>{{ option.criteria }}: {{ option.score }} points</li>
+{% endfor %}
+</ul>
+</details>
+</div>
+<div>
+<label class="mb-1 block text-xs font-semibold app-heading" for="criteria_score_{{ item.criteria.id }}">Score</label>
+<input type="number" class="form-control cadmin-score-input criteria-score" id="criteria_score_{{ item.criteria.id }}" name="criteria_score_{{ item.criteria.id }}" value="{{ item.score }}" min="0" required>
+</div>
+</div>
+</article>
+{% endfor %}
+</div>
+{% else %}
+<p class="px-4 py-6 text-sm app-muted">No review criteria defined for this course.</p>
+{% endif %}
+<div class="border-t app-border app-surface-muted px-4 py-4 ">
+<label class="mb-2 block text-sm font-semibold app-heading" for="project_score">Total Project Score (from criteria above)</label>
+<input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" readonly>
+<p class="mt-2 text-sm app-muted">This is automatically calculated from the criteria scores above.</p>
+</div>
+</section>
+<section class="grid gap-6 lg:grid-cols-2">
+<div class="rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Additional Project Scores</h2>
+</div>
+<div class="space-y-4 p-4">
+<div>
+<label class="mb-2 block text-sm font-semibold app-heading" for="project_faq_score">Project FAQ Score</label>
+<input type="number" class="form-control additional-score" id="project_faq_score" name="project_faq_score" value="{{ submission.project_faq_score }}" required>
+</div>
+<div>
+<label class="mb-2 block text-sm font-semibold app-heading" for="project_learning_in_public_score">Project Learning in Public Score</label>
+<input type="number" class="form-control additional-score" id="project_learning_in_public_score" name="project_learning_in_public_score" value="{{ submission.project_learning_in_public_score }}" required>
+<button type="button" class="primer-button primer-button-secondary mt-2" onclick="clearProjectLearningInPublicScore()">
+<i class="fas fa-trash"></i> Remove LiP Score </button>
+</div>
+</div>
+</div>
+<div class="rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Peer Review Scores</h2>
+</div>
+<div class="space-y-4 p-4">
+<div>
+<label class="mb-2 block text-sm font-semibold app-heading" for="peer_review_score">Peer Review Score</label>
+<input type="number" class="form-control peer-review-score" id="peer_review_score" name="peer_review_score" value="{{ submission.peer_review_score }}" required>
+</div>
+<div>
+<label class="mb-2 block text-sm font-semibold app-heading" for="peer_review_learning_in_public_score">Peer Review Learning in Public Score</label>
+<input type="number" class="form-control peer-review-score" id="peer_review_learning_in_public_score" name="peer_review_learning_in_public_score" value="{{ submission.peer_review_learning_in_public_score }}" required>
+<button type="button" class="primer-button primer-button-secondary mt-2" onclick="clearPeerReviewLearningInPublicScore()">
+<i class="fas fa-trash"></i> Remove LiP Score </button>
+</div>
+</div>
+</div>
+</section>
+<section class="rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Overall Results</h2>
+</div>
+<div class="grid gap-4 p-4 md:grid-cols-3">
+<div>
+<label class="mb-2 block text-sm font-semibold app-heading" for="total_score">Total Score (automatically calculated)</label>
+<input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" readonly>
+<p class="mt-2 text-sm app-muted">Calculated from the individual scores above.</p>
+</div>
+<label class="flex items-center gap-2 text-sm font-medium app-heading">
+<input type="checkbox" class="form-check-input" id="reviewed_enough_peers" name="reviewed_enough_peers"
+{% if submission.reviewed_enough_peers %}
+checked
+{% endif %}
+> Reviewed Enough Peers </label>
+<label class="flex items-center gap-2 text-sm font-medium app-heading">
+<input type="checkbox" class="form-check-input" id="passed" name="passed"
+{% if submission.passed %}
+checked
+{% endif %}
+> Passed </label>
+</div>
+</section>
+<div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 ">
+<a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+<button type="submit" class="primer-button cadmin-primary">Save Changes</button>
+</div>
+</form>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const criteriaScoreFields = document.querySelectorAll('.criteria-score');
+    const additionalScoreFields = document.querySelectorAll('.additional-score');
+    const peerReviewScoreFields = document.querySelectorAll('.peer-review-score');
+    const passedCheckbox = document.getElementById('passed');
+    const passingThreshold = {{ project.points_to_pass }};
+
+    function calculateProjectScore() {
+        let projectScore = 0;
+        criteriaScoreFields.forEach(function(field) {
+            const value = parseInt(field.value, 10) || 0;
+            projectScore += value;
+        });
+
+        const projectScoreField = document.getElementById('project_score');
+        if (projectScoreField) {
+            projectScoreField.value = projectScore;
+        }
+        return projectScore;
+    }
+
+    function calculateTotal() {
+        const projectScore = calculateProjectScore();
+        let total = projectScore;
+
+        additionalScoreFields.forEach(function(field) {
+            total += parseInt(field.value, 10) || 0;
+        });
+        peerReviewScoreFields.forEach(function(field) {
+            total += parseInt(field.value, 10) || 0;
+        });
+
+        const totalField = document.getElementById('total_score');
+        if (totalField) {
+            totalField.value = total;
+        }
+        if (passedCheckbox) {
+            passedCheckbox.checked = total >= passingThreshold;
+        }
+        return total;
+    }
+
+    criteriaScoreFields.forEach(function(field) {
+        field.addEventListener('input', calculateTotal);
+        field.addEventListener('change', calculateTotal);
+    });
+    additionalScoreFields.forEach(function(field) {
+        field.addEventListener('input', calculateTotal);
+        field.addEventListener('change', calculateTotal);
+    });
+    peerReviewScoreFields.forEach(function(field) {
+        field.addEventListener('input', calculateTotal);
+        field.addEventListener('change', calculateTotal);
+    });
+
+    calculateTotal();
+});
+
+function clearProjectLearningInPublicScore() {
+    if (confirm('Are you sure you want to remove the project learning in public score? This will set it to 0.')) {
+        document.getElementById('project_learning_in_public_score').value = '0';
+        document.getElementById('project_learning_in_public_score').dispatchEvent(new Event('input'));
+    }
 }
-</script> {% endblock %}
+
+function clearPeerReviewLearningInPublicScore() {
+    if (confirm('Are you sure you want to remove the peer review learning in public score? This will set it to 0.')) {
+        document.getElementById('peer_review_learning_in_public_score').value = '0';
+        document.getElementById('peer_review_learning_in_public_score').dispatchEvent(new Event('input'));
+    }
+}
+</script>
+{% endblock %}

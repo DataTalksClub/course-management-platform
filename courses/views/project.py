@@ -61,11 +61,11 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
             enrollment=enrollment,
         )
 
-    # Update certificate name from the form
+    # Certificate name is a user-level account setting.
     certificate_name = request.POST.get("certificate_name", "").strip()
     if certificate_name:
-        enrollment.certificate_name = certificate_name
-        enrollment.save()
+        user.certificate_name = certificate_name
+        user.save(update_fields=["certificate_name"])
 
     project_submission.github_link = request.POST.get("github_link")
     project_submission.commit_id = request.POST.get("commit_id")
@@ -188,9 +188,7 @@ def project_view(request, course_slug, project_slug):
             course=course,
         )
 
-        ceritificate_name = (
-            enrollment.certificate_name or enrollment.display_name
-        )
+        ceritificate_name = user.certificate_name or enrollment.display_name
 
     disabled = not accepting_submissions
 

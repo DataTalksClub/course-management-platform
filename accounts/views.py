@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from asgiref.sync import sync_to_async
 from allauth.socialaccount.providers import registry
 from allauth.socialaccount.models import SocialApp
@@ -11,9 +11,40 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 
+from accounts.forms import AccountSettingsForm
+from courses.models import Enrollment
+
 
 def disabled(request):
     return HttpResponse("This URL is disabled", status=403)
+
+
+@login_required
+def account_settings(request):
+    user = request.user
+
+    if request.method == "POST":
+        form = AccountSettingsForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect("account_settings")
+    else:
+        form = AccountSettingsForm(instance=user)
+
+    enrollments = (
+        Enrollment.objects.filter(student=user)
+        .select_related("course")
+        .order_by("course__title")
+    )
+
+    return render(
+        request,
+        "accounts/account_settings.html",
+        {
+            "form": form,
+            "enrollments": enrollments,
+        },
+    )
 
 
 @login_required

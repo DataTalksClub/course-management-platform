@@ -8,6 +8,9 @@ from courses.models import Course, Enrollment, Project, ProjectSubmission
 from courses.models.project import ProjectState
 
 
+PROJECT_INSTRUCTIONS_URL = "https://github.com/DataTalksClub/test/blob/main/project.md"
+
+
 class ProjectsAPITestCase(TestCase):
 
     def setUp(self):
@@ -32,6 +35,7 @@ class ProjectsAPITestCase(TestCase):
             title="Project 1",
             slug=slug,
             description="Description",
+            instructions_url=PROJECT_INSTRUCTIONS_URL,
             submission_due_date=timezone.now(),
             peer_review_due_date=timezone.now(),
             state=state,
@@ -51,6 +55,7 @@ class ProjectsAPITestCase(TestCase):
             "name": "Project 2",
             "submission_due_date": "2026-04-01T23:59:59Z",
             "peer_review_due_date": "2026-04-08T23:59:59Z",
+            "instructions_url": PROJECT_INSTRUCTIONS_URL,
         }
         response = self.client.post(
             f"/api/courses/{self.course.slug}/projects/",
@@ -60,7 +65,31 @@ class ProjectsAPITestCase(TestCase):
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(len(data["created"]), 1)
+        self.assertEqual(
+            data["created"][0]["instructions_url"],
+            PROJECT_INSTRUCTIONS_URL,
+        )
         self.assertEqual(data["created"][0]["state"], "CL")
+
+    def test_create_project_without_instructions_url(self):
+        payload = {
+            "name": "Project without instructions",
+            "submission_due_date": "2026-04-01T23:59:59Z",
+            "peer_review_due_date": "2026-04-08T23:59:59Z",
+        }
+        response = self.client.post(
+            f"/api/courses/{self.course.slug}/projects/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(
+            data["created"][0]["title"],
+            "Project without instructions",
+        )
+        self.assertIsNone(data["created"][0]["instructions_url"])
 
     def test_create_project_bulk(self):
         payload = [
@@ -68,11 +97,13 @@ class ProjectsAPITestCase(TestCase):
                 "name": "P1",
                 "submission_due_date": "2026-04-01T23:59:59Z",
                 "peer_review_due_date": "2026-04-08T23:59:59Z",
+                "instructions_url": PROJECT_INSTRUCTIONS_URL,
             },
             {
                 "name": "P2",
                 "submission_due_date": "2026-05-01T23:59:59Z",
                 "peer_review_due_date": "2026-05-08T23:59:59Z",
+                "instructions_url": PROJECT_INSTRUCTIONS_URL,
             },
         ]
         response = self.client.post(
@@ -136,6 +167,7 @@ class ProjectsAPITestCase(TestCase):
             "submission_due_date": "2026-04-01T23:59:59Z",
             "peer_review_due_date": "2026-04-08T23:59:59Z",
             "description": "Created idempotently",
+            "instructions_url": PROJECT_INSTRUCTIONS_URL,
         }
 
         response = self.client.put(
@@ -186,6 +218,7 @@ class ProjectsAPITestCase(TestCase):
                 "name": "Bad State",
                 "submission_due_date": "2026-04-01T23:59:59Z",
                 "peer_review_due_date": "2026-04-08T23:59:59Z",
+                "instructions_url": PROJECT_INSTRUCTIONS_URL,
                 "state": "XX",
             }),
             content_type="application/json",

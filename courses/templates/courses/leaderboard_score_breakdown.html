@@ -17,24 +17,24 @@
   <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
     <div>
       <h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ enrollment.display_name }}</h1>
-      {% if enrollment.about_me %}
+      {% if public_profile and public_profile.about_me %}
         <p class="mt-2 max-w-2xl text-sm app-text">
-          <strong>About me:</strong> {{ enrollment.about_me }}
+          <strong>About me:</strong> {{ public_profile.about_me }}
         </p>
       {% endif %}
       <div class="mt-3 flex gap-3 text-lg">
-        {% if enrollment.github_url %}
-          <a href="{{ enrollment.github_url }}" target="_blank" class="app-muted app-link">
+        {% if public_profile and public_profile.github_url %}
+          <a href="{{ public_profile.github_url }}" target="_blank" class="app-muted app-link">
             <i class="fab fa-github social-icon"></i>
           </a>
         {% endif %}
-        {% if enrollment.linkedin_url %}
-          <a href="{{ enrollment.linkedin_url }}" target="_blank" class="app-muted app-link">
+        {% if public_profile and public_profile.linkedin_url %}
+          <a href="{{ public_profile.linkedin_url }}" target="_blank" class="app-muted app-link">
             <i class="fab fa-linkedin social-icon"></i>
           </a>
         {% endif %}
-        {% if enrollment.personal_website_url %}
-          <a href="{{ enrollment.personal_website_url }}" target="_blank" class="app-muted app-link">
+        {% if public_profile and public_profile.personal_website_url %}
+          <a href="{{ public_profile.personal_website_url }}" target="_blank" class="app-muted app-link">
             <i class="fas fa-globe social-icon"></i>
           </a>
         {% endif %}

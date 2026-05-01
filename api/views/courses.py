@@ -141,6 +141,7 @@ def course_detail_view(request, course_slug):
                 "id": hw.id,
                 "slug": hw.slug,
                 "title": hw.title,
+                "instructions_url": hw.instructions_url,
                 "due_date": hw.due_date.isoformat(),
                 "state": hw.state,
             }
@@ -151,6 +152,7 @@ def course_detail_view(request, course_slug):
                 "id": p.id,
                 "slug": p.slug,
                 "title": p.title,
+                "instructions_url": p.instructions_url,
                 "submission_due_date": p.submission_due_date.isoformat(),
                 "peer_review_due_date": p.peer_review_due_date.isoformat(),
                 "state": p.state,

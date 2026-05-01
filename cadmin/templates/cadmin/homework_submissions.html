@@ -35,13 +35,13 @@
                         {{ submissions_page.paginator.count }} total{% if search_query %} matching "{{ search_query }}"{% endif %}
                     </p>
                 </div>
-                <form method="get" class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <form method="get" class="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row">
                     <input type="search"
                            name="q"
                            value="{{ search_query }}"
                            class="form-control w-full sm:w-72"
                            placeholder="Search by email or username...">
-                    <button type="submit" class="primer-button">Search</button>
+                    <button type="submit" class="primer-button w-fit">Search</button>
                     {% if search_query %}
                         <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary">Clear</a>
                     {% endif %}

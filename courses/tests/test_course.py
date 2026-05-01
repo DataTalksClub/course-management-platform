@@ -1164,7 +1164,7 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "Your total score: 95")
         self.assertContains(response, "Position: 2")
         self.assertContains(response, "Display name: TestUser")
-        self.assertContains(response, "Jump to your record")
+        self.assertContains(response, "Jump to my record")
         self.assertContains(response, f"record-{self.enrollment.id}")
 
         # Should show the leaderboard with all students

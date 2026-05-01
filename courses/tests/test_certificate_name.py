@@ -2,6 +2,7 @@ from django.test import TestCase
 
 from accounts.models import CustomUser
 from courses.models import Course, Enrollment
+from courses.views.forms import EnrollmentForm
 
 
 class CertificateNameTests(TestCase):
@@ -20,9 +21,8 @@ class CertificateNameTests(TestCase):
             slug="test-course-2"
         )
 
-    def test_certificate_name_sync_to_user(self):
-        """Test that updating certificate name in enrollment updates it for the user but not other enrollments"""
-        # Create two enrollments for the same user
+    def test_enrollment_certificate_name_does_not_update_user(self):
+        """Enrollment certificate_name is legacy storage, not the source of truth."""
         enrollment1 = Enrollment.objects.create(
             student=self.user,
             course=self.course1
@@ -32,42 +32,34 @@ class CertificateNameTests(TestCase):
             course=self.course2
         )
 
-        # Initially both enrollments and user should have no certificate name
         self.assertIsNone(enrollment1.certificate_name)
         self.assertIsNone(enrollment2.certificate_name)
         self.assertIsNone(self.user.certificate_name)
 
-        # Update certificate name in first enrollment
         enrollment1.certificate_name = "John Doe"
         enrollment1.save()
 
-        # Refresh objects from database
         self.user.refresh_from_db()
         enrollment1.refresh_from_db()
         enrollment2.refresh_from_db()
 
-        # Check that only the user and the updated enrollment have the new certificate name
         self.assertEqual(enrollment1.certificate_name, "John Doe")
-        self.assertIsNone(enrollment2.certificate_name)  # Other enrollment should not be affected
-        self.assertEqual(self.user.certificate_name, "John Doe")  # User should be updated
+        self.assertIsNone(enrollment2.certificate_name)
+        self.assertIsNone(self.user.certificate_name)
 
-    def test_certificate_name_sync_on_new_enrollment(self):
-        """Test that new enrollment gets certificate name from user if set"""
-        # Set certificate name on user
+    def test_new_enrollment_does_not_copy_user_certificate_name(self):
+        """Certificate name is read from the user directly when needed."""
         self.user.certificate_name = "Jane Doe"
         self.user.save()
 
-        # Create new enrollment
         enrollment = Enrollment.objects.create(
             student=self.user,
             course=self.course1
         )
 
-        # Refresh enrollment from database
         enrollment.refresh_from_db()
 
-        # Check that enrollment got the certificate name from user
-        self.assertEqual(enrollment.certificate_name, "Jane Doe")
+        self.assertIsNone(enrollment.certificate_name)
 
     def test_certificate_name_not_overwritten(self):
         """Test that existing certificate name in enrollment is not overwritten by user's name"""
@@ -85,5 +77,29 @@ class CertificateNameTests(TestCase):
         # Refresh enrollment from database
         enrollment.refresh_from_db()
 
-        # Check that enrollment's certificate name was not changed
-        self.assertEqual(enrollment.certificate_name, "Original Name") 
+        self.assertEqual(enrollment.certificate_name, "Original Name")
+
+    def test_enrollment_form_certificate_name_saves_to_user(self):
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course1,
+            display_name="Leaderboard Name",
+        )
+
+        form = EnrollmentForm(
+            data={
+                "display_name": "Leaderboard Name",
+                "certificate_name": "Certificate Name",
+                "display_public_profile": "on",
+            },
+            instance=enrollment,
+            user=self.user,
+        )
+
+        self.assertTrue(form.is_valid())
+        form.save()
+
+        self.user.refresh_from_db()
+        enrollment.refresh_from_db()
+        self.assertEqual(self.user.certificate_name, "Certificate Name")
+        self.assertIsNone(enrollment.certificate_name)

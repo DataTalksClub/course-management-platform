@@ -82,6 +82,7 @@ class Enrollment(models.Model):
         help_text="Name on the leaderboard"
     )
     display_on_leaderboard = models.BooleanField(default=True)
+    display_public_profile = models.BooleanField(default=False)
 
     position_on_leaderboard = models.IntegerField(
         blank=True, null=True, default=None
@@ -101,31 +102,6 @@ class Enrollment(models.Model):
         max_length=255, null=True, blank=True
     )
 
-    github_url = models.URLField(
-        verbose_name="GitHub URL",
-        blank=True,
-        null=True,
-        validators=[URLValidator()],
-    )
-    linkedin_url = models.URLField(
-        verbose_name="LinkedIn URL",
-        blank=True,
-        null=True,
-        validators=[URLValidator()],
-    )
-    personal_website_url = models.URLField(
-        verbose_name="Personal website URL",
-        blank=True,
-        null=True,
-        validators=[URLValidator()],
-    )
-    about_me = models.TextField(
-        verbose_name="About me",
-        blank=True,
-        null=True,
-        help_text="Any information about you",
-    )
-
     disable_learning_in_public = models.BooleanField(
         default=False,
         verbose_name="Disable learning in public",
@@ -135,15 +111,7 @@ class Enrollment(models.Model):
     def save(self, *args, **kwargs):
         if not self.display_name:
             self.display_name = generate_random_name()
-        
-        # If certificate_name is being set, update the user's certificate_name
-        if self.certificate_name and self.certificate_name != self.student.certificate_name:
-            self.student.certificate_name = self.certificate_name
-            self.student.save()
-        # If certificate_name is not set but user has one, use the user's certificate_name
-        elif not self.certificate_name and self.student.certificate_name:
-            self.certificate_name = self.student.certificate_name
-            
+
         super().save(*args, **kwargs)
 
     def __str__(self):

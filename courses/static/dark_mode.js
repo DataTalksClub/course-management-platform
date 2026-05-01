@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var body = document.body;
   var toggle = document.getElementById('dark-mode-toggle');
   var icon = document.getElementById('dark-mode-icon');
+  var label = document.getElementById('dark-mode-label');
 
   function applyDarkMode(isDarkMode) {
     body.classList.toggle('dark', isDarkMode);
@@ -16,6 +17,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (icon) {
       icon.classList.toggle('fa-moon', !isDarkMode);
       icon.classList.toggle('fa-sun', isDarkMode);
+    }
+
+    if (label) {
+      label.textContent = isDarkMode ? 'Light mode' : 'Dark mode';
     }
   }
 

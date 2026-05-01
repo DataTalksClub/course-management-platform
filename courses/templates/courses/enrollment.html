@@ -1,5 +1,119 @@
-{% extends 'base.html' %} {% load static %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li>Enrollment</li>
-{% endblock %} {% block content %} <section class="settings-section border-b pb-5"> <p class="settings-page-kicker text-sm font-semibold uppercase tracking-wide">{{ course.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="settings-page-title text-2xl font-semibold md:text-3xl">Edit Enrollment Details</h1> <p class="settings-section-copy mt-1 max-w-2xl text-sm">Update how your profile appears on the leaderboard, certificate, and public score breakdown.</p> </div> <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary w-fit">Back to course</a> </div>
-</section> <form method="post" class="settings-form mt-6 space-y-8"> {% csrf_token %} <section class="settings-section grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]"> <div> <h2 class="settings-section-title text-lg font-semibold">Public identity</h2> <p class="settings-section-copy mt-1 text-sm leading-6">How classmates and the course team identify you in public course views.</p> </div> <div class="grid gap-5 md:grid-cols-2"> <div> <label for="{{ form.display_name.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">Leaderboard name</label> {{ form.display_name }} <p class="settings-helper mt-1 text-xs leading-5">Shown on leaderboards and public score pages.</p> {% if form.display_name.errors %} <div class="mt-2 text-sm font-medium  "> <i class="fas fa-exclamation-triangle"></i> {{ form.display_name.errors|join:" " }} </div> {% endif %} </div> <div> <label for="{{ form.certificate_name.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">Certificate name</label> {{ form.certificate_name }} <p class="settings-helper mt-1 text-xs leading-5">Used on certificates. Leave empty to use the leaderboard name.</p> {% if form.certificate_name.errors %} <div class="mt-2 text-sm font-medium  "> <i class="fas fa-exclamation-triangle"></i> {{ form.certificate_name.errors|join:" " }} </div> {% endif %} </div> </div> </section> <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]"> <div> <h2 class="settings-section-title text-lg font-semibold">Public links</h2> <p class="settings-section-copy mt-1 text-sm leading-6"><span class="app-muted">Optional</span> links shown with your score breakdown and submissions.</p> </div> <div class="grid gap-5 md:grid-cols-3"> <div> <label for="{{ form.github_url.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">GitHub URL <span class="settings-helper app-muted font-normal">(optional)</span></label> {{ form.github_url }} {% if form.github_url.errors %} <div class="mt-2 text-sm font-medium  "> <i class="fas fa-exclamation-triangle"></i> {{ form.github_url.errors|join:" " }} </div> {% endif %} </div> <div> <label for="{{ form.linkedin_url.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">LinkedIn URL <span class="settings-helper app-muted font-normal">(optional)</span></label> {{ form.linkedin_url }} {% if form.linkedin_url.errors %} <div class="mt-2 text-sm font-medium  "> <i class="fas fa-exclamation-triangle"></i> {{ form.linkedin_url.errors|join:" " }} </div> {% endif %} </div> <div> <label for="{{ form.personal_website_url.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">Website URL <span class="settings-helper app-muted font-normal">(optional)</span></label> {{ form.personal_website_url }} {% if form.personal_website_url.errors %} <div class="mt-2 text-sm font-medium  "> <i class="fas fa-exclamation-triangle"></i> {{ form.personal_website_url.errors|join:" " }} </div> {% endif %} </div> </div> </section> <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]"> <div> <h2 class="settings-section-title text-lg font-semibold">Profile note</h2> <p class="settings-section-copy mt-1 text-sm leading-6">A short <span class="app-muted">optional</span> note for people reviewing your course activity.</p> </div> <div> <label for="{{ form.about_me.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">About me <span class="settings-helper app-muted font-normal">(optional)</span></label> {{ form.about_me }} {% if form.about_me.errors %} <div class="mt-2 text-sm font-medium  "> <i class="fas fa-exclamation-triangle"></i> {{ form.about_me.errors|join:" " }} </div> {% endif %} </div> </section> <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]"> <h2 class="settings-section-title text-lg font-semibold">Enrollment</h2> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <div class="text-sm"> <span class="settings-meta-label">Certificate:</span> {% if enrollment.certificate_url %} <a href="{{ enrollment.certificate_url }}" target="_blank" class="settings-link ml-1 font-medium hover:underline">Download</a> {% else %} <span class="settings-meta-value ml-1">Not available</span> {% endif %} </div> <button id="submit-button" type="submit" class="primer-button w-full sm:w-auto"> Save changes </button> </div> </section>
-</form> <script src="{% static 'homework.js' %}"></script> {% endblock %}
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta_robots %}
+    <meta name="robots" content="noindex">
+{% endblock %}
+
+{% block breadcrumbs %}
+    <li>
+        <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+    </li>
+    <li>Enrollment</li>
+{% endblock %}
+
+{% block content %}
+    <section class="settings-section border-b pb-5">
+        <p class="settings-page-kicker text-sm font-semibold uppercase tracking-wide">
+            {{ course.title }}
+        </p>
+        <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h1 class="settings-page-title text-2xl font-semibold md:text-3xl">
+                    Edit Enrollment Details
+                </h1>
+                <p class="settings-section-copy mt-1 max-w-2xl text-sm">
+                    Update how your profile appears on the leaderboard and public score breakdown.
+                    Certificate name is managed in account settings.
+                </p>
+            </div>
+            <a href="{% url 'course' course.slug %}"
+               class="primer-button primer-button-secondary w-fit">
+                Back to course
+            </a>
+        </div>
+    </section>
+
+    <form method="post" class="settings-form mt-6 space-y-8">
+        {% csrf_token %}
+
+        <section class="settings-section grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div>
+                <h2 class="settings-section-title text-lg font-semibold">Public identity</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">
+                    How classmates and the course team identify you in public course views.
+                </p>
+            </div>
+            <div class="grid gap-5 md:grid-cols-2">
+                <div>
+                    <label for="{{ form.display_name.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        Leaderboard name
+                    </label>
+                    {{ form.display_name }}
+                    <p class="settings-helper mt-1 text-xs leading-5">
+                        Shown on leaderboards and public score pages.
+                    </p>
+                    {% if form.display_name.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.display_name.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.certificate_name.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        Certificate name
+                    </label>
+                    {{ form.certificate_name }}
+                    <p class="settings-helper mt-1 text-xs leading-5">
+                        Saved to your account and used across course certificates.
+                    </p>
+                    {% if form.certificate_name.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.certificate_name.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-section border-t pt-6">
+            <div class="flex flex-col gap-4">
+                <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
+                    {{ form.display_public_profile }}
+                    <span>Display my public profile data on this leaderboard record</span>
+                </label>
+                <p class="settings-helper text-xs leading-5">
+                    Uses your account profile: About me, GitHub, LinkedIn, and website.
+                    <a href="{% url 'account_settings' %}" class="app-link font-medium">
+                        Edit public profile
+                    </a>
+                </p>
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="text-sm">
+                        <span class="settings-meta-label">Certificate:</span>
+                        {% if enrollment.certificate_url %}
+                            <a href="{{ enrollment.certificate_url }}"
+                               target="_blank"
+                               class="settings-link ml-1 font-medium hover:underline">
+                                Download
+                            </a>
+                        {% else %}
+                            <span class="settings-meta-value ml-1">Not available</span>
+                        {% endif %}
+                    </div>
+                    <button id="submit-button"
+                            type="submit"
+                            class="primer-button w-fit">
+                        Save changes
+                    </button>
+                </div>
+            </div>
+        </section>
+    </form>
+
+    <script src="{% static 'homework.js' %}"></script>
+{% endblock %}

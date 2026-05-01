@@ -1,5 +1,5 @@
-import json
-
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -17,6 +17,8 @@ from api.safety import (
 )
 from api.utils import parse_date, parse_json_body, require_methods
 
+INSTRUCTIONS_URL_VALIDATOR = URLValidator(schemes=["http", "https"])
+
 
 def _homework_delete_blockers(hw):
     blockers = []
@@ -28,6 +30,16 @@ def _homework_delete_blockers(hw):
     return blockers
 
 
+def _instructions_url_error(value):
+    if not value:
+        return None
+    try:
+        INSTRUCTIONS_URL_VALIDATOR(value)
+    except ValidationError:
+        return "instructions_url must be a valid http(s) URL"
+    return None
+
+
 def _homework_to_dict(hw):
     submissions_count = hw.submission_set.count()
     delete_blockers = _homework_delete_blockers(hw)
@@ -36,6 +48,7 @@ def _homework_to_dict(hw):
         "slug": hw.slug,
         "title": hw.title,
         "description": hw.description,
+        "instructions_url": hw.instructions_url,
         "due_date": hw.due_date.isoformat(),
         "state": hw.state,
         "learning_in_public_cap": hw.learning_in_public_cap,
@@ -58,6 +71,10 @@ def _create_homework(course, hw_data):
     if not name or not due_date_str:
         return None, "name and due_date are required"
 
+    instructions_url = hw_data.get("instructions_url")
+    if instructions_url and (error := _instructions_url_error(instructions_url)):
+        return None, error
+
     due_date = parse_date(due_date_str)
     if due_date is None:
         return None, f"Invalid date format: {due_date_str}"
@@ -72,6 +89,7 @@ def _create_homework(course, hw_data):
         slug=slug,
         title=name,
         description=hw_data.get("description", ""),
+        instructions_url=instructions_url,
         due_date=due_date,
         state=HomeworkState.CLOSED.value,
     )
@@ -147,6 +165,7 @@ def homeworks_view(request, course_slug):
 
 HOMEWORK_PATCH_FIELDS = {
     "title", "description", "due_date", "state",
+    "instructions_url",
     "learning_in_public_cap", "homework_url_field",
     "time_spent_lectures_field", "time_spent_homework_field",
     "faq_contribution_field",
@@ -162,6 +181,16 @@ def _apply_homework_data(homework, data):
 
     if "description" in data:
         homework.description = data["description"]
+
+    if "instructions_url" in data:
+        error = _instructions_url_error(data["instructions_url"])
+        if error:
+            return error_response(
+                error,
+                "invalid_instructions_url",
+                details={"field": "instructions_url"},
+            )
+        homework.instructions_url = data["instructions_url"]
 
     if "due_date" in data:
         due_date = parse_date(data["due_date"])
@@ -246,6 +275,15 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
             "missing_required_fields",
         )
 
+    if "instructions_url" in data:
+        error = _instructions_url_error(data.get("instructions_url"))
+        if error:
+            return error_response(
+                error,
+                "invalid_instructions_url",
+                details={"field": "instructions_url"},
+            )
+
     if "due_date" in data and parse_date(data["due_date"]) is None:
         return error_response(
             "Invalid date format for due_date",
@@ -272,6 +310,7 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
                 slug=homework_slug,
                 title=title,
                 description=data.get("description", ""),
+                instructions_url=data.get("instructions_url"),
                 due_date=parse_date(data["due_date"]),
                 state=HomeworkState.CLOSED.value,
             )

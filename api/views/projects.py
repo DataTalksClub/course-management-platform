@@ -1,5 +1,5 @@
-import json
-
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -16,6 +16,8 @@ from api.safety import (
 )
 from api.utils import parse_date, parse_json_body, require_methods
 
+INSTRUCTIONS_URL_VALIDATOR = URLValidator(schemes=["http", "https"])
+
 
 def _project_delete_blockers(proj):
     blockers = []
@@ -27,6 +29,16 @@ def _project_delete_blockers(proj):
     return blockers
 
 
+def _instructions_url_error(value):
+    if not value:
+        return None
+    try:
+        INSTRUCTIONS_URL_VALIDATOR(value)
+    except ValidationError:
+        return "instructions_url must be a valid http(s) URL"
+    return None
+
+
 def _project_to_dict(proj):
     submissions_count = proj.projectsubmission_set.count()
     delete_blockers = _project_delete_blockers(proj)
@@ -35,6 +47,7 @@ def _project_to_dict(proj):
         "slug": proj.slug,
         "title": proj.title,
         "description": proj.description,
+        "instructions_url": proj.instructions_url,
         "submission_due_date": proj.submission_due_date.isoformat(),
         "peer_review_due_date": proj.peer_review_due_date.isoformat(),
         "state": proj.state,
@@ -60,6 +73,10 @@ def _create_project(course, proj_data):
     if not name or not submission_due_str or not peer_review_due_str:
         return None, "name, submission_due_date, and peer_review_due_date are required"
 
+    instructions_url = proj_data.get("instructions_url")
+    if instructions_url and (error := _instructions_url_error(instructions_url)):
+        return None, error
+
     submission_due_date = parse_date(submission_due_str)
     if submission_due_date is None:
         return None, f"Invalid date format: {submission_due_str}"
@@ -78,6 +95,7 @@ def _create_project(course, proj_data):
         slug=slug,
         title=name,
         description=proj_data.get("description", ""),
+        instructions_url=instructions_url,
         submission_due_date=submission_due_date,
         peer_review_due_date=peer_review_due_date,
         state=ProjectState.CLOSED.value,
@@ -128,6 +146,7 @@ def projects_view(request, course_slug):
 
 PROJECT_PATCH_FIELDS = {
     "title", "description", "submission_due_date", "peer_review_due_date",
+    "instructions_url",
     "state", "learning_in_public_cap_project", "learning_in_public_cap_review",
     "number_of_peers_to_evaluate", "points_for_peer_review",
     "time_spent_project_field", "problems_comments_field", "faq_contribution_field",
@@ -143,6 +162,16 @@ def _apply_project_data(project, data):
 
     if "description" in data:
         project.description = data["description"]
+
+    if "instructions_url" in data:
+        error = _instructions_url_error(data["instructions_url"])
+        if error:
+            return error_response(
+                error,
+                "invalid_instructions_url",
+                details={"field": "instructions_url"},
+            )
+        project.instructions_url = data["instructions_url"]
 
     for field in ("submission_due_date", "peer_review_due_date"):
         if field not in data:
@@ -194,11 +223,23 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
 
     title = data.get("title", data.get("name"))
     required_dates = ("submission_due_date", "peer_review_due_date")
-    if created and (not title or not all(data.get(f) for f in required_dates)):
+    if created and (
+        not title
+        or not all(data.get(f) for f in required_dates)
+    ):
         return error_response(
             "title/name, submission_due_date, and peer_review_due_date are required",
             "missing_required_fields",
         )
+
+    if "instructions_url" in data:
+        error = _instructions_url_error(data.get("instructions_url"))
+        if error:
+            return error_response(
+                error,
+                "invalid_instructions_url",
+                details={"field": "instructions_url"},
+            )
 
     for field in required_dates:
         if field in data and parse_date(data[field]) is None:
@@ -221,6 +262,7 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
             slug=project_slug,
             title=title,
             description=data.get("description", ""),
+            instructions_url=data.get("instructions_url"),
             submission_due_date=parse_date(data["submission_due_date"]),
             peer_review_due_date=parse_date(data["peer_review_due_date"]),
             state=ProjectState.CLOSED.value,

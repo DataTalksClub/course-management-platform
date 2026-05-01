@@ -11,7 +11,7 @@
 {% endblock %}
 {% block nav_links %}
     <a href="{% url 'course' course.slug %}"
-       class="hidden min-w-0 truncate sm:inline app-link app-link">{{ course.title }}</a>
+       class="hidden min-w-0 truncate sm:inline app-link">{{ course.title }}</a>
 {% endblock %}
 {% block content %}
     <section class="max-w-4xl">
@@ -31,14 +31,29 @@
         {% if errors %}
             <div class="mb-6 space-y-3">
                 {% for error in errors %}
-                    <div class="rounded-md border app-alert-danger app-alert-danger p-4 app-alert-danger">{{ error }}</div>
+                    <div class="rounded-md border app-alert-danger p-4">{{ error }}</div>
                 {% endfor %}
             </div>
         {% endif %}
         <div class="border-b app-border pb-6">
-            <div class="max-w-3xl text-base leading-7 md:text-lg md:leading-8 app-text">
-                {{ homework.description | urlize_target_blank }}
-            </div>
+            {% if homework.description %}
+                <div class="max-w-3xl text-base leading-7 md:text-lg md:leading-8 app-text">
+                    {{ homework.description | urlize_target_blank }}
+                </div>
+            {% endif %}
+            {% if homework.instructions_url %}
+                <a href="{{ homework.instructions_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="mt-4 inline-flex items-center gap-2 font-medium app-link">
+                    {% if "github.com" in homework.instructions_url %}
+                        <i class="fab fa-github" aria-hidden="true"></i>
+                    {% else %}
+                        <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+                    {% endif %}
+                    <span>Instructions</span>
+                </a>
+            {% endif %}
             <div class="mt-5 grid gap-3 text-sm app-text md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                 <div>
                     <p class="m-0 text-xs font-semibold uppercase app-muted">Deadline</p>
@@ -66,11 +81,13 @@
             <div class="mt-5 flex flex-wrap gap-4">
                 {% if homework.is_scored %}
                     <a href="{% url 'homework_statistics' course.slug homework.slug %}"
-                       class="inline-flex items-center font-medium app-link app-link">View public statistics</a>
+                       class="inline-flex items-center font-medium app-link">View public statistics</a>
                 {% endif %}
                 {% if user.is_staff %}
                     <a href="{% url 'homework_submissions' course.slug homework.slug %}"
-                       class="inline-flex items-center font-medium app-link app-link"> <i class="fas fa-users mr-2"></i> View all submissions <span class="sr-only">Admin only</span> </a>
+                       class="inline-flex items-center font-medium app-link">
+                        <i class="fas fa-users mr-2"></i> View all submissions (Admin only)
+                    </a>
                 {% endif %}
             </div>
         </div>
@@ -81,7 +98,9 @@
                     You can preview the questions, but submissions are saved only for logged-in students.
                 </p>
                 <a href="{% url 'login' %}"
-                   class="primer-button mt-3 inline-flex min-h-8 items-center rounded-md bg-[#315f8f] px-3 py-1.5 text-white hover:bg-[#244d78]"> Log in to submit </a>
+                   class="primer-button mt-3">
+                    Log in to submit
+                </a>
             </div>
         {% endif %}
         <div class="mt-6 space-y-3">
@@ -111,7 +130,9 @@
                             This homework has already been scored. Log in to view your own submission, score, and feedback.
                         </p>
                         <a href="{% url 'login' %}"
-                           class="primer-button mt-3 inline-flex min-h-8 items-center rounded-md bg-[#315f8f] px-3 py-1.5 text-white hover:bg-[#244d78]">Log in to view my results</a>
+                           class="primer-button mt-3">
+                            Log in to view my results
+                        </a>
                     </div>
                 {% endif %}
             {% endif %}
@@ -352,7 +373,7 @@
                     {% if is_authenticated %}
                         <button id="submit-button"
                                 type="submit"
-                                class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md bg-[#315f8f] px-4 py-2 text-white hover:bg-[#244d78]">
+                                class="primer-button w-fit">
                             {% if not submission %}
                                 Submit
                             {% else %}
@@ -361,7 +382,9 @@
                         </button>
                     {% else %}
                         <a href="{% url 'login' %}"
-                           class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md bg-[#315f8f] px-4 py-2 text-white hover:bg-[#244d78]">Log in to submit</a>
+                           class="primer-button w-fit">
+                            Log in to submit
+                        </a>
                     {% endif %}
                 {% endif %}
             </div>

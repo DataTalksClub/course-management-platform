@@ -27,6 +27,7 @@ dev = [
     "jupyter",
     "pandas",
     "tqdm",
+    "playwright>=1.58.0",
 ]
 
 

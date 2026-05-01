@@ -1,7 +1,208 @@
-{% extends 'cadmin/base.html' %} {% block title %}Edit Enrollment - {{ course.title }}{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li> <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'cadmin_enrollments' course.slug %}">Enrollments</a></li> <li>Edit Enrollment</li>
-{% endblock %} {% block cadmin_content %}
-<section class="border-b app-border pb-5 "> <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"> <div> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Enrollment</h1> <p class="mt-1 text-sm app-muted">Review a student record, inspect submissions, and manage learning-in-public eligibility.</p> </div> <div class="flex flex-wrap gap-2"> <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary">View Score Breakdown</a> <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">View Leaderboard</a> <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button">Back to Enrollments</a> </div> </div>
-</section> <section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4"> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Student Username</p> <p class="mt-1 font-semibold app-heading">{{ enrollment.student.username }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Display Name</p> <p class="mt-1 font-semibold app-heading">{{ enrollment.display_name }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Total Score</p> <p class="mt-1 text-2xl font-semibold app-heading">{{ enrollment.total_score }}</p> </div> <div class="rounded-md border app-border app-surface p-3 "> <p class="text-xs font-semibold uppercase app-muted">Leaderboard Position</p> <p class="mt-1 font-semibold app-heading">{{ enrollment.position_on_leaderboard|default:"Not ranked" }}</p> </div>
-</section> <section class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"> <div class="space-y-6"> <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Homework Submissions</h2> </div> {% if homework_submissions %} <div class="divide-y app-divide md:hidden"> {% for submission in homework_submissions %} <article class="px-3 py-2"> <div class="flex items-start justify-between gap-3"> <div> <p class="font-medium app-heading">{{ submission.homework.title }}</p> <p class="mt-1 text-xs app-muted">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p> </div> <span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold ">{{ submission.total_score }}</span> </div> <div class="mt-2"> <a href="{% url 'cadmin_homework_submission_edit' course.slug submission.homework.slug submission.id %}" class="primer-button"> <i class="fas fa-edit"></i> Edit </a> </div> </article> {% endfor %} </div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="px-3 py-2">Homework</th> <th class="px-3 py-2">Submitted</th> <th class="px-3 py-2 text-right">Score</th> <th class="px-3 py-2 text-right">Actions</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for submission in homework_submissions %} <tr> <td class="px-3 py-2 font-medium app-heading">{{ submission.homework.title }}</td> <td class="px-3 py-2 app-text">{{ submission.submitted_at|date:"Y-m-d H:i" }}</td> <td class="px-3 py-2 text-right font-semibold">{{ submission.total_score }}</td> <td class="px-3 py-2 text-right"> <a href="{% url 'cadmin_homework_submission_edit' course.slug submission.homework.slug submission.id %}" class="primer-button cadmin-compact-button" title="Edit homework submission"> <i class="fas fa-edit"></i><span class="sr-only"> Edit</span> </a> </td> </tr> {% endfor %} </tbody> </table> </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No homework submissions yet.</p> {% endif %} </section> <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Project Submissions</h2> </div> {% if project_submissions %} <div class="divide-y app-divide md:hidden"> {% for submission in project_submissions %} <article class="px-3 py-2"> <div class="flex items-start justify-between gap-3"> <div> <p class="font-medium app-heading">{{ submission.project.title }}</p> <p class="mt-1 text-xs app-muted">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p> </div> <span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold ">{{ submission.total_score }}</span> </div> <div class="mt-2"> <a href="{% url 'cadmin_project_submission_edit' course.slug submission.project.slug submission.id %}" class="primer-button"> <i class="fas fa-edit"></i> Edit </a> </div> </article> {% endfor %} </div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="px-3 py-2">Project</th> <th class="px-3 py-2">Submitted</th> <th class="px-3 py-2 text-right">Score</th> <th class="px-3 py-2 text-right">Actions</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for submission in project_submissions %} <tr> <td class="px-3 py-2 font-medium app-heading">{{ submission.project.title }}</td> <td class="px-3 py-2 app-text">{{ submission.submitted_at|date:"Y-m-d H:i" }}</td> <td class="px-3 py-2 text-right font-semibold">{{ submission.total_score }}</td> <td class="px-3 py-2 text-right"> <a href="{% url 'cadmin_project_submission_edit' course.slug submission.project.slug submission.id %}" class="primer-button cadmin-compact-button" title="Edit project submission"> <i class="fas fa-edit"></i><span class="sr-only"> Edit</span> </a> </td> </tr> {% endfor %} </tbody> </table> </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No project submissions yet.</p> {% endif %} </section> </div> <aside class="space-y-6"> <section class="rounded-md border app-border app-surface p-4 "> <h2 class="text-base font-semibold app-heading">Learning in Public Statistics</h2> <dl class="mt-4 space-y-3 text-sm"> <div class="flex justify-between gap-3"><dt class="app-muted">Homework Submissions</dt><dd class="font-semibold">{{ homework_submissions_count }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">Total Homework LiP Score</dt><dd class="font-semibold">{{ total_homework_lip_score }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">Project Submissions</dt><dd class="font-semibold">{{ project_submissions_count }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">Total Project LiP Score</dt><dd class="font-semibold">{{ total_project_lip_score }}</dd></div> <div class="flex justify-between gap-3 border-t app-border pt-3 "><dt class="font-semibold app-heading">Total LiP Score</dt><dd class="font-semibold">{{ total_homework_lip_score|add:total_project_lip_score }}</dd></div> </dl> </section> <section class="rounded-md border app-border app-surface p-3 "> <div class="flex flex-wrap items-center justify-between gap-2"> <h2 class="text-base font-semibold app-heading">Learning in Public</h2> {% if enrollment.disable_learning_in_public %} <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">DISABLED</span> {% else %} <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">ENABLED</span> {% endif %} </div> <form class="mt-3" method="post" onsubmit="return confirm('Are you sure you want to {% if enrollment.disable_learning_in_public %}enable{% else %}disable{% endif %} learning in public for this student? {% if not enrollment.disable_learning_in_public %}This will zero out all their learning in public scores and recalculate the leaderboard.{% endif %}');"> {% csrf_token %} <input type="hidden" name="action" value="toggle_learning_in_public"> <div class="rounded-md border app-border app-surface-muted px-3 py-2 text-sm app-text "> {% if enrollment.disable_learning_in_public %} <strong>Note:</strong> Learning in public is currently disabled for this student. All their learning in public scores are zero and they cannot submit new learning in public links. {% else %} <strong>Note:</strong> Disabling learning in public will zero homework/project LiP scores, recalculate the leaderboard, and prevent future LiP submissions from counting. {% endif %} </div> <button type="submit" class="primer-button mt-3 {% if enrollment.disable_learning_in_public %}primer-button-success{% else %}primer-button-secondary{% endif %}"> {% if enrollment.disable_learning_in_public %} Enable LiP {% else %} Disable LiP {% endif %} </button> </form> </section> </aside>
+{% extends 'cadmin/base.html' %}
+{% block title %}
+Edit Enrollment - {{ course.title }}
+{% endblock %}
+{% block breadcrumbs %}
+<li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+<li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'cadmin_enrollments' course.slug %}">Enrollments</a></li>
+<li>Edit Enrollment</li>
+{% endblock %}
+{% block cadmin_content %}
+<section class="border-b app-border pb-5 ">
+<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+<div>
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+<h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Enrollment</h1>
+<p class="mt-1 text-sm app-muted">Review a student record, inspect submissions, and manage learning-in-public eligibility.</p>
+</div>
+<div class="flex flex-wrap gap-2">
+<a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary">View Score Breakdown</a>
+<a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">View Leaderboard</a>
+<a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button">Back to Enrollments</a>
+</div>
+</div>
+</section>
+<section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Student Username</p>
+<p class="mt-1 font-semibold app-heading">{{ enrollment.student.username }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Display Name</p>
+<p class="mt-1 font-semibold app-heading">{{ enrollment.display_name }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Total Score</p>
+<p class="mt-1 text-2xl font-semibold app-heading">{{ enrollment.total_score }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Leaderboard Position</p>
+<p class="mt-1 font-semibold app-heading">{{ enrollment.position_on_leaderboard|default:"Not ranked" }}</p>
+</div>
+</section>
+<section class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+<div class="space-y-6">
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Homework Submissions</h2>
+</div>
+{% if homework_submissions %}
+<div class="divide-y app-divide md:hidden">
+{% for submission in homework_submissions %}
+<article class="px-3 py-2">
+<div class="flex items-start justify-between gap-3">
+<div>
+<p class="font-medium app-heading">{{ submission.homework.title }}</p>
+<p class="mt-1 text-xs app-muted">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p>
+</div>
+<span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold ">{{ submission.total_score }}</span>
+</div>
+<div class="mt-2">
+<a href="{% url 'cadmin_homework_submission_edit' course.slug submission.homework.slug submission.id %}" class="primer-button">
+<i class="fas fa-edit"></i> Edit </a>
+</div>
+</article>
+{% endfor %}
+</div>
+<div class="hidden overflow-x-auto md:block">
+<table class="min-w-full text-sm">
+<thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
+<tr>
+<th class="px-3 py-2">Homework</th>
+<th class="px-3 py-2">Submitted</th>
+<th class="px-3 py-2 text-right">Score</th>
+<th class="px-3 py-2 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y app-divide">
+{% for submission in homework_submissions %}
+<tr>
+<td class="px-3 py-2 font-medium app-heading">{{ submission.homework.title }}</td>
+<td class="px-3 py-2 app-text">{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
+<td class="px-3 py-2 text-right font-semibold">{{ submission.total_score }}</td>
+<td class="px-3 py-2 text-right">
+<a href="{% url 'cadmin_homework_submission_edit' course.slug submission.homework.slug submission.id %}" class="primer-button cadmin-compact-button" title="Edit homework submission">
+<i class="fas fa-edit"></i><span class="sr-only"> Edit</span>
+</a>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<p class="px-4 py-6 text-sm app-muted">No homework submissions yet.</p>
+{% endif %}
+</section>
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Project Submissions</h2>
+</div>
+{% if project_submissions %}
+<div class="divide-y app-divide md:hidden">
+{% for submission in project_submissions %}
+<article class="px-3 py-2">
+<div class="flex items-start justify-between gap-3">
+<div>
+<p class="font-medium app-heading">{{ submission.project.title }}</p>
+<p class="mt-1 text-xs app-muted">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p>
+</div>
+<span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold ">{{ submission.total_score }}</span>
+</div>
+<div class="mt-2">
+<a href="{% url 'cadmin_project_submission_edit' course.slug submission.project.slug submission.id %}" class="primer-button">
+<i class="fas fa-edit"></i> Edit </a>
+</div>
+</article>
+{% endfor %}
+</div>
+<div class="hidden overflow-x-auto md:block">
+<table class="min-w-full text-sm">
+<thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
+<tr>
+<th class="px-3 py-2">Project</th>
+<th class="px-3 py-2">Submitted</th>
+<th class="px-3 py-2 text-right">Score</th>
+<th class="px-3 py-2 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y app-divide">
+{% for submission in project_submissions %}
+<tr>
+<td class="px-3 py-2 font-medium app-heading">{{ submission.project.title }}</td>
+<td class="px-3 py-2 app-text">{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
+<td class="px-3 py-2 text-right font-semibold">{{ submission.total_score }}</td>
+<td class="px-3 py-2 text-right">
+<a href="{% url 'cadmin_project_submission_edit' course.slug submission.project.slug submission.id %}" class="primer-button cadmin-compact-button" title="Edit project submission">
+<i class="fas fa-edit"></i><span class="sr-only"> Edit</span>
+</a>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<p class="px-4 py-6 text-sm app-muted">No project submissions yet.</p>
+{% endif %}
+</section>
+</div>
+<aside class="space-y-6">
+<section class="rounded-md border app-border app-surface p-4 ">
+<h2 class="text-base font-semibold app-heading">Learning in Public Statistics</h2>
+<dl class="mt-4 space-y-3 text-sm">
+<div class="flex justify-between gap-3"><dt class="app-muted">Homework Submissions</dt><dd class="font-semibold">{{ homework_submissions_count }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">Total Homework LiP Score</dt><dd class="font-semibold">{{ total_homework_lip_score }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">Project Submissions</dt><dd class="font-semibold">{{ project_submissions_count }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">Total Project LiP Score</dt><dd class="font-semibold">{{ total_project_lip_score }}</dd></div>
+<div class="flex justify-between gap-3 border-t app-border pt-3 "><dt class="font-semibold app-heading">Total LiP Score</dt><dd class="font-semibold">{{ total_homework_lip_score|add:total_project_lip_score }}</dd></div>
+</dl>
+</section>
+<section class="rounded-md border app-border app-surface p-3 ">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<h2 class="text-base font-semibold app-heading">Learning in Public</h2>
+{% if enrollment.disable_learning_in_public %}
+<span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">DISABLED</span>
+{% else %}
+<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">ENABLED</span>
+{% endif %}
+</div>
+<form class="mt-3" method="post" onsubmit="return confirm('Are you sure you want to
+{% if enrollment.disable_learning_in_public %}
+enable
+{% else %}
+disable
+{% endif %}
+learning in public for this student?
+{% if not enrollment.disable_learning_in_public %}
+This will zero out all their learning in public scores and recalculate the leaderboard.
+{% endif %}
+');">
+{% csrf_token %}
+<input type="hidden" name="action" value="toggle_learning_in_public">
+<div class="rounded-md border app-border app-surface-muted px-3 py-2 text-sm app-text ">
+{% if enrollment.disable_learning_in_public %}
+<strong>Note:</strong> Learning in public is currently disabled for this student. All their learning in public scores are zero and they cannot submit new learning in public links.
+{% else %}
+<strong>Note:</strong> Disabling learning in public will zero homework/project LiP scores, recalculate the leaderboard, and prevent future LiP submissions from counting.
+{% endif %}
+</div>
+<button type="submit" class="primer-button mt-3
+{% if enrollment.disable_learning_in_public %}
+primer-button-success
+{% else %}
+primer-button-secondary
+{% endif %}
+">
+{% if enrollment.disable_learning_in_public %}
+Enable LiP
+{% else %}
+Disable LiP
+{% endif %}
+</button>
+</form>
+</section>
+</aside>
 </section>
 {% endblock %}

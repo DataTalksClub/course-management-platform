@@ -1,14 +1,131 @@
-{% extends 'base.html' %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course.slug project.slug %}">{{ project.title }}</a></li> <li>Submissions</li>
-{% endblock %} {% block content %}
-<section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ project.title }} Submissions</h1> <p class="mt-1 max-w-2xl text-sm app-muted">Staff view of project repositories, scores, and peer-review progress.</p> </div> {% if submissions %} <button id="copyEmailsBtn" class="primer-button w-fit"><i class="fas fa-clipboard"></i> Copy Emails</button> {% endif %} </div>
-</section> {% if messages %} <div class="mt-6 space-y-3"> {% for message in messages %} {% if 'project' in message.tags %} <div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div> {% endif %} {% endfor %} </div>
-{% endif %} <section class="mt-6 rounded-md border app-border app-surface-muted px-4 py-3 "> <p class="text-xs font-semibold uppercase app-muted">Total submissions</p> <p class="mt-1 text-2xl font-semibold app-heading">{{ submissions|length }}</p> <span id="copyFeedback" class="mt-2 hidden text-sm font-medium app-badge-success "><i class="fas fa-check-circle"></i> Copied</span>
-</section> <section class="mt-6 overflow-hidden rounded-md border app-border app-surface "> {% if submissions %} <div class="divide-y app-divide md:hidden"> {% for submission in submissions %} <article class="px-4 py-3"> <div class="flex items-start justify-between gap-3"> <div class="min-w-0"> <p class="font-medium app-heading">{{ submission.student.email }}</p> <p class="mt-1 text-xs app-muted">{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</p> </div> <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold ">{{ submission.project_score }}</span> </div> <dl class="mt-3 grid grid-cols-2 gap-2 text-sm"> <div><dt class="text-xs font-semibold uppercase app-muted">Reviews</dt><dd class="font-medium">{{ submission.peer_reviews_completed }}/{{ submission.peer_reviews_total }}</dd></div> <div><dt class="text-xs font-semibold uppercase app-muted">Commit</dt><dd class="font-medium">{{ submission.commit_id|default:"-" }}</dd></div> </dl> {% if submission.github_link %} <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="primer-button primer-button-secondary mt-3"><i class="fas fa-external-link-alt"></i> Repository</a> {% endif %} </article> {% endfor %} </div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="px-4 py-3">Email</th> <th class="px-4 py-3 whitespace-nowrap">Submitted</th> <th class="px-4 py-3">Repository</th> <th class="px-4 py-3">Commit</th> <th class="px-4 py-3 text-right">Score</th> <th class="px-4 py-3 text-right">Reviews</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for submission in submissions %} <tr> <td class="px-4 py-3 font-medium app-heading">{{ submission.student.email }}</td> <td class="whitespace-nowrap px-4 py-3 app-text">{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</td> <td class="px-4 py-3"> {% if submission.github_link %} <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="app-link hover:underline "><i class="fas fa-external-link-alt"></i> View</a> {% else %} <span class="app-muted">-</span> {% endif %} </td> <td class="px-4 py-3"><code>{{ submission.commit_id|default:"-" }}</code></td> <td class="px-4 py-3 text-right font-semibold">{{ submission.project_score }}</td> <td class="px-4 py-3 text-right">{{ submission.peer_reviews_completed }}/{{ submission.peer_reviews_total }}</td> </tr> {% endfor %} </tbody> </table> </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No submissions yet.</p> {% endif %}
+{% extends 'base.html' %}
+{% block meta_robots %}
+<meta name="robots" content="noindex">
+{% endblock %}
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'project' course.slug project.slug %}">{{ project.title }}</a></li>
+<li>Submissions</li>
+{% endblock %}
+{% block content %}
+<section class="border-b app-border pb-5 ">
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+<div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+<div>
+<h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ project.title }} Submissions</h1>
+<p class="mt-1 max-w-2xl text-sm app-muted">Staff view of project repositories, scores, and peer-review progress.</p>
+</div>
+{% if submissions %}
+<button id="copyEmailsBtn" class="primer-button w-fit"><i class="fas fa-clipboard"></i> Copy Emails</button>
+{% endif %}
+</div>
 </section>
-{% endblock %} {% block extra_js %}
+{% if messages %}
+<div class="mt-6 space-y-3">
+{% for message in messages %}
+{% if 'project' in message.tags %}
+<div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div>
+{% endif %}
+{% endfor %}
+</div>
+{% endif %}
+<section class="mt-6 rounded-md border app-border app-surface-muted px-4 py-3 ">
+<p class="text-xs font-semibold uppercase app-muted">Total submissions</p>
+<p class="mt-1 text-2xl font-semibold app-heading">{{ submissions|length }}</p>
+<span id="copyFeedback" class="mt-2 hidden text-sm font-medium app-badge-success "><i class="fas fa-check-circle"></i> Copied</span>
+</section>
+<section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
+{% if submissions %}
+<div class="divide-y app-divide md:hidden">
+{% for submission in submissions %}
+<article class="px-4 py-3">
+<div class="flex items-start justify-between gap-3">
+<div class="min-w-0">
+<p class="font-medium app-heading">{{ submission.student.email }}</p>
+<p class="mt-1 text-xs app-muted">{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</p>
+</div>
+<span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold ">{{ submission.project_score }}</span>
+</div>
+<dl class="mt-3 grid grid-cols-2 gap-2 text-sm">
+<div><dt class="text-xs font-semibold uppercase app-muted">Reviews</dt><dd class="font-medium">{{ submission.peer_reviews_completed }}/{{ submission.peer_reviews_total }}</dd></div>
+<div><dt class="text-xs font-semibold uppercase app-muted">Commit</dt><dd class="font-medium">{{ submission.commit_id|default:"-" }}</dd></div>
+</dl>
+{% if submission.github_link %}
+<a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="primer-button primer-button-secondary mt-3"><i class="fas fa-external-link-alt"></i> Repository</a>
+{% endif %}
+</article>
+{% endfor %}
+</div>
+<div class="hidden overflow-x-auto md:block">
+<table class="min-w-full text-sm">
+<thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
+<tr>
+<th class="px-4 py-3">Email</th>
+<th class="px-4 py-3 whitespace-nowrap">Submitted</th>
+<th class="px-4 py-3">Repository</th>
+<th class="px-4 py-3">Commit</th>
+<th class="px-4 py-3 text-right">Score</th>
+<th class="px-4 py-3 text-right">Reviews</th>
+</tr>
+</thead>
+<tbody class="divide-y app-divide">
+{% for submission in submissions %}
+<tr>
+<td class="px-4 py-3 font-medium app-heading">{{ submission.student.email }}</td>
+<td class="whitespace-nowrap px-4 py-3 app-text">{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</td>
+<td class="px-4 py-3">
+{% if submission.github_link %}
+<a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="app-link hover:underline "><i class="fas fa-external-link-alt"></i> View</a>
+{% else %}
+<span class="app-muted">-</span>
+{% endif %}
+</td>
+<td class="px-4 py-3"><code>{{ submission.commit_id|default:"-" }}</code></td>
+<td class="px-4 py-3 text-right font-semibold">{{ submission.project_score }}</td>
+<td class="px-4 py-3 text-right">{{ submission.peer_reviews_completed }}/{{ submission.peer_reviews_total }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<p class="px-4 py-6 text-sm app-muted">No submissions yet.</p>
+{% endif %}
+</section>
+{% endblock %}
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() { var copyEmailsBtn = document.getElementById('copyEmailsBtn'); var copyFeedback = document.getElementById('copyFeedback'); if (!copyEmailsBtn) { return; } copyEmailsBtn.addEventListener('click', function() { var emails = Array.from(document.querySelectorAll('tbody tr td:first-child')) .map(function(cell) { return cell.textContent.trim(); }) .filter(Boolean); var emailList = emails.join(', '); if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(emailList).then(function() { if (copyFeedback) { copyFeedback.classList.remove('hidden'); setTimeout(function() { copyFeedback.classList.add('hidden'); }, 2000); } }).catch(function(err) { alert('Failed to copy emails to clipboard. Error: ' + (err.message || err)); }); } else { alert('Clipboard API not available. Please copy manually:\n\n' + emailList); } });
+document.addEventListener('DOMContentLoaded', function() {
+    var copyEmailsBtn = document.getElementById('copyEmailsBtn');
+    var copyFeedback = document.getElementById('copyFeedback');
+
+    if (!copyEmailsBtn) {
+        return;
+    }
+
+    copyEmailsBtn.addEventListener('click', function() {
+        var emails = Array.from(document.querySelectorAll('tbody tr td:first-child'))
+            .map(function(cell) {
+                return cell.textContent.trim();
+            })
+            .filter(Boolean);
+        var emailList = emails.join(', ');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(emailList).then(function() {
+                if (copyFeedback) {
+                    copyFeedback.classList.remove('hidden');
+                    setTimeout(function() {
+                        copyFeedback.classList.add('hidden');
+                    }, 2000);
+                }
+            }).catch(function(err) {
+                alert('Failed to copy emails to clipboard. Error: ' + (err.message || err));
+            });
+        } else {
+            alert('Clipboard API not available. Please copy manually:\n\n' + emailList);
+        }
+    });
 });
 </script>
 {% endblock %}

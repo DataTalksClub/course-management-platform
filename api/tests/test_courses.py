@@ -76,19 +76,21 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.json()["code"], "course_slug_exists")
 
     def test_course_detail(self):
-        hw = Homework.objects.create(
+        Homework.objects.create(
             course=self.course,
             title="HW1",
             slug="hw1",
             description="",
+            instructions_url="https://github.com/DataTalksClub/test/blob/main/homework.md",
             due_date=timezone.now(),
             state=HomeworkState.OPEN.value,
         )
-        proj = Project.objects.create(
+        Project.objects.create(
             course=self.course,
             title="Project 1",
             slug="project-1",
             description="",
+            instructions_url="https://github.com/DataTalksClub/test/blob/main/project.md",
             submission_due_date=timezone.now(),
             peer_review_due_date=timezone.now(),
             state=ProjectState.CLOSED.value,

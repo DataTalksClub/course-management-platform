@@ -1,4 +1,34 @@
-{% extends 'base.html' %} {% block title %}Sign Out - Course Management{% endblock %} {% block content %}
-<section class="mx-auto max-w-md overflow-hidden rounded-md border app-border app-surface shadow-subtle "> <div class="border-b app-border app-surface-muted px-5 py-4 text-center "> <h1 class="text-xl font-semibold app-heading"><i class="fas fa-sign-out-alt"></i> Sign Out</h1> <p class="mt-1 text-sm app-muted">Are you sure you want to sign out?</p> </div> <form method="post" action="{% url 'account_logout' %}" class="p-5"> {% csrf_token %} <div class="rounded-md border app-alert-warning px-4 py-3 text-sm  "> <i class="fas fa-user"></i> {% if user.is_authenticated %} You are currently signed in as <strong>{{ user.username }}</strong>. {% else %} You are about to sign out. {% endif %} </div> <div class="mt-5 flex flex-wrap justify-end gap-2"> <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary"> <i class="fas fa-times"></i> Cancel </a> <button type="submit" class="primer-button primer-button-warning"> <i class="fas fa-sign-out-alt"></i> Sign Out </button> </div> </form>
+{% extends 'base.html' %}
+
+{% block title %}Sign Out - Course Management{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-md overflow-hidden rounded-md border app-border app-surface shadow-subtle">
+    <div class="border-b app-border app-surface-muted px-5 py-4 text-center">
+        <h1 class="text-xl font-semibold app-heading">
+            <i class="fas fa-sign-out-alt"></i> Sign Out
+        </h1>
+        <p class="mt-1 text-sm app-muted">Are you sure you want to sign out?</p>
+    </div>
+
+    <form method="post" action="{% url 'account_logout' %}" class="p-5">
+        {% csrf_token %}
+        <div class="rounded-md border app-alert-warning px-4 py-3 text-sm">
+            <i class="fas fa-user"></i>
+            {% if user.is_authenticated %}
+                You are currently signed in as <strong>{{ user.username }}</strong>.
+            {% else %}
+                You are about to sign out.
+            {% endif %}
+        </div>
+        <div class="mt-5 flex flex-wrap justify-end gap-2">
+            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+            <button type="submit" class="primer-button primer-button-warning">
+                <i class="fas fa-sign-out-alt"></i> Sign Out
+            </button>
+        </div>
+    </form>
 </section>
 {% endblock %}

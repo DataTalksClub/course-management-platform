@@ -1,4 +1,29 @@
-{% extends 'base.html' %} {% block title %}Login Cancelled - Course Management{% endblock %} {% block content %}
-<section class="mx-auto max-w-md overflow-hidden rounded-md border app-border app-surface shadow-subtle "> <div class="border-b app-border app-surface-muted px-5 py-4 text-center "> <h1 class="text-xl font-semibold app-heading"><i class="fas fa-times-circle text-[#bf8700]"></i> Login Cancelled</h1> <p class="mt-1 text-sm app-muted">You cancelled the login process.</p> </div> <div class="p-5"> <div class="rounded-md border app-alert-info px-4 py-3 text-sm app-text "> <i class="fas fa-info-circle"></i> You can try logging in again whenever you are ready. </div> <div class="mt-5 flex flex-wrap justify-end gap-2"> <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary"><i class="fas fa-home"></i> Browse Courses</a> <a href="{% url 'login' %}" class="primer-button"><i class="fas fa-sign-in-alt"></i> Try Login Again</a> </div> </div>
+{% extends 'base.html' %}
+
+{% block title %}Login Cancelled - Course Management{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-md overflow-hidden rounded-md border app-border app-surface shadow-subtle">
+    <div class="border-b app-border app-surface-muted px-5 py-4 text-center">
+        <h1 class="text-xl font-semibold app-heading">
+            <i class="fas fa-times-circle text-[#bf8700]"></i> Login Cancelled
+        </h1>
+        <p class="mt-1 text-sm app-muted">You cancelled the login process.</p>
+    </div>
+
+    <div class="p-5">
+        <div class="rounded-md border app-alert-info px-4 py-3 text-sm app-text">
+            <i class="fas fa-info-circle"></i>
+            You can try logging in again whenever you are ready.
+        </div>
+        <div class="mt-5 flex flex-wrap justify-end gap-2">
+            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
+                <i class="fas fa-home"></i> Browse Courses
+            </a>
+            <a href="{% url 'login' %}" class="primer-button">
+                <i class="fas fa-sign-in-alt"></i> Try Login Again
+            </a>
+        </div>
+    </div>
 </section>
 {% endblock %}

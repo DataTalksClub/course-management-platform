@@ -1,15 +1,125 @@
-{% extends 'base.html' %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li> <li>Results</li>
-{% endblock %} {% block content %}
-<section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading">Project Results</h1> <p class="mt-1 max-w-2xl text-sm app-muted">Review your submission outcome, score components, and peer feedback.</p> </div> <div class="flex flex-wrap gap-2"> {% if user.is_staff %} <a href="{% url 'project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary"> <i class="fas fa-users"></i> All submissions </a> {% endif %} <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="primer-button primer-button-secondary">See all projects</a> {% if project.state == 'CO' %} <a href="{% url 'project_statistics' course.slug project.slug %}" class="primer-button">Project statistics</a> {% endif %} </div> </div>
-</section> {% if not is_authenticated %}
+{% extends 'base.html' %}
+{% block meta_robots %}
+<meta name="robots" content="noindex">
+{% endblock %}
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+<li>Results</li>
+{% endblock %}
+{% block content %}
+<section class="border-b app-border pb-5 ">
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
+<div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+<div>
+<h1 class="text-2xl font-semibold app-heading">Project Results</h1>
+<p class="mt-1 max-w-2xl text-sm app-muted">Review your submission outcome, score components, and peer feedback.</p>
+</div>
+<div class="flex flex-wrap gap-2">
+{% if user.is_staff %}
+<a href="{% url 'project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary">
+<i class="fas fa-users"></i> All submissions </a>
+{% endif %}
+<a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="primer-button primer-button-secondary">See all projects</a>
+{% if project.state == 'CO' %}
+<a href="{% url 'project_statistics' course.slug project.slug %}" class="primer-button">Project statistics</a>
+{% endif %}
+</div>
+</div>
+</section>
+{% if not is_authenticated %}
 <div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm app-text "> Please <a href="{% url 'login' %}" class="font-medium app-link hover:underline ">log in</a> to see your project results.
 </div>
 {% elif not submission %}
 <p class="mt-6 rounded-md border app-border app-surface-muted px-4 py-4 text-sm app-muted ">You did not make a submission for this project.</p>
 {% else %}
-<section class="mt-6 grid gap-4 md:grid-cols-3"> <div class="rounded-md border app-border app-surface p-4 "> <p class="text-xs font-semibold uppercase app-muted">Total score</p> <p class="mt-1 text-2xl font-semibold app-heading">{{ submission.total_score }}</p> </div> <div class="rounded-md border app-border app-surface p-4 "> <p class="text-xs font-semibold uppercase app-muted">Status</p> <p class="mt-2"> {% if submission.passed %} <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Passed</span> {% else %} <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">Failed</span> {% endif %} </p> </div> <div class="rounded-md border app-border app-surface p-4 "> <p class="text-xs font-semibold uppercase app-muted">Reviewed enough peers</p> <p class="mt-1 font-semibold app-heading">{{ submission.reviewed_enough_peers|yesno:"Yes,No" }}</p> </div>
-</section> <section class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]"> <div class="space-y-6"> <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Criteria Breakdown</h2> </div> {% if scores %} <div class="divide-y app-divide"> {% for score in scores %} <article class="px-4 py-3"> <div class="flex items-start justify-between gap-3"> <div class="min-w-0"> <h3 class="font-medium app-heading">{{ score.review_criteria.description }}</h3> <details class="mt-1 text-sm app-muted"> <summary class="cursor-pointer font-medium">Score options</summary> <ul class="mt-2 list-disc pl-5"> {% for option in score.review_criteria.options %} <li>{{ option.criteria }} ({{ option.score }} points)</li> {% endfor %} </ul> </details> </div> <span class="shrink-0 rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold ">{{ score.score }}</span> </div> </article> {% endfor %} </div> {% else %} <p class="px-4 py-6 text-sm app-muted">No criteria scores yet.</p> {% endif %} </section> {% if feedback %} <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Peer Feedback</h2> </div> <div class="divide-y app-divide"> {% for review in feedback %} <p class="px-4 py-3 text-sm app-text">{{ review.note_to_peer }}</p> {% endfor %} </div> </section> {% endif %} </div> <aside class="space-y-6"> <section class="rounded-md border app-border app-surface p-4 "> <h2 class="text-base font-semibold app-heading">Submission</h2> <dl class="mt-4 space-y-3 text-sm"> <div> <dt class="app-muted">Project link</dt> <dd class="mt-1 break-all font-medium"><a href="{{ submission.github_link }}" class="app-link hover:underline ">{{ submission.github_link }}</a></dd> </div> <div><dt class="app-muted">Commit ID</dt><dd class="mt-1 font-medium">{{ submission.commit_id }}</dd></div> <div><dt class="app-muted">Submitted at</dt><dd class="mt-1 font-medium">{{ submission.submitted_at }}</dd></div> </dl> </section> <section class="rounded-md border app-border app-surface p-4 "> <h2 class="text-base font-semibold app-heading">Score Components</h2> <dl class="mt-4 space-y-3 text-sm"> <div class="flex justify-between gap-3"><dt class="app-muted">Project score</dt><dd class="font-semibold">{{ submission.project_score }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">Peer review score</dt><dd class="font-semibold">{{ submission.peer_review_score }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">Project LiP</dt><dd class="font-semibold">{{ submission.project_learning_in_public_score }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">Peer review LiP</dt><dd class="font-semibold">{{ submission.peer_review_learning_in_public_score }}</dd></div> <div class="flex justify-between gap-3"><dt class="app-muted">FAQ contribution</dt><dd class="font-semibold">{{ submission.project_faq_score }}</dd></div> </dl> </section> </aside>
+<section class="mt-6 grid gap-4 md:grid-cols-3">
+<div class="rounded-md border app-border app-surface p-4 ">
+<p class="text-xs font-semibold uppercase app-muted">Total score</p>
+<p class="mt-1 text-2xl font-semibold app-heading">{{ submission.total_score }}</p>
+</div>
+<div class="rounded-md border app-border app-surface p-4 ">
+<p class="text-xs font-semibold uppercase app-muted">Status</p>
+<p class="mt-2">
+{% if submission.passed %}
+<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Passed</span>
+{% else %}
+<span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">Failed</span>
+{% endif %}
+</p>
+</div>
+<div class="rounded-md border app-border app-surface p-4 ">
+<p class="text-xs font-semibold uppercase app-muted">Reviewed enough peers</p>
+<p class="mt-1 font-semibold app-heading">{{ submission.reviewed_enough_peers|yesno:"Yes,No" }}</p>
+</div>
+</section>
+<section class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+<div class="space-y-6">
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Criteria Breakdown</h2>
+</div>
+{% if scores %}
+<div class="divide-y app-divide">
+{% for score in scores %}
+<article class="px-4 py-3">
+<div class="flex items-start justify-between gap-3">
+<div class="min-w-0">
+<h3 class="font-medium app-heading">{{ score.review_criteria.description }}</h3>
+<details class="mt-1 text-sm app-muted">
+<summary class="cursor-pointer font-medium">Score options</summary>
+<ul class="mt-2 list-disc pl-5">
+{% for option in score.review_criteria.options %}
+<li>{{ option.criteria }} ({{ option.score }} points)</li>
+{% endfor %}
+</ul>
+</details>
+</div>
+<span class="shrink-0 rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold ">{{ score.score }}</span>
+</div>
+</article>
+{% endfor %}
+</div>
+{% else %}
+<p class="px-4 py-6 text-sm app-muted">No criteria scores yet.</p>
+{% endif %}
+</section>
+{% if feedback %}
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Peer Feedback</h2>
+</div>
+<div class="divide-y app-divide">
+{% for review in feedback %}
+<p class="px-4 py-3 text-sm app-text">{{ review.note_to_peer }}</p>
+{% endfor %}
+</div>
+</section>
+{% endif %}
+</div>
+<aside class="space-y-6">
+<section class="rounded-md border app-border app-surface p-4 ">
+<h2 class="text-base font-semibold app-heading">Submission</h2>
+<dl class="mt-4 space-y-3 text-sm">
+<div>
+<dt class="app-muted">Project link</dt>
+<dd class="mt-1 break-all font-medium"><a href="{{ submission.github_link }}" class="app-link hover:underline ">{{ submission.github_link }}</a></dd>
+</div>
+<div><dt class="app-muted">Commit ID</dt><dd class="mt-1 font-medium">{{ submission.commit_id }}</dd></div>
+<div><dt class="app-muted">Submitted at</dt><dd class="mt-1 font-medium">{{ submission.submitted_at }}</dd></div>
+</dl>
+</section>
+<section class="rounded-md border app-border app-surface p-4 ">
+<h2 class="text-base font-semibold app-heading">Score Components</h2>
+<dl class="mt-4 space-y-3 text-sm">
+<div class="flex justify-between gap-3"><dt class="app-muted">Project score</dt><dd class="font-semibold">{{ submission.project_score }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">Peer review score</dt><dd class="font-semibold">{{ submission.peer_review_score }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">Project LiP</dt><dd class="font-semibold">{{ submission.project_learning_in_public_score }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">Peer review LiP</dt><dd class="font-semibold">{{ submission.peer_review_learning_in_public_score }}</dd></div>
+<div class="flex justify-between gap-3"><dt class="app-muted">FAQ contribution</dt><dd class="font-semibold">{{ submission.project_faq_score }}</dd></div>
+</dl>
+</section>
+</aside>
 </section>
 {% endif %}
 {% endblock %}

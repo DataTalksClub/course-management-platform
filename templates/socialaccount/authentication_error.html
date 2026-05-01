@@ -1,4 +1,29 @@
-{% extends 'base.html' %} {% block title %}Authentication Error - Course Management{% endblock %} {% block content %}
-<section class="mx-auto max-w-lg overflow-hidden rounded-md border app-border app-surface shadow-subtle "> <div class="border-b app-border app-surface-muted px-5 py-4 text-center "> <h1 class="text-xl font-semibold app-heading"><i class="fas fa-exclamation-triangle "></i> Authentication Error</h1> <p class="mt-1 text-sm app-muted">Something went wrong during login.</p> </div> <div class="p-5"> <div class="rounded-md border app-alert-warning px-4 py-3 text-sm  "> <strong>Login failed.</strong> This could be due to network connectivity, temporary provider unavailability, or account access restrictions. </div> <div class="mt-5 flex flex-wrap justify-end gap-2"> <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary"><i class="fas fa-home"></i> Go Home</a> <a href="{% url 'login' %}" class="primer-button"><i class="fas fa-redo"></i> Try Again</a> </div> </div>
+{% extends 'base.html' %}
+
+{% block title %}Authentication Error - Course Management{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-lg overflow-hidden rounded-md border app-border app-surface shadow-subtle">
+    <div class="border-b app-border app-surface-muted px-5 py-4 text-center">
+        <h1 class="text-xl font-semibold app-heading">
+            <i class="fas fa-exclamation-triangle"></i> Authentication Error
+        </h1>
+        <p class="mt-1 text-sm app-muted">Something went wrong during login.</p>
+    </div>
+
+    <div class="p-5">
+        <div class="rounded-md border app-alert-warning px-4 py-3 text-sm">
+            <strong>Login failed.</strong>
+            This could be due to network connectivity, temporary provider unavailability, or account access restrictions.
+        </div>
+        <div class="mt-5 flex flex-wrap justify-end gap-2">
+            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
+                <i class="fas fa-home"></i> Go Home
+            </a>
+            <a href="{% url 'login' %}" class="primer-button">
+                <i class="fas fa-redo"></i> Try Again
+            </a>
+        </div>
+    </div>
 </section>
 {% endblock %}

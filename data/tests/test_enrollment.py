@@ -54,19 +54,18 @@ class EnrollmentDataAPITestCase(TestCase):
         self.course.save()
 
         self.user.email = "student1@example.com"
+        self.user.certificate_name = "Student One"
         self.user.save()
-        self.enrollment.certificate_name = "Student One"
-        self.enrollment.save()
 
         other_user = CustomUser.objects.create(
             username="student2",
             email="student2@example.com",
             password="pass",
+            certificate_name="Student Two",
         )
         other_enrollment = Enrollment.objects.create(
             student=other_user,
             course=self.course,
-            certificate_name="Student Two",
         )
 
         project1 = Project.objects.create(
@@ -129,9 +128,7 @@ class EnrollmentDataAPITestCase(TestCase):
 
         first_graduate = graduates[0]
         self.assertEqual(first_graduate["email"], self.user.email)
-        self.assertEqual(
-            first_graduate["name"], self.enrollment.certificate_name
-        )
+        self.assertEqual(first_graduate["name"], self.user.certificate_name)
 
     def create_test_project(self, slug, title):
         return Project(

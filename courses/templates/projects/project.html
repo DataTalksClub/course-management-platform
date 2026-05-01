@@ -1,7 +1,298 @@
-{% extends 'base.html' %} {% load static %}
-{% load custom_filters %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
-{% endblock %} {% block nav_links %} <a href="{% url 'course' course.slug %}" class="hidden min-w-0 truncate sm:inline app-link app-link"> {{ course.title }} </a>
-{% endblock %} {% block content %}
-<section class="max-w-7xl"> <div class="mb-6 md:mb-8"> <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl"> {{ project.title }} </h1> <p class="mt-2 text-base md:text-lg app-text"> {{ course.title }} </p> </div> {% if messages %} <div class="mb-6 space-y-3"> {% for message in messages %} <div class="rounded-md border app-alert-info p-4 app-heading {{ message.tags }}"> {{ message }} </div> {% endfor %} </div> {% endif %} {% if errors %} <div class="mb-6 space-y-3"> {% for error in errors %} <div class="rounded-md border app-alert-danger app-alert-danger p-4 app-alert-danger"> {{ error }} </div> {% endfor %} </div> {% endif %} <div class="border-b app-border pb-6"> <div class="max-w-3xl text-base leading-7 md:text-lg md:leading-8 app-text"> {{ project.description | urlize_target_blank }} </div> <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm app-text"> <div class="flex items-center gap-3"> <i class="far fa-calendar-alt hidden app-muted md:inline"></i> <span>Submission due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date|date:"j F Y, H:i" }}</span></span> </div> <div class="time-left app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}" data-prefix="false"></div> <div class="flex items-center gap-3"> <span>Status:</span> {% if submission %} <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase ">Submitted</span> {% else %} <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase app-text">Not submitted</span> {% endif %} </div> </div> <div class="mt-5 flex flex-wrap gap-4"> {% if project.state == 'CO' %} <a href="{% url 'project_statistics' course.slug project.slug %}" class="inline-flex items-center font-medium app-link app-link"> Project statistics <span class="ml-2" aria-hidden="true">-&gt;</span> </a> {% endif %} {% if user.is_staff %} <a href="{% url 'project_submissions' course.slug project.slug %}" class="inline-flex items-center font-medium app-link app-link"> <i class="fas fa-users mr-2"></i> View all submissions (Admin only) </a> {% endif %} </div> </div> <div class="mt-6 space-y-3"> {% if disabled %} {% if submission %} {% if project.state == 'PR' %} <div class="rounded-md border app-alert-warning p-4 "> The project is currently in the peer-reviewing phase. <a href="{% url 'projects_eval' course.slug project.slug %}" class="app-link app-link">Evaluate your peers here.</a> This form is no longer accepting modifications. </div> {% endif %} {% else %} {% if is_authenticated %} <div class="rounded-md border app-alert-warning p-4 "> You didn't submit your project and this form is no longer accepting new submissions. </div> {% else %} <div class="rounded-md border app-alert-info p-4 app-heading "> <a href="{% url 'login' %}" class="app-link app-link">Log in</a> to see the status of your submission. </div> {% endif %} {% endif %} {% endif %} </div> {% if not is_authenticated %} <div class="mt-6 rounded-md border app-border app-surface-muted p-4 app-heading"> <div class="font-semibold">Log in to submit this project</div> <p class="mt-1 mb-0 text-sm app-text">You can preview the requirements, but submissions are saved only for logged-in students.</p> <a href="{% url 'login' %}" class="primer-button mt-3 inline-flex min-h-8 items-center rounded-md bg-[#315f8f] px-3 py-1.5 text-white hover:bg-[#244d78]"> Log in to submit </a> </div> {% endif %} <form method="post" id="project-form" class="needs-validation mt-7 md:mt-8" novalidate> {% if is_authenticated %} {% csrf_token %} {% endif %} <section> <div class="mb-5 md:mb-6"> <h2 class="text-2xl font-semibold">Project submission</h2> <p class="mt-2 app-text"> Submit the public repository link and the exact commit you want evaluated. </p> </div> <div class="md:overflow-hidden md:rounded-md md:border app-border"> <div class="question border-t app-border py-4 md:border-t-0 md:border-b md:p-4"> <label for="github_link" class="question-text font-medium"> GitHub link to the project <i class="fas fa-question-circle text-muted" title="Your project should be hosted on GitHub. Make sure your project is public"> </i> </label> <input type="url" class="form-control mt-2" id="github_link" name="github_link" value="{{ submission.github_link|default:'' }}" required {% if disabled or not is_authenticated %} disabled {% endif %} /> </div> <div class="question border-t app-border py-4 md:border-t-0 md:p-4"> <label for="commit_id" class="question-text font-medium"> Commit ID <i class="fas fa-question-circle text-muted" title="The commit id of your latest commit in the project. It should be a 7-character hex string"> </i> </label> <details class="mt-3 rounded-md border app-border app-surface"> <summary class="cursor-pointer px-3 py-2 text-sm font-medium app-link">Where do I find the commit ID?</summary> <div class="border-t app-border p-3"> <img class="question-image max-h-52 w-full object-contain md:max-h-72 md:w-auto" src="https://habrastorage.org/webt/kt/w0/-1/ktw0-1oe_azrkwrd4lnpod2mzuq.png" alt="Commit Screenshot" /> </div> </details> <input type="text" id="commit_id" class="form-control mt-2" name="commit_id" value="{{ submission.commit_id|default:'' }}" required {% if disabled or not is_authenticated %} disabled {% endif %} /> </div> </div> </section> <section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8"> <h2 class="text-2xl font-semibold">Additional details</h2> <div class="mt-5 space-y-5"> {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %} <script src="{% static 'learning_in_public.js' %}"></script> {% if project.time_spent_project_field %} <div class="question"> <label for="time_spent" class="question-text font-medium"> Time spent on project (hours) <i class="fas fa-question-circle text-muted" title="How much time (in hours) did you spend to work on the project?"> </i> </label> <input type="number" class="form-control mt-2" name="time_spent" id="time_spent" min="0" value="{{ submission.time_spent|default:'' }}" {% if disabled or not is_authenticated %} disabled {% endif %} /> </div> {% endif %} {% if course.faq_document_url and project.faq_contribution_field %} <div class="question"> <label for="faq_contribution" class="question-text font-medium"> FAQ contribution <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span> <i class="fas fa-question-circle text-muted" title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?"> </i> </label> <textarea class="form-control mt-2" name="faq_contribution" id="faq_contribution" {% if disabled or not is_authenticated %} disabled {% endif %} >{{ submission.faq_contribution|default:'' }}</textarea> </div> {% endif %} {% if accepting_submissions %} <div class="question"> <label for="certificate_name" class="question-text font-medium"> Certificate name <i class="fas fa-question-circle text-muted" title="Enter the name you would like to be shown on the certificate. This is required and will be used for your certificate."> </i> </label> <input type="text" class="form-control mt-2" id="certificate_name" name="certificate_name" value="{{ ceritificate_name|default:'' }}" required {% if disabled or not is_authenticated %} disabled {% endif %} /> </div> {% endif %} </div> </section> <div class="mt-6 flex flex-col gap-4 border-t app-border pt-6 md:flex-row md:items-center md:justify-between"> <div class="text-sm app-muted"> {% if submission %} Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }} {% else %} Status: Not submitted {% endif %} </div> {% if accepting_submissions %} <div class="flex flex-wrap gap-3"> {% if is_authenticated %} {% if not submission %} <button id="submit-button" type="submit" class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md bg-[#315f8f] px-4 py-2 text-white hover:bg-[#244d78]"> Submit </button> {% else %} <button id="submit-button" type="submit" class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md bg-[#315f8f] px-4 py-2 text-white hover:bg-[#244d78]"> Update </button> <button id="delete-button" type="button" class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md border app-alert-danger px-4 py-2 hover:border-red-600"> Remove </button> {% endif %} {% else %} <a href="{% url 'login' %}" class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md bg-[#315f8f] px-4 py-2 text-white hover:bg-[#244d78]">Log in to submit</a> {% endif %} </div> {% endif %} </div> </form> <script> document.addEventListener('DOMContentLoaded', function() { var form = document.getElementById('project-form'); var deleteButton = document.getElementById('delete-button'); var commitIdInput = document.getElementById('commit_id'); if (commitIdInput) { commitIdInput.addEventListener('blur', function() { commitIdInput.value = commitIdInput.value.trim(); }); } if (form) { form.addEventListener('submit', function() { if (commitIdInput) { commitIdInput.value = commitIdInput.value.trim(); } }); } if (deleteButton && form) { deleteButton.addEventListener('click', function(e) { e.preventDefault(); if (confirm('Are you sure you want to delete your project submission?')) { var actionInput = document.createElement('input'); actionInput.type = 'hidden'; actionInput.name = 'action'; actionInput.value = 'delete'; form.appendChild(actionInput); form.submit(); } }); } }); </script> <script src="{% static 'homework.js' %}"></script>
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+    <li>
+        <a href="{% url 'course' course.slug %}">{{ course.title }}</a>
+    </li>
+    <li>
+        <a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a>
+    </li>
+{% endblock %}
+
+{% block nav_links %}
+    <a href="{% url 'course' course.slug %}"
+       class="hidden min-w-0 truncate sm:inline app-link">
+        {{ course.title }}
+    </a>
+{% endblock %}
+
+{% block content %}
+<section class="max-w-7xl">
+    <div class="mb-6 md:mb-8">
+        <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">{{ project.title }}</h1>
+        <p class="mt-2 text-base md:text-lg app-text">{{ course.title }}</p>
+    </div>
+    {% if messages %}
+        <div class="mb-6 space-y-3">
+            {% for message in messages %}
+                <div class="rounded-md border app-alert-info p-4 app-heading {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if errors %}
+        <div class="mb-6 space-y-3">
+            {% for error in errors %}
+                <div class="rounded-md border app-alert-danger p-4">{{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="border-b app-border pb-6">
+        {% if project.description %}
+            <div class="max-w-3xl text-base leading-7 md:text-lg md:leading-8 app-text">
+                {{ project.description | urlize_target_blank }}
+            </div>
+        {% endif %}
+        {% if project.instructions_url %}
+            <a href="{{ project.instructions_url }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="mt-4 inline-flex items-center gap-2 font-medium app-link">
+                {% if "github.com" in project.instructions_url %}
+                    <i class="fab fa-github" aria-hidden="true"></i>
+                {% else %}
+                    <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+                {% endif %}
+                <span>Instructions</span>
+            </a>
+        {% endif %}
+        <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm app-text">
+            <div class="flex items-center gap-3">
+                <i class="far fa-calendar-alt hidden app-muted md:inline"></i>
+                <span>Submission due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date|date:"j F Y, H:i" }}</span></span>
+            </div>
+            <div class="time-left app-muted"
+                 data-deadline="{{ project.submission_due_date | date:"c" }}"
+                 data-prefix="false"></div>
+            <div class="flex items-center gap-3">
+                <span>Status:</span>
+                {% if submission %}
+                    <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
+                {% else %}
+                    <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase app-text">Not submitted</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="mt-5 flex flex-wrap gap-4">
+            {% if project.state == 'CO' %}
+                <a href="{% url 'project_statistics' course.slug project.slug %}"
+                   class="inline-flex items-center font-medium app-link">
+                    Project statistics <span class="ml-2" aria-hidden="true">-&gt;</span>
+                </a>
+            {% endif %}
+            {% if user.is_staff %}
+                <a href="{% url 'project_submissions' course.slug project.slug %}"
+                   class="inline-flex items-center font-medium app-link">
+                    <i class="fas fa-users mr-2"></i> View all submissions (Admin only)
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="mt-6 space-y-3">
+        {% if disabled %}
+            {% if submission %}
+                {% if project.state == 'PR' %}
+                    <div class="rounded-md border app-alert-warning p-4">
+                        The project is currently in the peer-reviewing phase.
+                        <a href="{% url 'projects_eval' course.slug project.slug %}"
+                           class="app-link">Evaluate your peers here.</a>
+                        This form is no longer accepting modifications.
+                    </div>
+                {% endif %}
+            {% else %}
+                {% if is_authenticated %}
+                    <div class="rounded-md border app-alert-warning p-4">
+                        You didn't submit your project and this form is no longer accepting new submissions.
+                    </div>
+                {% else %}
+                    <div class="rounded-md border app-alert-info p-4 app-heading">
+                        <a href="{% url 'login' %}" class="app-link">Log in</a> to see the status of your submission.
+                    </div>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    </div>
+    {% if not is_authenticated %}
+        <div class="mt-6 rounded-md border app-border app-surface-muted p-4 app-heading">
+            <div class="font-semibold">Log in to submit this project</div>
+            <p class="mt-1 mb-0 text-sm app-text">You can preview the requirements, but submissions are saved only for logged-in students.</p>
+            <a href="{% url 'login' %}"
+               class="primer-button mt-3">
+                Log in to submit
+            </a>
+        </div>
+    {% endif %}
+    <form method="post" id="project-form" class="needs-validation mt-7 md:mt-8" novalidate>
+        {% if is_authenticated %}
+            {% csrf_token %}
+        {% endif %}
+        <section>
+            <div class="mb-5 md:mb-6">
+                <h2 class="text-2xl font-semibold">Project submission</h2>
+                <p class="mt-2 app-text">Submit the public repository link and the exact commit you want evaluated.</p>
+            </div>
+            <div class="md:overflow-hidden md:rounded-md md:border app-border">
+                <div class="question border-t app-border py-4 md:border-t-0 md:border-b md:p-4">
+                    <label for="github_link" class="question-text font-medium">
+                        GitHub link to the project
+                        <i class="fas fa-question-circle text-muted"
+                           title="Your project should be hosted on GitHub. Make sure your project is public"></i>
+                    </label>
+                    <input type="url"
+                           class="form-control mt-2"
+                           id="github_link"
+                           name="github_link"
+                           value="{{ submission.github_link|default:'' }}"
+                           required
+                           {% if disabled or not is_authenticated %}disabled{% endif %} />
+                </div>
+                <div class="question border-t app-border py-4 md:border-t-0 md:p-4">
+                    <label for="commit_id" class="question-text font-medium">
+                        Commit ID
+                        <i class="fas fa-question-circle text-muted"
+                           title="The commit id of your latest commit in the project. It should be a 7-character hex string"></i>
+                    </label>
+                    <details class="mt-3 rounded-md border app-border app-surface">
+                        <summary class="cursor-pointer px-3 py-2 text-sm font-medium app-link">Where do I find the commit ID?</summary>
+                        <div class="border-t app-border p-3">
+                            <img class="question-image max-h-52 w-full object-contain md:max-h-72 md:w-auto"
+                                 src="https://habrastorage.org/webt/kt/w0/-1/ktw0-1oe_azrkwrd4lnpod2mzuq.png"
+                                 alt="Commit Screenshot" />
+                        </div>
+                    </details>
+                    <input type="text"
+                           id="commit_id"
+                           class="form-control mt-2"
+                           name="commit_id"
+                           value="{{ submission.commit_id|default:'' }}"
+                           required
+                           {% if disabled or not is_authenticated %}disabled{% endif %} />
+                </div>
+            </div>
+        </section>
+        <section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
+            <h2 class="text-2xl font-semibold">Additional details</h2>
+            <div class="mt-5 space-y-5">
+                {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+                <script src="{% static 'learning_in_public.js' %}"></script>
+                {% if project.time_spent_project_field %}
+                    <div class="question">
+                        <label for="time_spent" class="question-text font-medium">
+                            Time spent on project (hours)
+                            <i class="fas fa-question-circle text-muted"
+                               title="How much time (in hours) did you spend to work on the project?"></i>
+                        </label>
+                        <input type="number"
+                               class="form-control mt-2"
+                               name="time_spent"
+                               id="time_spent"
+                               min="0"
+                               value="{{ submission.time_spent|default:'' }}"
+                               {% if disabled or not is_authenticated %}disabled{% endif %} />
+                    </div>
+                {% endif %}
+                {% if course.faq_document_url and project.faq_contribution_field %}
+                    <div class="question">
+                        <label for="faq_contribution" class="question-text font-medium">
+                            FAQ contribution
+                            <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span>
+                            <i class="fas fa-question-circle text-muted"
+                               title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?"></i>
+                        </label>
+                        <textarea class="form-control mt-2"
+                                  name="faq_contribution"
+                                  id="faq_contribution"
+                                  {% if disabled or not is_authenticated %}disabled{% endif %}>{{ submission.faq_contribution|default:'' }}</textarea>
+                    </div>
+                {% endif %}
+                {% if accepting_submissions %}
+                    <div class="question">
+                        <label for="certificate_name" class="question-text font-medium">
+                            Certificate name
+                            <i class="fas fa-question-circle text-muted"
+                               title="Enter the name you would like to be shown on the certificate. This is required and will be used for your certificate."></i>
+                        </label>
+                        <input type="text"
+                               class="form-control mt-2"
+                               id="certificate_name"
+                               name="certificate_name"
+                               value="{{ ceritificate_name|default:'' }}"
+                               required
+                               {% if disabled or not is_authenticated %}disabled{% endif %} />
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+        <div class="mt-6 flex flex-col gap-4 border-t app-border pt-6 md:flex-row md:items-center md:justify-between">
+            <div class="text-sm app-muted">
+                {% if submission %}
+                    Last submission at: {{ submission.submitted_at|date:"F d, Y H:i" }}
+                {% else %}
+                    Status: Not submitted
+                {% endif %}
+            </div>
+            {% if accepting_submissions %}
+                <div class="flex flex-wrap gap-3">
+                    {% if is_authenticated %}
+                        {% if not submission %}
+                            <button id="submit-button"
+                                    type="submit"
+                                    class="primer-button">
+                                Submit
+                            </button>
+                        {% else %}
+                            <button id="submit-button"
+                                    type="submit"
+                                    class="primer-button">
+                                Update
+                            </button>
+                            <button id="delete-button"
+                                    type="button"
+                                    class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md border app-alert-danger px-4 py-2 hover:border-red-600">Remove</button>
+                        {% endif %}
+                    {% else %}
+                        <a href="{% url 'login' %}"
+                           class="primer-button">
+                            Log in to submit
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </form>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var form = document.getElementById('project-form');
+            var deleteButton = document.getElementById('delete-button');
+            var commitIdInput = document.getElementById('commit_id');
+            if (commitIdInput) {
+                commitIdInput.addEventListener('blur', function() {
+                    commitIdInput.value = commitIdInput.value.trim();
+                });
+            }
+            if (form) {
+                form.addEventListener('submit', function() {
+                    if (commitIdInput) {
+                        commitIdInput.value = commitIdInput.value.trim();
+                    }
+                });
+            }
+            if (deleteButton && form) {
+                deleteButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to delete your project submission?')) {
+                        var actionInput = document.createElement('input');
+                        actionInput.type = 'hidden';
+                        actionInput.name = 'action';
+                        actionInput.value = 'delete';
+                        form.appendChild(actionInput);
+                        form.submit();
+                    }
+                });
+            }
+        });
+    </script>
+    <script src="{% static 'homework.js' %}"></script>
 </section>
 {% endblock %}

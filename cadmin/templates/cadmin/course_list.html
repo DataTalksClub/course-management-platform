@@ -1,6 +1,90 @@
-{% extends 'cadmin/base.html' %} {% block breadcrumbs %} <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
-{% endblock %} {% block cadmin_content %}
-<section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">Cadmin</p> <div class="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading md:text-3xl">Course Administration</h1> <p class="mt-1 max-w-2xl text-sm app-muted">Manage course operations, public pages, and team-only workflows from one compact overview.</p> </div> <span class="inline-flex w-fit items-center rounded-full border app-border app-surface-muted px-3 py-1 text-sm font-medium app-text ">{{ courses|length }} courses</span> </div>
-</section> <section class="mt-6 overflow-hidden rounded-md border app-border app-surface "> <div class="divide-y app-divide md:hidden"> {% for course in courses %} <article class="px-4 py-4"> <a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a> <p class="mt-1 text-xs app-muted">{{ course.slug }}</p> <div class="mt-3 flex flex-wrap gap-2"> {% if course.visible %} <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Visible</span> {% else %} <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-muted ">Hidden</span> {% endif %} {% if course.finished %} <span class="inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link ">Finished</span> {% else %} <span class="inline-flex rounded-full app-alert-warning px-2 py-0.5 text-xs font-medium  ">In progress</span> {% endif %} </div> <div class="mt-3 flex flex-wrap gap-2"> <a href="{% url 'cadmin_course' course.slug %}" class="primer-button">Manage</a> <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary">View</a> </div> </article> {% empty %} <p class="px-4 py-8 text-center text-sm app-muted">No courses found</p> {% endfor %} </div> <div class="hidden overflow-x-auto md:block"> <table class="min-w-full text-sm"> <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted "> <tr> <th class="px-4 py-3">Course</th> <th class="px-4 py-3">Visible</th> <th class="px-4 py-3">Finished</th> <th class="px-4 py-3 text-right">Actions</th> </tr> </thead> <tbody class="divide-y app-divide"> {% for course in courses %} <tr class="align-top"> <td class="px-4 py-3"> <a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a> <div class="mt-1 text-xs app-muted">{{ course.slug }}</div> </td> <td class="px-4 py-3"> {% if course.visible %} <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Yes</span> {% else %} <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-muted ">No</span> {% endif %} </td> <td class="px-4 py-3"> {% if course.finished %} <span class="inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link ">Yes</span> {% else %} <span class="inline-flex rounded-full app-alert-warning px-2 py-0.5 text-xs font-medium  ">No</span> {% endif %} </td> <td class="px-4 py-3"> <div class="flex justify-end gap-2"> <a href="{% url 'cadmin_course' course.slug %}" class="primer-button"> Manage </a> <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary"> View </a> </div> </td> </tr> {% empty %} <tr> <td colspan="4" class="px-4 py-8 text-center text-sm app-muted">No courses found</td> </tr> {% endfor %} </tbody> </table> </div>
+{% extends 'cadmin/base.html' %}
+{% block breadcrumbs %}
+<li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+{% endblock %}
+{% block cadmin_content %}
+<section class="border-b app-border pb-5 ">
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">Cadmin</p>
+<div class="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+<div>
+<h1 class="text-2xl font-semibold app-heading md:text-3xl">Course Administration</h1>
+<p class="mt-1 max-w-2xl text-sm app-muted">Manage course operations, public pages, and team-only workflows from one compact overview.</p>
+</div>
+<span class="inline-flex w-fit items-center rounded-full border app-border app-surface-muted px-3 py-1 text-sm font-medium app-text ">{{ courses|length }} courses</span>
+</div>
+</section>
+<section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
+<div class="divide-y app-divide md:hidden">
+{% for course in courses %}
+<article class="px-4 py-4">
+<a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a>
+<p class="mt-1 text-xs app-muted">{{ course.slug }}</p>
+<div class="mt-3 flex flex-wrap gap-2">
+{% if course.visible %}
+<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Visible</span>
+{% else %}
+<span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-muted ">Hidden</span>
+{% endif %}
+{% if course.finished %}
+<span class="inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link ">Finished</span>
+{% else %}
+<span class="inline-flex rounded-full app-alert-warning px-2 py-0.5 text-xs font-medium  ">In progress</span>
+{% endif %}
+</div>
+<div class="mt-3 flex flex-wrap gap-2">
+<a href="{% url 'cadmin_course' course.slug %}" class="primer-button">Manage</a>
+<a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary">View</a>
+</div>
+</article>
+{% empty %}
+<p class="px-4 py-8 text-center text-sm app-muted">No courses found</p>
+{% endfor %}
+</div>
+<div class="hidden overflow-x-auto md:block">
+<table class="min-w-full text-sm">
+<thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
+<tr>
+<th class="px-4 py-3">Course</th>
+<th class="px-4 py-3">Visible</th>
+<th class="px-4 py-3">Finished</th>
+<th class="px-4 py-3 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y app-divide">
+{% for course in courses %}
+<tr class="align-top">
+<td class="px-4 py-3">
+<a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a>
+<div class="mt-1 text-xs app-muted">{{ course.slug }}</div>
+</td>
+<td class="px-4 py-3">
+{% if course.visible %}
+<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Yes</span>
+{% else %}
+<span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-muted ">No</span>
+{% endif %}
+</td>
+<td class="px-4 py-3">
+{% if course.finished %}
+<span class="inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link ">Yes</span>
+{% else %}
+<span class="inline-flex rounded-full app-alert-warning px-2 py-0.5 text-xs font-medium  ">No</span>
+{% endif %}
+</td>
+<td class="px-4 py-3">
+<div class="flex justify-end gap-2">
+<a href="{% url 'cadmin_course' course.slug %}" class="primer-button"> Manage </a>
+<a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary"> View </a>
+</div>
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="4" class="px-4 py-8 text-center text-sm app-muted">No courses found</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
 </section>
 {% endblock %}

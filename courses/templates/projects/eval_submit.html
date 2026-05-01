@@ -1,17 +1,132 @@
-{% extends 'base.html' %} {% load static %} {% block meta_robots %} <meta name="robots" content="noindex">
-{% endblock %} {% block breadcrumbs %} <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li> <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li> <li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluations</a></li> <li>Evaluate submission</li>
-{% endblock %} {% block content %}
-<section class="border-b app-border pb-5 "> <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p> <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between"> <div> <h1 class="text-2xl font-semibold app-heading">Evaluate Project</h1> <p class="mt-1 max-w-2xl text-sm app-muted">Review the repository and score it against the project criteria.</p> </div> <a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary w-fit">Back to Evaluations</a> </div>
-</section> {% if messages or errors %}
-<div class="mt-6 space-y-3"> {% for message in messages %} <div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div> {% endfor %} {% for error in errors %} <div class="rounded-md border app-badge-danger px-4 py-3 text-sm  ">{{ error }}</div> {% endfor %}
+{% extends 'base.html' %}
+{% load static %}
+{% block meta_robots %}
+<meta name="robots" content="noindex">
+{% endblock %}
+{% block breadcrumbs %}
+<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+<li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+<li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluations</a></li>
+<li>Evaluate submission</li>
+{% endblock %}
+{% block content %}
+<section class="border-b app-border pb-5 ">
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
+<div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+<div>
+<h1 class="text-2xl font-semibold app-heading">Evaluate Project</h1>
+<p class="mt-1 max-w-2xl text-sm app-muted">Review the repository and score it against the project criteria.</p>
 </div>
-{% endif %} <section class="mt-6 grid gap-4 md:grid-cols-3"> <div class="rounded-md border app-border app-surface p-4 "> <p class="text-xs font-semibold uppercase app-muted">Due date</p> <p class="mt-1 font-semibold app-heading"> <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date|date:"j F Y, H:i" }}</span> </p> <p class="mt-1 text-xs app-muted time-left" data-deadline="{{ project.peer_review_due_date|date:"c" }}"></p> </div> <div class="rounded-md border app-border app-surface p-4 md:col-span-2"> <p class="text-xs font-semibold uppercase app-muted">Repository</p> <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">{{ submission.github_link }}</a> <p class="mt-2 text-xs app-muted">Commit: <code>{{ submission.commit_id }}</code></p> </div>
-</section> {% if review.optional %}
-<div class="mt-4 flex flex-col gap-3 rounded-md border app-alert-warning px-4 py-3 text-sm  sm:flex-row sm:items-center sm:justify-between"> <span><i class="fas fa-info-circle mr-1"></i>This is an <span class="app-muted">optional</span> review. You can skip it if you do not have time.</span> <button onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="primer-button primer-button-secondary w-fit"> <i class="fas fa-minus"></i> Remove </button>
+<a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary w-fit">Back to Evaluations</a>
 </div>
-{% endif %} <form method="post" class="mt-6 space-y-6" novalidate> {% csrf_token %} <section class="overflow-hidden rounded-md border app-border app-surface "> <div class="border-b app-border app-surface-muted px-4 py-3 "> <h2 class="text-base font-semibold app-heading">Review Criteria</h2> </div> <div class="divide-y app-divide"> {% for criteria, response in criteria_response_pairs %} <fieldset class="px-4 py-4"> <legend class="font-medium app-heading">{{ forloop.counter }}. {{ criteria.description }}</legend> <div class="mt-3 space-y-2"> {% for option in criteria.options %} <label class="flex gap-3 text-sm app-text" for="radio-{{ criteria.id }}-{{ option.index }}"> <input class="mt-1" id="radio-{{ criteria.id }}-{{ option.index }}" type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}" name="answer_{{ criteria.id }}" value="{{ option.index }}" {% if option.is_selected %} checked {% endif %} {% if disabled %} disabled {% endif %} > <span>{{ option.criteria }} <span class="app-muted">({{ option.score }} {{ option.score|pluralize:"point,points" }})</span></span> </label> {% endfor %} </div> </fieldset> {% endfor %} </div> </section> <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]"> <div class="question"> <label for="note_to_peer" class="question-text font-medium">Review comments</label> <p class="mt-1 text-sm app-muted">Notes or suggestions for your peer.</p> <textarea class="form-control mt-3" name="note_to_peer" id="note_to_peer" rows="5" {% if disabled %} disabled {% endif %}>{{ review.note_to_peer|default:'' }}</textarea> </div> <div class="space-y-6"> {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %} {% if project.time_spent_evaluation_field %} <div class="question"> <label for="time_spent_reviewing" class="question-text font-medium">Time spent reviewing <span class="app-muted">(optional)</span></label> <input type="number" class="form-control mt-3" name="time_spent_reviewing" id="time_spent_reviewing" min="0" value="{{ review.time_spent_reviewing|default:'' }}" {% if disabled %} disabled {% endif %}> </div> {% endif %} </div> </section> {% if project.state == 'PR' %} <div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 "> <a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a> <button id="submit-button" type="submit" class="primer-button"> {% if review.state == 'TR' %}Submit{% else %}Update{% endif %} </button> </div> {% else %} <p class="rounded-md border app-border app-surface-muted px-4 py-3 text-sm app-muted ">The evaluation period is over; it is no longer possible to submit an evaluation.</p> {% endif %}
-</form> {% if review.state == 'SU' and review.submitted_at %} <p class="mt-4 text-sm app-muted">Last submission at: {{ review.submitted_at|date:"F d, Y H:i" }}</p>
-{% endif %} <script src="{% static 'learning_in_public.js' %}"></script>
+</section>
+{% if messages or errors %}
+<div class="mt-6 space-y-3">
+{% for message in messages %}
+<div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div>
+{% endfor %}
+{% for error in errors %}
+<div class="rounded-md border app-badge-danger px-4 py-3 text-sm  ">{{ error }}</div>
+{% endfor %}
+</div>
+{% endif %}
+<section class="mt-6 grid gap-4 md:grid-cols-3">
+<div class="rounded-md border app-border app-surface p-4 ">
+<p class="text-xs font-semibold uppercase app-muted">Due date</p>
+<p class="mt-1 font-semibold app-heading">
+<span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date|date:"j F Y, H:i" }}</span>
+</p>
+<p class="mt-1 text-xs app-muted time-left" data-deadline="{{ project.peer_review_due_date|date:"c" }}"></p>
+</div>
+<div class="rounded-md border app-border app-surface p-4 md:col-span-2">
+<p class="text-xs font-semibold uppercase app-muted">Repository</p>
+<a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">{{ submission.github_link }}</a>
+<p class="mt-2 text-xs app-muted">Commit: <code>{{ submission.commit_id }}</code></p>
+</div>
+</section>
+{% if review.optional %}
+<div class="mt-4 flex flex-col gap-3 rounded-md border app-alert-warning px-4 py-3 text-sm  sm:flex-row sm:items-center sm:justify-between">
+<span><i class="fas fa-info-circle mr-1"></i>This is an <span class="app-muted">optional</span> review. You can skip it if you do not have time.</span>
+<button onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="primer-button primer-button-secondary w-fit">
+<i class="fas fa-minus"></i> Remove </button>
+</div>
+{% endif %}
+<form method="post" class="mt-6 space-y-6" novalidate>
+{% csrf_token %}
+<section class="overflow-hidden rounded-md border app-border app-surface ">
+<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<h2 class="text-base font-semibold app-heading">Review Criteria</h2>
+</div>
+<div class="divide-y app-divide">
+{% for criteria, response in criteria_response_pairs %}
+<fieldset class="px-4 py-4">
+<legend class="font-medium app-heading">{{ forloop.counter }}. {{ criteria.description }}</legend>
+<div class="mt-3 space-y-2">
+{% for option in criteria.options %}
+<label class="flex gap-3 text-sm app-text" for="radio-{{ criteria.id }}-{{ option.index }}">
+<input class="mt-1"
+       id="radio-{{ criteria.id }}-{{ option.index }}"
+       type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
+       name="answer_{{ criteria.id }}"
+       value="{{ option.index }}"
+{% if option.is_selected %}
+checked
+{% endif %}
+{% if disabled %}
+disabled
+{% endif %}
+>
+<span>{{ option.criteria }} <span class="app-muted">({{ option.score }} {{ option.score|pluralize:"point,points" }})</span></span>
+</label>
+{% endfor %}
+</div>
+</fieldset>
+{% endfor %}
+</div>
+</section>
+<section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+<div class="question">
+<label for="note_to_peer" class="question-text font-medium">Review comments</label>
+<p class="mt-1 text-sm app-muted">Notes or suggestions for your peer.</p>
+<textarea class="form-control mt-3" name="note_to_peer" id="note_to_peer" rows="5"
+{% if disabled %}
+disabled
+{% endif %}
+>{{ review.note_to_peer|default:'' }}</textarea>
+</div>
+<div class="space-y-6">
+{% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+{% if project.time_spent_evaluation_field %}
+<div class="question">
+<label for="time_spent_reviewing" class="question-text font-medium">Time spent reviewing <span class="app-muted">(optional)</span></label>
+<input type="number" class="form-control mt-3" name="time_spent_reviewing" id="time_spent_reviewing" min="0" value="{{ review.time_spent_reviewing|default:'' }}"
+{% if disabled %}
+disabled
+{% endif %}
+>
+</div>
+{% endif %}
+</div>
+</section>
+{% if project.state == 'PR' %}
+<div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 ">
+<a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+<button id="submit-button" type="submit" class="primer-button">
+{% if review.state == 'TR' %}
+Submit
+{% else %}
+Update
+{% endif %}
+</button>
+</div>
+{% else %}
+<p class="rounded-md border app-border app-surface-muted px-4 py-3 text-sm app-muted ">The evaluation period is over; it is no longer possible to submit an evaluation.</p>
+{% endif %}
+</form>
+{% if review.state == 'SU' and review.submitted_at %}
+<p class="mt-4 text-sm app-muted">Last submission at: {{ review.submitted_at|date:"F d, Y H:i" }}</p>
+{% endif %}
+<script src="{% static 'learning_in_public.js' %}"></script>
 <script src="{% static 'homework.js' %}"></script>
 <script>
 function confirmRemove(url) { if (confirm('Are you sure you want to remove this project from your evaluation list?')) { window.location.href = url; }

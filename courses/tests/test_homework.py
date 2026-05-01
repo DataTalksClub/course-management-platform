@@ -190,6 +190,43 @@ class HomeworkDetailViewTests(TestCase):
         ]
         self.assertEqual(answer6["options"], expected_options6)
 
+    def test_homework_detail_displays_optional_instructions_url(self):
+        self.homework.instructions_url = (
+            "https://github.com/DataTalksClub/course-management-platform/"
+            "blob/main/README.md"
+        )
+        self.homework.save()
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Instructions")
+        self.assertContains(response, self.homework.instructions_url)
+        self.assertContains(response, "fab fa-github")
+
+    def test_homework_detail_hides_missing_instructions_url(self):
+        self.homework.instructions_url = ""
+        self.homework.save()
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Instructions")
+
     def test_homework_detail_authenticated_no_submission(self):
         self.client.login(**credentials)
 
@@ -1667,7 +1704,7 @@ class HomeworkSubmissionsViewTests(TestCase):
             student=user2,
             course=self.course,
         )
-        submission2 = Submission.objects.create(
+        Submission.objects.create(
             homework=self.homework,
             student=user2,
             enrollment=enrollment2,

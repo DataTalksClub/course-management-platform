@@ -8,6 +8,9 @@ from courses.models import Course, Enrollment, Homework, Question, Submission
 from courses.models.homework import HomeworkState
 
 
+HOMEWORK_INSTRUCTIONS_URL = "https://github.com/DataTalksClub/test/blob/main/homework.md"
+
+
 class HomeworksAPITestCase(TestCase):
 
     def setUp(self):
@@ -32,6 +35,7 @@ class HomeworksAPITestCase(TestCase):
             title="Homework 1",
             slug=slug,
             description="Description",
+            instructions_url=HOMEWORK_INSTRUCTIONS_URL,
             due_date=timezone.now(),
             state=state,
         )
@@ -61,12 +65,44 @@ class HomeworksAPITestCase(TestCase):
         data = response.json()
         self.assertEqual(len(data["created"]), 1)
         self.assertEqual(data["created"][0]["title"], "Homework 2")
+        self.assertIsNone(data["created"][0]["instructions_url"])
         self.assertEqual(data["created"][0]["state"], "CL")
+
+    def test_create_homework_with_instructions_url(self):
+        payload = {
+            "name": "Homework with instructions",
+            "due_date": "2026-04-01T23:59:59Z",
+            "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
+        }
+        response = self.client.post(
+            f"/api/courses/{self.course.slug}/homeworks/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(
+            data["created"][0]["title"],
+            "Homework with instructions",
+        )
+        self.assertEqual(
+            data["created"][0]["instructions_url"],
+            HOMEWORK_INSTRUCTIONS_URL,
+        )
 
     def test_create_homework_bulk(self):
         payload = [
-            {"name": "HW A", "due_date": "2026-04-01T23:59:59Z"},
-            {"name": "HW B", "due_date": "2026-04-02T23:59:59Z"},
+            {
+                "name": "HW A",
+                "due_date": "2026-04-01T23:59:59Z",
+                "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
+            },
+            {
+                "name": "HW B",
+                "due_date": "2026-04-02T23:59:59Z",
+                "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
+            },
         ]
         response = self.client.post(
             f"/api/courses/{self.course.slug}/homeworks/",
@@ -81,6 +117,7 @@ class HomeworksAPITestCase(TestCase):
         payload = {
             "name": "HW with Q",
             "due_date": "2026-04-01T23:59:59Z",
+            "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
             "questions": [
                 {
                     "text": "What is 2+2?",
@@ -110,7 +147,12 @@ class HomeworksAPITestCase(TestCase):
 
     def test_create_homework_duplicate_slug(self):
         self._create_homework(slug="hw1")
-        payload = {"name": "HW 1", "slug": "hw1", "due_date": "2026-04-01T23:59:59Z"}
+        payload = {
+            "name": "HW 1",
+            "slug": "hw1",
+            "due_date": "2026-04-01T23:59:59Z",
+            "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
+        }
         response = self.client.post(
             f"/api/courses/{self.course.slug}/homeworks/",
             json.dumps(payload),
@@ -163,6 +205,7 @@ class HomeworksAPITestCase(TestCase):
             "name": "Homework From Put",
             "due_date": "2026-04-01T23:59:59Z",
             "description": "Created idempotently",
+            "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
             "questions": [
                 {
                     "text": "Question one?",
@@ -257,6 +300,7 @@ class HomeworksAPITestCase(TestCase):
             json.dumps({
                 "name": "Bad State",
                 "due_date": "2026-04-01T23:59:59Z",
+                "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
                 "state": "XX",
             }),
             content_type="application/json",

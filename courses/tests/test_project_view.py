@@ -77,6 +77,28 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(context["project"], self.project)
         self.assertEqual(context["course"], self.course)
 
+    def test_project_detail_displays_optional_instructions_url(self):
+        self.project.instructions_url = "https://example.com/project-instructions"
+        self.project.save()
+
+        url = reverse("project", args=[self.course.slug, self.project.slug])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Instructions")
+        self.assertContains(response, self.project.instructions_url)
+        self.assertContains(response, "fas fa-external-link-alt")
+
+    def test_project_detail_hides_missing_instructions_url(self):
+        self.project.instructions_url = ""
+        self.project.save()
+
+        url = reverse("project", args=[self.course.slug, self.project.slug])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Instructions")
+
     # def test_project_detail_authenticated_with_submission(self):
     #     self.client.login(
     #         username=credentials["username"],
@@ -99,8 +121,9 @@ class ProjectViewTestCase(TestCase):
         self,
     ):
         self.enrollment.display_name = "Display Name"
-        self.enrollment.certificate_name = "Certificate Name"
         self.enrollment.save()
+        self.user.certificate_name = "Certificate Name"
+        self.user.save()
 
         self.client.login(
             username=credentials["username"],
@@ -348,7 +371,7 @@ class ProjectViewTestCase(TestCase):
     @mock.patch("requests.get")
     def test_project_submission_with_certificate_name(self, mock_get):
         """
-        Test that submitting a project with certificate name saves it to the enrollment.
+        Test that submitting a project with certificate name saves it to the user.
         """
         mock_response = mock.Mock()
         mock_response.status_code = 200
@@ -356,9 +379,8 @@ class ProjectViewTestCase(TestCase):
 
         self.client.login(**credentials)
 
-        # Initially, enrollment should not have a certificate name
-        self.enrollment.certificate_name = None
-        self.enrollment.save()
+        self.user.certificate_name = None
+        self.user.save()
 
         url = reverse(
             "project", args=[self.course.slug, self.project.slug]
@@ -373,11 +395,9 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(response.status_code, 302)
 
-        # Refresh enrollment from database
-        self.enrollment.refresh_from_db()
+        self.user.refresh_from_db()
 
-        # Check that certificate name was saved
-        self.assertEqual(self.enrollment.certificate_name, "John Doe")
+        self.assertEqual(self.user.certificate_name, "John Doe")
 
     # this test requires a redesing of the project view
     # skipping for now

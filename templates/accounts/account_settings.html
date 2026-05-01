@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Account Settings{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+    <section class="settings-section border-b pb-5">
+        <p class="settings-page-kicker text-sm font-semibold uppercase tracking-wide">Account</p>
+        <div class="mt-2 flex flex-col gap-2">
+            <h1 class="settings-page-title text-2xl font-semibold md:text-3xl">Account settings</h1>
+            <p class="settings-section-copy max-w-2xl text-sm">
+                Manage your certificate name, theme preference, and course enrollments.
+            </p>
+        </div>
+    </section>
+
+    <form method="post" class="settings-form mt-6 space-y-8">
+        {% csrf_token %}
+        <section class="settings-section grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div>
+                <h2 class="settings-section-title text-lg font-semibold">Profile</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">
+                    Your account-level profile details.
+                </p>
+            </div>
+            <div class="grid gap-5 md:grid-cols-2">
+                <div>
+                    <label for="{{ form.certificate_name.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        {{ form.certificate_name.label }}
+                    </label>
+                    {{ form.certificate_name }}
+                    <p class="settings-helper mt-1 text-xs leading-5">{{ form.certificate_name.help_text }}</p>
+                    {% if form.certificate_name.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.certificate_name.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="settings-label mb-2 block text-sm font-semibold">Signed in as</p>
+                    <p class="settings-meta-value break-all text-sm">{{ user.email|default:user.username }}</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div>
+                <h2 class="settings-section-title text-lg font-semibold">Public profile</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">
+                    These details can be shown on course leaderboard records when enabled per enrollment.
+                </p>
+            </div>
+            <div class="grid gap-5 md:grid-cols-3">
+                <div>
+                    <label for="{{ form.github_url.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        GitHub URL <span class="settings-helper app-muted font-normal">(optional)</span>
+                    </label>
+                    {{ form.github_url }}
+                    {% if form.github_url.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.github_url.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.linkedin_url.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        LinkedIn URL <span class="settings-helper app-muted font-normal">(optional)</span>
+                    </label>
+                    {{ form.linkedin_url }}
+                    {% if form.linkedin_url.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.linkedin_url.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.personal_website_url.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        Website URL <span class="settings-helper app-muted font-normal">(optional)</span>
+                    </label>
+                    {{ form.personal_website_url }}
+                    {% if form.personal_website_url.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.personal_website_url.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="md:col-span-3">
+                    <label for="{{ form.about_me.id_for_label }}"
+                           class="settings-label mb-2 block text-sm font-semibold">
+                        About me <span class="settings-helper app-muted font-normal">(optional)</span>
+                    </label>
+                    {{ form.about_me }}
+                    {% if form.about_me.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.about_me.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div>
+                <h2 class="settings-section-title text-lg font-semibold">Appearance</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">Choose the default theme for your account.</p>
+            </div>
+            <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
+                {{ form.dark_mode }}
+                <span>{{ form.dark_mode.label }}</span>
+            </label>
+        </section>
+
+        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div>
+                <h2 class="settings-section-title text-lg font-semibold">Courses enrolled</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">Course-specific profile details can still be edited per course.</p>
+            </div>
+            <div class="overflow-hidden rounded-md border app-border app-surface">
+                {% if enrollments %}
+                    <div class="divide-y app-divide">
+                        {% for enrollment in enrollments %}
+                            <article class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <a href="{% url 'course' enrollment.course.slug %}"
+                                       class="font-medium app-link">
+                                        {{ enrollment.course.title }}
+                                    </a>
+                                    <p class="mt-1 truncate text-xs app-muted">
+                                        Leaderboard: {{ enrollment.display_name }}
+                                    </p>
+                                </div>
+                                <a href="{% url 'enrollment' enrollment.course.slug %}"
+                                   class="primer-button primer-button-secondary w-fit">
+                                    Edit course profile
+                                </a>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="px-4 py-5 text-sm app-muted">You are not enrolled in any courses yet.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <div class="flex justify-end border-t app-border pt-6">
+            <button type="submit" class="primer-button">Save settings</button>
+        </div>
+    </form>
+{% endblock %}

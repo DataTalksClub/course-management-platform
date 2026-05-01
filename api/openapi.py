@@ -238,6 +238,7 @@ SCHEMAS = {
             "id": {"type": "integer"},
             "slug": {"type": "string"},
             "title": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri", "nullable": True},
             "due_date": {"type": "string", "format": "date-time"},
             "state": {"$ref": "#/components/schemas/HomeworkState"},
         },
@@ -249,6 +250,11 @@ SCHEMAS = {
                 "type": "object",
                 "properties": {
                     "description": {"type": "string"},
+                    "instructions_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": True,
+                    },
                     "learning_in_public_cap": {"type": "integer"},
                     "homework_url_field": {"type": "boolean"},
                     "time_spent_lectures_field": {"type": "boolean"},
@@ -275,6 +281,7 @@ SCHEMAS = {
             "slug": {"type": "string"},
             "due_date": {"type": "string", "format": "date-time"},
             "description": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri"},
             "questions": array_of(ref("QuestionCreateInline")),
         },
     },
@@ -288,6 +295,7 @@ SCHEMAS = {
             "title": {"type": "string"},
             "due_date": {"type": "string", "format": "date-time"},
             "description": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri"},
             "state": ref("HomeworkState"),
             "learning_in_public_cap": {"type": "integer"},
             "homework_url_field": {"type": "boolean"},
@@ -317,6 +325,7 @@ SCHEMAS = {
         "properties": {
             "title": {"type": "string"},
             "description": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri"},
             "due_date": {"type": "string", "format": "date-time"},
             "state": ref("HomeworkState"),
             "learning_in_public_cap": {"type": "integer"},
@@ -332,6 +341,7 @@ SCHEMAS = {
             "id": {"type": "integer"},
             "slug": {"type": "string"},
             "title": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri", "nullable": True},
             "submission_due_date": {"type": "string", "format": "date-time"},
             "peer_review_due_date": {"type": "string", "format": "date-time"},
             "state": {"$ref": "#/components/schemas/ProjectState"},
@@ -344,6 +354,11 @@ SCHEMAS = {
                 "type": "object",
                 "properties": {
                     "description": {"type": "string"},
+                    "instructions_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": True,
+                    },
                     "learning_in_public_cap_project": {"type": "integer"},
                     "learning_in_public_cap_review": {"type": "integer"},
                     "number_of_peers_to_evaluate": {"type": "integer"},
@@ -382,6 +397,7 @@ SCHEMAS = {
                 "format": "date-time",
             },
             "description": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri"},
         },
     },
     "ProjectCreateRequest": {
@@ -401,6 +417,7 @@ SCHEMAS = {
                 "format": "date-time",
             },
             "description": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri"},
             "state": ref("ProjectState"),
             "learning_in_public_cap_project": {"type": "integer"},
             "learning_in_public_cap_review": {"type": "integer"},
@@ -429,6 +446,7 @@ SCHEMAS = {
         "properties": {
             "title": {"type": "string"},
             "description": {"type": "string"},
+            "instructions_url": {"type": "string", "format": "uri"},
             "submission_due_date": {
                 "type": "string",
                 "format": "date-time",
