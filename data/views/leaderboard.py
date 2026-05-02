@@ -11,6 +11,7 @@ import yaml
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import Prefetch
@@ -55,6 +56,14 @@ def _get_positive_int(value, default, maximum=None):
 def _get_cache_version(course):
     version_key = f"leaderboard_cache_version:{course.id}"
     return cache.get(version_key, 1)
+
+
+def _leaderboard_yaml_page_url(course, page_number):
+    url = reverse(
+        "api_course_leaderboard",
+        kwargs={"course_slug": course.slug},
+    )
+    return f"{url}?page={page_number}"
 
 
 def _build_leaderboard_data(course, page_number):
@@ -140,6 +149,13 @@ def _build_leaderboard_data(course, page_number):
 
         results.append(entry)
 
+    next_page_number = (
+        page_obj.next_page_number() if page_obj.has_next() else None
+    )
+    previous_page_number = (
+        page_obj.previous_page_number() if page_obj.has_previous() else None
+    )
+
     return {
         "course": course.slug,
         "page": page_obj.number,
@@ -147,12 +163,18 @@ def _build_leaderboard_data(course, page_number):
         "total_entries": paginator.count,
         "has_next": page_obj.has_next(),
         "has_previous": page_obj.has_previous(),
-        "next_page": page_obj.next_page_number() if page_obj.has_next() else None,
-        "previous_page": (
-            page_obj.previous_page_number()
-            if page_obj.has_previous()
+        "next_page": (
+            _leaderboard_yaml_page_url(course, next_page_number)
+            if next_page_number
             else None
         ),
+        "next_page_number": next_page_number,
+        "previous_page": (
+            _leaderboard_yaml_page_url(course, previous_page_number)
+            if previous_page_number
+            else None
+        ),
+        "previous_page_number": previous_page_number,
         "leaderboard": results,
     }
 

@@ -198,7 +198,11 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(data["total_entries"], 105)
         self.assertEqual(data["total_pages"], 2)
         self.assertTrue(data["has_next"])
-        self.assertEqual(data["next_page"], 2)
+        self.assertEqual(
+            data["next_page"],
+            "/api/courses/test-course/leaderboard.yaml?page=2",
+        )
+        self.assertEqual(data["next_page_number"], 2)
         self.assertEqual(len(data["leaderboard"]), 100)
         self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
         self.assertEqual(data["leaderboard"][-1]["display_name"], "User 100")
@@ -209,7 +213,13 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(data["page"], 2)
         self.assertEqual(len(data["leaderboard"]), 5)
         self.assertFalse(data["has_next"])
-        self.assertEqual(data["previous_page"], 1)
+        self.assertIsNone(data["next_page"])
+        self.assertIsNone(data["next_page_number"])
+        self.assertEqual(
+            data["previous_page"],
+            "/api/courses/test-course/leaderboard.yaml?page=1",
+        )
+        self.assertEqual(data["previous_page_number"], 1)
         self.assertEqual(data["leaderboard"][0]["display_name"], "User 101")
 
     def test_rendered_yaml_response_is_cached(self):
