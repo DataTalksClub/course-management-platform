@@ -127,9 +127,9 @@ body {
 }
 
 .app-badge-neutral {
-  background: var(--surface-muted);
-  color: var(--text-muted);
-  border: 1px solid var(--border-muted);
+  background: var(--surface-muted) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border-muted) !important;
 }
 
 .app-badge-info {
@@ -153,9 +153,9 @@ body {
 }
 
 body.dark-mode .app-badge-neutral {
-  background: #21262d;
-  color: #c9d1d9;
-  border-color: #30363d;
+  background: #30363d !important;
+  color: #f0f6fc !important;
+  border-color: #8b949e !important;
 }
 
 .app-badge-neutral,
