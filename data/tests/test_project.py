@@ -112,7 +112,6 @@ class ProjectDataAPITestCase(TestCase):
             "github_link": self.project_submission.github_link,
             "commit_id": self.project_submission.commit_id,
             "learning_in_public_links": self.project_submission.learning_in_public_links,
-            "faq_contribution": self.project_submission.faq_contribution,
             "faq_contribution_url": self.project_submission.faq_contribution_url,
             "time_spent": self.project_submission.time_spent,
             "problems_comments": self.project_submission.problems_comments,
@@ -227,10 +226,6 @@ class ProjectDataAPITestCase(TestCase):
         self.assertEqual(
             submission["learning_in_public_links"],
             expected_submission["learning_in_public_links"],
-        )
-        self.assertEqual(
-            submission["faq_contribution"],
-            expected_submission["faq_contribution"],
         )
         self.assertEqual(
             submission["faq_contribution_url"],

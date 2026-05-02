@@ -53,7 +53,6 @@ def homework_data_view(request, course_slug: str, homework_slug: str):
             "time_spent_lectures": submission.time_spent_lectures,
             "time_spent_homework": submission.time_spent_homework,
             "problems_comments": submission.problems_comments,
-            "faq_contribution": submission.faq_contribution,
             "faq_contribution_url": submission.faq_contribution_url,
             "questions_score": submission.questions_score,
             "faq_score": submission.faq_score,

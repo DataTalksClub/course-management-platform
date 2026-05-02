@@ -110,8 +110,6 @@ def _build_leaderboard_data(course, page_number):
             }
             if sub.homework_link:
                 hw_entry["homework_link"] = sub.homework_link
-            if sub.faq_contribution:
-                hw_entry["faq_contribution"] = sub.faq_contribution
             if sub.faq_contribution_url:
                 hw_entry["faq_contribution_url"] = sub.faq_contribution_url
             if sub.learning_in_public_links:
@@ -133,8 +131,6 @@ def _build_leaderboard_data(course, page_number):
             }
             if sub.github_link:
                 proj_entry["github_link"] = sub.github_link
-            if sub.faq_contribution:
-                proj_entry["faq_contribution"] = sub.faq_contribution
             if sub.faq_contribution_url:
                 proj_entry["faq_contribution_url"] = sub.faq_contribution_url
             if sub.learning_in_public_links:

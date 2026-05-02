@@ -43,7 +43,6 @@ def project_data_view(request, course_slug: str, project_slug: str):
             "github_link": submission.github_link,
             "commit_id": submission.commit_id,
             "learning_in_public_links": submission.learning_in_public_links,
-            "faq_contribution": submission.faq_contribution,
             "faq_contribution_url": submission.faq_contribution_url,
             "time_spent": submission.time_spent,
             "problems_comments": submission.problems_comments,

@@ -546,6 +546,12 @@ def seed_course(spec, count):
                 questions_score = 0
                 faq_score = 0
                 lip_score = 0
+            homework_faq_url = (
+                f"https://github.com/DataTalksClub/faq/issues/"
+                f"{10000 + student_index * 10 + homework_index}"
+                if faq_score
+                else ""
+            )
 
             homework_submissions.append(
                 Submission(
@@ -564,11 +570,7 @@ def seed_course(spec, count):
                     ],
                     time_spent_lectures=1.5 + ((student_index + homework_index) % 8),
                     time_spent_homework=2.0 + ((student_index * homework_index) % 10),
-                    faq_contribution=(
-                        "Generated FAQ note"
-                        if (student_index + homework_index) % 5 == 0
-                        else ""
-                    ),
+                    faq_contribution_url=homework_faq_url,
                     questions_score=questions_score,
                     faq_score=faq_score,
                     learning_in_public_score=lip_score,
@@ -588,6 +590,12 @@ def seed_course(spec, count):
                 project_lip_score = 0
                 peer_review_score = 0
                 peer_review_lip_score = 0
+            project_faq_url = (
+                f"https://github.com/DataTalksClub/faq/pull/"
+                f"{20000 + student_index * 10 + project_index}"
+                if project_faq_score
+                else ""
+            )
 
             project_submissions.append(
                 ProjectSubmission(
@@ -605,11 +613,7 @@ def seed_course(spec, count):
                             f"{student_index:04d}/notes/project-{project_index}"
                         )
                     ],
-                    faq_contribution=(
-                        "Generated project FAQ note"
-                        if (student_index + project_index) % 4 == 0
-                        else ""
-                    ),
+                    faq_contribution_url=project_faq_url,
                     time_spent=6.0 + ((student_index * project_index) % 24),
                     problems_comments="Generated project submission",
                     project_score=project_score,

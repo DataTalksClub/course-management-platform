@@ -176,6 +176,7 @@ admin_submission = Submission(
     homework=homework1,
     student=admin_user,
     enrollment=admin_enrollment,
+    faq_contribution_url="https://github.com/DataTalksClub/faq/issues/266",
 )
 admin_submission.save()
 
@@ -291,7 +292,7 @@ project_submission = ProjectSubmission(
         "http://example.com",
         "http://example.org",
     ],
-    faq_contribution="Contributed to the following FAQs...",
+    faq_contribution_url="https://github.com/DataTalksClub/faq/pull/266",
     time_spent=10.0,
     problems_comments="This is a test submission.",
 )

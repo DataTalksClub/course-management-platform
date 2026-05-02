@@ -226,6 +226,11 @@ for i in [1, 2, 3]:
             enrollment=enrollment,
             github_link=f"https://github.com/{user.username}/project-{i}",
             commit_id=f"commit-{i}",
+            faq_contribution_url=(
+                f"https://github.com/DataTalksClub/faq/issues/{260 + i}"
+                if i % 2 == 0
+                else ""
+            ),
         )
 
 

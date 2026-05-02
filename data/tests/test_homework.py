@@ -189,10 +189,6 @@ class HomeworkDataAPITestCase(TestCase):
             self.submission.problems_comments,
         )
         self.assertEqual(
-            submission["faq_contribution"],
-            self.submission.faq_contribution,
-        )
-        self.assertEqual(
             submission["faq_contribution_url"],
             self.submission.faq_contribution_url,
         )
