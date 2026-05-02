@@ -1061,6 +1061,7 @@ class CourseDetailViewTests(TestCase):
     def test_course_list_shows_active_course_metadata(self):
         self.course.start_date = timezone.datetime(2026, 1, 15).date()
         self.course.end_date = timezone.datetime(2026, 4, 15).date()
+        self.course.description = "Database-provided course summary."
         self.course.registration_url = (
             "https://courses.datatalks.club/test-course/register"
         )
@@ -1092,6 +1093,7 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "Jan 15, 2026")
         self.assertContains(response, "Apr 15, 2026")
         self.assertContains(response, "13 weeks")
+        self.assertContains(response, "Database-provided course summary.")
         self.assertContains(response, "Submitted Homework")
         self.assertNotContains(
             response,

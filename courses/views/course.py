@@ -71,11 +71,14 @@ COURSE_OUTCOMES = {
 
 
 def get_course_outcome(course: Course) -> str:
+    if course.description:
+        return course.description
+
     for slug_prefix, presentation in COURSE_OUTCOMES.items():
         if course.slug.startswith(slug_prefix):
             return presentation["outcome"]
 
-    return course.description or "Practical lessons, homework, projects, and peer review."
+    return "Practical lessons, homework, projects, and peer review."
 
 
 def course_year(course: Course) -> str:
