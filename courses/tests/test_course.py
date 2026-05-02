@@ -554,6 +554,9 @@ class CourseDetailViewTests(TestCase):
         self.submission1.learning_in_public_links = [
             "https://example.com/homework-post",
         ]
+        self.submission1.faq_contribution_url = (
+            "https://github.com/DataTalksClub/faq/pull/266"
+        )
         self.submission1.save()
 
         self.completed_submission.project_score = 20
@@ -565,6 +568,9 @@ class CourseDetailViewTests(TestCase):
         self.completed_submission.learning_in_public_links = [
             "https://example.com/project-post",
         ]
+        self.completed_submission.faq_contribution_url = (
+            "https://github.com/DataTalksClub/faq/issues/266"
+        )
         self.completed_submission.save()
 
         url = reverse(
@@ -592,6 +598,12 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "<summary", count=2)
         self.assertContains(response, "https://example.com/homework-post")
         self.assertContains(response, "https://example.com/project-post")
+        self.assertContains(
+            response, "https://github.com/DataTalksClub/faq/pull/266"
+        )
+        self.assertContains(
+            response, "https://github.com/DataTalksClub/faq/issues/266"
+        )
 
     def test_authenticated_user_can_report_leaderboard_record(self):
         target = self.create_enrollment("e1", 100, 1)

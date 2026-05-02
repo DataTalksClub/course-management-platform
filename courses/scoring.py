@@ -160,8 +160,8 @@ def update_faq_score(submission: Submission) -> int:
     faq_score = 0
 
     if (
-        submission.faq_contribution
-        and len(submission.faq_contribution) >= 5
+        submission.faq_contribution_url
+        and len(submission.faq_contribution_url) >= 5
     ):
         faq_score = 1
         submission.faq_score = faq_score
@@ -832,12 +832,12 @@ def calculate_wrapped_statistics(year=2025, force=False):
         faq_homework = sum(
             1
             for hw in user_homework_submissions
-            if hw.faq_contribution and hw.faq_contribution.strip()
+            if hw.faq_contribution_url and hw.faq_contribution_url.strip()
         )
         faq_projects = sum(
             1
             for proj in user_project_submissions
-            if proj.faq_contribution and proj.faq_contribution.strip()
+            if proj.faq_contribution_url and proj.faq_contribution_url.strip()
         )
         faq_count = faq_homework + faq_projects
 

@@ -186,6 +186,11 @@ class Submission(models.Model):
     faq_contribution = models.TextField(
         blank=True, help_text="Contribution to FAQ"
     )
+    faq_contribution_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Pull request or issue URL for the FAQ contribution",
+    )
 
     submitted_at = models.DateTimeField(auto_now=True)
 

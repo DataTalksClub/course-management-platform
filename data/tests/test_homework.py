@@ -68,6 +68,7 @@ class HomeworkDataAPITestCase(TestCase):
             student=self.user,
             enrollment=self.enrollment,
             homework_link="https://github.com/DataTalksClub",
+            faq_contribution_url="https://github.com/DataTalksClub/faq/pull/266",
         )
 
         self.submission.save()
@@ -190,6 +191,10 @@ class HomeworkDataAPITestCase(TestCase):
         self.assertEqual(
             submission["faq_contribution"],
             self.submission.faq_contribution,
+        )
+        self.assertEqual(
+            submission["faq_contribution_url"],
+            self.submission.faq_contribution_url,
         )
         self.assertEqual(
             submission["questions_score"],

@@ -76,6 +76,11 @@ class ProjectSubmission(models.Model):
 
     learning_in_public_links = models.JSONField(blank=True, null=True)
     faq_contribution = models.TextField(blank=True)
+    faq_contribution_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Pull request or issue URL for the FAQ contribution",
+    )
 
     time_spent = models.FloatField(blank=True, null=True)
     problems_comments = models.TextField(blank=True)

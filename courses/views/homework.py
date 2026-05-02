@@ -264,8 +264,8 @@ def process_homework_submission(
         submission.problems_comments = problems_comments.strip()
 
     if homework.faq_contribution_field:
-        faq_contribution = request.POST.get("faq_contribution", "")
-        submission.faq_contribution = faq_contribution.strip()
+        faq_contribution_url = request.POST.get("faq_contribution_url", "")
+        submission.faq_contribution_url = faq_contribution_url.strip()
 
     submission.full_clean()
     submission.save()

@@ -237,7 +237,7 @@ class HomeworkScoringTestCase(TestCase):
             "https://www.linkedin.com/feed/update/urn:li:activity:7141024622870773763/",
             "https://twitter.com/Al_Grigor/status/1685940623012999168",
         ]
-        submission1.faq_contribution = "some FAQ contribution"
+        submission1.faq_contribution_url = "https://github.com/DataTalksClub/faq/pull/266"
         submission1.save()
 
         status, _ = score_homework_submissions(self.homework.id)

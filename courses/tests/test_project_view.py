@@ -247,7 +247,7 @@ class ProjectViewTestCase(TestCase):
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
-            "faq_contribution": "Added a solution to FAQ.",
+            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
         }
         response = self.client.post(url, data)
 
@@ -270,7 +270,7 @@ class ProjectViewTestCase(TestCase):
             submission.problems_comments, data["problems_comments"]
         )
         self.assertEqual(
-            submission.faq_contribution, data["faq_contribution"]
+            submission.faq_contribution_url, data["faq_contribution_url"]
         )
 
     @mock.patch("requests.get")
@@ -299,7 +299,7 @@ class ProjectViewTestCase(TestCase):
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
-            "faq_contribution": "Added a solution to FAQ.",
+            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
         }
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 302)
@@ -335,7 +335,7 @@ class ProjectViewTestCase(TestCase):
             "commit_id": "123456e",
             "time_spent": "3",
             "problems_comments": "No issues encountered.",
-            "faq_contribution": "Helped a peer with their problem.",
+            "faq_contribution_url": "https://github.com/DataTalksClub/faq/issues/266",
         }
 
         response = self.client.post(url, data)
@@ -358,7 +358,7 @@ class ProjectViewTestCase(TestCase):
             submission.problems_comments, data["problems_comments"]
         )
         self.assertEqual(
-            submission.faq_contribution, data["faq_contribution"]
+            submission.faq_contribution_url, data["faq_contribution_url"]
         )
 
     def test_remove_project_submission(self):
@@ -390,7 +390,7 @@ class ProjectViewTestCase(TestCase):
             "commit_id": "123456e",
             "time_spent": "3",
             "problems_comments": "No issues encountered.",
-            "faq_contribution": "Helped a peer with their problem.",
+            "faq_contribution_url": "https://github.com/DataTalksClub/faq/issues/266",
             "action": "delete",
         }
 
@@ -508,7 +508,7 @@ class ProjectViewTestCase(TestCase):
             "commit_id": "1234567",
             "time_spent": "2",
             "problems_comments": "Encountered an issue with...",
-            "faq_contribution": "Added a solution to FAQ.",
+            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
         }
         response = self.client.post(url, data)
 

@@ -104,6 +104,15 @@
                  class="app-link hover:underline">View submission</a>
             </p>
           {% endif %}
+          {% if submission.faq_contribution_url %}
+            <p class="mt-3 text-sm">
+              <strong>FAQ contribution:</strong>
+              <a href="{{ submission.faq_contribution_url }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="app-link hover:underline">View PR or issue</a>
+            </p>
+          {% endif %}
           {% if submission.learning_in_public_links %}
             <details class="mt-3 text-sm">
               <summary class="cursor-pointer app-link">
@@ -169,6 +178,15 @@
                  target="_blank"
                  rel="noopener noreferrer"
                  class="app-link hover:underline">View project</a>
+            </p>
+          {% endif %}
+          {% if submission.faq_contribution_url %}
+            <p class="mt-3 text-sm">
+              <strong>FAQ contribution:</strong>
+              <a href="{{ submission.faq_contribution_url }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="app-link hover:underline">View PR or issue</a>
             </p>
           {% endif %}
           {% if submission.learning_in_public_links %}

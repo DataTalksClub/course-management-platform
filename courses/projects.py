@@ -357,8 +357,8 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             submission.project_faq_score = 0
 
             if (
-                submission.faq_contribution
-                and len(submission.faq_contribution) >= 5
+                submission.faq_contribution_url
+                and len(submission.faq_contribution_url) >= 5
             ):
                 submission.project_faq_score = 1
 

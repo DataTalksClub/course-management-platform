@@ -61,6 +61,7 @@ class ProjectDataAPITestCase(TestCase):
             enrollment=self.enrollment,
             github_link="https://github.com/DataTalksClub",
             commit_id="abcd1234",
+            faq_contribution_url="https://github.com/DataTalksClub/faq/issues/266",
         )
 
         self.project_submission.save()
@@ -112,6 +113,7 @@ class ProjectDataAPITestCase(TestCase):
             "commit_id": self.project_submission.commit_id,
             "learning_in_public_links": self.project_submission.learning_in_public_links,
             "faq_contribution": self.project_submission.faq_contribution,
+            "faq_contribution_url": self.project_submission.faq_contribution_url,
             "time_spent": self.project_submission.time_spent,
             "problems_comments": self.project_submission.problems_comments,
             "project_score": self.project_submission.project_score,
@@ -229,6 +231,10 @@ class ProjectDataAPITestCase(TestCase):
         self.assertEqual(
             submission["faq_contribution"],
             expected_submission["faq_contribution"],
+        )
+        self.assertEqual(
+            submission["faq_contribution_url"],
+            expected_submission["faq_contribution_url"],
         )
         self.assertEqual(
             submission["time_spent"], expected_submission["time_spent"]

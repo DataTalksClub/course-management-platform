@@ -99,6 +99,7 @@ class LeaderboardDataViewTestCase(TestCase):
             enrollment=self.enrollment1,
             questions_score=5,
             faq_score=1,
+            faq_contribution_url="https://github.com/DataTalksClub/faq/pull/266",
             learning_in_public_score=2,
             total_score=8,
         )
@@ -113,6 +114,10 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(alice["homeworks"][0]["faq_score"], 1)
         self.assertEqual(alice["homeworks"][0]["learning_in_public_score"], 2)
         self.assertEqual(alice["homeworks"][0]["total_score"], 8)
+        self.assertEqual(
+            alice["homeworks"][0]["faq_contribution_url"],
+            "https://github.com/DataTalksClub/faq/pull/266",
+        )
 
     def test_excludes_unscored_homework(self):
         hw = Homework.objects.create(
@@ -154,6 +159,7 @@ class LeaderboardDataViewTestCase(TestCase):
             project_learning_in_public_score=3,
             peer_review_learning_in_public_score=1,
             project_faq_score=1,
+            faq_contribution_url="https://github.com/DataTalksClub/faq/issues/266",
             total_score=94,
             passed=True,
         )
@@ -164,6 +170,10 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertIn("projects", alice)
         self.assertEqual(len(alice["projects"]), 1)
         self.assertEqual(alice["projects"][0]["project_score"], 80)
+        self.assertEqual(
+            alice["projects"][0]["faq_contribution_url"],
+            "https://github.com/DataTalksClub/faq/issues/266",
+        )
         self.assertTrue(alice["projects"][0]["passed"])
 
     def test_response_is_cached(self):

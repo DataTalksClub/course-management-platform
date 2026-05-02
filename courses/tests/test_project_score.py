@@ -357,7 +357,7 @@ class ProjectEvaluationTestCase(TestCase):
         )
 
     def test_project_faq_score_contributed(self):
-        self.submission.faq_contribution = "A" * 1000
+        self.submission.faq_contribution_url = "https://github.com/DataTalksClub/faq/pull/266"
         self.submission.save()
 
         status, _ = score_project(self.project)
@@ -367,7 +367,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(self.submission.project_faq_score, 1)
 
     def test_project_faq_score_not_contributed(self):
-        self.submission.faq_contribution = ""
+        self.submission.faq_contribution_url = ""
         self.submission.save()
 
         status, _ = score_project(self.project)

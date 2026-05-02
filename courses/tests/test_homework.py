@@ -905,7 +905,7 @@ class HomeworkDetailViewTests(TestCase):
             "time_spent_lectures": "5",
             "time_spent_homework": "3",
             "problems_comments": "Some problems and comments",
-            "faq_contribution": "FAQ contributions",
+            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
         }
 
         url = reverse(
@@ -952,8 +952,8 @@ class HomeworkDetailViewTests(TestCase):
             post_data["problems_comments"],
         )
         self.assertEqual(
-            submission.faq_contribution,
-            post_data["faq_contribution"],
+            submission.faq_contribution_url,
+            post_data["faq_contribution_url"],
         )
 
     @mock.patch("requests.get")
@@ -988,7 +988,7 @@ class HomeworkDetailViewTests(TestCase):
             "time_spent_lectures": "",
             "time_spent_homework": "",
             "problems_comments": "",
-            "faq_contribution": "",
+            "faq_contribution_url": "",
         }
 
         url = reverse(
@@ -1018,7 +1018,7 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(submission.time_spent_lectures, None)
         self.assertEqual(submission.time_spent_homework, None)
         self.assertEqual(submission.problems_comments, "")
-        self.assertEqual(submission.faq_contribution, "")
+        self.assertEqual(submission.faq_contribution_url, "")
 
     @mock.patch("requests.get")
     def test_submit_homework_url_validation_404_error(self, mock_get):

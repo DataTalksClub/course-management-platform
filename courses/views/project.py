@@ -87,8 +87,8 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         project_submission.problems_comments = problems_comments.strip()
 
     if project.faq_contribution_field:
-        faq_contribution = request.POST.get("faq_contribution", "")
-        project_submission.faq_contribution = faq_contribution.strip()
+        faq_contribution_url = request.POST.get("faq_contribution_url", "")
+        project_submission.faq_contribution_url = faq_contribution_url.strip()
 
     project_submission.full_clean()
     project_submission.save()

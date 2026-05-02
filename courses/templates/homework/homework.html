@@ -349,14 +349,16 @@
                     {% endif %}
                     {% if course.faq_document_url and homework.faq_contribution_field %}
                         <div class="question">
-                            <label for="faq_contribution" class="question-text font-medium">
-                                FAQ contribution (<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, <span class="app-muted">optional</span>) <i class="fas fa-question-circle app-muted"
-    title="If you had any problems and resolved it, or helped somebody in Slack, please put the solution to the FAQ. What is the problem you put in FAQ?"> </i>
+                            <label for="faq_contribution_url" class="question-text font-medium">
+                                FAQ contribution PR or issue URL (<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>, <span class="app-muted">optional</span>) <i class="fas fa-question-circle app-muted"
+    title="Create a GitHub issue or pull request in the FAQ repo for your contribution, then paste that issue or PR URL here."> </i>
                             </label>
-                            <textarea class="form-control mt-2"
-                                      name="faq_contribution"
-                                      id="faq_contribution"
-                                      {% if disabled %}disabled{% endif %}>{{ submission.faq_contribution|default:'' }}</textarea>
+                            <input type="url"
+                                   class="form-control mt-2"
+                                   name="faq_contribution_url"
+                                   id="faq_contribution_url"
+                                   value="{{ submission.faq_contribution_url|default:'' }}"
+                                   {% if disabled %}disabled{% endif %} />
                         </div>
                     {% endif %}
                 </div>

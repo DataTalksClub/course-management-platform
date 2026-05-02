@@ -206,12 +206,12 @@ def get_comprehensive_user_statistics_2025(user) -> Dict[str, Any]:
     faq_homework = sum(
         1
         for hw in homework_submissions_2025
-        if hw.faq_contribution and hw.faq_contribution.strip()
+        if hw.faq_contribution_url and hw.faq_contribution_url.strip()
     )
     faq_projects = sum(
         1
         for proj in project_submissions_2025
-        if proj.faq_contribution and proj.faq_contribution.strip()
+        if proj.faq_contribution_url and proj.faq_contribution_url.strip()
     )
     faq_contributions_count = faq_homework + faq_projects
 
