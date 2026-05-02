@@ -551,7 +551,12 @@ class ProjectEvaluationTestCase(TestCase):
         
         self.assertContains(
             response,
-            "you did not submit your project",
+            "Because you did not submit your project, you cannot participate in peer review.",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Mandatory progress",
             status_code=200,
         )
 
@@ -582,6 +587,33 @@ class ProjectEvaluationTestCase(TestCase):
             response,
             "Evaluate",
             status_code=200,
+        )
+
+    def test_eval_view_redirects_when_project_is_not_peer_reviewing(self):
+        """Test that eval view is only available during peer review."""
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url, follow=True)
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "project",
+                args=[self.course.slug, self.project.slug],
+            ),
+        )
+
+        messages = list(response.context["messages"])
+        self.assertTrue(
+            any("not in peer review" in str(message) for message in messages)
         )
 
     def test_list_view_authenticated_no_submission(self):

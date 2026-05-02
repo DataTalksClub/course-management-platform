@@ -88,6 +88,9 @@ class NoIndexMetaTagTestCase(TestCase):
 
     def test_project_eval_has_noindex(self):
         """Test that project evaluation page has noindex meta tag."""
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
         self.client.login(
             username=self.credentials["username"],
             password=self.credentials["password"]

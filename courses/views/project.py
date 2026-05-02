@@ -212,6 +212,18 @@ def projects_eval_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
+    if project.state != ProjectState.PEER_REVIEWING.value:
+        messages.error(
+            request,
+            "This project is not in peer review, so evaluations are not available.",
+            extra_tags="project",
+        )
+        return redirect(
+            "project",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
+
     user = request.user
     is_authenticated = user.is_authenticated
 
