@@ -206,6 +206,20 @@ class CourseDetailViewTests(TestCase):
             ),
         )
 
+    def test_course_detail_does_not_show_time_left_for_scored_homework(self):
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Scored:")
+        self.assertNotContains(
+            response,
+            f'data-deadline="{self.homework1.due_date.isoformat()}"',
+        )
+
     def test_course_calendar_feed(self):
         url = reverse(
             "course_calendar",

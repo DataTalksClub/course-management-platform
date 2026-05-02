@@ -96,8 +96,12 @@
 
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
-            <span class="md:whitespace-nowrap">Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
-            <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}" data-past-tone="muted"></div>
+            {% if hw.is_scored %}
+              <span class="md:whitespace-nowrap">Scored: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
+            {% else %}
+              <span class="md:whitespace-nowrap">Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
+              <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}" data-past-tone="muted"></div>
+            {% endif %}
           </div>
 
           <div class="md:text-right">
