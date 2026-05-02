@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="border-b app-border pb-5">
+<section>
   <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
   <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
     <div>
@@ -60,11 +60,11 @@
   </div>
 
   {% include 'include/pagination.html' with pagination_page=page_obj pagination_range=page_range pagination_label='Leaderboard pagination' %}
-
-  <div class="border-t app-border px-4 py-3 text-xs app-muted">
-    <a href="{% url 'api_course_leaderboard' course_slug=course.slug %}"
-       class="app-link hover:underline">Leaderboard data (YAML)</a>
-  </div>
 </section>
+
+<p class="mt-4 text-xs app-muted">
+  <a href="{% url 'api_course_leaderboard' course_slug=course.slug %}"
+     class="app-link hover:underline">Leaderboard data (YAML)</a>
+</p>
 
 {% endblock %}

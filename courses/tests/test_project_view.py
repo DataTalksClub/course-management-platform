@@ -141,6 +141,10 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(ceritificate_name, "Certificate Name")
 
     def test_project_detail_authenticated_without_submission(self):
+        self.project.learning_in_public_cap_project = 7
+        self.project.faq_contribution_field = True
+        self.project.save()
+
         self.client.login(
             username=credentials["username"],
             password=credentials["password"],
@@ -159,6 +163,14 @@ class ProjectViewTestCase(TestCase):
         self.assertTrue(context["is_authenticated"])
         self.assertContains(response, "Status: Not saved yet")
         self.assertContains(response, "Save submission")
+        self.assertContains(
+            response,
+            "https://datatalks.club/docs/courses/course-management-platform/learning-in-public/",
+        )
+        self.assertContains(
+            response,
+            "https://datatalks.club/docs/courses/faq/",
+        )
         self.assertContains(
             response,
             (
@@ -228,14 +240,18 @@ class ProjectViewTestCase(TestCase):
         # Check if the context has 'disabled' as True
         self.assertTrue(response.context["disabled"])
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_project_submission_post_no_submissions(self, mock_get):
+    def test_project_submission_post_no_submissions(
+        self, mock_get, mock_head
+    ):
         """
         Test posting a project submission when there are no existing submissions.
         """
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.client.login(**credentials)
         url = reverse(
@@ -273,11 +289,15 @@ class ProjectViewTestCase(TestCase):
             submission.faq_contribution_url, data["faq_contribution_url"]
         )
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_project_submission_post_creates_enrollment(self, mock_get):
+    def test_project_submission_post_creates_enrollment(
+        self, mock_get, mock_head
+    ):
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.enrollment.delete()
 
@@ -306,14 +326,18 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(enrollments.count(), 1)
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_project_submission_post_with_submissions(self, mock_get):
+    def test_project_submission_post_with_submissions(
+        self, mock_get, mock_head
+    ):
         """
         Test posting a project submission when there are existing submissions.
         """
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.client.login(**credentials)
 
@@ -405,14 +429,18 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(count_sumissions, 0)
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_project_submission_with_certificate_name(self, mock_get):
+    def test_project_submission_with_certificate_name(
+        self, mock_get, mock_head
+    ):
         """
         Test that submitting a project with certificate name saves it to the user.
         """
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.client.login(**credentials)
 
@@ -522,9 +550,10 @@ class ProjectViewTestCase(TestCase):
 
         self.assertEqual(submissions.count(), 0)
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
     def test_project_submission_post_invalid_link_no_submission(
-        self, mock_get
+        self, mock_get, mock_head
     ):
         """
         When the link is invalid and there's no submission yet,
@@ -533,6 +562,7 @@ class ProjectViewTestCase(TestCase):
         mock_response = mock.Mock()
         mock_response.status_code = 404
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.client.login(**credentials)
         url = reverse(

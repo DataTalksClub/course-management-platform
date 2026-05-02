@@ -165,6 +165,8 @@ body.dark-mode .app-badge-neutral {
 .app-badge-danger {
   border-radius: 6px;
   letter-spacing: 0;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .dense-utility-links a {
@@ -234,6 +236,13 @@ header nav > div:last-child ul li {
   white-space: nowrap;
 }
 
+.app-content-shell {
+  max-width: 56rem;
+}
+
+.cadmin-page .app-content-shell {
+  max-width: 80rem;
+}
 
 .form-container {
   max-width: none;
@@ -242,12 +251,20 @@ header nav > div:last-child ul li {
   padding: 0;
 }
 
+.content-narrow {
+  max-width: none;
+}
+
 .form-container .question {
   padding-top: 0;
 }
 
 .form-container .question .question-text {
   margin-bottom: 0.5rem;
+}
+
+.question-text {
+  line-height: 1.4;
 }
 
 /* Questions */
@@ -262,12 +279,12 @@ header nav > div:last-child ul li {
   align-items: flex-start;
   display: flex;
   gap: 0.4rem;
-  min-height: 2rem;
+  min-height: 0;
 }
 
 .form-check-input {
   flex: 0 0 auto;
-  margin-top: 0.15rem;
+  margin-top: 0.3rem;
 }
 
 .question .space-y-2 > :not([hidden]) ~ :not([hidden]) {
@@ -295,6 +312,7 @@ form input[type="text"],
 form input[type="url"],
 form input[type="email"],
 form input[type="number"],
+form input[type="search"],
 form textarea,
 form select {
   box-sizing: border-box;
@@ -908,31 +926,31 @@ body.dark-mode [class*="text-red-700"] {
 
 
 .option-answer-correct {
-  align-items: center;
+  align-items: flex-start;
   background: transparent;
   border: 0;
   border-radius: 0;
   color: var(--text-primary);
-  display: inline-flex;
+  display: flex;
   font-weight: 400;
   min-width: 0;
-  padding: 0.1rem 0;
+  padding: 0;
 }
 
 .option-answer-incorrect {
-  align-items: center;
+  align-items: flex-start;
   background: transparent;
   border: 0;
   border-radius: 0;
   color: var(--text-primary);
-  display: inline-flex;
+  display: flex;
   font-weight: 400;
   min-width: 0;
-  padding: 0.1rem 0;
+  padding: 0;
 }
 
 .option-answer-none {
-  padding: 0.1rem 0;
+  padding: 0;
 }
 
 .option-answer-correct .form-check-label,
@@ -940,34 +958,31 @@ body.dark-mode [class*="text-red-700"] {
   color: inherit;
 }
 
+.option-answer-correct .form-check-label::after,
+.option-answer-incorrect .form-check-label::after {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-left: 0.4rem;
+}
+
+.option-answer-correct .form-check-label::after {
+  color: var(--success-text);
+  content: "\2713";
+}
+
+.option-answer-incorrect .form-check-label::after {
+  color: var(--danger-text);
+  content: "\00d7";
+}
+
 .option-answer-correct .form-check-input,
 .option-answer-incorrect .form-check-input {
-  accent-color: var(--text-muted);
+  accent-color: var(--success-text);
 }
 
 .option-answer-correct::after,
 .option-answer-incorrect::after {
-  border: 1px solid;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
-  margin-left: 0.55rem;
-  padding: 0.2rem 0.42rem;
-  text-transform: uppercase;
-}
-
-.option-answer-correct::after {
-  border-color: var(--success-border);
-  color: var(--success-text);
-  content: "Correct";
-}
-
-.option-answer-incorrect::after {
-  border-color: var(--danger-border);
-  color: var(--danger-text);
-  content: "Selected";
+  content: none;
 }
 
 
@@ -996,6 +1011,55 @@ body.dark-mode [class*="text-red-700"] {
 
 .tooltip-icon {
   margin-left: 4px; /* Adjust as needed */
+}
+
+.form-help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  font-size: 0.72rem;
+  line-height: 1;
+  height: 0.9rem;
+  width: 0.9rem;
+  margin-left: 0.25rem;
+  outline: none;
+  position: relative;
+  vertical-align: baseline;
+  transform: translateY(-0.04em);
+}
+
+.form-help-icon:focus-visible {
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px var(--info-border);
+}
+
+.form-help-icon:hover::after,
+.form-help-icon:focus::after {
+  content: attr(data-form-help);
+  position: absolute;
+  z-index: 1000;
+  left: 50%;
+  top: calc(100% + 0.5rem);
+  width: min(20rem, calc(100vw - 1.5rem));
+  transform: translateX(-50%);
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+body.dark-mode .form-help-icon:hover::after,
+body.dark-mode .form-help-icon:focus::after {
+  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.55);
 }
 
 .question .question-image {
@@ -1086,6 +1150,7 @@ body.dark-mode form input[type="text"],
 body.dark-mode form input[type="url"],
 body.dark-mode form input[type="email"],
 body.dark-mode form input[type="number"],
+body.dark-mode form input[type="search"],
 body.dark-mode form textarea,
 body.dark-mode form select {
   background-color: #0d1117;
@@ -1104,6 +1169,7 @@ body.dark-mode form input[type="text"]:focus,
 body.dark-mode form input[type="url"]:focus,
 body.dark-mode form input[type="email"]:focus,
 body.dark-mode form input[type="number"]:focus,
+body.dark-mode form input[type="search"]:focus,
 body.dark-mode form textarea:focus,
 body.dark-mode form select:focus {
   border-color: #8bb7df;

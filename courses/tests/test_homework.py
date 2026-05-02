@@ -542,18 +542,21 @@ class HomeworkDetailViewTests(TestCase):
             {
                 "value": "Paris",
                 "is_selected": False,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 1,
             },
             {
                 "value": "London",
                 "is_selected": False,
+                "is_correct": False,
                 "correctly_selected_class": "option-answer-none",
                 "index": 2,
             },
             {
                 "value": "Berlin",
                 "is_selected": True,
+                "is_correct": False,
                 "correctly_selected_class": "option-answer-incorrect",
                 "index": 3,
             },
@@ -574,24 +577,28 @@ class HomeworkDetailViewTests(TestCase):
             {
                 "value": "2",
                 "is_selected": True,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 1,
             },
             {
                 "value": "3",
                 "is_selected": True,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 2,
             },
             {
                 "value": "4",
                 "is_selected": True,
+                "is_correct": False,
                 "correctly_selected_class": "option-answer-incorrect",
                 "index": 3,
             },
             {
                 "value": "5",
                 "is_selected": False,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 4,
             },
@@ -604,18 +611,21 @@ class HomeworkDetailViewTests(TestCase):
             {
                 "value": "5",
                 "is_selected": True,
+                "is_correct": False,
                 "correctly_selected_class": "option-answer-incorrect",
                 "index": 1,
             },
             {
                 "value": "6",
                 "is_selected": False,
+                "is_correct": False,
                 "correctly_selected_class": "option-answer-none",
                 "index": 2,
             },
             {
                 "value": "7",
                 "is_selected": False,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 3,
             },
@@ -636,24 +646,28 @@ class HomeworkDetailViewTests(TestCase):
             {
                 "value": "Blue",
                 "is_selected": True,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 1,
             },
             {
                 "value": "White",
                 "is_selected": True,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 2,
             },
             {
                 "value": "Red",
                 "is_selected": True,
+                "is_correct": True,
                 "correctly_selected_class": "option-answer-correct",
                 "index": 3,
             },
             {
                 "value": "Green",
                 "is_selected": False,
+                "is_correct": False,
                 "correctly_selected_class": "option-answer-none",
                 "index": 4,
             },
@@ -870,11 +884,13 @@ class HomeworkDetailViewTests(TestCase):
         answer6 = answers.get(question=self.question6)
         self.assertEqual(answer6.answer_text, "1,2")
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_submit_homework_with_all_fields(self, mock_get):
+    def test_submit_homework_with_all_fields(self, mock_get, mock_head):
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.course.homework_problems_comments_field = True
         self.course.save()
@@ -917,6 +933,15 @@ class HomeworkDetailViewTests(TestCase):
         )
 
         self.client.login(**credentials)
+        response = self.client.get(url)
+        self.assertContains(
+            response,
+            "https://datatalks.club/docs/courses/course-management-platform/learning-in-public/",
+        )
+        self.assertContains(
+            response,
+            "https://datatalks.club/docs/courses/faq/",
+        )
 
         self.client.post(url, post_data)
 
@@ -956,13 +981,15 @@ class HomeworkDetailViewTests(TestCase):
             post_data["faq_contribution_url"],
         )
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
     def test_submit_homework_with_all_fields_optional_empty(
-        self, mock_get
+        self, mock_get, mock_head
     ):
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.homework.homework_url_field = True
         self.homework.learning_in_public_cap = 7
@@ -1020,11 +1047,15 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(submission.problems_comments, "")
         self.assertEqual(submission.faq_contribution_url, "")
 
+    @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_submit_homework_url_validation_404_error(self, mock_get):
+    def test_submit_homework_url_validation_404_error(
+        self, mock_get, mock_head
+    ):
         mock_response = mock.Mock()
         mock_response.status_code = 404
         mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
 
         self.homework.homework_url_field = True
         self.homework.save()
@@ -1528,6 +1559,10 @@ class HomeworkDetailViewTests(TestCase):
         self.assertIn("Log in to view my results", content)
         self.assertIn("Correct answers", content)
         self.assertIn("Review the expected answers", content)
+        self.assertIn('type="radio"', content)
+        self.assertIn('type="checkbox"', content)
+        self.assertIn('type="text"', content)
+        self.assertIn("disabled", content)
         self.assertNotIn("Log in to submit this homework", content)
         self.assertNotIn("You can preview the questions", content)
         self.assertNotIn("Submission details", content)
@@ -1939,4 +1974,4 @@ class HomeworkSubmissionsViewTests(TestCase):
         # Check that the cadmin view shows truncated long answers with full text in title attribute
         self.assertIn('title="' + long_answer, content)
         # Check that the truncated version is present with ellipsis
-        self.assertIn("...", content)
+        self.assertIn("…", content)

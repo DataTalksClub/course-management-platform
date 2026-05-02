@@ -217,11 +217,12 @@ class CourseDetailViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Scored:")
+        self.assertContains(response, "Already scored")
         self.assertContains(
             response,
-            'app-badge-info px-3 py-1 text-xs font-semibold uppercase">Scored',
+            'app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Scored',
         )
+        self.assertNotContains(response, "Scored:")
         self.assertNotContains(
             response,
             f'data-deadline="{self.homework1.due_date.isoformat()}"',
@@ -1184,7 +1185,7 @@ class CourseDetailViewTests(TestCase):
             response,
             "https://github.com/DataTalksClub/test-course",
         )
-        self.assertContains(response, "Projects")
+        self.assertNotContains(response, "home-stats-grid")
         self.assertNotContains(response, "Course page")
 
     def test_course_list_hides_assignment_panel_without_assignments(self):
@@ -1210,7 +1211,7 @@ class CourseDetailViewTests(TestCase):
         self.assertNotIn(">TBA</p>", course_card)
         course_card_text = " ".join(strip_tags(course_card).split())
         self.assertNotIn("Dates to be announced", course_card_text)
-        self.assertEqual(course_card_text.count("TBA"), 4)
+        self.assertNotIn("TBA", course_card_text)
 
     def test_course_list_shows_registration_before_course_start(self):
         self.course.start_date = timezone.localdate() + timezone.timedelta(

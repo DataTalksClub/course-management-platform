@@ -12,31 +12,35 @@
     </li>
 {% endblock %}
 {% block cadmin_content %}
-    <section class="border-b app-border pb-5 ">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-                <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
-                <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ project.title }} - Submissions</h1>
-                <p class="mt-1 text-sm app-muted">Track review completion, scores, repository links, and staff-only interventions.</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
+    <section class="border-b app-border pb-5">
+        <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+        <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ project.title }} - Submissions</h1>
+        <div class="dense-utility-links mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 <a href="{% url 'cadmin_course' course.slug %}"
-                   class="primer-button primer-button-secondary">Back to Course Admin</a>
-                <a href="{% url 'project' course.slug project.slug %}" class="primer-button">View Project</a>
-            </div>
+                   class="app-link">Back to Course Admin</a>
+                <a href="{% url 'project' course.slug project.slug %}" class="app-link">
+                    <i class="fas fa-external-link-alt"></i> Public
+                </a>
         </div>
     </section>
     {% if submissions or search_query or status_filter != 'all' %}
-        <section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
-            <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h2 class="text-base font-semibold app-heading">Submissions</h2>
-                    <p class="mt-0.5 text-sm app-muted">
-                        {{ submissions_page.paginator.count }} result{{ submissions_page.paginator.count|pluralize }}{% if search_query %} for "{{ search_query }}"{% endif %}
-                    </p>
+        <section class="mt-6">
+            <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                {% if status_filter != 'all' %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                <div class="min-w-0 flex-1 sm:max-w-md">
+                    <label for="project-submission-search" class="block text-sm font-semibold app-heading">Search submissions</label>
+                    <input type="search"
+                           id="project-submission-search"
+                           name="q"
+                           value="{{ search_query }}"
+                           class="form-control mt-2"
+                           placeholder="Email or username">
                 </div>
-                <form method="get" class="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-                    {% if status_filter != 'all' %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="submit" class="primer-button w-fit">Search</button>
+                    {% if search_query %}
+                        <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
+                    {% endif %}
                     <button id="copyEmailsBtn"
                             type="button"
                             class="primer-button primer-button-secondary w-fit"
@@ -46,16 +50,15 @@
                     <span id="copyFeedback"
                           class="text-sm font-medium app-badge-success "
                           style="display: none"> <i class="fas fa-check"></i> Copied! </span>
-                    <input type="search"
-                           name="q"
-                           value="{{ search_query }}"
-                           class="form-control w-full sm:w-72"
-                           placeholder="Search by email or username...">
-                    <button type="submit" class="primer-button w-fit">Search</button>
-                    {% if search_query %}
-                        <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
-                    {% endif %}
-                </form>
+                </div>
+            </form>
+        </section>
+        <section class="mt-4 overflow-hidden rounded-md border app-border app-surface ">
+            <div class="border-b app-border app-surface-muted px-4 py-3">
+                <h2 class="text-base font-semibold app-heading">Submissions</h2>
+                <p class="mt-0.5 text-sm app-muted">
+                    {{ submissions_page.paginator.count }} result{{ submissions_page.paginator.count|pluralize }}{% if search_query %} for "{{ search_query }}"{% endif %}
+                </p>
             </div>
             <div class="grid grid-cols-2 gap-2 border-b app-border px-4 py-3 md:grid-cols-5">
                 <a href="?{% if search_query %}q={{ search_query|urlencode }}{% endif %}" class="rounded-md border app-border app-surface-muted px-3 py-2 text-left {% if status_filter == 'all' %}cadmin-active-filter{% endif %}">

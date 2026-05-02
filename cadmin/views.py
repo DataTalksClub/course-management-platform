@@ -334,6 +334,7 @@ def homework_submission_edit(request, course_slug, homework_slug, submission_id)
         "homework": homework,
         "submission": submission,
         "questions_with_answers": questions_with_answers,
+        "learning_in_public_links_text": "\n".join(submission.learning_in_public_links or []),
     }
     
     return render(request, "cadmin/homework_submission_edit.html", context)

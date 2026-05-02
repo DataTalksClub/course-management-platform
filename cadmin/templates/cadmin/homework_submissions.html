@@ -13,25 +13,28 @@
 {% endblock %}
 {% block cadmin_content %}
     <section class="border-b app-border pb-5 ">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-                <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
-                <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ homework.title }} - Submissions</h1>
-                <p class="mt-1 text-sm app-muted">Review submissions and open individual records when details are needed.</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+            <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ homework.title }} - Submissions</h1>
+        </div>
+        <div class="mt-4 flex flex-col gap-3">
+            <div class="dense-utility-links flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 <a href="{% url 'cadmin_course' course.slug %}"
-                   class="primer-button primer-button-secondary">Back to Course Admin</a>
+                   class="app-link">
+                    Back to Course Admin
+                </a>
                 <a href="{% url 'homework' course.slug homework.slug %}"
                    title="View public homework page"
-                   class="primer-button primer-button-secondary">
+                   class="app-link">
                     <i class="fas fa-external-link-alt"></i> Public
                 </a>
                 <a href="/admin/courses/homework/{{ homework.id }}/change/"
                    title="Edit in Django Admin"
-                   class="primer-button primer-button-secondary">
+                   class="app-link">
                     <i class="fas fa-edit"></i> Django
                 </a>
+            </div>
+            <div class="flex flex-wrap gap-2">
                 <form method="post"
                       action="{% url 'cadmin_homework_set_correct_answers' course.slug homework.slug %}"
                       onsubmit="return confirm('Set missing correct answers for {{ homework.title }} to the most frequent submitted answers?');">
@@ -54,25 +57,36 @@
         </div>
     </section>
     {% if submissions_data or search_query %}
-        <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
-            <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <section class="mt-6">
+            <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="min-w-0 flex-1 sm:max-w-md">
+                    <label for="submission-search" class="question-text font-medium">
+                        Search submissions
+                    </label>
+                    <input type="search"
+                           id="submission-search"
+                           name="q"
+                           value="{{ search_query }}"
+                           class="form-control mt-2"
+                           placeholder="Email or username">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="primer-button">Search</button>
+                    {% if search_query %}
+                        <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary">Clear</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <section class="mt-4 overflow-hidden rounded-md border app-border app-surface">
+            <div class="border-b app-border app-surface-muted px-4 py-3">
                 <div>
                     <h2 class="text-base font-semibold app-heading">Submissions</h2>
                     <p class="mt-0.5 text-sm app-muted">
                         {{ submissions_page.paginator.count }} total{% if search_query %} matching "{{ search_query }}"{% endif %}
                     </p>
                 </div>
-                <form method="get" class="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row">
-                    <input type="search"
-                           name="q"
-                           value="{{ search_query }}"
-                           class="form-control w-full sm:w-72"
-                           placeholder="Search by email or username...">
-                    <button type="submit" class="primer-button w-fit">Search</button>
-                    {% if search_query %}
-                        <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}" class="primer-button primer-button-secondary">Clear</a>
-                    {% endif %}
-                </form>
             </div>
             <div class="divide-y app-divide md:hidden">
                 {% for data in submissions_data %}

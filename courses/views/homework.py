@@ -96,6 +96,7 @@ def process_question_options_multiple_choice_or_checkboxes(
                 is_selected, is_correct
             )
 
+            processed_answer["is_correct"] = is_correct
             processed_answer["correctly_selected_class"] = (
                 correctly_selected
             )

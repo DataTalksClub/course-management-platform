@@ -7,51 +7,63 @@
 <li><a href="{% url 'cadmin_project_submission_edit' course.slug project.slug submission.id %}">Edit Submission</a></li>
 {% endblock %}
 {% block cadmin_content %}
-<section class="border-b app-border pb-5 ">
-<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-<div>
+<section class="border-b app-border pb-5">
 <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
 <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Project Submission</h1>
-<p class="mt-1 text-sm app-muted">Adjust criteria scores, peer-review points, and pass status for this project submission.</p>
-</div>
-<a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary w-fit">Back to Submissions</a>
+<div class="dense-utility-links mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+<a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="app-link">Back to Submissions</a>
+<a href="{% url 'project' course.slug project.slug %}" class="app-link">
+<i class="fas fa-external-link-alt"></i> Public
+</a>
+<a href="/admin/courses/projectsubmission/{{ submission.id }}/change/" class="app-link">
+<i class="fas fa-edit"></i> Django
+</a>
 </div>
 </section>
-<section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Student</p>
-<p class="mt-1 font-semibold app-heading">{{ submission.student.username }}</p>
+<section class="mt-5 text-sm">
+<dl class="grid gap-x-6 gap-y-3 border-b app-border pb-5 md:grid-cols-[minmax(0,1fr)_10rem_8rem_10rem] md:items-start">
+<div class="min-w-0">
+<dt class="text-xs font-semibold uppercase app-muted">Student</dt>
+<dd class="mt-1 min-w-0">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+<span class="font-semibold app-heading">{{ submission.student.username }}</span>
+<a href="{% url 'cadmin_enrollment_edit' course.slug submission.enrollment.id %}" class="app-link">
+<i class="fas fa-user-edit"></i> Manage enrollment
+</a>
+</div>
 {% if submission.student.email %}
-<p class="mt-1 text-xs app-muted">{{ submission.student.email }}</p>
+<div class="mt-1 truncate text-xs app-muted">{{ submission.student.email }}</div>
 {% endif %}
+</dd>
 </div>
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Project</p>
-<p class="mt-1 font-semibold app-heading">{{ project.title }}</p>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Submitted</dt>
+<dd class="mt-1 font-medium app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</dd>
 </div>
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Submitted</p>
-<p class="mt-1 font-semibold app-heading">{{ submission.submitted_at|date:"Y-m-d H:i" }}</p>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Total score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading">{{ submission.total_score }}</dd>
 </div>
-<div class="rounded-md border app-border app-surface p-3 ">
-<p class="text-xs font-semibold uppercase app-muted">Repository</p>
+<div class="min-w-0">
+<dt class="text-xs font-semibold uppercase app-muted">Repository</dt>
+<dd class="mt-1 min-w-0">
 {% if submission.github_link %}
-<a href="{{ submission.github_link }}" target="_blank" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">View repository</a>
+<a href="{{ submission.github_link }}" target="_blank" class="app-link">View repository</a>
 {% else %}
-<p class="mt-1 text-sm app-muted">Not provided</p>
+<span class="app-muted">Not provided</span>
 {% endif %}
+</dd>
 </div>
+</dl>
 </section>
-<form class="mt-6 space-y-6" method="post">
+<form class="mt-6 space-y-8" method="post">
 {% csrf_token %}
-<section class="overflow-hidden rounded-md border app-border app-surface ">
-<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<section>
 <h2 class="text-base font-semibold app-heading">Review Criteria Scores</h2>
-</div>
 {% if criteria_with_scores %}
-<div class="divide-y app-divide">
+<div class="mt-3 divide-y app-divide border-y app-border">
 {% for item in criteria_with_scores %}
-<article class="px-4 py-4">
+<article class="py-4">
 <div class="cadmin-criteria-row grid items-start gap-3">
 <div>
 <h3 class="font-medium app-heading">{{ item.criteria.description }}</h3>
@@ -73,20 +85,18 @@
 {% endfor %}
 </div>
 {% else %}
-<p class="px-4 py-6 text-sm app-muted">No review criteria defined for this course.</p>
+<p class="py-6 text-sm app-muted">No review criteria defined for this course.</p>
 {% endif %}
-<div class="border-t app-border app-surface-muted px-4 py-4 ">
+<div class="mt-4">
 <label class="mb-2 block text-sm font-semibold app-heading" for="project_score">Total Project Score (from criteria above)</label>
 <input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" readonly>
 <p class="mt-2 text-sm app-muted">This is automatically calculated from the criteria scores above.</p>
 </div>
 </section>
 <section class="grid gap-6 lg:grid-cols-2">
-<div class="rounded-md border app-border app-surface ">
-<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<div>
 <h2 class="text-base font-semibold app-heading">Additional Project Scores</h2>
-</div>
-<div class="space-y-4 p-4">
+<div class="mt-3 space-y-4">
 <div>
 <label class="mb-2 block text-sm font-semibold app-heading" for="project_faq_score">Project FAQ Score</label>
 <input type="number" class="form-control additional-score" id="project_faq_score" name="project_faq_score" value="{{ submission.project_faq_score }}" required>
@@ -99,11 +109,9 @@
 </div>
 </div>
 </div>
-<div class="rounded-md border app-border app-surface ">
-<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<div>
 <h2 class="text-base font-semibold app-heading">Peer Review Scores</h2>
-</div>
-<div class="space-y-4 p-4">
+<div class="mt-3 space-y-4">
 <div>
 <label class="mb-2 block text-sm font-semibold app-heading" for="peer_review_score">Peer Review Score</label>
 <input type="number" class="form-control peer-review-score" id="peer_review_score" name="peer_review_score" value="{{ submission.peer_review_score }}" required>
@@ -117,11 +125,9 @@
 </div>
 </div>
 </section>
-<section class="rounded-md border app-border app-surface ">
-<div class="border-b app-border app-surface-muted px-4 py-3 ">
+<section>
 <h2 class="text-base font-semibold app-heading">Overall Results</h2>
-</div>
-<div class="grid gap-4 p-4 md:grid-cols-3">
+<div class="mt-3 grid gap-4 md:grid-cols-3">
 <div>
 <label class="mb-2 block text-sm font-semibold app-heading" for="total_score">Total Score (automatically calculated)</label>
 <input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" readonly>
@@ -141,7 +147,7 @@ checked
 > Passed </label>
 </div>
 </section>
-<div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 ">
+<div class="flex flex-wrap justify-end gap-2 border-t app-border pt-5">
 <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
 <button type="submit" class="primer-button cadmin-primary">Save Changes</button>
 </div>

@@ -6,14 +6,8 @@
   <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
 {% endblock %}
 
-{% block nav_links %}
-  <a href="{% url 'course' course.slug %}" class="hidden min-w-0 truncate app-link sm:inline">
-    {{ course.title }}
-  </a>
-{% endblock %}
-
 {% block content %}
-<section class="border-b app-border pb-5">
+<section>
   <div class="max-w-3xl">
     <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">
       {{ course.title }}
@@ -23,14 +17,14 @@
     </div>
   </div>
 
-  <div class="course-actions mt-5 flex flex-wrap gap-3 md:mt-8 md:gap-4">
+  <div class="course-actions mt-5 flex flex-wrap gap-2 md:mt-7">
     {% if course.home_registration_open %}
       <a href="{{ course.registration_url }}" class="primer-button primer-button-secondary whitespace-nowrap">
         <i class="fas fa-user-plus"></i> Register
       </a>
     {% endif %}
     {% if course.first_homework_scored %}
-      <a href="{% url 'leaderboard' course.slug %}" class="primer-button whitespace-nowrap">
+      <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
         <i class="fas fa-trophy"></i> Course leaderboard
       </a>
     {% endif %}
@@ -71,10 +65,9 @@
   <section class="mt-8">
     <div class="mb-4">
       <h2 class="text-2xl font-semibold">Homework</h2>
-      <p class="mt-2 app-text">Complete the homework and submit your solutions.</p>
     </div>
 
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:gap-4">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_16rem_8rem] md:gap-3">
       <div>Homework</div>
       <div>Deadline</div>
       <div class="text-right">Status</div>
@@ -82,7 +75,7 @@
 
     <div class="divide-y app-divide">
       {% for hw in homeworks %}
-        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:items-center md:gap-4">
+        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_16rem_8rem] md:items-center md:gap-3">
           <div class="flex min-w-0 items-start gap-3">
             <i class="far fa-file-alt mt-1 hidden app-muted md:inline"></i>
             <div class="min-w-0">
@@ -99,24 +92,25 @@
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             {% if hw.is_scored %}
-              <span class="md:whitespace-nowrap">Scored: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span>
+              <div class="mt-1 text-xs app-muted">Already scored</div>
             {% else %}
-              <span class="md:whitespace-nowrap">Deadline: <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}" data-past-tone="muted"></div>
             {% endif %}
           </div>
 
           <div class="md:text-right">
             {% if hw.state == 'CL' %}
-              <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase">Closed</span>
+              <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Closed</span>
             {% elif hw.is_scored and hw.submitted %}
-              <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Scored ({{ hw.score }})</span>
+              <span class="inline-flex app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Scored ({{ hw.score }})</span>
             {% elif hw.is_scored %}
-              <span class="inline-flex rounded-md app-badge-info px-3 py-1 text-xs font-semibold uppercase">Scored</span>
+              <span class="inline-flex app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Scored</span>
             {% elif not hw.is_scored and hw.submitted %}
-              <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
+              <span class="inline-flex app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Submitted</span>
             {% else %}
-              <span class="inline-flex rounded-md app-badge-warning px-3 py-1 text-xs font-semibold uppercase">Open</span>
+              <span class="inline-flex app-badge-warning px-2 py-0.5 text-xs font-semibold uppercase">Open</span>
             {% endif %}
           </div>
         </div>
@@ -126,13 +120,12 @@
 {% endif %}
 
 {% if projects %}
-  <section class="mt-8 border-t app-border pt-6">
+  <section class="mt-8">
     <div class="mb-4">
       <h2 class="text-2xl font-semibold">Projects</h2>
-      <p class="mt-2 app-text">Build and submit course projects. Review status and next actions are shown for each project.</p>
     </div>
 
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:gap-4">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_16rem_8rem] md:gap-3">
       <div>Project</div>
       <div>Deadline</div>
       <div class="text-right">Status</div>
@@ -140,7 +133,7 @@
 
     <div class="divide-y app-divide">
       {% for project in projects %}
-        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_18rem_7rem] md:items-center md:gap-4">
+        <div class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_16rem_8rem] md:items-center md:gap-3">
           <div class="flex min-w-0 items-start gap-3">
             <i class="far fa-folder mt-1 hidden app-muted md:inline"></i>
             <div class="min-w-0">
@@ -159,25 +152,26 @@
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             {% if project.state == 'PR' and project.submitted %}
-              <span class="md:whitespace-nowrap">Review due: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.peer_review_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% elif project.state == 'CO' %}
-              <span class="md:whitespace-nowrap">Completed: <span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span>
+              <div class="mt-1 text-xs app-muted">Completed</div>
             {% else %}
-              <span class="md:whitespace-nowrap">Due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span></span>
+              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% endif %}
           </div>
 
           <div class="md:text-right">
             {% if project.badge_css_class == 'bg-success' or project.badge_css_class == 'bg-info' %}
-              <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="inline-flex app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
             {% elif project.badge_css_class == 'bg-warning' %}
-              <span class="inline-flex rounded-md app-badge-warning px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="inline-flex app-badge-warning px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
             {% elif project.badge_css_class == 'bg-danger' %}
-              <span class="inline-flex rounded-md app-badge-danger px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="inline-flex app-badge-danger px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
             {% else %}
-              <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
             {% endif %}
           </div>
         </div>

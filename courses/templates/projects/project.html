@@ -11,18 +11,10 @@
     </li>
 {% endblock %}
 
-{% block nav_links %}
-    <a href="{% url 'course' course.slug %}"
-       class="hidden min-w-0 truncate sm:inline app-link">
-        {{ course.title }}
-    </a>
-{% endblock %}
-
 {% block content %}
-<section class="max-w-7xl">
+<section class="content-narrow">
     <div class="mb-6 md:mb-8">
         <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">{{ project.title }}</h1>
-        <p class="mt-2 text-base md:text-lg app-text">{{ course.title }}</p>
     </div>
     {% if messages %}
         <div class="mb-6 space-y-3">
@@ -57,22 +49,32 @@
                 <span>Instructions</span>
             </a>
         {% endif %}
-        <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm app-text">
-            <div class="flex items-center gap-3">
-                <i class="far fa-calendar-alt hidden app-muted md:inline"></i>
-                <span>Submission due: <span class="local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date|date:"j F Y, H:i" }}</span></span>
+        <div class="mt-5 space-y-1 text-sm app-text">
+            <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span class="text-xs font-semibold uppercase app-muted">Deadline:</span>
+                    <span class="font-medium app-heading">
+                        <span class="local-date"
+                              data-timestamp="{{ project.submission_due_date|date:'U' }}"
+                              data-show-timezone="true">{{ project.submission_due_date|date:"j F Y, H:i" }}</span>
+                    </span>
+                </div>
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span class="time-left app-muted"
+                      data-deadline="{{ project.submission_due_date | date:"c" }}"
+                      data-prefix="false"></span>
+                <span aria-hidden="true" class="app-muted">&middot;</span>
+                <span class="app-muted">Shown in your timezone.</span>
             </div>
-            <div class="time-left app-muted"
-                 data-deadline="{{ project.submission_due_date | date:"c" }}"
-                 data-prefix="false"></div>
-            <div class="flex items-center gap-3">
-                <span>Status:</span>
+            {% if is_authenticated %}
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span class="text-xs font-semibold uppercase app-muted">Status:</span>
                 {% if submission %}
                     <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
                 {% else %}
-                    <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase app-text">Not submitted</span>
+                    <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Not submitted</span>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
         <div class="mt-5 flex flex-wrap gap-4">
             {% if project.state == 'CO' %}
@@ -128,16 +130,20 @@
             {% csrf_token %}
         {% endif %}
         <section>
-            <div class="mb-5 md:mb-6">
-                <h2 class="text-2xl font-semibold">Project submission</h2>
-                <p class="mt-2 app-text">Submit the public repository link and the exact commit you want evaluated.</p>
+            <div class="mb-4 md:mb-5">
+                <h2 class="text-2xl font-semibold">Submission details</h2>
+                <p class="mt-2 hidden md:block app-text">Submit the public repository link and the exact commit you want evaluated.</p>
             </div>
-            <div class="md:overflow-hidden md:rounded-md md:border app-border">
-                <div class="question border-t app-border py-4 md:border-t-0 md:border-b md:p-4">
+            <div class="space-y-5">
+                <div class="question">
                     <label for="github_link" class="question-text font-medium">
                         GitHub link to the project
-                        <i class="fas fa-question-circle text-muted"
-                           title="Your project should be hosted on GitHub. Make sure your project is public"></i>
+                        <span class="form-help-icon app-muted"
+                              role="button"
+                              tabindex="0"
+                              aria-label="Project GitHub link help"
+                              aria-expanded="false"
+                              data-form-help="Your project should be hosted on GitHub. Make sure your project is public"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                     </label>
                     <input type="url"
                            class="form-control mt-2"
@@ -147,15 +153,19 @@
                            required
                            {% if disabled or not is_authenticated %}disabled{% endif %} />
                 </div>
-                <div class="question border-t app-border py-4 md:border-t-0 md:p-4">
+                <div class="question">
                     <label for="commit_id" class="question-text font-medium">
                         Commit ID
-                        <i class="fas fa-question-circle text-muted"
-                           title="The commit id of your latest commit in the project. It should be a 7-character hex string"></i>
+                        <span class="form-help-icon app-muted"
+                              role="button"
+                              tabindex="0"
+                              aria-label="Commit ID help"
+                              aria-expanded="false"
+                              data-form-help="The commit id of your latest commit in the project. It should be a 7-character hex string"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                     </label>
-                    <details class="mt-3 rounded-md border app-border app-surface">
-                        <summary class="cursor-pointer px-3 py-2 text-sm font-medium app-link">Where do I find the commit ID?</summary>
-                        <div class="border-t app-border p-3">
+                    <details class="mt-2 text-sm app-muted">
+                        <summary class="cursor-pointer font-medium app-link">Where do I find the commit ID?</summary>
+                        <div class="mt-2">
                             <img class="question-image max-h-52 w-full object-contain md:max-h-72 md:w-auto"
                                  src="https://habrastorage.org/webt/kt/w0/-1/ktw0-1oe_azrkwrd4lnpod2mzuq.png"
                                  alt="Commit Screenshot" />
@@ -169,19 +179,18 @@
                            required
                            {% if disabled or not is_authenticated %}disabled{% endif %} />
                 </div>
-            </div>
-        </section>
-        <section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
-            <h2 class="text-2xl font-semibold">Additional details</h2>
-            <div class="mt-5 space-y-5">
                 {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
                 <script src="{% static 'learning_in_public.js' %}"></script>
                 {% if project.time_spent_project_field %}
                     <div class="question">
                         <label for="time_spent" class="question-text font-medium">
                             Time spent on project (hours)
-                            <i class="fas fa-question-circle text-muted"
-                               title="How much time (in hours) did you spend to work on the project?"></i>
+                            <span class="form-help-icon app-muted"
+                                  role="button"
+                                  tabindex="0"
+                                  aria-label="How much time you spent on the project"
+                                  aria-expanded="false"
+                                  data-form-help="How much time (in hours) did you spend to work on the project?"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                         </label>
                         <input type="number"
                                class="form-control mt-2"
@@ -192,13 +201,17 @@
                                {% if disabled or not is_authenticated %}disabled{% endif %} />
                     </div>
                 {% endif %}
-                {% if course.faq_document_url and project.faq_contribution_field %}
+                {% if project.faq_contribution_field %}
                     <div class="question">
                         <label for="faq_contribution_url" class="question-text font-medium">
                             FAQ contribution PR or issue URL
-                            <span class="text-muted">(<a href="{{ course.faq_document_url }}" target="_blank">FAQ document</a>)</span>
-                            <i class="fas fa-question-circle text-muted"
-                               title="Create a GitHub issue or pull request in the FAQ repo for your contribution, then paste that issue or PR URL here."></i>
+                            <span class="text-muted">(<a href="https://datatalks.club/docs/courses/faq/" target="_blank" rel="noopener noreferrer">FAQ docs</a>)</span>
+                            <span class="form-help-icon app-muted"
+                                  role="button"
+                                  tabindex="0"
+                                  aria-label="How to submit an FAQ contribution"
+                                  aria-expanded="false"
+                                  data-form-help="Create a GitHub issue or pull request in the FAQ repo for your contribution, then paste that issue or PR URL here."><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                         </label>
                         <input type="url"
                                class="form-control mt-2"
@@ -212,8 +225,12 @@
                     <div class="question">
                         <label for="certificate_name" class="question-text font-medium">
                             Certificate name
-                            <i class="fas fa-question-circle text-muted"
-                               title="Enter the name you would like to be shown on the certificate. This is required and will be used for your certificate."></i>
+                            <span class="form-help-icon app-muted"
+                                  role="button"
+                                  tabindex="0"
+                                  aria-label="Certificate name help"
+                                  aria-expanded="false"
+                                  data-form-help="Enter the name you would like to be shown on the certificate. This is required and will be used for your certificate."><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                         </label>
                         <input type="text"
                                class="form-control mt-2"
@@ -226,7 +243,7 @@
                 {% endif %}
             </div>
         </section>
-        <div class="mt-6 flex flex-col gap-4 border-t app-border pt-6 md:flex-row md:items-center md:justify-between">
+        <div class="mt-6">
             <div class="text-sm app-muted">
                 {% if submission %}
                     Last saved at: {{ submission.submitted_at|date:"F d, Y H:i" }}
@@ -240,7 +257,7 @@
                 {% endif %}
             </div>
             {% if accepting_submissions %}
-                <div class="flex flex-wrap gap-3">
+                <div class="mt-4 flex flex-wrap gap-3">
                     {% if is_authenticated %}
                         {% if not submission %}
                             <button id="submit-button"

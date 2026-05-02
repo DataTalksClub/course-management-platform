@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-    <section class="home-hero grid gap-8 py-6 md:grid-cols-[minmax(0,1fr)_22rem] md:items-end md:py-10">
+    <section class="home-hero py-6 md:py-10">
         <div class="max-w-3xl">
             <h1 class="text-3xl font-semibold leading-tight tracking-normal sm:text-4xl md:text-5xl">
                 Learn data skills. For free. Together.
@@ -9,24 +9,6 @@
                 Community-created courses with practical homework, projects, public leaderboards, and peer review.
             </p>
         </div>
-        <dl class="home-stats-grid grid grid-cols-2 gap-px overflow-hidden rounded-md border app-border app-surface-muted text-sm">
-            <div class="app-surface p-3">
-                <dt class="text-xs font-semibold uppercase app-muted">Active</dt>
-                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.active_courses }}</dd>
-            </div>
-            <div class="app-surface p-3">
-                <dt class="text-xs font-semibold uppercase app-muted">Archive</dt>
-                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.archive_courses }}</dd>
-            </div>
-            <div class="app-surface p-3">
-                <dt class="text-xs font-semibold uppercase app-muted">Homework</dt>
-                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.homeworks }}</dd>
-            </div>
-            <div class="app-surface p-3">
-                <dt class="text-xs font-semibold uppercase app-muted">Projects</dt>
-                <dd class="mt-1 text-2xl font-semibold app-heading">{{ home_stats.projects }}</dd>
-            </div>
-        </dl>
     </section>
     {% if SHOW_WRAPPED %}
         <section class="mb-8 border-y app-border py-6">
@@ -52,9 +34,9 @@
         </section>
 
         {% if active_courses %}
-            <section class="mt-6 grid gap-4 lg:grid-cols-2">
+            <section class="mt-6 divide-y app-divide">
                 {% for course in active_courses %}
-                    <article class="grid cursor-pointer gap-4 rounded-md border app-border app-surface p-4 md:p-5"
+                    <article class="grid cursor-pointer gap-4 rounded-md py-4 md:py-5"
                              role="link"
                              tabindex="0"
                              onclick="if (!event.target.closest('a, button')) window.location.href='{% url 'course' course.slug %}'"
@@ -66,36 +48,31 @@
                             </h3>
                             <p class="mt-1 max-w-3xl text-sm leading-6 app-text md:text-base">{{ course.home_outcome }}</p>
                         </div>
-                        <dl class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                            <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Starts</dt>
-                                <dd class="mt-1 font-semibold app-heading">
-                                    {% if course.start_date %}{{ course.start_date|date:"M j, Y" }}{% else %}TBA{% endif %}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Ends</dt>
-                                <dd class="mt-1 font-semibold app-heading">
-                                    {% if course.end_date %}{{ course.end_date|date:"M j, Y" }}{% else %}TBA{% endif %}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Duration</dt>
-                                <dd class="mt-1 font-semibold app-heading">{{ course.home_duration_label }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Repository</dt>
-                                <dd class="mt-1 font-semibold app-heading">
-                                    {% if course.github_repo_url %}
-                                        <a href="{{ course.github_repo_url }}" class="app-link">GitHub</a>
-                                    {% else %}
-                                        TBA
-                                    {% endif %}
-                                </dd>
-                            </div>
-                        </dl>
+                        {% if course.start_date or course.github_repo_url %}
+                            <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm app-muted">
+                                {% if course.start_date %}
+                                    <span>
+                                        {{ course.start_date|date:"M j, Y" }}
+                                        {% if course.end_date %}
+                                            - {{ course.end_date|date:"M j, Y" }}
+                                            {% if course.home_duration_label != "TBA" %}({{ course.home_duration_label }}){% endif %}
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                                {% if course.start_date and course.github_repo_url %}
+                                    <span aria-hidden="true">&middot;</span>
+                                {% endif %}
+                                {% if course.github_repo_url %}
+                                    <a href="{{ course.github_repo_url }}"
+                                       class="inline-flex items-center gap-1 app-link">
+                                        <i class="fab fa-github" aria-hidden="true"></i>
+                                        <span>GitHub</span>
+                                    </a>
+                                {% endif %}
+                            </p>
+                        {% endif %}
                         {% if course.home_current_assignment or course.home_registration_open %}
-                            <div class="grid gap-3 border-t app-border pt-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                            <div class="grid gap-3 text-sm">
                                 {% if course.home_current_assignment %}
                                     <div>
                                         <p class="text-xs font-semibold uppercase app-muted">{{ course.home_current_assignment_label }}</p>
@@ -108,7 +85,7 @@
                                     </div>
                                 {% endif %}
                                 {% if course.home_registration_open %}
-                                    <div class="flex flex-wrap gap-3 md:justify-end">
+                                    <div class="flex flex-wrap gap-3">
                                         <a href="{{ course.registration_url }}"
                                            class="primer-button primer-button-secondary whitespace-nowrap">
                                             <i class="fas fa-user-plus"></i>

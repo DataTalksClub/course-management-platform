@@ -12,7 +12,7 @@
 {% block content %}
 <section class="border-b app-border pb-5">
   <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ enrollment.course.title }}</p>
-  <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+  <div class="mt-2">
     <div>
       <h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ enrollment.display_name }}</h1>
       {% if public_profile and public_profile.about_me %}
@@ -38,7 +38,7 @@
         {% endif %}
       </div>
     </div>
-    <div class="flex flex-wrap gap-2">
+    <div class="mt-4 flex flex-wrap gap-2">
       {% if request.user.is_staff %}
         <a href="{% url 'cadmin_enrollment_edit' course_slug=enrollment.course.slug enrollment_id=enrollment.id %}"
            class="primer-button primer-button-secondary"
@@ -52,14 +52,14 @@
           Show public profile
         </a>
       {% endif %}
+      <a href="{% url 'leaderboard' enrollment.course.slug %}"
+         class="primer-button primer-button-secondary">Back to Leaderboard</a>
       <button type="button"
               class="leaderboard-flag-button primer-button primer-button-secondary"
               data-flag-url="{% url 'leaderboard_complaint' course_slug=enrollment.course.slug enrollment_id=enrollment.id %}"
               data-flag-name="{{ enrollment.display_name }}">
         <i class="far fa-flag"></i> Flag this record
       </button>
-      <a href="{% url 'leaderboard' enrollment.course.slug %}"
-         class="primer-button primer-button-secondary">Back to Leaderboard</a>
     </div>
   </div>
 </section>
@@ -75,9 +75,6 @@
   <div class="border-b app-border app-surface-muted px-4 py-3">
     <h2 class="text-base font-semibold app-heading">Homework submissions</h2>
   </div>
-  <p class="border-b app-border px-4 py-3 text-sm app-muted">
-    Only scored homework submissions appear here.
-  </p>
   <div class="divide-y app-divide">
     {% for submission in submissions %}
       {% if submission.homework.is_scored %}
@@ -136,15 +133,15 @@
       <p class="px-4 py-6 text-sm app-muted">No submissions yet.</p>
     {% endfor %}
   </div>
+  <p class="border-t app-border px-4 py-3 text-sm app-muted">
+    Only scored homework submissions appear here.
+  </p>
 </section>
 
 <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
   <div class="border-b app-border app-surface-muted px-4 py-3">
     <h2 class="text-base font-semibold app-heading">Project submissions</h2>
   </div>
-  <p class="border-b app-border px-4 py-3 text-sm app-muted">
-    Only completed project submissions appear here.
-  </p>
   <div class="divide-y app-divide">
     {% for submission in project_submissions %}
       {% if submission.project.state == 'CO' %}
@@ -212,6 +209,9 @@
       <p class="px-4 py-6 text-sm app-muted">No project submissions found.</p>
     {% endfor %}
   </div>
+  <p class="border-t app-border px-4 py-3 text-sm app-muted">
+    Only completed project submissions appear here.
+  </p>
 </section>
 
 <dialog id="leaderboard-flag-dialog" class="rounded-md border app-border app-surface p-0">

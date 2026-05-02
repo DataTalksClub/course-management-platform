@@ -58,7 +58,7 @@
           data-toggle-url="{% url 'toggle_dark_mode' %}">
         {% if user.is_authenticated %}<input type="hidden" id="csrf-token" value="{{ csrf_token }}">{% endif %}
         <header id="header-container" class="border-b app-border app-surface">
-            <nav class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-8 md:py-5">
+            <nav class="app-content-shell mx-auto flex items-center justify-between gap-3 px-4 py-3 md:px-8 md:py-5">
                 <a href="{% url 'course_list' %}"
                    class="shrink-0 text-xl font-semibold tracking-normal app-heading app-heading md:text-2xl">
                     DataTalks.Club
@@ -131,7 +131,7 @@
                 </div>
             </nav>
         </header>
-        <div class="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-8 md:py-10">
+        <div class="app-content-shell mx-auto w-full flex-1 px-4 py-5 md:px-8 md:py-10">
             {% block breadcrumbs_nav %}
                 <nav class="breadcrumbs mb-6 text-sm app-muted md:mb-8"
                      aria-label="Breadcrumb">
@@ -147,7 +147,7 @@
             </main>
         </div>
         <footer class="site-footer mt-10 border-t app-border app-surface app-muted">
-            <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 md:items-center md:px-8 md:py-8">
+            <div class="app-content-shell mx-auto flex flex-col gap-3 px-4 py-6 md:items-center md:px-8 md:py-8">
                 <div class="site-footer-brand">
                     <span class="font-semibold app-heading">DataTalks.Club</span>
                     <span class="site-footer-tagline">Free courses to learn data.</span>
