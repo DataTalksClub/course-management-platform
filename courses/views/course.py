@@ -359,6 +359,7 @@ def update_project_with_additional_info(project: Project) -> None:
 
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug)
+    add_course_homepage_info(course, timezone.now())
 
     user = request.user
     homeworks = get_homeworks_for_course(course, user)
@@ -689,11 +690,20 @@ def leaderboard_score_breakdown_view(
         enrollment=enrollment
     ).order_by("project__id")
 
+    is_own_record = (
+        request.user.is_authenticated
+        and request.user.id == enrollment.student_id
+    )
+    public_profile = (
+        enrollment.student if enrollment.display_public_profile else None
+    )
+
     context = {
         "enrollment": enrollment,
-        "public_profile": enrollment.student
-        if enrollment.display_public_profile
-        else None,
+        "public_profile": public_profile,
+        "show_public_profile_settings_link": (
+            is_own_record and public_profile is None
+        ),
         "submissions": homework_submissions,
         "project_submissions": project_submissions,
     }

@@ -169,6 +169,9 @@ class CourseDetailViewTests(TestCase):
             self.assertFalse(hasattr(hw, "submitted_at"))
 
     def test_course_detail_shows_registration_url(self):
+        self.course.start_date = timezone.localdate() + timezone.timedelta(
+            days=7
+        )
         self.course.registration_url = (
             "https://courses.datatalks.club/test-course/register"
         )
@@ -490,6 +493,58 @@ class CourseDetailViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Flag this record")
+
+    def test_score_breakdown_prompts_owner_to_show_public_profile(self):
+        self.client.force_login(self.user)
+
+        url = reverse(
+            "leaderboard_score_breakdown",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": self.enrollment.id,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Show public profile")
+        self.assertContains(
+            response,
+            f'href="{reverse("enrollment", args=[self.course.slug])}"',
+        )
+
+    def test_score_breakdown_does_not_prompt_for_other_record(self):
+        target = self.create_enrollment("e1", 100, 1)
+        self.client.force_login(self.user)
+
+        url = reverse(
+            "leaderboard_score_breakdown",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": target.id,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Show public profile")
+
+    def test_score_breakdown_does_not_prompt_when_profile_public(self):
+        self.enrollment.display_public_profile = True
+        self.enrollment.save()
+        self.client.force_login(self.user)
+
+        url = reverse(
+            "leaderboard_score_breakdown",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": self.enrollment.id,
+            },
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Show public profile")
 
     def test_score_breakdown_shows_score_equations(self):
         self.submission1.questions_score = 7
@@ -1026,7 +1081,7 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "Apr 15, 2026")
         self.assertContains(response, "13 weeks")
         self.assertContains(response, "Submitted Homework")
-        self.assertContains(
+        self.assertNotContains(
             response,
             "https://courses.datatalks.club/test-course/register",
         )

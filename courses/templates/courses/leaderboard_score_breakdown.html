@@ -46,6 +46,12 @@
           <i class="fas fa-cog"></i> Admin
         </a>
       {% endif %}
+      {% if show_public_profile_settings_link %}
+        <a href="{% url 'enrollment' enrollment.course.slug %}"
+           class="primer-button">
+          Show public profile
+        </a>
+      {% endif %}
       <button type="button"
               class="leaderboard-flag-button primer-button primer-button-secondary"
               data-flag-url="{% url 'leaderboard_complaint' course_slug=enrollment.course.slug enrollment_id=enrollment.id %}"

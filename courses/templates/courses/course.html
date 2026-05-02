@@ -24,7 +24,7 @@
   </div>
 
   <div class="course-actions mt-5 flex flex-wrap gap-3 md:mt-8 md:gap-4">
-    {% if course.registration_url %}
+    {% if course.home_registration_open %}
       <a href="{{ course.registration_url }}" class="primer-button primer-button-secondary whitespace-nowrap">
         <i class="fas fa-user-plus"></i> Register
       </a>
