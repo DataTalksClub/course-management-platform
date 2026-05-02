@@ -222,7 +222,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "The peer review is over; you can no longer submit it.",
+            "Peer review form is closed.",
             status_code=200,
         )
         self.assertNotContains(
@@ -278,13 +278,12 @@ class ProjectEvaluationTestCase(TestCase):
                 f"answer_{self.criteria2.id}": "2",
                 f"answer_{self.criteria3.id}": "1,3",
             },
-            follow=True,
         )
 
-        self.assertRedirects(response, url)
+        self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "The peer review is over; you can no longer submit it.",
+            "Peer review form is closed.",
             status_code=200,
         )
 
@@ -641,8 +640,8 @@ class ProjectEvaluationTestCase(TestCase):
             status_code=200,
         )
 
-    def test_eval_view_redirects_when_project_is_not_peer_reviewing(self):
-        """Test that eval view is only available during peer review."""
+    def test_eval_view_shows_closed_message_when_project_is_not_peer_reviewing(self):
+        """Test that eval view stays on page with closed peer-review message."""
         self.project.state = ProjectState.COMPLETED.value
         self.project.save()
 
@@ -653,19 +652,47 @@ class ProjectEvaluationTestCase(TestCase):
             args=[self.course.slug, self.project.slug],
         )
 
-        response = self.client.get(url, follow=True)
+        response = self.client.get(url)
 
-        self.assertRedirects(
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        self.assertContains(
             response,
-            reverse(
-                "project",
-                args=[self.course.slug, self.project.slug],
-            ),
+            "Peer review form is closed.",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Mandatory progress",
+            status_code=200,
         )
 
-        messages = list(response.context["messages"])
-        self.assertTrue(
-            any("not in peer review" in str(message) for message in messages)
+    def test_eval_view_shows_no_submission_closed_message_when_completed(self):
+        """Test direct eval URL explains why non-submitters cannot evaluate."""
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
+        self.submission.delete()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        self.assertContains(
+            response,
+            "submission window is closed",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Submission details",
+            status_code=200,
         )
 
     def test_list_view_authenticated_no_submission(self):

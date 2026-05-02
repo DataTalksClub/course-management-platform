@@ -34,7 +34,11 @@
 {% if not is_authenticated %}
 <div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm app-text "> Please <a href="{% url 'login' %}" class="font-medium app-link hover:underline ">log in</a> to see the projects you need to evaluate.
 </div>
-{% elif not has_submission and project.state == 'PR' %}
+{% elif eval_closed and not has_submission %}
+<div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">You didn't submit this project, and the submission window is closed.</div>
+{% elif eval_closed %}
+<div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">Peer review form is closed.</div>
+{% elif not has_submission %}
 <div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm  "> Because you did not submit your project, you cannot participate in peer review. You can still <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="font-medium underline">see other submissions</a>.
 </div>
 {% else %}

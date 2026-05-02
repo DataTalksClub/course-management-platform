@@ -105,7 +105,7 @@
             {% else %}
                 {% if is_authenticated %}
                     <div class="rounded-md border app-alert-warning p-4">
-                        You didn't submit your project and this form is no longer accepting new submissions.
+                        You didn't submit this project, and the submission window is closed.
                     </div>
                 {% else %}
                     <div class="rounded-md border app-alert-info p-4 app-heading">
@@ -125,6 +125,7 @@
             </a>
         </div>
     {% endif %}
+    {% if accepting_submissions or submission %}
     <form method="post" id="project-form" class="needs-validation mt-7 md:mt-8" novalidate>
         {% if is_authenticated %}
             {% csrf_token %}
@@ -285,6 +286,7 @@
             {% endif %}
         </div>
     </form>
+    {% endif %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var form = document.getElementById('project-form');

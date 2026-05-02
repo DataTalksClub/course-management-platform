@@ -239,6 +239,16 @@ class ProjectViewTestCase(TestCase):
         self.assertIn("project", response.context)
         # Check if the context has 'disabled' as True
         self.assertTrue(response.context["disabled"])
+        self.assertContains(
+            response,
+            "submission window is closed",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Submission details",
+            status_code=200,
+        )
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
@@ -540,7 +550,17 @@ class ProjectViewTestCase(TestCase):
         }
         response = self.client.post(url, data)
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Project submission form is closed.",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Submission details",
+            status_code=200,
+        )
 
         submissions = ProjectSubmission.objects.filter(
             student=self.user,

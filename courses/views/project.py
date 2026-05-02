@@ -117,6 +117,48 @@ def project_delete_submission(request: HttpRequest, project: Project) -> None:
     )
 
 
+def project_build_context(
+    request: HttpRequest, course: Course, project: Project
+) -> dict:
+    user = request.user
+    is_authenticated = user.is_authenticated
+
+    accepting_submissions = (
+        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+    )
+
+    project_submission = None
+    enrollment = None
+    ceritificate_name = None
+
+    if is_authenticated:
+        project_submission = ProjectSubmission.objects.filter(
+            project=project, student=user
+        ).first()
+
+        enrollment, _ = Enrollment.objects.get_or_create(
+            student=user,
+            course=course,
+        )
+
+        ceritificate_name = user.certificate_name or enrollment.display_name
+
+    disabled = not accepting_submissions
+
+    return {
+        "course": course,
+        "project": project,
+        "submission": project_submission,
+        "is_authenticated": is_authenticated,
+        "disabled": disabled,
+        "accepting_submissions": accepting_submissions,
+        "ceritificate_name": ceritificate_name,
+        "disable_learning_in_public": (
+            enrollment.disable_learning_in_public if enrollment else False
+        ),
+    }
+
+
 
 def project_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
@@ -147,14 +189,11 @@ def project_view(request, course_slug, project_slug):
         if not accepting_submissions:
             messages.error(
                 request,
-                "This project is no longer accepting submissions",
+                "Project submission form is closed.",
                 extra_tags="homework",
             )
-            return redirect(
-                "project",
-                course_slug=course.slug,
-                project_slug=project.slug,
-            )
+            context = project_build_context(request, course, project)
+            return render(request, "projects/project.html", context)
 
         if 'action' in request.POST and request.POST['action'] == 'delete':
             project_delete_submission(request, project)
@@ -175,33 +214,7 @@ def project_view(request, course_slug, project_slug):
             project_slug=project.slug,
         )
 
-    project_submission = None
-    ceritificate_name = None
-
-    if is_authenticated:
-        project_submission = ProjectSubmission.objects.filter(
-            project=project, student=request.user
-        ).first()
-
-        enrollment, _ = Enrollment.objects.get_or_create(
-            student=user,
-            course=course,
-        )
-
-        ceritificate_name = user.certificate_name or enrollment.display_name
-
-    disabled = not accepting_submissions
-
-    context = {
-        "course": course,
-        "project": project,
-        "submission": project_submission,
-        "is_authenticated": is_authenticated,
-        "disabled": disabled,
-        "accepting_submissions": accepting_submissions,
-        "ceritificate_name": ceritificate_name,
-        "disable_learning_in_public": enrollment.disable_learning_in_public if is_authenticated else False,
-    }
+    context = project_build_context(request, course, project)
 
     return render(request, "projects/project.html", context)
 
@@ -212,26 +225,16 @@ def projects_eval_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    if project.state != ProjectState.PEER_REVIEWING.value:
-        messages.error(
-            request,
-            "This project is not in peer review, so evaluations are not available.",
-            extra_tags="project",
-        )
-        return redirect(
-            "project",
-            course_slug=course.slug,
-            project_slug=project.slug,
-        )
-
     user = request.user
     is_authenticated = user.is_authenticated
+    eval_closed = project.state != ProjectState.PEER_REVIEWING.value
 
     if not is_authenticated:
         context = {
             "course": course,
             "project": project,
             "is_authenticated": False,
+            "eval_closed": eval_closed,
         }
 
         return render(request, "projects/eval.html", context)
@@ -262,6 +265,7 @@ def projects_eval_view(request, course_slug, project_slug):
         "is_authenticated": True,
         "number_of_completed_evaluation": number_of_completed_evaluation,
         "has_submission": has_submission,
+        "eval_closed": eval_closed,
     }
 
     return render(request, "projects/eval.html", context)
@@ -465,15 +469,14 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         if project.state != ProjectState.PEER_REVIEWING.value:
             messages.error(
                 request,
-                "The peer review is over; you can no longer submit it.",
+                "Peer review form is closed.",
                 extra_tags="homework",
             )
-            return redirect(
-                "projects_eval_submit",
-                course_slug=course_slug,
-                project_slug=project_slug,
-                review_id=review.id,
+            context = project_eval_build_context(
+                project, review, review_criteria, enrollment
             )
+            context["course"] = course
+            return render(request, "projects/eval_submit.html", context)
 
         project_eval_post_submission(
             request, project, review, review_criteria
