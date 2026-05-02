@@ -129,6 +129,7 @@ body {
 .app-badge-neutral {
   background: var(--surface-muted);
   color: var(--text-muted);
+  border: 1px solid var(--border-muted);
 }
 
 .app-badge-info {
@@ -149,6 +150,12 @@ body {
 .app-badge-danger {
   background: var(--danger-bg);
   color: var(--danger-text);
+}
+
+body.dark-mode .app-badge-neutral {
+  background: #21262d;
+  color: #c9d1d9;
+  border-color: #30363d;
 }
 
 .app-badge-neutral,

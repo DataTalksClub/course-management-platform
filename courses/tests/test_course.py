@@ -218,6 +218,10 @@ class CourseDetailViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Scored:")
+        self.assertContains(
+            response,
+            'app-badge-info px-3 py-1 text-xs font-semibold uppercase">Scored',
+        )
         self.assertNotContains(
             response,
             f'data-deadline="{self.homework1.due_date.isoformat()}"',
@@ -1204,6 +1208,9 @@ class CourseDetailViewTests(TestCase):
         course_card = content[card_start:card_end]
         self.assertNotIn("Current assignment", course_card)
         self.assertNotIn(">TBA</p>", course_card)
+        course_card_text = " ".join(strip_tags(course_card).split())
+        self.assertNotIn("Dates to be announced", course_card_text)
+        self.assertEqual(course_card_text.count("TBA"), 4)
 
     def test_course_list_shows_registration_before_course_start(self):
         self.course.start_date = timezone.localdate() + timezone.timedelta(

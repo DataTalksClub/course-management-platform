@@ -112,7 +112,7 @@
             {% elif hw.is_scored and hw.submitted %}
               <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Scored ({{ hw.score }})</span>
             {% elif hw.is_scored %}
-              <span class="inline-flex rounded-md app-badge-neutral px-3 py-1 text-xs font-semibold uppercase">Scored</span>
+              <span class="inline-flex rounded-md app-badge-info px-3 py-1 text-xs font-semibold uppercase">Scored</span>
             {% elif not hw.is_scored and hw.submitted %}
               <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
             {% else %}

@@ -90,7 +90,7 @@ def course_year(course: Course) -> str:
 
 def course_duration_label(course: Course) -> str:
     if not course.start_date or not course.end_date:
-        return "Dates to be announced"
+        return "TBA"
 
     duration_days = (course.end_date - course.start_date).days + 1
     duration_days = max(duration_days, 1)
