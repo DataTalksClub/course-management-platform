@@ -1764,8 +1764,17 @@ class HomeworkSubmissionsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
-        self.assertIn("View all submissions", content)
-        self.assertIn("Admin only", content)
+        self.assertIn("Manage homework in cadmin", content)
+        self.assertIn(
+            reverse(
+                "cadmin_homework_submissions",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+            content,
+        )
 
     def test_admin_link_not_visible_to_regular_users(self):
         """Test that the admin link is not visible to regular users"""
@@ -1781,8 +1790,7 @@ class HomeworkSubmissionsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
-        self.assertNotIn("View all submissions", content)
-        self.assertNotIn("Admin only", content)
+        self.assertNotIn("Manage homework in cadmin", content)
 
     def test_submissions_view_displays_questions_and_answers(self):
         """Test that submissions view displays questions and answers instead of scores"""

@@ -82,9 +82,9 @@
                 </a>
             {% endif %}
             {% if user.is_staff %}
-                <a href="{% url 'project_submissions' course.slug project.slug %}"
+                <a href="{% url 'cadmin_project_submissions' course.slug project.slug %}"
                    class="inline-flex items-center font-medium app-link">
-                    <i class="fas fa-users mr-2"></i> View all submissions (Admin only)
+                    <i class="fas fa-cog mr-2"></i> Manage project in cadmin
                 </a>
             {% endif %}
         </div>

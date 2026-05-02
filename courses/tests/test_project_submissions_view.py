@@ -202,12 +202,12 @@ class ProjectSubmissionsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
-            response, "View all submissions (Admin only)"
+            response, "Manage project in cadmin"
         )
         self.assertContains(
             response,
             reverse(
-                "project_submissions",
+                "cadmin_project_submissions",
                 kwargs={
                     "course_slug": self.course.slug,
                     "project_slug": self.project.slug,
@@ -229,7 +229,7 @@ class ProjectSubmissionsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(
-            response, "View all submissions (Admin only)"
+            response, "Manage project in cadmin"
         )
 
     def test_peer_review_completion_displayed(self):

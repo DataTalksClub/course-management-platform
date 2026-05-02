@@ -84,9 +84,9 @@
                        class="inline-flex items-center font-medium app-link">View public statistics</a>
                 {% endif %}
                 {% if user.is_staff %}
-                    <a href="{% url 'homework_submissions' course.slug homework.slug %}"
+                    <a href="{% url 'cadmin_homework_submissions' course.slug homework.slug %}"
                        class="inline-flex items-center font-medium app-link">
-                        <i class="fas fa-users mr-2"></i> View all submissions (Admin only)
+                        <i class="fas fa-cog mr-2"></i> Manage homework in cadmin
                     </a>
                 {% endif %}
             </div>
