@@ -22,7 +22,34 @@
             <div class="flex flex-wrap gap-2">
                 <a href="{% url 'cadmin_course' course.slug %}"
                    class="primer-button primer-button-secondary">Back to Course Admin</a>
-                <a href="{% url 'homework' course.slug homework.slug %}" class="primer-button">View Homework</a>
+                <a href="{% url 'homework' course.slug homework.slug %}"
+                   title="View public homework page"
+                   class="primer-button primer-button-secondary">
+                    <i class="fas fa-external-link-alt"></i> Public
+                </a>
+                <a href="/admin/courses/homework/{{ homework.id }}/change/"
+                   title="Edit in Django Admin"
+                   class="primer-button primer-button-secondary">
+                    <i class="fas fa-edit"></i> Django
+                </a>
+                <form method="post"
+                      action="{% url 'cadmin_homework_set_correct_answers' course.slug homework.slug %}"
+                      onsubmit="return confirm('Set missing correct answers for {{ homework.title }} to the most frequent submitted answers?');">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="next"
+                           value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
+                    <button type="submit" class="primer-button primer-button-secondary">Select most frequent answer</button>
+                </form>
+                <form method="post"
+                      action="{% url 'cadmin_homework_score' course.slug homework.slug %}"
+                      onsubmit="return confirm('Score all submissions for {{ homework.title }}?');">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="next"
+                           value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
+                    <button type="submit" class="primer-button cadmin-primary">Score submissions</button>
+                </form>
             </div>
         </div>
     </section>

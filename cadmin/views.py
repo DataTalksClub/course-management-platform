@@ -7,6 +7,7 @@ from django.db.models import Count, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
 from courses.models import (
@@ -52,6 +53,17 @@ def pagination_querystring(request):
     params.pop("page", None)
     encoded = params.urlencode()
     return f"&{encoded}" if encoded else ""
+
+
+def redirect_after_action(request, default_view_name, **kwargs):
+    next_url = request.POST.get("next")
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect(default_view_name, **kwargs)
 
 
 def staff_required(function):
@@ -158,7 +170,7 @@ def homework_score(request, course_slug, homework_slug):
     else:
         messages.warning(request, message)
     
-    return redirect("cadmin_course", course_slug=course_slug)
+    return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
 
 
 @staff_required
@@ -176,7 +188,7 @@ def homework_set_correct_answers(request, course_slug, homework_slug):
         f"Correct answers for {homework.title} set to most popular",
     )
     
-    return redirect("cadmin_course", course_slug=course_slug)
+    return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
 
 
 @staff_required

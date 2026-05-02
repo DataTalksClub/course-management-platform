@@ -34,10 +34,12 @@
         <i class="fas fa-trophy"></i> Course leaderboard
       </a>
     {% endif %}
-    <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
-      <i class="fas fa-chart-bar"></i> Course dashboard
-    </a>
-    {% if is_authenticated %}
+    {% if course.first_homework_scored %}
+      <a href="{% url 'dashboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
+        <i class="fas fa-chart-bar"></i> Course dashboard
+      </a>
+    {% endif %}
+    {% if is_authenticated and has_enrollment %}
       <a href="{% url 'enrollment' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
         <i class="fas fa-user-edit"></i> Edit course profile
       </a>

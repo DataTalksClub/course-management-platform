@@ -301,6 +301,12 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(unscored_homework.submissions, [])
 
         self.assertEqual(context["total_score"], total_score)
+        self.assertTrue(context["has_enrollment"])
+        self.assertContains(response, "Edit course profile")
+        self.assertContains(
+            response,
+            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
+        )
 
     def test_course_detail_authenticated_user_not_enrolled(self):
         # Test the view for an authenticated user
@@ -351,6 +357,38 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(unscored_homework.submissions, [])
 
         self.assertIsNone(context["total_score"])
+        self.assertFalse(context["has_enrollment"])
+        self.assertNotContains(response, "Edit course profile")
+        self.assertNotContains(
+            response,
+            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
+        )
+
+    def test_course_detail_hides_dashboard_until_first_homework_scored(self):
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Course dashboard")
+        self.assertNotContains(
+            response,
+            reverse("dashboard", kwargs={"course_slug": self.course.slug}),
+        )
+
+    def test_course_detail_shows_dashboard_after_first_homework_scored(self):
+        self.course.first_homework_scored = True
+        self.course.save()
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Course dashboard")
+        self.assertContains(
+            response,
+            reverse("dashboard", kwargs={"course_slug": self.course.slug}),
+        )
 
     def create_enrollment(
         self, name, total_score, position_on_leaderboard=None
@@ -697,7 +735,7 @@ class CourseDetailViewTests(TestCase):
         )
 
         # Create admin user and client
-        admin_user = User.objects.create_superuser(
+        User.objects.create_superuser(
             username="admin@test.com",
             email="admin@test.com",
             password="admin12345",
@@ -1030,14 +1068,14 @@ class CourseDetailViewTests(TestCase):
     def test_course_visibility_in_list(self):
         """Test that non-visible courses don't appear in the course list"""
         # Create a visible course
-        visible_course = Course.objects.create(
+        Course.objects.create(
             title="Visible Course",
             slug="visible-course",
             visible=True
         )
         
         # Create a non-visible course
-        hidden_course = Course.objects.create(
+        Course.objects.create(
             title="Hidden Course",
             slug="hidden-course",
             visible=False
@@ -1059,6 +1097,27 @@ class CourseDetailViewTests(TestCase):
         self.assertNotIn("hidden-course", course_slugs)
 
     def test_course_list_shows_active_course_metadata(self):
+        archive_course = Course.objects.create(
+            title="Archived Course 2024",
+            slug="archived-course-2024",
+            description="Past course summary.",
+            finished=True,
+        )
+        Homework.objects.create(
+            slug="archived-homework",
+            course=archive_course,
+            title="Archived Homework",
+            due_date=timezone.now(),
+            state=HomeworkState.SCORED.value,
+        )
+        Project.objects.create(
+            course=archive_course,
+            title="Archived Project",
+            slug="archived-project",
+            state=ProjectState.COMPLETED.value,
+            submission_due_date=timezone.now(),
+            peer_review_due_date=timezone.now(),
+        )
         self.course.start_date = timezone.datetime(2026, 1, 15).date()
         self.course.end_date = timezone.datetime(2026, 4, 15).date()
         self.course.description = "Database-provided course summary."
@@ -1095,6 +1154,24 @@ class CourseDetailViewTests(TestCase):
         self.assertContains(response, "13 weeks")
         self.assertContains(response, "Database-provided course summary.")
         self.assertContains(response, "Submitted Homework")
+        content = response.content.decode()
+        course_url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+        course_link_position = content.index(f'href="{course_url}"')
+        card_start = content.rfind("<article", 0, course_link_position)
+        card_end = content.index("</article>", course_link_position)
+        course_card = content[card_start:card_end]
+        self.assertNotIn(">Homework</dt>", course_card)
+        self.assertNotIn(">Projects</dt>", course_card)
+        archive_url = reverse(
+            "course", kwargs={"course_slug": archive_course.slug}
+        )
+        archive_link_position = content.index(f'href="{archive_url}"')
+        archive_row_end = content.index("</a>", archive_link_position)
+        archive_row = content[archive_link_position:archive_row_end]
+        self.assertNotIn("homework</span>", archive_row)
+        self.assertNotIn("projects</span>", archive_row)
         self.assertNotContains(
             response,
             "https://courses.datatalks.club/test-course/register",
@@ -1105,6 +1182,28 @@ class CourseDetailViewTests(TestCase):
         )
         self.assertContains(response, "Projects")
         self.assertNotContains(response, "Course page")
+
+    def test_course_list_hides_assignment_panel_without_assignments(self):
+        empty_course = Course.objects.create(
+            title="No Assignment Course",
+            slug="no-assignment-course",
+            description="Course without assignments.",
+        )
+
+        url = reverse("course_list")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        course_url = reverse(
+            "course", kwargs={"course_slug": empty_course.slug}
+        )
+        course_link_position = content.index(f'href="{course_url}"')
+        card_start = content.rfind("<article", 0, course_link_position)
+        card_end = content.index("</article>", course_link_position)
+        course_card = content[card_start:card_end]
+        self.assertNotIn("Current assignment", course_card)
+        self.assertNotIn(">TBA</p>", course_card)
 
     def test_course_list_shows_registration_before_course_start(self):
         self.course.start_date = timezone.localdate() + timezone.timedelta(
@@ -1156,7 +1255,7 @@ class CourseDetailViewTests(TestCase):
         self.course.save()
         
         # Create admin user and client
-        admin_user = User.objects.create_superuser(
+        User.objects.create_superuser(
             username="admin2@test.com",
             email="admin2@test.com",
             password="admin12345",
@@ -1386,9 +1485,9 @@ class CourseDetailViewTests(TestCase):
     def test_leaderboard_authenticated_with_enrollment(self):
         """Test leaderboard for authenticated users who are enrolled"""
         # Create some other enrollments
-        e1 = self.create_enrollment("Alice", 100, 1)
-        e2 = self.create_enrollment("Bob", 90, 2)
-        e3 = self.create_enrollment("Charlie", 80, 3)
+        self.create_enrollment("Alice", 100, 1)
+        self.create_enrollment("Bob", 90, 2)
+        self.create_enrollment("Charlie", 80, 3)
 
         # Set up test user's enrollment
         self.enrollment.display_name = "TestUser"

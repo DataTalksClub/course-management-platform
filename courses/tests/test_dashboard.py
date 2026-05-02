@@ -35,6 +35,7 @@ class DashboardViewTestCase(TestCase):
             title="Test Course",
             description="Test Description",
             project_passing_score=70,
+            first_homework_scored=True,
         )
 
         # Create additional users for statistics using bulk operations
@@ -112,7 +113,9 @@ class DashboardViewTestCase(TestCase):
         """Test dashboard with course that has no enrollments"""
         # Create course with no enrollments
         empty_course = Course.objects.create(
-            slug="empty-course", title="Empty Course"
+            slug="empty-course",
+            title="Empty Course",
+            first_homework_scored=True,
         )
 
         url = reverse("dashboard", args=[empty_course.slug])
@@ -127,7 +130,9 @@ class DashboardHomeworkStatsTestCase(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
         self.course = Course.objects.create(
-            slug="test-course", title="Test Course"
+            slug="test-course",
+            title="Test Course",
+            first_homework_scored=True,
         )
 
         # Create homework
@@ -377,6 +382,7 @@ class DashboardProjectStatsTestCase(TestCase):
             slug="test-course",
             title="Test Course",
             project_passing_score=70,
+            first_homework_scored=True,
         )
 
         cls.project = Project.objects.create(
@@ -708,7 +714,9 @@ class DashboardAuthenticationTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.course = Course.objects.create(
-            slug="test-course", title="Test Course"
+            slug="test-course",
+            title="Test Course",
+            first_homework_scored=True,
         )
 
     def test_dashboard_access_without_login(self):
@@ -721,10 +729,22 @@ class DashboardAuthenticationTestCase(TestCase):
 
     def test_dashboard_access_with_login(self):
         """Test dashboard access with authenticated user"""
-        user = User.objects.create_user(**credentials)
+        User.objects.create_user(**credentials)
         self.client.login(**credentials)
 
         url = reverse("dashboard", args=[self.course.slug])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_redirects_before_first_homework_is_scored(self):
+        self.course.first_homework_scored = False
+        self.course.save()
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assertRedirects(
+            response,
+            reverse("course", kwargs={"course_slug": self.course.slug}),
+        )

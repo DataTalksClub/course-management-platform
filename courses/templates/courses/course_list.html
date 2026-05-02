@@ -84,14 +84,6 @@
                                 <dd class="mt-1 font-semibold app-heading">{{ course.home_duration_label }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Homework</dt>
-                                <dd class="mt-1 font-semibold app-heading">{{ course.homework_count }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-semibold uppercase app-muted">Projects</dt>
-                                <dd class="mt-1 font-semibold app-heading">{{ course.project_count }}</dd>
-                            </div>
-                            <div>
                                 <dt class="text-xs font-semibold uppercase app-muted">Repository</dt>
                                 <dd class="mt-1 font-semibold app-heading">
                                     {% if course.github_repo_url %}
@@ -102,30 +94,30 @@
                                 </dd>
                             </div>
                         </dl>
-                        <div class="grid gap-3 border-t app-border pt-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                            <div>
-                                <p class="text-xs font-semibold uppercase app-muted">{{ course.home_current_assignment_label }}</p>
+                        {% if course.home_current_assignment or course.home_registration_open %}
+                            <div class="grid gap-3 border-t app-border pt-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                                 {% if course.home_current_assignment %}
-                                    <p class="mt-1 font-semibold app-heading">
-                                        {{ course.home_current_assignment.label }}: {{ course.home_current_assignment.title }}
-                                    </p>
-                                    <p class="mt-1 app-muted">
-                                        Due {{ course.home_current_assignment.due_date|date:"M j, Y" }}
-                                    </p>
-                                {% else %}
-                                    <p class="mt-1 font-semibold app-heading">TBA</p>
+                                    <div>
+                                        <p class="text-xs font-semibold uppercase app-muted">{{ course.home_current_assignment_label }}</p>
+                                        <p class="mt-1 font-semibold app-heading">
+                                            {{ course.home_current_assignment.label }}: {{ course.home_current_assignment.title }}
+                                        </p>
+                                        <p class="mt-1 app-muted">
+                                            Due {{ course.home_current_assignment.due_date|date:"M j, Y" }}
+                                        </p>
+                                    </div>
+                                {% endif %}
+                                {% if course.home_registration_open %}
+                                    <div class="flex flex-wrap gap-3 md:justify-end">
+                                        <a href="{{ course.registration_url }}"
+                                           class="primer-button primer-button-secondary whitespace-nowrap">
+                                            <i class="fas fa-user-plus"></i>
+                                            Register
+                                        </a>
+                                    </div>
                                 {% endif %}
                             </div>
-                            {% if course.home_registration_open %}
-                                <div class="flex flex-wrap gap-3 md:justify-end">
-                                    <a href="{{ course.registration_url }}"
-                                       class="primer-button primer-button-secondary whitespace-nowrap">
-                                        <i class="fas fa-user-plus"></i>
-                                        Register
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </div>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </section>
@@ -148,14 +140,10 @@
                             <div class="mt-2 divide-y app-divide">
                                 {% for course in group.courses %}
                                     <a href="{% url 'course' course.slug %}"
-                                       class="group grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_9rem_auto] md:items-center">
+                                       class="group grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                                         <div class="min-w-0">
                                             <h4 class="text-lg font-semibold app-link md:text-xl">{{ course.title }}</h4>
                                             <p class="mt-1 max-w-3xl text-sm leading-6 app-text">{{ course.home_outcome }}</p>
-                                        </div>
-                                        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm app-muted md:justify-end">
-                                            <span>{{ course.homework_count }} homework</span>
-                                            <span>{{ course.project_count }} projects</span>
                                         </div>
                                         <span class="hidden shrink-0 app-link md:block" aria-hidden="true">&rarr;</span>
                                     </a>

@@ -375,12 +375,14 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
 
     total_score = None
     certificate_url = None
+    has_enrollment = False
     if user.is_authenticated:
         try:
             enrollment = Enrollment.objects.get(
                 student=user,
                 course=course,
             )
+            has_enrollment = True
             total_score = enrollment.total_score
             certificate_url = enrollment.certificate_url
         except Enrollment.DoesNotExist:
@@ -392,6 +394,7 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         "projects": projects,
         "has_completed_projects": has_completed_projects,
         "is_authenticated": user.is_authenticated,
+        "has_enrollment": has_enrollment,
         "total_score": total_score,
         "certificate_url": certificate_url,
     }
@@ -828,6 +831,8 @@ def list_all_project_submissions_view(request, course_slug: str):
 
 def dashboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
+    if not course.first_homework_scored:
+        return redirect("course", course_slug=course.slug)
 
     # Get total enrollments
     total_enrollments = Enrollment.objects.filter(course=course).count()

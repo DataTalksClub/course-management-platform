@@ -298,6 +298,95 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.homework.title)
 
+    def test_cadmin_homework_submissions_shows_course_actions(self):
+        """Homework submissions page exposes the same homework actions as course admin."""
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "homework",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+        self.assertContains(
+            response,
+            f"/admin/courses/homework/{self.homework.id}/change/",
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_homework_set_correct_answers",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_homework_score",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+        self.assertContains(response, "Select most frequent answer")
+        self.assertContains(response, "Score submissions")
+
+    def test_homework_actions_can_redirect_back_to_homework_submissions(self):
+        self.client.login(username="admin@test.com", password="admin123")
+        submissions_url = reverse(
+            "cadmin_homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        action_url = reverse(
+            "cadmin_homework_set_correct_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(action_url, {"next": submissions_url})
+
+        self.assertRedirects(response, submissions_url)
+
+    def test_homework_actions_ignore_unsafe_next_redirects(self):
+        self.client.login(username="admin@test.com", password="admin123")
+        action_url = reverse(
+            "cadmin_homework_set_correct_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(action_url, {"next": "https://example.com/"})
+
+        self.assertRedirects(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug}),
+        )
+
     def test_cadmin_project_submissions_staff_allowed(self):
         """Test that staff users can view project submissions in cadmin"""
         self.client.login(username="admin@test.com", password="admin123")
