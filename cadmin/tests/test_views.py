@@ -14,6 +14,10 @@ from courses.models import (
     Enrollment,
     Homework,
     HomeworkState,
+    Question,
+    QuestionTypes,
+    Submission,
+    Answer,
     ReviewCriteria,
     ReviewCriteriaTypes,
     ProjectEvaluationScore,
@@ -634,6 +638,84 @@ class CadminViewTests(TestCase):
         
         # Check that a message was added
         messages = list(response.context['messages'])
+        self.assertEqual(len(messages), 1)
+
+    def test_course_admin_shows_most_frequent_answer_action(self):
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=enrollment,
+        )
+        self.client.login(username="admin@test.com", password="admin123")
+
+        response = self.client.get(
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select most frequent answer")
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_homework_set_correct_answers",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+
+    def test_homework_set_correct_answers_uses_most_frequent_answer(self):
+        question = Question.objects.create(
+            homework=self.homework,
+            text="Pick one",
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            possible_answers="A\nB\nC",
+            correct_answer="",
+        )
+
+        for index, answer_text in enumerate(["2", "2", "1"], start=1):
+            user = User.objects.create_user(
+                username=f"student{index}@test.com",
+                email=f"student{index}@test.com",
+                password="12345",
+            )
+            enrollment = Enrollment.objects.create(
+                student=user,
+                course=self.course,
+            )
+            submission = Submission.objects.create(
+                homework=self.homework,
+                student=user,
+                enrollment=enrollment,
+            )
+            Answer.objects.create(
+                submission=submission,
+                question=question,
+                answer_text=answer_text,
+            )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_homework_set_correct_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug})
+        )
+        question.refresh_from_db()
+        self.assertEqual(question.correct_answer, "2")
+        messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
 
     def test_project_score_shows_message(self):

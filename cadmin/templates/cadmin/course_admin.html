@@ -53,10 +53,16 @@
                   <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="font-medium app-link hover:underline">{{ hw.title }}</a>
                   <p class="mt-1 text-xs app-muted">{{ hw.submissions_count }} submissions · due <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date|date:"j F Y, H:i" }}</span></p>
                 </div>
-                <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
-                  {% csrf_token %}
-                  <button type="submit" class="primer-button cadmin-primary">Score submissions</button>
-                </form>
+                <div class="flex flex-wrap gap-2 sm:justify-end">
+                  <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set missing correct answers for {{ hw.title }} to the most frequent submitted answers?');">
+                    {% csrf_token %}
+                    <button type="submit" class="primer-button primer-button-secondary">Select most frequent answer</button>
+                  </form>
+                  <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="primer-button cadmin-primary">Score submissions</button>
+                  </form>
+                </div>
               </div>
             </div>
           {% endfor %}
