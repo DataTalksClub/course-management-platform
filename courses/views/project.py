@@ -462,6 +462,19 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     )
 
     if request.method == "POST":
+        if project.state != ProjectState.PEER_REVIEWING.value:
+            messages.error(
+                request,
+                "The peer review is over; you can no longer submit it.",
+                extra_tags="homework",
+            )
+            return redirect(
+                "projects_eval_submit",
+                course_slug=course_slug,
+                project_slug=project_slug,
+                review_id=review.id,
+            )
+
         project_eval_post_submission(
             request, project, review, review_criteria
         )

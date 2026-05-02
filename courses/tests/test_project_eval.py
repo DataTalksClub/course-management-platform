@@ -220,6 +220,16 @@ class ProjectEvaluationTestCase(TestCase):
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "The peer review is over; you can no longer submit it.",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            'id="submit-button"',
+            status_code=200,
+        )
 
         context = response.context
 
@@ -243,6 +253,48 @@ class ProjectEvaluationTestCase(TestCase):
         c3, r3 = criteria_response_pairs[2]
         self.assertEqual(c3, self.criteria3)
         self.assertEqual(r3, None)
+
+    def test_eval_submit_post_not_accepting_responses(self):
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
+
+        self.client.login(**credentials)
+
+        url = reverse(
+            "projects_eval_submit",
+            args=[
+                self.course.slug,
+                self.project.slug,
+                self.peer_review.id,
+            ],
+        )
+
+        response = self.client.post(
+            url,
+            {
+                "note_to_peer": "Well done!",
+                "time_spent_reviewing": "3",
+                f"answer_{self.criteria1.id}": "1",
+                f"answer_{self.criteria2.id}": "2",
+                f"answer_{self.criteria3.id}": "1,3",
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, url)
+        self.assertContains(
+            response,
+            "The peer review is over; you can no longer submit it.",
+            status_code=200,
+        )
+
+        self.peer_review = fetch_fresh(self.peer_review)
+        self.assertEqual(self.peer_review.state, PeerReviewState.TO_REVIEW.value)
+        self.assertEqual(self.peer_review.note_to_peer, "")
+        self.assertIsNone(self.peer_review.submitted_at)
+        self.assertFalse(
+            CriteriaResponse.objects.filter(review=self.peer_review).exists()
+        )
 
     def test_eval_submit_get_authenticated_submitted(self):
         r1 = CriteriaResponse.objects.create(

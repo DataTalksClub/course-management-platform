@@ -120,7 +120,7 @@ Update
 </button>
 </div>
 {% else %}
-<p class="rounded-md border app-border app-surface-muted px-4 py-3 text-sm app-muted ">The evaluation period is over; it is no longer possible to submit an evaluation.</p>
+<p class="rounded-md border app-alert-warning px-4 py-3 text-sm">The peer review is over; you can no longer submit it.</p>
 {% endif %}
 </form>
 {% if review.state == 'SU' and review.submitted_at %}
