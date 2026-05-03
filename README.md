@@ -1,104 +1,146 @@
 # Course Management System
 
-A Django-based web application designed for managing and
-participating in DataTalks.Club courses. This platform allows
-instructors to create and manage courses, assignments, and
-peer reviews.
+A Django-based web application for managing and participating in
+DataTalks.Club courses.
 
-Students can enroll in courses, submit homework, projects
-and engage in peer evaluations.
+The platform supports course administration, homework and project
+submissions, peer review workflows, course leaderboards, and API access
+to course data.
 
 ## Features
 
-- **User Authentication**: Registration and login functionality for students and instructors.
-- **Course Management**: Instructors can create and manage courses.
-- **Homework and Projects**: Students can submit homework and projects; instructors can manage assignments.
-- **Peer Reviews**: Facilitates peer review process for project evaluations.
-- **Leaderboard**: Displays student rankings based on performance in courses.
-
+- User authentication: registration and login for students and instructors.
+- Course management: instructors can create and manage courses.
+- Homework and projects: students can submit homework and projects.
+- Peer reviews: students can evaluate project submissions from their peers.
+- Leaderboard: course rankings based on submitted work and scores.
+- API access: authenticated endpoints for course, homework, project, graduate,
+  certificate, and OpenAPI data.
+- Health check: a public endpoint for service monitoring.
 
 ## Project Structure
 
+```text
+├── accounts/             # User accounts and authentication
+├── api/                  # OpenAPI schema and API tests
+├── cadmin/               # Custom admin views
+├── course_management/    # Django project settings and root configuration
+├── courses/              # Course, homework, project, and review logic
+├── data/                 # Public and authenticated data API views
+├── deploy/               # Deployment scripts
+├── docs/                 # Project documentation
+├── notebooks/            # Analysis notebooks
+├── templates/            # Shared Django templates
 ```
-├── accounts/ # Handles user accounts and authentication
-├── course_management/ # Main project folder with settings and root configurations
-├── courses/ # Main logic is here (courses, homeworks, etc)
-├── templates/ # Global templates directory for the project
-```
 
-## Running it locally
+## Requirements
 
-### Installing dependencies
+- Python 3.13
+- uv
+- Docker and Docker Compose, for containerized local development
 
-This project uses uv for dependency management and requires Python 3.13.
-
-Install uv if you don't have it yet:
+Install uv with the official installer:
 
 ```bash
-pip install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Install Python 3.13 and dependencies:
+Install Python 3.13 and project dependencies:
 
 ```bash
 uv python install 3.13
 uv sync --dev
 ```
 
-### Prepare the service
+## Running Locally
 
-Set the database to local:
+Use SQLite for local development:
 
 ```bash
 export DATABASE_URL="sqlite:///db/db.sqlite3"
 ```
 
-Make migrations:
+Prepare the database:
 
 ```bash
 make migrations
-# uv run python manage.py migrate
 ```
 
-Add an admin user:
+Create an admin user:
 
 ```bash
 make admin
-# uv run python manage.py createsuperuser
 ```
 
-Add some data:
+Load sample data:
 
 ```bash
 make data
 ```
 
-### Running the service
+Run the development server:
 
 ```bash
 make run
-# uv run python manage.py runserver 0.0.0.0:8000
 ```
+
+The app will be available at:
+
+```text
+http://localhost:8000
+```
+
+Useful direct Django commands:
+
+```bash
+uv run python manage.py makemigrations
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py runserver 0.0.0.0:8000
+```
+
+## Tests
+
+Run the Django test suite:
+
+```bash
+make tests
+```
+
+Direct command:
+
+```bash
+uv run python manage.py test --timing --durations 30
+```
+
+One-time scripts and temporary debug files should go in `.tmp/`, which is
+ignored by git.
 
 ## Running with Docker
 
-Best option - run it with docker-compose:
-
+Start the app and PostgreSQL with Docker Compose:
 
 ```bash
 docker-compose up --build
 ```
 
-It will also use Postgres instead of SQLite.
+Compose starts:
 
+- `web`: the Django application on port 8000
+- `db`: PostgreSQL 17
+- `ngrok`: optional TCP tunnel for the database
 
-Without Compose - first, build it:
+The app will be available at:
+
+```text
+http://localhost:8000
+```
+
+Build and run the application image without Compose:
 
 ```bash
 docker build -t course_management .
 ```
-
-Run it:
 
 ```bash
 DBDIR=`cygpath -w ${PWD}/db`
@@ -112,23 +154,47 @@ docker run -it --rm \
     course_management
 ```
 
-remove the container later
-
-```bash
-docker rm course_management
-```
-
-get to the container
+Open a shell in the running container:
 
 ```bash
 docker exec -it course_management bash
 ```
 
-## Getting the data
+## Health Check
 
-There are `/api` endpoints for getting the data
+The public health check endpoint returns service status and version:
 
-Using them:
+```text
+GET /api/health/
+```
+
+Example:
+
+```bash
+curl http://localhost:8000/api/health/
+```
+
+Response:
+
+```json
+{
+  "status": "ok",
+  "version": "0.1.0"
+}
+```
+
+In local development, the version comes from the `VERSION` environment
+variable and falls back to `local-development-build-version-not-configured`.
+
+## API Data Access
+
+Most `/api` endpoints require token authentication:
+
+```text
+Authorization: Token <token>
+```
+
+Example:
 
 ```bash
 TOKEN="TEST_TOKEN"
@@ -141,25 +207,36 @@ curl \
     "${HOST}/api/courses/${COURSE}/homeworks/${HOMEWORK}/submissions"
 ```
 
-Make sure to run `make data` to create the admin user and 
-data (including authentication token)
+Run `make data` to create sample data, including an authentication token.
 
+See [endpoints.md](./endpoints.md) for API documentation, including:
 
-## Authentication setup
+- OpenAPI specification
+- Public course criteria
+- Public health check
+- Public leaderboard data
+- Homework data
+- Project data
+- Graduate data
+- Certificate updates
+- Course management API
 
-If you want to authenticate with OAuth locally
-(not requeired for testing), do the following
+## Local OAuth Setup
 
-* Go to the admin panel (http://localhost:8000/admin)
-* Add a record to "Sites"
-    * "localhost:8000" for display and domain names
-    * note the ID of the site (probably it's "2")
-* Add records to "Social applications":
-    * GoogleDTC. Provider: Google
-    * Ask Alexey for the keys. Don't share them publicly
-    * For the site, choose the localhost one
+OAuth is optional for local testing.
 
-Export `SITE_ID` (should be the ID of the localhost site):
+To configure Google OAuth locally:
+
+1. Go to the admin panel at `http://localhost:8000/admin`.
+2. Add a record to `Sites`.
+3. Use `localhost:8000` for the display name and domain name.
+4. Note the site ID, usually `2`.
+5. Add a record to `Social applications`.
+6. Use `GoogleDTC` as the name and `Google` as the provider.
+7. Ask for the local OAuth keys. Do not share them publicly.
+8. Attach the application to the localhost site.
+
+Export the local site ID:
 
 ```bash
 export SITE_ID=2
@@ -168,18 +245,16 @@ export SITE_ID=2
 Restart the app:
 
 ```bash
-python manage.py runserver 0.0.0.0:8000
+uv run python manage.py runserver 0.0.0.0:8000
 ```
 
-Now log out as admin and log in with Google
+Then log out as admin and log in with Google.
 
+## Database Tunnel
 
+Example SSH config for an RDS tunnel:
 
-## DB connection
-
-Prep work
-
-```
+```text
 Host bastion-tunnel
     HostName <IP>
     User ubuntu
@@ -188,58 +263,46 @@ Host bastion-tunnel
     ServerAliveInterval 60
 ```
 
-Connect to the bastion
+Connect to the bastion:
 
 ```bash
 ssh bastion-tunnel
 ```
 
-And then
+Connect to PostgreSQL through the tunnel:
 
 ```bash
 pgcli -h localhost -p 5433 -u pgusr -d coursemanagement
 ```
 
-When connecting for the first time, create dev and prod schemas
+When connecting for the first time, create the dev and prod databases:
 
-```SQL
+```sql
 CREATE DATABASE dev;
 CREATE DATABASE prod;
 ```
 
-Django shell
+Open a Django shell against dev:
 
 ```bash
 export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/dev"
 export SECRET_KEY="${DJANGO_SECRET}"
-
-pipenv run python manage.py shell
+uv run python manage.py shell
 ```
 
-or
+Open a Django shell against prod:
 
 ```bash
 export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/prod"
 export SECRET_KEY="${DJANGO_SECRET}"
+uv run python manage.py shell
 ```
 
-Finding user with email:
+Find a user by email:
 
 ```python
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
-
-user = User.objects.get(email='test@gmail.com')
+user = User.objects.get(email="test@gmail.com")
 ```
-
-## API Endpoints
-
-See [endpoints.md](./endpoints.md) for complete API documentation including:
-
-- Course Criteria (public)
-- Homework Data
-- Project Data
-- Graduates Data
-- Update Enrollment Certificate
-- Create Course Content
-
