@@ -30,6 +30,7 @@ from courses.models import (
 from courses.scoring import (
     score_homework_submissions,
     fill_correct_answers,
+    clear_correct_answers,
     update_leaderboard,
 )
 from courses.projects import (
@@ -96,28 +97,19 @@ def course_admin(request, course_slug):
     projects = list(Project.objects.filter(course=course).order_by("id"))
     total_enrollments = course.enrollment_set.count()
 
-    homework_needing_score = []
     for hw in homeworks:
         hw.submissions_count = Submission.objects.filter(homework=hw).count()
         hw.can_score = hw.state in [
             HomeworkState.OPEN.value,
             HomeworkState.CLOSED.value,
         ]
-        if hw.can_score and hw.submissions_count:
-            homework_needing_score.append(hw)
 
-    projects_needing_reviews = []
-    projects_needing_score = []
     for proj in projects:
         proj.submissions_count = ProjectSubmission.objects.filter(project=proj).count()
         proj.needs_review_assignment = (
             proj.state == ProjectState.COLLECTING_SUBMISSIONS.value
         )
         proj.needs_scoring = proj.state == ProjectState.PEER_REVIEWING.value
-        if proj.needs_review_assignment:
-            projects_needing_reviews.append(proj)
-        if proj.needs_scoring:
-            projects_needing_score.append(proj)
 
     enrollments = Enrollment.objects.filter(course=course)
     support_metrics = {
@@ -129,27 +121,13 @@ def course_admin(request, course_slug):
             resolved=False,
         ).count(),
     }
-    needs_attention_count = (
-        len(homework_needing_score)
-        + len(projects_needing_reviews)
-        + len(projects_needing_score)
-        + support_metrics["disabled_lip"]
-        + support_metrics["hidden_leaderboard"]
-        + support_metrics["open_complaints"]
-    )
-    project_action_count = len(projects_needing_reviews) + len(projects_needing_score)
 
     context = {
         "course": course,
         "homeworks": homeworks,
         "projects": projects,
         "total_enrollments": total_enrollments,
-        "homework_needing_score": homework_needing_score,
-        "projects_needing_reviews": projects_needing_reviews,
-        "projects_needing_score": projects_needing_score,
-        "project_action_count": project_action_count,
         "support_metrics": support_metrics,
-        "needs_attention_count": needs_attention_count,
     }
 
     return render(request, "cadmin/course_admin.html", context)
@@ -188,6 +166,24 @@ def homework_set_correct_answers(request, course_slug, homework_slug):
         f"Correct answers for {homework.title} set to most popular",
     )
     
+    return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
+
+
+@staff_required
+def homework_clear_correct_answers(request, course_slug, homework_slug):
+    """Clear correct answers for a homework"""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+
+    updated_count = clear_correct_answers(homework)
+
+    messages.success(
+        request,
+        f"Correct answers for {updated_count} questions in {homework.title} cleared",
+    )
+
     return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
 
 

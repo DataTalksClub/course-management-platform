@@ -10,16 +10,14 @@
 
 {% block cadmin_content %}
 <section class="border-b app-border pb-5">
-  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-    <div>
-      <p class="text-sm font-semibold uppercase tracking-wide app-muted">Student support</p>
-      <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Enrollments for {{ course.title }}</h1>
-      <p class="mt-1 text-sm app-muted">Find students, inspect score visibility, and handle Learning in Public exceptions.</p>
-    </div>
-    <div class="flex flex-wrap gap-2">
-      <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a>
-      <a href="{% url 'leaderboard' course.slug %}" class="primer-button">View Leaderboard</a>
-    </div>
+  <div>
+    <p class="text-sm font-semibold uppercase tracking-wide app-muted">Student support</p>
+    <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Enrollments for {{ course.title }}</h1>
+    <p class="mt-1 text-sm app-muted">Find students, inspect score visibility, and handle Learning in Public exceptions.</p>
+  </div>
+  <div class="mt-3 flex flex-wrap gap-2">
+    <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a>
+    <a href="{% url 'leaderboard' course.slug %}" class="primer-button">View Leaderboard</a>
   </div>
 
   <div class="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">

@@ -438,3 +438,34 @@ class HomeworkScoringTestCase(TestCase):
 
         # still 2
         self.assertEqual(question.correct_answer, "2")
+
+    def test_fill_most_common_answer_as_correct_updates_zero_based_answer(self):
+        question = self.questions[3]
+        question.correct_answer = "0"
+        question.save()
+
+        answers = [
+            (self.enrollment1, "1"),
+            (self.enrollment2, "1"),
+            (self.enrollment3, "2"),
+            (self.enrollment4, "1"),
+            (self.enrollment5, "2"),
+        ]
+
+        for enrollment, answer in answers:
+            submission = Submission.objects.create(
+                homework=self.homework,
+                student=enrollment.student,
+                enrollment=enrollment,
+            )
+            Answer.objects.create(
+                submission=submission,
+                question=question,
+                answer_text=answer,
+            )
+
+        fill_correct_answers(self.homework)
+
+        question = fetch_fresh(question)
+
+        self.assertEqual(question.correct_answer, "1")

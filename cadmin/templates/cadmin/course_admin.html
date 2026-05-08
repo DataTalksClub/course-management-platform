@@ -7,155 +7,63 @@
 {% endblock %}
 
 {% block cadmin_content %}
-<section class="border-b app-border pb-5">
+<section class="cadmin-page-header border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Course admin</p>
+    <h1 class="mt-1 truncate text-2xl font-semibold app-heading md:text-3xl">{{ course.title }}</h1>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'course' course.slug %}" title="View public course page" class="primer-button primer-button-secondary">
+      <i class="fas fa-external-link-alt" aria-hidden="true"></i> Public
+    </a>
+    <a href="/admin/courses/course/{{ course.id }}/change/" title="Edit in Django Admin" class="primer-button primer-button-secondary">
+      <i class="fas fa-edit" aria-hidden="true"></i> Django
+    </a>
+  </div>
+</section>
+
+<section class="cadmin-support-strip mt-5">
   <div>
-    <p class="text-sm font-semibold uppercase tracking-wide app-muted">Admin Panel</p>
-    <div class="mt-2 flex flex-wrap items-center gap-3">
-      <h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ course.title }}</h1>
-      <div class="dense-utility-links flex flex-wrap gap-x-3 gap-y-1 text-xs">
-        <a href="{% url 'course' course.slug %}" title="View public course page" class="app-link">
-          <i class="fas fa-external-link-alt"></i> Public
-        </a>
-        <a href="/admin/courses/course/{{ course.id }}/change/" title="Edit in Django Admin" class="app-link">
-          <i class="fas fa-edit"></i> Django
-        </a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="mt-6">
-  <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-      <h2 class="text-base font-semibold app-heading">Needs attention</h2>
-      <p class="mt-1 text-sm app-muted">Operational work that is easy to miss in the full homework and project lists.</p>
-    </div>
-    <span class="inline-flex w-fit rounded-full app-badge-info px-2.5 py-1 text-xs font-semibold">
-      {{ needs_attention_count }} items
-    </span>
-  </div>
-
-  <div class="grid gap-3 lg:grid-cols-2">
-    <article class="rounded-md border app-border app-surface p-4">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h3 class="font-semibold app-heading">Homework scoring</h3>
-          <p class="mt-1 text-sm app-muted">Recalculate homework scores when submissions need staff attention.</p>
-        </div>
-        <span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold app-heading">{{ homework_needing_score|length }}</span>
-      </div>
-      {% if homework_needing_score %}
-        <div class="mt-3 divide-y app-divide">
-          {% for hw in homework_needing_score %}
-            <div class="py-3">
-              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div class="min-w-0">
-                  <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="font-medium app-link hover:underline">{{ hw.title }}</a>
-                  <p class="mt-1 text-xs app-muted">{{ hw.submissions_count }} submissions · due <span class="local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date|date:"j F Y, H:i" }}</span></p>
-                </div>
-                <div class="flex flex-wrap gap-2 sm:justify-end">
-                  <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set missing correct answers for {{ hw.title }} to the most frequent submitted answers?');">
-                    {% csrf_token %}
-                    <button type="submit" class="primer-button primer-button-secondary">Select most frequent answer</button>
-                  </form>
-                  <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
-                    {% csrf_token %}
-                    <button type="submit" class="primer-button cadmin-primary">Score submissions</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="mt-3 text-sm app-muted">No homework with submissions is waiting for scoring.</p>
-      {% endif %}
-    </article>
-
-    <article class="rounded-md border app-border app-surface p-4">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h3 class="font-semibold app-heading">Project review flow</h3>
-          <p class="mt-1 text-sm app-muted">Assign peer reviews or score projects when the course reaches those stages.</p>
-        </div>
-        <span class="rounded-md app-surface-muted px-2 py-1 text-sm font-semibold app-heading">{{ project_action_count }}</span>
-      </div>
-      {% if projects_needing_reviews or projects_needing_score %}
-        <div class="mt-3 divide-y app-divide">
-          {% for proj in projects_needing_reviews %}
-            <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="min-w-0">
-                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="font-medium app-link hover:underline">{{ proj.title }}</a>
-                <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions · collecting submissions</p>
-              </div>
-              <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
-                {% csrf_token %}
-                <button type="submit" class="primer-button">Assign peer reviews</button>
-              </form>
-            </div>
-          {% endfor %}
-          {% for proj in projects_needing_score %}
-            <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="min-w-0">
-                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="font-medium app-link hover:underline">{{ proj.title }}</a>
-                <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions · peer review finished</p>
-              </div>
-              <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
-                {% csrf_token %}
-                <button type="submit" class="primer-button cadmin-primary">Score projects</button>
-              </form>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="mt-3 text-sm app-muted">No project review action is currently due.</p>
-      {% endif %}
-    </article>
-  </div>
-</section>
-
-<section class="mt-6">
-  <article class="rounded-md border app-border app-surface p-4">
     <h2 class="text-base font-semibold app-heading">Student support</h2>
-    <p class="mt-1 text-sm app-muted">Find students, inspect score breakdowns, and handle Learning in Public exceptions.</p>
-    <div class="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-      <div class="rounded-md app-surface-muted p-3">
+    <p class="mt-1 text-sm app-muted">Find students, inspect rankings, and resolve leaderboard flags.</p>
+  </div>
+  <div class="mt-3 flex flex-wrap gap-2">
+    <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button cadmin-primary">Find student</a>
+    <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">Leaderboard</a>
+    <a href="{% url 'cadmin_leaderboard_complaints' course.slug %}" class="primer-button primer-button-secondary">Flags</a>
+  </div>
+  <div class="cadmin-metrics-grid mt-3">
+      <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">Enrollments</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ total_enrollments }}</p>
       </div>
-      <div class="rounded-md app-surface-muted p-3">
+      <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">LiP disabled</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.disabled_lip }}</p>
       </div>
-      <div class="rounded-md app-surface-muted p-3">
+      <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">Zero score</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.zero_score }}</p>
       </div>
-      <div class="rounded-md app-surface-muted p-3">
+      <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">Hidden</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.hidden_leaderboard }}</p>
       </div>
-      <div class="rounded-md app-surface-muted p-3">
+      <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">Open flags</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ support_metrics.open_complaints }}</p>
       </div>
-    </div>
-    <div class="mt-4 flex flex-wrap gap-2">
-      <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button cadmin-primary">Find student</a>
-      <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">Open leaderboard</a>
-      <a href="{% url 'cadmin_leaderboard_complaints' course.slug %}" class="primer-button primer-button-secondary">Review flags</a>
-    </div>
-  </article>
+  </div>
 </section>
 
 <section class="mt-6 border-t app-border pt-5">
-  <div class="mb-3">
-    <h2 class="text-base font-semibold app-heading">All homework</h2>
-    <p class="mt-1 text-sm app-muted">Reference list for public pages, Django edits, submissions, and per-homework operations.</p>
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Homework</h2>
+    <span class="cadmin-count-badge">{{ homeworks|length }} items</span>
   </div>
 
   {% if homeworks %}
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_7rem] md:gap-3">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_10.5rem_5.5rem_1.75rem] md:gap-3">
       <div>Homework</div>
       <div>Due date</div>
       <div class="text-right">State</div>
@@ -163,22 +71,12 @@
 
     <div class="divide-y app-divide">
       {% for hw in homeworks %}
-        <article class="py-2.5 md:py-3">
-          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_7rem] md:items-center md:gap-3">
+        <article class="cadmin-list-row py-2.5 md:py-3">
+          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_10.5rem_5.5rem_1.75rem] md:items-center md:gap-3">
             <div class="flex min-w-0 items-start justify-between gap-3 md:block">
               <div class="min-w-0">
                 <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="block truncate font-medium app-link hover:underline">{{ hw.title }}</a>
-                <div class="dense-utility-links mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <a href="{% url 'homework' course.slug hw.slug %}" title="View public homework page" class="app-link">
-                    <i class="fas fa-external-link-alt"></i> Public
-                  </a>
-                  <a href="/admin/courses/homework/{{ hw.id }}/change/" title="Edit in Django Admin" class="app-link">
-                    <i class="fas fa-edit"></i> Django
-                  </a>
-                  <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="app-link">
-                    <i class="fas fa-list"></i> Submissions ({{ hw.submissions_count }})
-                  </a>
-                </div>
+                <p class="mt-1 text-xs app-muted">{{ hw.submissions_count }} submissions</p>
               </div>
               <div class="shrink-0 md:hidden">
                 {% if hw.state == 'OP' %}
@@ -209,6 +107,43 @@
               {% endif %}
             </div>
 
+            <details class="cadmin-actions-menu justify-self-end">
+              <summary class="cadmin-actions-toggle" title="Homework actions" aria-label="Homework actions for {{ hw.title }}">
+                <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+              </summary>
+              <div class="cadmin-actions-panel">
+                <a href="{% url 'homework' course.slug hw.slug %}" class="cadmin-action-item">
+                  <i class="fas fa-external-link-alt" aria-hidden="true"></i> Public
+                </a>
+                <a href="/admin/courses/homework/{{ hw.id }}/change/" class="cadmin-action-item">
+                  <i class="fas fa-edit" aria-hidden="true"></i> Django
+                </a>
+                <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="cadmin-action-item">
+                  <i class="fas fa-list" aria-hidden="true"></i> Submissions
+                </a>
+                <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set missing correct answers for {{ hw.title }} to the most frequent submitted answers?');">
+                  {% csrf_token %}
+                  <button type="submit" class="cadmin-action-item">
+                    <i class="fas fa-check" aria-hidden="true"></i> Select most frequent answer
+                  </button>
+                </form>
+                <form method="post" action="{% url 'cadmin_homework_clear_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Clear all correct answers for {{ hw.title }}? Scores will need to be recalculated after setting answers again.');">
+                  {% csrf_token %}
+                  <button type="submit" class="cadmin-action-item">
+                    <i class="fas fa-eraser" aria-hidden="true"></i> Clear correct answers
+                  </button>
+                </form>
+                {% if hw.can_score %}
+                  <form method="post" action="{% url 'cadmin_homework_score' course.slug hw.slug %}" onsubmit="return confirm('Score all submissions for {{ hw.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="cadmin-action-item">
+                      <i class="fas fa-calculator" aria-hidden="true"></i> Score submissions
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </details>
+
           </div>
         </article>
       {% endfor %}
@@ -219,13 +154,13 @@
 </section>
 
 <section class="mt-6 border-t app-border pt-5">
-  <div class="mb-3">
-    <h2 class="text-base font-semibold app-heading">All projects</h2>
-    <p class="mt-1 text-sm app-muted">Reference list for public pages, Django edits, submissions, and review operations.</p>
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Projects</h2>
+    <span class="cadmin-count-badge">{{ projects|length }} items</span>
   </div>
 
   {% if projects %}
-    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_14rem_8rem] md:gap-3">
+    <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_10.5rem_6.5rem_1.75rem] md:gap-3">
       <div>Project</div>
       <div>Due dates</div>
       <div class="text-right">State</div>
@@ -233,22 +168,12 @@
 
     <div class="divide-y app-divide">
       {% for proj in projects %}
-        <article class="py-2.5 md:py-3">
-          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_14rem_8rem] md:items-center md:gap-3">
+        <article class="cadmin-list-row py-2.5 md:py-3">
+          <div class="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_10.5rem_6.5rem_1.75rem] md:items-center md:gap-3">
             <div class="flex min-w-0 items-start justify-between gap-3 md:block">
               <div class="min-w-0">
                 <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="block truncate font-medium app-link hover:underline">{{ proj.title }}</a>
-                <div class="dense-utility-links mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <a href="{% url 'project' course.slug proj.slug %}" title="View public project page" class="app-link">
-                    <i class="fas fa-external-link-alt"></i> Public
-                  </a>
-                  <a href="/admin/courses/project/{{ proj.id }}/change/" title="Edit in Django Admin" class="app-link">
-                    <i class="fas fa-edit"></i> Django
-                  </a>
-                  <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="app-link">
-                    <i class="fas fa-list"></i> Submissions ({{ proj.submissions_count }})
-                  </a>
-                </div>
+                <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions</p>
               </div>
               <div class="shrink-0 md:hidden">
                 {% if proj.state == 'CL' %}
@@ -283,6 +208,39 @@
                 <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">{{ proj.get_state_display }}</span>
               {% endif %}
             </div>
+
+            <details class="cadmin-actions-menu justify-self-end">
+              <summary class="cadmin-actions-toggle" title="Project actions" aria-label="Project actions for {{ proj.title }}">
+                <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+              </summary>
+              <div class="cadmin-actions-panel">
+                <a href="{% url 'project' course.slug proj.slug %}" class="cadmin-action-item">
+                  <i class="fas fa-external-link-alt" aria-hidden="true"></i> Public
+                </a>
+                <a href="/admin/courses/project/{{ proj.id }}/change/" class="cadmin-action-item">
+                  <i class="fas fa-edit" aria-hidden="true"></i> Django
+                </a>
+                <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="cadmin-action-item">
+                  <i class="fas fa-list" aria-hidden="true"></i> Submissions
+                </a>
+                {% if proj.needs_review_assignment %}
+                  <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="cadmin-action-item">
+                      <i class="fas fa-random" aria-hidden="true"></i> Assign peer reviews
+                    </button>
+                  </form>
+                {% endif %}
+                {% if proj.needs_scoring %}
+                  <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="cadmin-action-item">
+                      <i class="fas fa-calculator" aria-hidden="true"></i> Score projects
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </details>
 
           </div>
         </article>

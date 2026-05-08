@@ -157,13 +157,15 @@ class CadminViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.course.title)
-        self.assertContains(response, "Admin Panel")
+        self.assertContains(response, "Course admin")
         self.assertContains(response, 'aria-label="Breadcrumb"')
         self.assertContains(response, "Course Admin")
         self.assertContains(response, reverse("course", kwargs={"course_slug": self.course.slug}))
         self.assertContains(response, f"/admin/courses/course/{self.course.id}/change/")
         self.assertContains(response, 'title="View public course page"')
         self.assertContains(response, 'title="Edit in Django Admin"')
+        self.assertContains(response, "cadmin-actions-menu")
+        self.assertNotContains(response, "Needs attention")
         self.assertNotContains(response, "Course Page")
         self.assertNotContains(response, "Dashboard")
 
@@ -339,6 +341,16 @@ class CadminViewTests(TestCase):
         self.assertContains(
             response,
             reverse(
+                "cadmin_homework_clear_correct_answers",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse(
                 "cadmin_homework_score",
                 kwargs={
                     "course_slug": self.course.slug,
@@ -347,6 +359,7 @@ class CadminViewTests(TestCase):
             ),
         )
         self.assertContains(response, "Select most frequent answer")
+        self.assertContains(response, "Clear correct answers")
         self.assertContains(response, "Score submissions")
 
     def test_homework_actions_can_redirect_back_to_homework_submissions(self):
@@ -367,6 +380,18 @@ class CadminViewTests(TestCase):
         )
 
         response = self.client.post(action_url, {"next": submissions_url})
+
+        self.assertRedirects(response, submissions_url)
+
+        clear_url = reverse(
+            "cadmin_homework_clear_correct_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(clear_url, {"next": submissions_url})
 
         self.assertRedirects(response, submissions_url)
 
@@ -400,6 +425,43 @@ class CadminViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.project.title)
+
+    def test_project_submission_email_links_to_leaderboard_record(self):
+        """Project submission email links to the student's leaderboard record."""
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+            display_name="Test Student",
+        )
+        ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=enrollment,
+            total_score=10,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        response = self.client.get(
+            reverse(
+                "cadmin_project_submissions",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.project.slug,
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "leaderboard_score_breakdown",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "enrollment_id": enrollment.id,
+                },
+            ),
+        )
 
     def test_enrollments_search_finds_records_beyond_first_page(self):
         """Enrollment search is server-side, not limited to the visible page."""
@@ -747,10 +809,21 @@ class CadminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Select most frequent answer")
+        self.assertContains(response, "Clear correct answers")
         self.assertContains(
             response,
             reverse(
                 "cadmin_homework_set_correct_answers",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_homework_clear_correct_answers",
                 kwargs={
                     "course_slug": self.course.slug,
                     "homework_slug": self.homework.slug,
@@ -804,6 +877,42 @@ class CadminViewTests(TestCase):
         )
         question.refresh_from_db()
         self.assertEqual(question.correct_answer, "2")
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+
+    def test_homework_clear_correct_answers_removes_all_correct_answers(self):
+        first_question = Question.objects.create(
+            homework=self.homework,
+            text="Pick one",
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            possible_answers="A\nB\nC",
+            correct_answer="2",
+        )
+        second_question = Question.objects.create(
+            homework=self.homework,
+            text="Explain",
+            question_type=QuestionTypes.FREE_FORM.value,
+            correct_answer="expected answer",
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_homework_clear_correct_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(
+            response,
+            reverse("cadmin_course", kwargs={"course_slug": self.course.slug})
+        )
+        first_question.refresh_from_db()
+        second_question.refresh_from_db()
+        self.assertEqual(first_question.correct_answer, "")
+        self.assertEqual(second_question.correct_answer, "")
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
 
@@ -886,6 +995,37 @@ class CadminViewTests(TestCase):
         # (The session should have changed to the target user)
         # Note: django-loginas stores the original user in a different session key
         # and switches the current user to the target user
+
+    def test_impersonation_banner_shown_when_logged_in_as_student(self):
+        self.client.login(username="admin@test.com", password="admin123")
+
+        response = self.client.post(f"/admin/login/user/{self.user.id}/")
+
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(reverse("course_list"))
+
+        self.assertContains(response, "impersonation-banner")
+        self.assertContains(
+            response,
+            f"You are logged in as <strong>{self.user.email}</strong>",
+            html=True,
+        )
+        self.assertContains(response, "Return to admin account")
+        self.assertContains(response, reverse("stop_impersonating"))
+
+    def test_stop_impersonating_restores_admin_account(self):
+        self.client.login(username="admin@test.com", password="admin123")
+        self.client.post(f"/admin/login/user/{self.user.id}/")
+
+        response = self.client.get(reverse("course_list"))
+        self.assertEqual(response.wsgi_request.user, self.user)
+
+        response = self.client.post(reverse("stop_impersonating"))
+
+        self.assertRedirects(response, reverse("cadmin_course_list"))
+        response = self.client.get(reverse("course_list"))
+        self.assertEqual(response.wsgi_request.user, self.admin_user)
+        self.assertNotContains(response, "impersonation-banner")
 
     def test_staff_cannot_impersonate_other_staff(self):
         """Test that staff users cannot impersonate other staff users"""

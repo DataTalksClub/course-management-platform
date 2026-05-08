@@ -360,7 +360,7 @@ def update_leaderboard(course: Course):
 
 
 def fill_most_common_answer_as_correct(question: Question) -> None:
-    if question.correct_answer:
+    if question.correct_answer and not has_invalid_correct_answer_indices(question):
         logger.info(f"Correct answer for {question} is already set")
         return
 
@@ -386,11 +386,34 @@ def fill_most_common_answer_as_correct(question: Question) -> None:
     logger.info(f"Updated answer for {question} to {answer}")
 
 
+def has_invalid_correct_answer_indices(question: Question) -> bool:
+    if question.question_type not in [
+        QuestionTypes.MULTIPLE_CHOICE.value,
+        QuestionTypes.CHECKBOXES.value,
+    ]:
+        return False
+
+    possible_answers = question.get_possible_answers()
+    if not possible_answers:
+        return False
+
+    try:
+        indices = question.get_correct_answer_indices()
+    except ValueError:
+        return True
+
+    return any(index < 1 or index > len(possible_answers) for index in indices)
+
+
 def fill_correct_answers(homework: Homework) -> None:
     questions = Question.objects.filter(homework=homework)
 
     for question in questions:
         fill_most_common_answer_as_correct(question)
+
+
+def clear_correct_answers(homework: Homework) -> int:
+    return Question.objects.filter(homework=homework).update(correct_answer="")
 
 
 def calculate_raw_homework_statistics(homework):

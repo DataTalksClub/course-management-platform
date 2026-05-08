@@ -240,8 +240,29 @@ header nav > div:last-child ul li {
   max-width: 56rem;
 }
 
-.cadmin-page .app-content-shell {
-  max-width: 80rem;
+.impersonation-banner {
+  background: #fff8c5;
+  border-bottom: 1px solid #d4a72c;
+  color: #3b2300;
+}
+
+.impersonation-banner form {
+  margin: 0;
+}
+
+.impersonation-return-button {
+  background: transparent;
+  border: 0;
+  color: #3b2300;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.impersonation-return-button:hover {
+  color: #111827;
 }
 
 .form-container {
@@ -553,6 +574,62 @@ form select {
   line-height: 1.35;
 }
 
+.cadmin-page-header,
+.cadmin-section-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.cadmin-page-header {
+  align-items: center;
+}
+
+.cadmin-support-strip {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.cadmin-metrics-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+}
+
+.cadmin-metric {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+}
+
+.cadmin-count-badge {
+  align-items: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.55rem;
+}
+
+.cadmin-list-row {
+  border-radius: 6px;
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.cadmin-list-row:hover {
+  background: var(--bg-subtle);
+}
+
 .cadmin-shell article {
   padding-top: 0.75rem !important;
   padding-bottom: 0.75rem !important;
@@ -611,6 +688,90 @@ form select {
 
 .cadmin-row-actions .primer-button {
   width: auto;
+}
+
+.cadmin-actions-menu {
+  position: relative;
+}
+
+.cadmin-actions-menu[open] {
+  z-index: 20;
+}
+
+.cadmin-actions-toggle {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  list-style: none;
+  opacity: 0.45;
+  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  width: 26px;
+}
+
+.cadmin-actions-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.cadmin-actions-toggle:hover,
+.cadmin-actions-menu[open] .cadmin-actions-toggle {
+  background: color-mix(in srgb, var(--bg-subtle) 70%, transparent);
+  border-color: transparent;
+  opacity: 1;
+}
+
+.cadmin-actions-panel {
+  background: var(--bg-primary);
+  background: color-mix(in srgb, var(--bg-primary) 94%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-color: color-mix(in srgb, var(--border-color) 75%, transparent);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
+  min-width: 13.5rem;
+  overflow: hidden;
+  padding: 0.25rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+}
+
+.cadmin-actions-panel form {
+  display: block;
+  margin: 0;
+}
+
+.cadmin-action-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  line-height: 1.25;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  text-decoration: none;
+  width: 100%;
+}
+
+.cadmin-action-item:hover {
+  background: color-mix(in srgb, var(--bg-subtle) 78%, transparent);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.cadmin-action-item i {
+  color: var(--text-muted);
+  flex: 0 0 1rem;
+  text-align: center;
 }
 
 .cadmin-active-filter {
@@ -842,6 +1003,20 @@ body.dark-mode [class*="text-red-700"] {
     min-height: 30px;
     padding: 4px 8px;
     white-space: nowrap;
+  }
+
+  .cadmin-page-header,
+  .cadmin-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cadmin-page-header .primer-button {
+    justify-content: center;
+  }
+
+  .cadmin-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cadmin-shell section > div[class~="px-4"][class~="py-3"] {

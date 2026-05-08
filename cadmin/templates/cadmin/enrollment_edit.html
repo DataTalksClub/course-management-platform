@@ -10,13 +10,12 @@ Edit Enrollment - {{ course.title }}
 {% endblock %}
 {% block cadmin_content %}
 <section class="border-b app-border pb-5 ">
-<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 <div>
 <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
 <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">Edit Enrollment</h1>
 <p class="mt-1 text-sm app-muted">Review a student record, inspect submissions, and manage learning-in-public eligibility.</p>
 </div>
-<div class="flex flex-wrap gap-2">
+<div class="mt-3 flex flex-wrap gap-2">
 <form method="post" action="{% url 'loginas-user-login' enrollment.student.id %}">
 {% csrf_token %}
 <input type="hidden" name="next" value="{% url 'course' course.slug %}">
@@ -27,7 +26,6 @@ Edit Enrollment - {{ course.title }}
 <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary">View Score Breakdown</a>
 <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">View Leaderboard</a>
 <a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button">Back to Enrollments</a>
-</div>
 </div>
 </section>
 <section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">

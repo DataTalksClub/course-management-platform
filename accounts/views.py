@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from loginas.utils import restore_original_login
 
 from accounts.forms import AccountSettingsForm
 from courses.models import Enrollment
@@ -54,6 +55,13 @@ def toggle_dark_mode(request):
     user.dark_mode = not user.dark_mode
     user.save(update_fields=['dark_mode'])
     return JsonResponse({'dark_mode': user.dark_mode})
+
+
+@login_required
+@require_POST
+def stop_impersonating(request):
+    restore_original_login(request)
+    return redirect("cadmin_course_list")
 
 
 async def social_login_view(request):

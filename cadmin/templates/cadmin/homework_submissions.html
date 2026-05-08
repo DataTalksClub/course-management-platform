@@ -45,6 +45,15 @@
                     <button type="submit" class="primer-button primer-button-secondary">Select most frequent answer</button>
                 </form>
                 <form method="post"
+                      action="{% url 'cadmin_homework_clear_correct_answers' course.slug homework.slug %}"
+                      onsubmit="return confirm('Clear all correct answers for {{ homework.title }}? Scores will need to be recalculated after setting answers again.');">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="next"
+                           value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
+                    <button type="submit" class="primer-button primer-button-secondary">Clear correct answers</button>
+                </form>
+                <form method="post"
                       action="{% url 'cadmin_homework_score' course.slug homework.slug %}"
                       onsubmit="return confirm('Score all submissions for {{ homework.title }}?');">
                     {% csrf_token %}

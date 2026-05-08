@@ -7,4 +7,5 @@ urlpatterns = [
     path('email/', views.disabled),
     path('password/reset/', views.disabled),
     path('toggle-dark-mode/', views.toggle_dark_mode, name='toggle_dark_mode'),
+    path('stop-impersonating/', views.stop_impersonating, name='stop_impersonating'),
 ]

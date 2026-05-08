@@ -22,7 +22,11 @@
                     Review peer submissions and open repositories for this project.
                 </p>
             </div>
-            <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary w-fit">Back to Course</a>
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'list_all_project_submissions' course.slug %}"
+                   class="primer-button primer-button-secondary w-fit">All Projects</a>
+                <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary w-fit">Back to Course</a>
+            </div>
         </div>
     </section>
 
@@ -41,12 +45,20 @@
                         <article class="px-4 py-3">
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="min-w-0">
-                                    <a href="{{ submission.github_link }}"
-                                       target="_blank"
-                                       rel="noopener noreferrer"
-                                       class="font-medium app-link hover:underline">
-                                        {{ submission.enrollment.display_name }}
-                                        <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                                    {% if submission.github_link %}
+                                        <a href="{{ submission.github_link }}"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="font-medium app-link hover:underline">
+                                            {{ submission.enrollment.display_name }}
+                                            <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="font-medium app-heading">{{ submission.enrollment.display_name }}</span>
+                                    {% endif %}
+                                    <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=submission.enrollment.id %}"
+                                       class="ml-3 text-xs font-medium app-link hover:underline">
+                                        Leaderboard
                                     </a>
                                     {% if submission.own %}
                                         <span class="ml-2 inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link">Your project</span>

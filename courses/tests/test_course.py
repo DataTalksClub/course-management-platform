@@ -913,6 +913,59 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(submissions[1].project, self.open_project)
         self.assertEqual(submissions[1].display_score, -1)
 
+    def test_list_all_submissions_links_student_to_repository(self):
+        """Student names link to repositories and leaderboard stays linked."""
+        response = self.client.get(
+            reverse(
+                "list_all_project_submissions", args=[self.course.slug]
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "leaderboard_score_breakdown",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "enrollment_id": self.enrollment.id,
+                },
+            ),
+        )
+        self.assertContains(response, self.completed_submission.github_link)
+        self.assertContains(response, "Leaderboard")
+
+    def test_list_all_submissions_links_to_each_project_list(self):
+        """All project submissions page includes project-level jump links."""
+        response = self.client.get(
+            reverse(
+                "list_all_project_submissions", args=[self.course.slug]
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Project lists")
+        self.assertContains(
+            response,
+            reverse(
+                "project_list",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.completed_project.slug,
+                },
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "project_list",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.open_project.slug,
+                },
+            ),
+        )
+
     def test_list_all_submissions_view_is_paginated(self):
         """Test the list all submissions view limits results per page."""
         for index in range(30):

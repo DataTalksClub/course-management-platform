@@ -1,4 +1,5 @@
 from django.conf import settings
+from loginas.utils import is_impersonated_session
 
 
 def export_settings(request):
@@ -9,4 +10,5 @@ def export_settings(request):
         "VERSION": settings.VERSION,
         "DARK_MODE": dark_mode,
         "SHOW_WRAPPED": settings.SHOW_WRAPPED,
+        "IS_IMPERSONATING": is_impersonated_session(request),
     }

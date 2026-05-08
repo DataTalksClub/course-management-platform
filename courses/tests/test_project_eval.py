@@ -745,6 +745,33 @@ class ProjectEvaluationTestCase(TestCase):
             status_code=200,
         )
 
+    def test_project_list_links_student_to_repository(self):
+        """Project list links student names to repositories and leaderboard stays linked."""
+        url = reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "leaderboard_score_breakdown",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "enrollment_id": self.enrollment.id,
+                },
+            ),
+        )
+        self.assertContains(response, self.submission.github_link)
+        self.assertContains(response, "Leaderboard")
+        self.assertContains(
+            response,
+            reverse("list_all_project_submissions", args=[self.course.slug]),
+        )
+
     def test_project_list_view_is_paginated(self):
         """Test that the project submissions list limits results per page."""
         for index in range(30):

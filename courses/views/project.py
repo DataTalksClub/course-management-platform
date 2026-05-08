@@ -565,7 +565,9 @@ def projects_list_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    submissions = ProjectSubmission.objects.filter(project=project)
+    submissions = ProjectSubmission.objects.filter(project=project).select_related(
+        "enrollment"
+    )
 
     if project.state == ProjectState.COMPLETED.value:
         submissions = submissions.order_by('-project_score')

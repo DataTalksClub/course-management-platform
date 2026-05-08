@@ -57,6 +57,21 @@
           data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}"
           data-toggle-url="{% url 'toggle_dark_mode' %}">
         {% if user.is_authenticated %}<input type="hidden" id="csrf-token" value="{{ csrf_token }}">{% endif %}
+        {% if IS_IMPERSONATING %}
+            <div id="impersonation-banner" class="impersonation-banner">
+                <div class="app-content-shell mx-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 py-2 text-sm md:px-8">
+                    <span>
+                        You are logged in as <strong>{{ request.user.email|default:request.user.username }}</strong>
+                    </span>
+                    <form method="post" action="{% url 'stop_impersonating' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="impersonation-return-button">
+                            Return to admin account
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
         <header id="header-container" class="border-b app-border app-surface">
             <nav class="app-content-shell mx-auto flex items-center justify-between gap-3 px-4 py-3 md:px-8 md:py-5">
                 <a href="{% url 'course_list' %}"

@@ -16,6 +16,11 @@ urlpatterns = [
         name="cadmin_homework_set_correct_answers",
     ),
     path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/clear-correct-answers",
+        views.homework_clear_correct_answers,
+        name="cadmin_homework_clear_correct_answers",
+    ),
+    path(
         "<slug:course_slug>/homework/<slug:homework_slug>/submissions",
         views.homework_submissions,
         name="cadmin_homework_submissions",

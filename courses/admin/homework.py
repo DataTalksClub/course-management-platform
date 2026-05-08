@@ -12,6 +12,7 @@ from courses.models import Homework, Question, HomeworkState
 from courses.scoring import (
     score_homework_submissions,
     fill_correct_answers,
+    clear_correct_answers,
     calculate_homework_statistics,
 )
 
@@ -68,6 +69,21 @@ set_most_popular_as_correct.short_description = (
 )
 
 
+def clear_correct_answers_selected_homeworks(modeladmin, request, queryset):
+    for homework in queryset:
+        updated_count = clear_correct_answers(homework)
+        modeladmin.message_user(
+            request,
+            f"Cleared correct answers for {updated_count} questions in {homework}",
+            level=messages.SUCCESS,
+        )
+
+
+clear_correct_answers_selected_homeworks.short_description = (
+    "Clear correct answers"
+)
+
+
 def calculate_statistics_selected_homeworks(
     modeladmin, request, queryset
 ):
@@ -100,6 +116,7 @@ class HomeworkAdmin(ModelAdmin):
     actions = [
         score_selected_homeworks,
         set_most_popular_as_correct,
+        clear_correct_answers_selected_homeworks,
         calculate_statistics_selected_homeworks,
     ]
     list_display = ["title", "course", "due_date", "state"]

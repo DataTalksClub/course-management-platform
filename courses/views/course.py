@@ -796,6 +796,12 @@ def enrollment_view(request, course_slug):
 def list_all_project_submissions_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
 
+    projects = (
+        Project.objects.filter(course=course)
+        .annotate(submissions_count=Count("projectsubmission"))
+        .order_by("id")
+    )
+
     submissions = (
         ProjectSubmission.objects.filter(project__course=course)
         .select_related("project", "enrollment")
@@ -818,6 +824,7 @@ def list_all_project_submissions_view(request, course_slug: str):
 
     context = {
         "course": course,
+        "projects": projects,
         "submissions": submissions_page.object_list,
         "submissions_page": submissions_page,
         "page_range": submissions_page.paginator.get_elided_page_range(

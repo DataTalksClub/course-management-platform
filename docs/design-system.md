@@ -21,6 +21,8 @@ We are not copying GitHub branding. We are using Primer as the interaction and v
 - Navigation: simple top bar, compact mobile behavior, no overflowing course names.
 - Breadcrumbs: lightweight, blue links, low visual weight.
 - Lists: row-based layouts with dividers on mobile; subtle bordered containers on desktop where they improve scanning.
+- Page headers: a title/description on the left with one or two utility actions on the right is fine when the actions operate on the whole page, such as Back to Course.
+- Link groups: when a section introduces a set of related navigation links, put the title/helper text above the links. Do not split the intro text into one column and the link buttons into another column.
 - Forms: clear labels, familiar inputs, visible disabled states, compact vertical rhythm.
 - Status: Primer-like labels/pills for submitted, open, closed, scored, and review states.
 - Dark mode: preserve the existing no-reload toggle model. JavaScript should toggle the `dark-mode` state; CSS should own colors.
