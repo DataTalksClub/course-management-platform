@@ -69,7 +69,10 @@ def _leaderboard_yaml_page_url(course, page_number):
 def _build_leaderboard_data(course, page_number):
     """Build the full leaderboard JSON structure with score breakdowns."""
     enrollments = (
-        Enrollment.objects.filter(course=course)
+        Enrollment.objects.filter(
+            course=course,
+            display_on_leaderboard=True,
+        )
         .select_related("student")
         .prefetch_related(
             Prefetch(
@@ -83,6 +86,7 @@ def _build_leaderboard_data(course, page_number):
                 "projectsubmission_set",
                 queryset=ProjectSubmission.objects.filter(
                     project__state=ProjectState.COMPLETED.value,
+                    volunteer_review_only=False,
                 ).select_related("project").order_by("project__id"),
                 to_attr="completed_project_submissions",
             ),

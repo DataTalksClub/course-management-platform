@@ -5,12 +5,14 @@ from typing import List, Optional
 from django.http import HttpRequest
 
 from django.contrib import messages
+from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
 
+from course_management.datamailer import send_transactional_email
 from courses.models import (
     Course,
     Homework,
@@ -22,6 +24,7 @@ from courses.models import (
     Enrollment,
     User,
     HomeworkStatistics,
+    ProjectSubmission,
 )
 
 from courses.scoring import is_free_form_answer_correct, calculate_homework_statistics
@@ -194,6 +197,76 @@ def clean_learning_in_public_links(links: List[str], cap: int) -> List[str]:
     return cleaned_links
 
 
+def find_duplicate_learning_in_public_links(
+    user: User,
+    course: Course,
+    links: List[str],
+    current_submission: Optional[Submission],
+) -> List[str]:
+    if not links:
+        return []
+
+    links_set = set(links)
+    duplicate_links = set()
+
+    homework_submissions = Submission.objects.filter(
+        student=user,
+        homework__course=course,
+        learning_in_public_links__isnull=False,
+    )
+    if current_submission and current_submission.pk:
+        homework_submissions = homework_submissions.exclude(
+            pk=current_submission.pk
+        )
+
+    for submitted_homework in homework_submissions:
+        duplicate_links.update(
+            link
+            for link in (submitted_homework.learning_in_public_links or [])
+            if link in links_set
+        )
+
+    project_submissions = ProjectSubmission.objects.filter(
+        student=user,
+        project__course=course,
+        volunteer_review_only=False,
+        learning_in_public_links__isnull=False,
+    )
+    for submitted_project in project_submissions:
+        duplicate_links.update(
+            link
+            for link in (submitted_project.learning_in_public_links or [])
+            if link in links_set
+        )
+
+    return sorted(duplicate_links)
+
+
+def send_homework_confirmation_email(
+    user: User,
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+) -> None:
+    if not user.email:
+        return
+
+    send_transactional_email(
+        {
+            "template": settings.DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE,
+            "to": user.email,
+            "data": {
+                "course_slug": course.slug,
+                "course_title": course.title,
+                "homework_slug": homework.slug,
+                "homework_title": homework.title,
+                "submission_id": submission.id,
+                "submitted_at": submission.submitted_at.isoformat(),
+            },
+        }
+    )
+
+
 def process_homework_submission(
     request: HttpRequest,
     course: Course,
@@ -242,6 +315,17 @@ def process_homework_submission(
         cleaned_links = clean_learning_in_public_links(
             links, homework.learning_in_public_cap
         )
+        duplicate_links = find_duplicate_learning_in_public_links(
+            user=user,
+            course=course,
+            links=cleaned_links,
+            current_submission=submission,
+        )
+        if duplicate_links:
+            raise ValidationError(
+                "Learning in public links were already used in another "
+                f"submission: {', '.join(duplicate_links)}"
+            )
         submission.learning_in_public_links = cleaned_links
 
     if homework.time_spent_lectures_field:
@@ -270,6 +354,14 @@ def process_homework_submission(
 
     submission.full_clean()
     submission.save()
+    transaction.on_commit(
+        lambda: send_homework_confirmation_email(
+            user=user,
+            course=course,
+            homework=homework,
+            submission=submission,
+        )
+    )
 
     success_message = (
         "Thank you for submitting your homework, now your solution "

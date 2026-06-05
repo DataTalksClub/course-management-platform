@@ -27,6 +27,7 @@ class EnrollmentForm(forms.ModelForm):
         fields = [
             "display_name",
             "certificate_name",
+            "display_on_leaderboard",
             "display_public_profile",
         ]
         widgets = {
@@ -34,6 +35,9 @@ class EnrollmentForm(forms.ModelForm):
                 attrs={"class": "form-control"}
             ),
             "display_public_profile": forms.CheckboxInput(
+                attrs={"class": "h-4 w-4"}
+            ),
+            "display_on_leaderboard": forms.CheckboxInput(
                 attrs={"class": "h-4 w-4"}
             ),
         }

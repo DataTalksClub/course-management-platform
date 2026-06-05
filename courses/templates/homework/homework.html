@@ -249,13 +249,14 @@
                 <div class="mt-5 space-y-5">
                     {% if homework.homework_url_field %}
                         <div class="question">
-                            <label for="homework_url" class="question-text font-medium">
-                                Homework URL <span class="form-help-icon app-muted"
-                                                   role="button"
-                                                   tabindex="0"
-                                                   aria-label="Link to GitHub or other public code-hosting website"
-                                                   aria-expanded="false"
-                                                   data-form-help="Link to GitHub or other public code-hosting website"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
+                            <label for="homework_url" class="question-text form-label-with-help font-medium">
+                                <span>Homework URL</span>
+                                <span class="form-help-icon app-muted"
+                                      role="button"
+                                      tabindex="0"
+                                      aria-label="Link to GitHub or other public code-hosting website"
+                                      aria-expanded="false"
+                                      data-form-help="Link to GitHub or other public code-hosting website"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                             </label>
                             {% if homework.is_scored %}
                                 <div class="readonly-value mt-2">
@@ -272,17 +273,18 @@
                             {% endif %}
                         </div>
                     {% endif %}
-                    {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=homework.learning_in_public_cap learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+                    {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=homework.learning_in_public_cap learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions disable_learning_in_public=disable_learning_in_public %}
                     <script src="{% static 'learning_in_public.js' %}"></script>
                     {% if homework.time_spent_lectures_field %}
                         <div class="question">
-                            <label for="time_spent_lectures" class="question-text font-medium">
-                                Time spent on lectures (hours) <span class="app-muted">(optional)</span> <span class="form-help-icon app-muted"
-                                                                                                             role="button"
-                                                                                                             tabindex="0"
-                                                                                                             aria-label="How much time you spent on lectures"
-                                                                                                             aria-expanded="false"
-                                                                                                             data-form-help="How much time (in hours) did you spend on watching lectures and reading?"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
+                            <label for="time_spent_lectures" class="question-text form-label-with-help font-medium">
+                                <span>Time spent on lectures (hours) <span class="app-muted">(optional)</span></span>
+                                <span class="form-help-icon app-muted"
+                                      role="button"
+                                      tabindex="0"
+                                      aria-label="How much time you spent on lectures"
+                                      aria-expanded="false"
+                                      data-form-help="How much time (in hours) did you spend on watching lectures and reading?"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                             </label>
                             {% if homework.is_scored %}
                                 <div class="readonly-value mt-2">
@@ -300,13 +302,14 @@
                     {% endif %}
                     {% if homework.time_spent_homework_field %}
                         <div class="question">
-                            <label for="time_spent_homework" class="question-text font-medium">
-                                Time spent on homework (hours) <span class="app-muted">(optional)</span> <span class="form-help-icon app-muted"
-                                                                                                             role="button"
-                                                                                                             tabindex="0"
-                                                                                                             aria-label="How much time you spent on homework"
-                                                                                                             aria-expanded="false"
-                                                                                                             data-form-help="How much time (in hours) did you spend on homework?"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
+                            <label for="time_spent_homework" class="question-text form-label-with-help font-medium">
+                                <span>Time spent on homework (hours) <span class="app-muted">(optional)</span></span>
+                                <span class="form-help-icon app-muted"
+                                      role="button"
+                                      tabindex="0"
+                                      aria-label="How much time you spent on homework"
+                                      aria-expanded="false"
+                                      data-form-help="How much time (in hours) did you spend on homework?"><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                             </label>
                             {% if homework.is_scored %}
                                 <div class="readonly-value mt-2">
@@ -335,13 +338,14 @@
                     {% endif %}
                     {% if homework.faq_contribution_field %}
                         <div class="question">
-                            <label for="faq_contribution_url" class="question-text font-medium">
-                                FAQ contribution PR or issue URL (<a href="https://datatalks.club/docs/courses/faq/" target="_blank" rel="noopener noreferrer">FAQ docs</a>, <span class="app-muted">optional</span>) <span class="form-help-icon app-muted"
-                                                                                                                                                                                                             role="button"
-                                                                                                                                                                                                             tabindex="0"
-                                                                                                                                                                                                             aria-label="How to submit an FAQ contribution"
-                                                                                                                                                                                                             aria-expanded="false"
-                                                                                                                                                                                                             data-form-help="Create a GitHub issue or pull request in the FAQ repo for your contribution, then paste that issue or PR URL here."><i class="fas fa-question-circle" aria-hidden="true"></i></span>
+                            <label for="faq_contribution_url" class="question-text form-label-with-help font-medium">
+                                <span>FAQ contribution PR or issue URL (<a href="https://datatalks.club/docs/courses/faq/" target="_blank" rel="noopener noreferrer">FAQ docs</a>, <span class="app-muted">optional</span>)</span>
+                                <span class="form-help-icon app-muted"
+                                      role="button"
+                                      tabindex="0"
+                                      aria-label="How to submit an FAQ contribution"
+                                      aria-expanded="false"
+                                      data-form-help="Create a GitHub issue or pull request in the FAQ repo for your contribution, then paste that issue or PR URL here."><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                             </label>
                             <input type="url"
                                    class="form-control mt-2"

@@ -581,7 +581,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(c3.answer, "1,2,3")
 
     def test_eval_view_authenticated_no_submission(self):
-        """Test that eval view shows warning when user hasn't submitted their project"""
+        """Test that eval view offers voluntary reviews without submission."""
         self.project.state = ProjectState.PEER_REVIEWING.value
         self.project.save()
 
@@ -602,7 +602,7 @@ class ProjectEvaluationTestCase(TestCase):
         
         self.assertContains(
             response,
-            "Because you did not submit your project, you cannot participate in peer review.",
+            "you can still volunteer to evaluate submissions",
             status_code=200,
         )
         self.assertNotContains(
@@ -696,7 +696,7 @@ class ProjectEvaluationTestCase(TestCase):
         )
 
     def test_list_view_authenticated_no_submission(self):
-        """Test that list view doesn't show Add to Evaluation button when user hasn't submitted their project"""
+        """Test that list view allows voluntary evaluation without submission."""
         self.project.state = ProjectState.PEER_REVIEWING.value
         self.project.save()
 
@@ -714,7 +714,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertTemplateUsed(response, "projects/list.html")
         
         self.assertFalse(response.context["has_submission"])
-        self.assertNotContains(
+        self.assertContains(
             response,
             "Add to Evaluation",
             status_code=200,

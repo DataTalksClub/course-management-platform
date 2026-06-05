@@ -187,6 +187,19 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 VERSION = os.getenv("VERSION", "local-development-build-version-not-configured")
 
+DATAMAILER_URL = os.getenv("DATAMAILER_URL", "")
+DATAMAILER_API_KEY = os.getenv("DATAMAILER_API_KEY", "")
+DATAMAILER_CLIENT = os.getenv("DATAMAILER_CLIENT", "")
+DATAMAILER_AUDIENCE = os.getenv("DATAMAILER_AUDIENCE", "")
+DATAMAILER_STRICT = os.getenv("DATAMAILER_STRICT", "0") == "1"
+DATAMAILER_SYNC_ON_USER_CREATE = (
+    os.getenv("DATAMAILER_SYNC_ON_USER_CREATE", "1") == "1"
+)
+DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE = os.getenv(
+    "DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE",
+    "homework-submission-confirmation",
+)
+
 # Cache configuration
 CACHES = {
     "default": {

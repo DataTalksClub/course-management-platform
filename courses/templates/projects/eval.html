@@ -39,7 +39,9 @@
 {% elif eval_closed %}
 <div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">Peer review form is closed.</div>
 {% elif not has_submission %}
-<div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm  "> Because you did not submit your project, you cannot participate in peer review. You can still <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="font-medium underline">see other submissions</a>.
+<div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm">
+You did not submit this project, but you can still volunteer to evaluate submissions.
+<a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="font-medium underline">Choose a project to evaluate</a>.
 </div>
 {% else %}
 <section class="mt-6 grid gap-4 md:grid-cols-[240px_minmax(0,1fr)]">

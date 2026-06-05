@@ -43,6 +43,9 @@
                              onkeydown="if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('a, button')) { event.preventDefault(); window.location.href='{% url 'course' course.slug %}'; }">
                         <div>
                             <span class="inline-flex rounded-md app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Active</span>
+                            {% if course.is_enrolled %}
+                                <span class="ml-2 inline-flex rounded-md app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Enrolled</span>
+                            {% endif %}
                             <h3 class="mt-2 text-xl font-semibold md:text-2xl">
                                 <a href="{% url 'course' course.slug %}" class="app-link">{{ course.title }}</a>
                             </h3>
@@ -119,7 +122,12 @@
                                     <a href="{% url 'course' course.slug %}"
                                        class="group grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                                         <div class="min-w-0">
-                                            <h4 class="text-lg font-semibold app-link md:text-xl">{{ course.title }}</h4>
+                                            <h4 class="text-lg font-semibold app-link md:text-xl">
+                                                {{ course.title }}
+                                                {% if course.is_enrolled %}
+                                                    <span class="ml-2 align-middle text-xs font-semibold uppercase app-badge-info px-2 py-0.5 rounded-md">Enrolled</span>
+                                                {% endif %}
+                                            </h4>
                                             <p class="mt-1 max-w-3xl text-sm leading-6 app-text">{{ course.home_outcome }}</p>
                                         </div>
                                         <span class="hidden shrink-0 app-link md:block" aria-hidden="true">&rarr;</span>

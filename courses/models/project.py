@@ -5,6 +5,7 @@ from enum import Enum
 from django.db import models
 from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from .course import Course, Enrollment
 from courses.validators import validate_url_200, validate_review_criteria_options
@@ -85,7 +86,7 @@ class ProjectSubmission(models.Model):
     time_spent = models.FloatField(blank=True, null=True)
     problems_comments = models.TextField(blank=True)
 
-    submitted_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(default=timezone.now)
 
     project_score = models.IntegerField(default=0)
     project_faq_score = models.IntegerField(default=0)
@@ -98,9 +99,33 @@ class ProjectSubmission(models.Model):
 
     reviewed_enough_peers = models.BooleanField(default=False)
     passed = models.BooleanField(default=False)
+    volunteer_review_only = models.BooleanField(default=False)
 
     def __str__(self):
         return f"project submission for enrollment {self.enrollment.id}"
+
+
+class ProjectVote(models.Model):
+    submission = models.ForeignKey(
+        ProjectSubmission,
+        on_delete=models.CASCADE,
+        related_name="votes",
+    )
+    voter = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="project_votes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("submission", "voter")
+
+    def __str__(self):
+        return (
+            f"vote by user {self.voter_id} "
+            f"for project submission {self.submission_id}"
+        )
 
 
 class ReviewCriteriaTypes(Enum):

@@ -44,7 +44,9 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     user = request.user
 
     project_submission = ProjectSubmission.objects.filter(
-        project=project, student=request.user
+        project=project,
+        student=request.user,
+        volunteer_review_only=False,
     ).first()
 
     if project_submission:
@@ -104,7 +106,9 @@ def project_delete_submission(request: HttpRequest, project: Project) -> None:
     user = request.user
 
     project_submission = ProjectSubmission.objects.filter(
-        project=project, student=request.user
+        project=project,
+        student=request.user,
+        volunteer_review_only=False,
     ).first()
 
     if project_submission:
@@ -133,7 +137,9 @@ def project_build_context(
 
     if is_authenticated:
         project_submission = ProjectSubmission.objects.filter(
-            project=project, student=user
+            project=project,
+            student=user,
+            volunteer_review_only=False,
         ).first()
 
         enrollment, _ = Enrollment.objects.get_or_create(
@@ -243,7 +249,10 @@ def projects_eval_view(request, course_slug, project_slug):
         project=project, student=user
     )
 
-    has_submission = student_submissions.exists()
+    project_submissions = student_submissions.filter(
+        volunteer_review_only=False,
+    )
+    has_submission = project_submissions.exists()
 
     reviews = PeerReview.objects.filter(
         reviewer__in=student_submissions,
@@ -290,7 +299,9 @@ def project_results(request, course_slug, project_slug):
         return render(request, "projects/results.html", context)
 
     submission = ProjectSubmission.objects.filter(
-        project=project, student=user
+        project=project,
+        student=user,
+        volunteer_review_only=False,
     ).first()
 
     scores = list(
@@ -505,9 +516,30 @@ def projects_eval_add(
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
-    student_submission = ProjectSubmission.objects.get(
-        project=project, student=user
-    )
+    student_submission = ProjectSubmission.objects.filter(
+        project=project,
+        student=user,
+        volunteer_review_only=False,
+    ).first()
+
+    if student_submission is None:
+        enrollment, _ = Enrollment.objects.get_or_create(
+            student=user,
+            course=course,
+        )
+        student_submission, _ = ProjectSubmission.objects.get_or_create(
+            project=project,
+            student=user,
+            volunteer_review_only=True,
+            defaults={
+                "enrollment": enrollment,
+                "github_link": (
+                    "https://github.com/DataTalksClub/"
+                    "course-management-platform"
+                ),
+                "commit_id": "volunteer",
+            },
+        )
 
     if student_submission.id == submission_id:
         # don't allow self-evaluation
@@ -518,7 +550,9 @@ def projects_eval_add(
         )
 
     submission_under_evaluation = ProjectSubmission.objects.get(
-        id=submission_id
+        id=submission_id,
+        project=project,
+        volunteer_review_only=False,
     )
 
     review, created = PeerReview.objects.get_or_create(
@@ -543,7 +577,9 @@ def projects_eval_delete(request, course_slug, project_slug, review_id):
     user = request.user
 
     student_submission = get_object_or_404(
-        ProjectSubmission, project=project, student=user
+        ProjectSubmission,
+        project=project,
+        student=user,
     )
 
     PeerReview.objects.filter(
@@ -565,7 +601,10 @@ def projects_list_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    submissions = ProjectSubmission.objects.filter(project=project).select_related(
+    submissions = ProjectSubmission.objects.filter(
+        project=project,
+        volunteer_review_only=False,
+    ).select_related(
         "enrollment"
     )
 
@@ -586,7 +625,10 @@ def projects_list_view(request, course_slug, project_slug):
             project=project, student=user
         )
 
-        own_submissions = set(student_submissions.values_list("id", flat=True))
+        project_submissions = student_submissions.filter(
+            volunteer_review_only=False,
+        )
+        own_submissions = set(project_submissions.values_list("id", flat=True))
         has_submission = len(own_submissions) > 0
 
         reviews = PeerReview.objects.filter(

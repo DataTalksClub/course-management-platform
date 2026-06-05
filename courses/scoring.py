@@ -312,7 +312,10 @@ def update_leaderboard(course: Course):
     projects = Project.objects.filter(course=course)
 
     aggregated_project_scores = (
-        ProjectSubmission.objects.filter(project__in=projects)
+        ProjectSubmission.objects.filter(
+            project__in=projects,
+            volunteer_review_only=False,
+        )
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
     )

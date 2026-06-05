@@ -83,6 +83,13 @@
         <section class="settings-section border-t pt-6">
             <div class="flex flex-col gap-4">
                 <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
+                    {{ form.display_on_leaderboard }}
+                    <span>Show my record on the public leaderboard</span>
+                </label>
+                <p class="settings-helper text-xs leading-5">
+                    When disabled, your score remains saved for you and the course team, but your row is hidden from public leaderboard views and exports.
+                </p>
+                <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
                     {{ form.display_public_profile }}
                     <span>Display my public profile data on this leaderboard record</span>
                 </label>

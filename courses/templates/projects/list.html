@@ -74,7 +74,7 @@
                                             </a>
                                         {% elif submission.own %}
                                             <span class="text-sm app-muted">No action needed</span>
-                                        {% elif has_submission %}
+                                        {% else %}
                                             <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')"
                                                     class="primer-button primer-button-secondary">
                                                 <i class="fas fa-plus"></i> Add to Evaluation

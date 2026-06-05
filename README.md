@@ -186,6 +186,30 @@ Response:
 In local development, the version comes from the `VERSION` environment
 variable and falls back to `local-development-build-version-not-configured`.
 
+## Datamailer
+
+The platform can sync created users and course enrollments to Datamailer.
+The integration is disabled unless all required environment variables are set:
+
+```bash
+export DATAMAILER_URL="https://datamailer.dtcdev.click"
+export DATAMAILER_API_KEY="<token>"
+export DATAMAILER_CLIENT="dtc-courses"
+export DATAMAILER_AUDIENCE="dtc-courses"
+export DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE="homework-submission-confirmation"
+```
+
+Optional settings:
+
+```bash
+export DATAMAILER_STRICT="0"
+export DATAMAILER_SYNC_ON_USER_CREATE="1"
+```
+
+With `DATAMAILER_STRICT=0`, Datamailer API failures are logged and do not
+break signup or enrollment flows. Set `DATAMAILER_STRICT=1` only when those
+flows should fail on Datamailer errors.
+
 ## API Data Access
 
 Most `/api` endpoints require token authentication:

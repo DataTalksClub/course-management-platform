@@ -28,11 +28,16 @@
         <span>(Position: {{ current_student_enrollment.position_on_leaderboard }})</span>
       </p>
       <p class="mt-1 text-sm app-text">Display name: {{ current_student_enrollment.display_name }} (<a href="{% url 'enrollment' course.slug %}" class="app-link hover:underline">change</a>)</p>
+      {% if not current_student_enrollment.display_on_leaderboard %}
+        <p class="mt-1 text-sm app-muted">Your record is hidden from the public leaderboard.</p>
+      {% endif %}
     </div>
-    {% if current_student_page_number %}
-      <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
-    {% else %}
-      <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
+    {% if current_student_enrollment.display_on_leaderboard %}
+      {% if current_student_page_number %}
+        <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
+      {% else %}
+        <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
+      {% endif %}
     {% endif %}
   </div>
 </section>
@@ -53,6 +58,17 @@
           <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="block font-medium leading-snug app-link hover:underline md:truncate">
             {{ enrollment.display_name }}
           </a>
+          {% if enrollment.passed_projects %}
+            <div class="mt-1 flex flex-wrap gap-1">
+              {% for project in enrollment.passed_projects %}
+                <span class="inline-flex items-center rounded-md app-badge-success px-1.5 py-0.5 text-[11px] font-semibold"
+                      title="Passed {{ project.title }}">
+                  <i class="fas fa-check mr-1" aria-hidden="true"></i>
+                  P{{ project.attempt }}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
         </div>
         <div class="text-right font-semibold app-heading">{{ enrollment.total_score }}</div>
       </div>

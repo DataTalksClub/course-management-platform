@@ -28,6 +28,7 @@ from courses.models import (
     Enrollment,
     Project,
     ProjectSubmission,
+    ProjectVote,
     ProjectState,
     User,
     PeerReview,
@@ -179,6 +180,22 @@ def add_course_homepage_info(course: Course, now) -> None:
     ) = current_assignment_info(course, now)
 
 
+def mark_enrolled_courses(courses, user) -> None:
+    if not user.is_authenticated:
+        return
+
+    course_ids = [course.id for course in courses]
+    enrolled_course_ids = set(
+        Enrollment.objects.filter(
+            student=user,
+            course_id__in=course_ids,
+        ).values_list("course_id", flat=True)
+    )
+
+    for course in courses:
+        course.is_enrolled = course.id in enrolled_course_ids
+
+
 def course_list(request):
     now = timezone.now()
     courses = (
@@ -204,6 +221,8 @@ def course_list(request):
             archive_courses_by_year[course.home_year].append(course)
         else:
             active_courses.append(course)
+
+    mark_enrolled_courses(courses, request.user)
 
     featured_course = None
     for course in active_courses:
@@ -605,9 +624,23 @@ def leaderboard_view(request, course_slug: str):
 
     def build_leaderboard_data():
         logger.info(f"Cache miss for leaderboard of course {course.slug}")
+        completed_project_submissions = Prefetch(
+            "projectsubmission_set",
+            queryset=ProjectSubmission.objects.filter(
+                project__state=ProjectState.COMPLETED.value,
+                volunteer_review_only=False,
+            )
+            .select_related("project")
+            .order_by("project__id"),
+            to_attr="completed_project_submissions",
+        )
         enrollments = list(
-            Enrollment.objects.filter(course=course)
+            Enrollment.objects.filter(
+                course=course,
+                display_on_leaderboard=True,
+            )
             .select_related('student')
+            .prefetch_related(completed_project_submissions)
             .order_by(
                 Coalesce("position_on_leaderboard", Value(999999)),
                 "id",
@@ -620,6 +653,18 @@ def leaderboard_view(request, course_slug: str):
                 'display_name': e.display_name,
                 'total_score': e.total_score,
                 'position_on_leaderboard': e.position_on_leaderboard,
+                'passed_projects': [
+                    {
+                        "title": sub.project.title,
+                        "slug": sub.project.slug,
+                        "attempt": index,
+                    }
+                    for index, sub in enumerate(
+                        e.completed_project_submissions,
+                        1,
+                    )
+                    if sub.passed
+                ],
             }
             for e in enrollments
         ]
@@ -636,6 +681,7 @@ def leaderboard_view(request, course_slug: str):
         logger.info(f"Cache hit for leaderboard of course {course.slug}")
         if (
             current_student_enrollment_id is not None
+            and current_student_enrollment.display_on_leaderboard
             and not any(
                 enrollment["id"] == current_student_enrollment_id
                 for enrollment in enrollments_data
@@ -648,7 +694,10 @@ def leaderboard_view(request, course_slug: str):
     enrollments_page = page_obj.object_list
 
     current_student_page_number = None
-    if current_student_enrollment_id is not None:
+    if (
+        current_student_enrollment_id is not None
+        and current_student_enrollment.display_on_leaderboard
+    ):
         for index, enrollment in enumerate(enrollments_data):
             if enrollment["id"] == current_student_enrollment_id:
                 current_student_page_number = (
@@ -668,6 +717,12 @@ def leaderboard_view(request, course_slug: str):
     }
 
     return render(request, "courses/leaderboard.html", context)
+
+
+def invalidate_leaderboard_cache(course_id: int) -> None:
+    cache.delete(f"leaderboard:{course_id}")
+    version_key = f"leaderboard_cache_version:{course_id}"
+    cache.set(version_key, cache.get(version_key, 1) + 1, None)
 
 
 def leaderboard_score_breakdown_view(
@@ -693,7 +748,8 @@ def leaderboard_score_breakdown_view(
     ).order_by(state_order, "homework__id")
 
     project_submissions = ProjectSubmission.objects.filter(
-        enrollment=enrollment
+        enrollment=enrollment,
+        volunteer_review_only=False,
     ).order_by("project__id")
 
     is_own_record = (
@@ -772,7 +828,15 @@ def enrollment_view(request, course_slug):
             user=request.user,
         )
         if form.is_valid():
+            previous_display_on_leaderboard = (
+                enrollment.display_on_leaderboard
+            )
             form.save()
+            if (
+                previous_display_on_leaderboard
+                != form.instance.display_on_leaderboard
+            ):
+                invalidate_leaderboard_cache(course.id)
             return redirect("course", course_slug=course_slug)
         else:
             context = {
@@ -803,7 +867,10 @@ def list_all_project_submissions_view(request, course_slug: str):
     )
 
     submissions = (
-        ProjectSubmission.objects.filter(project__course=course)
+        ProjectSubmission.objects.filter(
+            project__course=course,
+            volunteer_review_only=False,
+        )
         .select_related("project", "enrollment")
         .annotate(
             display_score=Case(
@@ -834,6 +901,71 @@ def list_all_project_submissions_view(request, course_slug: str):
     }
 
     return render(request, "projects/list_all.html", context)
+
+
+def project_voting_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+
+    if request.method == "POST":
+        if not request.user.is_authenticated:
+            return redirect("login")
+
+        submission_id = request.POST.get("submission_id")
+        action = request.POST.get("action", "vote")
+        submission = get_object_or_404(
+            ProjectSubmission.objects.select_related("project"),
+            id=submission_id,
+            project__course=course,
+        )
+
+        if action == "remove":
+            ProjectVote.objects.filter(
+                submission=submission,
+                voter=request.user,
+            ).delete()
+        else:
+            ProjectVote.objects.get_or_create(
+                submission=submission,
+                voter=request.user,
+            )
+
+        return redirect("project_voting", course_slug=course.slug)
+
+    submissions = (
+        ProjectSubmission.objects.filter(
+            project__course=course,
+            volunteer_review_only=False,
+        )
+        .select_related("project", "enrollment")
+        .annotate(vote_count=Count("votes"))
+        .order_by("-vote_count", "project__id", "submitted_at")
+    )
+
+    voted_submission_ids = set()
+    if request.user.is_authenticated:
+        voted_submission_ids = set(
+            ProjectVote.objects.filter(
+                voter=request.user,
+                submission__project__course=course,
+            ).values_list("submission_id", flat=True)
+        )
+
+    submissions_page = Paginator(
+        submissions,
+        PROJECT_SUBMISSIONS_PAGE_SIZE,
+    ).get_page(request.GET.get("page"))
+
+    context = {
+        "course": course,
+        "submissions": submissions_page.object_list,
+        "submissions_page": submissions_page,
+        "page_range": submissions_page.paginator.get_elided_page_range(
+            submissions_page.number
+        ),
+        "voted_submission_ids": voted_submission_ids,
+    }
+
+    return render(request, "projects/voting.html", context)
 
 
 def dashboard_view(request, course_slug: str):

@@ -3,6 +3,7 @@ from enum import Enum
 from django.db import models
 from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from .course import Course, Enrollment
 from courses.validators import validate_url_200
@@ -192,7 +193,7 @@ class Submission(models.Model):
         help_text="Pull request or issue URL for the FAQ contribution",
     )
 
-    submitted_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(default=timezone.now)
 
     questions_score = models.IntegerField(default=0)
     faq_score = models.IntegerField(default=0)
