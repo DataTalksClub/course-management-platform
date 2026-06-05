@@ -124,7 +124,12 @@ Update
 {% endif %}
 </form>
 {% if review.state == 'SU' and review.submitted_at %}
-<p class="mt-4 text-sm app-muted">Last submission at: {{ review.submitted_at|date:"F d, Y H:i" }}</p>
+<p class="mt-4 text-sm app-muted">
+Last submission at:
+<span class="local-date"
+      data-timestamp="{{ review.submitted_at|date:'U' }}"
+      data-show-timezone="true">{{ review.submitted_at|date:"F d, Y H:i" }}</span>
+</p>
 {% endif %}
 <script src="{% static 'learning_in_public.js' %}"></script>
 <script src="{% static 'homework.js' %}"></script>

@@ -360,7 +360,10 @@
             <div class="mt-6">
                 <div class="text-sm app-muted">
                     {% if submission %}
-                        Status: Last saved at {{ submission.submitted_at|date:"F d, Y H:i" }}
+                        Status: Last saved at
+                        <span class="local-date"
+                              data-timestamp="{{ submission.submitted_at|date:'U' }}"
+                              data-show-timezone="true">{{ submission.submitted_at|date:"F d, Y H:i" }}</span>
                     {% else %}
                         Status: Not saved yet
                     {% endif %}
