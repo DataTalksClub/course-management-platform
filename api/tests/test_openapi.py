@@ -54,6 +54,49 @@ class OpenAPITestCase(TestCase):
         self.assertEqual(coverage["documented_without_route"], [])
         self.assertEqual(routed_paths(), set(spec["paths"]))
 
+    def test_schema_uses_inspected_route_and_view_metadata(self):
+        spec = build_openapi_spec()
+        operation = spec["paths"][
+            "/api/courses/{course_slug}/homeworks/{homework_id}/"
+        ]["get"]
+
+        self.assertEqual(operation["security"], [{"TokenAuth": []}])
+        self.assertIn("401", operation["responses"])
+        self.assertEqual(
+            operation["parameters"],
+            [
+                {
+                    "name": "course_slug",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "string"},
+                },
+                {
+                    "name": "homework_id",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "integer"},
+                },
+            ],
+        )
+
+    def test_model_enums_are_generated_from_objects(self):
+        spec = build_openapi_spec()
+        schemas = spec["components"]["schemas"]
+
+        self.assertEqual(
+            schemas["HomeworkState"]["enum"],
+            ["CL", "OP", "SC"],
+        )
+        self.assertEqual(
+            schemas["ProjectState"]["enum"],
+            ["CL", "CS", "PR", "CO"],
+        )
+        self.assertEqual(
+            schemas["AnswerType"]["enum"],
+            ["ANY", "FLT", "INT", "EXS", "CTS", None],
+        )
+
     def test_data_routes_are_documented(self):
         spec = build_openapi_spec()
 

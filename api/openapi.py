@@ -1,9 +1,14 @@
 from copy import deepcopy
 
 from django.conf import settings
+from django.db import models
 from django.http import JsonResponse
+from django.urls import reverse
 
 from accounts.auth import token_required
+from courses.models import Course, Homework, Project, Question
+from courses.models.homework import AnswerTypes, HomeworkState
+from courses.models.project import ProjectState
 
 
 JSON = {"type": "object", "additionalProperties": True}
@@ -42,13 +47,75 @@ def request_body(schema, required=True):
     }
 
 
-def path_param(name, schema_type="string"):
-    return {
-        "name": name,
-        "in": "path",
-        "required": True,
-        "schema": {"type": schema_type},
+def enum_schema(enum_class, *, nullable=False, description=None):
+    values = [item.value for item in enum_class]
+    schema_type = "string"
+    if nullable:
+        values.append(None)
+        schema_type = ["string", "null"]
+
+    schema = {
+        "type": schema_type,
+        "enum": values,
     }
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def choices_schema(choices, *, nullable=False):
+    values = [value for value, _label in choices]
+    schema_type = "string"
+    if nullable:
+        values.append(None)
+        schema_type = ["string", "null"]
+    return {"type": schema_type, "enum": values}
+
+
+def model_field_schema(field):
+    if field.choices:
+        return choices_schema(field.choices, nullable=field.null)
+
+    if isinstance(field, models.BooleanField):
+        schema = {"type": "boolean"}
+    elif isinstance(field, models.IntegerField):
+        schema = {"type": "integer"}
+    elif isinstance(field, models.FloatField):
+        schema = {"type": "number"}
+    elif isinstance(field, models.DateTimeField):
+        schema = {"type": "string", "format": "date-time"}
+    elif isinstance(field, models.DateField):
+        schema = {"type": "string", "format": "date"}
+    elif isinstance(field, models.URLField):
+        schema = {"type": "string", "format": "uri"}
+    else:
+        schema = {"type": "string"}
+
+    if field.null:
+        schema["nullable"] = True
+
+    return schema
+
+
+def model_properties(model, fields):
+    return {
+        field_name: model_field_schema(model._meta.get_field(field_name))
+        for field_name in fields
+    }
+
+
+def model_object_schema(model, fields, *, required=None, extra_properties=None):
+    properties = model_properties(model, fields)
+    if extra_properties:
+        properties.update(extra_properties)
+
+    schema = {
+        "type": "object",
+        "properties": properties,
+    }
+    if required:
+        schema["required"] = required
+    return schema
 
 
 def auth_required(operation):
@@ -69,7 +136,7 @@ def operation(
     *,
     parameters=None,
     body=None,
-    requires_auth=True,
+    requires_auth=None,
     description=None,
 ):
     result = {
@@ -85,29 +152,9 @@ def operation(
         result["parameters"] = parameters
     if body:
         result["requestBody"] = body
-    if requires_auth:
+    if requires_auth is True:
         result = auth_required(result)
     return result
-
-
-COURSE_SLUG = path_param("course_slug")
-HOMEWORK_SLUG = path_param("homework_slug")
-HOMEWORK_ID = path_param("homework_id", "integer")
-PROJECT_SLUG = path_param("project_slug")
-PROJECT_ID = path_param("project_id", "integer")
-QUESTION_ID = path_param("question_id", "integer")
-
-
-def route_to_openapi_path(route):
-    return (
-        "/api/"
-        + route.replace("<slug:course_slug>", "{course_slug}")
-        .replace("<slug:homework_slug>", "{homework_slug}")
-        .replace("<int:homework_id>", "{homework_id}")
-        .replace("<slug:project_slug>", "{project_slug}")
-        .replace("<int:project_id>", "{project_id}")
-        .replace("<int:question_id>", "{question_id}")
-    )
 
 
 def documented_urlpatterns():
@@ -117,9 +164,90 @@ def documented_urlpatterns():
     return [*api_urlpatterns, *data_urlpatterns]
 
 
+def _sample_url_value(name, converter, index):
+    if converter.regex == "[0-9]+":
+        return 100000 + index
+    return f"openapi-{name.replace('_', '-')}"
+
+
+def _reverse_kwargs(pattern):
+    return {
+        name: _sample_url_value(name, converter, index)
+        for index, (name, converter) in enumerate(
+            pattern.pattern.converters.items(),
+            start=1,
+        )
+    }
+
+
+def openapi_path_for_url_name(url_name):
+    pattern = next(
+        pattern
+        for pattern in documented_urlpatterns()
+        if pattern.name == url_name
+    )
+    kwargs = _reverse_kwargs(pattern)
+    path = reverse(url_name, kwargs=kwargs)
+
+    for name, value in kwargs.items():
+        path = path.replace(str(value), f"{{{name}}}", 1)
+
+    return path
+
+
+def pattern_for_url_name(url_name):
+    return next(
+        pattern
+        for pattern in documented_urlpatterns()
+        if pattern.name == url_name
+    )
+
+
+def view_for_url_name(url_name):
+    return pattern_for_url_name(url_name).callback
+
+
+def parameter_schema_for_converter(converter):
+    if converter.regex == "[0-9]+":
+        return {"type": "integer"}
+    return {"type": "string"}
+
+
+def path_parameters_for_url_name(url_name):
+    pattern = pattern_for_url_name(url_name)
+    return [
+        {
+            "name": name,
+            "in": "path",
+            "required": True,
+            "schema": parameter_schema_for_converter(converter),
+        }
+        for name, converter in pattern.pattern.converters.items()
+    ]
+
+
+def apply_inspected_operation_metadata(url_name, operation):
+    result = deepcopy(operation)
+
+    generated_parameters = path_parameters_for_url_name(url_name)
+    explicit_parameters = [
+        parameter
+        for parameter in result.get("parameters", [])
+        if parameter.get("in") != "path"
+    ]
+    if generated_parameters or explicit_parameters:
+        result["parameters"] = [*generated_parameters, *explicit_parameters]
+
+    view = view_for_url_name(url_name)
+    if getattr(view, "requires_token_auth", False):
+        result = auth_required(result)
+
+    return result
+
+
 def routed_paths():
     return {
-        route_to_openapi_path(pattern.pattern._route)
+        openapi_path_for_url_name(pattern.name)
         for pattern in documented_urlpatterns()
         if pattern.name != "api_openapi_json"
     }
@@ -142,6 +270,16 @@ def route_coverage(paths):
         "documented_count": len(documented),
         "undocumented": sorted(routed - documented),
         "documented_without_route": sorted(documented - routed),
+    }
+
+
+def build_openapi_paths():
+    return {
+        openapi_path_for_url_name(url_name): {
+            method: apply_inspected_operation_metadata(url_name, operation)
+            for method, operation in methods.items()
+        }
+        for url_name, methods in PATHS_BY_URL_NAME.items()
     }
 
 
@@ -168,146 +306,113 @@ SCHEMAS = {
             "version": {"type": "string"},
         },
     },
-    "CourseSummary": {
-        "type": "object",
-        "required": ["slug", "title", "description", "finished"],
-        "properties": {
-            "slug": {"type": "string"},
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "start_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "end_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "registration_url": {"type": "string", "format": "uri"},
-            "github_repo_url": {"type": "string", "format": "uri"},
-            "finished": {"type": "boolean"},
-            "visible": {"type": "boolean"},
-        },
-    },
+    "CourseSummary": model_object_schema(
+        Course,
+        [
+            "slug",
+            "title",
+            "description",
+            "start_date",
+            "end_date",
+            "registration_url",
+            "github_repo_url",
+            "finished",
+            "visible",
+        ],
+        required=["slug", "title", "description", "finished"],
+    ),
     "CoursesList": {
         "type": "object",
         "required": ["courses"],
         "properties": {"courses": array_of(ref("CourseSummary"))},
     },
-    "CourseCreate": {
-        "type": "object",
-        "required": ["slug", "title"],
-        "properties": {
-            "slug": {"type": "string"},
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "start_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "end_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "registration_url": {"type": "string", "format": "uri"},
-            "github_repo_url": {"type": "string", "format": "uri"},
-            "social_media_hashtag": {"type": "string"},
-            "faq_document_url": {"type": "string"},
-            "min_projects_to_pass": {"type": "integer"},
-            "homework_problems_comments_field": {"type": "boolean"},
-            "project_passing_score": {"type": "integer"},
-            "finished": {"type": "boolean"},
-            "visible": {"type": "boolean"},
-        },
-    },
+    "CourseCreate": model_object_schema(
+        Course,
+        [
+            "slug",
+            "title",
+            "description",
+            "start_date",
+            "end_date",
+            "registration_url",
+            "github_repo_url",
+            "social_media_hashtag",
+            "faq_document_url",
+            "min_projects_to_pass",
+            "homework_problems_comments_field",
+            "project_passing_score",
+            "finished",
+            "visible",
+        ],
+        required=["slug", "title"],
+    ),
     "CoursePatch": {
         "type": "object",
         "additionalProperties": False,
-        "properties": {
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "start_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "end_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "registration_url": {"type": "string", "format": "uri"},
-            "github_repo_url": {"type": "string", "format": "uri"},
-            "social_media_hashtag": {"type": "string"},
-            "faq_document_url": {"type": "string"},
-            "min_projects_to_pass": {"type": "integer"},
-            "homework_problems_comments_field": {"type": "boolean"},
-            "project_passing_score": {"type": "integer"},
-            "finished": {"type": "boolean"},
-            "visible": {"type": "boolean"},
-        },
+        "properties": model_properties(
+            Course,
+            [
+                "title",
+                "description",
+                "start_date",
+                "end_date",
+                "registration_url",
+                "github_repo_url",
+                "social_media_hashtag",
+                "faq_document_url",
+                "min_projects_to_pass",
+                "homework_problems_comments_field",
+                "project_passing_score",
+                "finished",
+                "visible",
+            ],
+        ),
     },
-    "CourseDetail": {
-        "type": "object",
-        "properties": {
-            "slug": {"type": "string"},
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "start_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "end_date": {
-                "type": "string",
-                "format": "date",
-                "nullable": True,
-            },
-            "registration_url": {"type": "string", "format": "uri"},
-            "github_repo_url": {"type": "string", "format": "uri"},
-            "finished": {"type": "boolean"},
-            "visible": {"type": "boolean"},
-            "social_media_hashtag": {"type": "string"},
-            "faq_document_url": {"type": "string"},
-            "min_projects_to_pass": {"type": "integer"},
-            "homework_problems_comments_field": {"type": "boolean"},
-            "project_passing_score": {"type": "integer"},
+    "CourseDetail": model_object_schema(
+        Course,
+        [
+            "slug",
+            "title",
+            "description",
+            "start_date",
+            "end_date",
+            "registration_url",
+            "github_repo_url",
+            "finished",
+            "visible",
+            "social_media_hashtag",
+            "faq_document_url",
+            "min_projects_to_pass",
+            "homework_problems_comments_field",
+            "project_passing_score",
+        ],
+        extra_properties={
             "homeworks": array_of(ref("HomeworkSummary")),
             "projects": array_of(ref("ProjectSummary")),
         },
-    },
-    "HomeworkSummary": {
-        "type": "object",
-        "properties": {
-            "id": {"type": "integer"},
-            "slug": {"type": "string"},
-            "title": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri", "nullable": True},
-            "due_date": {"type": "string", "format": "date-time"},
-            "state": {"$ref": "#/components/schemas/HomeworkState"},
-        },
-    },
+    ),
+    "HomeworkSummary": model_object_schema(
+        Homework,
+        ["id", "slug", "title", "instructions_url", "due_date", "state"],
+    ),
     "Homework": {
         "allOf": [
             ref("HomeworkSummary"),
             {
                 "type": "object",
                 "properties": {
-                    "description": {"type": "string"},
-                    "instructions_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": True,
-                    },
-                    "learning_in_public_cap": {"type": "integer"},
-                    "homework_url_field": {"type": "boolean"},
-                    "time_spent_lectures_field": {"type": "boolean"},
-                    "time_spent_homework_field": {"type": "boolean"},
-                    "faq_contribution_field": {"type": "boolean"},
+                    **model_properties(
+                        Homework,
+                        [
+                            "description",
+                            "instructions_url",
+                            "learning_in_public_cap",
+                            "homework_url_field",
+                            "time_spent_lectures_field",
+                            "time_spent_homework_field",
+                            "faq_contribution_field",
+                        ],
+                    ),
                     "questions_count": {"type": "integer"},
                     "submissions_count": {"type": "integer"},
                     "can_delete": {"type": "boolean"},
@@ -327,9 +432,10 @@ SCHEMAS = {
         "properties": {
             "name": {"type": "string"},
             "slug": {"type": "string"},
-            "due_date": {"type": "string", "format": "date-time"},
-            "description": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri"},
+            **model_properties(
+                Homework,
+                ["due_date", "description", "instructions_url"],
+            ),
             "questions": array_of(ref("QuestionCreateInline")),
         },
     },
@@ -341,15 +447,21 @@ SCHEMAS = {
         "properties": {
             "name": {"type": "string"},
             "title": {"type": "string"},
-            "due_date": {"type": "string", "format": "date-time"},
-            "description": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri"},
+            **model_properties(
+                Homework,
+                ["due_date", "description", "instructions_url"],
+            ),
             "state": ref("HomeworkState"),
-            "learning_in_public_cap": {"type": "integer"},
-            "homework_url_field": {"type": "boolean"},
-            "time_spent_lectures_field": {"type": "boolean"},
-            "time_spent_homework_field": {"type": "boolean"},
-            "faq_contribution_field": {"type": "boolean"},
+            **model_properties(
+                Homework,
+                [
+                    "learning_in_public_cap",
+                    "homework_url_field",
+                    "time_spent_lectures_field",
+                    "time_spent_homework_field",
+                    "faq_contribution_field",
+                ],
+            ),
             "questions": array_of(ref("QuestionCreateInline")),
         },
         "description": (
@@ -371,49 +483,55 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri"},
-            "due_date": {"type": "string", "format": "date-time"},
+            **model_properties(
+                Homework,
+                ["title", "description", "instructions_url", "due_date"],
+            ),
             "state": ref("HomeworkState"),
-            "learning_in_public_cap": {"type": "integer"},
-            "homework_url_field": {"type": "boolean"},
-            "time_spent_lectures_field": {"type": "boolean"},
-            "time_spent_homework_field": {"type": "boolean"},
-            "faq_contribution_field": {"type": "boolean"},
+            **model_properties(
+                Homework,
+                [
+                    "learning_in_public_cap",
+                    "homework_url_field",
+                    "time_spent_lectures_field",
+                    "time_spent_homework_field",
+                    "faq_contribution_field",
+                ],
+            ),
         },
     },
-    "ProjectSummary": {
-        "type": "object",
-        "properties": {
-            "id": {"type": "integer"},
-            "slug": {"type": "string"},
-            "title": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri", "nullable": True},
-            "submission_due_date": {"type": "string", "format": "date-time"},
-            "peer_review_due_date": {"type": "string", "format": "date-time"},
-            "state": {"$ref": "#/components/schemas/ProjectState"},
-        },
-    },
+    "ProjectSummary": model_object_schema(
+        Project,
+        [
+            "id",
+            "slug",
+            "title",
+            "instructions_url",
+            "submission_due_date",
+            "peer_review_due_date",
+            "state",
+        ],
+    ),
     "Project": {
         "allOf": [
             ref("ProjectSummary"),
             {
                 "type": "object",
                 "properties": {
-                    "description": {"type": "string"},
-                    "instructions_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": True,
-                    },
-                    "learning_in_public_cap_project": {"type": "integer"},
-                    "learning_in_public_cap_review": {"type": "integer"},
-                    "number_of_peers_to_evaluate": {"type": "integer"},
-                    "points_for_peer_review": {"type": "integer"},
-                    "time_spent_project_field": {"type": "boolean"},
-                    "problems_comments_field": {"type": "boolean"},
-                    "faq_contribution_field": {"type": "boolean"},
+                    **model_properties(
+                        Project,
+                        [
+                            "description",
+                            "instructions_url",
+                            "learning_in_public_cap_project",
+                            "learning_in_public_cap_review",
+                            "number_of_peers_to_evaluate",
+                            "points_for_peer_review",
+                            "time_spent_project_field",
+                            "problems_comments_field",
+                            "faq_contribution_field",
+                        ],
+                    ),
                     "submissions_count": {"type": "integer"},
                     "can_delete": {"type": "boolean"},
                     "delete_blockers": array_of({"type": "string"}),
@@ -436,16 +554,15 @@ SCHEMAS = {
         "properties": {
             "name": {"type": "string"},
             "slug": {"type": "string"},
-            "submission_due_date": {
-                "type": "string",
-                "format": "date-time",
-            },
-            "peer_review_due_date": {
-                "type": "string",
-                "format": "date-time",
-            },
-            "description": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri"},
+            **model_properties(
+                Project,
+                [
+                    "submission_due_date",
+                    "peer_review_due_date",
+                    "description",
+                    "instructions_url",
+                ],
+            ),
         },
     },
     "ProjectCreateRequest": {
@@ -456,24 +573,28 @@ SCHEMAS = {
         "properties": {
             "name": {"type": "string"},
             "title": {"type": "string"},
-            "submission_due_date": {
-                "type": "string",
-                "format": "date-time",
-            },
-            "peer_review_due_date": {
-                "type": "string",
-                "format": "date-time",
-            },
-            "description": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri"},
+            **model_properties(
+                Project,
+                [
+                    "submission_due_date",
+                    "peer_review_due_date",
+                    "description",
+                    "instructions_url",
+                ],
+            ),
             "state": ref("ProjectState"),
-            "learning_in_public_cap_project": {"type": "integer"},
-            "learning_in_public_cap_review": {"type": "integer"},
-            "number_of_peers_to_evaluate": {"type": "integer"},
-            "points_for_peer_review": {"type": "integer"},
-            "time_spent_project_field": {"type": "boolean"},
-            "problems_comments_field": {"type": "boolean"},
-            "faq_contribution_field": {"type": "boolean"},
+            **model_properties(
+                Project,
+                [
+                    "learning_in_public_cap_project",
+                    "learning_in_public_cap_review",
+                    "number_of_peers_to_evaluate",
+                    "points_for_peer_review",
+                    "time_spent_project_field",
+                    "problems_comments_field",
+                    "faq_contribution_field",
+                ],
+            ),
         },
         "description": (
             "Idempotent project payload. Creating requires name/title, "
@@ -492,37 +613,42 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "instructions_url": {"type": "string", "format": "uri"},
-            "submission_due_date": {
-                "type": "string",
-                "format": "date-time",
-            },
-            "peer_review_due_date": {
-                "type": "string",
-                "format": "date-time",
-            },
+            **model_properties(
+                Project,
+                [
+                    "title",
+                    "description",
+                    "instructions_url",
+                    "submission_due_date",
+                    "peer_review_due_date",
+                ],
+            ),
             "state": ref("ProjectState"),
-            "learning_in_public_cap_project": {"type": "integer"},
-            "learning_in_public_cap_review": {"type": "integer"},
-            "number_of_peers_to_evaluate": {"type": "integer"},
-            "points_for_peer_review": {"type": "integer"},
-            "time_spent_project_field": {"type": "boolean"},
-            "problems_comments_field": {"type": "boolean"},
-            "faq_contribution_field": {"type": "boolean"},
+            **model_properties(
+                Project,
+                [
+                    "learning_in_public_cap_project",
+                    "learning_in_public_cap_review",
+                    "number_of_peers_to_evaluate",
+                    "points_for_peer_review",
+                    "time_spent_project_field",
+                    "problems_comments_field",
+                    "faq_contribution_field",
+                ],
+            ),
         },
     },
     "Question": {
         "type": "object",
         "properties": {
-            "id": {"type": "integer"},
-            "text": {"type": "string"},
+            **model_properties(Question, ["id", "text"]),
             "question_type": ref("QuestionType"),
             "answer_type": ref("AnswerType"),
             "possible_answers": array_of({"type": "string"}),
-            "correct_answer": {"type": "string"},
-            "scores_for_correct_answer": {"type": "integer"},
+            **model_properties(
+                Question,
+                ["correct_answer", "scores_for_correct_answer"],
+            ),
             "answers_count": {"type": "integer"},
             "can_delete": {"type": "boolean"},
             "delete_blockers": array_of({"type": "string"}),
@@ -541,12 +667,14 @@ SCHEMAS = {
         "type": "object",
         "required": ["text"],
         "properties": {
-            "text": {"type": "string"},
+            **model_properties(Question, ["text"]),
             "question_type": ref("QuestionType"),
             "answer_type": ref("AnswerType"),
             "possible_answers": array_of({"type": "string"}),
-            "correct_answer": {"type": "string"},
-            "scores_for_correct_answer": {"type": "integer"},
+            **model_properties(
+                Question,
+                ["correct_answer", "scores_for_correct_answer"],
+            ),
         },
     },
     "QuestionCreateInline": {
@@ -571,35 +699,29 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "text": {"type": "string"},
+            **model_properties(Question, ["text"]),
             "question_type": ref("QuestionType"),
             "answer_type": ref("AnswerType"),
             "possible_answers": array_of({"type": "string"}),
-            "correct_answer": {"type": "string"},
-            "scores_for_correct_answer": {"type": "integer"},
+            **model_properties(
+                Question,
+                ["correct_answer", "scores_for_correct_answer"],
+            ),
         },
     },
-    "HomeworkState": {
-        "type": "string",
-        "enum": ["CL", "OP", "SC"],
-        "description": "CL=closed, OP=open, SC=scored",
-    },
-    "ProjectState": {
-        "type": "string",
-        "enum": ["CL", "CS", "PR", "CO"],
-        "description": (
+    "HomeworkState": enum_schema(
+        HomeworkState,
+        description="CL=closed, OP=open, SC=scored",
+    ),
+    "ProjectState": enum_schema(
+        ProjectState,
+        description=(
             "CL=closed, CS=collecting submissions, PR=peer reviewing, "
             "CO=completed"
         ),
-    },
-    "QuestionType": {
-        "type": "string",
-        "enum": ["MC", "FF", "FL", "CB"],
-    },
-    "AnswerType": {
-        "type": ["string", "null"],
-        "enum": ["ANY", "FLT", "INT", "EXS", "CTS", None],
-    },
+    ),
+    "QuestionType": choices_schema(Question.QUESTION_TYPES),
+    "AnswerType": enum_schema(AnswerTypes, nullable=True),
     "Graduates": {
         "type": "object",
         "required": ["graduates"],
@@ -668,8 +790,8 @@ SCHEMAS = {
 }
 
 
-PATHS = {
-    "/api/health/": {
+PATHS_BY_URL_NAME = {
+    "api_health": {
         "get": operation(
             "api_health",
             ["System"],
@@ -678,7 +800,7 @@ PATHS = {
             requires_auth=False,
         ),
     },
-    "/api/courses/{course_slug}/course-criteria.yaml": {
+    "api_course_criteria_yaml": {
         "get": operation(
             "api_course_criteria_yaml",
             ["Course Data"],
@@ -690,11 +812,10 @@ PATHS = {
                 ),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
             requires_auth=False,
         ),
     },
-    "/api/courses/{course_slug}/leaderboard.yaml": {
+    "api_course_leaderboard": {
         "get": operation(
             "api_course_leaderboard",
             ["Course Data"],
@@ -706,11 +827,10 @@ PATHS = {
                 ),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
             requires_auth=False,
         ),
     },
-    "/api/courses/{course_slug}/homeworks/{homework_slug}/submissions": {
+    "api_homework_submissions_export": {
         "get": operation(
             "api_homework_submissions_export",
             ["Course Data"],
@@ -719,10 +839,9 @@ PATHS = {
                 "200": response("Homework submissions export", JSON),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_SLUG],
         ),
     },
-    "/api/courses/{course_slug}/projects/{project_slug}/submissions": {
+    "api_project_submissions_export": {
         "get": operation(
             "api_project_submissions_export",
             ["Course Data"],
@@ -731,10 +850,9 @@ PATHS = {
                 "200": response("Project submissions export", JSON),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_SLUG],
         ),
     },
-    "/api/courses/{course_slug}/graduates": {
+    "api_course_graduates": {
         "get": operation(
             "api_course_graduates",
             ["Course Data"],
@@ -743,10 +861,9 @@ PATHS = {
                 "200": response("Course graduates", ref("Graduates")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
         ),
     },
-    "/api/courses/{course_slug}/certificates": {
+    "api_course_certificates": {
         "post": operation(
             "api_course_certificates",
             ["Course Data"],
@@ -759,7 +876,6 @@ PATHS = {
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
             body=request_body(ref("CertificateUpdateRequest")),
             description=(
                 "Updates many enrollment certificate URLs in one request. "
@@ -768,7 +884,7 @@ PATHS = {
             ),
         ),
     },
-    "/api/courses/": {
+    "api_courses_list": {
         "get": operation(
             "api_courses_list",
             ["Courses"],
@@ -786,7 +902,7 @@ PATHS = {
             body=request_body(ref("CourseCreate")),
         ),
     },
-    "/api/courses/{course_slug}/": {
+    "api_course_detail": {
         "get": operation(
             "api_course_detail",
             ["Courses"],
@@ -795,7 +911,6 @@ PATHS = {
                 "200": response("Course details", ref("CourseDetail")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
         ),
         "patch": operation(
             "api_course_detail",
@@ -806,17 +921,15 @@ PATHS = {
                 "400": response("Invalid field", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
             body=request_body(ref("CoursePatch")),
         ),
     },
-    "/api/courses/{course_slug}/homeworks/": {
+    "api_homeworks": {
         "get": operation(
             "api_homeworks",
             ["Homeworks"],
             "List homeworks",
             {"200": response("Homework list", ref("HomeworksList"))},
-            parameters=[COURSE_SLUG],
         ),
         "post": operation(
             "api_homeworks",
@@ -827,11 +940,10 @@ PATHS = {
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
             body=request_body(ref("HomeworkCreateRequest")),
         ),
     },
-    "/api/courses/{course_slug}/homeworks/{homework_id}/": {
+    "api_homework_detail": {
         "get": operation(
             "api_homework_detail",
             ["Homeworks"],
@@ -840,7 +952,6 @@ PATHS = {
                 "200": response("Homework details", ref("Homework")),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID],
         ),
         "patch": operation(
             "api_homework_detail",
@@ -851,7 +962,6 @@ PATHS = {
                 "400": response("Invalid field, state, or date", ref("Error")),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID],
             body=request_body(ref("HomeworkPatch")),
         ),
         "delete": operation(
@@ -866,14 +976,13 @@ PATHS = {
                 ),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID],
             description=(
                 "Deletes a homework only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
             ),
         ),
     },
-    "/api/courses/{course_slug}/homeworks/by-slug/{homework_slug}/": {
+    "api_homework_detail_by_slug": {
         "get": operation(
             "api_homework_detail_by_slug",
             ["Homeworks"],
@@ -882,7 +991,6 @@ PATHS = {
                 "200": response("Homework details", ref("Homework")),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_SLUG],
         ),
         "patch": operation(
             "api_homework_detail_by_slug",
@@ -893,7 +1001,6 @@ PATHS = {
                 "400": response("Invalid field, state, or date", ref("Error")),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_SLUG],
             body=request_body(ref("HomeworkPatch")),
         ),
         "put": operation(
@@ -906,7 +1013,6 @@ PATHS = {
                 "400": response("Invalid request or replace blocked", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_SLUG],
             body=request_body(ref("HomeworkUpsert")),
             description=(
                 "Idempotently creates or updates a homework using the slug in "
@@ -927,20 +1033,18 @@ PATHS = {
                 ),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_SLUG],
             description=(
                 "Deletes a homework only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
             ),
         ),
     },
-    "/api/courses/{course_slug}/projects/": {
+    "api_projects": {
         "get": operation(
             "api_projects",
             ["Projects"],
             "List projects",
             {"200": response("Project list", ref("ProjectsList"))},
-            parameters=[COURSE_SLUG],
         ),
         "post": operation(
             "api_projects",
@@ -951,11 +1055,10 @@ PATHS = {
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG],
             body=request_body(ref("ProjectCreateRequest")),
         ),
     },
-    "/api/courses/{course_slug}/projects/{project_id}/": {
+    "api_project_detail": {
         "get": operation(
             "api_project_detail",
             ["Projects"],
@@ -964,7 +1067,6 @@ PATHS = {
                 "200": response("Project details", ref("Project")),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_ID],
         ),
         "patch": operation(
             "api_project_detail",
@@ -975,7 +1077,6 @@ PATHS = {
                 "400": response("Invalid field, state, or date", ref("Error")),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_ID],
             body=request_body(ref("ProjectPatch")),
         ),
         "delete": operation(
@@ -990,14 +1091,13 @@ PATHS = {
                 ),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_ID],
             description=(
                 "Deletes a project only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
             ),
         ),
     },
-    "/api/courses/{course_slug}/projects/by-slug/{project_slug}/": {
+    "api_project_detail_by_slug": {
         "get": operation(
             "api_project_detail_by_slug",
             ["Projects"],
@@ -1006,7 +1106,6 @@ PATHS = {
                 "200": response("Project details", ref("Project")),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_SLUG],
         ),
         "patch": operation(
             "api_project_detail_by_slug",
@@ -1017,7 +1116,6 @@ PATHS = {
                 "400": response("Invalid field, state, or date", ref("Error")),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_SLUG],
             body=request_body(ref("ProjectPatch")),
         ),
         "put": operation(
@@ -1030,7 +1128,6 @@ PATHS = {
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_SLUG],
             body=request_body(ref("ProjectUpsert")),
             description=(
                 "Idempotently creates or updates a project using the slug in "
@@ -1049,20 +1146,18 @@ PATHS = {
                 ),
                 "404": response("Course or project not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, PROJECT_SLUG],
             description=(
                 "Deletes a project only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
             ),
         ),
     },
-    "/api/courses/{course_slug}/homeworks/{homework_id}/questions/": {
+    "api_questions": {
         "get": operation(
             "api_questions",
             ["Questions"],
             "List homework questions",
             {"200": response("Question list", ref("QuestionsList"))},
-            parameters=[COURSE_SLUG, HOMEWORK_ID],
         ),
         "post": operation(
             "api_questions",
@@ -1073,11 +1168,10 @@ PATHS = {
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course or homework not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID],
             body=request_body(ref("QuestionCreateRequest")),
         ),
     },
-    "/api/courses/{course_slug}/homeworks/{homework_id}/questions/{question_id}/": {
+    "api_question_detail": {
         "get": operation(
             "api_question_detail",
             ["Questions"],
@@ -1086,7 +1180,6 @@ PATHS = {
                 "200": response("Question details", ref("Question")),
                 "404": response("Question not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID, QUESTION_ID],
         ),
         "patch": operation(
             "api_question_detail",
@@ -1097,7 +1190,6 @@ PATHS = {
                 "400": response("Invalid field", ref("Error")),
                 "404": response("Question not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID, QUESTION_ID],
             body=request_body(ref("QuestionPatch")),
         ),
         "delete": operation(
@@ -1109,7 +1201,6 @@ PATHS = {
                 "400": response("Question has answers", ref("Error")),
                 "404": response("Question not found", ref("Error")),
             },
-            parameters=[COURSE_SLUG, HOMEWORK_ID, QUESTION_ID],
             description=(
                 "Deletes a question only when it has no answers. This "
                 "endpoint never deletes submitted answer data."
@@ -1120,7 +1211,7 @@ PATHS = {
 
 
 def build_openapi_spec():
-    paths = deepcopy(PATHS)
+    paths = build_openapi_paths()
 
     return {
         "openapi": "3.1.0",

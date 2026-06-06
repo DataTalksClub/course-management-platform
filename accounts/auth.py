@@ -154,4 +154,5 @@ def token_required(f):
             return JsonResponse({'error': 'Authentication token required'}, status=401)
 
         return f(request, *args, **kwargs)
+    decorated.requires_token_auth = True
     return decorated

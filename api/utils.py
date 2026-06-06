@@ -29,5 +29,6 @@ def require_methods(*methods):
             if request.method not in methods:
                 return JsonResponse({"error": "Method not allowed"}, status=405)
             return view_func(request, *args, **kwargs)
+        wrapper.api_methods = methods
         return wrapper
     return decorator
