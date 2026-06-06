@@ -305,6 +305,45 @@ def projects_eval_view(request, course_slug, project_slug):
     return render(request, "projects/eval.html", context)
 
 
+def answer_option_indexes(answer: str) -> list[int]:
+    if not answer:
+        return []
+
+    indexes = []
+    for value in answer.split(","):
+        value = value.strip()
+        if value:
+            indexes.append(int(value) - 1)
+    return indexes
+
+
+def annotate_scores_with_option_votes(
+    submission: ProjectSubmission,
+    scores: list[ProjectEvaluationScore],
+) -> None:
+    criteria_ids = [score.review_criteria_id for score in scores]
+    responses = CriteriaResponse.objects.filter(
+        review__submission_under_evaluation=submission,
+        review__state=PeerReviewState.SUBMITTED.value,
+        criteria_id__in=criteria_ids,
+    )
+
+    votes_by_criteria = defaultdict(lambda: defaultdict(int))
+    for response in responses:
+        for option_index in answer_option_indexes(response.answer):
+            votes_by_criteria[response.criteria_id][option_index] += 1
+
+    for score in scores:
+        option_votes = votes_by_criteria[score.review_criteria_id]
+        score.option_vote_counts = [
+            {
+                **option,
+                "votes": option_votes[index],
+            }
+            for index, option in enumerate(score.review_criteria.options)
+        ]
+
+
 def project_results(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
@@ -334,6 +373,7 @@ def project_results(request, course_slug, project_slug):
         .order_by("review_criteria__id")
         .prefetch_related("review_criteria")
     )
+    annotate_scores_with_option_votes(submission, scores)
 
     feedback = list(
         PeerReview.objects.filter(

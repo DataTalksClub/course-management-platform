@@ -461,6 +461,58 @@ class ProjectEvaluationTestCase(TestCase):
         status, _ = score_project(self.project)
         self.assertEqual(status, ProjectActionStatus.FAIL)
 
+    def test_project_results_shows_review_option_vote_counts(self):
+        checkbox_criteria = ReviewCriteria.objects.create(
+            course=self.course,
+            description="Project implementation",
+            options=[
+                {"criteria": "Data cleaning", "score": 1},
+                {"criteria": "Feature engineering", "score": 1},
+                {"criteria": "Model evaluation", "score": 1},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
+        )
+        answers = ["1,3", "2,3", "3"]
+
+        for peer_review, answer in zip(self.peer_reviews, answers):
+            CriteriaResponse.objects.create(
+                review=peer_review,
+                criteria=checkbox_criteria,
+                answer=answer,
+            )
+            peer_review.state = PeerReviewState.SUBMITTED.value
+            peer_review.save()
+
+        status, _ = score_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.OK)
+
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse(
+                "project_results",
+                args=[self.course.slug, self.project.slug],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        score = response.context["scores"][0]
+        option_votes = {
+            option["criteria"]: option["votes"]
+            for option in score.option_vote_counts
+        }
+        self.assertEqual(
+            option_votes,
+            {
+                "Data cleaning": 1,
+                "Feature engineering": 1,
+                "Model evaluation": 3,
+            },
+        )
+        self.assertContains(response, "Data cleaning")
+        self.assertContains(response, "Feature engineering")
+        self.assertContains(response, "Model evaluation")
+        self.assertContains(response, "3 votes")
+
     def test_project_passed_with_optional(self):
         # 3 mandatory peers evaluated
         other_prs = self.create_reverse_assignments(self.peer_reviews)
