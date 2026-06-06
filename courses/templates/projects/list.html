@@ -19,7 +19,7 @@
             <div>
                 <h1 class="text-2xl font-semibold app-heading">Projects for {{ project.title }}</h1>
                 <p class="mt-1 max-w-2xl text-sm app-muted">
-                    Review peer submissions and open repositories for this project.
+                    Review peer submissions, open repositories, and vote for up to {{ project_votes_per_project }} favorites.
                 </p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -65,6 +65,30 @@
                                     {% endif %}
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold">
+                                        {{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}
+                                    </span>
+                                    {% if is_authenticated %}
+                                        <form method="post" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="submission_id" value="{{ submission.id }}">
+                                            {% if submission.id in voted_submission_ids %}
+                                                <input type="hidden" name="action" value="remove">
+                                                <button type="submit" class="primer-button primer-button-secondary">
+                                                    <i class="fas fa-check"></i> Voted
+                                                </button>
+                                            {% else %}
+                                                <button type="submit"
+                                                        class="primer-button"
+                                                        {% if submission.vote_limit_reached or submission.own %}disabled{% endif %}>
+                                                    <i class="fas fa-thumbs-up"></i> Vote
+                                                </button>
+                                                {% if submission.vote_limit_reached %}
+                                                    <span class="text-xs app-muted">Limit reached</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </form>
+                                    {% endif %}
                                     {% if is_authenticated and project.state == 'PR' %}
                                         {% if submission.to_evaluate %}
                                             <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}"

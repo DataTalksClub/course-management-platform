@@ -13,7 +13,7 @@ from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 
-from django.db.models import Prefetch, Value, Count
+from django.db.models import Prefetch, Value, Count, Q
 from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
@@ -28,7 +28,6 @@ from courses.models import (
     Enrollment,
     Project,
     ProjectSubmission,
-    ProjectVote,
     ProjectState,
     User,
     PeerReview,
@@ -862,7 +861,12 @@ def list_all_project_submissions_view(request, course_slug: str):
 
     projects = (
         Project.objects.filter(course=course)
-        .annotate(submissions_count=Count("projectsubmission"))
+        .annotate(
+            submissions_count=Count(
+                "projectsubmission",
+                filter=Q(projectsubmission__volunteer_review_only=False),
+            )
+        )
         .order_by("id")
     )
 
@@ -873,6 +877,7 @@ def list_all_project_submissions_view(request, course_slug: str):
         )
         .select_related("project", "enrollment")
         .annotate(
+            vote_count=Count("votes"),
             display_score=Case(
                 When(
                     project__state=ProjectState.COMPLETED.value,
@@ -882,7 +887,7 @@ def list_all_project_submissions_view(request, course_slug: str):
                 output_field=IntegerField(),
             )
         )
-        .order_by("-display_score", "project__id", "submitted_at")
+        .order_by("-vote_count", "-display_score", "project__id", "submitted_at")
     )
 
     submissions_page = Paginator(
@@ -904,68 +909,7 @@ def list_all_project_submissions_view(request, course_slug: str):
 
 
 def project_voting_view(request, course_slug: str):
-    course = get_object_or_404(Course, slug=course_slug)
-
-    if request.method == "POST":
-        if not request.user.is_authenticated:
-            return redirect("login")
-
-        submission_id = request.POST.get("submission_id")
-        action = request.POST.get("action", "vote")
-        submission = get_object_or_404(
-            ProjectSubmission.objects.select_related("project"),
-            id=submission_id,
-            project__course=course,
-        )
-
-        if action == "remove":
-            ProjectVote.objects.filter(
-                submission=submission,
-                voter=request.user,
-            ).delete()
-        else:
-            ProjectVote.objects.get_or_create(
-                submission=submission,
-                voter=request.user,
-            )
-
-        return redirect("project_voting", course_slug=course.slug)
-
-    submissions = (
-        ProjectSubmission.objects.filter(
-            project__course=course,
-            volunteer_review_only=False,
-        )
-        .select_related("project", "enrollment")
-        .annotate(vote_count=Count("votes"))
-        .order_by("-vote_count", "project__id", "submitted_at")
-    )
-
-    voted_submission_ids = set()
-    if request.user.is_authenticated:
-        voted_submission_ids = set(
-            ProjectVote.objects.filter(
-                voter=request.user,
-                submission__project__course=course,
-            ).values_list("submission_id", flat=True)
-        )
-
-    submissions_page = Paginator(
-        submissions,
-        PROJECT_SUBMISSIONS_PAGE_SIZE,
-    ).get_page(request.GET.get("page"))
-
-    context = {
-        "course": course,
-        "submissions": submissions_page.object_list,
-        "submissions_page": submissions_page,
-        "page_range": submissions_page.paginator.get_elided_page_range(
-            submissions_page.number
-        ),
-        "voted_submission_ids": voted_submission_ids,
-    }
-
-    return render(request, "projects/voting.html", context)
+    return redirect("list_all_project_submissions", course_slug=course_slug)
 
 
 def dashboard_view(request, course_slug: str):

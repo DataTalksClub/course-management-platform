@@ -16,7 +16,7 @@
             <div>
                 <h1 class="text-2xl font-semibold app-heading md:text-3xl">All Project Submissions</h1>
                 <p class="mt-1 max-w-2xl text-sm app-muted">
-                    Browse submitted project repositories across this course.
+                    Browse submitted project repositories and see which projects the community is highlighting.
                 </p>
             </div>
             <a href="{% url 'course' course.slug %}" class="primer-button primer-button-secondary w-fit">Back to Course</a>
@@ -26,6 +26,7 @@
     <section class="mt-6 rounded-md border app-border app-surface-muted px-4 py-3">
         <p class="text-xs font-semibold uppercase app-muted">Total submissions</p>
         <p class="mt-1 text-2xl font-semibold app-heading">{{ submissions_page.paginator.count }}</p>
+        <p class="mt-1 text-xs app-muted">Vote on each individual project submissions page.</p>
     </section>
 
     {% if projects %}
@@ -66,9 +67,12 @@
                                     </a>
                                 </div>
                             </div>
-                            <span class="shrink-0 rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold">
-                                {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %}
-                            </span>
+                            <div class="flex shrink-0 flex-col items-end gap-2">
+                                <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold">
+                                    {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %}
+                                </span>
+                                <span class="text-xs app-muted">{{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}</span>
+                            </div>
                         </div>
                     </article>
                 {% endfor %}
@@ -80,6 +84,7 @@
                         <tr>
                             <th class="px-4 py-3">Student</th>
                             <th class="px-4 py-3">Project</th>
+                            <th class="px-4 py-3 text-right">Votes</th>
                             <th class="px-4 py-3 text-right">Score</th>
                         </tr>
                     </thead>
@@ -100,6 +105,7 @@
                                     </a>
                                 </td>
                                 <td class="px-4 py-3 app-text">{{ submission.project.title }}</td>
+                                <td class="px-4 py-3 text-right font-semibold app-heading">{{ submission.vote_count }}</td>
                                 <td class="px-4 py-3 text-right font-semibold app-heading">
                                     {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %}
                                 </td>

@@ -11,6 +11,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 
 from courses.models import (
     Course,
@@ -27,6 +28,12 @@ from courses.models import (
 )
 
 from courses.scoring import calculate_project_statistics
+from courses.votes import (
+    PROJECT_VOTES_PER_PROJECT,
+    get_project_vote_counts,
+    get_voted_submission_ids,
+    update_project_vote,
+)
 
 
 from .homework import tryparsefloat, clean_learning_in_public_links
@@ -477,6 +484,20 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     )
 
     if request.method == "POST":
+        if request.POST.get("form_action") == "vote":
+            action = request.POST.get("action", "vote")
+            update_project_vote(
+                request.user,
+                review.submission_under_evaluation,
+                action=action,
+            )
+            return redirect(
+                "projects_eval_submit",
+                course_slug=course_slug,
+                project_slug=project_slug,
+                review_id=review.id,
+            )
+
         if project.state != ProjectState.PEER_REVIEWING.value:
             messages.error(
                 request,
@@ -503,6 +524,17 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         project, review, review_criteria, enrollment
     )
     context["course"] = course
+    context["voted_submission_ids"] = get_voted_submission_ids(
+        request.user,
+        course,
+    )
+    project_vote_counts = get_project_vote_counts(request.user, course)
+    context["vote_limit_reached"] = (
+        context["submission"].id not in context["voted_submission_ids"]
+        and project_vote_counts.get(context["submission"].project_id, 0)
+        >= PROJECT_VOTES_PER_PROJECT
+    )
+    context["project_votes_per_project"] = PROJECT_VOTES_PER_PROJECT
 
     return render(request, "projects/eval_submit.html", context)
 
@@ -601,11 +633,33 @@ def projects_list_view(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
+    if request.method == "POST":
+        if not request.user.is_authenticated:
+            return redirect("login")
+
+        submission_id = request.POST.get("submission_id")
+        action = request.POST.get("action", "vote")
+        submission = get_object_or_404(
+            ProjectSubmission.objects.select_related("project"),
+            id=submission_id,
+            project=project,
+            volunteer_review_only=False,
+        )
+        update_project_vote(request.user, submission, action=action)
+
+        return redirect(
+            "project_list",
+            course_slug=course.slug,
+            project_slug=project.slug,
+        )
+
     submissions = ProjectSubmission.objects.filter(
         project=project,
         volunteer_review_only=False,
     ).select_related(
         "enrollment"
+    ).annotate(
+        vote_count=Count("votes")
     )
 
     if project.state == ProjectState.COMPLETED.value:
@@ -619,6 +673,8 @@ def projects_list_view(request, course_slug, project_slug):
     review_ids = {}
     own_submissions = set()
     has_submission = False
+    voted_submission_ids = get_voted_submission_ids(user, course)
+    project_vote_counts = get_project_vote_counts(user, course)
 
     if is_authenticated:
         student_submissions = ProjectSubmission.objects.filter(
@@ -651,6 +707,11 @@ def projects_list_view(request, course_slug, project_slug):
             submission.to_evaluate = False
 
         submission.own = submission.id in own_submissions
+        submission.vote_limit_reached = (
+            submission.id not in voted_submission_ids
+            and project_vote_counts.get(project.id, 0)
+            >= PROJECT_VOTES_PER_PROJECT
+        )
 
     context = {
         "course": course,
@@ -662,6 +723,8 @@ def projects_list_view(request, course_slug, project_slug):
         ),
         "is_authenticated": is_authenticated,
         "has_submission": has_submission,
+        "voted_submission_ids": voted_submission_ids,
+        "project_votes_per_project": PROJECT_VOTES_PER_PROJECT,
     }
 
     return render(request, "projects/list.html", context)

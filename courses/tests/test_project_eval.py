@@ -17,6 +17,7 @@ from courses.models import (
     ReviewCriteria,
     ReviewCriteriaTypes,
     ProjectState,
+    ProjectVote,
 )
 
 
@@ -638,6 +639,29 @@ class ProjectEvaluationTestCase(TestCase):
             response,
             "Evaluate",
             status_code=200,
+        )
+
+    def test_eval_submit_page_can_vote_for_reviewed_submission(self):
+        self.client.login(**credentials)
+
+        url = reverse(
+            "projects_eval_submit",
+            args=[self.course.slug, self.project.slug, self.peer_review.id],
+        )
+        response = self.client.post(
+            url,
+            {
+                "form_action": "vote",
+                "submission_id": self.other_submission.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            ProjectVote.objects.filter(
+                voter=self.user,
+                submission=self.other_submission,
+            ).exists()
         )
 
     def test_eval_view_shows_closed_message_when_project_is_not_peer_reviewing(self):

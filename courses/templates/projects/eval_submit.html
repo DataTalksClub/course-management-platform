@@ -41,7 +41,27 @@
 <div class="rounded-md border app-border app-surface p-4 md:col-span-2">
 <p class="text-xs font-semibold uppercase app-muted">Repository</p>
 <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">{{ submission.github_link }}</a>
-<p class="mt-2 text-xs app-muted">Commit: <code>{{ submission.commit_id }}</code></p>
+<div class="mt-2 flex flex-wrap items-center gap-3 text-xs app-muted">
+<span>Commit: <code>{{ submission.commit_id }}</code></span>
+<form method="post" class="m-0">
+{% csrf_token %}
+<input type="hidden" name="form_action" value="vote">
+<input type="hidden" name="submission_id" value="{{ submission.id }}">
+{% if submission.id in voted_submission_ids %}
+<input type="hidden" name="action" value="remove">
+<button type="submit" class="primer-button primer-button-secondary">
+<i class="fas fa-check"></i> Voted
+</button>
+{% else %}
+<button type="submit" class="primer-button" {% if vote_limit_reached %}disabled{% endif %}>
+<i class="fas fa-thumbs-up"></i> Vote
+</button>
+{% if vote_limit_reached %}
+<span class="text-xs app-muted">Limit reached for this project</span>
+{% endif %}
+{% endif %}
+</form>
+</div>
 </div>
 </section>
 {% if review.optional %}
