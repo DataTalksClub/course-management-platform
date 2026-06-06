@@ -657,6 +657,7 @@ def leaderboard_view(request, course_slug: str):
                         "title": sub.project.title,
                         "slug": sub.project.slug,
                         "attempt": index,
+                        "medal_index": ((index - 1) % 5) + 1,
                     }
                     for index, sub in enumerate(
                         e.completed_project_submissions,

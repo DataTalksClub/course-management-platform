@@ -17,7 +17,7 @@
         <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
         <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-                <h1 class="text-2xl font-semibold app-heading">Projects for {{ project.title }}</h1>
+                <h1 class="text-2xl font-semibold app-heading md:text-3xl">Projects for {{ project.title }}</h1>
                 <p class="mt-1 max-w-2xl text-sm app-muted">
                     Review peer submissions, open repositories, and vote for up to {{ project_votes_per_project }} favorites.
                 </p>
@@ -49,36 +49,48 @@
                         {{ submissions_page.paginator.count }} total
                     </p>
                 </div>
+                <div class="hidden border-b app-border app-surface-muted px-4 py-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_64px_40px_86px] md:items-center md:gap-3">
+                    <div>Student</div>
+                    <div class="text-right">Votes</div>
+                    <div class="text-center">Vote</div>
+                    <div class="text-right">Review</div>
+                </div>
                 <div class="divide-y app-divide">
                     {% for submission in submissions %}
+                        {% if submission.group_heading %}
+                            <div class="app-surface-muted px-4 py-2 text-xs font-semibold uppercase app-muted">
+                                {{ submission.group_heading }}
+                            </div>
+                        {% endif %}
                         <article class="px-4 py-3">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_64px_40px_86px] md:items-center">
                                 <div class="min-w-0">
-                                    {% if submission.github_link %}
-                                        <a href="{{ submission.github_link }}"
-                                           target="_blank"
-                                           rel="noopener noreferrer"
-                                           class="font-medium app-link hover:underline">
+                                    <div class="flex min-w-0 items-center gap-2">
+                                        <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=submission.enrollment.id %}"
+                                           class="min-w-0 font-medium app-link hover:underline">
                                             {{ submission.enrollment.display_name }}
-                                            <i class="fas fa-external-link-alt ml-1 text-xs"></i>
                                         </a>
-                                    {% else %}
-                                        <span class="font-medium app-heading">{{ submission.enrollment.display_name }}</span>
-                                    {% endif %}
-                                    <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=submission.enrollment.id %}"
-                                       class="ml-3 text-xs font-medium app-link hover:underline">
-                                        Leaderboard
-                                    </a>
-                                    {% if submission.own %}
-                                        <span class="ml-2 inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link">Your project</span>
-                                    {% endif %}
+                                        {% if submission.github_link %}
+                                            <a href="{{ submission.github_link }}"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               class="shrink-0 text-xs app-link hover:underline"
+                                               title="Open repository"
+                                               aria-label="Open repository">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <div class="flex flex-wrap items-center gap-2">
+                                <div class="flex items-center gap-2 md:justify-end">
                                     <span class="project-vote-count text-sm app-muted"
                                           data-submission-id="{{ submission.id }}"
                                           data-vote-count="{{ submission.vote_count }}">
-                                        {{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}
+                                        <span class="md:hidden">{{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}</span>
+                                        <span class="hidden md:inline">{{ submission.vote_count }}</span>
                                     </span>
+                                </div>
+                                <div class="flex items-center md:justify-center">
                                     {% if is_authenticated %}
                                         <form method="post"
                                               class="project-vote-form m-0"
@@ -105,29 +117,42 @@
                                                             aria-label="Vote"
                                                             title="{% if submission.vote_limit_reached %}Limit reached{% elif submission.own %}Your project{% else %}Vote{% endif %}"
                                                             {% if submission.vote_limit_reached or submission.own %}disabled{% endif %}>
-                                                        <i class="fas fa-thumbs-up"></i>
+                                                        <i class="far fa-thumbs-up"></i>
                                                     </button>
                                                 </span>
                                             {% endif %}
                                         </form>
                                     {% endif %}
+                                </div>
+                                <div class="flex items-center gap-2 md:justify-end">
                                     {% if is_authenticated and project.state == 'PR' %}
                                         {% if submission.to_evaluate %}
                                             <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}"
-                                               class="primer-button">
-                                                Evaluate
-                                                <span class="rounded bg-white/20 px-1.5 py-0.5 text-xs">{{ submission.review.get_state_display }}</span>
+                                               class="submission-action-button submission-action-button-primary submission-action-button-fixed"
+                                               title="Review: {{ submission.review.get_state_display }}"
+                                               aria-label="Review: {{ submission.review.get_state_display }}">
+                                                {% if submission.review.state == 'SU' %}
+                                                    <i class="fas fa-check"></i> Done
+                                                {% else %}
+                                                    <i class="fas fa-pen"></i> Review
+                                                {% endif %}
                                             </a>
                                         {% elif submission.own %}
-                                            <span class="text-sm app-muted">No action needed</span>
+                                            <span class="submission-status-chip submission-status-chip-neutral">Your project</span>
                                         {% else %}
-                                            <button onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')"
-                                                    class="primer-button primer-button-secondary">
-                                                <i class="fas fa-plus"></i> Add to Evaluation
+                                            <button type="button"
+                                                    onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')"
+                                                    class="submission-action-button submission-action-button-fixed"
+                                                    title="Add to evaluation"
+                                                    aria-label="Add to evaluation">
+                                                <i class="fas fa-plus"></i> Review
                                             </button>
                                         {% endif %}
                                     {% elif project.state == 'CO' %}
-                                        <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold">{{ submission.project_score }}</span>
+                                        <span class="text-sm font-semibold app-heading">{{ submission.project_score }} score</span>
+                                        {% if not submission.passed %}
+                                            <span class="text-sm app-muted">Not passed</span>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -159,6 +184,10 @@
         return `${count} vote${count === 1 ? '' : 's'}`;
       }
 
+      function voteLabelHtml(count) {
+        return `<span class="md:hidden">${voteLabel(count)}</span><span class="hidden md:inline">${count}</span>`;
+      }
+
       function setVoteFormState(form, voted, limitReached) {
         const ownSubmission = form.dataset.own === 'true';
         const actionInput = form.querySelector('input[name="action"]');
@@ -168,6 +197,11 @@
 
         actionInput.value = voted ? 'remove' : 'vote';
         button.classList.toggle('is-voted', voted);
+        const icon = button.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('fas', voted);
+          icon.classList.toggle('far', !voted);
+        }
         button.disabled = !voted && (limitReached || ownSubmission);
         button.title = title;
         button.setAttribute('aria-label', title);
@@ -208,11 +242,10 @@
               }
             }
 
-            const count = document.querySelector(`.project-vote-count[data-submission-id="${data.submission_id}"]`);
-            if (count) {
+            document.querySelectorAll(`.project-vote-count[data-submission-id="${data.submission_id}"]`).forEach((count) => {
               count.dataset.voteCount = data.vote_count;
-              count.textContent = voteLabel(data.vote_count);
-            }
+              count.innerHTML = voteLabelHtml(data.vote_count);
+            });
 
             const votedIds = new Set(data.voted_submission_ids.map(String));
             document.querySelectorAll('.project-vote-form').forEach((voteForm) => {

@@ -608,9 +608,47 @@ class ProjectEvaluationTestCase(TestCase):
         )
         self.assertNotContains(
             response,
-            "Mandatory progress",
+            "Review progress",
             status_code=200,
         )
+
+    def test_eval_view_shows_optional_reviews_without_submission(self):
+        """Voluntary reviewers see selected optional reviews on eval page."""
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        self.submission.delete()
+        volunteer_submission = ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/example/volunteer",
+            commit_id="abcdef1",
+            volunteer_review_only=True,
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=self.other_submission,
+            reviewer=volunteer_submission,
+            note_to_peer="",
+            optional=True,
+        )
+
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse(
+                "projects_eval",
+                args=[self.course.slug, self.project.slug],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["has_submission"])
+        self.assertContains(response, "Selected reviews")
+        self.assertContains(
+            response,
+            "these reviews are for practice and feedback",
+        )
+        self.assertContains(response, self.other_enrollment.display_name)
+        self.assertNotContains(response, "Review progress")
 
     def test_eval_view_authenticated_with_submission(self):
         """Test that eval view shows reviews when user has submitted their project"""
@@ -640,6 +678,30 @@ class ProjectEvaluationTestCase(TestCase):
             "Evaluate",
             status_code=200,
         )
+
+    def test_eval_view_separates_assigned_and_selected_reviews(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        PeerReview.objects.create(
+            submission_under_evaluation=self.other_submission,
+            reviewer=self.submission,
+            note_to_peer="",
+            optional=True,
+        )
+
+        self.client.login(**credentials)
+        response = self.client.get(
+            reverse(
+                "projects_eval",
+                args=[self.course.slug, self.project.slug],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Review progress")
+        self.assertContains(response, "Selected reviews")
+        self.assertEqual(len(response.context["assigned_reviews"]), 1)
+        self.assertEqual(len(response.context["selected_reviews"]), 1)
 
     def test_eval_submit_page_can_vote_for_reviewed_submission(self):
         self.client.login(**credentials)
@@ -687,7 +749,7 @@ class ProjectEvaluationTestCase(TestCase):
         )
         self.assertNotContains(
             response,
-            "Mandatory progress",
+            "Review progress",
             status_code=200,
         )
 
@@ -740,7 +802,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertFalse(response.context["has_submission"])
         self.assertContains(
             response,
-            "Add to Evaluation",
+            'aria-label="Add to evaluation"',
             status_code=200,
         )
 
@@ -765,7 +827,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertTrue(response.context["has_submission"])
         self.assertContains(
             response,
-            "Add to Evaluation",
+            'aria-label="Add to evaluation"',
             status_code=200,
         )
 
@@ -790,7 +852,7 @@ class ProjectEvaluationTestCase(TestCase):
             ),
         )
         self.assertContains(response, self.submission.github_link)
-        self.assertContains(response, "Leaderboard")
+        self.assertContains(response, 'aria-label="Open repository"')
         self.assertContains(
             response,
             reverse("list_all_project_submissions", args=[self.course.slug]),

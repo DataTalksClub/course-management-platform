@@ -10,77 +10,88 @@
 <li>Evaluate submission</li>
 {% endblock %}
 {% block content %}
-<section class="border-b app-border pb-5 ">
-<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
-<div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-<div>
-<h1 class="text-2xl font-semibold app-heading">Evaluate Project</h1>
-<p class="mt-1 max-w-2xl text-sm app-muted">Review the repository and score it against the project criteria.</p>
+<section class="content-narrow">
+<div class="mb-6 md:mb-8">
+<h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">Evaluate {{ project.title }}</h1>
 </div>
-<a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary w-fit">Back to Evaluations</a>
-</div>
-</section>
 {% if messages or errors %}
-<div class="mt-6 space-y-3">
+<div class="mb-6 space-y-3">
 {% for message in messages %}
-<div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div>
+<div class="rounded-md border app-alert-info p-4 app-heading {{ message.tags }}">{{ message }}</div>
 {% endfor %}
 {% for error in errors %}
-<div class="rounded-md border app-badge-danger px-4 py-3 text-sm  ">{{ error }}</div>
+<div class="rounded-md border app-alert-danger p-4">{{ error }}</div>
 {% endfor %}
 </div>
 {% endif %}
-<section class="mt-6 grid gap-4 md:grid-cols-3">
-<div class="rounded-md border app-border app-surface p-4 ">
-<p class="text-xs font-semibold uppercase app-muted">Due date</p>
-<p class="mt-1 font-semibold app-heading">
-<span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date|date:"j F Y, H:i" }}</span>
-</p>
-<p class="mt-1 text-xs app-muted time-left" data-deadline="{{ project.peer_review_due_date|date:"c" }}"></p>
+<div class="border-b app-border pb-6">
+<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+<div class="mt-4 space-y-1 text-sm app-text">
+<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+<span class="text-xs font-semibold uppercase app-muted">Deadline:</span>
+<span class="font-medium app-heading">
+<span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}" data-show-timezone="true">{{ project.peer_review_due_date|date:"j F Y, H:i" }}</span>
+</span>
 </div>
-<div class="rounded-md border app-border app-surface p-4 md:col-span-2">
-<p class="text-xs font-semibold uppercase app-muted">Repository</p>
-<a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 block break-all text-sm font-medium app-link hover:underline ">{{ submission.github_link }}</a>
-<div class="mt-2 flex flex-wrap items-center gap-3 text-xs app-muted">
-<span>Commit: <code>{{ submission.commit_id }}</code></span>
+<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+<span class="time-left app-muted" data-deadline="{{ project.peer_review_due_date|date:"c" }}" data-prefix="false"></span>
+<span aria-hidden="true" class="app-muted">&middot;</span>
+<span class="app-muted">Shown in your timezone.</span>
+</div>
+<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 pt-3">
+<span class="text-xs font-semibold uppercase app-muted">Repository:</span>
+<a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="break-all font-medium app-link hover:underline">{{ submission.github_link }}</a>
+</div>
+<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+<span class="text-xs font-semibold uppercase app-muted">Commit:</span>
+<code>{{ submission.commit_id }}</code>
+</div>
+</div>
+<div class="mt-5 flex flex-wrap items-center gap-2">
 <form method="post" class="m-0">
 {% csrf_token %}
 <input type="hidden" name="form_action" value="vote">
 <input type="hidden" name="submission_id" value="{{ submission.id }}">
 {% if submission.id in voted_submission_ids %}
 <input type="hidden" name="action" value="remove">
-<button type="submit" class="primer-button primer-button-secondary">
-<i class="fas fa-check"></i> Voted
+<button type="submit" class="submission-action-button">
+<i class="fas fa-thumbs-up"></i> Voted
 </button>
 {% else %}
-<button type="submit" class="primer-button" {% if vote_limit_reached %}disabled{% endif %}>
-<i class="fas fa-thumbs-up"></i> Vote
+<button type="submit" class="submission-action-button" {% if vote_limit_reached %}disabled{% endif %}>
+<i class="far fa-thumbs-up"></i> Vote
 </button>
 {% if vote_limit_reached %}
 <span class="text-xs app-muted">Limit reached for this project</span>
 {% endif %}
 {% endif %}
 </form>
-</div>
-</div>
-</section>
 {% if review.optional %}
-<div class="mt-4 flex flex-col gap-3 rounded-md border app-alert-warning px-4 py-3 text-sm  sm:flex-row sm:items-center sm:justify-between">
-<span><i class="fas fa-info-circle mr-1"></i>This is an <span class="app-muted">optional</span> review. You can skip it if you do not have time.</span>
-<button onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="primer-button primer-button-secondary w-fit">
-<i class="fas fa-minus"></i> Remove </button>
-</div>
+<button type="button" onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="submission-action-button submission-action-button-danger">
+<i class="fas fa-minus"></i> Remove review
+</button>
 {% endif %}
-<form method="post" class="mt-6 space-y-6" novalidate>
-{% csrf_token %}
-<section class="overflow-hidden rounded-md border app-border app-surface ">
-<div class="border-b app-border app-surface-muted px-4 py-3 ">
-<h2 class="text-base font-semibold app-heading">Review Criteria</h2>
 </div>
-<div class="divide-y app-divide">
+{% if review.optional %}
+<p class="mt-3 text-sm app-muted">You selected this review. You can remove it if you do not have time.</p>
+{% endif %}
+<div class="mt-5">
+<a href="{% url 'projects_eval' course.slug project.slug %}" class="inline-flex items-center font-medium app-link">
+Back to evaluations
+</a>
+</div>
+</div>
+<form method="post" class="needs-validation mt-7 md:mt-8" novalidate>
+{% csrf_token %}
+<section>
+<div class="mb-4 md:mb-5">
+<h2 class="text-2xl font-semibold">Review criteria</h2>
+<p class="mt-2 hidden md:block app-text">Score the submission against each criterion.</p>
+</div>
+<div class="space-y-5">
 {% for criteria, response in criteria_response_pairs %}
-<fieldset class="px-4 py-4">
-<legend class="font-medium app-heading">{{ forloop.counter }}. {{ criteria.description }}</legend>
+<fieldset class="question py-2">
+<legend class="question-text mb-4 font-medium">{{ forloop.counter }}. {{ criteria.description }}</legend>
 <div class="mt-3 space-y-2">
 {% for option in criteria.options %}
 <label class="flex gap-3 text-sm app-text" for="radio-{{ criteria.id }}-{{ option.index }}">
@@ -104,22 +115,23 @@ disabled
 {% endfor %}
 </div>
 </section>
-<section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+<section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
+<h2 class="text-2xl font-semibold">Review details</h2>
+<div class="mt-5 space-y-5">
 <div class="question">
 <label for="note_to_peer" class="question-text font-medium">Review comments</label>
 <p class="mt-1 text-sm app-muted">Notes or suggestions for your peer.</p>
-<textarea class="form-control mt-3" name="note_to_peer" id="note_to_peer" rows="5"
+<textarea class="form-control mt-2" name="note_to_peer" id="note_to_peer" rows="5"
 {% if disabled %}
 disabled
 {% endif %}
 >{{ review.note_to_peer|default:'' }}</textarea>
 </div>
-<div class="space-y-6">
-{% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+{% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions disable_learning_in_public=disable_learning_in_public %}
 {% if project.time_spent_evaluation_field %}
 <div class="question">
 <label for="time_spent_reviewing" class="question-text font-medium">Time spent reviewing <span class="app-muted">(optional)</span></label>
-<input type="number" class="form-control mt-3" name="time_spent_reviewing" id="time_spent_reviewing" min="0" value="{{ review.time_spent_reviewing|default:'' }}"
+<input type="number" class="form-control mt-2" name="time_spent_reviewing" id="time_spent_reviewing" min="0" value="{{ review.time_spent_reviewing|default:'' }}"
 {% if disabled %}
 disabled
 {% endif %}
@@ -129,8 +141,7 @@ disabled
 </div>
 </section>
 {% if project.state == 'PR' %}
-<div class="flex flex-wrap justify-end gap-2 border-t app-border pt-4 ">
-<a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+<div class="mt-6 flex flex-wrap gap-3">
 <button id="submit-button" type="submit" class="primer-button">
 {% if review.state == 'TR' %}
 Submit
@@ -138,9 +149,10 @@ Submit
 Update
 {% endif %}
 </button>
+<a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
 </div>
 {% else %}
-<p class="rounded-md border app-alert-warning px-4 py-3 text-sm">Peer review form is closed.</p>
+<p class="mt-6 rounded-md border app-alert-warning p-4">Peer review form is closed.</p>
 {% endif %}
 </form>
 {% if review.state == 'SU' and review.submitted_at %}
@@ -151,6 +163,7 @@ Last submission at:
       data-show-timezone="true">{{ review.submitted_at|date:"F d, Y H:i" }}</span>
 </p>
 {% endif %}
+</section>
 <script src="{% static 'learning_in_public.js' %}"></script>
 <script src="{% static 'homework.js' %}"></script>
 <script>

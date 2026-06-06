@@ -130,6 +130,86 @@ body {
   opacity: 0.35;
 }
 
+.submission-action-button {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 0.35rem;
+  min-height: 28px;
+  padding: 3px 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.submission-action-button:hover {
+  background: var(--surface-bg);
+  border-color: var(--link-hover);
+  color: var(--link-hover);
+  text-decoration: none;
+}
+
+.submission-action-button-primary {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+
+.submission-action-button-primary:hover {
+  background: var(--surface-bg);
+  color: var(--link-hover);
+}
+
+.submission-action-button-fixed {
+  justify-content: center;
+  width: 76px;
+}
+
+.submission-status-chip {
+  border-radius: 9999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.submission-status-chip-neutral {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.submission-status-chip-info {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+.submission-status-chip-pending {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.submission-status-chip-done {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.submission-action-button-danger {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.submission-action-button-danger:hover {
+  color: var(--danger-text);
+}
+
 .app-alert-info {
   background: var(--info-bg);
   border-color: var(--info-border);
@@ -195,6 +275,66 @@ body.dark-mode .app-badge-neutral {
   letter-spacing: 0;
   line-height: 1.25;
   white-space: nowrap;
+}
+
+.leaderboard-project-star {
+  align-items: center;
+  border-radius: 9999px;
+  display: inline-flex;
+  font-size: 10px;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.leaderboard-project-star-1 {
+  background: #fff6d7;
+  color: #7d4e00;
+}
+
+.leaderboard-project-star-2 {
+  background: #edf5ff;
+  color: #315f8f;
+}
+
+.leaderboard-project-star-3 {
+  background: #e6f6ea;
+  color: #116329;
+}
+
+.leaderboard-project-star-4 {
+  background: #f0edff;
+  color: #5b43a8;
+}
+
+.leaderboard-project-star-5 {
+  background: #fff0ee;
+  color: #a12834;
+}
+
+body.dark-mode .leaderboard-project-star-1 {
+  background: rgba(187, 128, 9, 0.22);
+  color: #f0d98c;
+}
+
+body.dark-mode .leaderboard-project-star-2 {
+  background: rgba(77, 127, 168, 0.24);
+  color: #8bb7df;
+}
+
+body.dark-mode .leaderboard-project-star-3 {
+  background: rgba(35, 134, 54, 0.24);
+  color: #7ee787;
+}
+
+body.dark-mode .leaderboard-project-star-4 {
+  background: rgba(116, 90, 190, 0.24);
+  color: #c4b5fd;
+}
+
+body.dark-mode .leaderboard-project-star-5 {
+  background: rgba(218, 54, 51, 0.2);
+  color: #ffaaa5;
 }
 
 .dense-utility-links a {

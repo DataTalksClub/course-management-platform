@@ -180,7 +180,7 @@
                            required
                            {% if disabled or not is_authenticated %}disabled{% endif %} />
                 </div>
-                {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions %}
+                {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_project learning_in_public_links=submission.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions disable_learning_in_public=disable_learning_in_public %}
                 <script src="{% static 'learning_in_public.js' %}"></script>
                 {% if project.time_spent_project_field %}
                     <div class="question">

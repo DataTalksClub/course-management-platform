@@ -953,7 +953,7 @@ class CourseDetailViewTests(TestCase):
             ),
         )
         self.assertContains(response, self.completed_submission.github_link)
-        self.assertContains(response, "Leaderboard")
+        self.assertContains(response, 'aria-label="Open repository"')
 
     def test_list_all_submissions_links_to_each_project_list(self):
         """All project submissions page includes project-level jump links."""

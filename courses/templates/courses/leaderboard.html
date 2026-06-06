@@ -61,10 +61,10 @@
           {% if enrollment.passed_projects %}
             <div class="flex shrink-0 flex-wrap gap-1">
               {% for project in enrollment.passed_projects %}
-                <span class="inline-flex items-center rounded-md app-badge-success px-1.5 py-0.5 text-[11px] font-semibold"
+                <span class="leaderboard-project-star leaderboard-project-star-{{ project.medal_index }}"
                       title="Passed {{ project.title }}">
-                  <i class="fas fa-check mr-1" aria-hidden="true"></i>
-                  P{{ project.attempt }}
+                  <i class="fas fa-star" aria-hidden="true"></i>
+                  <span class="sr-only">Passed {{ project.title }}</span>
                 </span>
               {% endfor %}
             </div>

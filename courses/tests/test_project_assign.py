@@ -329,6 +329,17 @@ class ProjectActionsTestCase(TestCase):
 
         response = self.client.get(delete_url)
         self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse(
+                "projects_eval",
+                args=[
+                    self.course.slug,
+                    self.project.slug,
+                ],
+            ),
+            fetch_redirect_response=False,
+        )
 
         reviews = PeerReview.objects.filter(id=peer_review.id)
 

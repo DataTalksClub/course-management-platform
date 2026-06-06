@@ -265,12 +265,16 @@ def projects_eval_view(request, course_slug, project_slug):
         reviewer__in=student_submissions,
         submission_under_evaluation__project=project,
     ).order_by("optional")
+    assigned_reviews = []
+    selected_reviews = []
 
     number_of_completed_evaluation = 0
 
     for review in reviews:
         if review.optional:
+            selected_reviews.append(review)
             continue
+        assigned_reviews.append(review)
         if review.state == PeerReviewState.SUBMITTED.value:
             number_of_completed_evaluation += 1
 
@@ -278,6 +282,8 @@ def projects_eval_view(request, course_slug, project_slug):
         "course": course,
         "project": project,
         "reviews": reviews,
+        "assigned_reviews": assigned_reviews,
+        "selected_reviews": selected_reviews,
         "is_authenticated": True,
         "number_of_completed_evaluation": number_of_completed_evaluation,
         "has_submission": has_submission,
@@ -621,7 +627,7 @@ def projects_eval_delete(request, course_slug, project_slug, review_id):
     ).delete()
 
     return redirect(
-        "project_list",
+        "projects_eval",
         course_slug=course_slug,
         project_slug=project_slug,
     )
@@ -729,9 +735,10 @@ def projects_list_view(request, course_slug, project_slug):
             review_ids[eval_id] = review
 
 
-    submissions_page = paginate_project_submissions(request, submissions)
+    submissions_list = list(submissions)
 
-    for submission in submissions_page.object_list:
+    for order, submission in enumerate(submissions_list):
+        submission.list_order = order
         if submission.id in review_ids:
             submission.to_evaluate = True
             submission.review = review_ids[submission.id]
@@ -744,6 +751,33 @@ def projects_list_view(request, course_slug, project_slug):
             and project_vote_counts.get(project.id, 0)
             >= PROJECT_VOTES_PER_PROJECT
         )
+        submission.group_order = 1
+        submission.group_label = None
+
+        if is_authenticated and project.state == ProjectState.PEER_REVIEWING.value:
+            if submission.to_evaluate and not submission.review.optional:
+                submission.group_order = 0
+                submission.group_label = "Assigned reviews"
+            else:
+                submission.group_order = 1
+                submission.group_label = "Other submissions"
+
+    if is_authenticated and project.state == ProjectState.PEER_REVIEWING.value:
+        submissions_list.sort(
+            key=lambda submission: (
+                submission.group_order,
+                submission.list_order,
+            )
+        )
+
+    submissions_page = paginate_project_submissions(request, submissions_list)
+
+    previous_group_label = None
+    for submission in submissions_page.object_list:
+        submission.group_heading = None
+        if submission.group_label and submission.group_label != previous_group_label:
+            submission.group_heading = submission.group_label
+        previous_group_label = submission.group_label
 
     context = {
         "course": course,

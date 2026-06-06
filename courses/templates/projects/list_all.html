@@ -48,72 +48,41 @@
                 </p>
             </div>
 
-            <div class="divide-y app-divide md:hidden">
+            <div class="divide-y app-divide">
                 {% for submission in submissions %}
                     <article class="px-4 py-3">
-                        <div class="flex items-start justify-between gap-3">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div class="min-w-0">
-                                <a href="{{ submission.github_link }}"
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                   class="font-medium app-link hover:underline">
-                                    {{ submission.enrollment.display_name }}
-                                    <i class="fas fa-external-link-alt ml-1 text-xs"></i>
-                                </a>
-                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                                    <span class="app-muted">{{ submission.project.title }}</span>
+                                <div class="flex min-w-0 items-center gap-2">
                                     <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=submission.enrollment.id %}"
-                                       class="font-medium app-link hover:underline">
-                                        Leaderboard
+                                       class="min-w-0 font-medium app-link hover:underline">
+                                        {{ submission.enrollment.display_name }}
+                                    </a>
+                                    <a href="{{ submission.github_link }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       class="shrink-0 text-xs app-link hover:underline"
+                                       title="Open repository"
+                                       aria-label="Open repository">
+                                        <i class="fas fa-external-link-alt"></i>
                                     </a>
                                 </div>
+                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                                    <span class="app-muted">{{ submission.project.title }}</span>
+                                </div>
                             </div>
-                            <div class="flex shrink-0 flex-col items-end gap-2">
-                                <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold">
-                                    {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %}
+                            <div class="flex flex-wrap items-center gap-3 text-sm">
+                                <span class="app-muted">{{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}</span>
+                                <span class="font-semibold app-heading">
+                                    {% if submission.display_score == -1 %}Score N/A{% else %}{{ submission.display_score }} score{% endif %}
                                 </span>
-                                <span class="text-xs app-muted">{{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}</span>
+                                {% if submission.display_score != -1 and not submission.passed %}
+                                    <span class="app-muted">Not passed</span>
+                                {% endif %}
                             </div>
                         </div>
                     </article>
                 {% endfor %}
-            </div>
-
-            <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full text-sm">
-                    <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
-                        <tr>
-                            <th class="px-4 py-3">Student</th>
-                            <th class="px-4 py-3">Project</th>
-                            <th class="px-4 py-3 text-right">Votes</th>
-                            <th class="px-4 py-3 text-right">Score</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y app-divide">
-                        {% for submission in submissions %}
-                            <tr>
-                                <td class="px-4 py-3">
-                                    <a href="{{ submission.github_link }}"
-                                       target="_blank"
-                                       rel="noopener noreferrer"
-                                       class="font-medium app-link hover:underline">
-                                        {{ submission.enrollment.display_name }}
-                                        <i class="fas fa-external-link-alt ml-1 text-xs"></i>
-                                    </a>
-                                    <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=submission.enrollment.id %}"
-                                       class="ml-3 text-xs font-medium app-link hover:underline">
-                                        Leaderboard
-                                    </a>
-                                </td>
-                                <td class="px-4 py-3 app-text">{{ submission.project.title }}</td>
-                                <td class="px-4 py-3 text-right font-semibold app-heading">{{ submission.vote_count }}</td>
-                                <td class="px-4 py-3 text-right font-semibold app-heading">
-                                    {% if submission.display_score == -1 %}N/A{% else %}{{ submission.display_score }}{% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         {% else %}
             <p class="px-4 py-6 text-sm app-muted">No project submissions yet.</p>
