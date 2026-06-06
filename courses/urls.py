@@ -26,11 +26,6 @@ urlpatterns = [
         name="list_all_project_submissions",
     ),
     path(
-        "<slug:course_slug>/projects/vote",
-        course.project_voting_view,
-        name="project_voting",
-    ),
-    path(
         "<slug:course_slug>/leaderboard",
         course.leaderboard_view,
         name="leaderboard",

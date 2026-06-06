@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block content %}
-    <section class="border-b app-border pb-5">
+    <section class="pb-5">
         <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
         <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
@@ -21,6 +21,12 @@
                 <p class="mt-1 max-w-2xl text-sm app-muted">
                     Review peer submissions, open repositories, and vote for up to {{ project_votes_per_project }} favorites.
                 </p>
+                {% if is_authenticated %}
+                    <p class="mt-1 text-sm app-muted">
+                        <span id="project-votes-left">{{ project_votes_left }}</span>
+                        <span id="project-votes-left-label">vote{{ project_votes_left|pluralize }} left</span>
+                    </p>
+                {% endif %}
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{% url 'list_all_project_submissions' course.slug %}"
@@ -37,8 +43,11 @@
     {% else %}
         <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
             {% if submissions %}
-                <div class="border-b app-border px-4 py-3 text-sm app-muted">
-                    {{ submissions_page.paginator.count }} submission{{ submissions_page.paginator.count|pluralize }}
+                <div class="border-b app-border app-surface-muted px-4 py-3">
+                    <p class="text-xs font-semibold uppercase app-muted">Submissions</p>
+                    <p class="mt-1 text-sm app-muted">
+                        {{ submissions_page.paginator.count }} total
+                    </p>
                 </div>
                 <div class="divide-y app-divide">
                     {% for submission in submissions %}
@@ -65,27 +74,40 @@
                                     {% endif %}
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="rounded-md border app-border app-surface-muted px-2 py-1 text-sm font-semibold">
+                                    <span class="project-vote-count text-sm app-muted"
+                                          data-submission-id="{{ submission.id }}"
+                                          data-vote-count="{{ submission.vote_count }}">
                                         {{ submission.vote_count }} vote{{ submission.vote_count|pluralize }}
                                     </span>
                                     {% if is_authenticated %}
-                                        <form method="post" class="m-0">
+                                        <form method="post"
+                                              class="project-vote-form m-0"
+                                              data-submission-id="{{ submission.id }}"
+                                              data-own="{% if submission.own %}true{% else %}false{% endif %}">
                                             {% csrf_token %}
                                             <input type="hidden" name="submission_id" value="{{ submission.id }}">
                                             {% if submission.id in voted_submission_ids %}
                                                 <input type="hidden" name="action" value="remove">
-                                                <button type="submit" class="primer-button primer-button-secondary">
-                                                    <i class="fas fa-check"></i> Voted
-                                                </button>
+                                                <span class="project-vote-button-tooltip" title="Remove vote">
+                                                    <button type="submit"
+                                                            class="project-vote-button is-voted"
+                                                            aria-label="Remove vote"
+                                                            title="Remove vote">
+                                                        <i class="fas fa-thumbs-up"></i>
+                                                    </button>
+                                                </span>
                                             {% else %}
-                                                <button type="submit"
-                                                        class="primer-button"
-                                                        {% if submission.vote_limit_reached or submission.own %}disabled{% endif %}>
-                                                    <i class="fas fa-thumbs-up"></i> Vote
-                                                </button>
-                                                {% if submission.vote_limit_reached %}
-                                                    <span class="text-xs app-muted">Limit reached</span>
-                                                {% endif %}
+                                                <input type="hidden" name="action" value="vote">
+                                                <span class="project-vote-button-tooltip"
+                                                      title="{% if submission.vote_limit_reached %}Limit reached{% elif submission.own %}Your project{% else %}Vote{% endif %}">
+                                                    <button type="submit"
+                                                            class="project-vote-button"
+                                                            aria-label="Vote"
+                                                            title="{% if submission.vote_limit_reached %}Limit reached{% elif submission.own %}Your project{% else %}Vote{% endif %}"
+                                                            {% if submission.vote_limit_reached or submission.own %}disabled{% endif %}>
+                                                        <i class="fas fa-thumbs-up"></i>
+                                                    </button>
+                                                </span>
                                             {% endif %}
                                         </form>
                                     {% endif %}
@@ -115,9 +137,9 @@
             {% else %}
                 <p class="px-4 py-6 text-sm app-muted">No submissions yet.</p>
             {% endif %}
-        </section>
 
-        {% include 'include/pagination.html' with pagination_page=submissions_page pagination_range=page_range pagination_label='Project submission pages' %}
+            {% include 'include/pagination.html' with pagination_page=submissions_page pagination_range=page_range pagination_label='Project submission pages' %}
+        </section>
     {% endif %}
 
     {% if project.state == 'CO' %}
@@ -132,5 +154,78 @@
           window.location.href = url;
         }
       }
+
+      function voteLabel(count) {
+        return `${count} vote${count === 1 ? '' : 's'}`;
+      }
+
+      function setVoteFormState(form, voted, limitReached) {
+        const ownSubmission = form.dataset.own === 'true';
+        const actionInput = form.querySelector('input[name="action"]');
+        const button = form.querySelector('.project-vote-button');
+        const tooltip = form.querySelector('.project-vote-button-tooltip');
+        const title = voted ? 'Remove vote' : (limitReached ? 'Limit reached' : (ownSubmission ? 'Your project' : 'Vote'));
+
+        actionInput.value = voted ? 'remove' : 'vote';
+        button.classList.toggle('is-voted', voted);
+        button.disabled = !voted && (limitReached || ownSubmission);
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        if (tooltip) {
+          tooltip.title = title;
+        }
+      }
+
+      document.querySelectorAll('.project-vote-form').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+
+          const button = form.querySelector('.project-vote-button');
+          const formData = new FormData(form);
+          button.disabled = true;
+
+          try {
+            const response = await fetch(form.action || window.location.href, {
+              method: 'POST',
+              body: formData,
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+              }
+            });
+
+            if (!response.ok) {
+              form.submit();
+              return;
+            }
+
+            const data = await response.json();
+            const votesLeft = document.getElementById('project-votes-left');
+            if (votesLeft) {
+              votesLeft.textContent = data.votes_left;
+              const votesLeftLabel = document.getElementById('project-votes-left-label');
+              if (votesLeftLabel) {
+                votesLeftLabel.textContent = `vote${data.votes_left === 1 ? '' : 's'} left`;
+              }
+            }
+
+            const count = document.querySelector(`.project-vote-count[data-submission-id="${data.submission_id}"]`);
+            if (count) {
+              count.dataset.voteCount = data.vote_count;
+              count.textContent = voteLabel(data.vote_count);
+            }
+
+            const votedIds = new Set(data.voted_submission_ids.map(String));
+            document.querySelectorAll('.project-vote-form').forEach((voteForm) => {
+              setVoteFormState(
+                voteForm,
+                votedIds.has(voteForm.dataset.submissionId),
+                data.vote_limit_reached
+              );
+            });
+          } catch (error) {
+            form.submit();
+          }
+        });
+      });
     </script>
 {% endblock %}

@@ -3,7 +3,7 @@ import logging
 from typing import Iterable, Optional
 from collections import defaultdict
 
-from django.http import HttpRequest
+from django.http import HttpRequest, JsonResponse
 
 from django.contrib import messages
 from django.utils import timezone
@@ -647,6 +647,33 @@ def projects_list_view(request, course_slug, project_slug):
         )
         update_project_vote(request.user, submission, action=action)
 
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            voted_submission_ids = get_voted_submission_ids(request.user, course)
+            project_vote_counts = get_project_vote_counts(request.user, course)
+            project_vote_count = project_vote_counts.get(project.id, 0)
+            votes_left = max(
+                PROJECT_VOTES_PER_PROJECT - project_vote_count,
+                0,
+            )
+            vote_count = ProjectSubmission.objects.filter(
+                id=submission.id,
+            ).annotate(
+                vote_count=Count("votes")
+            ).values_list("vote_count", flat=True).get()
+
+            return JsonResponse(
+                {
+                    "submission_id": submission.id,
+                    "vote_count": vote_count,
+                    "voted": submission.id in voted_submission_ids,
+                    "voted_submission_ids": list(voted_submission_ids),
+                    "votes_left": votes_left,
+                    "vote_limit_reached": (
+                        project_vote_count >= PROJECT_VOTES_PER_PROJECT
+                    ),
+                }
+            )
+
         return redirect(
             "project_list",
             course_slug=course.slug,
@@ -675,6 +702,11 @@ def projects_list_view(request, course_slug, project_slug):
     has_submission = False
     voted_submission_ids = get_voted_submission_ids(user, course)
     project_vote_counts = get_project_vote_counts(user, course)
+    project_vote_count = project_vote_counts.get(project.id, 0)
+    project_votes_left = max(
+        PROJECT_VOTES_PER_PROJECT - project_vote_count,
+        0,
+    )
 
     if is_authenticated:
         student_submissions = ProjectSubmission.objects.filter(
@@ -725,6 +757,7 @@ def projects_list_view(request, course_slug, project_slug):
         "has_submission": has_submission,
         "voted_submission_ids": voted_submission_ids,
         "project_votes_per_project": PROJECT_VOTES_PER_PROJECT,
+        "project_votes_left": project_votes_left,
     }
 
     return render(request, "projects/list.html", context)

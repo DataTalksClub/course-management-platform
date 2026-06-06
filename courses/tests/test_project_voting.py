@@ -97,6 +97,27 @@ class ProjectVotingTest(TestCase):
             ProjectVote.objects.filter(submission=self.submission).exists()
         )
 
+    def test_ajax_vote_returns_updated_vote_state(self):
+        self.client.force_login(self.voter)
+        url = reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.post(
+            url,
+            {"submission_id": self.submission.id},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["submission_id"], self.submission.id)
+        self.assertEqual(data["vote_count"], 1)
+        self.assertTrue(data["voted"])
+        self.assertEqual(data["votes_left"], 2)
+        self.assertFalse(data["vote_limit_reached"])
+
     def test_user_has_three_votes_per_project(self):
         other_student = User.objects.create_user(username="other-student")
         other_enrollment = Enrollment.objects.create(
@@ -166,15 +187,6 @@ class ProjectVotingTest(TestCase):
         )
         self.assertFalse(
             ProjectVote.objects.filter(submission=fourth_submission).exists()
-        )
-
-    def test_old_voting_url_redirects_to_submissions(self):
-        url = reverse("project_voting", args=[self.course.slug])
-        response = self.client.get(url)
-
-        self.assertRedirects(
-            response,
-            reverse("list_all_project_submissions", args=[self.course.slug]),
         )
 
     def test_all_project_submissions_shows_votes_without_vote_controls(self):

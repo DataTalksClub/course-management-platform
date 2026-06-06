@@ -908,10 +908,6 @@ def list_all_project_submissions_view(request, course_slug: str):
     return render(request, "projects/list_all.html", context)
 
 
-def project_voting_view(request, course_slug: str):
-    return redirect("list_all_project_submissions", course_slug=course_slug)
-
-
 def dashboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
     if not course.first_homework_scored:
