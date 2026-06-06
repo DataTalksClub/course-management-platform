@@ -659,6 +659,8 @@ class CourseDetailViewTests(TestCase):
         )
         self.assertContains(response, "<details", count=2)
         self.assertContains(response, "<summary", count=2)
+        self.assertContains(response, "<strong>FAQ URL:</strong>", count=2)
+        self.assertContains(response, "View submission", count=2)
         self.assertContains(response, "https://example.com/homework-post")
         self.assertContains(response, "https://example.com/project-post")
         self.assertContains(
