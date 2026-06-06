@@ -54,12 +54,12 @@
       <div id="record-{{ enrollment.id }}"
            class="grid grid-cols-[44px_minmax(0,1fr)_72px] items-center px-4 py-3 text-sm md:grid-cols-[56px_minmax(0,1fr)_96px] {% if enrollment.id == current_student_enrollment_id %}app-alert-info{% endif %}">
         <div class="font-medium app-muted">{{ enrollment.position_on_leaderboard }}</div>
-        <div class="min-w-0">
-          <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="block font-medium leading-snug app-link hover:underline md:truncate">
+        <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="min-w-0 font-medium leading-snug app-link hover:underline md:truncate">
             {{ enrollment.display_name }}
           </a>
           {% if enrollment.passed_projects %}
-            <div class="mt-1 flex flex-wrap gap-1">
+            <div class="flex shrink-0 flex-wrap gap-1">
               {% for project in enrollment.passed_projects %}
                 <span class="inline-flex items-center rounded-md app-badge-success px-1.5 py-0.5 text-[11px] font-semibold"
                       title="Passed {{ project.title }}">
