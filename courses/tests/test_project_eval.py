@@ -805,6 +805,7 @@ class ProjectEvaluationTestCase(TestCase):
             'aria-label="Add to evaluation"',
             status_code=200,
         )
+        self.assertNotContains(response, "Other submissions")
 
     def test_list_view_authenticated_with_submission(self):
         """Test that list view shows Add to Evaluation button when user has submitted their project"""

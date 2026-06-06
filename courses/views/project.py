@@ -709,6 +709,7 @@ def projects_list_view(request, course_slug, project_slug):
     voted_submission_ids = get_voted_submission_ids(user, course)
     project_vote_counts = get_project_vote_counts(user, course)
     project_vote_count = project_vote_counts.get(project.id, 0)
+    has_assigned_reviews = False
     project_votes_left = max(
         PROJECT_VOTES_PER_PROJECT - project_vote_count,
         0,
@@ -733,6 +734,8 @@ def projects_list_view(request, course_slug, project_slug):
         for review in reviews:
             eval_id = review.submission_under_evaluation_id
             review_ids[eval_id] = review
+            if not review.optional:
+                has_assigned_reviews = True
 
 
     submissions_list = list(submissions)
@@ -760,7 +763,8 @@ def projects_list_view(request, course_slug, project_slug):
                 submission.group_label = "Assigned reviews"
             else:
                 submission.group_order = 1
-                submission.group_label = "Other submissions"
+                if has_assigned_reviews:
+                    submission.group_label = "Other submissions"
 
     if is_authenticated and project.state == ProjectState.PEER_REVIEWING.value:
         submissions_list.sort(
