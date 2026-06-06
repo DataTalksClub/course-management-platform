@@ -47,7 +47,9 @@ def paginate_project_submissions(request, submissions):
     return paginator.get_page(request.GET.get("page"))
 
 
-def project_submit_post(request: HttpRequest, project: Project) -> None:
+def project_submission_from_post(
+    request: HttpRequest, project: Project
+) -> ProjectSubmission:
     user = request.user
 
     project_submission = ProjectSubmission.objects.filter(
@@ -99,6 +101,11 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         faq_contribution_url = request.POST.get("faq_contribution_url", "")
         project_submission.faq_contribution_url = faq_contribution_url.strip()
 
+    return project_submission
+
+
+def project_submit_post(request: HttpRequest, project: Project) -> None:
+    project_submission = project_submission_from_post(request, project)
     project_submission.full_clean()
     project_submission.save()
 
@@ -220,6 +227,11 @@ def project_view(request, course_slug, project_slug):
                         f"Failed to submit the project: {message}",
                         extra_tags="alert-danger",
                     )
+                context = project_build_context(request, course, project)
+                context["submission"] = project_submission_from_post(
+                    request, project
+                )
+                return render(request, "projects/project.html", context)
 
         return redirect(
             "project",
