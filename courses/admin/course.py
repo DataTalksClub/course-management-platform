@@ -10,7 +10,13 @@ from unfold.widgets import (
 
 from django.contrib import messages
 
-from courses.models import Course, LeaderboardComplaint, ReviewCriteria
+from courses.models import (
+    Course,
+    CourseRegistration,
+    LeaderboardComplaint,
+    RegistrationCampaign,
+    ReviewCriteria,
+)
 from courses.scoring import update_leaderboard
 from courses.validators import validate_review_criteria_options
 
@@ -139,6 +145,50 @@ class CourseAdmin(ModelAdmin):
         "end_date",
         "visible",
         "finished",
+    ]
+
+
+@admin.register(RegistrationCampaign)
+class RegistrationCampaignAdmin(ModelAdmin):
+    list_display = [
+        "title",
+        "slug",
+        "current_course",
+        "is_active",
+        "mailchimp_tag_before_switch",
+        "mailchimp_tag_after_switch",
+        "mailchimp_tag_switch_at",
+    ]
+    search_fields = ["title", "slug"]
+    list_filter = ["is_active"]
+
+
+@admin.register(CourseRegistration)
+class CourseRegistrationAdmin(ModelAdmin):
+    list_display = [
+        "email_normalized",
+        "campaign",
+        "course",
+        "country",
+        "region",
+        "role",
+        "mailchimp_sync_status",
+        "mailchimp_tag_used",
+        "created_at",
+    ]
+    search_fields = ["email", "email_normalized", "name"]
+    list_filter = [
+        "campaign",
+        "course",
+        "region",
+        "role",
+        "mailchimp_sync_status",
+    ]
+    readonly_fields = [
+        "email_normalized",
+        "mailchimp_synced_at",
+        "created_at",
+        "updated_at",
     ]
 
 

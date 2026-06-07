@@ -4,6 +4,11 @@ from . import views
 
 urlpatterns = [
     path("", views.course_list, name="cadmin_course_list"),
+    path(
+        "registrations/<slug:campaign_slug>/",
+        views.campaign_registrations,
+        name="cadmin_campaign_registrations",
+    ),
     path("<slug:course_slug>/", views.course_admin, name="cadmin_course"),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/score",

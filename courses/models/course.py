@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
@@ -101,6 +102,138 @@ class Course(models.Model):
                         )
                     }
                 )
+
+
+class RegistrationCampaign(models.Model):
+    slug = models.SlugField(unique=True, blank=False)
+    title = models.CharField(max_length=200)
+    edition_label = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Displayed cohort label, for example '2026 cohort'.",
+    )
+    current_course = models.ForeignKey(
+        Course,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registration_campaigns",
+        help_text="Course edition currently promoted by this form.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    marketing_markdown = models.TextField(blank=True)
+    meta_description = models.TextField(blank=True)
+    hero_image_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+    )
+    video_url = models.URLField(
+        blank=True,
+        validators=[URLValidator()],
+    )
+
+    mailchimp_tag_before_switch = models.CharField(max_length=100, blank=True)
+    mailchimp_tag_after_switch = models.CharField(max_length=100, blank=True)
+    mailchimp_tag_switch_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["title", "slug"]
+
+    def __str__(self):
+        return self.title
+
+    def selected_mailchimp_tag(self, now=None):
+        now = now or timezone.now()
+        if (
+            self.mailchimp_tag_switch_at
+            and now >= self.mailchimp_tag_switch_at
+            and self.mailchimp_tag_after_switch
+        ):
+            return self.mailchimp_tag_after_switch
+        return self.mailchimp_tag_before_switch
+
+
+class CourseRegistration(models.Model):
+    class Role(models.TextChoices):
+        DATA_ENGINEER = "data_engineer", "Data Engineer"
+        DATA_SCIENTIST = "data_scientist", "Data Scientist"
+        DATA_ANALYST = "data_analyst", "Data Analyst"
+        ML_ENGINEER = "ml_engineer", "ML Engineer"
+        SOFTWARE_ENGINEER_BACKEND = (
+            "software_engineer_backend",
+            "Software Engineer (Backend)",
+        )
+        SOFTWARE_ENGINEER_OTHER = (
+            "software_engineer_other",
+            "Software Engineer (Frontend, Test, etc)",
+        )
+        STUDENT_STEM = "student_stem", "Student (STEM)"
+        STUDENT_NON_STEM = "student_non_stem", "Student (Non-STEM)"
+        OTHER = "other", "Other"
+
+    class MailchimpSyncStatus(models.TextChoices):
+        SKIPPED = "skipped", "Skipped"
+        PENDING = "pending", "Pending"
+        SYNCED = "synced", "Synced"
+        FAILED = "failed", "Failed"
+
+    campaign = models.ForeignKey(
+        RegistrationCampaign,
+        on_delete=models.CASCADE,
+        related_name="registrations",
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registrations",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="course_registrations",
+    )
+
+    email = models.EmailField()
+    email_normalized = models.EmailField(editable=False)
+    name = models.CharField(max_length=255)
+    country = models.CharField(max_length=100)
+    region = models.CharField(max_length=100)
+    role = models.CharField(max_length=40, choices=Role.choices)
+    comment = models.TextField(blank=True)
+    accepted_newsletter = models.BooleanField(default=False)
+
+    mailchimp_sync_status = models.CharField(
+        max_length=20,
+        choices=MailchimpSyncStatus.choices,
+        default=MailchimpSyncStatus.PENDING,
+    )
+    mailchimp_tag_used = models.CharField(max_length=100, blank=True)
+    mailchimp_synced_at = models.DateTimeField(null=True, blank=True)
+    mailchimp_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ["campaign", "email_normalized"]
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        self.email_normalized = (self.email or "").strip().lower()
+        if self.campaign and self.course_id is None:
+            self.course = self.campaign.current_course
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.email_normalized} registered for {self.campaign}"
 
 
 class Enrollment(models.Model):

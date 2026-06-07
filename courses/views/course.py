@@ -29,6 +29,8 @@ from courses.models import (
     Project,
     ProjectSubmission,
     ProjectState,
+    RegistrationCampaign,
+    CourseRegistration,
     User,
     PeerReview,
     PeerReviewState,
@@ -179,6 +181,43 @@ def add_course_homepage_info(course: Course, now) -> None:
     ) = current_assignment_info(course, now)
 
 
+def attach_registration_campaigns(courses) -> None:
+    course_ids = [course.id for course in courses]
+    campaigns = RegistrationCampaign.objects.filter(
+        current_course_id__in=course_ids,
+        is_active=True,
+    ).order_by("id")
+    campaign_by_course_id = {}
+    for campaign in campaigns:
+        campaign_by_course_id.setdefault(campaign.current_course_id, campaign)
+
+    for course in courses:
+        course.registration_campaign = campaign_by_course_id.get(course.id)
+
+
+def mark_registered_courses(courses, user) -> None:
+    if not user.is_authenticated:
+        return
+
+    campaign_ids = [
+        course.registration_campaign.id
+        for course in courses
+        if getattr(course, "registration_campaign", None)
+    ]
+    registered_campaign_ids = set(
+        CourseRegistration.objects.filter(
+            campaign_id__in=campaign_ids,
+            email_normalized=(user.email or "").strip().lower(),
+        ).values_list("campaign_id", flat=True)
+    )
+
+    for course in courses:
+        campaign = getattr(course, "registration_campaign", None)
+        course.is_registered = (
+            campaign is not None and campaign.id in registered_campaign_ids
+        )
+
+
 def mark_enrolled_courses(courses, user) -> None:
     if not user.is_authenticated:
         return
@@ -222,6 +261,8 @@ def course_list(request):
             active_courses.append(course)
 
     mark_enrolled_courses(courses, request.user)
+    attach_registration_campaigns(courses)
+    mark_registered_courses(courses, request.user)
 
     featured_course = None
     for course in active_courses:
@@ -385,6 +426,25 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     user = request.user
     homeworks = get_homeworks_for_course(course, user)
     projects = get_projects_for_course(course, user)
+    registration_campaign = (
+        RegistrationCampaign.objects.filter(
+            current_course=course,
+            is_active=True,
+        )
+        .order_by("id")
+        .first()
+    )
+
+    if (
+        registration_campaign
+        and not homeworks
+        and not projects
+        and not user.is_staff
+    ):
+        return redirect(
+            "registration_campaign",
+            campaign_slug=registration_campaign.slug,
+        )
 
     has_completed_projects = False
     for project in projects:
@@ -394,6 +454,7 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     total_score = None
     certificate_url = None
     has_enrollment = False
+    has_registration = False
     if user.is_authenticated:
         try:
             enrollment = Enrollment.objects.get(
@@ -405,6 +466,11 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
             certificate_url = enrollment.certificate_url
         except Enrollment.DoesNotExist:
             pass
+        if registration_campaign:
+            has_registration = CourseRegistration.objects.filter(
+                campaign=registration_campaign,
+                email_normalized=(user.email or "").strip().lower(),
+            ).exists()
 
     context = {
         "course": course,
@@ -415,6 +481,8 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         "has_enrollment": has_enrollment,
         "total_score": total_score,
         "certificate_url": certificate_url,
+        "registration_campaign": registration_campaign,
+        "has_registration": has_registration,
     }
 
     return render(request, "courses/course.html", context)

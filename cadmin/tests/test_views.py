@@ -22,6 +22,8 @@ from courses.models import (
     ReviewCriteriaTypes,
     ProjectEvaluationScore,
     LeaderboardComplaint,
+    RegistrationCampaign,
+    CourseRegistration,
 )
 
 
@@ -168,6 +170,36 @@ class CadminViewTests(TestCase):
         self.assertNotContains(response, "Needs attention")
         self.assertNotContains(response, "Course Page")
         self.assertNotContains(response, "Dashboard")
+
+    def test_campaign_registrations_staff_allowed(self):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            mailchimp_tag_before_switch="llm-zoomcamp-2026",
+        )
+        CourseRegistration.objects.create(
+            campaign=campaign,
+            course=self.course,
+            email="student@example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_campaign_registrations",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "LLM Zoomcamp")
+        self.assertContains(response, "student@example.com")
+        self.assertContains(response, "Europe")
 
     def test_leaderboard_complaints_sorted_by_open_count(self):
         self.client.login(username="admin@test.com", password="admin123")

@@ -26,6 +26,8 @@ from courses.models import (
     ProjectEvaluationScore,
     Enrollment,
     LeaderboardComplaint,
+    CourseRegistration,
+    RegistrationCampaign,
 )
 from courses.scoring import (
     score_homework_submissions,
@@ -76,6 +78,26 @@ def staff_required(function):
     return actual_decorator(function)
 
 
+def count_by(queryset, field):
+    return list(
+        queryset.values(field)
+        .annotate(count=Count("id"))
+        .order_by("-count", field)
+    )
+
+
+def registration_campaign_metrics(campaign):
+    registrations = CourseRegistration.objects.filter(campaign=campaign)
+    return {
+        "campaign": campaign,
+        "total": registrations.count(),
+        "by_role": count_by(registrations, "role"),
+        "by_country": count_by(registrations, "country"),
+        "by_region": count_by(registrations, "region"),
+        "by_status": count_by(registrations, "mailchimp_sync_status"),
+    }
+
+
 @staff_required
 def course_list(request):
     """List all courses with admin actions"""
@@ -121,6 +143,15 @@ def course_admin(request, course_slug):
             resolved=False,
         ).count(),
     }
+    registration_campaigns = (
+        RegistrationCampaign.objects.filter(current_course=course)
+        .select_related("current_course")
+        .order_by("title", "slug")
+    )
+    registration_metrics = [
+        registration_campaign_metrics(campaign)
+        for campaign in registration_campaigns
+    ]
 
     context = {
         "course": course,
@@ -128,9 +159,57 @@ def course_admin(request, course_slug):
         "projects": projects,
         "total_enrollments": total_enrollments,
         "support_metrics": support_metrics,
+        "registration_metrics": registration_metrics,
     }
 
     return render(request, "cadmin/course_admin.html", context)
+
+
+@staff_required
+def campaign_registrations(request, campaign_slug):
+    campaign = get_object_or_404(
+        RegistrationCampaign.objects.select_related("current_course"),
+        slug=campaign_slug,
+    )
+    registrations = CourseRegistration.objects.filter(
+        campaign=campaign
+    ).select_related("campaign", "course", "user")
+
+    filters = {
+        "role": request.GET.get("role", "").strip(),
+        "country": request.GET.get("country", "").strip(),
+        "region": request.GET.get("region", "").strip(),
+        "mailchimp_sync_status": request.GET.get(
+            "mailchimp_sync_status", ""
+        ).strip(),
+    }
+    for field, value in filters.items():
+        if value:
+            registrations = registrations.filter(**{field: value})
+
+    search_query = request.GET.get("q", "").strip()
+    if search_query:
+        registrations = registrations.filter(
+            Q(email_normalized__icontains=search_query)
+            | Q(name__icontains=search_query)
+        )
+
+    metrics = registration_campaign_metrics(campaign)
+    registrations_page = paginate_queryset(request, registrations, 50)
+
+    context = {
+        "campaign": campaign,
+        "course": campaign.current_course,
+        "registrations_page": registrations_page,
+        "page_range": registrations_page.paginator.get_elided_page_range(
+            registrations_page.number
+        ),
+        "metrics": metrics,
+        "filters": filters,
+        "search_query": search_query,
+        "pagination_querystring": pagination_querystring(request),
+    }
+    return render(request, "cadmin/campaign_registrations.html", context)
 
 
 @staff_required

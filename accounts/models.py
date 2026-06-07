@@ -18,6 +18,22 @@ class CustomUser(AbstractUser):
         null=True,
         help_text="Your actual name that will appear on your certificates"
     )
+    country = models.CharField(
+        verbose_name="Country",
+        max_length=100,
+        blank=True,
+    )
+    region = models.CharField(
+        verbose_name="Region",
+        max_length=100,
+        blank=True,
+    )
+    registration_role = models.CharField(
+        verbose_name="Registration role",
+        max_length=40,
+        blank=True,
+        help_text="Role last used on a course registration form",
+    )
     github_url = models.URLField(
         verbose_name="GitHub URL",
         blank=True,

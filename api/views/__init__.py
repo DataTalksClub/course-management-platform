@@ -10,6 +10,11 @@ from .projects import (
     project_detail_by_slug_view,
 )
 from .questions import questions_view, question_detail_view
+from .registration_campaigns import (
+    registration_campaign_detail_view,
+    registration_campaign_registrations_view,
+    registration_campaigns_view,
+)
 
 __all__ = [
     "courses_list_view",
@@ -22,4 +27,7 @@ __all__ = [
     "project_detail_by_slug_view",
     "questions_view",
     "question_detail_view",
+    "registration_campaigns_view",
+    "registration_campaign_detail_view",
+    "registration_campaign_registrations_view",
 ]

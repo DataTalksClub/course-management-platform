@@ -1,6 +1,12 @@
 from django import forms
 
-from courses.models import Answer, Enrollment, LeaderboardComplaint
+from courses.models import (
+    Answer,
+    CourseRegistration,
+    Enrollment,
+    LeaderboardComplaint,
+)
+from courses.registration import region_for_country
 
 
 class AnswerForm(forms.ModelForm):
@@ -84,6 +90,127 @@ class LeaderboardComplaintForm(forms.ModelForm):
             "issue_type": "What is wrong?",
             "description": "Describe the issue",
         }
+
+
+class CourseRegistrationForm(forms.ModelForm):
+    accepted_newsletter = forms.BooleanField(
+        label=(
+            "I agree to be added to the DataTalks.Club newsletter and "
+            "receive course updates."
+        ),
+        required=True,
+        widget=forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
+    )
+
+    class Meta:
+        model = CourseRegistration
+        fields = [
+            "email",
+            "name",
+            "country",
+            "role",
+            "comment",
+            "accepted_newsletter",
+        ]
+        widgets = {
+            "email": forms.EmailInput(attrs={"class": "form-control"}),
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "country": forms.Select(attrs={"class": "form-control"}),
+            "role": forms.Select(attrs={"class": "form-control"}),
+            "comment": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": "Anything you would like to add?",
+                }
+            ),
+        }
+
+    def __init__(self, *args, campaign=None, user=None, **kwargs):
+        self.campaign = campaign
+        self.user = user
+        super().__init__(*args, **kwargs)
+        self.fields["country"].widget = forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "autocomplete": "country-name",
+                "placeholder": "Start typing your country",
+                "data-country-combobox-input": "",
+            }
+        )
+        self.fields["role"].choices = [
+            ("", "Select role")
+        ] + list(CourseRegistration.Role.choices)
+
+        if user is not None and user.is_authenticated:
+            self.fields["email"].initial = user.email
+            self.fields["email"].disabled = True
+            self.fields["email"].help_text = "Using your account email."
+            if not self.is_bound:
+                self.initial["name"] = (
+                    user.certificate_name
+                    or user.get_full_name()
+                    or ""
+                )
+                self.initial["country"] = user.country
+                self.initial["role"] = user.registration_role
+
+    def clean_email(self):
+        if self.user is not None and self.user.is_authenticated:
+            email = self.user.email
+        else:
+            email = self.cleaned_data["email"]
+
+        email_normalized = (email or "").strip().lower()
+        if CourseRegistration.objects.filter(
+            campaign=self.campaign,
+            email_normalized=email_normalized,
+        ).exists():
+            raise forms.ValidationError(
+                "You have already registered for this course."
+            )
+        return email_normalized
+
+    def clean_country(self):
+        country = self.cleaned_data["country"]
+        if not region_for_country(country):
+            raise forms.ValidationError("Select a valid country.")
+        return country
+
+    def save(self, commit=True):
+        registration = super().save(commit=False)
+        registration.campaign = self.campaign
+        registration.course = self.campaign.current_course
+        registration.region = region_for_country(registration.country)
+        if self.user is not None and self.user.is_authenticated:
+            registration.user = self.user
+            registration.email = self.user.email
+        if commit:
+            registration.save()
+            self.save_user_profile(registration)
+        return registration
+
+    def save_user_profile(self, registration):
+        if self.user is None or not self.user.is_authenticated:
+            return
+
+        update_fields = []
+        certificate_name = registration.name or None
+        if self.user.certificate_name != certificate_name:
+            self.user.certificate_name = certificate_name
+            update_fields.append("certificate_name")
+
+        for user_field, value in (
+            ("country", registration.country),
+            ("region", registration.region),
+            ("registration_role", registration.role),
+        ):
+            if getattr(self.user, user_field) != value:
+                setattr(self.user, user_field, value)
+                update_fields.append(user_field)
+
+        if update_fields:
+            self.user.save(update_fields=update_fields)
         widgets = {
             "issue_type": forms.Select(attrs={"class": "form-control"}),
             "description": forms.Textarea(

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ campaign.title }} Registration - DataTalks.Club{% endblock %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'course_list' %}">Courses</a></li>
+  <li><a href="{% url 'registration_campaign' campaign.slug %}">{{ campaign.title }} registration</a></li>
+{% endblock %}
+
+{% block content %}
+<section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+  <div class="min-w-0">
+    {% if campaign.hero_image_url %}
+      <img src="{{ campaign.hero_image_url }}"
+           alt=""
+           class="mb-6 aspect-[16/7] w-full rounded-md object-cover">
+    {% endif %}
+
+    <p class="text-sm font-semibold uppercase tracking-wide app-muted">
+      {% if campaign.edition_label %}{{ campaign.edition_label }}{% else %}Next edition{% endif %}
+    </p>
+    <h1 class="mt-2 text-3xl font-semibold leading-tight tracking-normal md:text-5xl">
+      {{ campaign.title }}
+    </h1>
+
+    {% if course_is_open and start_course_url %}
+      <div class="mt-5 rounded-md border app-alert-info px-4 py-3">
+        <p class="font-medium app-heading">The course is already open.</p>
+        <p class="mt-1 text-sm app-text">
+          You can start now, and register if you want to receive course updates.
+        </p>
+        <a href="{{ start_course_url }}" class="primer-button mt-3">
+          <i class="fas fa-play" aria-hidden="true"></i> Start course
+        </a>
+      </div>
+    {% elif course and start_course_url %}
+      <div class="mt-5 rounded-md border app-alert-info px-4 py-3">
+        <p class="font-medium app-heading">Registration is open.</p>
+        <p class="mt-1 text-sm app-text">
+          We will send course updates by email when the edition starts.
+        </p>
+      </div>
+    {% else %}
+      <div class="mt-5 rounded-md border app-alert-info px-4 py-3">
+        <p class="font-medium app-heading">Register for the next edition.</p>
+        <p class="mt-1 text-sm app-text">
+          We will let you know when the next cohort is announced.
+        </p>
+      </div>
+    {% endif %}
+
+    {% if marketing_html %}
+      <div class="registration-markdown mt-7 max-w-3xl text-base leading-7 app-text">
+        {{ marketing_html }}
+      </div>
+    {% endif %}
+
+    {% if video_embed_url %}
+      <div class="mt-7 aspect-video overflow-hidden rounded-md border app-border">
+        <iframe src="{{ video_embed_url }}"
+                class="h-full w-full"
+                title="{{ campaign.title }} video"
+                allowfullscreen></iframe>
+      </div>
+    {% endif %}
+  </div>
+
+  <aside class="registration-panel rounded-md border app-border app-surface-muted p-5">
+    {% if registration %}
+      <div class="rounded-md border app-alert-success px-4 py-3">
+        <h2 class="text-lg font-semibold app-heading">
+          {% if form.is_bound %}You are registered{% else %}You are already registered{% endif %}
+        </h2>
+        <p class="mt-2 text-sm app-text">
+          We will send course updates to {{ registration.email_normalized }}.
+        </p>
+      </div>
+    {% else %}
+      <div class="mb-4">
+        <h2 class="text-xl font-semibold app-heading">Register</h2>
+        {% if not user.is_authenticated %}
+          <a href="{% url 'login' %}?next={{ request.path }}" class="mt-3 inline-flex items-center text-sm font-medium app-link">
+            <i class="fas fa-sign-in-alt mr-2" aria-hidden="true"></i> Log in to use your account email
+          </a>
+        {% endif %}
+      </div>
+
+      <form method="post" class="registration-form space-y-4">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="rounded-md border app-alert-warning px-3 py-2 text-sm">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        {% for field in form %}
+          {% if field.field.widget.input_type == 'checkbox' %}
+            <div class="registration-checkbox-row">
+              {{ field }}
+              <label for="{{ field.id_for_label }}" class="registration-checkbox-label">
+                {{ field.label }}
+              </label>
+            </div>
+            {% if field.errors %}
+              <div class="mt-1 text-sm app-danger-text">{{ field.errors }}</div>
+            {% endif %}
+          {% else %}
+            <div{% if field.name == 'country' %} class="country-combobox-field"{% endif %}>
+              <label for="{{ field.id_for_label }}" class="registration-field-label">
+                {{ field.label }}
+              </label>
+              <div class="mt-1">
+                {{ field }}
+                {% if field.name == 'country' %}
+                  {{ country_options|json_script:"country-options-json" }}
+                  <div class="country-combobox-panel"
+                       data-country-combobox-panel
+                       hidden></div>
+                {% endif %}
+              </div>
+              {% if field.help_text %}
+                <p class="mt-1 text-xs app-muted">{{ field.help_text }}</p>
+              {% endif %}
+              {% if field.errors %}
+                <div class="mt-1 text-sm app-danger-text">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        <button type="submit" class="primer-button registration-submit-button">
+          <i class="fas fa-user-plus" aria-hidden="true"></i> Register
+        </button>
+      </form>
+    {% endif %}
+  </aside>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'country_combobox.js' %}"></script>
+{% endblock %}

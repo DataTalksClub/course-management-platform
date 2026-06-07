@@ -56,6 +56,92 @@
   </div>
 </section>
 
+{% if registration_metrics %}
+<section class="mt-6 border-t app-border pt-5">
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Registrations</h2>
+    <span class="cadmin-count-badge">{{ registration_metrics|length }} campaigns</span>
+  </div>
+
+  <div class="space-y-5">
+    {% for item in registration_metrics %}
+      <article class="rounded-md border app-border p-4">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 class="text-lg font-semibold app-heading">{{ item.campaign.title }}</h3>
+            <p class="mt-1 text-sm app-muted">
+              <a href="{% url 'registration_campaign' item.campaign.slug %}" class="app-link">/register/{{ item.campaign.slug }}/</a>
+              {% if item.campaign.selected_mailchimp_tag %}
+                <span aria-hidden="true">&middot;</span>
+                Tag: {{ item.campaign.selected_mailchimp_tag }}
+              {% endif %}
+            </p>
+          </div>
+          <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}" class="primer-button primer-button-secondary">
+            View registrations
+          </a>
+        </div>
+
+        <div class="cadmin-metrics-grid mt-3">
+          <div class="cadmin-metric">
+            <p class="text-xs font-semibold uppercase app-muted">Total</p>
+            <p class="mt-1 text-lg font-semibold app-heading">{{ item.total }}</p>
+          </div>
+          {% for status in item.by_status %}
+            <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}?mailchimp_sync_status={{ status.mailchimp_sync_status|urlencode }}" class="cadmin-metric">
+              <p class="text-xs font-semibold uppercase app-muted">{{ status.mailchimp_sync_status|default:"Unset" }}</p>
+              <p class="mt-1 text-lg font-semibold app-heading">{{ status.count }}</p>
+            </a>
+          {% endfor %}
+        </div>
+
+        <div class="mt-4 grid gap-4 md:grid-cols-3">
+          <div>
+            <p class="text-xs font-semibold uppercase app-muted">Roles</p>
+            <div class="mt-2 space-y-1 text-sm">
+              {% for role in item.by_role|slice:":6" %}
+                <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}?role={{ role.role|urlencode }}" class="flex justify-between gap-3 app-link">
+                  <span>{{ role.role|default:"Unset" }}</span>
+                  <span>{{ role.count }}</span>
+                </a>
+              {% empty %}
+                <p class="app-muted">No registrations yet.</p>
+              {% endfor %}
+            </div>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase app-muted">Regions</p>
+            <div class="mt-2 space-y-1 text-sm">
+              {% for region in item.by_region %}
+                <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}?region={{ region.region|urlencode }}" class="flex justify-between gap-3 app-link">
+                  <span>{{ region.region|default:"Unset" }}</span>
+                  <span>{{ region.count }}</span>
+                </a>
+              {% empty %}
+                <p class="app-muted">No registrations yet.</p>
+              {% endfor %}
+            </div>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase app-muted">Countries</p>
+            <div class="mt-2 space-y-1 text-sm">
+              {% for country in item.by_country|slice:":8" %}
+                <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}?country={{ country.country|urlencode }}" class="flex justify-between gap-3 app-link">
+                  <span>{{ country.country|default:"Unset" }}</span>
+                  <span>{{ country.count }}</span>
+                </a>
+              {% empty %}
+                <p class="app-muted">No registrations yet.</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="mt-6 border-t app-border pt-5">
   <div class="cadmin-section-heading mb-3">
     <h2 class="text-base font-semibold app-heading">Homework</h2>

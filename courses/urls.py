@@ -3,11 +3,17 @@ from django.urls import path
 from .views import course
 from .views import homework
 from .views import project
+from .views import registration
 from .views import wrapped
 
 
 urlpatterns = [
     path("", course.course_list, name="course_list"),
+    path(
+        "register/<slug:campaign_slug>/",
+        registration.registration_campaign_view,
+        name="registration_campaign",
+    ),
     path("wrapped/<int:year>/", wrapped.wrapped_view, name="wrapped"),
     path("wrapped/<int:year>/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
     path(

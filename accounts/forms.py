@@ -8,6 +8,8 @@ class AccountSettingsForm(forms.ModelForm):
         model = CustomUser
         fields = [
             "certificate_name",
+            "country",
+            "registration_role",
             "github_url",
             "linkedin_url",
             "personal_website_url",
@@ -16,6 +18,8 @@ class AccountSettingsForm(forms.ModelForm):
         ]
         labels = {
             "certificate_name": "Certificate name",
+            "country": "Country",
+            "registration_role": "Role",
             "github_url": "GitHub URL",
             "linkedin_url": "LinkedIn URL",
             "personal_website_url": "Website URL",
@@ -26,12 +30,26 @@ class AccountSettingsForm(forms.ModelForm):
             "certificate_name": (
                 "Used for certificates across your course enrollments."
             ),
+            "country": "Used to prefill course registration forms.",
+            "registration_role": "Used to prefill course registration forms.",
         }
         widgets = {
             "certificate_name": forms.TextInput(
                 attrs={
                     "class": "form-control",
                     "placeholder": "Your name for certificates",
+                }
+            ),
+            "country": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Your country",
+                }
+            ),
+            "registration_role": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Your role",
                 }
             ),
             "github_url": forms.TextInput(attrs={"class": "form-control"}),

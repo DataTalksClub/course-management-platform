@@ -1,0 +1,153 @@
+{% extends 'cadmin/base.html' %}
+{% load custom_filters %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  {% if course %}
+    <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  {% endif %}
+  <li><a href="{% url 'cadmin_campaign_registrations' campaign.slug %}">{{ campaign.title }} registrations</a></li>
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="cadmin-page-header border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Registration campaign</p>
+    <h1 class="mt-1 truncate text-2xl font-semibold app-heading md:text-3xl">{{ campaign.title }}</h1>
+    <p class="mt-1 text-sm app-muted">
+      <a href="{% url 'registration_campaign' campaign.slug %}" class="app-link">/register/{{ campaign.slug }}/</a>
+      {% if campaign.selected_mailchimp_tag %}
+        <span aria-hidden="true">&middot;</span>
+        Current tag: {{ campaign.selected_mailchimp_tag }}
+      {% endif %}
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="/admin/courses/registrationcampaign/{{ campaign.id }}/change/" class="primer-button primer-button-secondary">
+      <i class="fas fa-edit" aria-hidden="true"></i> Django
+    </a>
+  </div>
+</section>
+
+<section class="mt-5">
+  <div class="cadmin-metrics-grid">
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Total</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ metrics.total }}</p>
+    </div>
+    {% for status in metrics.by_status %}
+      <a href="?mailchimp_sync_status={{ status.mailchimp_sync_status|urlencode }}" class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">{{ status.mailchimp_sync_status|default:"Unset" }}</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ status.count }}</p>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="mt-5 grid gap-4 md:grid-cols-3">
+    <div>
+      <h2 class="text-sm font-semibold uppercase app-muted">Regions</h2>
+      <div class="mt-2 space-y-1 text-sm">
+        {% for region in metrics.by_region %}
+          <a href="?region={{ region.region|urlencode }}" class="flex justify-between gap-3 app-link">
+            <span>{{ region.region|default:"Unset" }}</span>
+            <span>{{ region.count }}</span>
+          </a>
+        {% empty %}
+          <p class="app-muted">No regions yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h2 class="text-sm font-semibold uppercase app-muted">Countries</h2>
+      <div class="mt-2 space-y-1 text-sm">
+        {% for country in metrics.by_country %}
+          <a href="?country={{ country.country|urlencode }}" class="flex justify-between gap-3 app-link">
+            <span>{{ country.country|default:"Unset" }}</span>
+            <span>{{ country.count }}</span>
+          </a>
+        {% empty %}
+          <p class="app-muted">No countries yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h2 class="text-sm font-semibold uppercase app-muted">Roles</h2>
+      <div class="mt-2 space-y-1 text-sm">
+        {% for role in metrics.by_role %}
+          <a href="?role={{ role.role|urlencode }}" class="flex justify-between gap-3 app-link">
+            <span>{{ role.role|default:"Unset" }}</span>
+            <span>{{ role.count }}</span>
+          </a>
+        {% empty %}
+          <p class="app-muted">No roles yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="mt-6 border-t app-border pt-5">
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Registration list</h2>
+    <span class="cadmin-count-badge">{{ registrations_page.paginator.count }} records</span>
+  </div>
+
+  <form method="get" class="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+    <input type="search"
+           name="q"
+           value="{{ search_query }}"
+           class="form-control"
+           placeholder="Search email or name">
+    <button type="submit" class="primer-button primer-button-secondary">Search</button>
+  </form>
+
+  {% if filters.role or filters.country or filters.region or filters.mailchimp_sync_status or search_query %}
+    <p class="mb-4 text-sm app-muted">
+      Filters are active.
+      <a href="{% url 'cadmin_campaign_registrations' campaign.slug %}" class="app-link">Clear filters</a>
+    </p>
+  {% endif %}
+
+  <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem_8rem] md:gap-3">
+    <div>Person</div>
+    <div>Country</div>
+    <div>Role</div>
+    <div>Status</div>
+    <div class="text-right">Created</div>
+  </div>
+
+  <div class="divide-y app-divide">
+    {% for registration in registrations_page.object_list %}
+      <article class="grid gap-2 py-3 text-sm md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem_8rem] md:items-center md:gap-3">
+        <div class="min-w-0">
+          <p class="truncate font-medium app-heading">{{ registration.name }}</p>
+          <p class="truncate app-muted">{{ registration.email_normalized }}</p>
+          {% if registration.comment %}
+            <p class="mt-1 line-clamp-2 app-text">{{ registration.comment }}</p>
+          {% endif %}
+        </div>
+        <div>
+          <a href="?country={{ registration.country|urlencode }}" class="app-link">{{ registration.country }}</a>
+          <p class="text-xs app-muted">
+            <a href="?region={{ registration.region|urlencode }}" class="app-link">{{ registration.region }}</a>
+          </p>
+        </div>
+        <div>{{ registration.get_role_display }}</div>
+        <div>
+          <a href="?mailchimp_sync_status={{ registration.mailchimp_sync_status|urlencode }}" class="app-link">{{ registration.mailchimp_sync_status }}</a>
+          {% if registration.mailchimp_tag_used %}
+            <p class="text-xs app-muted">{{ registration.mailchimp_tag_used }}</p>
+          {% endif %}
+        </div>
+        <div class="app-muted md:text-right">
+          {{ registration.created_at|date:"M j, Y" }}
+        </div>
+      </article>
+    {% empty %}
+      <p class="py-4 text-sm app-muted">No registrations found.</p>
+    {% endfor %}
+  </div>
+
+  {% include 'include/pagination.html' with pagination_page=registrations_page pagination_range=page_range pagination_querystring=pagination_querystring pagination_label='Registration pages' %}
+</section>
+{% endblock %}

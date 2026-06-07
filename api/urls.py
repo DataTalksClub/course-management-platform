@@ -21,6 +21,21 @@ urlpatterns = [
         views.course_detail_view,
         name="api_course_detail",
     ),
+    path(
+        "registration-campaigns/",
+        views.registration_campaigns_view,
+        name="api_registration_campaigns",
+    ),
+    path(
+        "registration-campaigns/<slug:campaign_slug>/",
+        views.registration_campaign_detail_view,
+        name="api_registration_campaign_detail",
+    ),
+    path(
+        "registration-campaigns/<slug:campaign_slug>/registrations/",
+        views.registration_campaign_registrations_view,
+        name="api_registration_campaign_registrations",
+    ),
 
     # Homeworks
     path(

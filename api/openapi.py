@@ -6,7 +6,14 @@ from django.http import JsonResponse
 from django.urls import reverse
 
 from accounts.auth import token_required
-from courses.models import Course, Homework, Project, Question
+from courses.models import (
+    Course,
+    CourseRegistration,
+    Homework,
+    Project,
+    Question,
+    RegistrationCampaign,
+)
 from courses.models.homework import AnswerTypes, HomeworkState
 from courses.models.project import ProjectState
 
@@ -391,6 +398,133 @@ SCHEMAS = {
             "projects": array_of(ref("ProjectSummary")),
         },
     ),
+    "RegistrationCampaign": {
+        "type": "object",
+        "properties": {
+            **model_properties(
+                RegistrationCampaign,
+                [
+                    "slug",
+                    "title",
+                    "edition_label",
+                    "is_active",
+                    "marketing_markdown",
+                    "meta_description",
+                    "hero_image_url",
+                    "video_url",
+                    "mailchimp_tag_before_switch",
+                    "mailchimp_tag_after_switch",
+                    "mailchimp_tag_switch_at",
+                ],
+            ),
+            "current_course": {
+                "type": ["string", "null"],
+                "description": "Slug of the currently promoted course.",
+            },
+            "selected_mailchimp_tag": {"type": "string"},
+        },
+    },
+    "RegistrationCampaignCreate": {
+        "type": "object",
+        "required": ["slug", "title"],
+        "additionalProperties": False,
+        "properties": {
+            **model_properties(
+                RegistrationCampaign,
+                [
+                    "slug",
+                    "title",
+                    "edition_label",
+                    "is_active",
+                    "marketing_markdown",
+                    "meta_description",
+                    "hero_image_url",
+                    "video_url",
+                    "mailchimp_tag_before_switch",
+                    "mailchimp_tag_after_switch",
+                    "mailchimp_tag_switch_at",
+                ],
+            ),
+            "current_course": {"type": ["string", "null"]},
+        },
+    },
+    "RegistrationCampaignPatch": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            **model_properties(
+                RegistrationCampaign,
+                [
+                    "slug",
+                    "title",
+                    "edition_label",
+                    "is_active",
+                    "marketing_markdown",
+                    "meta_description",
+                    "hero_image_url",
+                    "video_url",
+                    "mailchimp_tag_before_switch",
+                    "mailchimp_tag_after_switch",
+                    "mailchimp_tag_switch_at",
+                ],
+            ),
+            "current_course": {"type": ["string", "null"]},
+        },
+    },
+    "RegistrationCampaignsList": {
+        "type": "object",
+        "required": ["registration_campaigns"],
+        "properties": {
+            "registration_campaigns": array_of(ref("RegistrationCampaign")),
+        },
+    },
+    "CourseRegistration": model_object_schema(
+        CourseRegistration,
+        [
+            "id",
+            "email",
+            "name",
+            "country",
+            "region",
+            "role",
+            "comment",
+            "mailchimp_sync_status",
+            "mailchimp_tag_used",
+            "mailchimp_synced_at",
+            "mailchimp_error",
+            "created_at",
+        ],
+        extra_properties={
+            "campaign": {"type": "string"},
+            "course": {"type": ["string", "null"]},
+            "role_display": {"type": "string"},
+        },
+    ),
+    "RegistrationCount": {
+        "type": "object",
+        "properties": {
+            "value": {"type": "string"},
+            "count": {"type": "integer"},
+        },
+    },
+    "RegistrationStats": {
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "by_role": array_of(ref("RegistrationCount")),
+            "by_country": array_of(ref("RegistrationCount")),
+            "by_region": array_of(ref("RegistrationCount")),
+            "by_mailchimp_sync_status": array_of(ref("RegistrationCount")),
+        },
+    },
+    "RegistrationCampaignRegistrations": {
+        "type": "object",
+        "properties": {
+            "campaign": ref("RegistrationCampaign"),
+            "stats": ref("RegistrationStats"),
+            "registrations": array_of(ref("CourseRegistration")),
+        },
+    },
     "HomeworkSummary": model_object_schema(
         Homework,
         ["id", "slug", "title", "instructions_url", "due_date", "state"],
@@ -922,6 +1056,74 @@ PATHS_BY_URL_NAME = {
                 "404": response("Course not found", ref("Error")),
             },
             body=request_body(ref("CoursePatch")),
+        ),
+    },
+    "api_registration_campaigns": {
+        "get": operation(
+            "api_registration_campaigns",
+            ["Registration Campaigns"],
+            "List registration campaigns",
+            {
+                "200": response(
+                    "Registration campaign list",
+                    ref("RegistrationCampaignsList"),
+                ),
+            },
+        ),
+        "post": operation(
+            "api_registration_campaigns",
+            ["Registration Campaigns"],
+            "Create registration campaign",
+            {
+                "201": response(
+                    "Created registration campaign",
+                    ref("RegistrationCampaign"),
+                ),
+                "400": response("Invalid request", ref("Error")),
+            },
+            body=request_body(ref("RegistrationCampaignCreate")),
+        ),
+    },
+    "api_registration_campaign_detail": {
+        "get": operation(
+            "api_registration_campaign_detail",
+            ["Registration Campaigns"],
+            "Get registration campaign",
+            {
+                "200": response(
+                    "Registration campaign",
+                    ref("RegistrationCampaign"),
+                ),
+                "404": response("Registration campaign not found", ref("Error")),
+            },
+        ),
+        "patch": operation(
+            "api_registration_campaign_detail",
+            ["Registration Campaigns"],
+            "Update registration campaign",
+            {
+                "200": response(
+                    "Updated registration campaign",
+                    ref("RegistrationCampaign"),
+                ),
+                "400": response("Invalid request", ref("Error")),
+                "404": response("Registration campaign not found", ref("Error")),
+            },
+            body=request_body(ref("RegistrationCampaignPatch")),
+        ),
+    },
+    "api_registration_campaign_registrations": {
+        "get": operation(
+            "api_registration_campaign_registrations",
+            ["Registration Campaigns"],
+            "List registration campaign registrations and stats",
+            {
+                "200": response(
+                    "Registration campaign registrations",
+                    ref("RegistrationCampaignRegistrations"),
+                ),
+                "404": response("Registration campaign not found", ref("Error")),
+            },
         ),
     },
     "api_homeworks": {

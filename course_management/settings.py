@@ -200,6 +200,10 @@ DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE = os.getenv(
     "homework-submission-confirmation",
 )
 
+MAILCHIMP_TOKEN = os.getenv("MAILCHIMP_TOKEN", "")
+MAILCHIMP_LIST_ID = os.getenv("MAILCHIMP_LIST_ID", "")
+MAILCHIMP_STRICT = os.getenv("MAILCHIMP_STRICT", "0") == "1"
+
 # Cache configuration
 CACHES = {
     "default": {
