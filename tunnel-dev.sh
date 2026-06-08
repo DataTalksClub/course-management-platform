@@ -10,7 +10,7 @@ BASTION_NAME="bastion-tunnel"
 echo "make sure you have the tunnel open"
 echo "run \"ssh ${BASTION_NAME}\" to open the tunnel"
 
-export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/dev"
+export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5432/dev"
 export SECRET_KEY="${DJANGO_SECRET}"
 
 echo "SSH tunnel established. Starting shell..."
