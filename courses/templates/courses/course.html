@@ -22,6 +22,10 @@
       <a href="{% url 'registration_campaign' registration_campaign.slug %}" class="primer-button primer-button-secondary course-register-button whitespace-nowrap">
         <i class="fas fa-user-plus"></i> Register
       </a>
+    {% elif course.registration_url and not has_enrollment %}
+      <a href="{{ course.registration_url }}" class="primer-button primer-button-secondary course-register-button whitespace-nowrap">
+        <i class="fas fa-user-plus"></i> Register
+      </a>
     {% endif %}
     {% if course.github_repo_url %}
       <a href="{{ course.github_repo_url }}"

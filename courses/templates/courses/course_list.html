@@ -74,7 +74,7 @@
                                 {% endif %}
                             </p>
                         {% endif %}
-                        {% if course.home_current_assignment or course.registration_campaign %}
+                        {% if course.home_current_assignment or course.registration_campaign or course.home_registration_open %}
                             <div class="grid gap-3 text-sm">
                                 {% if course.home_current_assignment %}
                                     <div>
@@ -90,6 +90,14 @@
                                 {% if course.registration_campaign and not course.is_enrolled and not course.is_registered %}
                                     <div class="flex flex-wrap gap-3">
                                         <a href="{% url 'registration_campaign' course.registration_campaign.slug %}"
+                                           class="primer-button primer-button-secondary whitespace-nowrap">
+                                            <i class="fas fa-user-plus"></i>
+                                            Register
+                                        </a>
+                                    </div>
+                                {% elif course.home_registration_open and not course.is_enrolled %}
+                                    <div class="flex flex-wrap gap-3">
+                                        <a href="{{ course.registration_url }}"
                                            class="primer-button primer-button-secondary whitespace-nowrap">
                                             <i class="fas fa-user-plus"></i>
                                             Register
