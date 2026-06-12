@@ -1,27 +1,38 @@
 import json
+from datetime import timedelta
 
 from django.test import TestCase, Client
 from django.utils import timezone
 
 from accounts.models import CustomUser, Token
-from courses.models import Course, Enrollment, Project, ProjectSubmission
-from courses.models.project import ProjectState
+from courses.models import (
+    Course,
+    Enrollment,
+    PeerReview,
+    Project,
+    ProjectSubmission,
+)
+from courses.models.project import PeerReviewState, ProjectState
 
 
-PROJECT_INSTRUCTIONS_URL = "https://github.com/DataTalksClub/test/blob/main/project.md"
+PROJECT_INSTRUCTIONS_URL = (
+    "https://github.com/DataTalksClub/test/blob/main/project.md"
+)
 
 
 class ProjectsAPITestCase(TestCase):
-
     def setUp(self):
         self.user = CustomUser.objects.create(
             username="testuser",
             email="test@example.com",
             password="password",
+            is_staff=True,
         )
         self.token = Token.objects.create(user=self.user)
         self.client = Client()
-        self.client.defaults["HTTP_AUTHORIZATION"] = f"Token {self.token.key}"
+        self.client.defaults["HTTP_AUTHORIZATION"] = (
+            f"Token {self.token.key}"
+        )
 
         self.course = Course.objects.create(
             title="Test Course",
@@ -29,7 +40,9 @@ class ProjectsAPITestCase(TestCase):
             description="Test",
         )
 
-    def _create_project(self, slug="proj1", state=ProjectState.CLOSED.value):
+    def _create_project(
+        self, slug="proj1", state=ProjectState.CLOSED.value
+    ):
         return Project.objects.create(
             course=self.course,
             title="Project 1",
@@ -41,9 +54,29 @@ class ProjectsAPITestCase(TestCase):
             state=state,
         )
 
+    def _create_project_submission(self, project, username):
+        user = CustomUser.objects.create(
+            username=username,
+            email=f"{username}@example.com",
+            password="password",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=self.course,
+        )
+        return ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link=f"https://github.com/{username}/project",
+            commit_id="abc123",
+        )
+
     def test_list_projects(self):
         self._create_project()
-        response = self.client.get(f"/api/courses/{self.course.slug}/projects/")
+        response = self.client.get(
+            f"/api/courses/{self.course.slug}/projects/"
+        )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data["projects"]), 1)
@@ -209,23 +242,29 @@ class ProjectsAPITestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["code"], "missing_required_fields")
+        self.assertEqual(
+            response.json()["code"], "missing_required_fields"
+        )
 
     def test_put_project_invalid_state_does_not_create(self):
         response = self.client.put(
             f"/api/courses/{self.course.slug}/projects/by-slug/project-put/",
-            json.dumps({
-                "name": "Bad State",
-                "submission_due_date": "2026-04-01T23:59:59Z",
-                "peer_review_due_date": "2026-04-08T23:59:59Z",
-                "instructions_url": PROJECT_INSTRUCTIONS_URL,
-                "state": "XX",
-            }),
+            json.dumps(
+                {
+                    "name": "Bad State",
+                    "submission_due_date": "2026-04-01T23:59:59Z",
+                    "peer_review_due_date": "2026-04-08T23:59:59Z",
+                    "instructions_url": PROJECT_INSTRUCTIONS_URL,
+                    "state": "XX",
+                }
+            ),
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["code"], "invalid_project_state")
+        self.assertEqual(
+            response.json()["code"], "invalid_project_state"
+        )
         self.assertFalse(
             Project.objects.filter(
                 course=self.course,
@@ -251,7 +290,9 @@ class ProjectsAPITestCase(TestCase):
         self.assertFalse(Project.objects.filter(id=proj.id).exists())
 
     def test_delete_project_not_closed(self):
-        proj = self._create_project(state=ProjectState.COLLECTING_SUBMISSIONS.value)
+        proj = self._create_project(
+            state=ProjectState.COLLECTING_SUBMISSIONS.value
+        )
         response = self.client.delete(
             f"/api/courses/{self.course.slug}/projects/{proj.id}/"
         )
@@ -282,13 +323,17 @@ class ProjectsAPITestCase(TestCase):
             response.json()["error"],
             "Cannot delete project with existing submissions",
         )
-        self.assertEqual(response.json()["code"], "project_has_submissions")
+        self.assertEqual(
+            response.json()["code"], "project_has_submissions"
+        )
         self.assertEqual(
             response.json()["details"]["submissions_count"],
             1,
         )
         self.assertTrue(Project.objects.filter(id=proj.id).exists())
-        self.assertTrue(ProjectSubmission.objects.filter(id=submission.id).exists())
+        self.assertTrue(
+            ProjectSubmission.objects.filter(id=submission.id).exists()
+        )
 
     def test_delete_project_by_slug_closed_without_submissions(self):
         proj = self._create_project(slug="draft-project")
@@ -299,3 +344,144 @@ class ProjectsAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Project.objects.filter(id=proj.id).exists())
+
+    def test_assign_project_peer_reviews(self):
+        project = self._create_project(
+            state=ProjectState.COLLECTING_SUBMISSIONS.value
+        )
+        project.submission_due_date = timezone.now() - timedelta(
+            hours=1
+        )
+        project.number_of_peers_to_evaluate = 2
+        project.save()
+        for i in range(4):
+            self._create_project_submission(project, f"student-{i}")
+
+        response = self.client.post(
+            f"/api/courses/{self.course.slug}/projects/{project.id}/assign-reviews/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "OK")
+        self.assertEqual(data["project_slug"], "proj1")
+        self.assertEqual(
+            data["state"], ProjectState.PEER_REVIEWING.value
+        )
+        self.assertEqual(data["assigned_peer_reviews_count"], 8)
+        self.assertEqual(data["peer_reviews_count"], 8)
+
+    def test_assign_project_peer_reviews_by_slug_blocked_when_closed(
+        self,
+    ):
+        project = self._create_project(
+            slug="closed-project",
+            state=ProjectState.CLOSED.value,
+        )
+        project.submission_due_date = timezone.now() - timedelta(
+            hours=1
+        )
+        project.save()
+
+        response = self.client.post(
+            (
+                f"/api/courses/{self.course.slug}/projects/by-slug/"
+                "closed-project/assign-reviews/"
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data["status"], "FAIL")
+        self.assertEqual(data["project_slug"], "closed-project")
+        self.assertEqual(data["state"], ProjectState.CLOSED.value)
+        self.assertEqual(data["assigned_peer_reviews_count"], 0)
+
+    def test_score_project(self):
+        self.course.project_passing_score = 1
+        self.course.save()
+        project = self._create_project(
+            state=ProjectState.PEER_REVIEWING.value
+        )
+        project.peer_review_due_date = timezone.now() - timedelta(
+            hours=1
+        )
+        project.number_of_peers_to_evaluate = 1
+        project.save()
+        submission_1 = self._create_project_submission(
+            project, "score-student-1"
+        )
+        submission_2 = self._create_project_submission(
+            project, "score-student-2"
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=submission_1,
+            reviewer=submission_2,
+            state=PeerReviewState.SUBMITTED.value,
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=submission_2,
+            reviewer=submission_1,
+            state=PeerReviewState.SUBMITTED.value,
+        )
+
+        response = self.client.post(
+            f"/api/courses/{self.course.slug}/projects/{project.id}/score/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "OK")
+        self.assertEqual(data["project_slug"], "proj1")
+        self.assertEqual(data["state"], ProjectState.COMPLETED.value)
+        self.assertEqual(data["submissions_count"], 2)
+        self.assertEqual(data["scored_submissions_count"], 2)
+
+    def test_score_project_by_slug_blocked_without_peer_reviews(self):
+        self.course.project_passing_score = 1
+        self.course.save()
+        project = self._create_project(
+            slug="no-reviews-project",
+            state=ProjectState.PEER_REVIEWING.value,
+        )
+        project.peer_review_due_date = timezone.now() - timedelta(
+            hours=1
+        )
+        project.save()
+
+        response = self.client.post(
+            (
+                f"/api/courses/{self.course.slug}/projects/by-slug/"
+                "no-reviews-project/score/"
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data["status"], "FAIL")
+        self.assertEqual(data["project_slug"], "no-reviews-project")
+        self.assertEqual(
+            data["state"], ProjectState.PEER_REVIEWING.value
+        )
+        self.assertEqual(data["scored_submissions_count"], 0)
+
+    def test_project_actions_require_staff_token(self):
+        project = self._create_project(
+            state=ProjectState.COLLECTING_SUBMISSIONS.value
+        )
+        non_staff = CustomUser.objects.create(
+            username="project-nonstaff",
+            email="project-nonstaff@example.com",
+            password="password",
+        )
+        token = Token.objects.create(user=non_staff)
+        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        response = client.post(
+            f"/api/courses/{self.course.slug}/projects/{project.id}/assign-reviews/"
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["code"], "staff_token_required"
+        )

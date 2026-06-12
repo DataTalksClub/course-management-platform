@@ -3,11 +3,17 @@ from .homeworks import (
     homeworks_view,
     homework_detail_view,
     homework_detail_by_slug_view,
+    homework_score_view,
+    homework_score_by_slug_view,
 )
 from .projects import (
     projects_view,
     project_detail_view,
     project_detail_by_slug_view,
+    project_assign_reviews_view,
+    project_assign_reviews_by_slug_view,
+    project_score_view,
+    project_score_by_slug_view,
 )
 from .questions import questions_view, question_detail_view
 from .registration_campaigns import (
@@ -22,9 +28,15 @@ __all__ = [
     "homeworks_view",
     "homework_detail_view",
     "homework_detail_by_slug_view",
+    "homework_score_view",
+    "homework_score_by_slug_view",
     "projects_view",
     "project_detail_view",
     "project_detail_by_slug_view",
+    "project_assign_reviews_view",
+    "project_assign_reviews_by_slug_view",
+    "project_score_view",
+    "project_score_by_slug_view",
     "questions_view",
     "question_detail_view",
     "registration_campaigns_view",

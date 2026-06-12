@@ -106,12 +106,16 @@ def model_field_schema(field):
 
 def model_properties(model, fields):
     return {
-        field_name: model_field_schema(model._meta.get_field(field_name))
+        field_name: model_field_schema(
+            model._meta.get_field(field_name)
+        )
         for field_name in fields
     }
 
 
-def model_object_schema(model, fields, *, required=None, extra_properties=None):
+def model_object_schema(
+    model, fields, *, required=None, extra_properties=None
+):
     properties = model_properties(model, fields)
     if extra_properties:
         properties.update(extra_properties)
@@ -243,7 +247,10 @@ def apply_inspected_operation_metadata(url_name, operation):
         if parameter.get("in") != "path"
     ]
     if generated_parameters or explicit_parameters:
-        result["parameters"] = [*generated_parameters, *explicit_parameters]
+        result["parameters"] = [
+            *generated_parameters,
+            *explicit_parameters,
+        ]
 
     view = view_for_url_name(url_name)
     if getattr(view, "requires_token_auth", False):
@@ -283,7 +290,9 @@ def route_coverage(paths):
 def build_openapi_paths():
     return {
         openapi_path_for_url_name(url_name): {
-            method: apply_inspected_operation_metadata(url_name, operation)
+            method: apply_inspected_operation_metadata(
+                url_name, operation
+            )
             for method, operation in methods.items()
         }
         for url_name, methods in PATHS_BY_URL_NAME.items()
@@ -475,7 +484,9 @@ SCHEMAS = {
         "type": "object",
         "required": ["registration_campaigns"],
         "properties": {
-            "registration_campaigns": array_of(ref("RegistrationCampaign")),
+            "registration_campaigns": array_of(
+                ref("RegistrationCampaign")
+            ),
         },
     },
     "CourseRegistration": model_object_schema(
@@ -514,7 +525,9 @@ SCHEMAS = {
             "by_role": array_of(ref("RegistrationCount")),
             "by_country": array_of(ref("RegistrationCount")),
             "by_region": array_of(ref("RegistrationCount")),
-            "by_mailchimp_sync_status": array_of(ref("RegistrationCount")),
+            "by_mailchimp_sync_status": array_of(
+                ref("RegistrationCount")
+            ),
         },
     },
     "RegistrationCampaignRegistrations": {
@@ -527,7 +540,14 @@ SCHEMAS = {
     },
     "HomeworkSummary": model_object_schema(
         Homework,
-        ["id", "slug", "title", "instructions_url", "due_date", "state"],
+        [
+            "id",
+            "slug",
+            "title",
+            "instructions_url",
+            "due_date",
+            "state",
+        ],
     ),
     "Homework": {
         "allOf": [
@@ -574,7 +594,10 @@ SCHEMAS = {
         },
     },
     "HomeworkCreateRequest": {
-        "oneOf": [ref("HomeworkCreate"), array_of(ref("HomeworkCreate"))],
+        "oneOf": [
+            ref("HomeworkCreate"),
+            array_of(ref("HomeworkCreate")),
+        ],
     },
     "HomeworkUpsert": {
         "type": "object",
@@ -619,7 +642,12 @@ SCHEMAS = {
         "properties": {
             **model_properties(
                 Homework,
-                ["title", "description", "instructions_url", "due_date"],
+                [
+                    "title",
+                    "description",
+                    "instructions_url",
+                    "due_date",
+                ],
             ),
             "state": ref("HomeworkState"),
             **model_properties(
@@ -632,6 +660,27 @@ SCHEMAS = {
                     "faq_contribution_field",
                 ],
             ),
+        },
+    },
+    "HomeworkScoreResponse": {
+        "type": "object",
+        "required": [
+            "status",
+            "message",
+            "homework_id",
+            "homework_slug",
+            "state",
+            "submissions_count",
+            "rescored_submissions_count",
+        ],
+        "properties": {
+            "status": {"type": "string", "enum": ["OK", "FAIL"]},
+            "message": {"type": "string"},
+            "homework_id": {"type": "integer"},
+            "homework_slug": {"type": "string"},
+            "state": ref("HomeworkState"),
+            "submissions_count": {"type": "integer"},
+            "rescored_submissions_count": {"type": "integer"},
         },
     },
     "ProjectSummary": model_object_schema(
@@ -772,6 +821,50 @@ SCHEMAS = {
             ),
         },
     },
+    "ProjectAssignReviewsResponse": {
+        "type": "object",
+        "required": [
+            "status",
+            "message",
+            "project_id",
+            "project_slug",
+            "state",
+            "peer_reviews_count",
+            "assigned_peer_reviews_count",
+        ],
+        "properties": {
+            "status": {"type": "string", "enum": ["OK", "FAIL"]},
+            "message": {"type": "string"},
+            "project_id": {"type": "integer"},
+            "project_slug": {"type": "string"},
+            "state": ref("ProjectState"),
+            "peer_reviews_count": {"type": "integer"},
+            "assigned_peer_reviews_count": {"type": "integer"},
+        },
+    },
+    "ProjectScoreResponse": {
+        "type": "object",
+        "required": [
+            "status",
+            "message",
+            "project_id",
+            "project_slug",
+            "state",
+            "submissions_count",
+            "scored_submissions_count",
+            "passed_submissions_count",
+        ],
+        "properties": {
+            "status": {"type": "string", "enum": ["OK", "FAIL"]},
+            "message": {"type": "string"},
+            "project_id": {"type": "integer"},
+            "project_slug": {"type": "string"},
+            "state": ref("ProjectState"),
+            "submissions_count": {"type": "integer"},
+            "scored_submissions_count": {"type": "integer"},
+            "passed_submissions_count": {"type": "integer"},
+        },
+    },
     "Question": {
         "type": "object",
         "properties": {
@@ -819,7 +912,10 @@ SCHEMAS = {
         ),
     },
     "QuestionCreateRequest": {
-        "oneOf": [ref("QuestionCreate"), array_of(ref("QuestionCreate"))],
+        "oneOf": [
+            ref("QuestionCreate"),
+            array_of(ref("QuestionCreate")),
+        ],
     },
     "QuestionCreateResponse": {
         "type": "object",
@@ -971,7 +1067,9 @@ PATHS_BY_URL_NAME = {
             "Export homework submissions",
             {
                 "200": response("Homework submissions export", JSON),
-                "404": response("Course or homework not found", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
         ),
     },
@@ -982,7 +1080,9 @@ PATHS_BY_URL_NAME = {
             "Export project submissions",
             {
                 "200": response("Project submissions export", JSON),
-                "404": response("Course or project not found", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
         ),
     },
@@ -1094,7 +1194,9 @@ PATHS_BY_URL_NAME = {
                     "Registration campaign",
                     ref("RegistrationCampaign"),
                 ),
-                "404": response("Registration campaign not found", ref("Error")),
+                "404": response(
+                    "Registration campaign not found", ref("Error")
+                ),
             },
         ),
         "patch": operation(
@@ -1107,7 +1209,9 @@ PATHS_BY_URL_NAME = {
                     ref("RegistrationCampaign"),
                 ),
                 "400": response("Invalid request", ref("Error")),
-                "404": response("Registration campaign not found", ref("Error")),
+                "404": response(
+                    "Registration campaign not found", ref("Error")
+                ),
             },
             body=request_body(ref("RegistrationCampaignPatch")),
         ),
@@ -1122,7 +1226,9 @@ PATHS_BY_URL_NAME = {
                     "Registration campaign registrations",
                     ref("RegistrationCampaignRegistrations"),
                 ),
-                "404": response("Registration campaign not found", ref("Error")),
+                "404": response(
+                    "Registration campaign not found", ref("Error")
+                ),
             },
         ),
     },
@@ -1138,7 +1244,9 @@ PATHS_BY_URL_NAME = {
             ["Homeworks"],
             "Create homework or homeworks",
             {
-                "201": response("Created homeworks", ref("HomeworkCreateResponse")),
+                "201": response(
+                    "Created homeworks", ref("HomeworkCreateResponse")
+                ),
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
@@ -1152,7 +1260,9 @@ PATHS_BY_URL_NAME = {
             "Get homework details",
             {
                 "200": response("Homework details", ref("Homework")),
-                "404": response("Course or homework not found", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
         ),
         "patch": operation(
@@ -1161,8 +1271,12 @@ PATHS_BY_URL_NAME = {
             "Update homework",
             {
                 "200": response("Updated homework", ref("Homework")),
-                "400": response("Invalid field, state, or date", ref("Error")),
-                "404": response("Course or homework not found", ref("Error")),
+                "400": response(
+                    "Invalid field, state, or date", ref("Error")
+                ),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
             body=request_body(ref("HomeworkPatch")),
         ),
@@ -1176,11 +1290,37 @@ PATHS_BY_URL_NAME = {
                     "Homework is not closed or has submissions",
                     ref("Error"),
                 ),
-                "404": response("Course or homework not found", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
             description=(
                 "Deletes a homework only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
+            ),
+        ),
+    },
+    "api_homework_score": {
+        "post": operation(
+            "api_homework_score",
+            ["Homeworks"],
+            "Score homework submissions",
+            {
+                "200": response(
+                    "Homework scored", ref("HomeworkScoreResponse")
+                ),
+                "400": response(
+                    "Scoring blocked", ref("HomeworkScoreResponse")
+                ),
+                "403": response("Staff token required", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
+            },
+            description=(
+                "Scores homework submissions with the same safeguards as "
+                "cadmin: due date must be in the past, state must be OP, "
+                "and already scored homeworks are rejected."
             ),
         ),
     },
@@ -1191,7 +1331,9 @@ PATHS_BY_URL_NAME = {
             "Get homework details by slug",
             {
                 "200": response("Homework details", ref("Homework")),
-                "404": response("Course or homework not found", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
         ),
         "patch": operation(
@@ -1200,8 +1342,12 @@ PATHS_BY_URL_NAME = {
             "Update homework by slug",
             {
                 "200": response("Updated homework", ref("Homework")),
-                "400": response("Invalid field, state, or date", ref("Error")),
-                "404": response("Course or homework not found", ref("Error")),
+                "400": response(
+                    "Invalid field, state, or date", ref("Error")
+                ),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
             body=request_body(ref("HomeworkPatch")),
         ),
@@ -1212,7 +1358,9 @@ PATHS_BY_URL_NAME = {
             {
                 "200": response("Updated homework", ref("Homework")),
                 "201": response("Created homework", ref("Homework")),
-                "400": response("Invalid request or replace blocked", ref("Error")),
+                "400": response(
+                    "Invalid request or replace blocked", ref("Error")
+                ),
                 "404": response("Course not found", ref("Error")),
             },
             body=request_body(ref("HomeworkUpsert")),
@@ -1233,11 +1381,37 @@ PATHS_BY_URL_NAME = {
                     "Homework is not closed or has submissions",
                     ref("Error"),
                 ),
-                "404": response("Course or homework not found", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
             description=(
                 "Deletes a homework only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
+            ),
+        ),
+    },
+    "api_homework_score_by_slug": {
+        "post": operation(
+            "api_homework_score_by_slug",
+            ["Homeworks"],
+            "Score homework submissions by slug",
+            {
+                "200": response(
+                    "Homework scored", ref("HomeworkScoreResponse")
+                ),
+                "400": response(
+                    "Scoring blocked", ref("HomeworkScoreResponse")
+                ),
+                "403": response("Staff token required", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
+            },
+            description=(
+                "Scores homework submissions with the same safeguards as "
+                "cadmin: due date must be in the past, state must be OP, "
+                "and already scored homeworks are rejected."
             ),
         ),
     },
@@ -1253,7 +1427,9 @@ PATHS_BY_URL_NAME = {
             ["Projects"],
             "Create project or projects",
             {
-                "201": response("Created projects", ref("ProjectCreateResponse")),
+                "201": response(
+                    "Created projects", ref("ProjectCreateResponse")
+                ),
                 "400": response("Invalid request", ref("Error")),
                 "404": response("Course not found", ref("Error")),
             },
@@ -1267,7 +1443,9 @@ PATHS_BY_URL_NAME = {
             "Get project details",
             {
                 "200": response("Project details", ref("Project")),
-                "404": response("Course or project not found", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
         ),
         "patch": operation(
@@ -1276,8 +1454,12 @@ PATHS_BY_URL_NAME = {
             "Update project",
             {
                 "200": response("Updated project", ref("Project")),
-                "400": response("Invalid field, state, or date", ref("Error")),
-                "404": response("Course or project not found", ref("Error")),
+                "400": response(
+                    "Invalid field, state, or date", ref("Error")
+                ),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
             body=request_body(ref("ProjectPatch")),
         ),
@@ -1291,11 +1473,63 @@ PATHS_BY_URL_NAME = {
                     "Project is not closed or has submissions",
                     ref("Error"),
                 ),
-                "404": response("Course or project not found", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
             description=(
                 "Deletes a project only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
+            ),
+        ),
+    },
+    "api_project_assign_reviews": {
+        "post": operation(
+            "api_project_assign_reviews",
+            ["Projects"],
+            "Assign project peer reviews",
+            {
+                "200": response(
+                    "Peer reviews assigned",
+                    ref("ProjectAssignReviewsResponse"),
+                ),
+                "400": response(
+                    "Assignment blocked",
+                    ref("ProjectAssignReviewsResponse"),
+                ),
+                "403": response("Staff token required", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
+            },
+            description=(
+                "Assigns peer reviews with the same safeguards as cadmin: "
+                "project state must be CS, submission due date must be in "
+                "the past, and enough submissions must exist."
+            ),
+        ),
+    },
+    "api_project_score": {
+        "post": operation(
+            "api_project_score",
+            ["Projects"],
+            "Score project",
+            {
+                "200": response(
+                    "Project scored", ref("ProjectScoreResponse")
+                ),
+                "400": response(
+                    "Scoring blocked", ref("ProjectScoreResponse")
+                ),
+                "403": response("Staff token required", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
+            },
+            description=(
+                "Scores project submissions with the same safeguards as "
+                "cadmin: project state must be PR, peer review due date "
+                "must be in the past, and peer reviews must exist."
             ),
         ),
     },
@@ -1306,7 +1540,9 @@ PATHS_BY_URL_NAME = {
             "Get project details by slug",
             {
                 "200": response("Project details", ref("Project")),
-                "404": response("Course or project not found", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
         ),
         "patch": operation(
@@ -1315,8 +1551,12 @@ PATHS_BY_URL_NAME = {
             "Update project by slug",
             {
                 "200": response("Updated project", ref("Project")),
-                "400": response("Invalid field, state, or date", ref("Error")),
-                "404": response("Course or project not found", ref("Error")),
+                "400": response(
+                    "Invalid field, state, or date", ref("Error")
+                ),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
             body=request_body(ref("ProjectPatch")),
         ),
@@ -1346,11 +1586,63 @@ PATHS_BY_URL_NAME = {
                     "Project is not closed or has submissions",
                     ref("Error"),
                 ),
-                "404": response("Course or project not found", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
             },
             description=(
                 "Deletes a project only when state is CL and there are no "
                 "submissions. This endpoint never deletes submission data."
+            ),
+        ),
+    },
+    "api_project_assign_reviews_by_slug": {
+        "post": operation(
+            "api_project_assign_reviews_by_slug",
+            ["Projects"],
+            "Assign project peer reviews by slug",
+            {
+                "200": response(
+                    "Peer reviews assigned",
+                    ref("ProjectAssignReviewsResponse"),
+                ),
+                "400": response(
+                    "Assignment blocked",
+                    ref("ProjectAssignReviewsResponse"),
+                ),
+                "403": response("Staff token required", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
+            },
+            description=(
+                "Assigns peer reviews with the same safeguards as cadmin: "
+                "project state must be CS, submission due date must be in "
+                "the past, and enough submissions must exist."
+            ),
+        ),
+    },
+    "api_project_score_by_slug": {
+        "post": operation(
+            "api_project_score_by_slug",
+            ["Projects"],
+            "Score project by slug",
+            {
+                "200": response(
+                    "Project scored", ref("ProjectScoreResponse")
+                ),
+                "400": response(
+                    "Scoring blocked", ref("ProjectScoreResponse")
+                ),
+                "403": response("Staff token required", ref("Error")),
+                "404": response(
+                    "Course or project not found", ref("Error")
+                ),
+            },
+            description=(
+                "Scores project submissions with the same safeguards as "
+                "cadmin: project state must be PR, peer review due date "
+                "must be in the past, and peer reviews must exist."
             ),
         ),
     },
@@ -1366,9 +1658,13 @@ PATHS_BY_URL_NAME = {
             ["Questions"],
             "Create question or questions",
             {
-                "201": response("Created questions", ref("QuestionCreateResponse")),
+                "201": response(
+                    "Created questions", ref("QuestionCreateResponse")
+                ),
                 "400": response("Invalid request", ref("Error")),
-                "404": response("Course or homework not found", ref("Error")),
+                "404": response(
+                    "Course or homework not found", ref("Error")
+                ),
             },
             body=request_body(ref("QuestionCreateRequest")),
         ),

@@ -9,6 +9,10 @@ from django.utils.text import slugify
 from accounts.auth import token_required
 from courses.models import Course, Homework, Question
 from courses.models.homework import HomeworkState
+from courses.scoring import (
+    HomeworkScoringStatus,
+    score_homework_submissions,
+)
 
 from api.safety import (
     error_response,
@@ -63,6 +67,39 @@ def _homework_to_dict(hw):
     }
 
 
+def _staff_token_required(request):
+    if request.user.is_staff or request.user.is_superuser:
+        return None
+    return error_response(
+        "Staff token required",
+        "staff_token_required",
+        status=403,
+    )
+
+
+def _homework_score_response(homework):
+    status, message = score_homework_submissions(homework.id)
+    homework.refresh_from_db()
+    submissions_count = homework.submission_set.count()
+    response_status = 200 if status == HomeworkScoringStatus.OK else 400
+    return JsonResponse(
+        {
+            "status": status.name,
+            "message": message,
+            "homework_id": homework.id,
+            "homework_slug": homework.slug,
+            "state": homework.state,
+            "submissions_count": submissions_count,
+            "rescored_submissions_count": (
+                submissions_count
+                if status == HomeworkScoringStatus.OK
+                else 0
+            ),
+        },
+        status=response_status,
+    )
+
+
 def _create_homework(course, hw_data):
     """Create a homework. Returns (dict, None) or (None, error_str)."""
     name = hw_data.get("name")
@@ -72,7 +109,9 @@ def _create_homework(course, hw_data):
         return None, "name and due_date are required"
 
     instructions_url = hw_data.get("instructions_url")
-    if instructions_url and (error := _instructions_url_error(instructions_url)):
+    if instructions_url and (
+        error := _instructions_url_error(instructions_url)
+    ):
         return None, error
 
     due_date = parse_date(due_date_str)
@@ -102,9 +141,13 @@ def _create_homework(course, hw_data):
             text=q_data.get("text", ""),
             question_type=q_data.get("question_type", "FF"),
             answer_type=q_data.get("answer_type"),
-            possible_answers="\n".join(q_data.get("possible_answers", [])),
+            possible_answers="\n".join(
+                q_data.get("possible_answers", [])
+            ),
             correct_answer=q_data.get("correct_answer", ""),
-            scores_for_correct_answer=q_data.get("scores_for_correct_answer", 1),
+            scores_for_correct_answer=q_data.get(
+                "scores_for_correct_answer", 1
+            ),
         )
 
     return _homework_to_dict(homework), None
@@ -118,7 +161,9 @@ def _create_question(homework, q_data):
         answer_type=q_data.get("answer_type"),
         possible_answers="\n".join(q_data.get("possible_answers", [])),
         correct_answer=q_data.get("correct_answer", ""),
-        scores_for_correct_answer=q_data.get("scores_for_correct_answer", 1),
+        scores_for_correct_answer=q_data.get(
+            "scores_for_correct_answer", 1
+        ),
     )
 
 
@@ -133,10 +178,16 @@ def homeworks_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     if request.method == "GET":
-        homeworks = Homework.objects.filter(course=course).order_by("id")
-        return JsonResponse({
-            "homeworks": [_homework_to_dict(hw) for hw in homeworks],
-        })
+        homeworks = Homework.objects.filter(course=course).order_by(
+            "id"
+        )
+        return JsonResponse(
+            {
+                "homeworks": [
+                    _homework_to_dict(hw) for hw in homeworks
+                ],
+            }
+        )
 
     # POST
     data, err = parse_json_body(request)
@@ -151,7 +202,9 @@ def homeworks_view(request, course_slug):
     for item in items:
         hw_dict, error = _create_homework(course, item)
         if error:
-            errors.append({"name": item.get("name", "unknown"), "error": error})
+            errors.append(
+                {"name": item.get("name", "unknown"), "error": error}
+            )
         else:
             created.append(hw_dict)
 
@@ -164,10 +217,15 @@ def homeworks_view(request, course_slug):
 
 
 HOMEWORK_PATCH_FIELDS = {
-    "title", "description", "due_date", "state",
+    "title",
+    "description",
+    "due_date",
+    "state",
     "instructions_url",
-    "learning_in_public_cap", "homework_url_field",
-    "time_spent_lectures_field", "time_spent_homework_field",
+    "learning_in_public_cap",
+    "homework_url_field",
+    "time_spent_lectures_field",
+    "time_spent_homework_field",
     "faq_contribution_field",
 }
 
@@ -229,7 +287,9 @@ def _homework_questions_replace_error(homework):
         return error_response(
             "Questions can only be replaced for closed homeworks with no submissions",
             "homework_questions_replace_blocked",
-            details={"delete_blockers": _homework_delete_blockers(homework)},
+            details={
+                "delete_blockers": _homework_delete_blockers(homework)
+            },
         )
 
     answered_questions = homework.question_set.filter(
@@ -239,7 +299,9 @@ def _homework_questions_replace_error(homework):
         return error_response(
             "Cannot replace questions with existing answers",
             "homework_questions_have_answers",
-            details={"answered_questions_count": answered_questions.count()},
+            details={
+                "answered_questions_count": answered_questions.count()
+            },
         )
 
     return None
@@ -322,11 +384,15 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
         homework.save()
 
         if "questions" in data:
-            error = _replace_homework_questions(homework, data["questions"])
+            error = _replace_homework_questions(
+                homework, data["questions"]
+            )
             if error:
                 return error
 
-    return JsonResponse(_homework_to_dict(homework), status=201 if created else 200)
+    return JsonResponse(
+        _homework_to_dict(homework), status=201 if created else 200
+    )
 
 
 def _homework_detail_response(
@@ -338,9 +404,13 @@ def _homework_detail_response(
 ):
     course = get_object_or_404(Course, slug=course_slug)
     if homework_id is not None:
-        homework = get_object_or_404(Homework, course=course, id=homework_id)
+        homework = get_object_or_404(
+            Homework, course=course, id=homework_id
+        )
     else:
-        homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+        homework = get_object_or_404(
+            Homework, course=course, slug=homework_slug
+        )
 
     if request.method == "GET":
         return JsonResponse(_homework_to_dict(homework))
@@ -378,7 +448,9 @@ def _homework_detail_response(
                 return error_response(
                     f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
                     "invalid_homework_state",
-                    details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
+                    details={
+                        "valid_states": sorted(VALID_HOMEWORK_STATES)
+                    },
                 )
 
         if field == "due_date":
@@ -421,8 +493,46 @@ def homework_detail_by_slug_view(request, course_slug, homework_slug):
     DELETE /api/courses/<slug>/homeworks/by-slug/<slug>/ - Delete homework.
     """
     if request.method == "PUT":
-        return _upsert_homework_by_slug(request, course_slug, homework_slug)
+        return _upsert_homework_by_slug(
+            request, course_slug, homework_slug
+        )
 
     return _homework_detail_response(
         request, course_slug, homework_slug=homework_slug
     )
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def homework_score_view(request, course_slug, homework_id):
+    """
+    POST /api/courses/<slug>/homeworks/<id>/score/ - Score homework.
+    """
+    staff_error = _staff_token_required(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, id=homework_id
+    )
+    return _homework_score_response(homework)
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def homework_score_by_slug_view(request, course_slug, homework_slug):
+    """
+    POST /api/courses/<slug>/homeworks/by-slug/<slug>/score/ - Score homework.
+    """
+    staff_error = _staff_token_required(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+    return _homework_score_response(homework)

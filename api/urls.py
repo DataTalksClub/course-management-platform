@@ -9,7 +9,6 @@ urlpatterns = [
         openapi_json_view,
         name="api_openapi_json",
     ),
-
     # Courses
     path(
         "courses/",
@@ -36,7 +35,6 @@ urlpatterns = [
         views.registration_campaign_registrations_view,
         name="api_registration_campaign_registrations",
     ),
-
     # Homeworks
     path(
         "courses/<slug:course_slug>/homeworks/",
@@ -49,11 +47,20 @@ urlpatterns = [
         name="api_homework_detail",
     ),
     path(
+        "courses/<slug:course_slug>/homeworks/<int:homework_id>/score/",
+        views.homework_score_view,
+        name="api_homework_score",
+    ),
+    path(
         "courses/<slug:course_slug>/homeworks/by-slug/<slug:homework_slug>/",
         views.homework_detail_by_slug_view,
         name="api_homework_detail_by_slug",
     ),
-
+    path(
+        "courses/<slug:course_slug>/homeworks/by-slug/<slug:homework_slug>/score/",
+        views.homework_score_by_slug_view,
+        name="api_homework_score_by_slug",
+    ),
     # Projects
     path(
         "courses/<slug:course_slug>/projects/",
@@ -66,11 +73,30 @@ urlpatterns = [
         name="api_project_detail",
     ),
     path(
+        "courses/<slug:course_slug>/projects/<int:project_id>/assign-reviews/",
+        views.project_assign_reviews_view,
+        name="api_project_assign_reviews",
+    ),
+    path(
+        "courses/<slug:course_slug>/projects/<int:project_id>/score/",
+        views.project_score_view,
+        name="api_project_score",
+    ),
+    path(
         "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/",
         views.project_detail_by_slug_view,
         name="api_project_detail_by_slug",
     ),
-
+    path(
+        "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/assign-reviews/",
+        views.project_assign_reviews_by_slug_view,
+        name="api_project_assign_reviews_by_slug",
+    ),
+    path(
+        "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/score/",
+        views.project_score_by_slug_view,
+        name="api_project_score_by_slug",
+    ),
     # Questions
     path(
         "courses/<slug:course_slug>/homeworks/<int:homework_id>/questions/",

@@ -1,27 +1,39 @@
 import json
+from datetime import timedelta
 
 from django.test import TestCase, Client
 from django.utils import timezone
 
 from accounts.models import CustomUser, Token
-from courses.models import Course, Enrollment, Homework, Question, Submission
+from courses.models import (
+    Answer,
+    Course,
+    Enrollment,
+    Homework,
+    Question,
+    Submission,
+)
 from courses.models.homework import HomeworkState
 
 
-HOMEWORK_INSTRUCTIONS_URL = "https://github.com/DataTalksClub/test/blob/main/homework.md"
+HOMEWORK_INSTRUCTIONS_URL = (
+    "https://github.com/DataTalksClub/test/blob/main/homework.md"
+)
 
 
 class HomeworksAPITestCase(TestCase):
-
     def setUp(self):
         self.user = CustomUser.objects.create(
             username="testuser",
             email="test@example.com",
             password="password",
+            is_staff=True,
         )
         self.token = Token.objects.create(user=self.user)
         self.client = Client()
-        self.client.defaults["HTTP_AUTHORIZATION"] = f"Token {self.token.key}"
+        self.client.defaults["HTTP_AUTHORIZATION"] = (
+            f"Token {self.token.key}"
+        )
 
         self.course = Course.objects.create(
             title="Test Course",
@@ -29,7 +41,9 @@ class HomeworksAPITestCase(TestCase):
             description="Test",
         )
 
-    def _create_homework(self, slug="hw1", state=HomeworkState.CLOSED.value):
+    def _create_homework(
+        self, slug="hw1", state=HomeworkState.CLOSED.value
+    ):
         return Homework.objects.create(
             course=self.course,
             title="Homework 1",
@@ -42,7 +56,9 @@ class HomeworksAPITestCase(TestCase):
 
     def test_list_homeworks(self):
         self._create_homework()
-        response = self.client.get(f"/api/courses/{self.course.slug}/homeworks/")
+        response = self.client.get(
+            f"/api/courses/{self.course.slug}/homeworks/"
+        )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data["homeworks"]), 1)
@@ -277,7 +293,9 @@ class HomeworksAPITestCase(TestCase):
         )
         payload = {
             "title": "Should Not Update",
-            "questions": [{"text": "New question?", "question_type": "FF"}],
+            "questions": [
+                {"text": "New question?", "question_type": "FF"}
+            ],
         }
 
         response = self.client.put(
@@ -297,19 +315,25 @@ class HomeworksAPITestCase(TestCase):
     def test_put_homework_invalid_state_does_not_create(self):
         response = self.client.put(
             f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/",
-            json.dumps({
-                "name": "Bad State",
-                "due_date": "2026-04-01T23:59:59Z",
-                "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
-                "state": "XX",
-            }),
+            json.dumps(
+                {
+                    "name": "Bad State",
+                    "due_date": "2026-04-01T23:59:59Z",
+                    "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
+                    "state": "XX",
+                }
+            ),
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["code"], "invalid_homework_state")
+        self.assertEqual(
+            response.json()["code"], "invalid_homework_state"
+        )
         self.assertFalse(
-            Homework.objects.filter(course=self.course, slug="hw-put").exists()
+            Homework.objects.filter(
+                course=self.course, slug="hw-put"
+            ).exists()
         )
 
     def test_patch_homework_description(self):
@@ -379,13 +403,17 @@ class HomeworksAPITestCase(TestCase):
             response.json()["error"],
             "Cannot delete homework with existing submissions",
         )
-        self.assertEqual(response.json()["code"], "homework_has_submissions")
+        self.assertEqual(
+            response.json()["code"], "homework_has_submissions"
+        )
         self.assertEqual(
             response.json()["details"]["submissions_count"],
             1,
         )
         self.assertTrue(Homework.objects.filter(id=hw.id).exists())
-        self.assertTrue(Submission.objects.filter(id=submission.id).exists())
+        self.assertTrue(
+            Submission.objects.filter(id=submission.id).exists()
+        )
 
     def test_delete_homework_by_slug_closed_without_submissions(self):
         hw = self._create_homework(slug="draft-hw")
@@ -396,3 +424,85 @@ class HomeworksAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Homework.objects.filter(id=hw.id).exists())
+
+    def test_score_homework(self):
+        hw = self._create_homework(state=HomeworkState.OPEN.value)
+        hw.due_date = timezone.now() - timedelta(hours=1)
+        hw.save()
+        question = Question.objects.create(
+            homework=hw,
+            text="What is 2+2?",
+            question_type="FF",
+            answer_type="EXS",
+            correct_answer="4",
+            scores_for_correct_answer=2,
+        )
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = Submission.objects.create(
+            homework=hw,
+            student=self.user,
+            enrollment=enrollment,
+        )
+        Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text="4",
+        )
+
+        response = self.client.post(
+            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/score/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "OK")
+        self.assertEqual(data["homework_slug"], "hw1")
+        self.assertEqual(data["state"], HomeworkState.SCORED.value)
+        self.assertEqual(data["submissions_count"], 1)
+        self.assertEqual(data["rescored_submissions_count"], 1)
+        submission.refresh_from_db()
+        self.assertEqual(submission.total_score, 2)
+
+    def test_score_homework_by_slug_blocked_when_closed(self):
+        hw = self._create_homework(
+            slug="closed-hw",
+            state=HomeworkState.CLOSED.value,
+        )
+        hw.due_date = timezone.now() - timedelta(hours=1)
+        hw.save()
+
+        response = self.client.post(
+            (
+                f"/api/courses/{self.course.slug}/homeworks/by-slug/"
+                "closed-hw/score/"
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data["status"], "FAIL")
+        self.assertEqual(data["homework_slug"], "closed-hw")
+        self.assertEqual(data["state"], HomeworkState.CLOSED.value)
+        self.assertEqual(data["rescored_submissions_count"], 0)
+
+    def test_score_homework_requires_staff_token(self):
+        hw = self._create_homework(state=HomeworkState.OPEN.value)
+        non_staff = CustomUser.objects.create(
+            username="nonstaff",
+            email="nonstaff@example.com",
+            password="password",
+        )
+        token = Token.objects.create(user=non_staff)
+        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        response = client.post(
+            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/score/"
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["code"], "staff_token_required"
+        )

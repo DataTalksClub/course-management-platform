@@ -6,8 +6,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.text import slugify
 
 from accounts.auth import token_required
-from courses.models import Course, Project
+from courses.models import Course, Project, PeerReview
 from courses.models.project import ProjectState
+from courses.projects import (
+    ProjectActionStatus,
+    assign_peer_reviews_for_project,
+    score_project,
+)
 
 from api.safety import (
     error_response,
@@ -64,6 +69,85 @@ def _project_to_dict(proj):
     }
 
 
+def _staff_token_required(request):
+    if request.user.is_staff or request.user.is_superuser:
+        return None
+    return error_response(
+        "Staff token required",
+        "staff_token_required",
+        status=403,
+    )
+
+
+def _project_action_base(project, status, message):
+    project.refresh_from_db()
+    return {
+        "status": status.name,
+        "message": message,
+        "project_id": project.id,
+        "project_slug": project.slug,
+        "state": project.state,
+    }
+
+
+def _project_assign_reviews_response(project):
+    before_count = PeerReview.objects.filter(
+        submission_under_evaluation__project=project,
+    ).count()
+    status, message = assign_peer_reviews_for_project(project)
+    after_count = PeerReview.objects.filter(
+        submission_under_evaluation__project=project,
+    ).count()
+    data = _project_action_base(project, status, message)
+    data.update(
+        {
+            "peer_reviews_count": after_count,
+            "assigned_peer_reviews_count": (
+                after_count - before_count
+                if status == ProjectActionStatus.OK
+                else 0
+            ),
+        }
+    )
+    return JsonResponse(
+        data,
+        status=200 if status == ProjectActionStatus.OK else 400,
+    )
+
+
+def _project_score_response(project):
+    scorable_submissions_count = (
+        PeerReview.objects.filter(
+            submission_under_evaluation__project=project,
+        )
+        .values("submission_under_evaluation")
+        .distinct()
+        .count()
+    )
+    status, message = score_project(project)
+    submissions = project.projectsubmission_set.all()
+    data = _project_action_base(project, status, message)
+    data.update(
+        {
+            "submissions_count": submissions.count(),
+            "scored_submissions_count": (
+                scorable_submissions_count
+                if status == ProjectActionStatus.OK
+                else 0
+            ),
+            "passed_submissions_count": (
+                submissions.filter(passed=True).count()
+                if status == ProjectActionStatus.OK
+                else 0
+            ),
+        }
+    )
+    return JsonResponse(
+        data,
+        status=200 if status == ProjectActionStatus.OK else 400,
+    )
+
+
 def _create_project(course, proj_data):
     """Create a single project. Returns (dict, None) or (None, error_str)."""
     name = proj_data.get("name")
@@ -71,10 +155,15 @@ def _create_project(course, proj_data):
     peer_review_due_str = proj_data.get("peer_review_due_date")
 
     if not name or not submission_due_str or not peer_review_due_str:
-        return None, "name, submission_due_date, and peer_review_due_date are required"
+        return (
+            None,
+            "name, submission_due_date, and peer_review_due_date are required",
+        )
 
     instructions_url = proj_data.get("instructions_url")
-    if instructions_url and (error := _instructions_url_error(instructions_url)):
+    if instructions_url and (
+        error := _instructions_url_error(instructions_url)
+    ):
         return None, error
 
     submission_due_date = parse_date(submission_due_str)
@@ -116,9 +205,11 @@ def projects_view(request, course_slug):
 
     if request.method == "GET":
         projects = Project.objects.filter(course=course).order_by("id")
-        return JsonResponse({
-            "projects": [_project_to_dict(p) for p in projects],
-        })
+        return JsonResponse(
+            {
+                "projects": [_project_to_dict(p) for p in projects],
+            }
+        )
 
     # POST
     data, err = parse_json_body(request)
@@ -132,7 +223,9 @@ def projects_view(request, course_slug):
     for item in items:
         proj_dict, error = _create_project(course, item)
         if error:
-            errors.append({"name": item.get("name", "unknown"), "error": error})
+            errors.append(
+                {"name": item.get("name", "unknown"), "error": error}
+            )
         else:
             created.append(proj_dict)
 
@@ -145,11 +238,19 @@ def projects_view(request, course_slug):
 
 
 PROJECT_PATCH_FIELDS = {
-    "title", "description", "submission_due_date", "peer_review_due_date",
+    "title",
+    "description",
+    "submission_due_date",
+    "peer_review_due_date",
     "instructions_url",
-    "state", "learning_in_public_cap_project", "learning_in_public_cap_review",
-    "number_of_peers_to_evaluate", "points_for_peer_review",
-    "time_spent_project_field", "problems_comments_field", "faq_contribution_field",
+    "state",
+    "learning_in_public_cap_project",
+    "learning_in_public_cap_review",
+    "number_of_peers_to_evaluate",
+    "points_for_peer_review",
+    "time_spent_project_field",
+    "problems_comments_field",
+    "faq_contribution_field",
 }
 
 VALID_PROJECT_STATES = {s.value for s in ProjectState}
@@ -224,8 +325,7 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
     title = data.get("title", data.get("name"))
     required_dates = ("submission_due_date", "peer_review_due_date")
     if created and (
-        not title
-        or not all(data.get(f) for f in required_dates)
+        not title or not all(data.get(f) for f in required_dates)
     ):
         return error_response(
             "title/name, submission_due_date, and peer_review_due_date are required",
@@ -264,7 +364,9 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
             description=data.get("description", ""),
             instructions_url=data.get("instructions_url"),
             submission_due_date=parse_date(data["submission_due_date"]),
-            peer_review_due_date=parse_date(data["peer_review_due_date"]),
+            peer_review_due_date=parse_date(
+                data["peer_review_due_date"]
+            ),
             state=ProjectState.CLOSED.value,
         )
 
@@ -273,7 +375,9 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
         return error
 
     project.save()
-    return JsonResponse(_project_to_dict(project), status=201 if created else 200)
+    return JsonResponse(
+        _project_to_dict(project), status=201 if created else 200
+    )
 
 
 def _project_detail_response(
@@ -285,9 +389,13 @@ def _project_detail_response(
 ):
     course = get_object_or_404(Course, slug=course_slug)
     if project_id is not None:
-        project = get_object_or_404(Project, course=course, id=project_id)
+        project = get_object_or_404(
+            Project, course=course, id=project_id
+        )
     else:
-        project = get_object_or_404(Project, course=course, slug=project_slug)
+        project = get_object_or_404(
+            Project, course=course, slug=project_slug
+        )
 
     if request.method == "GET":
         return JsonResponse(_project_to_dict(project))
@@ -300,7 +408,9 @@ def _project_detail_response(
             return error_response_result
 
         error_response_result = ensure_no_related_records_for_delete(
-            project.projectsubmission_set.all(), "submissions", "project"
+            project.projectsubmission_set.all(),
+            "submissions",
+            "project",
         )
         if error_response_result:
             return error_response_result
@@ -325,7 +435,9 @@ def _project_detail_response(
                 return error_response(
                     f"Invalid state. Must be one of: {sorted(VALID_PROJECT_STATES)}",
                     "invalid_project_state",
-                    details={"valid_states": sorted(VALID_PROJECT_STATES)},
+                    details={
+                        "valid_states": sorted(VALID_PROJECT_STATES)
+                    },
                 )
 
         if field in ("submission_due_date", "peer_review_due_date"):
@@ -368,8 +480,80 @@ def project_detail_by_slug_view(request, course_slug, project_slug):
     DELETE /api/courses/<slug>/projects/by-slug/<slug>/ - Delete project.
     """
     if request.method == "PUT":
-        return _upsert_project_by_slug(request, course_slug, project_slug)
+        return _upsert_project_by_slug(
+            request, course_slug, project_slug
+        )
 
     return _project_detail_response(
         request, course_slug, project_slug=project_slug
     )
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def project_assign_reviews_view(request, course_slug, project_id):
+    """
+    POST /api/courses/<slug>/projects/<id>/assign-reviews/ - Assign reviews.
+    """
+    staff_error = _staff_token_required(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(Project, course=course, id=project_id)
+    return _project_assign_reviews_response(project)
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def project_assign_reviews_by_slug_view(
+    request, course_slug, project_slug
+):
+    """
+    POST /api/courses/<slug>/projects/by-slug/<slug>/assign-reviews/ - Assign reviews.
+    """
+    staff_error = _staff_token_required(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    return _project_assign_reviews_response(project)
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def project_score_view(request, course_slug, project_id):
+    """
+    POST /api/courses/<slug>/projects/<id>/score/ - Score project.
+    """
+    staff_error = _staff_token_required(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(Project, course=course, id=project_id)
+    return _project_score_response(project)
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def project_score_by_slug_view(request, course_slug, project_slug):
+    """
+    POST /api/courses/<slug>/projects/by-slug/<slug>/score/ - Score project.
+    """
+    staff_error = _staff_token_required(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    return _project_score_response(project)
