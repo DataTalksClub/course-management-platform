@@ -261,7 +261,7 @@
                 {% endif %}
             </div>
             {% if accepting_submissions %}
-                <div class="mt-4 flex flex-wrap gap-3">
+                <div class="mt-4 flex flex-wrap gap-2 border-t app-border pt-5">
                     {% if is_authenticated %}
                         {% if not submission %}
                             <button id="submit-button"
@@ -277,7 +277,7 @@
                             </button>
                             <button id="delete-button"
                                     type="button"
-                                    class="primer-button inline-flex min-h-10 w-fit items-center justify-center rounded-md border app-alert-danger px-4 py-2 hover:border-red-600">Remove</button>
+                                    class="primer-button primer-button-secondary">Remove</button>
                         {% endif %}
                     {% else %}
                         <a href="{% url 'login' %}"

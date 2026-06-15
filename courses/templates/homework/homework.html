@@ -374,11 +374,11 @@
                     {% endif %}
                 </div>
                 {% if not homework.is_scored %}
-                    <div class="mt-4 flex flex-wrap gap-3">
+                    <div class="mt-4 flex flex-wrap gap-2 border-t app-border pt-5">
                         {% if is_authenticated %}
                             <button id="submit-button"
                                     type="submit"
-                                    class="primer-button w-fit">
+                                    class="primer-button">
                                 {% if not submission %}
                                     Save submission
                                 {% else %}
@@ -387,7 +387,7 @@
                             </button>
                         {% else %}
                             <a href="{% url 'login' %}"
-                               class="primer-button w-fit">
+                               class="primer-button">
                                 Log in to submit
                             </a>
                         {% endif %}

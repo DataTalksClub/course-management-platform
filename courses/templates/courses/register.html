@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+<section class="space-y-8">
   <div class="min-w-0">
     {% if campaign.hero_image_url %}
       <img src="{{ campaign.hero_image_url }}"
@@ -97,9 +97,9 @@
 
         {% for field in form %}
           {% if field.field.widget.input_type == 'checkbox' %}
-            <div class="registration-checkbox-row">
+            <div class="checkbox-row">
               {{ field }}
-              <label for="{{ field.id_for_label }}" class="registration-checkbox-label">
+              <label for="{{ field.id_for_label }}" class="checkbox-label">
                 {{ field.label }}
               </label>
             </div>
@@ -130,9 +130,11 @@
           {% endif %}
         {% endfor %}
 
-        <button type="submit" class="primer-button registration-submit-button">
-          <i class="fas fa-user-plus" aria-hidden="true"></i> Register
-        </button>
+        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+          <button type="submit" class="primer-button registration-submit-button">
+            <i class="fas fa-user-plus" aria-hidden="true"></i> Register
+          </button>
+        </div>
       </form>
     {% endif %}
   </aside>

@@ -15,7 +15,7 @@
 {% block content %}
     <section class="pb-5">
         <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
-        <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div class="mt-2 flex flex-col gap-3">
             <div>
                 <h1 class="text-2xl font-semibold app-heading md:text-3xl">Projects for {{ project.title }}</h1>
                 <p class="mt-1 max-w-2xl text-sm app-muted">
@@ -63,11 +63,11 @@
                             </div>
                         {% endif %}
                         <article class="px-4 py-3">
-                            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_64px_40px_86px] md:items-center">
-                                <div class="min-w-0">
+                            <div class="project-submission-row">
+                                <div class="project-submission-student min-w-0">
                                     <div class="flex min-w-0 items-center gap-2">
                                         <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=submission.enrollment.id %}"
-                                           class="min-w-0 font-medium app-link hover:underline">
+                                           class="min-w-0 truncate font-medium app-link hover:underline">
                                             {{ submission.enrollment.display_name }}
                                         </a>
                                         {% if submission.github_link %}
@@ -82,7 +82,7 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2 md:justify-end">
+                                <div class="project-submission-votes flex items-center gap-2">
                                     <span class="project-vote-count text-sm app-muted"
                                           data-submission-id="{{ submission.id }}"
                                           data-vote-count="{{ submission.vote_count }}">
@@ -90,7 +90,7 @@
                                         <span class="hidden md:inline">{{ submission.vote_count }}</span>
                                     </span>
                                 </div>
-                                <div class="flex items-center md:justify-center">
+                                <div class="project-submission-vote-action flex items-center">
                                     {% if is_authenticated %}
                                         <form method="post"
                                               class="project-vote-form m-0"
@@ -124,7 +124,7 @@
                                         </form>
                                     {% endif %}
                                 </div>
-                                <div class="flex items-center gap-2 md:justify-end">
+                                <div class="project-submission-review flex items-center gap-2">
                                     {% if is_authenticated and project.state == 'PR' %}
                                         {% if submission.to_evaluate %}
                                             <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=submission.review.id %}"

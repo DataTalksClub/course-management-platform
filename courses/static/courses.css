@@ -222,14 +222,14 @@ body {
   min-height: 112px;
 }
 
-.registration-checkbox-row {
+.checkbox-row {
   align-items: flex-start;
   display: grid;
   gap: 0.65rem;
   grid-template-columns: 1.1rem minmax(0, 1fr);
 }
 
-.registration-checkbox-row input[type="checkbox"] {
+.checkbox-row input[type="checkbox"] {
   appearance: none;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -240,17 +240,24 @@ body {
   width: 1.1rem;
 }
 
-.registration-checkbox-row input[type="checkbox"]:checked {
+.checkbox-row input[type="checkbox"]:checked {
   background-color: var(--link-color);
   border-color: var(--link-color);
   box-shadow: inset 0 0 0 3px var(--input-bg);
 }
 
-.registration-checkbox-label {
+.checkbox-label {
   color: var(--text-heading);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.45;
+}
+
+.checkbox-help {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin-top: 0.25rem;
 }
 
 .registration-submit-button,
@@ -299,7 +306,7 @@ body {
     padding: 9px 10px;
   }
 
-  .registration-checkbox-label {
+  .checkbox-label {
     font-size: 0.9rem;
   }
 
@@ -324,6 +331,39 @@ body {
 
 .app-hover-muted:hover {
   background: var(--surface-muted);
+}
+
+.project-submission-row {
+  align-items: center;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.project-submission-student a {
+  display: block;
+}
+
+.project-submission-votes {
+  justify-content: flex-end;
+  min-width: 3.5rem;
+  white-space: nowrap;
+}
+
+.project-submission-vote-action {
+  justify-content: center;
+  min-width: 1.75rem;
+}
+
+.project-submission-vote-action:empty {
+  display: none;
+}
+
+.project-submission-review {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 4.75rem;
+  text-align: right;
 }
 
 .project-vote-button {
@@ -432,6 +472,33 @@ body {
 
 .submission-action-button-danger:hover {
   color: var(--danger-text);
+}
+
+@media (min-width: 768px) {
+  .project-submission-row {
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr) 64px 40px 86px;
+  }
+
+  .project-submission-votes,
+  .project-submission-vote-action,
+  .project-submission-review {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .project-submission-row {
+    gap: 0.45rem;
+  }
+
+  .project-submission-votes {
+    min-width: 3.25rem;
+  }
+
+  .project-submission-review {
+    min-width: 4.25rem;
+  }
 }
 
 .app-alert-info {
@@ -990,7 +1057,6 @@ form select {
   line-height: 1.35;
 }
 
-.cadmin-page-header,
 .cadmin-section-heading {
   align-items: flex-start;
   display: flex;
@@ -999,7 +1065,10 @@ form select {
 }
 
 .cadmin-page-header {
-  align-items: center;
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .cadmin-support-strip {
@@ -1423,14 +1492,9 @@ body.dark-mode [class*="text-red-700"] {
     white-space: nowrap;
   }
 
-  .cadmin-page-header,
   .cadmin-section-heading {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .cadmin-page-header .primer-button {
-    justify-content: center;
   }
 
   .cadmin-metrics-grid {

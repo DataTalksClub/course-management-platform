@@ -10,7 +10,7 @@
 {% block content %}
 <section class="border-b app-border pb-5">
   <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
-  <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+  <div class="mt-2 flex flex-col gap-3">
     <div>
       <h1 class="text-2xl font-semibold app-heading md:text-3xl">Flag leaderboard record</h1>
       <p class="mt-1 text-sm app-muted">Record: {{ enrollment.display_name }} · {{ enrollment.total_score }} points</p>
@@ -36,7 +36,7 @@
       <p class="mt-2 text-sm font-medium">{{ form.description.errors|join:" " }}</p>
     {% endif %}
   </div>
-  <div class="flex flex-wrap gap-3 border-t app-border pt-5">
+  <div class="flex flex-wrap gap-2 border-t app-border pt-5">
     <button type="submit" class="primer-button">Submit flag</button>
     <a href="{% url 'leaderboard_score_breakdown' course.slug enrollment.id %}" class="primer-button primer-button-secondary">Cancel</a>
   </div>

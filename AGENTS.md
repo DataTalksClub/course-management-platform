@@ -22,6 +22,10 @@ uv run python manage.py test
 ```
 
 
+## Design
+
+If your work involves design — templates, CSS, page layout, forms, buttons, or any user-facing UI — you must read [docs/design-system.md](docs/design-system.md) first and follow it. It is the source of truth for layout (rows over columns), page headers, form structure, button placement, and spacing.
+
 ## One-time tests and debug scripts
 
 

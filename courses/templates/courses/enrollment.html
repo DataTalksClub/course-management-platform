@@ -17,7 +17,7 @@
         <p class="settings-page-kicker text-sm font-semibold uppercase tracking-wide">
             {{ course.title }}
         </p>
-        <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div class="mt-2 flex flex-col gap-3">
             <div>
                 <h1 class="settings-page-title text-2xl font-semibold md:text-3xl">
                     Edit Enrollment Details
@@ -37,14 +37,14 @@
     <form method="post" class="settings-form mt-6 space-y-8">
         {% csrf_token %}
 
-        <section class="settings-section grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <section class="settings-section">
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Public identity</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">
                     How classmates and the course team identify you in public course views.
                 </p>
             </div>
-            <div class="grid gap-5 md:grid-cols-2">
+            <div class="mt-5 space-y-5">
                 <div>
                     <label for="{{ form.display_name.id_for_label }}"
                            class="settings-label mb-2 block text-sm font-semibold">
@@ -81,45 +81,54 @@
         </section>
 
         <section class="settings-section border-t pt-6">
-            <div class="flex flex-col gap-4">
-                <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
+            <div class="space-y-5">
+                <div class="checkbox-row">
                     {{ form.display_on_leaderboard }}
-                    <span>Show my record on the public leaderboard</span>
-                </label>
-                <p class="settings-helper text-xs leading-5">
-                    When disabled, your score remains saved for you and the course team, but your row is hidden from public leaderboard views and exports.
-                </p>
-                <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
-                    {{ form.display_public_profile }}
-                    <span>Display my public profile data on this leaderboard record</span>
-                </label>
-                <p class="settings-helper text-xs leading-5">
-                    Uses your account profile: About me, GitHub, LinkedIn, and website.
-                    <a href="{% url 'account_settings' %}" class="app-link font-medium">
-                        Edit public profile
-                    </a>
-                </p>
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="text-sm">
-                        <span class="settings-meta-label">Certificate:</span>
-                        {% if enrollment.certificate_url %}
-                            <a href="{{ enrollment.certificate_url }}"
-                               target="_blank"
-                               class="settings-link ml-1 font-medium hover:underline">
-                                Download
-                            </a>
-                        {% else %}
-                            <span class="settings-meta-value ml-1">Not available</span>
-                        {% endif %}
+                    <div>
+                        <label for="{{ form.display_on_leaderboard.id_for_label }}" class="checkbox-label">
+                            Show my record on the public leaderboard
+                        </label>
+                        <p class="checkbox-help">
+                            When disabled, your score remains saved for you and the course team, but your row is hidden from public leaderboard views and exports.
+                        </p>
                     </div>
-                    <button id="submit-button"
-                            type="submit"
-                            class="primer-button w-fit">
-                        Save changes
-                    </button>
+                </div>
+                <div class="checkbox-row">
+                    {{ form.display_public_profile }}
+                    <div>
+                        <label for="{{ form.display_public_profile.id_for_label }}" class="checkbox-label">
+                            Display my public profile data on this leaderboard record
+                        </label>
+                        <p class="checkbox-help">
+                            Uses your account profile: About me, GitHub, LinkedIn, and website.
+                            <a href="{% url 'account_settings' %}" class="app-link font-medium">
+                                Edit public profile
+                            </a>
+                        </p>
+                    </div>
+                </div>
+                <div class="text-sm">
+                    <span class="settings-meta-label">Certificate:</span>
+                    {% if enrollment.certificate_url %}
+                        <a href="{{ enrollment.certificate_url }}"
+                           target="_blank"
+                           class="settings-link ml-1 font-medium hover:underline">
+                            Download
+                        </a>
+                    {% else %}
+                        <span class="settings-meta-value ml-1">Not available</span>
+                    {% endif %}
                 </div>
             </div>
         </section>
+
+        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+            <button id="submit-button"
+                    type="submit"
+                    class="primer-button">
+                Save changes
+            </button>
+        </div>
     </form>
 
     <script src="{% static 'homework.js' %}"></script>
