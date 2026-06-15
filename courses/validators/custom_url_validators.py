@@ -22,27 +22,36 @@ def get_error_message(status_code, url):
     return f"The submitted link {url} does not exist."
 
 
+# Cap how long we wait on the remote server so a slow or hanging URL
+# cannot tie up a worker process indefinitely.
+URL_VALIDATION_TIMEOUT = 10
+
+
 def validate_url_200(
     url, get_method=None, code=None, params=None
 ):
-    # Since the 
     if get_method is None:
         get_method = requests.head
-        
+
     try:
-        response = get_method(url)
+        response = get_method(url, timeout=URL_VALIDATION_TIMEOUT)
 
         if response.status_code in [403, 405, 501]:
-            response = requests.get(url)
+            response = requests.get(url, timeout=URL_VALIDATION_TIMEOUT)
 
         status_code = response.status_code
-            
+
         if status_code == 200:
             return
-            
+
         error_message = get_error_message(status_code, url)
         raise ValidationError(error_message, code=code, params=params)
-    except requests.exceptions.RequestException as e:
+    except ValidationError:
+        raise
+    except Exception as e:
+        # Not just requests.exceptions.RequestException: malformed-but-
+        # valid-looking URLs can raise UnicodeError / LocationParseError,
+        # which would otherwise escape as an uncaught 500.
         raise ValidationError(
             f"An error occurred while trying to validate the URL: {e}",
             code=code,

@@ -172,6 +172,32 @@ def tryparsefloat(value: str) -> Optional[float]:
         return None
 
 
+def parse_time_spent_hours(
+    value: Optional[str], field_label: str
+) -> Optional[float]:
+    """Parse a user-entered "hours spent" value.
+
+    Returns None when nothing was provided (field left untouched).
+    Accepts comma decimal separators ("2,5"), which mobile and many
+    locale keyboards submit. Raises ValidationError on non-numeric input
+    instead of letting float() raise an uncaught ValueError (a 500).
+    """
+    if value is None:
+        return None
+
+    value = value.strip()
+    if not value:
+        return None
+
+    parsed = tryparsefloat(value.replace(",", "."))
+    if parsed is None:
+        raise ValidationError(
+            f"Please enter a valid number of hours for {field_label} "
+            "(for example, 2 or 2.5)."
+        )
+    return parsed
+
+
 def clean_learning_in_public_links(links: List[str], cap: int) -> List[str]:
     url_validator = URLValidator(schemes=["http", "https"])
     cleaned_links = []
@@ -329,20 +355,20 @@ def process_homework_submission(
         submission.learning_in_public_links = cleaned_links
 
     if homework.time_spent_lectures_field:
-        time_spent_lectures = request.POST.get("time_spent_lectures")
-        if (
-            time_spent_lectures is not None
-            and time_spent_lectures != ""
-        ):
-            submission.time_spent_lectures = float(time_spent_lectures)
+        time_spent_lectures = parse_time_spent_hours(
+            request.POST.get("time_spent_lectures"),
+            "time spent on lectures",
+        )
+        if time_spent_lectures is not None:
+            submission.time_spent_lectures = time_spent_lectures
 
     if homework.time_spent_homework_field:
-        time_spent_homework = request.POST.get("time_spent_homework")
-        if (
-            time_spent_homework is not None
-            and time_spent_homework != ""
-        ):
-            submission.time_spent_homework = float(time_spent_homework)
+        time_spent_homework = parse_time_spent_hours(
+            request.POST.get("time_spent_homework"),
+            "time spent on homework",
+        )
+        if time_spent_homework is not None:
+            submission.time_spent_homework = time_spent_homework
 
     if course.homework_problems_comments_field:
         problems_comments = request.POST.get("problems_comments", "")

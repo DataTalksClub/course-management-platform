@@ -1087,6 +1087,70 @@ class HomeworkDetailViewTests(TestCase):
         self.assertContains(response, "The submitted GitHub link")
         self.assertContains(response, "does not exist")
 
+    def test_submit_homework_time_spent_comma_decimal(self):
+        # Mobile and EU-locale keyboards commonly submit "2,5" for the
+        # time-spent fields. This must be accepted, not crash with a 500.
+        self.homework.homework_url_field = False
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            "time_spent_lectures": "2,5",
+            "time_spent_homework": "1,25",
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+
+        submission = Submission.objects.get(
+            homework=self.homework, student=self.user
+        )
+        self.assertEqual(submission.time_spent_lectures, 2.5)
+        self.assertEqual(submission.time_spent_homework, 1.25)
+
+    def test_submit_homework_time_spent_invalid_text_shows_error(self):
+        # Non-numeric input must surface a friendly form error instead of
+        # raising an uncaught ValueError (which previously caused a 500).
+        self.homework.homework_url_field = False
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            "time_spent_lectures": "2 hrs",
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "valid number of hours")
+        # The transaction rolls back, so no partial submission is saved.
+        self.assertFalse(
+            Submission.objects.filter(
+                homework=self.homework, student=self.user
+            ).exists()
+        )
+
     def test_submit_homework_learning_in_public_empty_and_duplicates(
         self,
     ):
