@@ -9,6 +9,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from loginas.utils import restore_original_login
 
@@ -58,6 +59,7 @@ def toggle_dark_mode(request):
 
 
 @login_required
+@csrf_exempt
 @require_POST
 def stop_impersonating(request):
     restore_original_login(request)
