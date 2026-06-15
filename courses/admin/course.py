@@ -150,6 +150,7 @@ class CourseAdmin(ModelAdmin):
 
 @admin.register(RegistrationCampaign)
 class RegistrationCampaignAdmin(ModelAdmin):
+    prepopulated_fields = {"slug": ("title",)}
     list_display = [
         "title",
         "slug",
@@ -160,7 +161,43 @@ class RegistrationCampaignAdmin(ModelAdmin):
         "mailchimp_tag_switch_at",
     ]
     search_fields = ["title", "slug"]
-    list_filter = ["is_active"]
+    list_filter = ["is_active", "current_course"]
+    readonly_fields = ["created_at", "updated_at"]
+    fieldsets = [
+        (
+            "Landing page",
+            {
+                "fields": [
+                    "title",
+                    "slug",
+                    "edition_label",
+                    "current_course",
+                    "is_active",
+                    "hero_image_url",
+                    "video_url",
+                    "meta_description",
+                    "marketing_markdown",
+                ]
+            },
+        ),
+        (
+            "Mailchimp",
+            {
+                "fields": [
+                    "mailchimp_tag_before_switch",
+                    "mailchimp_tag_after_switch",
+                    "mailchimp_tag_switch_at",
+                ]
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "classes": ["collapse"],
+                "fields": ["created_at", "updated_at"],
+            },
+        ),
+    ]
 
 
 @admin.register(CourseRegistration)
@@ -189,6 +226,44 @@ class CourseRegistrationAdmin(ModelAdmin):
         "mailchimp_synced_at",
         "created_at",
         "updated_at",
+    ]
+    fieldsets = [
+        (
+            "Registration",
+            {
+                "fields": [
+                    "campaign",
+                    "course",
+                    "user",
+                    "email",
+                    "email_normalized",
+                    "name",
+                    "country",
+                    "region",
+                    "role",
+                    "comment",
+                    "accepted_newsletter",
+                ]
+            },
+        ),
+        (
+            "Mailchimp",
+            {
+                "fields": [
+                    "mailchimp_sync_status",
+                    "mailchimp_tag_used",
+                    "mailchimp_synced_at",
+                    "mailchimp_error",
+                ]
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "classes": ["collapse"],
+                "fields": ["created_at", "updated_at"],
+            },
+        ),
     ]
 
 

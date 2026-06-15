@@ -201,6 +201,95 @@ class CadminViewTests(TestCase):
         self.assertContains(response, "student@example.com")
         self.assertContains(response, "Europe")
 
+    def test_campaign_create_staff_allowed(self):
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse("cadmin_campaign_create")
+        response = self.client.get(f"{url}?course={self.course.slug}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Create registration landing page")
+        self.assertContains(response, self.course.title)
+
+        response = self.client.post(
+            url,
+            {
+                "title": "LLM Zoomcamp",
+                "slug": "llm-zoomcamp",
+                "edition_label": "2026 cohort",
+                "current_course": self.course.id,
+                "is_active": "on",
+                "hero_image_url": "https://example.com/hero.jpg",
+                "video_url": "https://youtu.be/example",
+                "meta_description": "Learn LLMs",
+                "marketing_markdown": "## Register now",
+                "mailchimp_tag_before_switch": "llm-zoomcamp-2026",
+                "mailchimp_tag_after_switch": "",
+                "mailchimp_tag_switch_at": "",
+            },
+        )
+
+        campaign = RegistrationCampaign.objects.get(slug="llm-zoomcamp")
+        self.assertRedirects(
+            response,
+            reverse(
+                "cadmin_campaign_edit",
+                kwargs={"campaign_slug": campaign.slug},
+            ),
+        )
+        self.assertEqual(campaign.current_course, self.course)
+        self.assertEqual(campaign.marketing_markdown, "## Register now")
+
+    def test_campaign_create_non_staff_denied(self):
+        self.client.login(username="test@test.com", password="12345")
+        response = self.client.get(reverse("cadmin_campaign_create"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(RegistrationCampaign.objects.exists())
+
+    def test_campaign_edit_staff_allowed(self):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            marketing_markdown="Old copy",
+            mailchimp_tag_before_switch="old-tag",
+        )
+
+        self.client.login(username="admin@test.com", password="admin123")
+        url = reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit registration landing page")
+        self.assertContains(response, "/register/llm-zoomcamp/")
+
+        response = self.client.post(
+            url,
+            {
+                "title": "LLM Zoomcamp 2026",
+                "slug": "llm-zoomcamp",
+                "edition_label": "",
+                "current_course": self.course.id,
+                "is_active": "on",
+                "hero_image_url": "",
+                "video_url": "",
+                "meta_description": "",
+                "marketing_markdown": "New copy",
+                "mailchimp_tag_before_switch": "new-tag",
+                "mailchimp_tag_after_switch": "",
+                "mailchimp_tag_switch_at": "",
+            },
+        )
+
+        self.assertRedirects(response, url)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.title, "LLM Zoomcamp 2026")
+        self.assertEqual(campaign.marketing_markdown, "New copy")
+        self.assertEqual(campaign.mailchimp_tag_before_switch, "new-tag")
+
     def test_leaderboard_complaints_sorted_by_open_count(self):
         self.client.login(username="admin@test.com", password="admin123")
         reporter = User.objects.create_user(
@@ -1058,6 +1147,33 @@ class CadminViewTests(TestCase):
         response = self.client.get(reverse("course_list"))
         self.assertEqual(response.wsgi_request.user, self.admin_user)
         self.assertNotContains(response, "impersonation-banner")
+
+    def test_stop_impersonating_allows_stale_csrf_token_after_user_switch(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.login(username="admin@test.com", password="admin123")
+
+        response = csrf_client.get(reverse("course_list"))
+        self.assertEqual(response.status_code, 200)
+        admin_csrf_token = csrf_client.cookies["csrftoken"].value
+
+        response = csrf_client.post(
+            f"/admin/login/user/{self.user.id}/",
+            {"csrfmiddlewaretoken": admin_csrf_token},
+        )
+        self.assertEqual(response.status_code, 302)
+
+        response = csrf_client.get(reverse("course_list"))
+        self.assertContains(response, "impersonation-banner")
+        self.assertEqual(response.wsgi_request.user, self.user)
+
+        response = csrf_client.post(
+            reverse("stop_impersonating"),
+            {"csrfmiddlewaretoken": admin_csrf_token},
+        )
+
+        self.assertRedirects(response, reverse("cadmin_course_list"))
+        response = csrf_client.get(reverse("course_list"))
+        self.assertEqual(response.wsgi_request.user, self.admin_user)
 
     def test_staff_cannot_impersonate_other_staff(self):
         """Test that staff users cannot impersonate other staff users"""

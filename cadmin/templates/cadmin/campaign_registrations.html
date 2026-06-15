@@ -23,6 +23,9 @@
     </p>
   </div>
   <div class="flex flex-wrap gap-2">
+    <a href="{% url 'cadmin_campaign_edit' campaign.slug %}" class="primer-button primer-button-secondary">
+      <i class="fas fa-edit" aria-hidden="true"></i> Edit landing page
+    </a>
     <a href="/admin/courses/registrationcampaign/{{ campaign.id }}/change/" class="primer-button primer-button-secondary">
       <i class="fas fa-edit" aria-hidden="true"></i> Django
     </a>

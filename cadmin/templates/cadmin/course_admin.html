@@ -19,6 +19,15 @@
     <a href="/admin/courses/course/{{ course.id }}/change/" title="Edit in Django Admin" class="primer-button primer-button-secondary">
       <i class="fas fa-edit" aria-hidden="true"></i> Django
     </a>
+    {% if primary_campaign %}
+    <a href="{% url 'cadmin_campaign_edit' primary_campaign.slug %}" title="Manage registration landing page" class="primer-button primer-button-secondary">
+      <i class="fas fa-bullhorn" aria-hidden="true"></i> Landing page
+    </a>
+    {% else %}
+    <a href="{% url 'cadmin_campaign_create' %}?course={{ course.slug|urlencode }}" title="Create registration landing page" class="primer-button primer-button-secondary">
+      <i class="fas fa-plus" aria-hidden="true"></i> Landing page
+    </a>
+    {% endif %}
   </div>
 </section>
 
@@ -66,7 +75,7 @@
   <div class="space-y-5">
     {% for item in registration_metrics %}
       <article class="rounded-md border app-border p-4">
-        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div class="flex flex-col gap-3">
           <div>
             <h3 class="text-lg font-semibold app-heading">{{ item.campaign.title }}</h3>
             <p class="mt-1 text-sm app-muted">
@@ -77,9 +86,14 @@
               {% endif %}
             </p>
           </div>
-          <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}" class="primer-button primer-button-secondary">
-            View registrations
-          </a>
+          <div class="flex flex-wrap gap-2">
+            <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}" class="primer-button primer-button-secondary">
+              View registrations
+            </a>
+            <a href="{% url 'cadmin_campaign_edit' item.campaign.slug %}" class="primer-button primer-button-secondary">
+              Edit landing page
+            </a>
+          </div>
         </div>
 
         <div class="cadmin-metrics-grid mt-3">

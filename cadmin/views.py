@@ -1,6 +1,8 @@
 import logging
+import re
 
 from collections import defaultdict
+from datetime import datetime, time
 
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
@@ -10,6 +12,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
+from .forms import RegistrationCampaignForm
 from courses.models import (
     Course,
     Homework,
@@ -98,6 +101,73 @@ def registration_campaign_metrics(campaign):
     }
 
 
+_TRAILING_YEAR_RE = re.compile(r"[\s_-]*(\d{4})\s*$")
+
+
+def _split_trailing_year(text):
+    """Split a trailing 4-digit year off the end of ``text``.
+
+    Returns ``(base, year)`` where ``base`` has the year (and any joining
+    separator) removed. ``year`` is an empty string when none is found.
+    """
+    match = _TRAILING_YEAR_RE.search(text or "")
+    if not match:
+        return (text or "").strip(), ""
+    base = (text[: match.start()]).strip().rstrip("-_ ").strip()
+    return base, match.group(1)
+
+
+def campaign_form_initial(request):
+    course_slug = request.GET.get("course", "").strip()
+    if not course_slug:
+        return {}
+
+    course = Course.objects.filter(slug=course_slug).first()
+    if course is None:
+        return {}
+
+    initial = {"current_course": course}
+
+    title_base, title_year = _split_trailing_year(course.title)
+    slug_base, slug_year = _split_trailing_year(course.slug)
+    year = title_year or slug_year
+
+    # Stable, year-agnostic public URL ("ml-zoomcamp-2025" -> "ml-zoomcamp").
+    initial["slug"] = slug_base or course.slug
+
+    # Title without the edition year ("Machine Learning Zoomcamp 2025" ->
+    # "Machine Learning Zoomcamp"); the year becomes the edition label.
+    if title_base:
+        initial["title"] = title_base
+    if year:
+        initial["edition_label"] = f"{year} cohort"
+        # Keep the year on the current tag; the after-switch tag is "<name>-next".
+        initial["mailchimp_tag_before_switch"] = f"{slug_base}-{year}"
+    else:
+        initial["mailchimp_tag_before_switch"] = slug_base or course.slug
+    initial["mailchimp_tag_after_switch"] = f"{slug_base or course.slug}-next"
+
+    # Default the tag switch to the midpoint between the course start and end.
+    if course.start_date and course.end_date and course.end_date >= course.start_date:
+        start_dt = datetime.combine(course.start_date, time())
+        end_dt = datetime.combine(course.end_date, time())
+        initial["mailchimp_tag_switch_at"] = start_dt + (end_dt - start_dt) / 2
+
+    return initial
+
+
+def campaign_form_course(form):
+    course = form.initial.get("current_course")
+    if course is not None:
+        return course
+
+    course_id = form.data.get("current_course") if form.is_bound else ""
+    if not course_id:
+        return None
+
+    return Course.objects.filter(pk=course_id).first()
+
+
 @staff_required
 def course_list(request):
     """List all courses with admin actions"""
@@ -160,9 +230,57 @@ def course_admin(request, course_slug):
         "total_enrollments": total_enrollments,
         "support_metrics": support_metrics,
         "registration_metrics": registration_metrics,
+        "primary_campaign": registration_campaigns.first(),
     }
 
     return render(request, "cadmin/course_admin.html", context)
+
+
+@staff_required
+def campaign_create(request):
+    if request.method == "POST":
+        form = RegistrationCampaignForm(request.POST)
+        if form.is_valid():
+            campaign = form.save()
+            messages.success(request, "Registration landing page created.")
+            return redirect("cadmin_campaign_edit", campaign_slug=campaign.slug)
+    else:
+        form = RegistrationCampaignForm(initial=campaign_form_initial(request))
+
+    context = {
+        "form": form,
+        "campaign": None,
+        "course": campaign_form_course(form),
+        "page_title": "Create registration landing page",
+        "submit_label": "Create landing page",
+    }
+    return render(request, "cadmin/campaign_form.html", context)
+
+
+@staff_required
+def campaign_edit(request, campaign_slug):
+    campaign = get_object_or_404(
+        RegistrationCampaign.objects.select_related("current_course"),
+        slug=campaign_slug,
+    )
+
+    if request.method == "POST":
+        form = RegistrationCampaignForm(request.POST, instance=campaign)
+        if form.is_valid():
+            campaign = form.save()
+            messages.success(request, "Registration landing page saved.")
+            return redirect("cadmin_campaign_edit", campaign_slug=campaign.slug)
+    else:
+        form = RegistrationCampaignForm(instance=campaign)
+
+    context = {
+        "form": form,
+        "campaign": campaign,
+        "course": campaign.current_course,
+        "page_title": "Edit registration landing page",
+        "submit_label": "Save changes",
+    }
+    return render(request, "cadmin/campaign_form.html", context)
 
 
 @staff_required

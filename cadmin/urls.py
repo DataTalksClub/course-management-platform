@@ -5,6 +5,16 @@ from . import views
 urlpatterns = [
     path("", views.course_list, name="cadmin_course_list"),
     path(
+        "campaigns/new/",
+        views.campaign_create,
+        name="cadmin_campaign_create",
+    ),
+    path(
+        "campaigns/<slug:campaign_slug>/edit/",
+        views.campaign_edit,
+        name="cadmin_campaign_edit",
+    ),
+    path(
         "registrations/<slug:campaign_slug>/",
         views.campaign_registrations,
         name="cadmin_campaign_registrations",

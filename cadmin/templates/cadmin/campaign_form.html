@@ -1,0 +1,97 @@
+{% extends 'cadmin/base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  {% if course %}
+    <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  {% endif %}
+  {% if campaign %}
+    <li><a href="{% url 'cadmin_campaign_edit' campaign.slug %}">{{ campaign.title }}</a></li>
+  {% else %}
+    <li>Create registration landing page</li>
+  {% endif %}
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="cadmin-page-header border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Registration campaign</p>
+    <h1 class="mt-1 text-2xl font-semibold app-heading md:text-3xl">{{ page_title }}</h1>
+    {% if campaign %}
+      <p class="mt-1 text-sm app-muted">
+        <a href="{% url 'registration_campaign' campaign.slug %}" class="app-link">/register/{{ campaign.slug }}/</a>
+      </p>
+    {% endif %}
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% if campaign %}
+      <a href="{% url 'registration_campaign' campaign.slug %}" class="primer-button primer-button-secondary">
+        <i class="fas fa-external-link-alt" aria-hidden="true"></i> Public
+      </a>
+      <a href="{% url 'cadmin_campaign_registrations' campaign.slug %}" class="primer-button primer-button-secondary">
+        <i class="fas fa-list" aria-hidden="true"></i> Registrations
+      </a>
+    {% endif %}
+    {% if course %}
+      <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to course</a>
+    {% endif %}
+  </div>
+</section>
+
+<form method="post" class="mt-6 space-y-7">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="rounded-md border app-alert-warning px-4 py-3 text-sm">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <section class="space-y-5">
+    {% include 'cadmin/include/campaign_field.html' with field=form.title %}
+    {% include 'cadmin/include/campaign_field.html' with field=form.slug %}
+    {% include 'cadmin/include/campaign_field.html' with field=form.edition_label %}
+    {% include 'cadmin/include/campaign_field.html' with field=form.current_course %}
+    <div class="lg:col-span-2">
+      <label class="flex items-center gap-2 text-sm font-medium app-heading">
+        {{ form.is_active }}
+        <span>{{ form.is_active.label }}</span>
+      </label>
+      {% if form.is_active.help_text %}
+        <p class="mt-1 text-xs app-muted">{{ form.is_active.help_text }}</p>
+      {% endif %}
+      {% if form.is_active.errors %}
+        <div class="mt-1 text-sm app-danger-text">{{ form.is_active.errors }}</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="border-t app-border pt-5">
+    <h2 class="text-base font-semibold app-heading">Landing page content</h2>
+    <div class="mt-4 space-y-5">
+      {% include 'cadmin/include/campaign_field.html' with field=form.hero_image_url %}
+      {% include 'cadmin/include/campaign_field.html' with field=form.video_url %}
+      {% include 'cadmin/include/campaign_field.html' with field=form.meta_description %}
+      {% include 'cadmin/include/campaign_field.html' with field=form.marketing_markdown %}
+    </div>
+  </section>
+
+  <section class="border-t app-border pt-5">
+    <h2 class="text-base font-semibold app-heading">Mailchimp tagging</h2>
+    <div class="mt-4 space-y-5">
+      {% include 'cadmin/include/campaign_field.html' with field=form.mailchimp_tag_before_switch %}
+      {% include 'cadmin/include/campaign_field.html' with field=form.mailchimp_tag_after_switch %}
+      {% include 'cadmin/include/campaign_field.html' with field=form.mailchimp_tag_switch_at %}
+    </div>
+  </section>
+
+  <div class="flex flex-wrap justify-end gap-2 border-t app-border pt-5">
+    {% if course %}
+      <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+    {% else %}
+      <a href="{% url 'cadmin_course_list' %}" class="primer-button primer-button-secondary">Cancel</a>
+    {% endif %}
+    <button type="submit" class="primer-button cadmin-primary">{{ submit_label }}</button>
+  </div>
+</form>
+{% endblock %}

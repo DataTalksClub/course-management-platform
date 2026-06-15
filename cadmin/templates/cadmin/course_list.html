@@ -3,6 +3,11 @@
 {% block cadmin_content %}
 <section class="border-b app-border pb-5">
 <h1 class="text-2xl font-semibold app-heading md:text-3xl">Course admin</h1>
+<div class="mt-3">
+<a href="{% url 'cadmin_campaign_create' %}" class="primer-button cadmin-primary">
+<i class="fas fa-plus" aria-hidden="true"></i> New landing page
+</a>
+</div>
 </section>
 <section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
 <div class="divide-y app-divide md:hidden">
