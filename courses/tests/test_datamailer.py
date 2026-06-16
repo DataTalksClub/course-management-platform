@@ -225,7 +225,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(
         **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses@dtcdev.click",
+        DATAMAILER_FROM_EMAIL="courses",
     )
     @patch("course_management.datamailer.DatamailerClient.send_transactional")
     def test_send_transactional_email_adds_configured_from_email(self, send):
@@ -242,13 +242,13 @@ class DatamailerClientTest(TestCase):
             {
                 "template_key": "welcome",
                 "email": "student@example.com",
-                "from_email": "courses@dtcdev.click",
+                "from_email": "courses",
             }
         )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses@dtcdev.click",
+        DATAMAILER_FROM_EMAIL="courses",
     )
     @patch("course_management.datamailer.DatamailerClient.send_transactional")
     def test_send_transactional_email_keeps_explicit_from_email(self, send):
@@ -258,7 +258,7 @@ class DatamailerClientTest(TestCase):
             {
                 "template_key": "welcome",
                 "email": "student@example.com",
-                "from_email": "no-reply@dtcdev.click",
+                "from_email": "no-reply",
             }
         )
 
@@ -266,7 +266,7 @@ class DatamailerClientTest(TestCase):
             {
                 "template_key": "welcome",
                 "email": "student@example.com",
-                "from_email": "no-reply@dtcdev.click",
+                "from_email": "no-reply",
             }
         )
 
