@@ -1,6 +1,7 @@
 import logging
 
-from typing import List, Optional
+from typing import Any, List, Optional
+from urllib.parse import urljoin
 
 from django.http import HttpRequest
 
@@ -8,9 +9,10 @@ from django.contrib import messages
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-from django.core.exceptions import ValidationError
+from django.core.exceptions import DisallowedHost, ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
+from django.urls import reverse
 
 from course_management.datamailer import send_transactional_email
 from courses.models import (
@@ -23,7 +25,6 @@ from courses.models import (
     QuestionTypes,
     Enrollment,
     User,
-    HomeworkStatistics,
     ProjectSubmission,
 )
 
@@ -33,6 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 NONE_LIST = [None]
+CHOICE_QUESTION_TYPES = {
+    QuestionTypes.MULTIPLE_CHOICE.value,
+    QuestionTypes.CHECKBOXES.value,
+}
 
 
 def process_quesion_free_form(
@@ -119,7 +124,13 @@ def extract_selected_options(answer):
     if not answer:
         return []
 
-    answer_text = answer.answer_text or ""
+    return extract_selected_option_indexes(answer.answer_text)
+
+
+def extract_selected_option_indexes(
+    answer_text: Optional[str],
+) -> List[int]:
+    answer_text = answer_text or ""
     answer_text = answer_text.strip()
 
     if not answer_text:
@@ -139,6 +150,253 @@ def extract_selected_options(answer):
             pass
 
     return result
+
+
+def format_hours(value: Optional[float]) -> str:
+    if value is None:
+        return ""
+
+    return f"{value:g} hours"
+
+
+def format_submitted_value(value: str) -> str:
+    return value if value else "Not submitted"
+
+
+def format_selected_answer(
+    question: Question,
+    answer_text: Optional[str],
+) -> str:
+    selected_indexes = extract_selected_option_indexes(answer_text)
+    possible_answers = question.get_possible_answers()
+
+    selected_options = []
+    for index in selected_indexes:
+        if 1 <= index <= len(possible_answers):
+            selected_options.append(
+                f"{index}. {possible_answers[index - 1]}"
+            )
+        else:
+            selected_options.append(str(index))
+
+    return ", ".join(selected_options)
+
+
+def homework_submission_fields(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+) -> List[dict[str, Any]]:
+    fields = []
+
+    if homework.homework_url_field:
+        fields.append(
+            {
+                "key": "homework_url",
+                "label": "Homework URL",
+                "value": submission.homework_link or "",
+            }
+        )
+
+    if homework.learning_in_public_cap > 0:
+        links = submission.learning_in_public_links or []
+        fields.append(
+            {
+                "key": "learning_in_public_links",
+                "label": "Learning in public links",
+                "value": "\n".join(links),
+                "values": links,
+            }
+        )
+
+    if homework.time_spent_lectures_field:
+        fields.append(
+            {
+                "key": "time_spent_lectures",
+                "label": "Time spent on lectures",
+                "value": format_hours(submission.time_spent_lectures),
+            }
+        )
+
+    if homework.time_spent_homework_field:
+        fields.append(
+            {
+                "key": "time_spent_homework",
+                "label": "Time spent on homework",
+                "value": format_hours(submission.time_spent_homework),
+            }
+        )
+
+    if course.homework_problems_comments_field:
+        fields.append(
+            {
+                "key": "problems_comments",
+                "label": "Problems, comments, or feedback",
+                "value": submission.problems_comments or "",
+            }
+        )
+
+    if homework.faq_contribution_field:
+        fields.append(
+            {
+                "key": "faq_contribution_url",
+                "label": "FAQ contribution URL",
+                "value": submission.faq_contribution_url or "",
+            }
+        )
+
+    return fields
+
+
+def homework_submitted_answers(
+    submission: Submission,
+) -> List[dict[str, Any]]:
+    answers = (
+        Answer.objects.filter(submission=submission)
+        .select_related("question")
+        .order_by("question_id")
+    )
+
+    result = []
+    for answer in answers:
+        question = answer.question
+        raw_answer = answer.answer_text or ""
+        display_answer = raw_answer
+        selected_options = []
+
+        if question.question_type in CHOICE_QUESTION_TYPES:
+            possible_answers = question.get_possible_answers()
+            selected_indexes = extract_selected_option_indexes(
+                raw_answer
+            )
+            for index in selected_indexes:
+                value = ""
+                if 1 <= index <= len(possible_answers):
+                    value = possible_answers[index - 1]
+                selected_options.append(
+                    {"index": index, "value": value}
+                )
+            display_answer = format_selected_answer(
+                question,
+                raw_answer,
+            )
+
+        result.append(
+            {
+                "question_id": question.id,
+                "question": question.text,
+                "question_type": question.question_type,
+                "answer": display_answer,
+                "raw_answer": raw_answer,
+                "selected_options": selected_options,
+            }
+        )
+
+    return result
+
+
+def format_submission_lines(items: List[dict[str, Any]]) -> str:
+    lines = []
+    for item in items:
+        lines.append(
+            f"{item['label']}: {format_submitted_value(item['value'])}"
+        )
+    return "\n".join(lines)
+
+
+def format_answer_lines(answers: List[dict[str, Any]]) -> str:
+    lines = []
+    for answer in answers:
+        lines.append(
+            f"{answer['question']}: "
+            f"{format_submitted_value(answer['answer'])}"
+        )
+    return "\n".join(lines)
+
+
+def homework_confirmation_context(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+    update_url: str,
+) -> dict[str, Any]:
+    submission_fields = homework_submission_fields(
+        course,
+        homework,
+        submission,
+    )
+    submitted_answers = homework_submitted_answers(submission)
+    submitted_fields_text = format_submission_lines(submission_fields)
+    submitted_answers_text = format_answer_lines(submitted_answers)
+
+    summary_sections = []
+    if submitted_fields_text:
+        summary_sections.append(submitted_fields_text)
+    if submitted_answers_text:
+        summary_sections.append(submitted_answers_text)
+
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "homework_slug": homework.slug,
+        "homework_title": homework.title,
+        "homework_due_at": homework.due_date.isoformat(),
+        "submission_id": submission.id,
+        "submitted_at": submission.submitted_at.isoformat(),
+        "update_url": update_url,
+        "update_link_text": "Update your submission",
+        "email_subject": f"Homework submission saved: {homework.title}",
+        "email_preview": (
+            "Your homework submission was saved. "
+            "Review what you submitted and update it while the "
+            "homework is open."
+        ),
+        "intro_text": (
+            f"Your homework submission for {homework.title} in "
+            f"{course.title} was saved."
+        ),
+        "update_text": (
+            "You can update your submission while the homework "
+            f"is open: {update_url}"
+        ),
+        "submission_fields": submission_fields,
+        "submitted_answers": submitted_answers,
+        "submitted_fields_text": submitted_fields_text,
+        "submitted_answers_text": submitted_answers_text,
+        "submission_summary_text": "\n\n".join(summary_sections),
+    }
+
+
+def build_homework_update_url(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+) -> str:
+    path = reverse(
+        "homework",
+        kwargs={
+            "course_slug": course.slug,
+            "homework_slug": homework.slug,
+        },
+    )
+
+    try:
+        return request.build_absolute_uri(path)
+    except DisallowedHost:
+        fallback_host = next(
+            (
+                host
+                for host in settings.ALLOWED_HOSTS
+                if host and host != "*"
+            ),
+            "localhost",
+        )
+        logger.warning(
+            "Falling back to ALLOWED_HOSTS for homework update URL "
+            "because request host is not allowed: %s",
+            fallback_host,
+        )
+        return urljoin(f"{request.scheme}://{fallback_host}", path)
 
 
 def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
@@ -273,9 +531,17 @@ def send_homework_confirmation_email(
     course: Course,
     homework: Homework,
     submission: Submission,
+    update_url: str,
 ) -> None:
     if not user.email:
         return
+
+    context = homework_confirmation_context(
+        course=course,
+        homework=homework,
+        submission=submission,
+        update_url=update_url,
+    )
 
     send_transactional_email(
         {
@@ -285,14 +551,7 @@ def send_homework_confirmation_email(
                 f"homework-submission:{submission.id}:"
                 f"{submission.submitted_at.isoformat()}"
             ),
-            "context": {
-                "course_slug": course.slug,
-                "course_title": course.title,
-                "homework_slug": homework.slug,
-                "homework_title": homework.title,
-                "submission_id": submission.id,
-                "submitted_at": submission.submitted_at.isoformat(),
-            },
+            "context": context,
             "metadata": {
                 "source": "course-management-platform",
                 "event": "homework_submission",
@@ -391,12 +650,14 @@ def process_homework_submission(
 
     submission.full_clean()
     submission.save()
+    update_url = build_homework_update_url(request, course, homework)
     transaction.on_commit(
         lambda: send_homework_confirmation_email(
             user=user,
             course=course,
             homework=homework,
             submission=submission,
+            update_url=update_url,
         )
     )
 
