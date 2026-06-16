@@ -14,6 +14,7 @@ class DatamailerConfig:
     api_key: str
     client: str
     audience: str
+    from_email: str = ""
     strict: bool = False
 
     @classmethod
@@ -22,6 +23,7 @@ class DatamailerConfig:
         api_key = getattr(settings, "DATAMAILER_API_KEY", "")
         client = getattr(settings, "DATAMAILER_CLIENT", "")
         audience = getattr(settings, "DATAMAILER_AUDIENCE", "")
+        from_email = getattr(settings, "DATAMAILER_FROM_EMAIL", "")
 
         if not all([url, api_key, client, audience]):
             return None
@@ -32,6 +34,7 @@ class DatamailerConfig:
             api_key=api_key,
             client=client,
             audience=audience,
+            from_email=from_email,
             strict=strict,
         )
 
@@ -180,6 +183,8 @@ def sync_contact(user, course=None) -> None:
         return
 
     client = DatamailerClient(config)
+    if config.from_email and "from_email" not in payload:
+        payload = payload | {"from_email": config.from_email}
 
     try:
         client.upsert_contact(payload)
@@ -198,6 +203,8 @@ def send_transactional_email(payload: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
     client = DatamailerClient(config)
+    if config.from_email and "from_email" not in payload:
+        payload = payload | {"from_email": config.from_email}
 
     try:
         return client.send_transactional(payload)

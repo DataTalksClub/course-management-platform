@@ -223,6 +223,53 @@ class DatamailerClientTest(TestCase):
             }
         )
 
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_FROM_EMAIL="courses@dtcdev.click",
+    )
+    @patch("course_management.datamailer.DatamailerClient.send_transactional")
+    def test_send_transactional_email_adds_configured_from_email(self, send):
+        send.return_value = {"id": "message-id"}
+
+        send_transactional_email(
+            {
+                "template_key": "welcome",
+                "email": "student@example.com",
+            }
+        )
+
+        send.assert_called_once_with(
+            {
+                "template_key": "welcome",
+                "email": "student@example.com",
+                "from_email": "courses@dtcdev.click",
+            }
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_FROM_EMAIL="courses@dtcdev.click",
+    )
+    @patch("course_management.datamailer.DatamailerClient.send_transactional")
+    def test_send_transactional_email_keeps_explicit_from_email(self, send):
+        send.return_value = {"id": "message-id"}
+
+        send_transactional_email(
+            {
+                "template_key": "welcome",
+                "email": "student@example.com",
+                "from_email": "no-reply@dtcdev.click",
+            }
+        )
+
+        send.assert_called_once_with(
+            {
+                "template_key": "welcome",
+                "email": "student@example.com",
+                "from_email": "no-reply@dtcdev.click",
+            }
+        )
+
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("course_management.datamailer.DatamailerClient.contact_status")
     def test_get_contact_status_uses_datamailer_client(self, contact_status):

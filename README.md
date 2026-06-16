@@ -196,6 +196,7 @@ export DATAMAILER_URL="https://datamailer.dtcdev.click"
 export DATAMAILER_API_KEY="<token>"
 export DATAMAILER_CLIENT="dtc-courses"
 export DATAMAILER_AUDIENCE="dtc-courses"
+export DATAMAILER_FROM_EMAIL="courses@dtcdev.click"
 export DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE="homework-submission-confirmation"
 ```
 
