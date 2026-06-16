@@ -9,6 +9,10 @@ from course_management.datamailer import (
     DatamailerConfig,
     contact_payload_for_user,
     datamailer_enabled,
+    get_contact_history,
+    get_contact_status,
+    get_email_status,
+    get_transactional_message_status,
     send_transactional_email,
     sync_contact,
 )
@@ -53,6 +57,100 @@ class DatamailerClientTest(TestCase):
             "POST",
             "https://datamailer.example.com/api/contacts",
             json={"email": "student@example.com"},
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_contact_status_uses_configured_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"exists": true}')
+        response.json.return_value = {"exists": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.contact_status("student@example.com")
+
+        self.assertEqual(result, {"exists": True})
+        session.request.assert_called_once_with(
+            "GET",
+            "https://datamailer.example.com/api/contacts/status",
+            json=None,
+            params={
+                "email": "student@example.com",
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+            },
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_contact_history_uses_configured_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"transactional_messages": []}')
+        response.json.return_value = {"transactional_messages": []}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.contact_history(42, limit=5)
+
+        self.assertEqual(result, {"transactional_messages": []})
+        session.request.assert_called_once_with(
+            "GET",
+            "https://datamailer.example.com/api/contacts/42/history",
+            json=None,
+            params={
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "limit": 5,
+            },
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_transactional_message_status_uses_message_id(self):
+        session = Mock()
+        response = Mock(content=b'{"message": {"id": 42}}')
+        response.json.return_value = {"message": {"id": 42}}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.transactional_message_status(42)
+
+        self.assertEqual(result, {"message": {"id": 42}})
+        session.request.assert_called_once_with(
+            "GET",
+            "https://datamailer.example.com/api/transactional/messages/42",
+            json=None,
             timeout=10,
             headers={
                 "Authorization": "Bearer secret-token",
@@ -112,18 +210,80 @@ class DatamailerClientTest(TestCase):
 
         result = send_transactional_email(
             {
-                "template": "welcome",
-                "to": "student@example.com",
+                "template_key": "welcome",
+                "email": "student@example.com",
             }
         )
 
         self.assertEqual(result, {"id": "message-id"})
         send.assert_called_once_with(
             {
-                "template": "welcome",
-                "to": "student@example.com",
+                "template_key": "welcome",
+                "email": "student@example.com",
             }
         )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.contact_status")
+    def test_get_contact_status_uses_datamailer_client(self, contact_status):
+        contact_status.return_value = {"exists": True}
+
+        result = get_contact_status("student@example.com")
+
+        self.assertEqual(result, {"exists": True})
+        contact_status.assert_called_once_with("student@example.com")
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.contact_history")
+    def test_get_contact_history_uses_datamailer_client(self, contact_history):
+        contact_history.return_value = {"transactional_messages": []}
+
+        result = get_contact_history(42, limit=5)
+
+        self.assertEqual(result, {"transactional_messages": []})
+        contact_history.assert_called_once_with(42, limit=5)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.get_contact_history")
+    @patch("course_management.datamailer.get_contact_status")
+    def test_get_email_status_combines_status_and_history(
+        self,
+        contact_status,
+        contact_history,
+    ):
+        contact_status.return_value = {
+            "contact_id": 42,
+            "email": "student@example.com",
+        }
+        contact_history.return_value = {"transactional_messages": []}
+
+        result = get_email_status("student@example.com", limit=5)
+
+        self.assertEqual(
+            result,
+            {
+                "status": {
+                    "contact_id": 42,
+                    "email": "student@example.com",
+                },
+                "history": {"transactional_messages": []},
+            },
+        )
+        contact_status.assert_called_once_with("student@example.com")
+        contact_history.assert_called_once_with(42, limit=5)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.transactional_message_status")
+    def test_get_transactional_message_status_uses_datamailer_client(
+        self,
+        message_status,
+    ):
+        message_status.return_value = {"message": {"id": 42}}
+
+        result = get_transactional_message_status(42)
+
+        self.assertEqual(result, {"message": {"id": 42}})
+        message_status.assert_called_once_with(42)
 
 
 class DatamailerSignalTest(TestCase):

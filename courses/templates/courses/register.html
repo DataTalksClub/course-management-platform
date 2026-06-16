@@ -86,7 +86,7 @@
         {% endif %}
       </div>
 
-      <form method="post" class="registration-form space-y-4">
+      <form method="post" class="registration-form space-y-4" data-registration-form>
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -131,7 +131,9 @@
         {% endfor %}
 
         <div class="flex flex-wrap gap-2 border-t app-border pt-5">
-          <button type="submit" class="primer-button registration-submit-button">
+          <button type="submit"
+                  class="primer-button registration-submit-button"
+                  data-registration-submit>
             <i class="fas fa-user-plus" aria-hidden="true"></i> Register
           </button>
         </div>
@@ -144,4 +146,21 @@
 {% block extra_js %}
   {{ block.super }}
   <script src="{% static 'country_combobox.js' %}"></script>
+  <script>
+    document.querySelectorAll('[data-registration-form]').forEach((form) => {
+      const newsletterCheckbox = form.querySelector('input[name="accepted_newsletter"]');
+      const submitButton = form.querySelector('[data-registration-submit]');
+
+      if (!newsletterCheckbox || !submitButton) {
+        return;
+      }
+
+      const syncSubmitState = () => {
+        submitButton.disabled = !newsletterCheckbox.checked;
+      };
+
+      syncSubmitState();
+      newsletterCheckbox.addEventListener('change', syncSubmitState);
+    });
+  </script>
 {% endblock %}

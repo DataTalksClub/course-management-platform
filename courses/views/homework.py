@@ -279,15 +279,26 @@ def send_homework_confirmation_email(
 
     send_transactional_email(
         {
-            "template": settings.DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE,
-            "to": user.email,
-            "data": {
+            "email": user.email,
+            "template_key": settings.DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE,
+            "idempotency_key": (
+                f"homework-submission:{submission.id}:"
+                f"{submission.submitted_at.isoformat()}"
+            ),
+            "context": {
                 "course_slug": course.slug,
                 "course_title": course.title,
                 "homework_slug": homework.slug,
                 "homework_title": homework.title,
                 "submission_id": submission.id,
                 "submitted_at": submission.submitted_at.isoformat(),
+            },
+            "metadata": {
+                "source": "course-management-platform",
+                "event": "homework_submission",
+                "course_slug": course.slug,
+                "homework_slug": homework.slug,
+                "submission_id": submission.id,
             },
         }
     )
@@ -479,6 +490,107 @@ def homework_detail_build_context_authenticated(
     return context
 
 
+def answer_from_post(request: HttpRequest, question: Question) -> Answer:
+    answer_text = ",".join(
+        value.strip()
+        for value in request.POST.getlist(f"answer_{question.id}")
+    )
+    return Answer(question=question, answer_text=answer_text)
+
+
+def homework_detail_build_context_from_post(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+    enrollment: Enrollment,
+) -> dict:
+    bound_submission = submission or Submission(
+        homework=homework,
+        student=request.user,
+        enrollment=enrollment,
+    )
+
+    if homework.homework_url_field:
+        bound_submission.homework_link = request.POST.get("homework_url", "")
+
+    if homework.learning_in_public_cap > 0:
+        bound_submission.learning_in_public_links = [
+            link.strip()
+            for link in request.POST.getlist("learning_in_public_links[]")
+            if link.strip()
+        ]
+
+    if homework.time_spent_lectures_field:
+        bound_submission.time_spent_lectures = request.POST.get(
+            "time_spent_lectures",
+            "",
+        )
+
+    if homework.time_spent_homework_field:
+        bound_submission.time_spent_homework = request.POST.get(
+            "time_spent_homework",
+            "",
+        )
+
+    if course.homework_problems_comments_field:
+        bound_submission.problems_comments = request.POST.get(
+            "problems_comments",
+            "",
+        )
+
+    if homework.faq_contribution_field:
+        bound_submission.faq_contribution_url = request.POST.get(
+            "faq_contribution_url",
+            "",
+        )
+
+    question_answers = []
+    for question in questions:
+        answer = answer_from_post(request, question)
+        processed_answer = process_question_options(
+            homework,
+            question,
+            answer,
+        )
+        question_answers.append((question, processed_answer))
+
+    disabled = homework.state != HomeworkState.OPEN.value
+    accepting_submissions = homework.state == HomeworkState.OPEN.value
+
+    return {
+        "course": course,
+        "homework": homework,
+        "question_answers": question_answers,
+        "submission": bound_submission,
+        "is_authenticated": True,
+        "disabled": disabled,
+        "accepting_submissions": accepting_submissions,
+        "disable_learning_in_public": enrollment.disable_learning_in_public,
+    }
+
+
+def homework_error_fields(error: ValidationError) -> set[str]:
+    field_map = {
+        "homework_link": "homework_url",
+        "learning_in_public_links": "learning_in_public_links",
+        "time_spent_lectures": "time_spent_lectures",
+        "time_spent_homework": "time_spent_homework",
+        "problems_comments": "problems_comments",
+        "faq_contribution_url": "faq_contribution_url",
+    }
+
+    if not hasattr(error, "message_dict"):
+        return set()
+
+    return {
+        field_map[field_name]
+        for field_name in error.message_dict
+        if field_name in field_map
+    }
+
+
 def homework_view(
     request: HttpRequest, course_slug: str, homework_slug: str
 ):
@@ -529,7 +641,16 @@ def homework_view(
                     submission=submission,
                 )
         except ValidationError as e:
+            context = homework_detail_build_context_from_post(
+                request=request,
+                course=course,
+                homework=homework,
+                questions=questions,
+                submission=submission,
+                enrollment=enrollment,
+            )
             context["errors"] = e.messages
+            context["error_fields"] = homework_error_fields(e)
 
     return render(request, "homework/homework.html", context)
 

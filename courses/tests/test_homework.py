@@ -1086,6 +1086,36 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "The submitted GitHub link")
         self.assertContains(response, "does not exist")
+        self.assertContains(
+            response,
+            'value="https://github.com/nonexistent/repo"',
+        )
+        self.assertContains(
+            response,
+            'class="form-control mt-2 is-invalid"',
+        )
+        self.assertContains(
+            response,
+            "Check that the repository exists and is public.",
+        )
+        self.assertContains(
+            response,
+            'value="Some other text"',
+        )
+        self.assertContains(
+            response,
+            'value="3.141516"',
+        )
+        self.assertContains(
+            response,
+            f'id="radio-{self.question1.id}-1"',
+        )
+        self.assertContains(response, "checked")
+        self.assertFalse(
+            Submission.objects.filter(
+                homework=self.homework, student=self.user
+            ).exists()
+        )
 
     def test_submit_homework_time_spent_comma_decimal(self):
         # Mobile and EU-locale keyboards commonly submit "2,5" for the

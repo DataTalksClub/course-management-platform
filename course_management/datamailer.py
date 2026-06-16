@@ -51,17 +51,24 @@ class DatamailerClient:
         path: str,
         *,
         json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         url = f"{self.config.url}{path}"
-        response = self.session.request(
-            method,
-            url,
-            json=json,
-            timeout=10,
-            headers={
+        request_kwargs: dict[str, Any] = {
+            "json": json,
+            "timeout": 10,
+            "headers": {
                 "Authorization": f"Bearer {self.config.api_key}",
                 "Content-Type": "application/json",
             },
+        }
+        if params is not None:
+            request_kwargs["params"] = params
+
+        response = self.session.request(
+            method,
+            url,
+            **request_kwargs,
         )
         response.raise_for_status()
 
@@ -80,6 +87,42 @@ class DatamailerClient:
             "POST",
             "/api/transactional/send",
             json=payload,
+        )
+
+    def contact_status(self, email: str) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            "/api/contacts/status",
+            params={
+                "email": email,
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
+    def contact_history(
+        self,
+        contact_id: int,
+        *,
+        limit: int = 25,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            f"/api/contacts/{contact_id}/history",
+            params={
+                "audience": self.config.audience,
+                "client": self.config.client,
+                "limit": limit,
+            },
+        )
+
+    def transactional_message_status(
+        self,
+        message_id: int,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            f"/api/transactional/messages/{message_id}",
         )
 
 
@@ -160,6 +203,76 @@ def send_transactional_email(payload: dict[str, Any]) -> dict[str, Any] | None:
         return client.send_transactional(payload)
     except requests.RequestException:
         logger.exception("Datamailer transactional email failed")
+        if config.strict:
+            raise
+        return None
+
+
+def get_contact_status(email: str) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    client = DatamailerClient(config)
+
+    try:
+        return client.contact_status(email)
+    except requests.RequestException:
+        logger.exception("Datamailer contact status lookup failed")
+        if config.strict:
+            raise
+        return None
+
+
+def get_contact_history(
+    contact_id: int,
+    *,
+    limit: int = 25,
+) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    client = DatamailerClient(config)
+
+    try:
+        return client.contact_history(contact_id, limit=limit)
+    except requests.RequestException:
+        logger.exception("Datamailer contact history lookup failed")
+        if config.strict:
+            raise
+        return None
+
+
+def get_email_status(email: str, *, limit: int = 25) -> dict[str, Any] | None:
+    status = get_contact_status(email)
+    if status is None:
+        return None
+
+    contact_id = status.get("contact_id")
+    history = None
+    if contact_id:
+        history = get_contact_history(int(contact_id), limit=limit)
+
+    return {
+        "status": status,
+        "history": history,
+    }
+
+
+def get_transactional_message_status(
+    message_id: int,
+) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    client = DatamailerClient(config)
+
+    try:
+        return client.transactional_message_status(message_id)
+    except requests.RequestException:
+        logger.exception("Datamailer transactional message status lookup failed")
         if config.strict:
             raise
         return None

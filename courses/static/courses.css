@@ -1414,6 +1414,23 @@ body.dark-mode [class*="text-red-700"] {
   text-decoration: none;
 }
 
+.primer-button:disabled,
+.primer-button[aria-disabled="true"] {
+  background: #eaeef2;
+  border-color: #d0d7de;
+  color: #8c959f;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.primer-button:disabled:hover,
+.primer-button[aria-disabled="true"]:hover {
+  background: #eaeef2;
+  border-color: #d0d7de;
+  color: #8c959f;
+  text-decoration: none;
+}
+
 .primer-button-secondary {
   background: #f6f8fa;
   border-color: #d0d7de;
@@ -1861,6 +1878,21 @@ body.dark-mode .primer-button:hover {
   background: #6d99c2;
   border-color: #6d99c2;
   color: #ffffff;
+}
+
+body.dark-mode .primer-button:disabled,
+body.dark-mode .primer-button[aria-disabled="true"] {
+  background: #21262d;
+  border-color: #30363d;
+  color: #8b949e;
+  cursor: not-allowed;
+}
+
+body.dark-mode .primer-button:disabled:hover,
+body.dark-mode .primer-button[aria-disabled="true"]:hover {
+  background: #21262d;
+  border-color: #30363d;
+  color: #8b949e;
 }
 
 body.dark-mode .primer-button-secondary {

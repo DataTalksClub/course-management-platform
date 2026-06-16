@@ -15,7 +15,7 @@
             <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">{{ homework.title }}</h1>
         </div>
         {% if messages %}
-            <div class="space-y-3">
+            <div class="mb-6 space-y-3">
                 {% for message in messages %}
                     {% if 'homework' in message.tags %}
                         <div class="rounded-md border app-alert-info p-4 app-heading {{ message.tags }}">{{ message }}</div>
@@ -68,7 +68,7 @@
                 {% if is_authenticated %}
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span class="text-xs font-semibold uppercase app-muted">Status:</span>
-                        {% if submission %}
+                        {% if submission.pk %}
                             <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
                         {% else %}
                             <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Not submitted</span>
@@ -104,7 +104,7 @@
         <div class="mt-6 space-y-3">
             {% if homework.is_scored %}
                 {% if is_authenticated %}
-                    {% if submission %}
+                    {% if submission.pk %}
                         <div class="homework-scored-summary rounded-md border app-border app-surface-muted p-4">
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
@@ -151,6 +151,12 @@
                     <p class="mt-2 hidden md:block app-text">
                         {% if homework.is_scored and not is_authenticated %}
                             Review the expected answers for this scored homework.
+                        {% elif homework.instructions_url %}
+                            This form is only for submitting your answers. For the homework instructions, check the
+                            <a href="{{ homework.instructions_url }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="app-link">instructions</a>.
                         {% else %}
                             Answer the questions below to complete your homework.
                         {% endif %}
@@ -264,12 +270,14 @@
                                 </div>
                             {% else %}
                                 <input type="url"
-                                       class="form-control mt-2"
+                                       class="form-control mt-2 {% if 'homework_url' in error_fields %}is-invalid{% endif %}"
                                        id="homework_url"
                                        name="homework_url"
                                        value="{{ submission.homework_link|default:'' }}"
                                        required />
-                                <div class="invalid-feedback">Please provide a valid URL.</div>
+                                <div class="invalid-feedback">
+                                    Check that the repository exists and is public.
+                                </div>
                             {% endif %}
                         </div>
                     {% endif %}
@@ -359,7 +367,7 @@
             </section>
             <div class="mt-6">
                 <div class="text-sm app-muted">
-                    {% if submission %}
+                    {% if submission.pk %}
                         Status: Last saved at
                         <span class="local-date"
                               data-timestamp="{{ submission.submitted_at|date:'U' }}"
@@ -379,7 +387,7 @@
                             <button id="submit-button"
                                     type="submit"
                                     class="primer-button">
-                                {% if not submission %}
+                                {% if not submission.pk %}
                                     Save submission
                                 {% else %}
                                     Update submission

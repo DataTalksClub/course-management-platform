@@ -62,10 +62,25 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
         send_email.assert_called_once()
         payload = send_email.call_args.args[0]
-        self.assertEqual(payload["to"], "student@example.com")
+        self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(
-            payload["data"]["submission_id"],
+            payload["template_key"],
+            "homework-submission-confirmation",
+        )
+        self.assertEqual(
+            payload["idempotency_key"],
+            (
+                f"homework-submission:{submission.id}:"
+                f"{submission.submitted_at.isoformat()}"
+            ),
+        )
+        self.assertEqual(
+            payload["context"]["submission_id"],
             submission.id,
+        )
+        self.assertEqual(
+            payload["metadata"]["event"],
+            "homework_submission",
         )
 
     @patch("courses.views.homework.send_transactional_email")
