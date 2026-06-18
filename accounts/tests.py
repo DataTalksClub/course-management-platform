@@ -42,6 +42,45 @@ class DarkModeToggleTestCase(TestCase):
         response = self.client.get(reverse('toggle_dark_mode'))
         self.assertEqual(response.status_code, 405)
 
+    def test_update_account_toggle_sets_explicit_dark_mode_value(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_account_toggle"),
+            {"field": "dark_mode", "value": "true"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "field": "dark_mode",
+                "value": True,
+                "dark_mode": True,
+            },
+        )
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.dark_mode)
+
+        response = self.client.post(
+            reverse("update_account_toggle"),
+            {"field": "dark_mode", "value": "false"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.dark_mode)
+
+    def test_update_account_toggle_rejects_unknown_field(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_account_toggle"),
+            {"field": "is_staff", "value": "true"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+
     def test_dark_mode_default_value(self):
         """Test that dark_mode defaults to False"""
         user = CustomUser.objects.create_user(
@@ -126,7 +165,7 @@ class AccountSettingsTestCase(TestCase):
             "https://student.example.com",
         )
         self.assertEqual(self.user.about_me, "Learning data.")
-        self.assertTrue(self.user.dark_mode)
+        self.assertFalse(self.user.dark_mode)
         self.assertTrue(self.user.email_submission_confirmations)
         self.assertTrue(self.user.email_deadline_reminders)
         self.assertTrue(self.user.email_course_updates)
@@ -144,10 +183,41 @@ class AccountSettingsTestCase(TestCase):
         )
         self.client.force_login(self.user)
 
+        for field in [
+            "email_submission_confirmations",
+            "email_deadline_reminders",
+            "email_course_updates",
+        ]:
+            response = self.client.post(
+                reverse("update_account_toggle"),
+                {"field": field, "value": "false"},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.email_submission_confirmations)
+        self.assertFalse(self.user.email_deadline_reminders)
+        self.assertFalse(self.user.email_course_updates)
+
+    def test_account_settings_profile_save_preserves_toggle_preferences(self):
+        self.user.dark_mode = True
+        self.user.email_submission_confirmations = False
+        self.user.email_deadline_reminders = False
+        self.user.email_course_updates = False
+        self.user.save(
+            update_fields=[
+                "dark_mode",
+                "email_submission_confirmations",
+                "email_deadline_reminders",
+                "email_course_updates",
+            ]
+        )
+        self.client.force_login(self.user)
+
         response = self.client.post(
             reverse("account_settings"),
             {
-                "certificate_name": "",
+                "certificate_name": "Student Certificate",
                 "github_url": "",
                 "linkedin_url": "",
                 "personal_website_url": "",
@@ -157,6 +227,7 @@ class AccountSettingsTestCase(TestCase):
 
         self.assertRedirects(response, reverse("account_settings"))
         self.user.refresh_from_db()
+        self.assertTrue(self.user.dark_mode)
         self.assertFalse(self.user.email_submission_confirmations)
         self.assertFalse(self.user.email_deadline_reminders)
         self.assertFalse(self.user.email_course_updates)
@@ -269,6 +340,32 @@ class AccountSettingsTestCase(TestCase):
         self.assertRedirects(response, reverse("course", args=[self.course.slug]))
         self.enrollment.refresh_from_db()
         self.assertTrue(self.enrollment.display_public_profile)
+
+    def test_enrollment_toggle_updates_public_profile_immediately(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_enrollment_toggle", args=[self.course.slug]),
+            {"field": "display_public_profile", "value": "true"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"field": "display_public_profile", "value": True},
+        )
+        self.enrollment.refresh_from_db()
+        self.assertTrue(self.enrollment.display_public_profile)
+
+    def test_enrollment_toggle_rejects_unknown_field(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_enrollment_toggle", args=[self.course.slug]),
+            {"field": "total_score", "value": "true"},
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_enrollment_public_profile_flag_saves_disabled(self):
         self.enrollment.display_public_profile = True

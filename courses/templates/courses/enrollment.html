@@ -82,31 +82,33 @@
 
         <section class="settings-section border-t pt-6">
             <div class="space-y-5">
-                <div class="checkbox-row">
+                <label class="toggle-row js-immediate-toggle-row"
+                       data-toggle-url="{% url 'update_enrollment_toggle' course.slug %}">
                     {{ form.display_on_leaderboard }}
-                    <div>
-                        <label for="{{ form.display_on_leaderboard.id_for_label }}" class="checkbox-label">
+                    <span class="toggle-copy">
+                        <span class="toggle-label">
                             Show my record on the public leaderboard
-                        </label>
-                        <p class="checkbox-help">
+                        </span>
+                        <span class="toggle-help">
                             When disabled, your score remains saved for you and the course team, but your row is hidden from public leaderboard views and exports.
-                        </p>
-                    </div>
-                </div>
-                <div class="checkbox-row">
+                        </span>
+                    </span>
+                </label>
+                <label class="toggle-row js-immediate-toggle-row"
+                       data-toggle-url="{% url 'update_enrollment_toggle' course.slug %}">
                     {{ form.display_public_profile }}
-                    <div>
-                        <label for="{{ form.display_public_profile.id_for_label }}" class="checkbox-label">
+                    <span class="toggle-copy">
+                        <span class="toggle-label">
                             Display my public profile data on this leaderboard record
-                        </label>
-                        <p class="checkbox-help">
+                        </span>
+                        <span class="toggle-help">
                             Uses your account profile: About me, GitHub, LinkedIn, and website.
                             <a href="{% url 'account_settings' %}" class="app-link font-medium">
                                 Edit public profile
                             </a>
-                        </p>
-                    </div>
-                </div>
+                        </span>
+                    </span>
+                </label>
                 <div class="text-sm">
                     <span class="settings-meta-label">Certificate:</span>
                     {% if enrollment.certificate_url %}
@@ -132,4 +134,9 @@
     </form>
 
     <script src="{% static 'homework.js' %}"></script>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script src="{% static 'settings_toggles.js' %}"></script>
 {% endblock %}

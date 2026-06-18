@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Account Settings{% endblock %}
 
@@ -21,10 +22,14 @@
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Profile</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">
-                    Your account-level profile details.
+                    Your account-level certificate name and public profile details.
                 </p>
             </div>
-            <div class="grid gap-5 md:grid-cols-2">
+            <div class="space-y-5">
+                <div>
+                    <p class="settings-label mb-2 block text-sm font-semibold">Signed in as</p>
+                    <p class="settings-meta-value break-all text-sm">{{ user.email|default:user.username }}</p>
+                </div>
                 <div>
                     <label for="{{ form.certificate_name.id_for_label }}"
                            class="settings-label mb-2 block text-sm font-semibold">
@@ -39,21 +44,6 @@
                         </div>
                     {% endif %}
                 </div>
-                <div>
-                    <p class="settings-label mb-2 block text-sm font-semibold">Signed in as</p>
-                    <p class="settings-meta-value break-all text-sm">{{ user.email|default:user.username }}</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-section space-y-4 border-t pt-6">
-            <div>
-                <h2 class="settings-section-title text-lg font-semibold">Public profile</h2>
-                <p class="settings-section-copy mt-1 text-sm leading-6">
-                    These details can be shown on course leaderboard records when enabled per enrollment.
-                </p>
-            </div>
-            <div class="space-y-5">
                 <div>
                     <label for="{{ form.github_url.id_for_label }}"
                            class="settings-label mb-2 block text-sm font-semibold">
@@ -107,6 +97,12 @@
                     {% endif %}
                 </div>
             </div>
+            <p class="settings-section-copy text-sm leading-6">
+                Public profile details can be shown on course leaderboard records when enabled per enrollment.
+            </p>
+            <div class="flex flex-wrap gap-2 pt-1">
+                <button type="submit" class="primer-button">Save profile</button>
+            </div>
         </section>
 
         <section class="settings-section space-y-4 border-t pt-6">
@@ -114,9 +110,12 @@
                 <h2 class="settings-section-title text-lg font-semibold">Appearance</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">Choose the default theme for your account.</p>
             </div>
-            <label class="checkbox-row">
+            <label class="toggle-row js-immediate-toggle-row"
+                   data-toggle-url="{% url 'update_account_toggle' %}">
                 {{ form.dark_mode }}
-                <span class="checkbox-label">{{ form.dark_mode.label }}</span>
+                <span class="toggle-copy">
+                    <span class="toggle-label">{{ form.dark_mode.label }}</span>
+                </span>
             </label>
         </section>
 
@@ -129,11 +128,14 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="checkbox-row">
+                    <label class="toggle-row js-immediate-toggle-row"
+                           data-toggle-url="{% url 'update_account_toggle' %}">
                         {{ form.email_submission_confirmations }}
-                        <span class="checkbox-label">{{ form.email_submission_confirmations.label }}</span>
+                        <span class="toggle-copy">
+                            <span class="toggle-label">{{ form.email_submission_confirmations.label }}</span>
+                            <span class="toggle-help">{{ form.email_submission_confirmations.help_text }}</span>
+                        </span>
                     </label>
-                    <p class="checkbox-help">{{ form.email_submission_confirmations.help_text }}</p>
                     {% if form.email_submission_confirmations.errors %}
                         <div class="mt-2 text-sm font-medium">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -142,11 +144,14 @@
                     {% endif %}
                 </div>
                 <div>
-                    <label class="checkbox-row">
+                    <label class="toggle-row js-immediate-toggle-row"
+                           data-toggle-url="{% url 'update_account_toggle' %}">
                         {{ form.email_deadline_reminders }}
-                        <span class="checkbox-label">{{ form.email_deadline_reminders.label }}</span>
+                        <span class="toggle-copy">
+                            <span class="toggle-label">{{ form.email_deadline_reminders.label }}</span>
+                            <span class="toggle-help">{{ form.email_deadline_reminders.help_text }}</span>
+                        </span>
                     </label>
-                    <p class="checkbox-help">{{ form.email_deadline_reminders.help_text }}</p>
                     {% if form.email_deadline_reminders.errors %}
                         <div class="mt-2 text-sm font-medium">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -155,11 +160,14 @@
                     {% endif %}
                 </div>
                 <div>
-                    <label class="checkbox-row">
+                    <label class="toggle-row js-immediate-toggle-row"
+                           data-toggle-url="{% url 'update_account_toggle' %}">
                         {{ form.email_course_updates }}
-                        <span class="checkbox-label">{{ form.email_course_updates.label }}</span>
+                        <span class="toggle-copy">
+                            <span class="toggle-label">{{ form.email_course_updates.label }}</span>
+                            <span class="toggle-help">{{ form.email_course_updates.help_text }}</span>
+                        </span>
                     </label>
-                    <p class="checkbox-help">{{ form.email_course_updates.help_text }}</p>
                     {% if form.email_course_updates.errors %}
                         <div class="mt-2 text-sm font-medium">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -201,9 +209,10 @@
                 {% endif %}
             </div>
         </section>
-
-        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
-            <button type="submit" class="primer-button">Save settings</button>
-        </div>
     </form>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script src="{% static 'settings_toggles.js' %}"></script>
 {% endblock %}

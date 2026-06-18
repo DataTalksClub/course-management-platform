@@ -47,6 +47,11 @@ urlpatterns = [
         name="leaderboard_complaint",
     ),
     path(
+        "<slug:course_slug>/enrollment/toggle",
+        course.update_enrollment_toggle,
+        name="update_enrollment_toggle",
+    ),
+    path(
         "<slug:course_slug>/enrollment",
         course.enrollment_view,
         name="enrollment",

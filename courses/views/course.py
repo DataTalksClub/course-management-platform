@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import timedelta, timezone as datetime_timezone
 from typing import List
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -18,6 +18,7 @@ from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.core.cache import cache
 
 from courses.models import (
@@ -878,6 +879,42 @@ def leaderboard_complaint_view(
         "form": form,
     }
     return render(request, "courses/leaderboard_complaint.html", context)
+
+
+@login_required
+@require_POST
+def update_enrollment_toggle(request, course_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=request.user,
+        course=course,
+    )
+
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "")
+    if field not in {"display_on_leaderboard", "display_public_profile"}:
+        return JsonResponse(
+            {"error": "Unsupported enrollment setting."},
+            status=400,
+        )
+
+    previous_display_on_leaderboard = enrollment.display_on_leaderboard
+    enabled = value.lower() in {"1", "true", "yes", "on"}
+    setattr(enrollment, field, enabled)
+    enrollment.save(update_fields=[field])
+
+    if (
+        field == "display_on_leaderboard"
+        and previous_display_on_leaderboard != enabled
+    ):
+        invalidate_leaderboard_cache(course.id)
+
+    return JsonResponse(
+        {
+            "field": field,
+            "value": enabled,
+        }
+    )
 
 
 @login_required

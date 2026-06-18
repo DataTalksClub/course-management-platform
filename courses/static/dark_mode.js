@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  window.applyDarkModePreference = applyDarkMode;
+
   function initDarkMode() {
     var isAuthenticated = body.getAttribute('data-authenticated') === 'true';
     var serverDarkMode = body.getAttribute('data-dark-mode') === 'true';

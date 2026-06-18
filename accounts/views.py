@@ -16,6 +16,13 @@ from loginas.utils import restore_original_login
 from accounts.forms import AccountSettingsForm
 from courses.models import Enrollment
 
+ACCOUNT_TOGGLE_FIELDS = {
+    "dark_mode",
+    "email_submission_confirmations",
+    "email_deadline_reminders",
+    "email_course_updates",
+}
+
 
 def disabled(request):
     return HttpResponse("This URL is disabled", status=403)
@@ -26,7 +33,13 @@ def account_settings(request):
     user = request.user
 
     if request.method == "POST":
-        form = AccountSettingsForm(request.POST, instance=user)
+        data = request.POST.copy()
+        for field in ACCOUNT_TOGGLE_FIELDS:
+            if getattr(user, field):
+                data[field] = "on"
+            else:
+                data.pop(field, None)
+        form = AccountSettingsForm(data, instance=user)
         if form.is_valid():
             form.save()
             return redirect("account_settings")
@@ -56,6 +69,31 @@ def toggle_dark_mode(request):
     user.dark_mode = not user.dark_mode
     user.save(update_fields=['dark_mode'])
     return JsonResponse({'dark_mode': user.dark_mode})
+
+
+@login_required
+@require_POST
+def update_account_toggle(request):
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "")
+
+    if field not in ACCOUNT_TOGGLE_FIELDS:
+        return JsonResponse(
+            {"error": "Unsupported account setting."},
+            status=400,
+        )
+
+    enabled = value.lower() in {"1", "true", "yes", "on"}
+    setattr(request.user, field, enabled)
+    request.user.save(update_fields=[field])
+
+    response = {
+        "field": field,
+        "value": enabled,
+    }
+    if field == "dark_mode":
+        response["dark_mode"] = enabled
+    return JsonResponse(response)
 
 
 @login_required
