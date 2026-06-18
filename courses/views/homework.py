@@ -347,14 +347,15 @@ def homework_confirmation_context(
         "update_url": update_url,
         "profile_url": profile_url,
         "update_link_text": "Update your submission",
-        "notification_category": "submission confirmations",
+        "notification_category": "homework and project submissions",
         "notification_footer": (
             "You are receiving this because homework and project "
-            "submission confirmations are enabled in your profile."
+            "submission emails are enabled in your profile."
         ),
         "notification_footer_text": (
             "If you don't want to receive these emails, you can turn "
-            f"off submission confirmations in your profile: {profile_url}"
+            "off homework and project submission emails in your "
+            f"profile: {profile_url}"
         ),
         "email_subject": f"Homework submission saved: {homework.title}",
         "email_preview": (

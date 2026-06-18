@@ -29,7 +29,7 @@ class AccountSettingsForm(forms.ModelForm):
             "about_me": "About me",
             "dark_mode": "Use dark mode",
             "email_submission_confirmations": (
-                "Homework and project submission confirmations"
+                "Homework and project submissions"
             ),
             "email_deadline_reminders": "Deadline reminders",
             "email_course_updates": "General course-related emails",
@@ -41,7 +41,7 @@ class AccountSettingsForm(forms.ModelForm):
             "country": "Used to prefill course registration forms.",
             "registration_role": "Used to prefill course registration forms.",
             "email_submission_confirmations": (
-                "Sends a copy of the submitted results after you submit "
+                "Sends you a copy of the submitted results after you submit "
                 "homework or a project."
             ),
             "email_deadline_reminders": (

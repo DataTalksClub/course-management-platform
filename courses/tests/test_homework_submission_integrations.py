@@ -128,10 +128,10 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
         self.assertEqual(
             payload["context"]["notification_category"],
-            "submission confirmations",
+            "homework and project submissions",
         )
         self.assertIn(
-            "submission confirmations",
+            "homework and project submission emails",
             payload["context"]["notification_footer_text"],
         )
         self.assertEqual(

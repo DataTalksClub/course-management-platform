@@ -17,7 +17,7 @@
 
     <form method="post" class="settings-form mt-6 space-y-8">
         {% csrf_token %}
-        <section class="settings-section grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <section class="settings-section space-y-4">
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Profile</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">
@@ -46,7 +46,7 @@
             </div>
         </section>
 
-        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <section class="settings-section space-y-4 border-t pt-6">
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Public profile</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">
@@ -109,20 +109,20 @@
             </div>
         </section>
 
-        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <section class="settings-section space-y-4 border-t pt-6">
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Appearance</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">Choose the default theme for your account.</p>
             </div>
-            <label class="inline-flex items-center gap-3 text-sm font-medium app-heading">
+            <label class="checkbox-row">
                 {{ form.dark_mode }}
-                <span>{{ form.dark_mode.label }}</span>
+                <span class="checkbox-label">{{ form.dark_mode.label }}</span>
             </label>
         </section>
 
-        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <section class="settings-section space-y-4 border-t pt-6">
             <div>
-                <h2 class="settings-section-title text-lg font-semibold">Email notifications</h2>
+                <h2 class="settings-section-title text-lg font-semibold">Email subscriptions</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">
                     Choose which course workflow emails you want to receive.
                 </p>
@@ -170,7 +170,7 @@
             </div>
         </section>
 
-        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <section class="settings-section space-y-4 border-t pt-6">
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Courses enrolled</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">Course-specific profile details can still be edited per course.</p>
@@ -202,7 +202,7 @@
             </div>
         </section>
 
-        <div class="flex justify-end border-t app-border pt-6">
+        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
             <button type="submit" class="primer-button">Save settings</button>
         </div>
     </form>

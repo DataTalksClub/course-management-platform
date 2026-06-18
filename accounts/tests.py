@@ -169,11 +169,11 @@ class AccountSettingsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Homework and project submission confirmations",
+            "Homework and project submissions",
         )
         self.assertContains(
             response,
-            "Sends a copy of the submitted results",
+            "Sends you a copy of the submitted results",
         )
         self.assertContains(response, "Deadline reminders")
         self.assertContains(response, "within 24 hours")
