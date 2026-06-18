@@ -110,13 +110,13 @@
                 <h2 class="settings-section-title text-lg font-semibold">Appearance</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">Choose the default theme for your account.</p>
             </div>
-            <label class="toggle-row js-immediate-toggle-row"
-                   data-toggle-url="{% url 'update_account_toggle' %}">
+            <div class="toggle-row js-immediate-toggle-row"
+                 data-toggle-url="{% url 'update_account_toggle' %}">
                 {{ form.dark_mode }}
                 <span class="toggle-copy">
                     <span class="toggle-label">{{ form.dark_mode.label }}</span>
                 </span>
-            </label>
+            </div>
         </section>
 
         <section class="settings-section space-y-4 border-t pt-6">
@@ -128,14 +128,14 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="toggle-row js-immediate-toggle-row"
-                           data-toggle-url="{% url 'update_account_toggle' %}">
+                    <div class="toggle-row js-immediate-toggle-row"
+                         data-toggle-url="{% url 'update_account_toggle' %}">
                         {{ form.email_submission_confirmations }}
                         <span class="toggle-copy">
                             <span class="toggle-label">{{ form.email_submission_confirmations.label }}</span>
                             <span class="toggle-help">{{ form.email_submission_confirmations.help_text }}</span>
                         </span>
-                    </label>
+                    </div>
                     {% if form.email_submission_confirmations.errors %}
                         <div class="mt-2 text-sm font-medium">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -144,14 +144,14 @@
                     {% endif %}
                 </div>
                 <div>
-                    <label class="toggle-row js-immediate-toggle-row"
-                           data-toggle-url="{% url 'update_account_toggle' %}">
+                    <div class="toggle-row js-immediate-toggle-row"
+                         data-toggle-url="{% url 'update_account_toggle' %}">
                         {{ form.email_deadline_reminders }}
                         <span class="toggle-copy">
                             <span class="toggle-label">{{ form.email_deadline_reminders.label }}</span>
                             <span class="toggle-help">{{ form.email_deadline_reminders.help_text }}</span>
                         </span>
-                    </label>
+                    </div>
                     {% if form.email_deadline_reminders.errors %}
                         <div class="mt-2 text-sm font-medium">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -160,14 +160,14 @@
                     {% endif %}
                 </div>
                 <div>
-                    <label class="toggle-row js-immediate-toggle-row"
-                           data-toggle-url="{% url 'update_account_toggle' %}">
+                    <div class="toggle-row js-immediate-toggle-row"
+                         data-toggle-url="{% url 'update_account_toggle' %}">
                         {{ form.email_course_updates }}
                         <span class="toggle-copy">
                             <span class="toggle-label">{{ form.email_course_updates.label }}</span>
                             <span class="toggle-help">{{ form.email_course_updates.help_text }}</span>
                         </span>
-                    </label>
+                    </div>
                     {% if form.email_course_updates.errors %}
                         <div class="mt-2 text-sm font-medium">
                             <i class="fas fa-exclamation-triangle"></i>

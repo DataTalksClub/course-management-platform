@@ -82,8 +82,8 @@
 
         <section class="settings-section border-t pt-6">
             <div class="space-y-5">
-                <label class="toggle-row js-immediate-toggle-row"
-                       data-toggle-url="{% url 'update_enrollment_toggle' course.slug %}">
+                <div class="toggle-row js-immediate-toggle-row"
+                     data-toggle-url="{% url 'update_enrollment_toggle' course.slug %}">
                     {{ form.display_on_leaderboard }}
                     <span class="toggle-copy">
                         <span class="toggle-label">
@@ -93,9 +93,9 @@
                             When disabled, your score remains saved for you and the course team, but your row is hidden from public leaderboard views and exports.
                         </span>
                     </span>
-                </label>
-                <label class="toggle-row js-immediate-toggle-row"
-                       data-toggle-url="{% url 'update_enrollment_toggle' course.slug %}">
+                </div>
+                <div class="toggle-row js-immediate-toggle-row"
+                     data-toggle-url="{% url 'update_enrollment_toggle' course.slug %}">
                     {{ form.display_public_profile }}
                     <span class="toggle-copy">
                         <span class="toggle-label">
@@ -108,7 +108,7 @@
                             </a>
                         </span>
                     </span>
-                </label>
+                </div>
                 <div class="text-sm">
                     <span class="settings-meta-label">Certificate:</span>
                     {% if enrollment.certificate_url %}
