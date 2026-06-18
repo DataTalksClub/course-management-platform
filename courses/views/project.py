@@ -12,7 +12,11 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
+from django.db import transaction
 
+from course_management.datamailer import (
+    sync_project_submission_to_datamailer,
+)
 from courses.models import (
     Course,
     Enrollment,
@@ -98,8 +102,12 @@ def project_submission_from_post(
         project_submission.problems_comments = problems_comments.strip()
 
     if project.faq_contribution_field:
-        faq_contribution_url = request.POST.get("faq_contribution_url", "")
-        project_submission.faq_contribution_url = faq_contribution_url.strip()
+        faq_contribution_url = request.POST.get(
+            "faq_contribution_url", ""
+        )
+        project_submission.faq_contribution_url = (
+            faq_contribution_url.strip()
+        )
 
     return project_submission
 
@@ -108,6 +116,11 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     project_submission = project_submission_from_post(request, project)
     project_submission.full_clean()
     project_submission.save()
+    transaction.on_commit(
+        lambda: sync_project_submission_to_datamailer(
+            project_submission
+        )
+    )
 
     messages.success(
         request,
@@ -116,7 +129,9 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     )
 
 
-def project_delete_submission(request: HttpRequest, project: Project) -> None:
+def project_delete_submission(
+    request: HttpRequest, project: Project
+) -> None:
     user = request.user
 
     project_submission = ProjectSubmission.objects.filter(
@@ -161,7 +176,9 @@ def project_build_context(
             course=course,
         )
 
-        ceritificate_name = user.certificate_name or enrollment.display_name
+        ceritificate_name = (
+            user.certificate_name or enrollment.display_name
+        )
 
     disabled = not accepting_submissions
 
@@ -174,10 +191,11 @@ def project_build_context(
         "accepting_submissions": accepting_submissions,
         "ceritificate_name": ceritificate_name,
         "disable_learning_in_public": (
-            enrollment.disable_learning_in_public if enrollment else False
+            enrollment.disable_learning_in_public
+            if enrollment
+            else False
         ),
     }
-
 
 
 def project_view(request, course_slug, project_slug):
@@ -215,7 +233,10 @@ def project_view(request, course_slug, project_slug):
             context = project_build_context(request, course, project)
             return render(request, "projects/project.html", context)
 
-        if 'action' in request.POST and request.POST['action'] == 'delete':
+        if (
+            "action" in request.POST
+            and request.POST["action"] == "delete"
+        ):
             project_delete_submission(request, project)
         else:
             try:
@@ -227,7 +248,9 @@ def project_view(request, course_slug, project_slug):
                         f"Failed to submit the project: {message}",
                         extra_tags="alert-danger",
                     )
-                context = project_build_context(request, course, project)
+                context = project_build_context(
+                    request, course, project
+                )
                 context["submission"] = project_submission_from_post(
                     request, project
                 )
@@ -340,7 +363,9 @@ def annotate_scores_with_option_votes(
                 **option,
                 "votes": option_votes[index],
             }
-            for index, option in enumerate(score.review_criteria.options)
+            for index, option in enumerate(
+                score.review_criteria.options
+            )
         ]
 
 
@@ -400,7 +425,7 @@ def project_eval_build_context(
     project: Project,
     review: PeerReview,
     review_criteria: Iterable[ReviewCriteria],
-    enrollment: Optional['Enrollment'] = None,
+    enrollment: Optional["Enrollment"] = None,
 ):
     submission = review.submission_under_evaluation
 
@@ -409,9 +434,11 @@ def project_eval_build_context(
     )
 
     disabled = not accepting_submissions
-    
+
     # Check if learning in public is disabled for this enrollment
-    disable_learning_in_public = enrollment.disable_learning_in_public if enrollment else False
+    disable_learning_in_public = (
+        enrollment.disable_learning_in_public if enrollment else False
+    )
 
     review_responses = review.get_criteria_responses()
 
@@ -534,7 +561,7 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     review_criteria = ReviewCriteria.objects.filter(
         course=course
     ).order_by("id")
-    
+
     # Get the enrollment for the reviewer
     enrollment, _ = Enrollment.objects.get_or_create(
         student=request.user,
@@ -575,7 +602,7 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         return redirect(
             "projects_eval",
             course_slug=course_slug,
-            project_slug=project_slug
+            project_slug=project_slug,
         )
 
     context = project_eval_build_context(
@@ -706,18 +733,25 @@ def projects_list_view(request, course_slug, project_slug):
         update_project_vote(request.user, submission, action=action)
 
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            voted_submission_ids = get_voted_submission_ids(request.user, course)
-            project_vote_counts = get_project_vote_counts(request.user, course)
+            voted_submission_ids = get_voted_submission_ids(
+                request.user, course
+            )
+            project_vote_counts = get_project_vote_counts(
+                request.user, course
+            )
             project_vote_count = project_vote_counts.get(project.id, 0)
             votes_left = max(
                 PROJECT_VOTES_PER_PROJECT - project_vote_count,
                 0,
             )
-            vote_count = ProjectSubmission.objects.filter(
-                id=submission.id,
-            ).annotate(
-                vote_count=Count("votes")
-            ).values_list("vote_count", flat=True).get()
+            vote_count = (
+                ProjectSubmission.objects.filter(
+                    id=submission.id,
+                )
+                .annotate(vote_count=Count("votes"))
+                .values_list("vote_count", flat=True)
+                .get()
+            )
 
             return JsonResponse(
                 {
@@ -738,17 +772,17 @@ def projects_list_view(request, course_slug, project_slug):
             project_slug=project.slug,
         )
 
-    submissions = ProjectSubmission.objects.filter(
-        project=project,
-        volunteer_review_only=False,
-    ).select_related(
-        "enrollment"
-    ).annotate(
-        vote_count=Count("votes")
+    submissions = (
+        ProjectSubmission.objects.filter(
+            project=project,
+            volunteer_review_only=False,
+        )
+        .select_related("enrollment")
+        .annotate(vote_count=Count("votes"))
     )
 
     if project.state == ProjectState.COMPLETED.value:
-        submissions = submissions.order_by('-project_score')
+        submissions = submissions.order_by("-project_score")
     else:
         submissions = submissions.order_by("-submitted_at")
 
@@ -775,7 +809,9 @@ def projects_list_view(request, course_slug, project_slug):
         project_submissions = student_submissions.filter(
             volunteer_review_only=False,
         )
-        own_submissions = set(project_submissions.values_list("id", flat=True))
+        own_submissions = set(
+            project_submissions.values_list("id", flat=True)
+        )
         has_submission = len(own_submissions) > 0
 
         reviews = PeerReview.objects.filter(
@@ -788,7 +824,6 @@ def projects_list_view(request, course_slug, project_slug):
             review_ids[eval_id] = review
             if not review.optional:
                 has_assigned_reviews = True
-
 
     submissions_list = list(submissions)
 
@@ -809,8 +844,14 @@ def projects_list_view(request, course_slug, project_slug):
         submission.group_order = 1
         submission.group_label = None
 
-        if is_authenticated and project.state == ProjectState.PEER_REVIEWING.value:
-            if submission.to_evaluate and not submission.review.optional:
+        if (
+            is_authenticated
+            and project.state == ProjectState.PEER_REVIEWING.value
+        ):
+            if (
+                submission.to_evaluate
+                and not submission.review.optional
+            ):
                 submission.group_order = 0
                 submission.group_label = "Assigned reviews"
             else:
@@ -818,7 +859,10 @@ def projects_list_view(request, course_slug, project_slug):
                 if has_assigned_reviews:
                     submission.group_label = "Other submissions"
 
-    if is_authenticated and project.state == ProjectState.PEER_REVIEWING.value:
+    if (
+        is_authenticated
+        and project.state == ProjectState.PEER_REVIEWING.value
+    ):
         submissions_list.sort(
             key=lambda submission: (
                 submission.group_order,
@@ -826,12 +870,17 @@ def projects_list_view(request, course_slug, project_slug):
             )
         )
 
-    submissions_page = paginate_project_submissions(request, submissions_list)
+    submissions_page = paginate_project_submissions(
+        request, submissions_list
+    )
 
     previous_group_label = None
     for submission in submissions_page.object_list:
         submission.group_heading = None
-        if submission.group_label and submission.group_label != previous_group_label:
+        if (
+            submission.group_label
+            and submission.group_label != previous_group_label
+        ):
             submission.group_heading = submission.group_label
         previous_group_label = submission.group_label
 
@@ -895,7 +944,7 @@ def project_submissions(request, course_slug, project_slug):
             course_slug=course_slug,
             project_slug=project_slug,
         )
-    
+
     # Staff users: redirect to cadmin view
     return redirect(
         "cadmin_project_submissions",

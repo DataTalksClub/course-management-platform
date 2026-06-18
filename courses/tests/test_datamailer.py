@@ -1,6 +1,8 @@
 from unittest.mock import Mock, patch
+from io import StringIO
 
 import requests
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from accounts.models import CustomUser
@@ -14,10 +16,25 @@ from course_management.datamailer import (
     get_contact_status,
     get_email_status,
     get_transactional_message_status,
+    homework_submitters_list_key,
+    project_submitters_list_key,
+    registration_list_key,
     send_transactional_email,
     sync_contact,
+    sync_homework_submission_to_datamailer,
+    sync_project_submission_to_datamailer,
+    sync_registration_to_datamailer,
 )
-from courses.models import Course, Enrollment
+from courses.models import (
+    Course,
+    CourseRegistration,
+    Enrollment,
+    Homework,
+    Project,
+    ProjectSubmission,
+    RegistrationCampaign,
+    Submission,
+)
 
 
 DATAMAILER_SETTINGS = {
@@ -160,6 +177,38 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_recipient_list_member_uses_expected_endpoint(self):
+        session = Mock()
+        response = Mock(content=b'{"ok": true}')
+        response.json.return_value = {"ok": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.upsert_recipient_list_member(
+            "registrants:ml-zoomcamp-2026",
+            "registration:42",
+            {"email": "student@example.com"},
+        )
+
+        self.assertEqual(result, {"ok": True})
+        session.request.assert_called_once_with(
+            "PUT",
+            "https://datamailer.example.com/api/recipient-lists/registrants:ml-zoomcamp-2026/members/registration:42",
+            json={"email": "student@example.com"},
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
         user = CustomUser.objects.create(
@@ -219,8 +268,12 @@ class DatamailerClientTest(TestCase):
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.upsert_contact")
-    def test_sync_contact_logs_and_continues_on_api_failure(self, upsert):
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_sync_contact_logs_and_continues_on_api_failure(
+        self, upsert
+    ):
         upsert.side_effect = requests.RequestException("network error")
         user = CustomUser.objects.create(email="student@example.com")
 
@@ -229,7 +282,9 @@ class DatamailerClientTest(TestCase):
         upsert.assert_called_once()
 
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_STRICT=True)
-    @patch("course_management.datamailer.DatamailerClient.upsert_contact")
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
     def test_sync_contact_can_be_strict(self, upsert):
         upsert.side_effect = requests.RequestException("network error")
         user = CustomUser.objects.create(email="student@example.com")
@@ -238,8 +293,12 @@ class DatamailerClientTest(TestCase):
             sync_contact(user)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.send_transactional")
-    def test_send_transactional_email_uses_datamailer_client(self, send):
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_send_transactional_email_uses_datamailer_client(
+        self, send
+    ):
         send.return_value = {"id": "message-id"}
 
         result = send_transactional_email(
@@ -261,8 +320,12 @@ class DatamailerClientTest(TestCase):
         **DATAMAILER_SETTINGS,
         DATAMAILER_FROM_EMAIL="courses",
     )
-    @patch("course_management.datamailer.DatamailerClient.send_transactional")
-    def test_send_transactional_email_adds_configured_from_email(self, send):
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_send_transactional_email_adds_configured_from_email(
+        self, send
+    ):
         send.return_value = {"id": "message-id"}
 
         send_transactional_email(
@@ -284,8 +347,12 @@ class DatamailerClientTest(TestCase):
         **DATAMAILER_SETTINGS,
         DATAMAILER_FROM_EMAIL="courses",
     )
-    @patch("course_management.datamailer.DatamailerClient.send_transactional")
-    def test_send_transactional_email_keeps_explicit_from_email(self, send):
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_send_transactional_email_keeps_explicit_from_email(
+        self, send
+    ):
         send.return_value = {"id": "message-id"}
 
         send_transactional_email(
@@ -305,8 +372,12 @@ class DatamailerClientTest(TestCase):
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.contact_status")
-    def test_get_contact_status_uses_datamailer_client(self, contact_status):
+    @patch(
+        "course_management.datamailer.DatamailerClient.contact_status"
+    )
+    def test_get_contact_status_uses_datamailer_client(
+        self, contact_status
+    ):
         contact_status.return_value = {"exists": True}
 
         result = get_contact_status("student@example.com")
@@ -315,8 +386,12 @@ class DatamailerClientTest(TestCase):
         contact_status.assert_called_once_with("student@example.com")
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.contact_history")
-    def test_get_contact_history_uses_datamailer_client(self, contact_history):
+    @patch(
+        "course_management.datamailer.DatamailerClient.contact_history"
+    )
+    def test_get_contact_history_uses_datamailer_client(
+        self, contact_history
+    ):
         contact_history.return_value = {"transactional_messages": []}
 
         result = get_contact_history(42, limit=5)
@@ -354,7 +429,9 @@ class DatamailerClientTest(TestCase):
         contact_history.assert_called_once_with(42, limit=5)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.transactional_message_status")
+    @patch(
+        "course_management.datamailer.DatamailerClient.transactional_message_status"
+    )
     def test_get_transactional_message_status_uses_datamailer_client(
         self,
         message_status,
@@ -366,13 +443,278 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(result, {"message": {"id": 42}})
         message_status.assert_called_once_with(42)
 
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_sync_registration_adds_contact_and_registrant_member(
+        self,
+        upsert_contact,
+        upsert_member,
+    ):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
+        sync_registration_to_datamailer(registration)
+
+        upsert_contact.assert_called_once()
+        self.assertEqual(
+            upsert_contact.call_args.args[0]["tags"],
+            ["course-ml-zoomcamp", "course-cohort-ml-zoomcamp-2026"],
+        )
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            registration_list_key(registration),
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[1],
+            f"registration:{registration.pk}",
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[2]["member"]["email"],
+            "student@example.com",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_sync_homework_submission_adds_submitter_member(
+        self,
+        upsert_contact,
+        upsert_member,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user, course=course
+        )
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+        submission = Submission.objects.create(
+            homework=homework,
+            student=user,
+            enrollment=enrollment,
+        )
+
+        sync_homework_submission_to_datamailer(submission)
+
+        upsert_contact.assert_called_once()
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            homework_submitters_list_key(homework),
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[1],
+            f"homework-submission:{submission.pk}",
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[2]["list"]["type"],
+            "homework_submitters",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_sync_project_submission_adds_submitter_member(
+        self,
+        upsert_contact,
+        upsert_member,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user, course=course
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/project",
+            commit_id="a" * 40,
+        )
+
+        sync_project_submission_to_datamailer(submission)
+
+        upsert_contact.assert_called_once()
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            project_submitters_list_key(project),
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[1],
+            f"project-submission:{submission.pk}",
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[2]["list"]["type"],
+            "project_submitters",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
+    def test_recipient_list_backfill_command_bulk_upserts_registrations(
+        self,
+        bulk_upsert,
+    ):
+        bulk_upsert.return_value = {
+            "recipient_list": {
+                "active_member_count": 1,
+            },
+        }
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "registrations",
+            "--course-slug",
+            course.slug,
+            stdout=out,
+        )
+
+        bulk_upsert.assert_called_once()
+        self.assertEqual(
+            bulk_upsert.call_args.args[0],
+            registration_list_key(registration),
+        )
+        payload = bulk_upsert.call_args.args[1]
+        self.assertEqual(payload["list"]["type"], "registrants")
+        self.assertEqual(
+            payload["members"][0]["source_object_key"],
+            f"registration:{registration.pk}",
+        )
+        self.assertIn(
+            "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
+    def test_recipient_list_backfill_command_dry_run_does_not_call_datamailer(
+        self,
+        bulk_upsert,
+    ):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "registrations",
+            "--dry-run",
+            stdout=out,
+        )
+
+        bulk_upsert.assert_not_called()
+        self.assertIn(
+            "registrants:ml-zoomcamp-2026: 1 member(s)", out.getvalue()
+        )
+
 
 class DatamailerSignalTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("courses.signals.sync_contact")
     def test_new_user_syncs_after_commit(self, sync):
         with self.captureOnCommitCallbacks(execute=True):
-            user = CustomUser.objects.create(email="student@example.com")
+            user = CustomUser.objects.create(
+                email="student@example.com"
+            )
 
         sync.assert_called_once_with(user)
 

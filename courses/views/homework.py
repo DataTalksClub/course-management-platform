@@ -14,7 +14,10 @@ from django.core.validators import URLValidator
 from django.db import transaction
 from django.urls import reverse
 
-from course_management.datamailer import send_transactional_email
+from course_management.datamailer import (
+    send_transactional_email,
+    sync_homework_submission_to_datamailer,
+)
 from course_management import email_templates
 from courses.models import (
     Course,
@@ -29,7 +32,10 @@ from courses.models import (
     ProjectSubmission,
 )
 
-from courses.scoring import is_free_form_answer_correct, calculate_homework_statistics
+from courses.scoring import (
+    is_free_form_answer_correct,
+    calculate_homework_statistics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +57,11 @@ def process_quesion_free_form(
             return {"text": answer.answer_text}
 
     # homework is scored - show correct answers
-    if not answer or not answer.answer_text or not answer.answer_text.strip():
+    if (
+        not answer
+        or not answer.answer_text
+        or not answer.answer_text.strip()
+    ):
         return {
             "text": question.correct_answer,
             "no_answer_submitted": True,
@@ -113,7 +123,7 @@ def process_question_options_multiple_choice_or_checkboxes(
         options.append(processed_answer)
 
     result = {"options": options}
-    
+
     # Check if no answer was submitted for a scored homework
     if homework.is_scored() and len(selected_options) == 0:
         result["no_answer_submitted"] = True
@@ -430,7 +440,7 @@ def process_question_options(
 ):
     if question.question_type == QuestionTypes.FREE_FORM.value:
         return process_quesion_free_form(homework, question, answer)
-    
+
     if question.question_type == QuestionTypes.FREE_FORM_LONG.value:
         return process_quesion_free_form(homework, question, answer)
 
@@ -472,7 +482,9 @@ def parse_time_spent_hours(
     return parsed
 
 
-def clean_learning_in_public_links(links: List[str], cap: int) -> List[str]:
+def clean_learning_in_public_links(
+    links: List[str], cap: int
+) -> List[str]:
     url_validator = URLValidator(schemes=["http", "https"])
     cleaned_links = []
 
@@ -522,7 +534,9 @@ def find_duplicate_learning_in_public_links(
     for submitted_homework in homework_submissions:
         duplicate_links.update(
             link
-            for link in (submitted_homework.learning_in_public_links or [])
+            for link in (
+                submitted_homework.learning_in_public_links or []
+            )
             if link in links_set
         )
 
@@ -535,7 +549,9 @@ def find_duplicate_learning_in_public_links(
     for submitted_project in project_submissions:
         duplicate_links.update(
             link
-            for link in (submitted_project.learning_in_public_links or [])
+            for link in (
+                submitted_project.learning_in_public_links or []
+            )
             if link in links_set
         )
 
@@ -559,7 +575,9 @@ def send_homework_confirmation_email(
         homework=homework,
         submission=submission,
         update_url=update_url,
-        profile_url=build_account_settings_url(request_base_url(update_url)),
+        profile_url=build_account_settings_url(
+            request_base_url(update_url)
+        ),
     )
 
     send_transactional_email(
@@ -680,7 +698,9 @@ def process_homework_submission(
         submission.problems_comments = problems_comments.strip()
 
     if homework.faq_contribution_field:
-        faq_contribution_url = request.POST.get("faq_contribution_url", "")
+        faq_contribution_url = request.POST.get(
+            "faq_contribution_url", ""
+        )
         submission.faq_contribution_url = faq_contribution_url.strip()
 
     submission.full_clean()
@@ -694,6 +714,9 @@ def process_homework_submission(
             submission=submission,
             update_url=update_url,
         )
+    )
+    transaction.on_commit(
+        lambda: sync_homework_submission_to_datamailer(submission)
     )
 
     success_message = (
@@ -741,7 +764,7 @@ def homework_detail_build_context_authenticated(
     homework: Homework,
     questions: List[Question],
     submission: Optional[Submission],
-    enrollment: Optional['Enrollment'] = None,
+    enrollment: Optional["Enrollment"] = None,
 ) -> dict:
     if submission:
         answers = Answer.objects.filter(
@@ -768,9 +791,11 @@ def homework_detail_build_context_authenticated(
 
     disabled = homework.state != HomeworkState.OPEN.value
     accepting_submissions = homework.state == HomeworkState.OPEN.value
-    
+
     # Check if learning in public is disabled for this enrollment
-    disable_learning_in_public = enrollment.disable_learning_in_public if enrollment else False
+    disable_learning_in_public = (
+        enrollment.disable_learning_in_public if enrollment else False
+    )
 
     context = {
         "course": course,
@@ -786,7 +811,9 @@ def homework_detail_build_context_authenticated(
     return context
 
 
-def answer_from_post(request: HttpRequest, question: Question) -> Answer:
+def answer_from_post(
+    request: HttpRequest, question: Question
+) -> Answer:
     answer_text = ",".join(
         value.strip()
         for value in request.POST.getlist(f"answer_{question.id}")
@@ -809,12 +836,16 @@ def homework_detail_build_context_from_post(
     )
 
     if homework.homework_url_field:
-        bound_submission.homework_link = request.POST.get("homework_url", "")
+        bound_submission.homework_link = request.POST.get(
+            "homework_url", ""
+        )
 
     if homework.learning_in_public_cap > 0:
         bound_submission.learning_in_public_links = [
             link.strip()
-            for link in request.POST.getlist("learning_in_public_links[]")
+            for link in request.POST.getlist(
+                "learning_in_public_links[]"
+            )
             if link.strip()
         ]
 
@@ -910,7 +941,7 @@ def homework_view(
     submission = Submission.objects.filter(
         homework=homework, student=user
     ).first()
-    
+
     # Get or create enrollment for the user
     enrollment, _ = Enrollment.objects.get_or_create(
         student=user,
@@ -949,7 +980,6 @@ def homework_view(
             context["error_fields"] = homework_error_fields(e)
 
     return render(request, "homework/homework.html", context)
-
 
 
 def homework_statistics(request, course_slug, homework_slug):
@@ -994,7 +1024,7 @@ def homework_submissions(request, course_slug, homework_slug):
             course_slug=course_slug,
             homework_slug=homework_slug,
         )
-    
+
     # Staff users: redirect to cadmin view
     return redirect(
         "cadmin_homework_submissions",

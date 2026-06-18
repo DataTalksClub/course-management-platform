@@ -55,8 +55,17 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertContains(response, "Build useful apps")
         self.assertContains(response, "Register")
 
-    @override_settings(MAILCHIMP_TOKEN="", MAILCHIMP_LIST_ID="")
-    def test_anonymous_registration_creates_independent_registration(self):
+    @override_settings(
+        MAILCHIMP_TOKEN="",
+        MAILCHIMP_LIST_ID="",
+        DATAMAILER_URL="",
+        DATAMAILER_API_KEY="",
+        DATAMAILER_CLIENT="",
+        DATAMAILER_AUDIENCE="",
+    )
+    def test_anonymous_registration_creates_independent_registration(
+        self,
+    ):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
                 reverse(
@@ -68,7 +77,9 @@ class RegistrationCampaignPublicTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
-        self.assertEqual(registration.email_normalized, "student@example.com")
+        self.assertEqual(
+            registration.email_normalized, "student@example.com"
+        )
         self.assertEqual(registration.course, self.course)
         self.assertEqual(registration.region, "Europe")
         self.assertIsNone(registration.user)
@@ -146,10 +157,14 @@ class RegistrationCampaignPublicTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
-        self.assertEqual(registration.email_normalized, "signed@example.com")
+        self.assertEqual(
+            registration.email_normalized, "signed@example.com"
+        )
         self.assertEqual(registration.user, user)
         user.refresh_from_db()
-        self.assertEqual(user.certificate_name, "Updated Certificate Name")
+        self.assertEqual(
+            user.certificate_name, "Updated Certificate Name"
+        )
         self.assertEqual(user.country, "Germany")
         self.assertEqual(user.region, "Europe")
         self.assertEqual(
@@ -170,7 +185,9 @@ class RegistrationCampaignPublicTests(TestCase):
             ),
         )
 
-    def test_course_with_homework_shows_workspace_and_registration_link(self):
+    def test_course_with_homework_shows_workspace_and_registration_link(
+        self,
+    ):
         Homework.objects.create(
             course=self.course,
             slug="intro",
@@ -188,7 +205,9 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertContains(response, "Register")
         self.assertContains(response, "Intro")
 
-    def test_course_page_hides_registration_button_when_registered(self):
+    def test_course_page_hides_registration_button_when_registered(
+        self,
+    ):
         user = CustomUser.objects.create_user(
             username="registered",
             email="registered@example.com",
@@ -246,7 +265,9 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Register")
 
-    def test_registration_page_shows_already_registered_for_logged_in_user(self):
+    def test_registration_page_shows_already_registered_for_logged_in_user(
+        self,
+    ):
         user = CustomUser.objects.create_user(
             username="registered",
             email="registered@example.com",
@@ -275,6 +296,35 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertContains(response, "You are already registered")
         self.assertNotContains(response, 'name="email"')
 
+    @override_settings(
+        MAILCHIMP_TOKEN="secret-us19",
+        MAILCHIMP_LIST_ID="97178021aa",
+        DATAMAILER_URL="https://datamailer.example.com",
+        DATAMAILER_API_KEY="secret-token",
+        DATAMAILER_CLIENT="dtc-courses",
+        DATAMAILER_AUDIENCE="dtc-courses",
+    )
+    @patch("courses.views.registration.sync_registration_to_datamailer")
+    @patch("courses.views.registration.sync_registration_to_mailchimp")
+    def test_registration_syncs_to_mailchimp_and_datamailer(
+        self,
+        sync_mailchimp,
+        sync_datamailer,
+    ):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse(
+                    "registration_campaign",
+                    kwargs={"campaign_slug": self.campaign.slug},
+                ),
+                self.registration_payload(),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        sync_mailchimp.assert_called_once_with(registration)
+        sync_datamailer.assert_called_once_with(registration)
+
 
 class MailchimpRegistrationSyncTests(TestCase):
     @override_settings(
@@ -300,18 +350,24 @@ class MailchimpRegistrationSyncTests(TestCase):
             accepted_newsletter=True,
         )
 
-        from course_management.mailchimp import sync_registration_to_mailchimp
+        from course_management.mailchimp import (
+            sync_registration_to_mailchimp,
+        )
 
         sync_registration_to_mailchimp(registration)
 
         upsert.assert_called_once()
-        add_tag.assert_called_once_with("subscriber-hash", "llm-zoomcamp-2026")
+        add_tag.assert_called_once_with(
+            "subscriber-hash", "llm-zoomcamp-2026"
+        )
         registration.refresh_from_db()
         self.assertEqual(
             registration.mailchimp_sync_status,
             CourseRegistration.MailchimpSyncStatus.SYNCED,
         )
-        self.assertEqual(registration.mailchimp_tag_used, "llm-zoomcamp-2026")
+        self.assertEqual(
+            registration.mailchimp_tag_used, "llm-zoomcamp-2026"
+        )
 
     def test_campaign_selects_after_switch_tag(self):
         campaign = RegistrationCampaign.objects.create(
@@ -319,7 +375,8 @@ class MailchimpRegistrationSyncTests(TestCase):
             title="LLM Zoomcamp",
             mailchimp_tag_before_switch="llm-zoomcamp-2026",
             mailchimp_tag_after_switch="llm-zoomcamp-next",
-            mailchimp_tag_switch_at=timezone.now() - timezone.timedelta(days=1),
+            mailchimp_tag_switch_at=timezone.now()
+            - timezone.timedelta(days=1),
         )
 
         self.assertEqual(

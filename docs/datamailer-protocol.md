@@ -36,16 +36,19 @@ The current CMP integration has:
 - Datamailer contact sync for new users and enrollments.
 - Datamailer homework submission confirmation emails.
 - Datamailer contact status and history lookups.
+- Parallel Datamailer sync for course registrations.
+- Datamailer recipient-list member sync for course registrations, homework
+  submitters, and project submitters.
+- CMP backfill command for Datamailer recipient lists.
 - Mailchimp sync for course registrations.
 
 The following pieces are planned and not implemented yet:
 
-- Parallel Datamailer sync for course registrations.
 - Project submission confirmation emails.
 - Score publication emails.
 - Certificate availability emails.
 - Deadline reminder emails.
-- Datamailer recipient lists and list sends.
+- Datamailer recipient-list sends.
 - Datamailer callbacks to CMP for bounces, complaints, and unsubscribes.
 
 ## Configuration
@@ -82,10 +85,9 @@ failure to the caller.
 
 ## Contact Sync
 
-CMP currently syncs contacts to Datamailer when it creates users and
-enrollments. Course registration sync to Datamailer is planned; during rollout,
-CMP should keep the existing Mailchimp sync and also upsert the registrant into
-Datamailer.
+CMP syncs contacts to Datamailer when it creates users, enrollments, and course
+registrations. During rollout, CMP keeps the existing Mailchimp sync and also
+upserts the registrant into Datamailer.
 
 CMP calls:
 
@@ -113,19 +115,13 @@ Example payload:
 }
 ```
 
-The current CMP helper does not send `status: subscribed` yet. We need to add
-that before using Datamailer campaigns or recipient lists for course mail,
-because Datamailer campaign snapshots skip pending or unsubscribed contacts.
+CMP sends `status: subscribed`, `verified: true`, and
+`email_validation.status: externally_validated` for course-scoped contacts.
+Course-scoped tags include both the family tag and cohort tag, for example
+`course-ml-zoomcamp` and `course-cohort-ml-zoomcamp-2026`.
 
-Datamailer also needs one eligibility fix before list/campaign sends are
-reliable: the contact upsert path and the campaign snapshot path must agree on
-what `verified=true` means. The contact status API treats subscription
-verification as enough for marketing sendability, while the campaign snapshot
-path currently checks the global contact verification timestamp.
-
-For course registrations, CMP also includes the selected campaign tag when it
-differs from the cohort tag. The registration form requires newsletter
-consent, so CMP marks the contact as verified and externally validated.
+The registration form requires newsletter consent, so CMP marks the contact as
+verified and externally validated.
 
 ```mermaid
 sequenceDiagram
@@ -140,7 +136,8 @@ sequenceDiagram
     CMP-->>Browser: Registration success
     CMP->>Mailchimp: Upsert member and tag
     CMP->>DM: POST /api/contacts
-    DM-->>CMP: Contact status and tags
+    CMP->>DM: PUT registrants list member
+    DM-->>CMP: Contact and recipient-list state
 ```
 
 ## Transactional Sends
@@ -247,6 +244,7 @@ sequenceDiagram
     CMP->>DB: Save submission
     CMP-->>Learner: Submission saved
     CMP->>DM: Send confirmation email
+    CMP->>DM: Upsert submitter recipient-list member
 ```
 
 ## Operator-Time Emails
@@ -289,9 +287,9 @@ CMP remains the source of truth for scores either way.
 
 ## Recipient Lists
 
-Datamailer should add native recipient lists rather than using tags as lists.
-Tags are audience-scoped and broad; recipient lists need client and audience
-scope, membership audit, backfill support, and send-specific counters.
+Datamailer has native recipient lists rather than using tags as lists. Tags are
+audience-scoped and broad; recipient lists have client and audience scope,
+membership audit, backfill support, and send-specific counters.
 
 List keys do not need a `cmp:` prefix because the authenticated Datamailer API
 client already scopes ownership.
@@ -299,7 +297,7 @@ client already scopes ownership.
 Recommended list keys:
 
 ```text
-course-registrants:{registration_campaign_slug}
+registrants:{course_slug}
 course-enrolled:{course_slug}
 homework-submitters:{course_slug}:{homework_slug}
 project-submitters:{course_slug}:{project_slug}
@@ -308,7 +306,7 @@ certificate-eligible:{course_slug}
 course-graduates:{course_slug}
 ```
 
-Recommended Datamailer tables:
+Current Datamailer tables:
 
 ```text
 recipient_lists
@@ -327,7 +325,7 @@ recipient_lists
 recipient_list_members
 - recipient_list
 - contact
-- email_snapshot
+- email
 - source_object_key
 - metadata
 - active
@@ -344,9 +342,9 @@ Required uniqueness:
 (recipient_list, contact)
 ```
 
-CMP maintains these lists after local commits. The first member upsert should
-create the parent list if it does not exist, so CMP never has to check before
-adding a member.
+CMP maintains registration, homework submitter, and project submitter lists
+after local commits. The first member upsert creates the parent list if it does
+not exist, so CMP never has to check before adding a member.
 
 ```text
 PUT /api/recipient-lists/{key}/members/{source_object_key}
@@ -360,10 +358,11 @@ PUT /api/recipient-lists/homework-submitters:ml-zoomcamp-2026:homework-1/members
 
 ```json
 {
+  "audience": "dtc-courses",
+  "client": "dtc-courses",
   "list": {
     "type": "homework_submitters",
-    "name": "ML Zoomcamp 2026 / Homework 1 submitters",
-    "audience": "dtc-courses",
+    "name": "ML Zoomcamp 2026 Homework 1 submitters",
     "metadata": {
       "course_slug": "ml-zoomcamp-2026",
       "homework_slug": "homework-1"
@@ -381,19 +380,18 @@ PUT /api/recipient-lists/homework-submitters:ml-zoomcamp-2026:homework-1/members
 }
 ```
 
-Datamailer should support both event updates and retroactive backfills:
+Datamailer supports both event updates and retroactive backfills:
 
 ```text
 PUT  /api/recipient-lists/{key}
 PUT  /api/recipient-lists/{key}/members/{source_object_key}
 POST /api/recipient-lists/{key}/members/bulk-upsert
-POST /api/recipient-lists/{key}/reconcile
-POST /api/recipient-lists/{key}/send
+POST /api/recipient-lists/{key}/members/reconcile
 GET  /api/recipient-lists/{key}
 ```
 
-The `reconcile` endpoint accepts a full CMP snapshot and can soft-remove
-members missing from that snapshot. It should support `dry_run` and
+The `members/reconcile` endpoint accepts a full CMP snapshot and can
+soft-remove members missing from that snapshot. It supports `dry_run` and
 `remove_absent`.
 
 ```mermaid
@@ -409,12 +407,14 @@ sequenceDiagram
     DM->>DB: Upsert snapshot and soft-remove absent members
 ```
 
-CMP should expose management commands for retroactive list creation:
+CMP exposes this management command for retroactive list creation:
 
 ```console
-$ uv run python manage.py sync_datamailer_recipient_list course-registrants llm-zoomcamp
-$ uv run python manage.py sync_datamailer_recipient_list homework-submitters ml-zoomcamp-2026 homework-1
-$ uv run python manage.py sync_datamailer_recipient_list project-submitters ml-zoomcamp-2026 midterm-project
+$ uv run python manage.py sync_datamailer_recipient_lists registrations --course-slug ml-zoomcamp-2026
+$ uv run python manage.py sync_datamailer_recipient_lists homework --course-slug ml-zoomcamp-2026 --homework-slug homework-1
+$ uv run python manage.py sync_datamailer_recipient_lists project --course-slug ml-zoomcamp-2026 --project-slug midterm-project
+$ uv run python manage.py sync_datamailer_recipient_lists homework --course-slug ml-zoomcamp-2026 --reconcile
+$ uv run python manage.py sync_datamailer_recipient_lists registrations --dry-run
 ```
 
 Before an operator triggers score emails from a list, CMP should be able to

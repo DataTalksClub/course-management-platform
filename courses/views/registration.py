@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
+from course_management.datamailer import sync_registration_to_datamailer
 from course_management.mailchimp import sync_registration_to_mailchimp
 from courses.models import (
     CourseRegistration,
@@ -11,7 +12,11 @@ from courses.models import (
     Project,
     RegistrationCampaign,
 )
-from courses.registration import ordered_countries, render_markdown, youtube_embed_url
+from courses.registration import (
+    ordered_countries,
+    render_markdown,
+    youtube_embed_url,
+)
 
 from .forms import CourseRegistrationForm
 
@@ -57,8 +62,13 @@ def registration_campaign_view(
             transaction.on_commit(
                 lambda: sync_registration_to_mailchimp(registration)
             )
+            transaction.on_commit(
+                lambda: sync_registration_to_datamailer(registration)
+            )
     else:
-        form = CourseRegistrationForm(campaign=campaign, user=request.user)
+        form = CourseRegistrationForm(
+            campaign=campaign, user=request.user
+        )
 
     start_course_url = ""
     if campaign.current_course_id:
