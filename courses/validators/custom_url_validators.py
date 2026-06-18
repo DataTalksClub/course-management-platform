@@ -24,7 +24,7 @@ def get_error_message(status_code, url):
 
 # Cap how long we wait on the remote server so a slow or hanging URL
 # cannot tie up a worker process indefinitely.
-URL_VALIDATION_TIMEOUT = 10
+URL_VALIDATION_TIMEOUT = 3
 
 
 def validate_url_200(

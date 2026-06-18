@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   function isValidUrl(urlString) {
     try {
-      var url = new URL(urlString);
+      var url = new URL(urlString.trim());
       return url.protocol === 'http:' || url.protocol === 'https:';
     } catch (e) {
       return false;
@@ -12,19 +12,41 @@ document.addEventListener('DOMContentLoaded', function() {
     return /^[0-9a-f]{7}$/i.test(commitId);
   }
 
+  function setFieldError(field, message) {
+    if (!field) {
+      return;
+    }
+
+    field.classList.toggle('is-invalid', Boolean(message));
+    field.setCustomValidity(message || '');
+
+    var feedback = field.parentElement.querySelector('.invalid-feedback');
+    if (!feedback) {
+      feedback = document.createElement('div');
+      feedback.className = 'invalid-feedback';
+      field.insertAdjacentElement('afterend', feedback);
+    }
+    feedback.textContent = message;
+  }
+
   function validateUrlField(selector, name, optional) {
     var linkField = document.querySelector(selector);
     if (!linkField) {
       return '';
     }
 
-    var link = linkField.value;
+    var link = linkField.value.trim();
     if (!link) {
-      return optional ? '' : name + ' link URL is missing.\n';
+      var missingMessage = optional ? '' : name + ' URL is missing.';
+      setFieldError(linkField, missingMessage);
+      return missingMessage;
     }
     if (!isValidUrl(link)) {
-      return name + ' link URL is invalid. It should start with http:// or https://\n';
+      var invalidMessage = name + ' URL must start with http:// or https://.';
+      setFieldError(linkField, invalidMessage);
+      return invalidMessage;
     }
+    setFieldError(linkField, '');
     return '';
   }
 
@@ -36,23 +58,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var commitId = commitField.value;
     if (!commitId) {
-      return 'Commit ID is missing.\n';
+      var missingMessage = 'Commit ID is missing.';
+      setFieldError(commitField, missingMessage);
+      return missingMessage;
     }
     if (!isValidCommitId(commitId)) {
-      return 'Commit ID is invalid. It should be a 7-character hexadecimal string. For example, "468aacb"\n';
+      var invalidMessage = 'Commit ID must be a 7-character hexadecimal string. For example, "468aacb".';
+      setFieldError(commitField, invalidMessage);
+      return invalidMessage;
     }
+    setFieldError(commitField, '');
     return '';
   }
 
-  var submitButton = document.getElementById('submit-button');
-  if (!submitButton) {
+  var form = document.querySelector('form.needs-validation');
+  if (!form) {
     return;
   }
 
-  submitButton.addEventListener('click', function(event) {
-    var errorMessage = '';
+  form.addEventListener('submit', function(event) {
+    var errors = [];
     var urlFieldsToValidate = [
       ['#homework_url', 'Homework', false],
+      ['#faq_contribution_url', 'FAQ contribution', true],
       ['#github_link', 'GitHub link', false],
       ['#id_github_url', 'GitHub profile link', true],
       ['#id_linkedin_url', 'LinkedIn profile link', true],
@@ -60,26 +88,44 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
 
     urlFieldsToValidate.forEach(function(item) {
-      errorMessage += validateUrlField(item[0], item[1], item[2]);
+      var error = validateUrlField(item[0], item[1], item[2]);
+      if (error) {
+        errors.push(error);
+      }
     });
 
-    errorMessage += validateCommitIdField('#commit_id');
+    var commitError = validateCommitIdField('#commit_id');
+    if (commitError) {
+      errors.push(commitError);
+    }
 
     document.querySelectorAll('input[name="learning_in_public_links[]"]').forEach(function(input) {
-      var link = input.value;
+      var link = input.value.trim();
       if (link && !isValidUrl(link)) {
-        errorMessage += 'Invalid learning in public link URL.\n';
+        var error = 'Learning in public URL must start with http:// or https://.';
+        setFieldError(input, error);
+        errors.push(error);
+      } else {
+        setFieldError(input, '');
       }
     });
 
     var certificateNameField = document.getElementById('certificate_name');
     if (certificateNameField && certificateNameField.value.trim() === '') {
-      errorMessage += 'Certificate name is required. Please enter the name you would like to appear on your certificate.\n';
+      var certificateError = 'Certificate name is required.';
+      setFieldError(certificateNameField, certificateError);
+      errors.push(certificateError);
+    } else {
+      setFieldError(certificateNameField, '');
     }
 
-    if (errorMessage) {
-      alert(errorMessage);
+    if (errors.length > 0) {
       event.preventDefault();
+      var firstInvalid = form.querySelector('.is-invalid');
+      if (firstInvalid) {
+        firstInvalid.focus();
+        firstInvalid.reportValidity();
+      }
     }
   });
 });

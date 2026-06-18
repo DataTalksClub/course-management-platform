@@ -3,6 +3,7 @@ import logging
 from unittest import TestCase
 
 from courses.validators.custom_url_validators import (
+    URL_VALIDATION_TIMEOUT,
     validate_url_200,
     get_error_message,
 )
@@ -64,6 +65,7 @@ class UrlValidationTestCase(TestCase):
 
         validate_url_200("https://example.com/", mock_get)
         self.assertIn("timeout", captured)
+        self.assertEqual(captured["timeout"], URL_VALIDATION_TIMEOUT)
 
     def test_non_requests_exception_becomes_validation_error(self):
         # e.g. UnicodeError / LocationParseError from a malformed host -
