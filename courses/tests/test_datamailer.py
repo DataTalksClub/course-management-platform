@@ -18,9 +18,11 @@ from course_management.datamailer import (
     get_transactional_message_status,
     homework_score_notification_payload,
     homework_submitters_list_key,
+    project_score_notification_payload,
     project_submitters_list_key,
     registration_list_key,
     send_homework_score_notification,
+    send_project_score_notification,
     send_transactional_email,
     sync_contact,
     sync_homework_submission_to_datamailer,
@@ -710,6 +712,75 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(
             send_list.call_args.args[0],
             homework_submitters_list_key(homework),
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_FROM_EMAIL="courses",
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    def test_project_score_notification_payload_targets_project_submitters(
+        self,
+    ):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+
+        list_key, payload = project_score_notification_payload(project)
+
+        self.assertEqual(list_key, project_submitters_list_key(project))
+        self.assertEqual(
+            payload["template_key"],
+            "project-score-notification",
+        )
+        self.assertEqual(
+            payload["idempotency_key"],
+            "project-score:ml-zoomcamp-2026:project-1",
+        )
+        self.assertEqual(payload["from_email"], "courses")
+        self.assertEqual(
+            payload["context"]["scores_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+    )
+    def test_send_project_score_notification_uses_list_send(
+        self,
+        send_list,
+    ):
+        send_list.return_value = {"enqueued_count": 1}
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+
+        result = send_project_score_notification(project)
+
+        self.assertEqual(result, {"enqueued_count": 1})
+        send_list.assert_called_once()
+        self.assertEqual(
+            send_list.call_args.args[0],
+            project_submitters_list_key(project),
         )
 
     @override_settings(**DATAMAILER_SETTINGS)

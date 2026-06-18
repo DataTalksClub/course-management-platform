@@ -1168,8 +1168,20 @@ class CadminViewTests(TestCase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
 
-    def test_project_score_shows_message(self):
+    @patch("cadmin.views.send_project_score_notification")
+    @patch("cadmin.views.score_project")
+    def test_project_score_shows_message(
+        self,
+        score_project_mock,
+        send_score_notification,
+    ):
         """Test that scoring project shows a message on the course admin page"""
+        from courses.projects import ProjectActionStatus
+
+        score_project_mock.return_value = (
+            ProjectActionStatus.OK,
+            "Project scored",
+        )
         self.client.login(
             username="admin@test.com", password="admin123"
         )
@@ -1194,6 +1206,7 @@ class CadminViewTests(TestCase):
         # Check that a message was added
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
+        send_score_notification.assert_called_once_with(self.project)
 
     def test_project_assign_reviews_shows_message(self):
         """Test that assigning peer reviews shows a message on the course admin page"""

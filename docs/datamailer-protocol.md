@@ -39,14 +39,14 @@ The current CMP integration has:
 - Parallel Datamailer sync for course registrations.
 - Datamailer recipient-list member sync for course registrations, homework
   submitters, and project submitters.
-- Datamailer recipient-list send for homework score notifications.
+- Datamailer recipient-list sends for homework and project score
+  notifications.
 - CMP backfill command for Datamailer recipient lists.
 - Mailchimp sync for course registrations.
 
 The following pieces are planned and not implemented yet:
 
 - Project submission confirmation emails.
-- Project score publication emails.
 - Certificate availability emails.
 - Deadline reminder emails.
 - Datamailer recipient-list sends.
@@ -152,7 +152,7 @@ different parts of the course lifecycle.
 | Learner submits work | homework submission confirmation | homework submit view | implemented |
 | Learner submits work | project submission confirmation | project submit view | planned |
 | Operator publishes results | homework score publication notification | cadmin homework scoring action | implemented |
-| Operator publishes results | project score publication notification | cadmin project scoring action | planned |
+| Operator publishes results | project score publication notification | cadmin project scoring action | implemented |
 | Operator publishes certificates | certificate availability notification | certificate bulk update/API flow | planned |
 | Scheduled command runs | deadline reminders | `send_deadline_reminders` management command | planned |
 
@@ -276,11 +276,12 @@ sequenceDiagram
     CMP->>DM: Send result/certificate emails
 ```
 
-Homework score publication is currently implemented as one Datamailer
-recipient-list send to the matching homework submitter list:
+Score publication is currently implemented as one Datamailer recipient-list
+send to the matching submitter list:
 
 ```text
 POST /api/recipient-lists/homework-submitters:{course_slug}:{homework_slug}/transactional-send
+POST /api/recipient-lists/project-submitters:{course_slug}:{project_slug}/transactional-send
 ```
 
 Datamailer expands CMP's base idempotency key per list member, creates normal

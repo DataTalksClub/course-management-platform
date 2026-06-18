@@ -580,6 +580,53 @@ def homework_score_notification_payload(
     return list_key, payload
 
 
+def project_score_notification_payload(
+    project,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    from course_management import email_templates
+
+    course = project.course
+    list_key = project_submitters_list_key(project)
+    project_url = public_url(
+        reverse(
+            "project",
+            kwargs={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
+
+    payload = {
+        "audience": config.audience,
+        "client": config.client,
+        "template_key": email_templates.PROJECT_SCORE_NOTIFICATION,
+        "idempotency_key": f"project-score:{course.slug}:{project.slug}",
+        "context": {
+            "course_slug": course.slug,
+            "course_title": course.title,
+            "project_slug": project.slug,
+            "project_title": project.title,
+            "project_url": project_url,
+            "scores_url": project_url,
+        },
+        "metadata": {
+            "source": "course-management-platform",
+            "event": "project_score_publication",
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+            "project_id": project.pk,
+        },
+    }
+    if config.from_email:
+        payload["from_email"] = config.from_email
+    return list_key, payload
+
+
 def send_homework_score_notification(homework) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -599,6 +646,31 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
         logger.exception(
             "Datamailer homework score notification failed for homework_id=%s",
             homework.pk,
+        )
+        if config.strict:
+            raise
+        return None
+
+
+def send_project_score_notification(project) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    list_payload = project_score_notification_payload(project)
+    if list_payload is None:
+        return None
+
+    client = DatamailerClient(config)
+    try:
+        list_key, payload = list_payload
+        return client.send_recipient_list_transactional(
+            list_key, payload
+        )
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer project score notification failed for project_id=%s",
+            project.pk,
         )
         if config.strict:
             raise
