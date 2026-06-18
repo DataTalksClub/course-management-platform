@@ -78,10 +78,14 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(context["course"], self.course)
 
     def test_project_detail_displays_optional_instructions_url(self):
-        self.project.instructions_url = "https://example.com/project-instructions"
+        self.project.instructions_url = (
+            "https://example.com/project-instructions"
+        )
         self.project.save()
 
-        url = reverse("project", args=[self.course.slug, self.project.slug])
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -93,7 +97,9 @@ class ProjectViewTestCase(TestCase):
         self.project.instructions_url = ""
         self.project.save()
 
-        url = reverse("project", args=[self.course.slug, self.project.slug])
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -296,8 +302,186 @@ class ProjectViewTestCase(TestCase):
             submission.problems_comments, data["problems_comments"]
         )
         self.assertEqual(
-            submission.faq_contribution_url, data["faq_contribution_url"]
+            submission.faq_contribution_url,
+            data["faq_contribution_url"],
         )
+
+    @mock.patch("courses.views.project.send_transactional_email")
+    @mock.patch(
+        "courses.views.project.sync_project_submission_to_datamailer"
+    )
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_project_submission_sends_confirmation_email(
+        self, mock_get, mock_head, sync_submission, send_email
+    ):
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
+
+        self.client.login(**credentials)
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+
+        data = {
+            "github_link": "https://github.com/test/project",
+            "commit_id": "1234567",
+            "learning_in_public_links[]": [
+                "https://example.com/project-notes"
+            ],
+            "time_spent": "2",
+            "problems_comments": "No blockers.",
+            "faq_contribution_url": (
+                "https://github.com/DataTalksClub/faq/pull/266"
+            ),
+        }
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                url, data, HTTP_HOST="localhost"
+            )
+
+        self.assertEqual(response.status_code, 302)
+        submission = ProjectSubmission.objects.get(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+        )
+        sync_submission.assert_called_once_with(submission)
+        send_email.assert_called_once()
+        payload = send_email.call_args.args[0]
+        self.assertEqual(payload["email"], "test@test.com")
+        self.assertEqual(
+            payload["template_key"],
+            "project-submission-confirmation",
+        )
+        self.assertEqual(
+            payload["idempotency_key"],
+            (
+                f"project-submission:{submission.id}:"
+                f"{submission.submitted_at.isoformat()}"
+            ),
+        )
+        self.assertEqual(
+            payload["context"]["submission_id"],
+            submission.id,
+        )
+        self.assertEqual(
+            payload["context"]["course_slug"], "test-course"
+        )
+        self.assertEqual(
+            payload["context"]["project_slug"],
+            "test-project",
+        )
+        self.assertEqual(
+            payload["context"]["update_url"],
+            "http://localhost/test-course/project/test-project",
+        )
+        self.assertEqual(
+            payload["context"]["profile_url"],
+            "http://localhost/accounts/settings/",
+        )
+        self.assertEqual(
+            payload["context"]["notification_category"],
+            "homework and project submissions",
+        )
+        self.assertIn(
+            "homework and project submission emails",
+            payload["context"]["notification_footer_text"],
+        )
+        self.assertEqual(
+            payload["context"]["intro_text"],
+            (
+                "Your project submission for Test Project in "
+                "Test Course was saved."
+            ),
+        )
+        self.assertEqual(
+            payload["context"]["submission_fields"],
+            [
+                {
+                    "key": "github_link",
+                    "label": "GitHub repository",
+                    "value": "https://github.com/test/project",
+                },
+                {
+                    "key": "commit_id",
+                    "label": "Commit ID",
+                    "value": "1234567",
+                },
+                {
+                    "key": "learning_in_public_links",
+                    "label": "Learning in public links",
+                    "value": "https://example.com/project-notes",
+                    "values": ["https://example.com/project-notes"],
+                },
+                {
+                    "key": "time_spent",
+                    "label": "Time spent on project",
+                    "value": "2 hours",
+                },
+                {
+                    "key": "problems_comments",
+                    "label": "Problems, comments, or feedback",
+                    "value": "No blockers.",
+                },
+                {
+                    "key": "faq_contribution_url",
+                    "label": "FAQ contribution URL",
+                    "value": (
+                        "https://github.com/DataTalksClub/faq/pull/266"
+                    ),
+                },
+            ],
+        )
+        self.assertIn(
+            "GitHub repository: https://github.com/test/project",
+            payload["context"]["submission_summary_text"],
+        )
+        self.assertEqual(
+            payload["metadata"]["event"],
+            "project_submission",
+        )
+
+    @mock.patch("courses.views.project.send_transactional_email")
+    @mock.patch(
+        "courses.views.project.sync_project_submission_to_datamailer"
+    )
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_project_submission_skips_confirmation_when_preference_off(
+        self, mock_get, mock_head, sync_submission, send_email
+    ):
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
+        self.user.email_submission_confirmations = False
+        self.user.save(update_fields=["email_submission_confirmations"])
+
+        self.client.login(**credentials)
+        url = reverse(
+            "project", args=[self.course.slug, self.project.slug]
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                url,
+                {
+                    "github_link": "https://github.com/test/project",
+                    "commit_id": "1234567",
+                },
+                HTTP_HOST="localhost",
+            )
+
+        self.assertEqual(response.status_code, 302)
+        submission = ProjectSubmission.objects.get(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+        )
+        sync_submission.assert_called_once_with(submission)
+        send_email.assert_not_called()
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
@@ -392,7 +576,8 @@ class ProjectViewTestCase(TestCase):
             submission.problems_comments, data["problems_comments"]
         )
         self.assertEqual(
-            submission.faq_contribution_url, data["faq_contribution_url"]
+            submission.faq_contribution_url,
+            data["faq_contribution_url"],
         )
 
     def test_remove_project_submission(self):
@@ -527,7 +712,9 @@ class ProjectViewTestCase(TestCase):
         )
 
         db_submission.refresh_from_db()
-        self.assertNotEqual(db_submission.github_link, data["github_link"])
+        self.assertNotEqual(
+            db_submission.github_link, data["github_link"]
+        )
         self.assertNotEqual(db_submission.commit_id, data["commit_id"])
         self.assertNotEqual(
             db_submission.learning_in_public_links,

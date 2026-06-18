@@ -2,19 +2,24 @@ import logging
 
 from typing import Iterable, Optional
 from collections import defaultdict
+from urllib.parse import urljoin
 
 from django.http import HttpRequest, JsonResponse
 
 from django.contrib import messages
+from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-from django.core.exceptions import ValidationError
+from django.core.exceptions import DisallowedHost, ValidationError
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.db import transaction
+from django.urls import reverse
 
+from course_management import email_templates
 from course_management.datamailer import (
+    send_transactional_email,
     sync_project_submission_to_datamailer,
 )
 from courses.models import (
@@ -40,7 +45,14 @@ from courses.votes import (
 )
 
 
-from .homework import tryparsefloat, clean_learning_in_public_links
+from .homework import (
+    build_account_settings_url,
+    clean_learning_in_public_links,
+    format_hours,
+    format_submission_lines,
+    request_base_url,
+    tryparsefloat,
+)
 
 logger = logging.getLogger(__name__)
 PROJECT_SUBMISSIONS_PAGE_SIZE = 25
@@ -49,6 +61,193 @@ PROJECT_SUBMISSIONS_PAGE_SIZE = 25
 def paginate_project_submissions(request, submissions):
     paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
     return paginator.get_page(request.GET.get("page"))
+
+
+def project_submission_fields(
+    project: Project,
+    submission: ProjectSubmission,
+) -> list[dict]:
+    fields = [
+        {
+            "key": "github_link",
+            "label": "GitHub repository",
+            "value": submission.github_link or "",
+        },
+        {
+            "key": "commit_id",
+            "label": "Commit ID",
+            "value": submission.commit_id or "",
+        },
+    ]
+
+    if project.learning_in_public_cap_project > 0:
+        links = submission.learning_in_public_links or []
+        fields.append(
+            {
+                "key": "learning_in_public_links",
+                "label": "Learning in public links",
+                "value": "\n".join(links),
+                "values": links,
+            }
+        )
+
+    if project.time_spent_project_field:
+        fields.append(
+            {
+                "key": "time_spent",
+                "label": "Time spent on project",
+                "value": format_hours(submission.time_spent),
+            }
+        )
+
+    if project.problems_comments_field:
+        fields.append(
+            {
+                "key": "problems_comments",
+                "label": "Problems, comments, or feedback",
+                "value": submission.problems_comments or "",
+            }
+        )
+
+    if project.faq_contribution_field:
+        fields.append(
+            {
+                "key": "faq_contribution_url",
+                "label": "FAQ contribution URL",
+                "value": submission.faq_contribution_url or "",
+            }
+        )
+
+    return fields
+
+
+def project_confirmation_context(
+    course: Course,
+    project: Project,
+    submission: ProjectSubmission,
+    update_url: str,
+    profile_url: str,
+) -> dict:
+    submission_fields = project_submission_fields(project, submission)
+    submitted_fields_text = format_submission_lines(submission_fields)
+
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "project_slug": project.slug,
+        "project_title": project.title,
+        "project_due_at": project.submission_due_date.isoformat(),
+        "submission_id": submission.id,
+        "submitted_at": submission.submitted_at.isoformat(),
+        "update_url": update_url,
+        "profile_url": profile_url,
+        "update_link_text": "Update your submission",
+        "notification_category": "homework and project submissions",
+        "notification_footer": (
+            "You are receiving this because homework and project "
+            "submission emails are enabled in your profile."
+        ),
+        "notification_footer_text": (
+            "If you don't want to receive these emails, you can turn "
+            "off homework and project submission emails in your "
+            f"profile: {profile_url}"
+        ),
+        "email_subject": f"Project submission saved: {project.title}",
+        "email_preview": (
+            "Your project submission was saved. Review what you "
+            "submitted and update it while the project is open."
+        ),
+        "intro_text": (
+            f"Your project submission for {project.title} in "
+            f"{course.title} was saved."
+        ),
+        "update_text": (
+            "You can update your submission while the project "
+            f"is open: {update_url}"
+        ),
+        "submission_fields": submission_fields,
+        "submitted_fields_text": submitted_fields_text,
+        "submission_summary_text": submitted_fields_text,
+    }
+
+
+def build_project_update_url(
+    request: HttpRequest,
+    course: Course,
+    project: Project,
+) -> str:
+    path = reverse(
+        "project",
+        kwargs={
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+        },
+    )
+
+    if settings.PUBLIC_BASE_URL:
+        return urljoin(f"{settings.PUBLIC_BASE_URL}/", path.lstrip("/"))
+
+    try:
+        return request.build_absolute_uri(path)
+    except DisallowedHost:
+        fallback_host = next(
+            (
+                host
+                for host in settings.ALLOWED_HOSTS
+                if host and host != "*"
+            ),
+            "localhost",
+        )
+        logger.warning(
+            "Falling back to ALLOWED_HOSTS for project update URL "
+            "because request host is not allowed: %s",
+            fallback_host,
+        )
+        return urljoin(f"{request.scheme}://{fallback_host}", path)
+
+
+def send_project_confirmation_email(
+    user: User,
+    course: Course,
+    project: Project,
+    submission: ProjectSubmission,
+    update_url: str,
+) -> None:
+    if not user.email:
+        return
+    if not getattr(user, "email_submission_confirmations", True):
+        return
+
+    context = project_confirmation_context(
+        course=course,
+        project=project,
+        submission=submission,
+        update_url=update_url,
+        profile_url=build_account_settings_url(
+            request_base_url(update_url)
+        ),
+    )
+
+    send_transactional_email(
+        {
+            "email": user.email,
+            "template_key": (
+                email_templates.PROJECT_SUBMISSION_CONFIRMATION
+            ),
+            "idempotency_key": (
+                f"project-submission:{submission.id}:"
+                f"{submission.submitted_at.isoformat()}"
+            ),
+            "context": context,
+            "metadata": {
+                "source": "course-management-platform",
+                "event": "project_submission",
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+                "submission_id": submission.id,
+            },
+        }
+    )
 
 
 def project_submission_from_post(
@@ -116,9 +315,21 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     project_submission = project_submission_from_post(request, project)
     project_submission.full_clean()
     project_submission.save()
+    update_url = build_project_update_url(
+        request, project.course, project
+    )
     transaction.on_commit(
         lambda: sync_project_submission_to_datamailer(
             project_submission
+        )
+    )
+    transaction.on_commit(
+        lambda: send_project_confirmation_email(
+            user=request.user,
+            course=project.course,
+            project=project,
+            submission=project_submission,
+            update_url=update_url,
         )
     )
 
@@ -132,8 +343,6 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
 def project_delete_submission(
     request: HttpRequest, project: Project
 ) -> None:
-    user = request.user
-
     project_submission = ProjectSubmission.objects.filter(
         project=project,
         student=request.user,

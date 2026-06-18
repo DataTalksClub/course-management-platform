@@ -150,7 +150,7 @@ different parts of the course lifecycle.
 | Trigger | Emails | CMP owner | Status |
 | --- | --- | --- | --- |
 | Learner submits work | homework submission confirmation | homework submit view | implemented |
-| Learner submits work | project submission confirmation | project submit view | planned |
+| Learner submits work | project submission confirmation | project submit view | implemented |
 | Operator publishes results | homework score publication notification | cadmin homework scoring action | implemented |
 | Operator publishes results | project score publication notification | cadmin project scoring action | implemented |
 | Operator publishes certificates | certificate availability notification | certificate bulk update/API flow | planned |
