@@ -154,6 +154,19 @@
                         </div>
                     {% endif %}
                 </div>
+                <div>
+                    <label class="checkbox-row">
+                        {{ form.email_course_updates }}
+                        <span class="checkbox-label">{{ form.email_course_updates.label }}</span>
+                    </label>
+                    <p class="checkbox-help">{{ form.email_course_updates.help_text }}</p>
+                    {% if form.email_course_updates.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.email_course_updates.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </section>
 

@@ -17,6 +17,7 @@ class AccountSettingsForm(forms.ModelForm):
             "dark_mode",
             "email_submission_confirmations",
             "email_deadline_reminders",
+            "email_course_updates",
         ]
         labels = {
             "certificate_name": "Certificate name",
@@ -31,6 +32,7 @@ class AccountSettingsForm(forms.ModelForm):
                 "Homework and project submission confirmations"
             ),
             "email_deadline_reminders": "Deadline reminders",
+            "email_course_updates": "General course-related emails",
         }
         help_texts = {
             "certificate_name": (
@@ -51,6 +53,10 @@ class AccountSettingsForm(forms.ModelForm):
                 "soon. For peer reviews, sends links to unfinished reviews "
                 "and explains that peer review completion is mandatory for "
                 "project completion and receiving a certificate."
+            ),
+            "email_course_updates": (
+                "Sends general course and workshop messages, such as "
+                "course start announcements and workshop start announcements."
             ),
         }
         widgets = {
@@ -89,6 +95,9 @@ class AccountSettingsForm(forms.ModelForm):
                 attrs={"class": "h-4 w-4"}
             ),
             "email_deadline_reminders": forms.CheckboxInput(
+                attrs={"class": "h-4 w-4"}
+            ),
+            "email_course_updates": forms.CheckboxInput(
                 attrs={"class": "h-4 w-4"}
             ),
         }

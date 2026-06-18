@@ -109,6 +109,7 @@ class AccountSettingsTestCase(TestCase):
                 "dark_mode": "on",
                 "email_submission_confirmations": "on",
                 "email_deadline_reminders": "on",
+                "email_course_updates": "on",
             },
         )
 
@@ -128,14 +129,17 @@ class AccountSettingsTestCase(TestCase):
         self.assertTrue(self.user.dark_mode)
         self.assertTrue(self.user.email_submission_confirmations)
         self.assertTrue(self.user.email_deadline_reminders)
+        self.assertTrue(self.user.email_course_updates)
 
     def test_account_settings_updates_email_preferences(self):
         self.user.email_submission_confirmations = True
         self.user.email_deadline_reminders = True
+        self.user.email_course_updates = True
         self.user.save(
             update_fields=[
                 "email_submission_confirmations",
                 "email_deadline_reminders",
+                "email_course_updates",
             ]
         )
         self.client.force_login(self.user)
@@ -155,6 +159,7 @@ class AccountSettingsTestCase(TestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.email_submission_confirmations)
         self.assertFalse(self.user.email_deadline_reminders)
+        self.assertFalse(self.user.email_course_updates)
 
     def test_account_settings_shows_email_preference_categories(self):
         self.client.force_login(self.user)
@@ -176,6 +181,8 @@ class AccountSettingsTestCase(TestCase):
         self.assertContains(response, "one day before the deadline")
         self.assertContains(response, "links to unfinished reviews")
         self.assertContains(response, "mandatory for project completion")
+        self.assertContains(response, "General course-related emails")
+        self.assertContains(response, "course start announcements")
 
     def test_account_settings_certificate_name_shows_in_enrollment_form(self):
         self.client.force_login(self.user)
@@ -191,6 +198,7 @@ class AccountSettingsTestCase(TestCase):
                 "dark_mode": "",
                 "email_submission_confirmations": "on",
                 "email_deadline_reminders": "on",
+                "email_course_updates": "on",
             },
         )
 

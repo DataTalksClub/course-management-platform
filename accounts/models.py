@@ -78,6 +78,14 @@ class CustomUser(AbstractUser):
             "reminders are sent when assigned reviews are unfinished."
         ),
     )
+    email_course_updates = models.BooleanField(
+        verbose_name="General course-related emails",
+        default=True,
+        help_text=(
+            "Receive general course and workshop emails, such as course "
+            "start announcements and workshop start announcements."
+        ),
+    )
 
     def __str__(self):
         # safest is to display something stable
