@@ -2,9 +2,11 @@ import logging
 import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
+from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +167,17 @@ class DatamailerClient:
             json=payload,
         )
 
+    def send_recipient_list_transactional(
+        self,
+        list_key: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            f"/api/recipient-lists/{list_key}/transactional-send",
+            json=payload,
+        )
+
 
 def get_datamailer_client() -> DatamailerClient | None:
     config = DatamailerConfig.from_settings()
@@ -240,6 +253,13 @@ def homework_submitters_list_key(homework) -> str:
 
 def project_submitters_list_key(project) -> str:
     return f"project-submitters:{project.course.slug}:{project.slug}"
+
+
+def public_url(path: str) -> str:
+    base_url = getattr(settings, "PUBLIC_BASE_URL", "")
+    if not base_url:
+        return path
+    return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
 
 
 def registration_contact_payload(registration) -> dict[str, Any] | None:
@@ -517,6 +537,72 @@ def sync_project_submission_to_datamailer(submission) -> None:
         )
         if config.strict:
             raise
+
+
+def homework_score_notification_payload(
+    homework,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    from course_management import email_templates
+
+    course = homework.course
+    list_key = homework_submitters_list_key(homework)
+    course_url = public_url(
+        reverse("course", kwargs={"course_slug": course.slug})
+    )
+
+    payload = {
+        "audience": config.audience,
+        "client": config.client,
+        "template_key": email_templates.HOMEWORK_SCORE_NOTIFICATION,
+        "idempotency_key": f"homework-score:{course.slug}:{homework.slug}",
+        "context": {
+            "course_slug": course.slug,
+            "course_title": course.title,
+            "homework_slug": homework.slug,
+            "homework_title": homework.title,
+            "course_url": course_url,
+            "scores_url": course_url,
+        },
+        "metadata": {
+            "source": "course-management-platform",
+            "event": "homework_score_publication",
+            "course_slug": course.slug,
+            "homework_slug": homework.slug,
+            "homework_id": homework.pk,
+        },
+    }
+    if config.from_email:
+        payload["from_email"] = config.from_email
+    return list_key, payload
+
+
+def send_homework_score_notification(homework) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    list_payload = homework_score_notification_payload(homework)
+    if list_payload is None:
+        return None
+
+    client = DatamailerClient(config)
+    try:
+        list_key, payload = list_payload
+        return client.send_recipient_list_transactional(
+            list_key, payload
+        )
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer homework score notification failed for homework_id=%s",
+            homework.pk,
+        )
+        if config.strict:
+            raise
+        return None
 
 
 def send_transactional_email(

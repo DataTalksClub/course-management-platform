@@ -12,6 +12,9 @@ from django.contrib.auth.decorators import user_passes_test
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
+from course_management.datamailer import (
+    send_homework_score_notification,
+)
 from .forms import RegistrationCampaignForm
 from courses.models import (
     Course,
@@ -33,6 +36,7 @@ from courses.models import (
     RegistrationCampaign,
 )
 from courses.scoring import (
+    HomeworkScoringStatus,
     score_homework_submissions,
     fill_correct_answers,
     clear_correct_answers,
@@ -144,14 +148,24 @@ def campaign_form_initial(request):
         # Keep the year on the current tag; the after-switch tag is "<name>-next".
         initial["mailchimp_tag_before_switch"] = f"{slug_base}-{year}"
     else:
-        initial["mailchimp_tag_before_switch"] = slug_base or course.slug
-    initial["mailchimp_tag_after_switch"] = f"{slug_base or course.slug}-next"
+        initial["mailchimp_tag_before_switch"] = (
+            slug_base or course.slug
+        )
+    initial["mailchimp_tag_after_switch"] = (
+        f"{slug_base or course.slug}-next"
+    )
 
     # Default the tag switch to the midpoint between the course start and end.
-    if course.start_date and course.end_date and course.end_date >= course.start_date:
+    if (
+        course.start_date
+        and course.end_date
+        and course.end_date >= course.start_date
+    ):
         start_dt = datetime.combine(course.start_date, time())
         end_dt = datetime.combine(course.end_date, time())
-        initial["mailchimp_tag_switch_at"] = start_dt + (end_dt - start_dt) / 2
+        initial["mailchimp_tag_switch_at"] = (
+            start_dt + (end_dt - start_dt) / 2
+        )
 
     return initial
 
@@ -172,11 +186,11 @@ def campaign_form_course(form):
 def course_list(request):
     """List all courses with admin actions"""
     courses = Course.objects.all().order_by("finished", "-id")
-    
+
     context = {
         "courses": courses,
     }
-    
+
     return render(request, "cadmin/course_list.html", context)
 
 
@@ -185,29 +199,43 @@ def course_admin(request, course_slug):
     """Admin panel for a specific course"""
     course = get_object_or_404(Course, slug=course_slug)
 
-    homeworks = list(Homework.objects.filter(course=course).order_by("due_date"))
-    projects = list(Project.objects.filter(course=course).order_by("id"))
+    homeworks = list(
+        Homework.objects.filter(course=course).order_by("due_date")
+    )
+    projects = list(
+        Project.objects.filter(course=course).order_by("id")
+    )
     total_enrollments = course.enrollment_set.count()
 
     for hw in homeworks:
-        hw.submissions_count = Submission.objects.filter(homework=hw).count()
+        hw.submissions_count = Submission.objects.filter(
+            homework=hw
+        ).count()
         hw.can_score = hw.state in [
             HomeworkState.OPEN.value,
             HomeworkState.CLOSED.value,
         ]
 
     for proj in projects:
-        proj.submissions_count = ProjectSubmission.objects.filter(project=proj).count()
+        proj.submissions_count = ProjectSubmission.objects.filter(
+            project=proj
+        ).count()
         proj.needs_review_assignment = (
             proj.state == ProjectState.COLLECTING_SUBMISSIONS.value
         )
-        proj.needs_scoring = proj.state == ProjectState.PEER_REVIEWING.value
+        proj.needs_scoring = (
+            proj.state == ProjectState.PEER_REVIEWING.value
+        )
 
     enrollments = Enrollment.objects.filter(course=course)
     support_metrics = {
-        "disabled_lip": enrollments.filter(disable_learning_in_public=True).count(),
+        "disabled_lip": enrollments.filter(
+            disable_learning_in_public=True
+        ).count(),
         "zero_score": enrollments.filter(total_score=0).count(),
-        "hidden_leaderboard": enrollments.filter(display_on_leaderboard=False).count(),
+        "hidden_leaderboard": enrollments.filter(
+            display_on_leaderboard=False
+        ).count(),
         "open_complaints": LeaderboardComplaint.objects.filter(
             enrollment__course=course,
             resolved=False,
@@ -242,10 +270,16 @@ def campaign_create(request):
         form = RegistrationCampaignForm(request.POST)
         if form.is_valid():
             campaign = form.save()
-            messages.success(request, "Registration landing page created.")
-            return redirect("cadmin_campaign_edit", campaign_slug=campaign.slug)
+            messages.success(
+                request, "Registration landing page created."
+            )
+            return redirect(
+                "cadmin_campaign_edit", campaign_slug=campaign.slug
+            )
     else:
-        form = RegistrationCampaignForm(initial=campaign_form_initial(request))
+        form = RegistrationCampaignForm(
+            initial=campaign_form_initial(request)
+        )
 
     context = {
         "form": form,
@@ -268,8 +302,12 @@ def campaign_edit(request, campaign_slug):
         form = RegistrationCampaignForm(request.POST, instance=campaign)
         if form.is_valid():
             campaign = form.save()
-            messages.success(request, "Registration landing page saved.")
-            return redirect("cadmin_campaign_edit", campaign_slug=campaign.slug)
+            messages.success(
+                request, "Registration landing page saved."
+            )
+            return redirect(
+                "cadmin_campaign_edit", campaign_slug=campaign.slug
+            )
     else:
         form = RegistrationCampaignForm(instance=campaign)
 
@@ -327,7 +365,9 @@ def campaign_registrations(request, campaign_slug):
         "search_query": search_query,
         "pagination_querystring": pagination_querystring(request),
     }
-    return render(request, "cadmin/campaign_registrations.html", context)
+    return render(
+        request, "cadmin/campaign_registrations.html", context
+    )
 
 
 @staff_required
@@ -336,16 +376,21 @@ def homework_score(request, course_slug, homework_slug):
     if request.method != "POST":
         return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
 
     status, message = score_homework_submissions(homework.id)
-    
-    if status:
+
+    if status == HomeworkScoringStatus.OK:
         messages.success(request, message)
+        send_homework_score_notification(homework)
     else:
         messages.warning(request, message)
-    
-    return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
+
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
 
 
 @staff_required
@@ -354,16 +399,20 @@ def homework_set_correct_answers(request, course_slug, homework_slug):
     if request.method != "POST":
         return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
 
     fill_correct_answers(homework)
-    
+
     messages.success(
         request,
         f"Correct answers for {homework.title} set to most popular",
     )
-    
-    return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
+
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
 
 
 @staff_required
@@ -372,7 +421,9 @@ def homework_clear_correct_answers(request, course_slug, homework_slug):
     if request.method != "POST":
         return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
 
     updated_count = clear_correct_answers(homework)
 
@@ -381,7 +432,9 @@ def homework_clear_correct_answers(request, course_slug, homework_slug):
         f"Correct answers for {updated_count} questions in {homework.title} cleared",
     )
 
-    return redirect_after_action(request, "cadmin_course", course_slug=course_slug)
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
 
 
 @staff_required
@@ -393,7 +446,9 @@ def homework_submissions(request, course_slug, homework_slug):
     )
 
     # Get all questions for this homework
-    questions = Question.objects.filter(homework=homework).order_by("id")
+    questions = Question.objects.filter(homework=homework).order_by(
+        "id"
+    )
 
     search_query = request.GET.get("q", "").strip()
 
@@ -415,7 +470,7 @@ def homework_submissions(request, course_slug, homework_slug):
     submissions_data = []
     for submission in submissions_page.object_list:
         answer_map = {
-            answer.question_id: answer 
+            answer.question_id: answer
             for answer in submission.answer_set.all()
         }
 
@@ -425,10 +480,12 @@ def homework_submissions(request, course_slug, homework_slug):
             answer_text = answer.answer_text if answer else ""
             answers.append(answer_text or "")
 
-        submissions_data.append({
-            "submission": submission,
-            "answers": answers,
-        })
+        submissions_data.append(
+            {
+                "submission": submission,
+                "answers": answers,
+            }
+        )
 
     context = {
         "course": course,
@@ -444,55 +501,67 @@ def homework_submissions(request, course_slug, homework_slug):
 
 
 @staff_required
-def homework_submission_edit(request, course_slug, homework_slug, submission_id):
+def homework_submission_edit(
+    request, course_slug, homework_slug, submission_id
+):
     """Edit a homework submission"""
     course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(Homework, course=course, slug=homework_slug)
-    submission = get_object_or_404(
-        Submission, 
-        id=submission_id, 
-        homework=homework
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
     )
-    
+    submission = get_object_or_404(
+        Submission, id=submission_id, homework=homework
+    )
+
     # Get all questions for this homework
-    questions = Question.objects.filter(homework=homework).order_by("id")
-    
+    questions = Question.objects.filter(homework=homework).order_by(
+        "id"
+    )
+
     # Get all answers for this submission
-    answers = Answer.objects.filter(submission=submission).select_related("question")
+    answers = Answer.objects.filter(
+        submission=submission
+    ).select_related("question")
     answer_map = {answer.question_id: answer for answer in answers}
-    
+
     # Build a list of questions with their current answers
     questions_with_answers = []
     for question in questions:
         answer = answer_map.get(question.id)
-        questions_with_answers.append({
-            'question': question,
-            'answer': answer,
-            'answer_text': answer.answer_text if answer else "",
-        })
-    
+        questions_with_answers.append(
+            {
+                "question": question,
+                "answer": answer,
+                "answer_text": answer.answer_text if answer else "",
+            }
+        )
+
     if request.method == "POST":
         # Store the old score to check if it changed
         old_total_score = submission.total_score
-        
+
         try:
             # Update answers
             for question in questions:
-                answer_text = request.POST.get(f"answer_{question.id}", "")
-                
+                answer_text = request.POST.get(
+                    f"answer_{question.id}", ""
+                )
+
                 # Get or create the answer
                 answer, created = Answer.objects.get_or_create(
                     submission=submission,
                     question=question,
-                    defaults={'answer_text': answer_text}
+                    defaults={"answer_text": answer_text},
                 )
-                
+
                 if not created:
                     answer.answer_text = answer_text
                     answer.save()
-            
+
             # Update learning in public links
-            lip_links_str = request.POST.get("learning_in_public_links", "")
+            lip_links_str = request.POST.get(
+                "learning_in_public_links", ""
+            )
             if lip_links_str.strip():
                 links = [
                     link.strip()
@@ -502,35 +571,47 @@ def homework_submission_edit(request, course_slug, homework_slug, submission_id)
                 submission.learning_in_public_links = links
             else:
                 submission.learning_in_public_links = None
-            
+
             # Recalculate the score
             from courses.scoring import update_score
-            
+
             # Get updated answers
-            updated_answers = list(Answer.objects.filter(submission=submission).select_related("question"))
+            updated_answers = list(
+                Answer.objects.filter(
+                    submission=submission
+                ).select_related("question")
+            )
             update_score(submission, updated_answers, save=True)
-            
+
             # If the score changed, update the leaderboard
             if submission.total_score != old_total_score:
                 update_leaderboard(course)
-            
+
             messages.success(
                 request,
                 f"Homework submission for {submission.student.username} updated successfully",
             )
-            return redirect("cadmin_homework_submissions", course_slug=course_slug, homework_slug=homework_slug)
+            return redirect(
+                "cadmin_homework_submissions",
+                course_slug=course_slug,
+                homework_slug=homework_slug,
+            )
         except Exception as e:
             messages.error(request, f"Error updating submission: {e}")
-    
+
     context = {
         "course": course,
         "homework": homework,
         "submission": submission,
         "questions_with_answers": questions_with_answers,
-        "learning_in_public_links_text": "\n".join(submission.learning_in_public_links or []),
+        "learning_in_public_links_text": "\n".join(
+            submission.learning_in_public_links or []
+        ),
     }
-    
-    return render(request, "cadmin/homework_submission_edit.html", context)
+
+    return render(
+        request, "cadmin/homework_submission_edit.html", context
+    )
 
 
 @staff_required
@@ -539,15 +620,17 @@ def project_assign_reviews(request, course_slug, project_slug):
     if request.method != "POST":
         return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(Project, course=course, slug=project_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
 
     status, message = assign_peer_reviews_for_project(project)
-    
+
     if status == ProjectActionStatus.OK:
         messages.success(request, message)
     else:
         messages.warning(request, message)
-    
+
     return redirect("cadmin_course", course_slug=course_slug)
 
 
@@ -557,15 +640,17 @@ def project_score(request, course_slug, project_slug):
     if request.method != "POST":
         return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(Project, course=course, slug=project_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
 
     status, message = score_project(project)
-    
+
     if status == ProjectActionStatus.OK:
         messages.success(request, message)
     else:
         messages.warning(request, message)
-    
+
     return redirect("cadmin_course", course_slug=course_slug)
 
 
@@ -600,35 +685,42 @@ def project_submissions(request, course_slug, project_slug):
 
     # Build a dictionary mapping submission_id to review counts
     # This is more efficient than nested loops
-    review_counts = defaultdict(lambda: {'completed': 0, 'total': 0})
-    
+    review_counts = defaultdict(lambda: {"completed": 0, "total": 0})
+
     for review in peer_reviews:
         if not review.optional:
-            review_counts[review.reviewer_id]['total'] += 1
+            review_counts[review.reviewer_id]["total"] += 1
             if review.state == PeerReviewState.SUBMITTED.value:
-                review_counts[review.reviewer_id]['completed'] += 1
+                review_counts[review.reviewer_id]["completed"] += 1
 
     submissions = list(submissions)
     for submission in submissions:
         counts = review_counts[submission.id]
-        submission.peer_reviews_completed = counts['completed']
-        submission.peer_reviews_total = counts['total']
+        submission.peer_reviews_completed = counts["completed"]
+        submission.peer_reviews_total = counts["total"]
 
     project_filter_counts = {
         "all": len(submissions),
         "incomplete_reviews": sum(
             1
             for submission in submissions
-            if submission.peer_reviews_completed < submission.peer_reviews_total
+            if submission.peer_reviews_completed
+            < submission.peer_reviews_total
         ),
         "missing_repository": sum(
-            1 for submission in submissions if not submission.github_link
+            1
+            for submission in submissions
+            if not submission.github_link
         ),
         "unscored": sum(
-            1 for submission in submissions if submission.total_score is None
+            1
+            for submission in submissions
+            if submission.total_score is None
         ),
         "not_passed": sum(
-            1 for submission in submissions if submission.passed is False
+            1
+            for submission in submissions
+            if submission.passed is False
         ),
     }
 
@@ -636,18 +728,27 @@ def project_submissions(request, course_slug, project_slug):
         submissions = [
             submission
             for submission in submissions
-            if submission.peer_reviews_completed < submission.peer_reviews_total
+            if submission.peer_reviews_completed
+            < submission.peer_reviews_total
         ]
     elif status_filter == "missing-repository":
         submissions = [
-            submission for submission in submissions if not submission.github_link
+            submission
+            for submission in submissions
+            if not submission.github_link
         ]
     elif status_filter == "unscored":
         submissions = [
-            submission for submission in submissions if submission.total_score is None
+            submission
+            for submission in submissions
+            if submission.total_score is None
         ]
     elif status_filter == "not-passed":
-        submissions = [submission for submission in submissions if submission.passed is False]
+        submissions = [
+            submission
+            for submission in submissions
+            if submission.passed is False
+        ]
 
     submissions_page = paginate_queryset(
         request,
@@ -673,34 +774,42 @@ def project_submissions(request, course_slug, project_slug):
 
 
 @staff_required
-def project_submission_edit(request, course_slug, project_slug, submission_id):
+def project_submission_edit(
+    request, course_slug, project_slug, submission_id
+):
     """Edit a project submission"""
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(Project, course=course, slug=project_slug)
-    submission = get_object_or_404(
-        ProjectSubmission, 
-        id=submission_id, 
-        project=project
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
     )
-    
+    submission = get_object_or_404(
+        ProjectSubmission, id=submission_id, project=project
+    )
+
     # Get all review criteria for this course
-    review_criteria = ReviewCriteria.objects.filter(course=course).order_by('id')
-    
+    review_criteria = ReviewCriteria.objects.filter(
+        course=course
+    ).order_by("id")
+
     # Get existing evaluation scores for this submission
     evaluation_scores = {
-        score.review_criteria_id: score 
-        for score in ProjectEvaluationScore.objects.filter(submission=submission)
+        score.review_criteria_id: score
+        for score in ProjectEvaluationScore.objects.filter(
+            submission=submission
+        )
     }
-    
+
     # Build a list of criteria with their current scores
     criteria_with_scores = []
     for criteria in review_criteria:
         score_obj = evaluation_scores.get(criteria.id)
-        criteria_with_scores.append({
-            'criteria': criteria,
-            'score': score_obj.score if score_obj else 0,
-            'score_id': score_obj.id if score_obj else None,
-        })
+        criteria_with_scores.append(
+            {
+                "criteria": criteria,
+                "score": score_obj.score if score_obj else 0,
+                "score_id": score_obj.id if score_obj else None,
+            }
+        )
 
     if request.method == "POST":
         # Update the submission fields
@@ -708,51 +817,73 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
             # Update or create evaluation scores for each criteria
             project_score = 0
             for criteria in review_criteria:
-                score_value_str = request.POST.get(f"criteria_score_{criteria.id}", "0")
+                score_value_str = request.POST.get(
+                    f"criteria_score_{criteria.id}", "0"
+                )
                 try:
                     score_value = int(score_value_str)
                     if score_value < 0:
-                        raise ValueError(f"Score for {criteria.description} cannot be negative")
+                        raise ValueError(
+                            f"Score for {criteria.description} cannot be negative"
+                        )
                 except (ValueError, TypeError):
-                    raise ValueError(f"Invalid score for {criteria.description}: {score_value_str}")
-                
+                    raise ValueError(
+                        f"Invalid score for {criteria.description}: {score_value_str}"
+                    )
+
                 project_score += score_value
-                
+
                 # Update or create the evaluation score
                 ProjectEvaluationScore.objects.update_or_create(
                     submission=submission,
                     review_criteria=criteria,
-                    defaults={'score': score_value}
+                    defaults={"score": score_value},
                 )
-            
+
             # Update the aggregate project score
             submission.project_score = project_score
-            
+
             # Update other scores
-            submission.project_faq_score = int(request.POST.get("project_faq_score", 0))
-            submission.project_learning_in_public_score = int(request.POST.get("project_learning_in_public_score", 0))
-            submission.peer_review_score = int(request.POST.get("peer_review_score", 0))
-            submission.peer_review_learning_in_public_score = int(request.POST.get("peer_review_learning_in_public_score", 0))
-            
+            submission.project_faq_score = int(
+                request.POST.get("project_faq_score", 0)
+            )
+            submission.project_learning_in_public_score = int(
+                request.POST.get("project_learning_in_public_score", 0)
+            )
+            submission.peer_review_score = int(
+                request.POST.get("peer_review_score", 0)
+            )
+            submission.peer_review_learning_in_public_score = int(
+                request.POST.get(
+                    "peer_review_learning_in_public_score", 0
+                )
+            )
+
             # Calculate total score from all components
             submission.total_score = (
-                submission.project_score +
-                submission.project_faq_score +
-                submission.project_learning_in_public_score +
-                submission.peer_review_score +
-                submission.peer_review_learning_in_public_score
+                submission.project_score
+                + submission.project_faq_score
+                + submission.project_learning_in_public_score
+                + submission.peer_review_score
+                + submission.peer_review_learning_in_public_score
             )
-            
-            submission.reviewed_enough_peers = request.POST.get("reviewed_enough_peers") == "on"
+
+            submission.reviewed_enough_peers = (
+                request.POST.get("reviewed_enough_peers") == "on"
+            )
             submission.passed = request.POST.get("passed") == "on"
-            
+
             submission.save()
-            
+
             messages.success(
                 request,
                 f"Project submission for {submission.student.username} updated successfully",
             )
-            return redirect("cadmin_project_submissions", course_slug=course_slug, project_slug=project_slug)
+            return redirect(
+                "cadmin_project_submissions",
+                course_slug=course_slug,
+                project_slug=project_slug,
+            )
         except ValueError as e:
             messages.error(request, f"Error updating submission: {e}")
 
@@ -763,7 +894,9 @@ def project_submission_edit(request, course_slug, project_slug, submission_id):
         "criteria_with_scores": criteria_with_scores,
     }
 
-    return render(request, "cadmin/project_submission_edit.html", context)
+    return render(
+        request, "cadmin/project_submission_edit.html", context
+    )
 
 
 @staff_required
@@ -793,21 +926,31 @@ def enrollments_list(request, course_slug):
     enrollment_filter_counts = {
         "all": len(enrollments),
         "lip_disabled": sum(
-            1 for enrollment in enrollments if enrollment.disable_learning_in_public
+            1
+            for enrollment in enrollments
+            if enrollment.disable_learning_in_public
         ),
-        "zero_score": sum(1 for enrollment in enrollments if enrollment.total_score == 0),
+        "zero_score": sum(
+            1
+            for enrollment in enrollments
+            if enrollment.total_score == 0
+        ),
         "hidden": sum(
-            1 for enrollment in enrollments if not enrollment.display_on_leaderboard
+            1
+            for enrollment in enrollments
+            if not enrollment.display_on_leaderboard
         ),
         "no_submissions": sum(
             1
             for enrollment in enrollments
-            if enrollment.homework_count == 0 and enrollment.project_count == 0
+            if enrollment.homework_count == 0
+            and enrollment.project_count == 0
         ),
     }
     for enrollment in enrollments:
         enrollment.has_no_submissions = (
-            enrollment.homework_count == 0 and enrollment.project_count == 0
+            enrollment.homework_count == 0
+            and enrollment.project_count == 0
         )
         enrollment.has_support_flags = (
             enrollment.disable_learning_in_public
@@ -817,16 +960,28 @@ def enrollments_list(request, course_slug):
 
     if status_filter == "lip-disabled":
         enrollments = [
-            enrollment for enrollment in enrollments if enrollment.disable_learning_in_public
+            enrollment
+            for enrollment in enrollments
+            if enrollment.disable_learning_in_public
         ]
     elif status_filter == "zero-score":
-        enrollments = [enrollment for enrollment in enrollments if enrollment.total_score == 0]
+        enrollments = [
+            enrollment
+            for enrollment in enrollments
+            if enrollment.total_score == 0
+        ]
     elif status_filter == "hidden":
         enrollments = [
-            enrollment for enrollment in enrollments if not enrollment.display_on_leaderboard
+            enrollment
+            for enrollment in enrollments
+            if not enrollment.display_on_leaderboard
         ]
     elif status_filter == "no-submissions":
-        enrollments = [enrollment for enrollment in enrollments if enrollment.has_no_submissions]
+        enrollments = [
+            enrollment
+            for enrollment in enrollments
+            if enrollment.has_no_submissions
+        ]
 
     enrollments_page = paginate_queryset(request, enrollments)
 
@@ -859,7 +1014,11 @@ def leaderboard_complaints(request, course_slug):
             total_complaints=Count("complaints"),
         )
         .filter(total_complaints__gt=0)
-        .order_by("-open_complaints", "-total_complaints", "position_on_leaderboard")
+        .order_by(
+            "-open_complaints",
+            "-total_complaints",
+            "position_on_leaderboard",
+        )
     )
 
     complaints_by_enrollment = defaultdict(list)
@@ -869,7 +1028,9 @@ def leaderboard_complaints(request, course_slug):
         .order_by("resolved", "-created_at")
     )
     for complaint in complaints:
-        complaints_by_enrollment[complaint.enrollment_id].append(complaint)
+        complaints_by_enrollment[complaint.enrollment_id].append(
+            complaint
+        )
 
     enrollment_rows = []
     for enrollment in enrollments:
@@ -891,13 +1052,17 @@ def leaderboard_complaints(request, course_slug):
             enrollment__course=course,
         ).count(),
     }
-    return render(request, "cadmin/leaderboard_complaints.html", context)
+    return render(
+        request, "cadmin/leaderboard_complaints.html", context
+    )
 
 
 @staff_required
 def leaderboard_complaint_resolve(request, course_slug, complaint_id):
     if request.method != "POST":
-        return redirect("cadmin_leaderboard_complaints", course_slug=course_slug)
+        return redirect(
+            "cadmin_leaderboard_complaints", course_slug=course_slug
+        )
 
     course = get_object_or_404(Course, slug=course_slug)
     complaint = get_object_or_404(
@@ -908,97 +1073,134 @@ def leaderboard_complaint_resolve(request, course_slug, complaint_id):
     complaint.resolved = True
     complaint.resolved_at = timezone.now()
     complaint.resolved_by = request.user
-    complaint.save(update_fields=["resolved", "resolved_at", "resolved_by"])
+    complaint.save(
+        update_fields=["resolved", "resolved_at", "resolved_by"]
+    )
 
     messages.success(request, "Flag marked as resolved.")
-    return redirect("cadmin_leaderboard_complaints", course_slug=course_slug)
+    return redirect(
+        "cadmin_leaderboard_complaints", course_slug=course_slug
+    )
 
 
 @staff_required
 def enrollment_edit(request, course_slug, enrollment_id):
     """Edit an enrollment - mainly to disable learning in public"""
     course = get_object_or_404(Course, slug=course_slug)
-    enrollment = get_object_or_404(Enrollment, id=enrollment_id, course=course)
-    
+    enrollment = get_object_or_404(
+        Enrollment, id=enrollment_id, course=course
+    )
+
     if request.method == "POST":
         # Handle the disable learning in public toggle
         action = request.POST.get("action")
-        
+
         if action == "toggle_learning_in_public":
             # Toggle the flag
-            enrollment.disable_learning_in_public = not enrollment.disable_learning_in_public
+            enrollment.disable_learning_in_public = (
+                not enrollment.disable_learning_in_public
+            )
             enrollment.save()
-            
+
             # If we're disabling, zero out all learning in public scores
             if enrollment.disable_learning_in_public:
                 # Zero out homework learning in public scores
-                homework_submissions = list(Submission.objects.filter(enrollment=enrollment))
+                homework_submissions = list(
+                    Submission.objects.filter(enrollment=enrollment)
+                )
                 submissions_to_update = []
                 for submission in homework_submissions:
                     if submission.learning_in_public_score > 0:
                         submission.learning_in_public_score = 0
                         # Recalculate total score
                         submission.total_score = (
-                            submission.questions_score + 
-                            submission.faq_score + 
-                            submission.learning_in_public_score
+                            submission.questions_score
+                            + submission.faq_score
+                            + submission.learning_in_public_score
                         )
                         submissions_to_update.append(submission)
-                
+
                 if submissions_to_update:
                     Submission.objects.bulk_update(
                         submissions_to_update,
-                        ['learning_in_public_score', 'total_score']
+                        ["learning_in_public_score", "total_score"],
                     )
-                
+
                 # Zero out project learning in public scores
-                project_submissions = list(ProjectSubmission.objects.filter(enrollment=enrollment))
+                project_submissions = list(
+                    ProjectSubmission.objects.filter(
+                        enrollment=enrollment
+                    )
+                )
                 project_submissions_to_update = []
                 for submission in project_submissions:
-                    if submission.project_learning_in_public_score > 0 or submission.peer_review_learning_in_public_score > 0:
+                    if (
+                        submission.project_learning_in_public_score > 0
+                        or submission.peer_review_learning_in_public_score
+                        > 0
+                    ):
                         submission.project_learning_in_public_score = 0
                         submission.peer_review_learning_in_public_score = 0
                         # Recalculate total score
                         submission.total_score = (
-                            submission.project_score +
-                            submission.project_faq_score +
-                            submission.project_learning_in_public_score +
-                            submission.peer_review_score +
-                            submission.peer_review_learning_in_public_score
+                            submission.project_score
+                            + submission.project_faq_score
+                            + submission.project_learning_in_public_score
+                            + submission.peer_review_score
+                            + submission.peer_review_learning_in_public_score
                         )
                         project_submissions_to_update.append(submission)
-                
+
                 if project_submissions_to_update:
                     ProjectSubmission.objects.bulk_update(
                         project_submissions_to_update,
-                        ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
+                        [
+                            "project_learning_in_public_score",
+                            "peer_review_learning_in_public_score",
+                            "total_score",
+                        ],
                     )
-                
+
                 messages.success(
                     request,
-                    f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out."
+                    f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out.",
                 )
             else:
                 messages.success(
                     request,
-                    f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects."
+                    f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects.",
                 )
-            
+
             # Recalculate the leaderboard for the course
             update_leaderboard(course)
-            
-            return redirect("cadmin_enrollment_edit", course_slug=course_slug, enrollment_id=enrollment_id)
-    
+
+            return redirect(
+                "cadmin_enrollment_edit",
+                course_slug=course_slug,
+                enrollment_id=enrollment_id,
+            )
+
     # Get some stats about this enrollment
-    homework_submissions = Submission.objects.filter(enrollment=enrollment).select_related('homework').order_by('-submitted_at')
-    project_submissions = ProjectSubmission.objects.filter(enrollment=enrollment).select_related('project').order_by('-submitted_at')
-    
-    total_homework_lip_score = sum(s.learning_in_public_score for s in homework_submissions)
+    homework_submissions = (
+        Submission.objects.filter(enrollment=enrollment)
+        .select_related("homework")
+        .order_by("-submitted_at")
+    )
+    project_submissions = (
+        ProjectSubmission.objects.filter(enrollment=enrollment)
+        .select_related("project")
+        .order_by("-submitted_at")
+    )
+
+    total_homework_lip_score = sum(
+        s.learning_in_public_score for s in homework_submissions
+    )
     total_project_lip_score = sum(
-        s.project_learning_in_public_score + s.peer_review_learning_in_public_score 
+        s.project_learning_in_public_score
+        + s.peer_review_learning_in_public_score
         for s in project_submissions
     )
-    
+
     context = {
         "course": course,
         "enrollment": enrollment,
@@ -1009,5 +1211,5 @@ def enrollment_edit(request, course_slug, enrollment_id):
         "total_homework_lip_score": total_homework_lip_score,
         "total_project_lip_score": total_project_lip_score,
     }
-    
+
     return render(request, "cadmin/enrollment_edit.html", context)

@@ -16,9 +16,11 @@ from course_management.datamailer import (
     get_contact_status,
     get_email_status,
     get_transactional_message_status,
+    homework_score_notification_payload,
     homework_submitters_list_key,
     project_submitters_list_key,
     registration_list_key,
+    send_homework_score_notification,
     send_transactional_email,
     sync_contact,
     sync_homework_submission_to_datamailer,
@@ -201,6 +203,39 @@ class DatamailerClientTest(TestCase):
             "PUT",
             "https://datamailer.example.com/api/recipient-lists/registrants:ml-zoomcamp-2026/members/registration:42",
             json={"email": "student@example.com"},
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_recipient_list_transactional_send_uses_expected_endpoint(
+        self,
+    ):
+        session = Mock()
+        response = Mock(content=b'{"ok": true}')
+        response.json.return_value = {"ok": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.send_recipient_list_transactional(
+            "homework-submitters:ml-zoomcamp-2026:homework-1",
+            {"template_key": "homework-score-notification"},
+        )
+
+        self.assertEqual(result, {"ok": True})
+        session.request.assert_called_once_with(
+            "POST",
+            "https://datamailer.example.com/api/recipient-lists/homework-submitters:ml-zoomcamp-2026:homework-1/transactional-send",
+            json={"template_key": "homework-score-notification"},
             timeout=10,
             headers={
                 "Authorization": "Bearer secret-token",
@@ -604,6 +639,77 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(
             upsert_member.call_args.args[2]["list"]["type"],
             "project_submitters",
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_FROM_EMAIL="courses",
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    def test_homework_score_notification_payload_targets_homework_submitters(
+        self,
+    ):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+
+        list_key, payload = homework_score_notification_payload(
+            homework
+        )
+
+        self.assertEqual(
+            list_key, homework_submitters_list_key(homework)
+        )
+        self.assertEqual(
+            payload["template_key"],
+            "homework-score-notification",
+        )
+        self.assertEqual(
+            payload["idempotency_key"],
+            "homework-score:ml-zoomcamp-2026:homework-1",
+        )
+        self.assertEqual(payload["from_email"], "courses")
+        self.assertEqual(
+            payload["context"]["scores_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+    )
+    def test_send_homework_score_notification_uses_list_send(
+        self,
+        send_list,
+    ):
+        send_list.return_value = {"enqueued_count": 1}
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+
+        result = send_homework_score_notification(homework)
+
+        self.assertEqual(result, {"enqueued_count": 1})
+        send_list.assert_called_once()
+        self.assertEqual(
+            send_list.call_args.args[0],
+            homework_submitters_list_key(homework),
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
