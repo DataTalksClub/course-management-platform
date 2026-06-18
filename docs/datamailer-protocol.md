@@ -41,16 +41,16 @@ The current CMP integration has:
   submitters, and project submitters.
 - Datamailer recipient-list sends for homework and project score
   notifications.
+- Datamailer project submission confirmation emails.
+- Datamailer certificate availability emails.
+- Datamailer deadline reminder command using recipient-list sends.
+- Datamailer callbacks to CMP for hard bounces, complaints, and unsubscribes.
 - CMP backfill command for Datamailer recipient lists.
 - Mailchimp sync for course registrations.
 
 The following pieces are planned and not implemented yet:
 
-- Project submission confirmation emails.
-- Certificate availability emails.
-- Deadline reminder emails.
-- Datamailer recipient-list sends.
-- Datamailer callbacks to CMP for bounces, complaints, and unsubscribes.
+- CMP UI surfacing for stored Datamailer callback events.
 
 ## Configuration
 
@@ -68,6 +68,7 @@ CMP may also set:
 ```text
 DATAMAILER_FROM_EMAIL
 DATAMAILER_STRICT
+DATAMAILER_WEBHOOK_TOKEN
 DATAMAILER_SYNC_ON_USER_CREATE
 ```
 
@@ -602,33 +603,53 @@ the send endpoint.
 
 ## Datamailer Callbacks
 
-Datamailer should add callbacks to CMP for events that CMP needs to show in its
-own UI or map back to CMP preferences.
-
-Planned endpoint:
+Datamailer calls CMP for contact events that CMP needs to show in its own UI or
+map back to CMP preferences.
 
 ```text
 POST /api/datamailer/events
+Authorization: Bearer <DATAMAILER_WEBHOOK_TOKEN>
 ```
 
-The endpoint should use a shared webhook token or signed headers. Datamailer
-should send stable event IDs so CMP can process callbacks idempotently.
+CMP stores each callback in `data_datamailercontactevent` using Datamailer's
+stable `event_id`, so repeated callbacks are idempotent.
 
-Important event types:
+Implemented event types:
 
 ```text
 contact.hard_bounced
 contact.complained
 subscription.unsubscribed
-subscription.resubscribed
-transactional.skipped
-transactional.failed
 ```
 
 Hard bounces and complaints are deliverability state, not user preference
 changes. CMP can store them for support and debugging. For unsubscribe events,
 CMP should update a CMP preference only when Datamailer sends enough metadata
-to map the unsubscribe to a CMP preference category.
+to map the unsubscribe to a CMP preference category. The implemented webhook
+accepts these `preference_key` values:
+
+```text
+email_submission_confirmations
+email_deadline_reminders
+email_course_updates
+```
+
+Datamailer callback payload:
+
+```json
+{
+  "event_id": "datamailer-email-event:123",
+  "event_type": "subscription.unsubscribed",
+  "email": "learner@example.com",
+  "occurred_at": "2026-06-18T10:00:00Z",
+  "audience": "dtc-courses",
+  "client": "dtc-courses",
+  "preference_key": "email_course_updates",
+  "metadata": {
+    "scope": "client"
+  }
+}
+```
 
 ## Failure Handling
 

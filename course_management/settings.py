@@ -185,7 +185,9 @@ if is_test:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-VERSION = os.getenv("VERSION", "local-development-build-version-not-configured")
+VERSION = os.getenv(
+    "VERSION", "local-development-build-version-not-configured"
+)
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
 DATAMAILER_URL = os.getenv("DATAMAILER_URL", "")
@@ -194,6 +196,7 @@ DATAMAILER_CLIENT = os.getenv("DATAMAILER_CLIENT", "")
 DATAMAILER_AUDIENCE = os.getenv("DATAMAILER_AUDIENCE", "")
 DATAMAILER_FROM_EMAIL = os.getenv("DATAMAILER_FROM_EMAIL", "")
 DATAMAILER_STRICT = os.getenv("DATAMAILER_STRICT", "0") == "1"
+DATAMAILER_WEBHOOK_TOKEN = os.getenv("DATAMAILER_WEBHOOK_TOKEN", "")
 DATAMAILER_SYNC_ON_USER_CREATE = (
     os.getenv("DATAMAILER_SYNC_ON_USER_CREATE", "1") == "1"
 )
@@ -337,14 +340,14 @@ SOCIALACCOUNT_PROVIDERS = {
 def can_login_as(request, target_user):
     """
     Determine if the current user can impersonate another user.
-    
+
     Staff users can impersonate regular users (students) but cannot
     impersonate other staff members or superusers for security reasons.
-    
+
     Args:
         request: The current HTTP request
         target_user: The user to be impersonated
-        
+
     Returns:
         bool: True if impersonation is allowed, False otherwise
     """

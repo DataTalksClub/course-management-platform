@@ -13,6 +13,7 @@ from .enrollment import (
 )
 from .health import health_view
 from .leaderboard import leaderboard_data_view
+from .datamailer import datamailer_event_webhook
 
 __all__ = [
     "homework_data_view",
@@ -22,4 +23,5 @@ __all__ = [
     "graduates_data_view",
     "health_view",
     "leaderboard_data_view",
+    "datamailer_event_webhook",
 ]
