@@ -5,3 +5,4 @@ PROJECT_SCORE_NOTIFICATION = "project-score-notification"
 CERTIFICATE_AVAILABILITY_NOTIFICATION = (
     "certificate-availability-notification"
 )
+DEADLINE_REMINDER = "deadline-reminder"

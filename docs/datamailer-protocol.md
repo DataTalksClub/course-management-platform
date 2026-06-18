@@ -154,7 +154,7 @@ different parts of the course lifecycle.
 | Operator publishes results | homework score publication notification | cadmin homework scoring action | implemented |
 | Operator publishes results | project score publication notification | cadmin project scoring action | implemented |
 | Operator publishes certificates | certificate availability notification | certificate bulk update/API flow | implemented |
-| Scheduled command runs | deadline reminders | `send_deadline_reminders` management command | planned |
+| Scheduled command runs | deadline reminders | `send_deadline_reminders` management command | implemented |
 
 CMP calls:
 
@@ -449,11 +449,17 @@ project-submission:{submission_id}:{submitted_at_iso}
 homework-score:{homework_id}:{submission_id}
 project-score:{project_id}:{submission_id}
 certificate-available:{enrollment_id}
-deadline-reminder:homework:{homework_id}:24h:{enrollment_id}
-deadline-reminder:project:{project_id}:7d:{enrollment_id}
-deadline-reminder:project:{project_id}:24h:{enrollment_id}
-deadline-reminder:peer-review:{project_id}:24h:{submission_id}
+deadline-reminder:homework:{homework_id}:24h
+deadline-reminder:project:{project_id}:7d
+deadline-reminder:project:{project_id}:24h
+deadline-reminder:peer-review:{project_id}:24h
 ```
+
+Deadline reminders use recipient-list transactional sends. CMP sends the base
+event key above and Datamailer appends the recipient-list member
+`source_object_key`, such as `enrollment:{enrollment_id}` or
+`project-submission:{submission_id}`, when creating each learner's
+transactional idempotency key.
 
 Deadline reminder keys should not include the command timestamp. The command
 can run repeatedly without sending duplicates.
@@ -462,7 +468,7 @@ If we decide that a moved deadline should allow a second reminder, CMP can add
 the deadline timestamp to the key:
 
 ```text
-deadline-reminder:homework:{homework_id}:24h:{deadline_iso}:{enrollment_id}
+deadline-reminder:homework:{homework_id}:24h:{deadline_iso}
 ```
 
 We should make that change deliberately because it can send a second reminder
@@ -475,7 +481,7 @@ for deadline reminders because Datamailer does not know whether a learner is
 enrolled, has submitted, has unfinished peer reviews, or opted out of deadline
 reminders.
 
-The command is planned and does not exist yet:
+The command is:
 
 ```console
 $ uv run python manage.py send_deadline_reminders
@@ -483,9 +489,9 @@ $ uv run python manage.py send_deadline_reminders
 
 In production, EventBridge should run a one-off ECS task with the CMP image.
 The scheduler should not scan CMP tables or wait for email delivery. The CMP
-command should create recipient batches or trigger Datamailer list sends, then
-exit. Datamailer handles the slower per-recipient email work through SQS and
-workers.
+command reconciles current Datamailer recipient lists for each active reminder,
+triggers one recipient-list transactional send per reminder event, then exits.
+Datamailer handles the slower per-recipient email work through SQS and workers.
 
 ```mermaid
 sequenceDiagram
@@ -499,8 +505,9 @@ sequenceDiagram
     ECS->>CMP: Run send_deadline_reminders
     CMP->>DB: Load current deadlines and eligible learners
     CMP->>DB: Check submissions, peer reviews, and preferences
-    loop For each eligible reminder
-        CMP->>DM: Create batch or trigger list send
+    loop For each active reminder event
+        CMP->>DM: Reconcile reminder recipient list
+        CMP->>DM: Trigger recipient-list transactional send
         DM-->>CMP: Accepted
     end
 ```
