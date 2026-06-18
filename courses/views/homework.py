@@ -380,6 +380,9 @@ def build_homework_update_url(
         },
     )
 
+    if settings.PUBLIC_BASE_URL:
+        return urljoin(f"{settings.PUBLIC_BASE_URL}/", path.lstrip("/"))
+
     try:
         return request.build_absolute_uri(path)
     except DisallowedHost:

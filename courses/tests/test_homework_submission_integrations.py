@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -209,6 +209,34 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self.assertEqual(
             payload["metadata"]["event"],
             "homework_submission",
+        )
+
+    @override_settings(PUBLIC_BASE_URL="https://dev.courses.datatalks.club")
+    @patch("courses.views.homework.send_transactional_email")
+    def test_homework_confirmation_uses_public_base_url(
+        self,
+        send_email,
+    ):
+        url = reverse(
+            "homework",
+            args=[self.course.slug, self.homework.slug],
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                url,
+                {
+                    f"answer_{self.multiple_choice_question.id}": ["1"],
+                    "learning_in_public_links[]": [],
+                },
+                HTTP_HOST="localhost",
+            )
+
+        self.assertEqual(response.status_code, 302)
+        payload = send_email.call_args.args[0]
+        self.assertEqual(
+            payload["context"]["update_url"],
+            "https://dev.courses.datatalks.club/course/homework/hw1",
         )
 
     @patch("courses.views.homework.send_transactional_email")

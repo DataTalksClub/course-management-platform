@@ -197,6 +197,7 @@ export DATAMAILER_API_KEY="<token>"
 export DATAMAILER_CLIENT="dtc-courses"
 export DATAMAILER_AUDIENCE="dtc-courses"
 export DATAMAILER_FROM_EMAIL="courses"
+export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
 export DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE="homework-submission-confirmation"
 ```
 
@@ -210,6 +211,10 @@ export DATAMAILER_SYNC_ON_USER_CREATE="1"
 With `DATAMAILER_STRICT=0`, Datamailer API failures are logged and do not
 break signup or enrollment flows. Set `DATAMAILER_STRICT=1` only when those
 flows should fail on Datamailer errors.
+
+`PUBLIC_BASE_URL` is used for links in delivered transactional email. Set it
+when sending email from a local server so messages contain public HTTPS links
+instead of `localhost` links.
 
 ## API Data Access
 
