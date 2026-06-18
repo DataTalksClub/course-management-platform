@@ -58,3 +58,9 @@ This endpoint requires no authentication and can be used to:
 curl https://dev.courses.datatalks.club/api/health/
 # {"status": "ok", "version": "0.1.0"}
 ```
+
+## Deployment Notes
+
+Datamailer currently has only a sandbox deployment. There is no Datamailer
+production environment, so do not describe or plan Datamailer production
+deployments unless this changes.
