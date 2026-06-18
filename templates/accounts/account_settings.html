@@ -53,7 +53,7 @@
                     These details can be shown on course leaderboard records when enabled per enrollment.
                 </p>
             </div>
-            <div class="grid gap-5 md:grid-cols-3">
+            <div class="space-y-5">
                 <div>
                     <label for="{{ form.github_url.id_for_label }}"
                            class="settings-label mb-2 block text-sm font-semibold">
@@ -93,7 +93,7 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="md:col-span-3">
+                <div>
                     <label for="{{ form.about_me.id_for_label }}"
                            class="settings-label mb-2 block text-sm font-semibold">
                         About me <span class="settings-helper app-muted font-normal">(optional)</span>
