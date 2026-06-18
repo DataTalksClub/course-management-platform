@@ -7,6 +7,7 @@ from accounts.models import CustomUser
 from course_management.datamailer import (
     DatamailerClient,
     DatamailerConfig,
+    contact_tags_for_course,
     contact_payload_for_user,
     datamailer_enabled,
     get_contact_history,
@@ -166,8 +167,8 @@ class DatamailerClientTest(TestCase):
             username="student",
         )
         course = Course.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
             description="Machine learning",
         )
 
@@ -181,8 +182,40 @@ class DatamailerClientTest(TestCase):
             payload["email_validation"]["status"],
             "externally_validated",
         )
-        self.assertEqual(payload["tags"], ["course-ml-zoomcamp"])
-        self.assertEqual(payload["custom_fields"]["course_slug"], "ml-zoomcamp")
+        self.assertEqual(
+            payload["tags"],
+            [
+                "course-ml-zoomcamp",
+                "course-cohort-ml-zoomcamp-2026",
+            ],
+        )
+        self.assertEqual(
+            payload["custom_fields"]["course_slug"],
+            "ml-zoomcamp-2026",
+        )
+        self.assertEqual(
+            payload["custom_fields"]["course_family_slug"],
+            "ml-zoomcamp",
+        )
+        self.assertEqual(
+            payload["custom_fields"]["course_cohort_slug"],
+            "ml-zoomcamp-2026",
+        )
+
+    def test_contact_tags_for_course_without_trailing_year(self):
+        course = Course(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            description="Machine learning",
+        )
+
+        self.assertEqual(
+            contact_tags_for_course(course),
+            [
+                "course-ml-zoomcamp",
+                "course-cohort-ml-zoomcamp",
+            ],
+        )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("course_management.datamailer.DatamailerClient.upsert_contact")

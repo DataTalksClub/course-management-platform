@@ -197,8 +197,6 @@ export DATAMAILER_API_KEY="<token>"
 export DATAMAILER_CLIENT="dtc-courses"
 export DATAMAILER_AUDIENCE="dtc-courses"
 export DATAMAILER_FROM_EMAIL="courses"
-export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
-export DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE="homework-submission-confirmation"
 ```
 
 Optional settings:
@@ -215,6 +213,16 @@ flows should fail on Datamailer errors.
 `PUBLIC_BASE_URL` is used for links in delivered transactional email. Set it
 when sending email from a local server so messages contain public HTTPS links
 instead of `localhost` links.
+
+```bash
+export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
+```
+
+Datamailer transactional template keys are stable code-level constants in CMP.
+Don't configure one environment variable per template.
+
+The CMP/Datamailer interaction protocol is documented in
+[`docs/datamailer-protocol.md`](docs/datamailer-protocol.md).
 
 ## API Data Access
 

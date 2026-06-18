@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -140,6 +141,19 @@ def datamailer_enabled() -> bool:
     return DatamailerConfig.from_settings() is not None
 
 
+def course_family_slug(course) -> str:
+    slug = course.slug
+    return re.sub(r"[-_ ]?\d{4}$", "", slug).strip("-_ ") or slug
+
+
+def contact_tags_for_course(course) -> list[str]:
+    family_slug = course_family_slug(course)
+    return [
+        f"course-{family_slug}",
+        f"course-cohort-{course.slug}",
+    ]
+
+
 def contact_payload_for_user(user, course=None) -> dict[str, Any] | None:
     email = (user.email or "").strip().lower()
     if not email:
@@ -156,8 +170,10 @@ def contact_payload_for_user(user, course=None) -> dict[str, Any] | None:
     }
 
     if course is not None:
-        tags.append(f"course-{course.slug}")
+        tags.extend(contact_tags_for_course(course))
         custom_fields["course_slug"] = course.slug
+        custom_fields["course_family_slug"] = course_family_slug(course)
+        custom_fields["course_cohort_slug"] = course.slug
         custom_fields["course_title"] = course.title
 
     return {

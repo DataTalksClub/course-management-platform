@@ -15,6 +15,7 @@ from django.db import transaction
 from django.urls import reverse
 
 from course_management.datamailer import send_transactional_email
+from course_management import email_templates
 from courses.models import (
     Course,
     Homework,
@@ -564,7 +565,9 @@ def send_homework_confirmation_email(
     send_transactional_email(
         {
             "email": user.email,
-            "template_key": settings.DATAMAILER_HOMEWORK_CONFIRMATION_TEMPLATE,
+            "template_key": (
+                email_templates.HOMEWORK_SUBMISSION_CONFIRMATION
+            ),
             "idempotency_key": (
                 f"homework-submission:{submission.id}:"
                 f"{submission.submitted_at.isoformat()}"
