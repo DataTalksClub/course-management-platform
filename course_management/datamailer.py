@@ -180,6 +180,7 @@ def contact_payload_for_user(user, course=None) -> dict[str, Any] | None:
         "email": email,
         "audience": config.audience,
         "client": config.client,
+        "status": "subscribed",
         "verified": True,
         "email_validation": {
             "status": "externally_validated",

@@ -177,6 +177,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(payload["client"], "dtc-courses")
         self.assertEqual(payload["audience"], "dtc-courses")
+        self.assertEqual(payload["status"], "subscribed")
         self.assertTrue(payload["verified"])
         self.assertEqual(
             payload["email_validation"]["status"],
