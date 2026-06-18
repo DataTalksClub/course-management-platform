@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 
 from accounts.models import CustomUser
 from course_management.datamailer import (
+    certificate_availability_notification_payload,
     DatamailerClient,
     DatamailerConfig,
     contact_tags_for_course,
@@ -21,6 +22,7 @@ from course_management.datamailer import (
     project_score_notification_payload,
     project_submitters_list_key,
     registration_list_key,
+    send_certificate_availability_notification,
     send_homework_score_notification,
     send_project_score_notification,
     send_transactional_email,
@@ -781,6 +783,88 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(
             send_list.call_args.args[0],
             project_submitters_list_key(project),
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_FROM_EMAIL="courses",
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    def test_certificate_availability_notification_payload(self):
+        user = CustomUser.objects.create(
+            email="student@example.com",
+            username="student",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+            certificate_url="/certificates/student.pdf",
+        )
+
+        payload = certificate_availability_notification_payload(
+            enrollment
+        )
+
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(
+            payload["template_key"],
+            "certificate-availability-notification",
+        )
+        self.assertEqual(
+            payload["idempotency_key"],
+            f"certificate-available:{enrollment.pk}",
+        )
+        self.assertEqual(payload["from_email"], "courses")
+        self.assertEqual(
+            payload["context"]["certificate_url"],
+            "https://courses.example.com/certificates/student.pdf",
+        )
+        self.assertEqual(
+            payload["context"]["course_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/",
+        )
+        self.assertEqual(
+            payload["metadata"]["event"],
+            "certificate_availability",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_send_certificate_availability_notification_uses_transactional_send(
+        self,
+        send,
+    ):
+        send.return_value = {"id": 123}
+        user = CustomUser.objects.create(
+            email="student@example.com",
+            username="student",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+            certificate_url="/certificates/student.pdf",
+        )
+
+        result = send_certificate_availability_notification(enrollment)
+
+        self.assertEqual(result, {"id": 123})
+        send.assert_called_once()
+        payload = send.call_args.args[0]
+        self.assertEqual(
+            payload["template_key"],
+            "certificate-availability-notification",
         )
 
     @override_settings(**DATAMAILER_SETTINGS)

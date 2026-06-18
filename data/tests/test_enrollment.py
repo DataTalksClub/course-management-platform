@@ -6,6 +6,7 @@ Tests for enrollment-related data views and helpers.
 
 import json
 import random
+from unittest.mock import patch
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -128,7 +129,9 @@ class EnrollmentDataAPITestCase(TestCase):
 
         first_graduate = graduates[0]
         self.assertEqual(first_graduate["email"], self.user.email)
-        self.assertEqual(first_graduate["name"], self.user.certificate_name)
+        self.assertEqual(
+            first_graduate["name"], self.user.certificate_name
+        )
 
     def create_test_project(self, slug, title):
         return Project(
@@ -344,7 +347,9 @@ class EnrollmentDataAPITestCase(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 405)
 
-    def test_bulk_update_enrollment_certificates_accepts_array_payload(self):
+    def test_bulk_update_enrollment_certificates_accepts_array_payload(
+        self,
+    ):
         """Test bulk certificate updates with a bare array payload."""
         url = reverse(
             "api_course_certificates",
@@ -371,4 +376,70 @@ class EnrollmentDataAPITestCase(TestCase):
         self.assertEqual(
             self.enrollment.certificate_url,
             "/certificates/array.pdf",
+        )
+
+    @patch(
+        "data.views.enrollment.send_certificate_availability_notification"
+    )
+    def test_bulk_update_enrollment_certificates_sends_new_certificate_notifications(
+        self,
+        send_notification,
+    ):
+        second_user = CustomUser.objects.create(
+            username="seconduser",
+            email="second@example.com",
+            password="password",
+        )
+        second_enrollment = Enrollment.objects.create(
+            student=second_user,
+            course=self.course,
+            certificate_url="/certificates/old.pdf",
+        )
+
+        url = reverse(
+            "api_course_certificates",
+            kwargs={"course_slug": self.course.slug},
+        )
+        data = {
+            "certificates": [
+                {
+                    "email": self.user.email,
+                    "certificate_path": "/certificates/first.pdf",
+                },
+                {
+                    "email": second_user.email,
+                    "certificate_path": "/certificates/second.pdf",
+                },
+            ]
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                url,
+                json.dumps(data),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result["success"])
+        self.assertEqual(result["updated_count"], 2)
+
+        self.enrollment.refresh_from_db()
+        second_enrollment.refresh_from_db()
+        self.assertEqual(
+            self.enrollment.certificate_url,
+            "/certificates/first.pdf",
+        )
+        self.assertEqual(
+            second_enrollment.certificate_url,
+            "/certificates/second.pdf",
+        )
+
+        send_notification.assert_called_once()
+        notified_enrollment = send_notification.call_args.args[0]
+        self.assertEqual(notified_enrollment.id, self.enrollment.id)
+        self.assertEqual(
+            notified_enrollment.certificate_url,
+            "/certificates/first.pdf",
         )

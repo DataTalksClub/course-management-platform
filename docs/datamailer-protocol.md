@@ -153,7 +153,7 @@ different parts of the course lifecycle.
 | Learner submits work | project submission confirmation | project submit view | implemented |
 | Operator publishes results | homework score publication notification | cadmin homework scoring action | implemented |
 | Operator publishes results | project score publication notification | cadmin project scoring action | implemented |
-| Operator publishes certificates | certificate availability notification | certificate bulk update/API flow | planned |
+| Operator publishes certificates | certificate availability notification | certificate bulk update/API flow | implemented |
 | Scheduled command runs | deadline reminders | `send_deadline_reminders` management command | planned |
 
 CMP calls:

@@ -627,6 +627,69 @@ def project_score_notification_payload(
     return list_key, payload
 
 
+def certificate_availability_notification_payload(
+    enrollment,
+) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    email = (enrollment.student.email or "").strip().lower()
+    certificate_url = (enrollment.certificate_url or "").strip()
+    if not email or not certificate_url:
+        return None
+
+    from course_management import email_templates
+
+    course = enrollment.course
+    course_url = public_url(
+        reverse("course", kwargs={"course_slug": course.slug})
+    )
+    certificate_url = public_url(certificate_url)
+    profile_url = public_url(reverse("account_settings"))
+
+    payload = {
+        "email": email,
+        "template_key": (
+            email_templates.CERTIFICATE_AVAILABILITY_NOTIFICATION
+        ),
+        "idempotency_key": f"certificate-available:{enrollment.pk}",
+        "context": {
+            "course_slug": course.slug,
+            "course_title": course.title,
+            "certificate_url": certificate_url,
+            "course_url": course_url,
+            "profile_url": profile_url,
+            "email_subject": f"Certificate available: {course.title}",
+            "email_preview": (
+                "Your course certificate is available to download."
+            ),
+            "intro_text": (
+                f"Your certificate for {course.title} is available."
+            ),
+            "download_text": (
+                f"You can download your certificate here: "
+                f"{certificate_url}"
+            ),
+            "notification_category": "course certificates",
+            "notification_footer": (
+                "You are receiving this because a course certificate "
+                "was published for your account."
+            ),
+        },
+        "metadata": {
+            "source": "course-management-platform",
+            "event": "certificate_availability",
+            "course_slug": course.slug,
+            "enrollment_id": enrollment.pk,
+            "user_id": enrollment.student_id,
+        },
+    }
+    if config.from_email:
+        payload["from_email"] = config.from_email
+    return payload
+
+
 def send_homework_score_notification(homework) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -671,6 +734,31 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
         logger.exception(
             "Datamailer project score notification failed for project_id=%s",
             project.pk,
+        )
+        if config.strict:
+            raise
+        return None
+
+
+def send_certificate_availability_notification(
+    enrollment,
+) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    payload = certificate_availability_notification_payload(enrollment)
+    if payload is None:
+        return None
+
+    client = DatamailerClient(config)
+    try:
+        return client.send_transactional(payload)
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer certificate availability notification failed "
+            "for enrollment_id=%s",
+            enrollment.pk,
         )
         if config.strict:
             raise

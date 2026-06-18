@@ -7,11 +7,15 @@ Provides views for managing enrollment certificates and retrieving graduates dat
 import json
 from collections import Counter
 
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.auth import token_required
+from course_management.datamailer import (
+    send_certificate_availability_notification,
+)
 
 from courses.models import (
     User,
@@ -179,6 +183,7 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
     }
 
     enrollments_to_update = {}
+    enrollments_to_notify = {}
     updated = []
 
     for update in valid_updates:
@@ -208,8 +213,13 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
             )
             continue
 
+        had_certificate = bool(
+            (enrollment.certificate_url or "").strip()
+        )
         enrollment.certificate_url = certificate_path
         enrollments_to_update[enrollment.id] = enrollment
+        if not had_certificate and certificate_path.strip():
+            enrollments_to_notify[enrollment.id] = enrollment
         updated.append(
             {
                 "index": update["index"],
@@ -224,6 +234,12 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
             enrollments_to_update.values(),
             ["certificate_url"],
         )
+        for enrollment in enrollments_to_notify.values():
+
+            def send_notification(enrollment=enrollment):
+                send_certificate_availability_notification(enrollment)
+
+            transaction.on_commit(send_notification)
 
     return JsonResponse(
         {
