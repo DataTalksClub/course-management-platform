@@ -107,6 +107,8 @@ class AccountSettingsTestCase(TestCase):
                 "personal_website_url": "https://student.example.com",
                 "about_me": "Learning data.",
                 "dark_mode": "on",
+                "email_submission_confirmations": "on",
+                "email_deadline_reminders": "on",
             },
         )
 
@@ -124,6 +126,56 @@ class AccountSettingsTestCase(TestCase):
         )
         self.assertEqual(self.user.about_me, "Learning data.")
         self.assertTrue(self.user.dark_mode)
+        self.assertTrue(self.user.email_submission_confirmations)
+        self.assertTrue(self.user.email_deadline_reminders)
+
+    def test_account_settings_updates_email_preferences(self):
+        self.user.email_submission_confirmations = True
+        self.user.email_deadline_reminders = True
+        self.user.save(
+            update_fields=[
+                "email_submission_confirmations",
+                "email_deadline_reminders",
+            ]
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("account_settings"),
+            {
+                "certificate_name": "",
+                "github_url": "",
+                "linkedin_url": "",
+                "personal_website_url": "",
+                "about_me": "",
+            },
+        )
+
+        self.assertRedirects(response, reverse("account_settings"))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.email_submission_confirmations)
+        self.assertFalse(self.user.email_deadline_reminders)
+
+    def test_account_settings_shows_email_preference_categories(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Homework and project submission confirmations",
+        )
+        self.assertContains(
+            response,
+            "Sends a copy of the submitted results",
+        )
+        self.assertContains(response, "Deadline reminders")
+        self.assertContains(response, "within 24 hours")
+        self.assertContains(response, "one week before the deadline")
+        self.assertContains(response, "one day before the deadline")
+        self.assertContains(response, "links to unfinished reviews")
+        self.assertContains(response, "mandatory for project completion")
 
     def test_account_settings_certificate_name_shows_in_enrollment_form(self):
         self.client.force_login(self.user)
@@ -137,6 +189,8 @@ class AccountSettingsTestCase(TestCase):
                 "personal_website_url": "",
                 "about_me": "",
                 "dark_mode": "",
+                "email_submission_confirmations": "on",
+                "email_deadline_reminders": "on",
             },
         )
 

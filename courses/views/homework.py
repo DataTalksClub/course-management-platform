@@ -1,7 +1,7 @@
 import logging
 
 from typing import Any, List, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from django.http import HttpRequest
 
@@ -319,6 +319,7 @@ def homework_confirmation_context(
     homework: Homework,
     submission: Submission,
     update_url: str,
+    profile_url: str,
 ) -> dict[str, Any]:
     submission_fields = homework_submission_fields(
         course,
@@ -344,7 +345,17 @@ def homework_confirmation_context(
         "submission_id": submission.id,
         "submitted_at": submission.submitted_at.isoformat(),
         "update_url": update_url,
+        "profile_url": profile_url,
         "update_link_text": "Update your submission",
+        "notification_category": "submission confirmations",
+        "notification_footer": (
+            "You are receiving this because homework and project "
+            "submission confirmations are enabled in your profile."
+        ),
+        "notification_footer_text": (
+            "If you don't want to receive these emails, you can turn "
+            f"off submission confirmations in your profile: {profile_url}"
+        ),
         "email_subject": f"Homework submission saved: {homework.title}",
         "email_preview": (
             "Your homework submission was saved. "
@@ -538,12 +549,15 @@ def send_homework_confirmation_email(
 ) -> None:
     if not user.email:
         return
+    if not getattr(user, "email_submission_confirmations", True):
+        return
 
     context = homework_confirmation_context(
         course=course,
         homework=homework,
         submission=submission,
         update_url=update_url,
+        profile_url=build_account_settings_url(request_base_url(update_url)),
     )
 
     send_transactional_email(
@@ -564,6 +578,20 @@ def send_homework_confirmation_email(
             },
         }
     )
+
+
+def request_base_url(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def build_account_settings_url(base_url: str) -> str:
+    path = reverse("account_settings")
+    if base_url:
+        return urljoin(f"{base_url}/", path.lstrip("/"))
+    return path
 
 
 def process_homework_submission(

@@ -122,6 +122,43 @@
 
         <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
             <div>
+                <h2 class="settings-section-title text-lg font-semibold">Email notifications</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">
+                    Choose which course workflow emails you want to receive.
+                </p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="checkbox-row">
+                        {{ form.email_submission_confirmations }}
+                        <span class="checkbox-label">{{ form.email_submission_confirmations.label }}</span>
+                    </label>
+                    <p class="checkbox-help">{{ form.email_submission_confirmations.help_text }}</p>
+                    {% if form.email_submission_confirmations.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.email_submission_confirmations.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="checkbox-row">
+                        {{ form.email_deadline_reminders }}
+                        <span class="checkbox-label">{{ form.email_deadline_reminders.label }}</span>
+                    </label>
+                    <p class="checkbox-help">{{ form.email_deadline_reminders.help_text }}</p>
+                    {% if form.email_deadline_reminders.errors %}
+                        <div class="mt-2 text-sm font-medium">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ form.email_deadline_reminders.errors|join:" " }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-section grid gap-6 border-t pt-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div>
                 <h2 class="settings-section-title text-lg font-semibold">Courses enrolled</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">Course-specific profile details can still be edited per course.</p>
             </div>

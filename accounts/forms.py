@@ -15,6 +15,8 @@ class AccountSettingsForm(forms.ModelForm):
             "personal_website_url",
             "about_me",
             "dark_mode",
+            "email_submission_confirmations",
+            "email_deadline_reminders",
         ]
         labels = {
             "certificate_name": "Certificate name",
@@ -25,6 +27,10 @@ class AccountSettingsForm(forms.ModelForm):
             "personal_website_url": "Website URL",
             "about_me": "About me",
             "dark_mode": "Use dark mode",
+            "email_submission_confirmations": (
+                "Homework and project submission confirmations"
+            ),
+            "email_deadline_reminders": "Deadline reminders",
         }
         help_texts = {
             "certificate_name": (
@@ -32,6 +38,20 @@ class AccountSettingsForm(forms.ModelForm):
             ),
             "country": "Used to prefill course registration forms.",
             "registration_role": "Used to prefill course registration forms.",
+            "email_submission_confirmations": (
+                "Sends a copy of the submitted results after you submit "
+                "homework or a project."
+            ),
+            "email_deadline_reminders": (
+                "Sends reminders when homework or peer review deadlines "
+                "are within 24 hours and you have not submitted. For "
+                "projects, sends one reminder one week before the deadline "
+                "encouraging half-finished submissions, and another one "
+                "day before the deadline because submissions will close "
+                "soon. For peer reviews, sends links to unfinished reviews "
+                "and explains that peer review completion is mandatory for "
+                "project completion and receiving a certificate."
+            ),
         }
         widgets = {
             "certificate_name": forms.TextInput(
@@ -65,4 +85,10 @@ class AccountSettingsForm(forms.ModelForm):
                 }
             ),
             "dark_mode": forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
+            "email_submission_confirmations": forms.CheckboxInput(
+                attrs={"class": "h-4 w-4"}
+            ),
+            "email_deadline_reminders": forms.CheckboxInput(
+                attrs={"class": "h-4 w-4"}
+            ),
         }

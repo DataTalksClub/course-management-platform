@@ -123,6 +123,18 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             "http://localhost/course/homework/hw1",
         )
         self.assertEqual(
+            payload["context"]["profile_url"],
+            "http://localhost/accounts/settings/",
+        )
+        self.assertEqual(
+            payload["context"]["notification_category"],
+            "submission confirmations",
+        )
+        self.assertIn(
+            "submission confirmations",
+            payload["context"]["notification_footer_text"],
+        )
+        self.assertEqual(
             payload["context"]["intro_text"],
             (
                 "Your homework submission for Homework 1 in Course "
@@ -210,6 +222,37 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             payload["metadata"]["event"],
             "homework_submission",
         )
+
+    @patch("courses.views.homework.send_transactional_email")
+    def test_homework_submission_skips_confirmation_when_preference_off(
+        self,
+        send_email,
+    ):
+        self.user.email_submission_confirmations = False
+        self.user.save(update_fields=["email_submission_confirmations"])
+        url = reverse(
+            "homework",
+            args=[self.course.slug, self.homework.slug],
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                url,
+                {
+                    f"answer_{self.multiple_choice_question.id}": ["2"],
+                    "learning_in_public_links[]": [],
+                },
+                HTTP_HOST="localhost",
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Submission.objects.filter(
+                student=self.user,
+                homework=self.homework,
+            ).exists()
+        )
+        send_email.assert_not_called()
 
     @override_settings(PUBLIC_BASE_URL="https://dev.courses.datatalks.club")
     @patch("courses.views.homework.send_transactional_email")
