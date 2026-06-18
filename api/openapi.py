@@ -1017,6 +1017,44 @@ SCHEMAS = {
             "errors": array_of(ref("CertificateUpdateError")),
         },
     },
+    "DatamailerEvent": {
+        "type": "object",
+        "required": ["event_id", "event_type", "email"],
+        "properties": {
+            "event_id": {"type": "string"},
+            "event_type": {
+                "type": "string",
+                "enum": [
+                    "contact.hard_bounced",
+                    "contact.complained",
+                    "subscription.unsubscribed",
+                ],
+            },
+            "email": {"type": "string", "format": "email"},
+            "occurred_at": {"type": "string", "format": "date-time"},
+            "audience": {"type": "string"},
+            "client": {"type": "string"},
+            "preference_key": {
+                "type": "string",
+                "enum": [
+                    "email_submission_confirmations",
+                    "email_deadline_reminders",
+                    "email_course_updates",
+                ],
+            },
+            "metadata": JSON,
+        },
+        "additionalProperties": True,
+    },
+    "DatamailerEventAccepted": {
+        "type": "object",
+        "required": ["ok", "created", "preference_updated"],
+        "properties": {
+            "ok": {"type": "boolean"},
+            "created": {"type": "boolean"},
+            "preference_updated": {"type": "boolean"},
+        },
+    },
 }
 
 
@@ -1115,6 +1153,31 @@ PATHS_BY_URL_NAME = {
                 "Updates many enrollment certificate URLs in one request. "
                 "The response includes per-entry errors for missing users, "
                 "unenrolled users, and invalid entries."
+            ),
+        ),
+    },
+    "api_datamailer_events": {
+        "post": operation(
+            "api_datamailer_events",
+            ["Datamailer"],
+            "Receive Datamailer contact event",
+            {
+                "200": response(
+                    "Datamailer event accepted",
+                    ref("DatamailerEventAccepted"),
+                ),
+                "400": response("Invalid event payload", ref("Error")),
+                "401": response("Invalid webhook token", ref("Error")),
+                "503": response("Webhook not configured", ref("Error")),
+            },
+            body=request_body(ref("DatamailerEvent")),
+            requires_auth=False,
+            description=(
+                "Webhook used by Datamailer to report hard bounces, "
+                "complaints, and unsubscribe events back to CMP. The request "
+                "must include the configured Datamailer webhook token in the "
+                "Authorization bearer token or X-Datamailer-Webhook-Token "
+                "header."
             ),
         ),
     },
