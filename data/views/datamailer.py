@@ -5,6 +5,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from accounts.models import CustomUser
 from data.models import DatamailerContactEvent
@@ -62,10 +63,8 @@ def apply_unsubscribe_preference(email, preference_key):
 
 
 @csrf_exempt
+@require_POST
 def datamailer_event_webhook(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
     if not getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", ""):
         return JsonResponse(
             {"error": "Datamailer webhook is not configured"},

@@ -7,6 +7,7 @@ Provides views for retrieving project submission data.
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.forms.models import model_to_dict
+from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
 
@@ -17,6 +18,7 @@ from courses.models import (
 )
 
 
+@require_GET
 @token_required
 def project_data_view(request, course_slug: str, project_slug: str):
     """Get project data including course info, project details, and all submissions with scores."""

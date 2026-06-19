@@ -17,6 +17,7 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch
 from django.db.models.functions import Coalesce
 from django.db.models import Value
+from django.views.decorators.http import require_GET
 
 from courses.models import (
     Course,
@@ -183,6 +184,7 @@ def _build_leaderboard_data(course, page_number):
     }
 
 
+@require_GET
 def leaderboard_data_view(request, course_slug: str):
     """Public endpoint returning the full leaderboard with score breakdowns."""
     course = get_object_or_404(Course, slug=course_slug)

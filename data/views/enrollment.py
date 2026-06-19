@@ -11,6 +11,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
 
 from accounts.auth import token_required
 from course_management.datamailer import (
@@ -56,6 +57,7 @@ def get_passed_enrollments(passed_project_submissions, min_projects):
     return passed_enrollments
 
 
+@require_GET
 @token_required
 def graduates_data_view(request, course_slug: str):
     """Get list of students who graduated (passed enough projects) from a course."""
@@ -87,8 +89,9 @@ def graduates_data_view(request, course_slug: str):
     return JsonResponse(response)
 
 
-@token_required
 @csrf_exempt
+@require_POST
+@token_required
 def bulk_update_enrollment_certificates_view(request, course_slug: str):
     """
     Update enrollment certificate URLs for many users in a course.
@@ -105,9 +108,6 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
 
     A bare JSON array with the same objects is also accepted.
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
