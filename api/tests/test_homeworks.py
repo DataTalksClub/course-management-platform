@@ -506,3 +506,62 @@ class HomeworksAPITestCase(TestCase):
         self.assertEqual(
             response.json()["code"], "staff_token_required"
         )
+
+    def test_homework_mutations_require_staff_token(self):
+        hw = self._create_homework(slug="staff-only-hw")
+        non_staff = CustomUser.objects.create(
+            username="homework-nonstaff",
+            email="homework-nonstaff@example.com",
+            password="password",
+        )
+        token = Token.objects.create(user=non_staff)
+        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        create_response = client.post(
+            f"/api/courses/{self.course.slug}/homeworks/",
+            json.dumps({
+                "name": "Created by nonstaff",
+                "due_date": "2026-04-01T23:59:59Z",
+            }),
+            content_type="application/json",
+        )
+        patch_response = client.patch(
+            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/",
+            json.dumps({"description": "Changed by nonstaff"}),
+            content_type="application/json",
+        )
+        put_response = client.put(
+            (
+                f"/api/courses/{self.course.slug}/homeworks/by-slug/"
+                "nonstaff-put/"
+            ),
+            json.dumps({
+                "name": "Put by nonstaff",
+                "due_date": "2026-04-01T23:59:59Z",
+            }),
+            content_type="application/json",
+        )
+        delete_response = client.delete(
+            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        )
+
+        for response in (
+            create_response,
+            patch_response,
+            put_response,
+            delete_response,
+        ):
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(
+                response.json()["code"], "staff_token_required"
+            )
+
+        self.assertFalse(
+            Homework.objects.filter(
+                course=self.course,
+                slug="nonstaff-put",
+            ).exists()
+        )
+        hw.refresh_from_db()
+        self.assertEqual(hw.description, "Description")
+        self.assertTrue(Homework.objects.filter(id=hw.id).exists())

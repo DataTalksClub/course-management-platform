@@ -7,7 +7,11 @@ from django.views.decorators.csrf import csrf_exempt
 from accounts.auth import token_required
 from courses.models import Course, Homework, Question
 
-from api.safety import error_response, ensure_no_related_records_for_delete
+from api.safety import (
+    error_response,
+    ensure_no_related_records_for_delete,
+    require_staff_token,
+)
 from api.utils import parse_json_body, require_methods
 
 
@@ -71,6 +75,10 @@ def questions_view(request, course_slug, homework_id):
         })
 
     # POST
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     data, err = parse_json_body(request)
     if err:
         return err
@@ -114,6 +122,10 @@ def question_detail_view(request, course_slug, homework_id, question_id):
 
     if request.method == "GET":
         return JsonResponse(_question_to_dict(question))
+
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
 
     if request.method == "DELETE":
         error_response_result = ensure_no_related_records_for_delete(

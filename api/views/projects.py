@@ -18,6 +18,7 @@ from api.safety import (
     error_response,
     ensure_closed_for_delete,
     ensure_no_related_records_for_delete,
+    require_staff_token,
 )
 from api.utils import parse_date, parse_json_body, require_methods
 
@@ -67,16 +68,6 @@ def _project_to_dict(proj):
         "can_delete": not delete_blockers,
         "delete_blockers": delete_blockers,
     }
-
-
-def _staff_token_required(request):
-    if request.user.is_staff or request.user.is_superuser:
-        return None
-    return error_response(
-        "Staff token required",
-        "staff_token_required",
-        status=403,
-    )
 
 
 def _project_action_base(project, status, message):
@@ -212,6 +203,10 @@ def projects_view(request, course_slug):
         )
 
     # POST
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     data, err = parse_json_body(request)
     if err:
         return err
@@ -400,6 +395,10 @@ def _project_detail_response(
     if request.method == "GET":
         return JsonResponse(_project_to_dict(project))
 
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     if request.method == "DELETE":
         error_response_result = ensure_closed_for_delete(
             project, ProjectState.CLOSED.value, "project"
@@ -480,6 +479,10 @@ def project_detail_by_slug_view(request, course_slug, project_slug):
     DELETE /api/courses/<slug>/projects/by-slug/<slug>/ - Delete project.
     """
     if request.method == "PUT":
+        staff_error = require_staff_token(request)
+        if staff_error:
+            return staff_error
+
         return _upsert_project_by_slug(
             request, course_slug, project_slug
         )
@@ -496,7 +499,7 @@ def project_assign_reviews_view(request, course_slug, project_id):
     """
     POST /api/courses/<slug>/projects/<id>/assign-reviews/ - Assign reviews.
     """
-    staff_error = _staff_token_required(request)
+    staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
@@ -514,7 +517,7 @@ def project_assign_reviews_by_slug_view(
     """
     POST /api/courses/<slug>/projects/by-slug/<slug>/assign-reviews/ - Assign reviews.
     """
-    staff_error = _staff_token_required(request)
+    staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
@@ -532,7 +535,7 @@ def project_score_view(request, course_slug, project_id):
     """
     POST /api/courses/<slug>/projects/<id>/score/ - Score project.
     """
-    staff_error = _staff_token_required(request)
+    staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
@@ -548,7 +551,7 @@ def project_score_by_slug_view(request, course_slug, project_slug):
     """
     POST /api/courses/<slug>/projects/by-slug/<slug>/score/ - Score project.
     """
-    staff_error = _staff_token_required(request)
+    staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 

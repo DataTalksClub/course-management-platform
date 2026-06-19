@@ -18,6 +18,7 @@ from api.safety import (
     error_response,
     ensure_closed_for_delete,
     ensure_no_related_records_for_delete,
+    require_staff_token,
 )
 from api.utils import parse_date, parse_json_body, require_methods
 
@@ -65,16 +66,6 @@ def _homework_to_dict(hw):
         "can_delete": not delete_blockers,
         "delete_blockers": delete_blockers,
     }
-
-
-def _staff_token_required(request):
-    if request.user.is_staff or request.user.is_superuser:
-        return None
-    return error_response(
-        "Staff token required",
-        "staff_token_required",
-        status=403,
-    )
 
 
 def _homework_score_response(homework):
@@ -190,6 +181,10 @@ def homeworks_view(request, course_slug):
         )
 
     # POST
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     data, err = parse_json_body(request)
     if err:
         return err
@@ -415,6 +410,10 @@ def _homework_detail_response(
     if request.method == "GET":
         return JsonResponse(_homework_to_dict(homework))
 
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     if request.method == "DELETE":
         error_response_result = ensure_closed_for_delete(
             homework, HomeworkState.CLOSED.value, "homework"
@@ -493,6 +492,10 @@ def homework_detail_by_slug_view(request, course_slug, homework_slug):
     DELETE /api/courses/<slug>/homeworks/by-slug/<slug>/ - Delete homework.
     """
     if request.method == "PUT":
+        staff_error = require_staff_token(request)
+        if staff_error:
+            return staff_error
+
         return _upsert_homework_by_slug(
             request, course_slug, homework_slug
         )
@@ -509,7 +512,7 @@ def homework_score_view(request, course_slug, homework_id):
     """
     POST /api/courses/<slug>/homeworks/<id>/score/ - Score homework.
     """
-    staff_error = _staff_token_required(request)
+    staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
@@ -527,7 +530,7 @@ def homework_score_by_slug_view(request, course_slug, homework_slug):
     """
     POST /api/courses/<slug>/homeworks/by-slug/<slug>/score/ - Score homework.
     """
-    staff_error = _staff_token_required(request)
+    staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 

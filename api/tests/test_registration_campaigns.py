@@ -11,6 +11,7 @@ class RegistrationCampaignAPITestCase(TestCase):
         self.user = CustomUser.objects.create(
             username="testuser",
             email="test@example.com",
+            is_staff=True,
         )
         self.token = Token.objects.create(user=self.user)
         self.client = Client()
@@ -93,3 +94,62 @@ class RegistrationCampaignAPITestCase(TestCase):
         response = client.get("/api/registration-campaigns/")
 
         self.assertEqual(response.status_code, 401)
+
+    def test_registration_campaign_admin_operations_require_staff_token(
+        self,
+    ):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+        )
+        CourseRegistration.objects.create(
+            campaign=campaign,
+            course=self.course,
+            email="student@example.com",
+            name="Student",
+            country="Germany",
+            region="Europe",
+            accepted_newsletter=True,
+        )
+        non_staff = CustomUser.objects.create(
+            username="campaign-nonstaff",
+            email="campaign-nonstaff@example.com",
+        )
+        token = Token.objects.create(user=non_staff)
+        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        create_response = client.post(
+            "/api/registration-campaigns/",
+            json.dumps({
+                "slug": "nonstaff-campaign",
+                "title": "Nonstaff Campaign",
+            }),
+            content_type="application/json",
+        )
+        patch_response = client.patch(
+            "/api/registration-campaigns/llm-zoomcamp/",
+            json.dumps({"title": "Changed by nonstaff"}),
+            content_type="application/json",
+        )
+        registrations_response = client.get(
+            "/api/registration-campaigns/llm-zoomcamp/registrations/"
+        )
+
+        for response in (
+            create_response,
+            patch_response,
+            registrations_response,
+        ):
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(
+                response.json()["code"], "staff_token_required"
+            )
+
+        self.assertFalse(
+            RegistrationCampaign.objects.filter(
+                slug="nonstaff-campaign",
+            ).exists()
+        )
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.title, "LLM Zoomcamp")

@@ -8,7 +8,7 @@ from django.utils.dateparse import parse_date
 from accounts.auth import token_required
 from courses.models import Course
 
-from api.safety import error_response
+from api.safety import error_response, require_staff_token
 from api.utils import parse_json_body
 from api.utils import require_methods
 
@@ -124,6 +124,10 @@ def courses_list_view(request):
             "courses": [_course_summary_to_dict(course) for course in courses],
         })
 
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     data, err = parse_json_body(request)
     if err:
         return err
@@ -185,6 +189,10 @@ def course_detail_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     if request.method == "PATCH":
+        staff_error = require_staff_token(request)
+        if staff_error:
+            return staff_error
+
         data, err = parse_json_body(request)
         if err:
             return err

@@ -8,6 +8,16 @@ def error_response(message, code, status=400, details=None):
     return JsonResponse(data, status=status)
 
 
+def require_staff_token(request):
+    if request.user.is_staff or request.user.is_superuser:
+        return None
+    return error_response(
+        "Staff token required",
+        "staff_token_required",
+        status=403,
+    )
+
+
 def ensure_closed_for_delete(instance, closed_state, noun):
     if instance.state != closed_state:
         return error_response(

@@ -16,6 +16,7 @@ class CoursesAPITestCase(TestCase):
             username="testuser",
             email="test@example.com",
             password="password",
+            is_staff=True,
         )
         self.token = Token.objects.create(user=self.user)
         self.client = Client()
@@ -210,3 +211,40 @@ class CoursesAPITestCase(TestCase):
     def test_course_detail_not_found(self):
         response = self.client.get("/api/courses/nonexistent/")
         self.assertEqual(response.status_code, 404)
+
+    def test_course_mutations_require_staff_token(self):
+        non_staff = CustomUser.objects.create(
+            username="nonstaff",
+            email="nonstaff@example.com",
+            password="password",
+        )
+        token = Token.objects.create(user=non_staff)
+        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        create_response = client.post(
+            "/api/courses/",
+            json.dumps({
+                "slug": "nonstaff-course",
+                "title": "Nonstaff Course",
+            }),
+            content_type="application/json",
+        )
+        patch_response = client.patch(
+            "/api/courses/ml-zoomcamp/",
+            json.dumps({"title": "Changed by nonstaff"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(create_response.status_code, 403)
+        self.assertEqual(
+            create_response.json()["code"], "staff_token_required"
+        )
+        self.assertEqual(patch_response.status_code, 403)
+        self.assertEqual(
+            patch_response.json()["code"], "staff_token_required"
+        )
+        self.assertFalse(
+            Course.objects.filter(slug="nonstaff-course").exists()
+        )
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.title, "ML Zoomcamp")

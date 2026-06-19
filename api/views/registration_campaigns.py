@@ -6,7 +6,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.auth import token_required
-from api.safety import error_response
+from api.safety import error_response, require_staff_token
 from api.utils import parse_json_body, require_methods
 from courses.models import Course, CourseRegistration, RegistrationCampaign
 
@@ -135,6 +135,10 @@ def registration_campaigns_view(request):
             {"registration_campaigns": [_campaign_to_dict(c) for c in campaigns]}
         )
 
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     data, err = parse_json_body(request)
     if err:
         return err
@@ -180,6 +184,10 @@ def registration_campaign_detail_view(request, campaign_slug):
     )
 
     if request.method == "PATCH":
+        staff_error = require_staff_token(request)
+        if staff_error:
+            return staff_error
+
         data, err = parse_json_body(request)
         if err:
             return err
@@ -224,6 +232,10 @@ def _count_by(queryset, field):
 @token_required
 @require_methods("GET")
 def registration_campaign_registrations_view(request, campaign_slug):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
     registrations = CourseRegistration.objects.filter(
         campaign=campaign
