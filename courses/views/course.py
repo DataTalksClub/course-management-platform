@@ -13,7 +13,7 @@ from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 
-from django.db.models import Prefetch, Value, Count, Q
+from django.db.models import Prefetch, Value, Count, Q, Sum
 from django.db.models import Case, When, IntegerField
 from django.db.models.functions import Coalesce
 
@@ -1026,24 +1026,22 @@ def dashboard_view(request, course_slug: str):
     project_submissions = (
         ProjectSubmission.objects.filter(project__course=course)
         .select_related("project", "enrollment")
-        .values("time_spent", "total_score", "passed")
+        .values("enrollment_id", "time_spent", "total_score", "passed")
     )
 
     # Convert to list once for processing
     project_submissions_list = list(project_submissions)
 
-    # Calculate project completion
-    total_projects = Project.objects.filter(course=course).count()
-    total_possible_project_submissions = (
-        total_enrollments * total_projects
-    )
+    # Calculate project completion: the share of enrolled students who
+    # submitted at least one project. Counting distinct enrollments keeps
+    # the rate <= 100% when a course has multiple projects (a student who
+    # submits several projects must not be counted more than once).
+    enrollments_with_submission = {
+        s["enrollment_id"] for s in project_submissions_list
+    }
     project_completion_rate = (
-        (
-            len(project_submissions_list)
-            / total_possible_project_submissions
-            * 100
-        )
-        if total_possible_project_submissions > 0
+        len(enrollments_with_submission) / total_enrollments * 100
+        if total_enrollments > 0
         else 0
     )
 
@@ -1093,8 +1091,13 @@ def dashboard_view(request, course_slug: str):
         safe_quartiles(project_scores)
     )
 
-    # Get homework data efficiently - fetch all at once
-    homeworks = Homework.objects.filter(course=course).order_by("id")
+    # Get homework data efficiently - fetch all at once. The max achievable
+    # questions score (sum of points across the homework's questions) lets us
+    # normalize difficulty: a homework with fewer questions naturally has a
+    # lower median score without being harder.
+    homeworks = Homework.objects.filter(course=course).order_by("id").annotate(
+        max_questions_score=Sum("question__scores_for_correct_answer")
+    )
 
     # Get all homework submissions in one query
     all_hw_submissions = (
@@ -1104,6 +1107,7 @@ def dashboard_view(request, course_slug: str):
             "homework_id",
             "time_spent_lectures",
             "time_spent_homework",
+            "questions_score",
             "total_score",
         )
     )
@@ -1136,6 +1140,11 @@ def dashboard_view(request, course_slug: str):
             for s in hw_submissions
             if s["total_score"] is not None
         ]
+        hw_questions_scores = [
+            s["questions_score"]
+            for s in hw_submissions
+            if s["questions_score"] is not None
+        ]
 
         # Calculate total time (lecture + homework) for each submission
         hw_time_total = []
@@ -1164,6 +1173,18 @@ def dashboard_view(request, course_slug: str):
         )
         hw_score_q25, hw_score_median, hw_score_q75 = safe_quartiles(
             hw_scores
+        )
+
+        # Difficulty is judged on the questions score (excluding bonus points
+        # such as FAQ / learning-in-public) normalized by the max achievable
+        # questions score, so homeworks with different question counts are
+        # comparable. Lower ratio == harder.
+        _, hw_questions_score_median, _ = safe_quartiles(hw_questions_scores)
+        max_questions_score = homework.max_questions_score
+        score_ratio = (
+            hw_questions_score_median / max_questions_score
+            if hw_questions_score_median is not None and max_questions_score
+            else None
         )
 
         homework_stats.append(
@@ -1205,17 +1226,23 @@ def dashboard_view(request, course_slug: str):
                 "score_q25": hw_score_q25,
                 "score_median": hw_score_median,
                 "score_q75": hw_score_q75,
+                "questions_score_median": hw_questions_score_median,
+                "max_questions_score": max_questions_score,
+                "score_ratio": score_ratio,
+                "score_ratio_pct": round(score_ratio * 100, 1)
+                if score_ratio is not None
+                else None,
             }
         )
 
     homework_difficulty_stats = [
         hw_stat
         for hw_stat in homework_stats
-        if hw_stat["score_median"] is not None
+        if hw_stat["score_ratio"] is not None
     ]
     homework_difficulty_stats.sort(
         key=lambda hw_stat: (
-            hw_stat["score_median"],
+            hw_stat["score_ratio"],
             -hw_stat["submissions_count"],
             hw_stat["homework"].title,
         )

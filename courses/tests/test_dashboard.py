@@ -10,6 +10,8 @@ from courses.models import (
     Enrollment,
     Homework,
     HomeworkState,
+    Question,
+    QuestionTypes,
     Submission,
     Project,
     ProjectState,
@@ -250,8 +252,30 @@ class DashboardHomeworkStatsTestCase(TestCase):
         self.assertIsNone(hw_stat["time_lecture_q75"])
         self.assertEqual(hw_stat["completion_rate"], 40.0)
 
+    def _add_questions(self, homework, count):
+        """Create `count` 1-point questions for a homework."""
+        Question.objects.bulk_create(
+            [
+                Question(
+                    homework=homework,
+                    text=f"Q{i}",
+                    question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+                    scores_for_correct_answer=1,
+                )
+                for i in range(count)
+            ]
+        )
+
     def test_homework_difficulty_ranking(self):
-        """Test homework difficulty ranking by lowest median score."""
+        """Difficulty is ranked by the question score normalized by question count.
+
+        A short homework with a high raw median is not "harder" than a long
+        homework with a lower per-question score, so ranking must use the ratio
+        of the median question score to the max achievable.
+        """
+        # Short homework: 3 questions, students get all 3 right -> ratio 100%.
+        self._add_questions(self.homework, 3)
+        # Long homework: 10 questions, students get 5 -> ratio 50% (harder).
         harder_homework = Homework.objects.create(
             course=self.course,
             slug="hw2",
@@ -259,17 +283,17 @@ class DashboardHomeworkStatsTestCase(TestCase):
             due_date=timezone.now() + timedelta(days=14),
             state=HomeworkState.OPEN.value,
         )
+        self._add_questions(harder_homework, 10)
 
-        for i, (user, enrollment) in enumerate(
-            zip(self.users, self.enrollments)
-        ):
+        for user, enrollment in zip(self.users, self.enrollments):
             Submission.objects.create(
                 homework=self.homework,
                 student=user,
                 enrollment=enrollment,
                 time_spent_lectures=2.0,
                 time_spent_homework=3.0,
-                total_score=90 + i,
+                questions_score=3,
+                total_score=3,
             )
             Submission.objects.create(
                 homework=harder_homework,
@@ -277,7 +301,10 @@ class DashboardHomeworkStatsTestCase(TestCase):
                 enrollment=enrollment,
                 time_spent_lectures=2.0,
                 time_spent_homework=3.0,
-                total_score=50 + i,
+                questions_score=5,
+                # Bonus points push total_score above the short homework's,
+                # which under the old (raw median) ranking wrongly looked easier.
+                total_score=12,
             )
 
         url = reverse("dashboard", args=[self.course.slug])
@@ -285,11 +312,14 @@ class DashboardHomeworkStatsTestCase(TestCase):
 
         difficulty_stats = response.context["homework_difficulty_stats"]
 
+        # 50% < 100% -> the long homework is correctly ranked hardest.
         self.assertEqual(difficulty_stats[0]["homework"], harder_homework)
         self.assertEqual(difficulty_stats[0]["difficulty_rank"], 1)
-        self.assertEqual(difficulty_stats[0]["score_median"], 52)
+        self.assertEqual(difficulty_stats[0]["score_ratio_pct"], 50.0)
+        self.assertEqual(difficulty_stats[0]["max_questions_score"], 10)
         self.assertEqual(difficulty_stats[1]["homework"], self.homework)
         self.assertEqual(difficulty_stats[1]["difficulty_rank"], 2)
+        self.assertEqual(difficulty_stats[1]["score_ratio_pct"], 100.0)
 
         self.assertContains(response, "Assignment difficulty")
         self.assertContains(response, "Completion")
@@ -486,6 +516,45 @@ class DashboardProjectStatsTestCase(TestCase):
         # Check quartile calculations
         self.assertIsNotNone(response.context["project_score_median"])
         self.assertIsNotNone(response.context["project_time_median"])
+
+    def test_completion_rate_with_multiple_projects(self):
+        """Completion rate counts distinct students, not enrollments x projects."""
+        project2 = Project.objects.create(
+            course=self.course,
+            slug="project2",
+            title="Project 2",
+            submission_due_date=timezone.now() + timedelta(days=7),
+            peer_review_due_date=timezone.now() + timedelta(days=14),
+            state=ProjectState.COMPLETED.value,
+        )
+
+        # 3 distinct students submit project 1; 2 of them also submit project 2,
+        # for 5 submissions total across 2 projects.
+        for i in range(3):
+            self.create_project_submission(
+                self.users[i], self.enrollments[i]
+            )
+        for i in range(2):
+            ProjectSubmission.objects.create(
+                project=project2,
+                student=self.users[i],
+                enrollment=self.enrollments[i],
+                github_link="https://github.com/test/repo2",
+                passed=True,
+                total_score=80,
+                time_spent=10.0,
+            )
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        # 3 distinct enrollments submitted out of 6 -> 50%, regardless of the
+        # 2 projects or the 5 total submissions (old formula gave 5/(6*2)=41.7%).
+        self.assertAlmostEqual(
+            response.context["project_completion_rate"],
+            (3 / 6) * 100,
+            places=1,
+        )
 
     def test_project_statistics_with_no_submissions(self):
         """Test project statistics when no submissions exist"""

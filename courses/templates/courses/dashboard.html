@@ -190,7 +190,10 @@
       <div class="border-b app-border app-surface-muted px-4 py-3">
         <h2 class="text-base font-semibold app-heading">Assignment difficulty</h2>
         <p class="mt-1 text-sm app-muted">
-          Ranked by lowest median homework score. Lower median scores usually indicate harder assignments.
+          Ranked by lowest median question score relative to the maximum
+          achievable. Normalizing by question count makes homeworks of
+          different lengths comparable; a lower percentage indicates a harder
+          assignment.
         </p>
       </div>
       <div class="overflow-x-auto">
@@ -200,6 +203,7 @@
               <th class="px-3 py-2">Rank</th>
               <th class="px-3 py-2">Homework</th>
               <th class="px-3 py-2 text-right">Median score</th>
+              <th class="px-3 py-2 text-right">Score %</th>
               <th class="px-3 py-2 text-right">Completion</th>
             </tr>
           </thead>
@@ -208,7 +212,8 @@
               <tr>
                 <td class="px-3 py-2 font-semibold app-heading">{{ hw_stat.difficulty_rank }}</td>
                 <td class="min-w-48 px-3 py-2 font-medium app-heading">{{ hw_stat.homework.title }}</td>
-                <td class="px-3 py-2 text-right">{{ hw_stat.score_median|floatformat:0 }}</td>
+                <td class="px-3 py-2 text-right">{{ hw_stat.questions_score_median|floatformat:0 }} / {{ hw_stat.max_questions_score }}</td>
+                <td class="px-3 py-2 text-right">{{ hw_stat.score_ratio_pct }}%</td>
                 <td class="px-3 py-2 text-right">{{ hw_stat.completion_rate }}%</td>
               </tr>
             {% endfor %}
