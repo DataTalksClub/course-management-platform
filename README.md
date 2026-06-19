@@ -224,28 +224,11 @@ Deadline reminder emails are triggered by a short CMP management command:
 uv run python manage.py send_deadline_reminders
 ```
 
-For deployed environments, schedule it as an EventBridge Scheduler one-off ECS
-task using the current CMP task definition:
-
-```bash
-SCHEDULE_EXPRESSION="rate(1 hour)" \
-bash deploy/schedule_deadline_reminders.sh dev
-```
-
-If `SCHEDULER_ROLE_ARN` is omitted, the helper creates or updates a
-purpose-specific IAM role named
-`course-management-<env>-deadline-reminders-scheduler` with permission to run
-the current CMP ECS task definition. Pass `SCHEDULER_ROLE_ARN` only when using
-an existing Scheduler role. Auto-creating the role requires the AWS principal
-running the helper to have IAM permissions such as `iam:CreateRole`,
-`iam:GetRole`, and `iam:PutRolePolicy` for that role.
-
-The same helper can be run from CI with the `Configure Deadline Reminders`
-GitHub Actions workflow. Pass the schedule expression in the workflow dispatch
-form; optionally pass a scheduler role ARN to reuse an existing role. The
-workflow uses the same AWS credentials as the dev deployment. The exact IAM
-permissions needed for the workflow are documented in
-[`docs/deadline-reminder-scheduler-iam.md`](docs/deadline-reminder-scheduler-iam.md).
+For deployed environments, this command is run on a schedule as a one-off ECS
+task. The recurring trigger (an EventBridge/CloudWatch rule targeting
+`ecs:RunTask` with the `send_deadline_reminders` command override) and its
+invocation role are provisioned via Terraform in `DataTalksClub/infra-terraform`,
+alongside the CMP ECS service. CMP itself does not configure the schedule.
 
 The scheduled task exits after reconciling Datamailer recipient lists and
 triggering Datamailer list sends. Datamailer handles per-recipient delivery
