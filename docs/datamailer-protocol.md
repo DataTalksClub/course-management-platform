@@ -636,6 +636,11 @@ Authorization: Bearer <DATAMAILER_WEBHOOK_TOKEN>
 CMP stores each callback in `data_datamailercontactevent` using Datamailer's
 stable `event_id`, so repeated callbacks are idempotent.
 
+On the Datamailer side, callbacks are stored in the `cmp_callbacks` outbox
+after the local Datamailer transaction commits. The `process_cmp_callbacks`
+dispatcher posts due callbacks, retries failures with backoff, and exposes
+attempt status in Datamailer operator views.
+
 Implemented event types:
 
 ```text
@@ -659,6 +664,22 @@ accepts these `preference_key` values:
 email_submission_confirmations
 email_deadline_reminders
 email_course_updates
+```
+
+```mermaid
+sequenceDiagram
+    participant DM as Datamailer event writer
+    participant Outbox as Datamailer cmp_callbacks
+    participant Worker as Datamailer callback dispatcher
+    participant CMP as CMP webhook
+    participant DB as CMP DB
+
+    DM->>Outbox: Store callback payload after commit
+    Worker->>CMP: POST event with stable event_id
+    CMP->>DB: Insert if event_id not seen
+    DB-->>CMP: Existing row means duplicate
+    CMP-->>Worker: 2xx for new or duplicate event
+    Worker->>Outbox: Mark delivered or schedule retry
 ```
 
 Datamailer callback payload:
