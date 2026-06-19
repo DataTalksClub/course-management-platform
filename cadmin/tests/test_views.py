@@ -1208,7 +1208,11 @@ class CadminViewTests(TestCase):
         self.assertEqual(len(messages), 1)
         send_score_notification.assert_called_once_with(self.project)
 
-    def test_project_assign_reviews_shows_message(self):
+    @patch("cadmin.views.send_project_score_notification")
+    def test_project_assign_reviews_shows_message(
+        self,
+        send_score_notification,
+    ):
         """Test that assigning peer reviews shows a message on the course admin page"""
         self.client.login(
             username="admin@test.com", password="admin123"
@@ -1234,6 +1238,7 @@ class CadminViewTests(TestCase):
         # Check that a message was added
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
+        send_score_notification.assert_not_called()
 
     def test_log_as_user_requires_post_request(self):
         """Test that the log as user endpoint requires a POST request"""

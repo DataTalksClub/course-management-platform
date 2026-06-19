@@ -191,6 +191,62 @@ Example payload:
 }
 ```
 
+Score publication and deadline reminders use the recipient-list transactional
+endpoint instead:
+
+```text
+POST /api/recipient-lists/{list_key}/transactional-send
+Authorization: Bearer <DATAMAILER_API_KEY>
+```
+
+For homework and project score publication, CMP sends the current submitter
+batch in the same request:
+
+```json
+{
+  "audience": "dtc-courses",
+  "client": "dtc-courses",
+  "template_key": "homework-score-notification",
+  "idempotency_key": "homework-score:ml-zoomcamp-2026:homework-1",
+  "member_sync": "reconcile",
+  "remove_absent_members": true,
+  "context": {
+    "course_title": "Machine Learning Zoomcamp",
+    "homework_title": "Homework 1",
+    "scores_url": "https://courses.datatalks.club/ml-zoomcamp-2026/"
+  },
+  "list": {
+    "type": "homework_submitters",
+    "name": "Machine Learning Zoomcamp Homework 1 submitters"
+  },
+  "members": [
+    {
+      "source_object_key": "homework-submission:123",
+      "email": "learner@example.com",
+      "status": "active",
+      "metadata": {
+        "submission_id": 123,
+        "questions_score": 6,
+        "learning_in_public_score": 2,
+        "faq_score": 1,
+        "total_score": 9
+      }
+    }
+  ],
+  "metadata": {
+    "source": "course-management-platform",
+    "event": "homework_score_publication",
+    "course_slug": "ml-zoomcamp-2026",
+    "homework_slug": "homework-1"
+  }
+}
+```
+
+Datamailer reconciles the list first, then creates one transactional message
+per active member. Member metadata is merged into each learner's template
+context, so the score templates can render `total_score` and the detailed
+breakdown. This keeps the operator action to one CMP-to-Datamailer request.
+
 Datamailer validates the template context before it creates a transactional
 message. If the same `idempotency_key` is sent again for the same client,
 Datamailer returns the existing message and does not enqueue another email.
@@ -278,28 +334,38 @@ sequenceDiagram
     CMP->>DM: Send result/certificate emails
 ```
 
-Score publication is currently implemented as one Datamailer recipient-list
-send to the matching submitter list:
+Score publication is implemented as one Datamailer recipient-list send to the
+matching submitter list:
 
 ```text
 POST /api/recipient-lists/homework-submitters:{course_slug}:{homework_slug}/transactional-send
 POST /api/recipient-lists/project-submitters:{course_slug}:{project_slug}/transactional-send
 ```
 
-Datamailer expands CMP's base idempotency key per list member, creates normal
-transactional messages, and enqueues the provider work through the
-transactional SQS path.
+CMP includes the current submitter snapshot in the same request. Datamailer
+reconciles the recipient list, merges each member's score metadata into that
+recipient's template context, expands CMP's base idempotency key per list
+member, creates normal transactional messages, and enqueues the provider work
+through the transactional SQS path. CMP remains the source of truth for scores.
 
-Score publication emails have an important constraint. If the email only says
-"results are available", Datamailer can send to a stored recipient list without
-per-learner score context. If the email includes each learner's score, CMP must
-provide that score context. CMP can do that in one of two ways:
+```mermaid
+sequenceDiagram
+    participant Operator
+    participant CMP
+    participant DB as CMP DB
+    participant DM as Datamailer API
+    participant List as Datamailer recipient list
+    participant Queue as Datamailer queue
 
-- Send a bulk request with all recipient contexts after scoring.
-- Let Datamailer trigger the send and have Datamailer workers fetch score
-  context from a CMP callback in chunks.
-
-CMP remains the source of truth for scores either way.
+    Operator->>CMP: Click Score homework/project
+    CMP->>DB: Recompute and persist scores
+    CMP->>DB: Load current submitter batch with score metadata
+    CMP->>DM: POST recipient-list transactional-send with members
+    DM->>List: Reconcile batch by source_object_key
+    DM->>DM: Render template with member score context
+    DM->>Queue: Enqueue one email per active member
+    DM-->>CMP: created/enqueued/skipped/replay counts
+```
 
 ## Recipient Lists
 
@@ -434,10 +500,11 @@ $ uv run python manage.py sync_datamailer_recipient_lists homework --course-slug
 $ uv run python manage.py sync_datamailer_recipient_lists registrations --dry-run
 ```
 
-Before an operator triggers score emails from a list, CMP should be able to
-read Datamailer list counts and the last reconciliation result. If counts do
-not match CMP's source query, CMP should block the email trigger or show an
-explicit operator warning.
+When an operator triggers score emails from cadmin, CMP sends the current
+homework or project submissions as `members` on the same recipient-list
+transactional request. Datamailer reconciles the list from that snapshot before
+sending, so CMP does not need a separate list-count preflight for score
+publication.
 
 ## Idempotency Keys
 
@@ -449,8 +516,8 @@ Recommended keys:
 ```text
 homework-submission:{submission_id}:{submitted_at_iso}
 project-submission:{submission_id}:{submitted_at_iso}
-homework-score:{homework_id}:{submission_id}
-project-score:{project_id}:{submission_id}
+homework-score:{course_slug}:{homework_slug}
+project-score:{course_slug}:{project_slug}
 certificate-available:{enrollment_id}
 deadline-reminder:homework:{homework_id}:24h
 deadline-reminder:project:{project_id}:7d
@@ -458,11 +525,12 @@ deadline-reminder:project:{project_id}:24h
 deadline-reminder:peer-review:{project_id}:24h
 ```
 
-Deadline reminders use recipient-list transactional sends. CMP sends the base
-event key above and Datamailer appends the recipient-list member
-`source_object_key`, such as `enrollment:{enrollment_id}` or
-`project-submission:{submission_id}`, when creating each learner's
-transactional idempotency key.
+Score publication and deadline reminders use recipient-list transactional
+sends. CMP sends the base event key above and Datamailer appends the
+recipient-list member `source_object_key`, such as
+`homework-submission:{submission_id}`, `project-submission:{submission_id}`,
+or `enrollment:{enrollment_id}`, when creating each learner's transactional
+idempotency key.
 
 Deadline reminder keys should not include the command timestamp. The command
 can run repeatedly without sending duplicates.

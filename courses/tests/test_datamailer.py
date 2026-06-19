@@ -744,6 +744,24 @@ class DatamailerClientTest(TestCase):
             title="Homework 1",
             due_date="2026-01-01T00:00:00Z",
         )
+        user = CustomUser.objects.create_user(
+            username="learner@example.com",
+            email="learner@example.com",
+            password="test",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        submission = Submission.objects.create(
+            homework=homework,
+            student=user,
+            enrollment=enrollment,
+            questions_score=6,
+            learning_in_public_score=2,
+            faq_score=1,
+            total_score=9,
+        )
 
         list_key, payload = homework_score_notification_payload(
             homework
@@ -765,6 +783,25 @@ class DatamailerClientTest(TestCase):
             payload["context"]["scores_url"],
             "https://courses.example.com/ml-zoomcamp-2026/",
         )
+        self.assertEqual(payload["member_sync"], "reconcile")
+        self.assertTrue(payload["remove_absent_members"])
+        self.assertEqual(
+            payload["list"]["type"],
+            "homework_submitters",
+        )
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(
+            member["source_object_key"],
+            f"homework-submission:{submission.pk}",
+        )
+        self.assertEqual(member["email"], "learner@example.com")
+        self.assertEqual(member["metadata"]["questions_score"], 6)
+        self.assertEqual(
+            member["metadata"]["learning_in_public_score"], 2
+        )
+        self.assertEqual(member["metadata"]["faq_score"], 1)
+        self.assertEqual(member["metadata"]["total_score"], 9)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -816,6 +853,30 @@ class DatamailerClientTest(TestCase):
             submission_due_date="2026-01-01T00:00:00Z",
             peer_review_due_date="2026-01-08T00:00:00Z",
         )
+        user = CustomUser.objects.create_user(
+            username="project-learner@example.com",
+            email="project-learner@example.com",
+            password="test",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/project",
+            commit_id="abc123",
+            project_score=70,
+            project_learning_in_public_score=5,
+            project_faq_score=1,
+            peer_review_score=18,
+            peer_review_learning_in_public_score=4,
+            total_score=98,
+            reviewed_enough_peers=True,
+            passed=True,
+        )
 
         list_key, payload = project_score_notification_payload(project)
 
@@ -833,6 +894,30 @@ class DatamailerClientTest(TestCase):
             payload["context"]["scores_url"],
             "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
         )
+        self.assertEqual(payload["member_sync"], "reconcile")
+        self.assertTrue(payload["remove_absent_members"])
+        self.assertEqual(payload["list"]["type"], "project_submitters")
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(
+            member["source_object_key"],
+            f"project-submission:{submission.pk}",
+        )
+        self.assertEqual(member["email"], "project-learner@example.com")
+        self.assertEqual(member["metadata"]["project_score"], 70)
+        self.assertEqual(
+            member["metadata"]["project_learning_in_public_score"],
+            5,
+        )
+        self.assertEqual(member["metadata"]["project_faq_score"], 1)
+        self.assertEqual(member["metadata"]["peer_review_score"], 18)
+        self.assertEqual(
+            member["metadata"]["peer_review_learning_in_public_score"],
+            4,
+        )
+        self.assertEqual(member["metadata"]["total_score"], 98)
+        self.assertTrue(member["metadata"]["reviewed_enough_peers"])
+        self.assertTrue(member["metadata"]["passed"])
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(

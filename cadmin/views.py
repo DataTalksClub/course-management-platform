@@ -629,7 +629,6 @@ def project_assign_reviews(request, course_slug, project_slug):
 
     if status == ProjectActionStatus.OK:
         messages.success(request, message)
-        send_project_score_notification(project)
     else:
         messages.warning(request, message)
 

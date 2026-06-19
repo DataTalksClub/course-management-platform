@@ -416,6 +416,10 @@ def homework_submission_recipient_list_payload(
         "submitted_at": submission.submitted_at.isoformat()
         if submission.submitted_at
         else "",
+        "questions_score": submission.questions_score,
+        "learning_in_public_score": submission.learning_in_public_score,
+        "faq_score": submission.faq_score,
+        "total_score": submission.total_score,
     }
     payload = recipient_list_member_payload(
         list_type="homework_submitters",
@@ -448,6 +452,18 @@ def project_submission_recipient_list_payload(
         "submitted_at": submission.submitted_at.isoformat()
         if submission.submitted_at
         else "",
+        "project_score": submission.project_score,
+        "project_learning_in_public_score": (
+            submission.project_learning_in_public_score
+        ),
+        "project_faq_score": submission.project_faq_score,
+        "peer_review_score": submission.peer_review_score,
+        "peer_review_learning_in_public_score": (
+            submission.peer_review_learning_in_public_score
+        ),
+        "total_score": submission.total_score,
+        "reviewed_enough_peers": submission.reviewed_enough_peers,
+        "passed": submission.passed,
     }
     payload = recipient_list_member_payload(
         list_type="project_submitters",
@@ -600,6 +616,77 @@ def sync_project_submission_to_datamailer(submission) -> None:
             raise
 
 
+def recipient_list_send_member_payload(
+    source_object_key: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    member = payload["member"]
+    return {
+        "source_object_key": source_object_key,
+        "email": member["email"],
+        "status": member["status"],
+        "metadata": member["metadata"],
+    }
+
+
+def homework_score_notification_members(
+    homework,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    list_data = {
+        "type": "homework_submitters",
+        "name": f"{homework.course.title} {homework.title} submitters",
+        "metadata": {
+            "course_slug": homework.course.slug,
+            "homework_slug": homework.slug,
+        },
+    }
+    members = []
+    submissions = homework.submission_set.select_related(
+        "student", "homework__course"
+    ).order_by("id")
+    for submission in submissions:
+        item = homework_submission_recipient_list_payload(submission)
+        if item is None:
+            continue
+        _, source_object_key, member_payload = item
+        list_data = member_payload["list"]
+        members.append(
+            recipient_list_send_member_payload(
+                source_object_key, member_payload
+            )
+        )
+    return list_data, members
+
+
+def project_score_notification_members(
+    project,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    list_data = {
+        "type": "project_submitters",
+        "name": f"{project.course.title} {project.title} submitters",
+        "metadata": {
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+        },
+    }
+    members = []
+    submissions = project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("id")
+    for submission in submissions:
+        item = project_submission_recipient_list_payload(submission)
+        if item is None:
+            continue
+        _, source_object_key, member_payload = item
+        list_data = member_payload["list"]
+        members.append(
+            recipient_list_send_member_payload(
+                source_object_key, member_payload
+            )
+        )
+    return list_data, members
+
+
 def homework_score_notification_payload(
     homework,
 ) -> tuple[str, dict[str, Any]] | None:
@@ -611,6 +698,7 @@ def homework_score_notification_payload(
 
     course = homework.course
     list_key = homework_submitters_list_key(homework)
+    list_data, members = homework_score_notification_members(homework)
     course_url = public_url(
         reverse("course", kwargs={"course_slug": course.slug})
     )
@@ -628,6 +716,10 @@ def homework_score_notification_payload(
             "course_url": course_url,
             "scores_url": course_url,
         },
+        "list": list_data,
+        "members": members,
+        "member_sync": "reconcile",
+        "remove_absent_members": True,
         "metadata": {
             "source": "course-management-platform",
             "event": "homework_score_publication",
@@ -652,6 +744,7 @@ def project_score_notification_payload(
 
     course = project.course
     list_key = project_submitters_list_key(project)
+    list_data, members = project_score_notification_members(project)
     project_url = public_url(
         reverse(
             "project",
@@ -675,6 +768,10 @@ def project_score_notification_payload(
             "project_url": project_url,
             "scores_url": project_url,
         },
+        "list": list_data,
+        "members": members,
+        "member_sync": "reconcile",
+        "remove_absent_members": True,
         "metadata": {
             "source": "course-management-platform",
             "event": "project_score_publication",
