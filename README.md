@@ -236,7 +236,9 @@ If `SCHEDULER_ROLE_ARN` is omitted, the helper creates or updates a
 purpose-specific IAM role named
 `course-management-<env>-deadline-reminders-scheduler` with permission to run
 the current CMP ECS task definition. Pass `SCHEDULER_ROLE_ARN` only when using
-an existing Scheduler role.
+an existing Scheduler role. Auto-creating the role requires the AWS principal
+running the helper to have IAM permissions such as `iam:CreateRole`,
+`iam:GetRole`, and `iam:PutRolePolicy` for that role.
 
 The same helper can be run from CI with the `Configure Deadline Reminders`
 GitHub Actions workflow. Pass the schedule expression in the workflow dispatch

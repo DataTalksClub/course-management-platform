@@ -41,10 +41,15 @@ ensure_scheduler_role() {
         --role-name "${SCHEDULER_ROLE_NAME}" 2>/dev/null); then
         echo "Using existing scheduler role ${SCHEDULER_ROLE_NAME}"
     else
-        ROLE_JSON=$(aws iam create-role \
+        if ! ROLE_JSON=$(aws iam create-role \
             --region "${AWS_REGION}" \
             --role-name "${SCHEDULER_ROLE_NAME}" \
-            --assume-role-policy-document "${TRUST_POLICY}")
+            --assume-role-policy-document "${TRUST_POLICY}" 2>&1); then
+            echo "Error: could not create scheduler role ${SCHEDULER_ROLE_NAME}." >&2
+            echo "Pass SCHEDULER_ROLE_ARN for an existing role, or grant this AWS principal iam:CreateRole and iam:PutRolePolicy for the scheduler role." >&2
+            echo "${ROLE_JSON}" >&2
+            exit 1
+        fi
         ROLE_CREATED=1
         echo "Created scheduler role ${SCHEDULER_ROLE_NAME}"
     fi
