@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, time, timedelta, timezone as datetime_timezone
 from typing import Any
 
 import requests
@@ -52,9 +52,20 @@ def aware_now(value: str):
     return parsed
 
 
-def is_due_within(deadline, now, *, max_delta, min_delta=timedelta(0)):
-    remaining = deadline - now
-    return min_delta < remaining <= max_delta
+def utc_day_window(now, *, days_ahead):
+    now_utc = now.astimezone(datetime_timezone.utc)
+    target_date = (now_utc + timedelta(days=days_ahead)).date()
+    start = datetime.combine(
+        target_date,
+        time.min,
+        tzinfo=datetime_timezone.utc,
+    )
+    return start, start + timedelta(days=1)
+
+
+def is_within_window(value, start, end):
+    value_utc = value.astimezone(datetime_timezone.utc)
+    return start <= value_utc < end
 
 
 def member_from_enrollment(enrollment, metadata):
@@ -160,10 +171,11 @@ def base_context(
 
 def homework_events(config, now, course_slug):
     events = []
+    reminder_start, reminder_end = utc_day_window(now, days_ahead=1)
     queryset = Homework.objects.select_related("course").filter(
         state=HomeworkState.OPEN.value,
-        due_date__gt=now,
-        due_date__lte=now + timedelta(hours=24),
+        due_date__gte=reminder_start,
+        due_date__lt=reminder_end,
     )
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
@@ -260,19 +272,28 @@ def homework_events(config, now, course_slug):
 
 def project_submission_events(config, now, course_slug):
     events = []
+    daily_start, daily_end = utc_day_window(now, days_ahead=1)
+    weekly_start, weekly_end = utc_day_window(now, days_ahead=8)
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.COLLECTING_SUBMISSIONS.value,
-        submission_due_date__gt=now,
-        submission_due_date__lte=now + timedelta(days=7),
+    ).filter(
+        Q(
+            submission_due_date__gte=daily_start,
+            submission_due_date__lt=daily_end,
+        )
+        | Q(
+            submission_due_date__gte=weekly_start,
+            submission_due_date__lt=weekly_end,
+        )
     )
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
 
     for project in queryset.order_by("submission_due_date", "pk"):
-        if is_due_within(
+        if is_within_window(
             project.submission_due_date,
-            now,
-            max_delta=timedelta(hours=24),
+            daily_start,
+            daily_end,
         ):
             reminder_key = "24h"
         else:
@@ -373,10 +394,11 @@ def project_submission_events(config, now, course_slug):
 
 def peer_review_events(config, now, course_slug):
     events = []
+    reminder_start, reminder_end = utc_day_window(now, days_ahead=1)
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.PEER_REVIEWING.value,
-        peer_review_due_date__gt=now,
-        peer_review_due_date__lte=now + timedelta(hours=24),
+        peer_review_due_date__gte=reminder_start,
+        peer_review_due_date__lt=reminder_end,
     )
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)

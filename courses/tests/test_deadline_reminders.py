@@ -1,10 +1,9 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as datetime_timezone
 from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase, override_settings
-from django.utils import timezone
 
 from accounts.models import CustomUser
 from courses.models import (
@@ -29,6 +28,9 @@ DATAMAILER_SETTINGS = {
 
 
 class DeadlineReminderCommandTest(TestCase):
+    def reminder_run_time(self):
+        return datetime(2026, 6, 16, 9, tzinfo=datetime_timezone.utc)
+
     def create_user(self, username, email, *, reminders=True):
         user = CustomUser.objects.create_user(
             username=username,
@@ -57,7 +59,7 @@ class DeadlineReminderCommandTest(TestCase):
         reconcile,
         send_list,
     ):
-        now = timezone.now()
+        now = self.reminder_run_time()
         send_list.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -68,7 +70,7 @@ class DeadlineReminderCommandTest(TestCase):
             course=course,
             slug="homework-1",
             title="Homework 1",
-            due_date=now + timedelta(hours=23),
+            due_date=now + timedelta(days=1, hours=14),
         )
         eligible_user = self.create_user(
             "eligible",
@@ -157,7 +159,7 @@ class DeadlineReminderCommandTest(TestCase):
         reconcile,
         send_list,
     ):
-        now = timezone.now()
+        now = self.reminder_run_time()
         send_list.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -170,7 +172,7 @@ class DeadlineReminderCommandTest(TestCase):
             course=course,
             slug="project-week",
             title="Project Week",
-            submission_due_date=now + timedelta(days=6),
+            submission_due_date=now + timedelta(days=8, hours=2),
             peer_review_due_date=now + timedelta(days=10),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
@@ -178,7 +180,7 @@ class DeadlineReminderCommandTest(TestCase):
             course=course,
             slug="project-day",
             title="Project Day",
-            submission_due_date=now + timedelta(hours=20),
+            submission_due_date=now + timedelta(days=1, hours=14),
             peer_review_due_date=now + timedelta(days=10),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
@@ -224,7 +226,7 @@ class DeadlineReminderCommandTest(TestCase):
         reconcile,
         send_list,
     ):
-        now = timezone.now()
+        now = self.reminder_run_time()
         send_list.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -243,7 +245,7 @@ class DeadlineReminderCommandTest(TestCase):
             slug="project-1",
             title="Project 1",
             submission_due_date=now - timedelta(days=1),
-            peer_review_due_date=now + timedelta(hours=20),
+            peer_review_due_date=now + timedelta(days=1, hours=14),
             state=ProjectState.PEER_REVIEWING.value,
         )
         reviewer_submission = ProjectSubmission.objects.create(
@@ -309,7 +311,7 @@ class DeadlineReminderCommandTest(TestCase):
         reconcile,
         send_list,
     ):
-        now = timezone.now()
+        now = self.reminder_run_time()
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -321,7 +323,7 @@ class DeadlineReminderCommandTest(TestCase):
             course=course,
             slug="homework-1",
             title="Homework 1",
-            due_date=now + timedelta(hours=23),
+            due_date=now + timedelta(days=1, hours=14),
         )
 
         out = StringIO()
