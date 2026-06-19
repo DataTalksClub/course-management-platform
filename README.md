@@ -243,7 +243,9 @@ running the helper to have IAM permissions such as `iam:CreateRole`,
 The same helper can be run from CI with the `Configure Deadline Reminders`
 GitHub Actions workflow. Pass the schedule expression in the workflow dispatch
 form; optionally pass a scheduler role ARN to reuse an existing role. The
-workflow uses the same AWS credentials as the dev deployment.
+workflow uses the same AWS credentials as the dev deployment. The exact IAM
+permissions needed for the workflow are documented in
+[`docs/deadline-reminder-scheduler-iam.md`](docs/deadline-reminder-scheduler-iam.md).
 
 The scheduled task exits after reconciling Datamailer recipient lists and
 triggering Datamailer list sends. Datamailer handles per-recipient delivery

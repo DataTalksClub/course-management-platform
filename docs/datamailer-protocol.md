@@ -566,11 +566,12 @@ The command is:
 $ uv run python manage.py send_deadline_reminders
 ```
 
-In production, EventBridge should run a one-off ECS task with the CMP image.
-The scheduler should not scan CMP tables or wait for email delivery. The CMP
-command reconciles current Datamailer recipient lists for each active reminder,
-triggers one recipient-list transactional send per reminder event, then exits.
-Datamailer handles the slower per-recipient email work through SQS and workers.
+For deployed CMP environments, EventBridge should run a one-off ECS task with
+the CMP image. The scheduler should not scan CMP tables or wait for email
+delivery. The CMP command reconciles current Datamailer recipient lists for
+each active reminder, triggers one recipient-list transactional send per
+reminder event, then exits. Datamailer handles the slower per-recipient email
+work through SQS and workers.
 
 Use the deployment helper to create or update the EventBridge Scheduler entry:
 
@@ -591,6 +592,9 @@ The same helper is exposed as the `Configure Deadline Reminders` GitHub Actions
 workflow. Use workflow dispatch when configuring the schedule from CI/CD instead
 of a local shell; pass the schedule expression and, optionally, a scheduler role
 ARN as inputs.
+
+The exact IAM permissions and the existing-role alternative are documented in
+[`deadline-reminder-scheduler-iam.md`](deadline-reminder-scheduler-iam.md).
 
 The script derives the ECS task definition, container name, and network
 configuration from the existing CMP ECS service, then overrides the container
