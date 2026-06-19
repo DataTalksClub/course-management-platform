@@ -118,10 +118,7 @@ if [ "${SERVICE_STATUS}" != "ACTIVE" ]; then
     exit 1
 fi
 
-CLUSTER_ARN=$(aws ecs describe-clusters \
-    --region "${AWS_REGION}" \
-    --clusters "${CLUSTER}" \
-    | jq -r '.clusters[0].clusterArn')
+CLUSTER_ARN=$(echo "${SERVICE_JSON}" | jq -r '.services[0].clusterArn')
 TASK_DEFINITION_ARN=$(echo "${SERVICE_JSON}" | jq -r '.services[0].taskDefinition')
 TASK_DEFINITION_JSON=$(aws ecs describe-task-definition \
     --region "${AWS_REGION}" \
