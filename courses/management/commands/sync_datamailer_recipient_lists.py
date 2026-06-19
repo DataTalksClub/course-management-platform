@@ -6,12 +6,14 @@ from django.core.management.base import BaseCommand, CommandError
 from course_management.datamailer import (
     DatamailerClient,
     DatamailerConfig,
+    enrollment_recipient_list_payload,
     homework_submission_recipient_list_payload,
     project_submission_recipient_list_payload,
     registration_recipient_list_payload,
 )
 from courses.models import (
     CourseRegistration,
+    Enrollment,
     ProjectSubmission,
     Submission,
 )
@@ -42,6 +44,16 @@ def add_member_to_batches(
 def registration_queryset(course_slug):
     queryset = CourseRegistration.objects.select_related(
         "campaign", "course", "user"
+    ).order_by("pk")
+    if course_slug:
+        queryset = queryset.filter(course__slug=course_slug)
+    return queryset
+
+
+def enrollment_queryset(course_slug):
+    queryset = Enrollment.objects.select_related(
+        "student",
+        "course",
     ).order_by("pk")
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
@@ -90,6 +102,17 @@ def build_batches(
             )
         return batches
 
+    if kind == "enrollments":
+        for enrollment in enrollment_queryset(course_slug):
+            item = enrollment_recipient_list_payload(enrollment)
+            if item is None:
+                continue
+            list_key, source_object_key, payload = item
+            add_member_to_batches(
+                batches, list_key, source_object_key, payload
+            )
+        return batches
+
     if kind == "homework":
         for submission in homework_submission_queryset(
             course_slug, homework_slug
@@ -122,12 +145,17 @@ def build_batches(
 
 
 class Command(BaseCommand):
-    help = "Backfill Datamailer recipient lists from CMP registrations and submissions."
+    help = "Backfill Datamailer recipient lists from CMP registrations, enrollments, and submissions."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "kind",
-            choices=["registrations", "homework", "project"],
+            choices=[
+                "registrations",
+                "enrollments",
+                "homework",
+                "project",
+            ],
             help="CMP source to sync into Datamailer recipient lists.",
         )
         parser.add_argument(

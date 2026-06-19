@@ -243,8 +243,12 @@ def contact_payload_for_user(
 
 def registration_list_key(registration) -> str:
     if registration.course_id:
-        return f"registrants:{registration.course.slug}"
-    return f"registrants:{registration.campaign.slug}"
+        return f"course-registrants:{registration.course.slug}"
+    return f"course-registrants:{registration.campaign.slug}"
+
+
+def course_enrolled_list_key(course) -> str:
+    return f"course-enrolled:{course.slug}"
 
 
 def homework_submitters_list_key(homework) -> str:
@@ -365,6 +369,34 @@ def registration_recipient_list_payload(
     return list_key, source_object_key, payload
 
 
+def enrollment_recipient_list_payload(
+    enrollment,
+) -> tuple[str, str, dict[str, Any]] | None:
+    email = (enrollment.student.email or "").strip().lower()
+    if not email:
+        return None
+
+    course = enrollment.course
+    list_key = course_enrolled_list_key(course)
+    source_object_key = f"user:{enrollment.student_id}"
+    metadata = {
+        "enrollment_id": enrollment.pk,
+        "user_id": enrollment.student_id,
+        "course_slug": course.slug,
+        "display_name": enrollment.display_name,
+    }
+    payload = recipient_list_member_payload(
+        list_type="custom",
+        list_name=f"{course.title} enrolled learners",
+        email=email,
+        source_object_key=source_object_key,
+        metadata=metadata,
+    )
+    if payload is None:
+        return None
+    return list_key, source_object_key, payload
+
+
 def homework_submission_recipient_list_payload(
     submission,
 ) -> tuple[str, str, dict[str, Any]] | None:
@@ -474,6 +506,35 @@ def sync_registration_to_datamailer(registration) -> None:
         logger.exception(
             "Datamailer registration sync failed for registration_id=%s",
             registration.pk,
+        )
+        if config.strict:
+            raise
+
+
+def sync_enrollment_to_datamailer(enrollment) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    contact_payload = contact_payload_for_user(
+        enrollment.student,
+        course=enrollment.course,
+    )
+    list_payload = enrollment_recipient_list_payload(enrollment)
+    if contact_payload is None or list_payload is None:
+        return
+
+    client = DatamailerClient(config)
+    try:
+        client.upsert_contact(contact_payload)
+        list_key, source_object_key, payload = list_payload
+        client.upsert_recipient_list_member(
+            list_key, source_object_key, payload
+        )
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer enrollment sync failed for enrollment_id=%s",
+            enrollment.pk,
         )
         if config.strict:
             raise

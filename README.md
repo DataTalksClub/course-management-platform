@@ -218,6 +218,25 @@ instead of `localhost` links.
 export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
 ```
 
+Deadline reminder emails are triggered by a short CMP management command:
+
+```bash
+uv run python manage.py send_deadline_reminders
+```
+
+For deployed environments, schedule it as an EventBridge Scheduler one-off ECS
+task using the current CMP task definition:
+
+```bash
+SCHEDULER_ROLE_ARN="arn:aws:iam::<account-id>:role/<scheduler-run-task-role>" \
+SCHEDULE_EXPRESSION="rate(1 hour)" \
+bash deploy/schedule_deadline_reminders.sh dev
+```
+
+The scheduled task exits after reconciling Datamailer recipient lists and
+triggering Datamailer list sends. Datamailer handles per-recipient delivery
+asynchronously.
+
 Datamailer transactional template keys are stable code-level constants in CMP.
 Don't configure one environment variable per template.
 

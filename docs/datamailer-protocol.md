@@ -37,14 +37,15 @@ The current CMP integration has:
 - Datamailer homework submission confirmation emails.
 - Datamailer contact status and history lookups.
 - Parallel Datamailer sync for course registrations.
-- Datamailer recipient-list member sync for course registrations, homework
-  submitters, and project submitters.
+- Datamailer recipient-list member sync for course registrations, course
+  enrollments, homework submitters, and project submitters.
 - Datamailer recipient-list sends for homework and project score
   notifications.
 - Datamailer project submission confirmation emails.
 - Datamailer certificate availability emails.
 - Datamailer deadline reminder command using recipient-list sends.
-- Datamailer callbacks to CMP for hard bounces, complaints, and unsubscribes.
+- Datamailer callbacks to CMP for hard bounces, complaints, unsubscribes,
+  resubscribes, transactional skips, and transactional failures.
 - CMP backfill command for Datamailer recipient lists.
 - Mailchimp sync for course registrations.
 
@@ -312,7 +313,7 @@ client already scopes ownership.
 Recommended list keys:
 
 ```text
-registrants:{course_slug}
+course-registrants:{course_slug}
 course-enrolled:{course_slug}
 homework-submitters:{course_slug}:{homework_slug}
 project-submitters:{course_slug}:{project_slug}
@@ -357,9 +358,9 @@ Required uniqueness:
 (recipient_list, contact)
 ```
 
-CMP maintains registration, homework submitter, and project submitter lists
-after local commits. The first member upsert creates the parent list if it does
-not exist, so CMP never has to check before adding a member.
+CMP maintains registration, enrollment, homework submitter, and project
+submitter lists after local commits. The first member upsert creates the parent
+list if it does not exist, so CMP never has to check before adding a member.
 
 ```text
 PUT /api/recipient-lists/{key}/members/{source_object_key}
@@ -426,6 +427,7 @@ CMP exposes this management command for retroactive list creation:
 
 ```console
 $ uv run python manage.py sync_datamailer_recipient_lists registrations --course-slug ml-zoomcamp-2026
+$ uv run python manage.py sync_datamailer_recipient_lists enrollments --course-slug ml-zoomcamp-2026
 $ uv run python manage.py sync_datamailer_recipient_lists homework --course-slug ml-zoomcamp-2026 --homework-slug homework-1
 $ uv run python manage.py sync_datamailer_recipient_lists project --course-slug ml-zoomcamp-2026 --project-slug midterm-project
 $ uv run python manage.py sync_datamailer_recipient_lists homework --course-slug ml-zoomcamp-2026 --reconcile
@@ -493,6 +495,26 @@ The scheduler should not scan CMP tables or wait for email delivery. The CMP
 command reconciles current Datamailer recipient lists for each active reminder,
 triggers one recipient-list transactional send per reminder event, then exits.
 Datamailer handles the slower per-recipient email work through SQS and workers.
+
+Use the deployment helper to create or update the EventBridge Scheduler entry:
+
+```console
+$ SCHEDULER_ROLE_ARN=arn:aws:iam::<account-id>:role/<scheduler-run-task-role> \
+  SCHEDULE_EXPRESSION="rate(1 hour)" \
+  bash deploy/schedule_deadline_reminders.sh dev
+```
+
+The script derives the ECS task definition, container name, and network
+configuration from the existing CMP ECS service, then overrides the container
+command with:
+
+```console
+$ python manage.py send_deadline_reminders
+```
+
+The scheduler role must trust `scheduler.amazonaws.com` and be allowed to call
+`ecs:RunTask` for the CMP task definition plus `iam:PassRole` for the task
+execution/task roles.
 
 ```mermaid
 sequenceDiagram
@@ -620,12 +642,17 @@ Implemented event types:
 contact.hard_bounced
 contact.complained
 subscription.unsubscribed
+subscription.resubscribed
+transactional.skipped
+transactional.failed
 ```
 
 Hard bounces and complaints are deliverability state, not user preference
-changes. CMP can store them for support and debugging. For unsubscribe events,
-CMP should update a CMP preference only when Datamailer sends enough metadata
-to map the unsubscribe to a CMP preference category. The implemented webhook
+changes. Transactional skipped and failed events are delivery audit state.
+CMP can store them for support and debugging. For unsubscribe events, CMP
+should update a CMP preference only when Datamailer sends enough metadata to
+map the unsubscribe to a CMP preference category. Resubscribe events are stored
+but do not automatically re-enable a CMP preference. The implemented webhook
 accepts these `preference_key` values:
 
 ```text

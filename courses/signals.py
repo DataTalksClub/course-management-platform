@@ -4,7 +4,10 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from accounts.models import CustomUser
-from course_management.datamailer import sync_contact
+from course_management.datamailer import (
+    sync_contact,
+    sync_enrollment_to_datamailer as sync_enrollment_recipient_list,
+)
 from courses.models import Enrollment
 
 
@@ -25,5 +28,5 @@ def sync_enrollment_to_datamailer(sender, instance, created, **kwargs):
         return
 
     transaction.on_commit(
-        lambda: sync_contact(instance.student, course=instance.course)
+        lambda: sync_enrollment_recipient_list(instance)
     )

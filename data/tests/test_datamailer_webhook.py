@@ -116,3 +116,70 @@ class DatamailerWebhookTest(TestCase):
         user.refresh_from_db()
         self.assertTrue(user.email_course_updates)
         self.assertEqual(DatamailerContactEvent.objects.count(), 1)
+
+    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    def test_webhook_records_transactional_failure_event(self):
+        response = self.post_event(
+            {
+                "event_id": "evt-tx-failed-1",
+                "event_type": "transactional.failed",
+                "email": "student@example.com",
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "metadata": {
+                    "transactional_message_id": 123,
+                    "reason": "ses_permanent_failure",
+                },
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = DatamailerContactEvent.objects.get()
+        self.assertEqual(event.event_type, "transactional.failed")
+        self.assertEqual(
+            event.payload["metadata"]["transactional_message_id"],
+            123,
+        )
+
+    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    def test_webhook_records_transactional_skipped_event(self):
+        response = self.post_event(
+            {
+                "event_id": "evt-tx-skipped-1",
+                "event_type": "transactional.skipped",
+                "email": "student@example.com",
+                "metadata": {"reason": "hard_bounce"},
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            DatamailerContactEvent.objects.get().event_type,
+            "transactional.skipped",
+        )
+
+    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    def test_webhook_records_resubscribe_without_preference_change(
+        self,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+            password="password",
+        )
+        user.email_course_updates = False
+        user.save(update_fields=["email_course_updates"])
+
+        response = self.post_event(
+            {
+                "event_id": "evt-resub-1",
+                "event_type": "subscription.resubscribed",
+                "email": "student@example.com",
+                "preference_key": "email_course_updates",
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["preference_updated"])
+        user.refresh_from_db()
+        self.assertFalse(user.email_course_updates)

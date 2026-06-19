@@ -14,6 +14,9 @@ SUPPORTED_EVENT_TYPES = {
     "contact.hard_bounced",
     "contact.complained",
     "subscription.unsubscribed",
+    "subscription.resubscribed",
+    "transactional.skipped",
+    "transactional.failed",
 }
 PREFERENCE_FIELDS = {
     "email_submission_confirmations",
