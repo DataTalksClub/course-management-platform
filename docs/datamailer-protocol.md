@@ -504,6 +504,10 @@ $ SCHEDULER_ROLE_ARN=arn:aws:iam::<account-id>:role/<scheduler-run-task-role> \
   bash deploy/schedule_deadline_reminders.sh dev
 ```
 
+The same helper is exposed as the `Configure Deadline Reminders` GitHub Actions
+workflow. Use workflow dispatch when configuring the schedule from CI/CD instead
+of a local shell; pass the scheduler role ARN and schedule expression as inputs.
+
 The script derives the ECS task definition, container name, and network
 configuration from the existing CMP ECS service, then overrides the container
 command with:

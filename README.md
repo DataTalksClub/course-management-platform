@@ -233,6 +233,11 @@ SCHEDULE_EXPRESSION="rate(1 hour)" \
 bash deploy/schedule_deadline_reminders.sh dev
 ```
 
+The same helper can be run from CI with the `Configure Deadline Reminders`
+GitHub Actions workflow. Pass the scheduler role ARN and schedule expression in
+the workflow dispatch form; the workflow uses the same AWS credentials as the
+dev deployment.
+
 The scheduled task exits after reconciling Datamailer recipient lists and
 triggering Datamailer list sends. Datamailer handles per-recipient delivery
 asynchronously.
