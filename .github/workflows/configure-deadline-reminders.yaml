@@ -11,8 +11,8 @@ on:
         options:
           - dev
       scheduler_role_arn:
-        description: "IAM role ARN trusted by scheduler.amazonaws.com"
-        required: true
+        description: "Optional IAM role ARN trusted by scheduler.amazonaws.com"
+        required: false
         type: string
       schedule_expression:
         description: "EventBridge schedule expression"

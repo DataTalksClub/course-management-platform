@@ -575,14 +575,20 @@ Datamailer handles the slower per-recipient email work through SQS and workers.
 Use the deployment helper to create or update the EventBridge Scheduler entry:
 
 ```console
-$ SCHEDULER_ROLE_ARN=arn:aws:iam::<account-id>:role/<scheduler-run-task-role> \
-  SCHEDULE_EXPRESSION="rate(1 hour)" \
+$ SCHEDULE_EXPRESSION="rate(1 hour)" \
   bash deploy/schedule_deadline_reminders.sh dev
 ```
 
+If `SCHEDULER_ROLE_ARN` is omitted, the helper creates or updates
+`course-management-<env>-deadline-reminders-scheduler`, an IAM role trusted by
+`scheduler.amazonaws.com` with permission to run the current CMP ECS task
+definition and pass the task roles. Set `SCHEDULER_ROLE_ARN` only when an
+existing Scheduler role should be reused.
+
 The same helper is exposed as the `Configure Deadline Reminders` GitHub Actions
 workflow. Use workflow dispatch when configuring the schedule from CI/CD instead
-of a local shell; pass the scheduler role ARN and schedule expression as inputs.
+of a local shell; pass the schedule expression and, optionally, a scheduler role
+ARN as inputs.
 
 The script derives the ECS task definition, container name, and network
 configuration from the existing CMP ECS service, then overrides the container

@@ -228,15 +228,20 @@ For deployed environments, schedule it as an EventBridge Scheduler one-off ECS
 task using the current CMP task definition:
 
 ```bash
-SCHEDULER_ROLE_ARN="arn:aws:iam::<account-id>:role/<scheduler-run-task-role>" \
 SCHEDULE_EXPRESSION="rate(1 hour)" \
 bash deploy/schedule_deadline_reminders.sh dev
 ```
 
+If `SCHEDULER_ROLE_ARN` is omitted, the helper creates or updates a
+purpose-specific IAM role named
+`course-management-<env>-deadline-reminders-scheduler` with permission to run
+the current CMP ECS task definition. Pass `SCHEDULER_ROLE_ARN` only when using
+an existing Scheduler role.
+
 The same helper can be run from CI with the `Configure Deadline Reminders`
-GitHub Actions workflow. Pass the scheduler role ARN and schedule expression in
-the workflow dispatch form; the workflow uses the same AWS credentials as the
-dev deployment.
+GitHub Actions workflow. Pass the schedule expression in the workflow dispatch
+form; optionally pass a scheduler role ARN to reuse an existing role. The
+workflow uses the same AWS credentials as the dev deployment.
 
 The scheduled task exits after reconciling Datamailer recipient lists and
 triggering Datamailer list sends. Datamailer handles per-recipient delivery

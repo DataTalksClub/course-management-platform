@@ -11,17 +11,101 @@ AWS_REGION=${AWS_REGION:-eu-west-1}
 CLUSTER=${CLUSTER:-course-management-cluster}
 SERVICE=${SERVICE:-course-management-${ENV}}
 TASK_COUNT=${TASK_COUNT:-1}
-
-if [ -z "${SCHEDULER_ROLE_ARN:-}" ]; then
-    echo "Error: SCHEDULER_ROLE_ARN is required." >&2
-    echo "It must allow scheduler.amazonaws.com to run the CMP ECS task." >&2
-    exit 1
-fi
+SCHEDULER_ROLE_NAME=${SCHEDULER_ROLE_NAME:-course-management-${ENV}-deadline-reminders-scheduler}
+SCHEDULER_ROLE_POLICY_NAME=${SCHEDULER_ROLE_POLICY_NAME:-RunCmpDeadlineReminderTask}
 
 if ! command -v jq >/dev/null 2>&1; then
     echo "Error: jq is required." >&2
     exit 1
 fi
+
+ensure_scheduler_role() {
+    if [ -n "${SCHEDULER_ROLE_ARN:-}" ]; then
+        return
+    fi
+
+    TRUST_POLICY=$(jq -n -c '{
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: {Service: "scheduler.amazonaws.com"},
+          Action: "sts:AssumeRole"
+        }
+      ]
+    }')
+
+    ROLE_CREATED=0
+    if ROLE_JSON=$(aws iam get-role \
+        --region "${AWS_REGION}" \
+        --role-name "${SCHEDULER_ROLE_NAME}" 2>/dev/null); then
+        echo "Using existing scheduler role ${SCHEDULER_ROLE_NAME}"
+    else
+        ROLE_JSON=$(aws iam create-role \
+            --region "${AWS_REGION}" \
+            --role-name "${SCHEDULER_ROLE_NAME}" \
+            --assume-role-policy-document "${TRUST_POLICY}")
+        ROLE_CREATED=1
+        echo "Created scheduler role ${SCHEDULER_ROLE_NAME}"
+    fi
+
+    SCHEDULER_ROLE_ARN=$(echo "${ROLE_JSON}" | jq -r '.Role.Arn')
+    PASS_ROLE_ARNS=$(jq -n -c \
+        --arg taskRoleArn "${TASK_ROLE_ARN}" \
+        --arg executionRoleArn "${EXECUTION_ROLE_ARN}" \
+        '[$taskRoleArn, $executionRoleArn] | map(select(. != "" and . != "null"))')
+    ROLE_POLICY=$(jq -n -c \
+        --arg taskDefinitionArn "${TASK_DEFINITION_ARN}" \
+        --arg clusterArn "${CLUSTER_ARN}" \
+        --argjson passRoleArns "${PASS_ROLE_ARNS}" \
+        '{
+          Version: "2012-10-17",
+          Statement: (
+            [
+              {
+                Effect: "Allow",
+                Action: "ecs:RunTask",
+                Resource: $taskDefinitionArn,
+                Condition: {
+                  ArnEquals: {
+                    "ecs:cluster": $clusterArn
+                  }
+                }
+              }
+            ] +
+            (
+              if ($passRoleArns | length) > 0 then
+                [
+                  {
+                    Effect: "Allow",
+                    Action: "iam:PassRole",
+                    Resource: $passRoleArns,
+                    Condition: {
+                      StringEquals: {
+                        "iam:PassedToService": "ecs-tasks.amazonaws.com"
+                      }
+                    }
+                  }
+                ]
+              else
+                []
+              end
+            )
+          )
+        }')
+
+    aws iam put-role-policy \
+        --region "${AWS_REGION}" \
+        --role-name "${SCHEDULER_ROLE_NAME}" \
+        --policy-name "${SCHEDULER_ROLE_POLICY_NAME}" \
+        --policy-document "${ROLE_POLICY}" \
+        >/dev/null
+    echo "Updated scheduler role policy ${SCHEDULER_ROLE_POLICY_NAME}"
+
+    if [ "${ROLE_CREATED}" = "1" ]; then
+        sleep 10
+    fi
+}
 
 SERVICE_JSON=$(aws ecs describe-services \
     --region "${AWS_REGION}" \
@@ -39,10 +123,14 @@ CLUSTER_ARN=$(aws ecs describe-clusters \
     --clusters "${CLUSTER}" \
     | jq -r '.clusters[0].clusterArn')
 TASK_DEFINITION_ARN=$(echo "${SERVICE_JSON}" | jq -r '.services[0].taskDefinition')
-CONTAINER_NAME=$(aws ecs describe-task-definition \
+TASK_DEFINITION_JSON=$(aws ecs describe-task-definition \
     --region "${AWS_REGION}" \
-    --task-definition "${TASK_DEFINITION_ARN}" \
-    | jq -r '.taskDefinition.containerDefinitions[0].name')
+    --task-definition "${TASK_DEFINITION_ARN}")
+CONTAINER_NAME=$(echo "${TASK_DEFINITION_JSON}" | jq -r '.taskDefinition.containerDefinitions[0].name')
+TASK_ROLE_ARN=$(echo "${TASK_DEFINITION_JSON}" | jq -r '.taskDefinition.taskRoleArn // ""')
+EXECUTION_ROLE_ARN=$(echo "${TASK_DEFINITION_JSON}" | jq -r '.taskDefinition.executionRoleArn // ""')
+
+ensure_scheduler_role
 
 NETWORK_CONFIGURATION=$(echo "${SERVICE_JSON}" | jq -c '
   .services[0].networkConfiguration
