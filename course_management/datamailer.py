@@ -796,6 +796,8 @@ def certificate_availability_notification_payload(
     certificate_url = (enrollment.certificate_url or "").strip()
     if not email or not certificate_url:
         return None
+    if not getattr(enrollment.student, "email_course_updates", True):
+        return None
 
     from course_management import email_templates
 
@@ -823,21 +825,24 @@ def certificate_availability_notification_payload(
                 "Your course certificate is available to download."
             ),
             "intro_text": (
-                f"Your certificate for {course.title} is available."
+                f"Congratulations - your certificate for {course.title} "
+                "is available."
             ),
             "download_text": (
                 f"You can download your certificate here: "
                 f"{certificate_url}"
             ),
-            "notification_category": "course certificates",
+            "notification_category": "course-related emails",
             "notification_footer": (
-                "You are receiving this because a course certificate "
-                "was published for your account."
+                "You are receiving this because general course-related "
+                "emails are enabled."
             ),
         },
         "metadata": {
             "source": "course-management-platform",
             "event": "certificate_availability",
+            "preference_key": "email_course_updates",
+            "cmp_preference_key": "email_course_updates",
             "course_slug": course.slug,
             "enrollment_id": enrollment.pk,
             "user_id": enrollment.student_id,

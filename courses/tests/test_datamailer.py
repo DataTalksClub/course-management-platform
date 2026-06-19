@@ -997,6 +997,51 @@ class DatamailerClientTest(TestCase):
             payload["metadata"]["event"],
             "certificate_availability",
         )
+        self.assertEqual(
+            payload["metadata"]["preference_key"],
+            "email_course_updates",
+        )
+        self.assertIn(
+            "Congratulations",
+            payload["context"]["intro_text"],
+        )
+        self.assertEqual(
+            payload["context"]["notification_category"],
+            "course-related emails",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_certificate_availability_notification_respects_course_updates_preference(
+        self,
+        send,
+    ):
+        user = CustomUser.objects.create(
+            email="student@example.com",
+            username="student",
+            email_course_updates=False,
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+            certificate_url="/certificates/student.pdf",
+        )
+
+        payload = certificate_availability_notification_payload(
+            enrollment
+        )
+        result = send_certificate_availability_notification(enrollment)
+
+        self.assertIsNone(payload)
+        self.assertIsNone(result)
+        send.assert_not_called()
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(

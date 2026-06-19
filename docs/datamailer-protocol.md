@@ -319,7 +319,8 @@ Score publication emails run after a successful cadmin scoring action:
 
 Certificate availability emails run after an operator or API call publishes a
 certificate URL for an enrollment. CMP should send this email only when the
-certificate URL changes from empty to non-empty.
+certificate URL changes from empty to non-empty and the learner has
+`email_course_updates` enabled.
 
 ```mermaid
 sequenceDiagram
@@ -330,9 +331,16 @@ sequenceDiagram
 
     Operator->>CMP: Score work or publish certificates
     CMP->>DB: Persist scores or certificate URLs
+    CMP->>DB: Check learner email_course_updates preference for certificates
     CMP-->>Operator: Action completed
     CMP->>DM: Send result/certificate emails
 ```
+
+Certificate availability uses `email_course_updates` because it is a
+course-related operational notification, separate from submit-time
+confirmations and deadline reminders. CMP includes
+`preference_key=email_course_updates` in Datamailer metadata so an unsubscribe
+callback can update the same CMP preference.
 
 Score publication is implemented as one Datamailer recipient-list send to the
 matching submitter list:

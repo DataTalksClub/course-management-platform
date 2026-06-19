@@ -93,6 +93,32 @@ class DatamailerWebhookTest(TestCase):
         self.assertFalse(user.email_deadline_reminders)
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    def test_webhook_unsubscribe_updates_preference_from_metadata(self):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+            password="password",
+        )
+        self.assertTrue(user.email_course_updates)
+
+        response = self.post_event(
+            {
+                "event_id": "evt-unsub-course-updates",
+                "event_type": "subscription.unsubscribed",
+                "email": "student@example.com",
+                "metadata": {
+                    "cmp_preference_key": "email_course_updates",
+                    "scope": "client",
+                },
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["preference_updated"])
+        user.refresh_from_db()
+        self.assertFalse(user.email_course_updates)
+
+    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
     def test_webhook_unsubscribe_without_preference_only_records_event(
         self,
     ):
