@@ -573,40 +573,19 @@ each active reminder, triggers one recipient-list transactional send per
 reminder event, then exits. Datamailer handles the slower per-recipient email
 work through SQS and workers.
 
-Use the deployment helper to create or update the EventBridge Scheduler entry:
-
-```console
-$ SCHEDULE_EXPRESSION="rate(1 hour)" \
-  bash deploy/schedule_deadline_reminders.sh dev
-```
-
-If `SCHEDULER_ROLE_ARN` is omitted, the helper creates or updates
-`course-management-<env>-deadline-reminders-scheduler`, an IAM role trusted by
-`scheduler.amazonaws.com` with permission to run the current CMP ECS task
-definition and pass the task roles. Set `SCHEDULER_ROLE_ARN` only when an
-existing Scheduler role should be reused. Auto-creating the role requires the
-AWS principal running the helper to have IAM permissions such as
-`iam:CreateRole`, `iam:GetRole`, and `iam:PutRolePolicy` for that role.
-
-The same helper is exposed as the `Configure Deadline Reminders` GitHub Actions
-workflow. Use workflow dispatch when configuring the schedule from CI/CD instead
-of a local shell; pass the schedule expression and, optionally, a scheduler role
-ARN as inputs.
-
-The exact IAM permissions and the existing-role alternative are documented in
-[`deadline-reminder-scheduler-iam.md`](deadline-reminder-scheduler-iam.md).
-
-The script derives the ECS task definition, container name, and network
-configuration from the existing CMP ECS service, then overrides the container
-command with:
+The recurring trigger is provisioned via Terraform in
+`DataTalksClub/infra-terraform`, alongside the CMP ECS service. It is an
+EventBridge/CloudWatch rule whose ECS target runs the CMP task definition with
+the container command overridden to:
 
 ```console
 $ python manage.py send_deadline_reminders
 ```
 
-The scheduler role must trust `scheduler.amazonaws.com` and be allowed to call
-`ecs:RunTask` for the CMP task definition plus `iam:PassRole` for the task
-execution/task roles.
+The rule assumes an invocation role that trusts the EventBridge service and is
+allowed to call `ecs:RunTask` for the CMP task definition plus `iam:PassRole`
+for the task execution/task roles. CMP itself does not configure the schedule
+or the role.
 
 ```mermaid
 sequenceDiagram
