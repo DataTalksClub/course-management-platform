@@ -22,6 +22,11 @@ uv run python manage.py test
 ```
 
 
+## Git workflow
+
+Push work directly to `main`. Don't create a branch-per-change and open a PR
+for routine work — commit and push straight to `main`.
+
 ## Design
 
 If your work involves design — templates, CSS, page layout, forms, buttons, or any user-facing UI — you must read [docs/design-system.md](docs/design-system.md) first and follow it. It is the source of truth for layout (rows over columns), page headers, form structure, button placement, and spacing.
