@@ -6,10 +6,9 @@ from urllib.parse import urljoin, urlparse
 from django.http import HttpRequest
 
 from django.contrib import messages
-from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-from django.core.exceptions import DisallowedHost, ValidationError
+from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
 from django.urls import reverse
@@ -36,6 +35,7 @@ from courses.scoring import (
     is_free_form_answer_correct,
     calculate_homework_statistics,
 )
+from courses.views.url_utils import absolute_url_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -402,27 +402,7 @@ def build_homework_update_url(
             "homework_slug": homework.slug,
         },
     )
-
-    if settings.PUBLIC_BASE_URL:
-        return urljoin(f"{settings.PUBLIC_BASE_URL}/", path.lstrip("/"))
-
-    try:
-        return request.build_absolute_uri(path)
-    except DisallowedHost:
-        fallback_host = next(
-            (
-                host
-                for host in settings.ALLOWED_HOSTS
-                if host and host != "*"
-            ),
-            "localhost",
-        )
-        logger.warning(
-            "Falling back to ALLOWED_HOSTS for homework update URL "
-            "because request host is not allowed: %s",
-            fallback_host,
-        )
-        return urljoin(f"{request.scheme}://{fallback_host}", path)
+    return absolute_url_with_fallback(request, path, label="homework")
 
 
 def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
@@ -616,6 +596,58 @@ def build_account_settings_url(base_url: str) -> str:
     return path
 
 
+def _apply_homework_submission_fields(
+    submission, request, course, homework, user
+):
+    """Populate the optional submission fields enabled for this homework."""
+    if homework.homework_url_field:
+        submission.homework_link = request.POST.get("homework_url")
+
+    if homework.learning_in_public_cap > 0:
+        links = request.POST.getlist("learning_in_public_links[]")
+        cleaned_links = clean_learning_in_public_links(
+            links, homework.learning_in_public_cap
+        )
+        duplicate_links = find_duplicate_learning_in_public_links(
+            user=user,
+            course=course,
+            links=cleaned_links,
+            current_submission=submission,
+        )
+        if duplicate_links:
+            raise ValidationError(
+                "Learning in public links were already used in another "
+                f"submission: {', '.join(duplicate_links)}"
+            )
+        submission.learning_in_public_links = cleaned_links
+
+    if homework.time_spent_lectures_field:
+        time_spent_lectures = parse_time_spent_hours(
+            request.POST.get("time_spent_lectures"),
+            "time spent on lectures",
+        )
+        if time_spent_lectures is not None:
+            submission.time_spent_lectures = time_spent_lectures
+
+    if homework.time_spent_homework_field:
+        time_spent_homework = parse_time_spent_hours(
+            request.POST.get("time_spent_homework"),
+            "time spent on homework",
+        )
+        if time_spent_homework is not None:
+            submission.time_spent_homework = time_spent_homework
+
+    if course.homework_problems_comments_field:
+        submission.problems_comments = request.POST.get(
+            "problems_comments", ""
+        ).strip()
+
+    if homework.faq_contribution_field:
+        submission.faq_contribution_url = request.POST.get(
+            "faq_contribution_url", ""
+        ).strip()
+
+
 def process_homework_submission(
     request: HttpRequest,
     course: Course,
@@ -656,52 +688,9 @@ def process_homework_submission(
             defaults=values,
         )
 
-    if homework.homework_url_field:
-        submission.homework_link = request.POST.get("homework_url")
-
-    if homework.learning_in_public_cap > 0:
-        links = request.POST.getlist("learning_in_public_links[]")
-        cleaned_links = clean_learning_in_public_links(
-            links, homework.learning_in_public_cap
-        )
-        duplicate_links = find_duplicate_learning_in_public_links(
-            user=user,
-            course=course,
-            links=cleaned_links,
-            current_submission=submission,
-        )
-        if duplicate_links:
-            raise ValidationError(
-                "Learning in public links were already used in another "
-                f"submission: {', '.join(duplicate_links)}"
-            )
-        submission.learning_in_public_links = cleaned_links
-
-    if homework.time_spent_lectures_field:
-        time_spent_lectures = parse_time_spent_hours(
-            request.POST.get("time_spent_lectures"),
-            "time spent on lectures",
-        )
-        if time_spent_lectures is not None:
-            submission.time_spent_lectures = time_spent_lectures
-
-    if homework.time_spent_homework_field:
-        time_spent_homework = parse_time_spent_hours(
-            request.POST.get("time_spent_homework"),
-            "time spent on homework",
-        )
-        if time_spent_homework is not None:
-            submission.time_spent_homework = time_spent_homework
-
-    if course.homework_problems_comments_field:
-        problems_comments = request.POST.get("problems_comments", "")
-        submission.problems_comments = problems_comments.strip()
-
-    if homework.faq_contribution_field:
-        faq_contribution_url = request.POST.get(
-            "faq_contribution_url", ""
-        )
-        submission.faq_contribution_url = faq_contribution_url.strip()
+    _apply_homework_submission_fields(
+        submission, request, course, homework, user
+    )
 
     submission.full_clean()
     submission.save()

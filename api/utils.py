@@ -2,7 +2,22 @@ import json
 from datetime import datetime
 from functools import wraps
 
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.http import JsonResponse
+
+INSTRUCTIONS_URL_VALIDATOR = URLValidator(schemes=["http", "https"])
+
+
+def instructions_url_error(value):
+    """Return an error message if value is a non-empty, non-http(s) URL."""
+    if not value:
+        return None
+    try:
+        INSTRUCTIONS_URL_VALIDATOR(value)
+    except ValidationError:
+        return "instructions_url must be a valid http(s) URL"
+    return None
 
 
 def parse_date(date_str):

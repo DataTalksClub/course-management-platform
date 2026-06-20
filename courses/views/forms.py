@@ -90,6 +90,19 @@ class LeaderboardComplaintForm(forms.ModelForm):
             "issue_type": "What is wrong?",
             "description": "Describe the issue",
         }
+        widgets = {
+            "issue_type": forms.Select(attrs={"class": "form-control"}),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 5,
+                    "placeholder": (
+                        "Include the homework, project, or link that looks "
+                        "incorrect and why it should be reviewed."
+                    ),
+                }
+            ),
+        }
 
 
 class CourseRegistrationForm(forms.ModelForm):
@@ -211,16 +224,3 @@ class CourseRegistrationForm(forms.ModelForm):
 
         if update_fields:
             self.user.save(update_fields=update_fields)
-        widgets = {
-            "issue_type": forms.Select(attrs={"class": "form-control"}),
-            "description": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 5,
-                    "placeholder": (
-                        "Include the homework, project, or link that looks "
-                        "incorrect and why it should be reviewed."
-                    ),
-                }
-            ),
-        }

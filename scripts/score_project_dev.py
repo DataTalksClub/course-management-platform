@@ -37,14 +37,14 @@ if os.path.exists(envrc_path):
 # Set environment variables
 if 'DB_PASSWORD' in env_vars:
     os.environ['DATABASE_URL'] = f"postgresql://pgusr:{env_vars['DB_PASSWORD']}@localhost:5433/dev"
-    print(f"✓ Loaded DB_PASSWORD from .envrc")
+    print("✓ Loaded DB_PASSWORD from .envrc")
 else:
     print("ERROR: DB_PASSWORD not found in .envrc")
     sys.exit(1)
 
 if 'DJANGO_SECRET' in env_vars:
     os.environ['SECRET_KEY'] = env_vars['DJANGO_SECRET']
-    print(f"✓ Loaded DJANGO_SECRET from .envrc")
+    print("✓ Loaded DJANGO_SECRET from .envrc")
 else:
     print("ERROR: DJANGO_SECRET not found in .envrc")
     sys.exit(1)

@@ -1,5 +1,3 @@
-from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -15,14 +13,17 @@ from courses.scoring import (
 )
 
 from api.safety import (
+    apply_patch_fields,
+    delete_object_or_error,
     error_response,
-    ensure_closed_for_delete,
-    ensure_no_related_records_for_delete,
     require_staff_token,
 )
-from api.utils import parse_date, parse_json_body, require_methods
-
-INSTRUCTIONS_URL_VALIDATOR = URLValidator(schemes=["http", "https"])
+from api.utils import (
+    instructions_url_error,
+    parse_date,
+    parse_json_body,
+    require_methods,
+)
 
 
 def _homework_delete_blockers(hw):
@@ -33,16 +34,6 @@ def _homework_delete_blockers(hw):
     if submissions_count > 0:
         blockers.append("has_submissions")
     return blockers
-
-
-def _instructions_url_error(value):
-    if not value:
-        return None
-    try:
-        INSTRUCTIONS_URL_VALIDATOR(value)
-    except ValidationError:
-        return "instructions_url must be a valid http(s) URL"
-    return None
 
 
 def _homework_to_dict(hw):
@@ -101,7 +92,7 @@ def _create_homework(course, hw_data):
 
     instructions_url = hw_data.get("instructions_url")
     if instructions_url and (
-        error := _instructions_url_error(instructions_url)
+        error := instructions_url_error(instructions_url)
     ):
         return None, error
 
@@ -236,7 +227,7 @@ def _apply_homework_data(homework, data):
         homework.description = data["description"]
 
     if "instructions_url" in data:
-        error = _instructions_url_error(data["instructions_url"])
+        error = instructions_url_error(data["instructions_url"])
         if error:
             return error_response(
                 error,
@@ -313,18 +304,8 @@ def _replace_homework_questions(homework, questions_data):
     return None
 
 
-def _upsert_homework_by_slug(request, course_slug, homework_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    homework = Homework.objects.filter(
-        course=course,
-        slug=homework_slug,
-    ).first()
-    created = homework is None
-
+def _validate_homework_upsert(data, homework, created):
+    """Validate an upsert payload. Returns an error response, or None if ok."""
     title = data.get("title", data.get("name"))
     if created and (not title or not data.get("due_date")):
         return error_response(
@@ -333,7 +314,7 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
         )
 
     if "instructions_url" in data:
-        error = _instructions_url_error(data.get("instructions_url"))
+        error = instructions_url_error(data.get("instructions_url"))
         if error:
             return error_response(
                 error,
@@ -356,10 +337,28 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
         )
 
     if homework is not None and "questions" in data:
-        error = _homework_questions_replace_error(homework)
-        if error:
-            return error
+        return _homework_questions_replace_error(homework)
 
+    return None
+
+
+def _upsert_homework_by_slug(request, course_slug, homework_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    homework = Homework.objects.filter(
+        course=course,
+        slug=homework_slug,
+    ).first()
+    created = homework is None
+
+    error = _validate_homework_upsert(data, homework, created)
+    if error:
+        return error
+
+    title = data.get("title", data.get("name"))
     with transaction.atomic():
         if created:
             homework = Homework.objects.create(
@@ -415,53 +414,28 @@ def _homework_detail_response(
         return staff_error
 
     if request.method == "DELETE":
-        error_response_result = ensure_closed_for_delete(
-            homework, HomeworkState.CLOSED.value, "homework"
+        return delete_object_or_error(
+            homework,
+            closed_state=HomeworkState.CLOSED.value,
+            related_queryset=homework.submission_set.all(),
+            related_name="submissions",
+            noun="homework",
         )
-        if error_response_result:
-            return error_response_result
-
-        error_response_result = ensure_no_related_records_for_delete(
-            homework.submission_set.all(), "submissions", "homework"
-        )
-        if error_response_result:
-            return error_response_result
-
-        homework.delete()
-        return JsonResponse({"deleted": True})
 
     data, err = parse_json_body(request)
     if err:
         return err
 
-    for field, value in data.items():
-        if field not in HOMEWORK_PATCH_FIELDS:
-            return error_response(
-                f"Cannot update field: {field}",
-                "invalid_field",
-                details={"field": field},
-            )
-
-        if field == "state":
-            if value not in VALID_HOMEWORK_STATES:
-                return error_response(
-                    f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
-                    "invalid_homework_state",
-                    details={
-                        "valid_states": sorted(VALID_HOMEWORK_STATES)
-                    },
-                )
-
-        if field == "due_date":
-            value = parse_date(value)
-            if value is None:
-                return error_response(
-                    "Invalid date format for due_date",
-                    "invalid_date_format",
-                    details={"field": "due_date"},
-                )
-
-        setattr(homework, field, value)
+    error = apply_patch_fields(
+        homework,
+        data,
+        allowed_fields=HOMEWORK_PATCH_FIELDS,
+        valid_states=VALID_HOMEWORK_STATES,
+        invalid_state_code="invalid_homework_state",
+        date_fields={"due_date"},
+    )
+    if error:
+        return error
 
     homework.save()
     return JsonResponse(_homework_to_dict(homework))

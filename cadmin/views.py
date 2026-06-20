@@ -42,6 +42,7 @@ from courses.scoring import (
     fill_correct_answers,
     clear_correct_answers,
     update_leaderboard,
+    update_score,
 )
 from courses.projects import (
     assign_peer_reviews_for_project,
@@ -574,8 +575,6 @@ def homework_submission_edit(
                 submission.learning_in_public_links = None
 
             # Recalculate the score
-            from courses.scoring import update_score
-
             # Get updated answers
             updated_answers = list(
                 Answer.objects.filter(

@@ -86,62 +86,45 @@ def project_submission_queryset(course_slug, project_slug):
     return queryset
 
 
+# kind -> (queryset(course_slug, homework_slug, project_slug), payload_builder)
+_RECIPIENT_LIST_SOURCES = {
+    "registrations": (
+        lambda c, h, p: registration_queryset(c),
+        registration_recipient_list_payload,
+    ),
+    "enrollments": (
+        lambda c, h, p: enrollment_queryset(c),
+        enrollment_recipient_list_payload,
+    ),
+    "homework": (
+        lambda c, h, p: homework_submission_queryset(c, h),
+        homework_submission_recipient_list_payload,
+    ),
+    "project": (
+        lambda c, h, p: project_submission_queryset(c, p),
+        project_submission_recipient_list_payload,
+    ),
+}
+
+
 def build_batches(
     kind, *, course_slug="", homework_slug="", project_slug=""
 ):
+    source = _RECIPIENT_LIST_SOURCES.get(kind)
+    if source is None:
+        raise CommandError(f"Unknown recipient list kind: {kind}")
+
+    queryset_fn, payload_for = source
     batches = OrderedDict()
-
-    if kind == "registrations":
-        for registration in registration_queryset(course_slug):
-            item = registration_recipient_list_payload(registration)
-            if item is None:
-                continue
-            list_key, source_object_key, payload = item
-            add_member_to_batches(
-                batches, list_key, source_object_key, payload
-            )
-        return batches
-
-    if kind == "enrollments":
-        for enrollment in enrollment_queryset(course_slug):
-            item = enrollment_recipient_list_payload(enrollment)
-            if item is None:
-                continue
-            list_key, source_object_key, payload = item
-            add_member_to_batches(
-                batches, list_key, source_object_key, payload
-            )
-        return batches
-
-    if kind == "homework":
-        for submission in homework_submission_queryset(
-            course_slug, homework_slug
-        ):
-            item = homework_submission_recipient_list_payload(
-                submission
-            )
-            if item is None:
-                continue
-            list_key, source_object_key, payload = item
-            add_member_to_batches(
-                batches, list_key, source_object_key, payload
-            )
-        return batches
-
-    if kind == "project":
-        for submission in project_submission_queryset(
-            course_slug, project_slug
-        ):
-            item = project_submission_recipient_list_payload(submission)
-            if item is None:
-                continue
-            list_key, source_object_key, payload = item
-            add_member_to_batches(
-                batches, list_key, source_object_key, payload
-            )
-        return batches
-
-    raise CommandError(f"Unknown recipient list kind: {kind}")
+    for obj in queryset_fn(course_slug, homework_slug, project_slug):
+        item = payload_for(obj)
+        if item is None:
+            continue
+        list_key, source_object_key, payload = item
+        add_member_to_batches(
+            batches, list_key, source_object_key, payload
+        )
+    return batches
 
 
 class Command(BaseCommand):
@@ -229,9 +212,14 @@ class Command(BaseCommand):
             return
 
         client = DatamailerClient(config)
+        self._sync_batches(
+            client, batches, config, reconcile=options["reconcile"]
+        )
+
+    def _sync_batches(self, client, batches, config, *, reconcile):
         for list_key, payload in batches.items():
             try:
-                if options["reconcile"]:
+                if reconcile:
                     response = client.reconcile_recipient_list_members(
                         list_key, payload
                     )

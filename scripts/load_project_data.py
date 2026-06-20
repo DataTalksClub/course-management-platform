@@ -13,7 +13,6 @@ import sys
 import json
 import argparse
 from datetime import datetime
-from collections import defaultdict
 from tqdm import tqdm
 
 # Add parent directory to path so Django can find course_management module
@@ -104,7 +103,7 @@ def load_project_data(input_file, clear_existing=False):
             elif record_type == "evaluation_score":
                 data["evaluation_scores"].append(record["data"])
     
-    print(f"✓ Read data from file")
+    print("✓ Read data from file")
     print(f"  Extracted at: {data['metadata']['extracted_at']}")
     print(f"  Course: {data['metadata']['course_slug']}")
     print(f"  Project: {data['metadata']['project_slug']}")
@@ -267,7 +266,7 @@ def load_project_data(input_file, clear_existing=False):
                 }
             )
             criteria_id_map[old_id] = criteria.id
-        print(f"✓ Review criteria created")
+        print("✓ Review criteria created")
         
         # Create submissions
         print(f"Creating {len(data['submissions'])} submissions...")

@@ -6,8 +6,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .course import Course, Enrollment
+from .stat_display import build_stat_fields
 from courses.validators import validate_url_200
-from courses.validators.validating_json_field import ValidatingJSONField
 
 User = get_user_model()
 
@@ -114,9 +114,6 @@ class Question(models.Model):
     correct_answer = models.TextField(blank=True, null=True)
 
     scores_for_correct_answer = models.IntegerField(default=1)
-
-    def set_possible_answers(self, answers):
-        self.possible_answers = QUESTION_ANSWER_DELIMITER.join(answers)
 
     def get_possible_answers(self):
         if not self.possible_answers:
@@ -269,64 +266,13 @@ class HomeworkStatistics(models.Model):
         return getattr(self, attribute_name)
 
     def get_stat_fields(self):
-        results = []
-
-        results.append(
-            ("Questions score", [
-                (self.min_questions_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_questions_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_questions_score, "Average", "fas fa-equals"),
-                (self.q1_questions_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_questions_score, "Median", "fas fa-percentage"),
-                (self.q3_questions_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-question-circle')
-        )
-
-        results.append(
-            ("Total score", [
-                (self.min_total_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_total_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_total_score, "Average", "fas fa-equals"),
-                (self.q1_total_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_total_score, "Median", "fas fa-percentage"),
-                (self.q3_total_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-star')
-        )
-
-        results.append(
-            ("Time spent on lectures", [
-                (self.min_time_spent_lectures, "Minimum", "fas fa-arrow-down"),
-                (self.max_time_spent_lectures, "Maximum", "fas fa-arrow-up"),
-                (self.avg_time_spent_lectures, "Average", "fas fa-equals"),
-                (self.q1_time_spent_lectures, "25th Percentile", "fas fa-percentage"),
-                (self.median_time_spent_lectures, "Median", "fas fa-percentage"),
-                (self.q3_time_spent_lectures, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-book-reader')
-        )
-
-        results.append(
-            ("Time spent on homework", [
-                (self.min_time_spent_homework, "Minimum", "fas fa-arrow-down"),
-                (self.max_time_spent_homework, "Maximum", "fas fa-arrow-up"),
-                (self.avg_time_spent_homework, "Average", "fas fa-equals"),
-                (self.q1_time_spent_homework, "25th Percentile", "fas fa-percentage"),
-                (self.median_time_spent_homework, "Median", "fas fa-percentage"),
-                (self.q3_time_spent_homework, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-clock')
-        )
-
-        results.append(
-            ("Learning in public score", [
-                (self.min_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_learning_in_public_score, "Average", "fas fa-equals"),
-                (self.q1_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_learning_in_public_score, "Median", "fas fa-percentage"),
-                (self.q3_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-globe')
-        )
-
-        return results
+        return build_stat_fields(self, [
+            ("questions_score", "Questions score", "fas fa-question-circle"),
+            ("total_score", "Total score", "fas fa-star"),
+            ("time_spent_lectures", "Time spent on lectures", "fas fa-book-reader"),
+            ("time_spent_homework", "Time spent on homework", "fas fa-clock"),
+            ("learning_in_public_score", "Learning in public score", "fas fa-globe"),
+        ])
 
     def __str__(self):
         return f"Statistics for {self.homework.slug}"

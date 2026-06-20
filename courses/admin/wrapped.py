@@ -4,7 +4,6 @@ from unfold.admin import ModelAdmin
 
 from courses.models.wrapped import (
     WrappedStatistics,
-    UserWrappedStatistics,
 )
 from courses.scoring import calculate_wrapped_statistics
 

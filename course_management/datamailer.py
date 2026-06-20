@@ -8,6 +8,8 @@ import requests
 from django.conf import settings
 from django.urls import reverse
 
+from course_management import email_templates
+
 logger = logging.getLogger(__name__)
 
 
@@ -177,13 +179,6 @@ class DatamailerClient:
             f"/api/recipient-lists/{list_key}/transactional-send",
             json=payload,
         )
-
-
-def get_datamailer_client() -> DatamailerClient | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
-    return DatamailerClient(config)
 
 
 def datamailer_enabled() -> bool:
@@ -501,13 +496,14 @@ def sync_contact(user, course=None) -> None:
             raise
 
 
-def sync_registration_to_datamailer(registration) -> None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return
+def _sync_contact_and_membership(
+    config, contact_payload, list_payload, *, label, id_field, obj
+):
+    """Upsert a contact and its recipient-list membership in one call.
 
-    contact_payload = registration_contact_payload(registration)
-    list_payload = registration_recipient_list_payload(registration)
+    No-op if either payload is None. On request failure, logs with the
+    given ``label``/``id_field`` context and re-raises when config.strict.
+    """
     if contact_payload is None or list_payload is None:
         return
 
@@ -520,11 +516,28 @@ def sync_registration_to_datamailer(registration) -> None:
         )
     except requests.RequestException:
         logger.exception(
-            "Datamailer registration sync failed for registration_id=%s",
-            registration.pk,
+            "Datamailer %s sync failed for %s=%s",
+            label,
+            id_field,
+            obj.pk,
         )
         if config.strict:
             raise
+
+
+def sync_registration_to_datamailer(registration) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    _sync_contact_and_membership(
+        config,
+        registration_contact_payload(registration),
+        registration_recipient_list_payload(registration),
+        label="registration",
+        id_field="registration_id",
+        obj=registration,
+    )
 
 
 def sync_enrollment_to_datamailer(enrollment) -> None:
@@ -532,28 +545,16 @@ def sync_enrollment_to_datamailer(enrollment) -> None:
     if config is None:
         return
 
-    contact_payload = contact_payload_for_user(
-        enrollment.student,
-        course=enrollment.course,
+    _sync_contact_and_membership(
+        config,
+        contact_payload_for_user(
+            enrollment.student, course=enrollment.course
+        ),
+        enrollment_recipient_list_payload(enrollment),
+        label="enrollment",
+        id_field="enrollment_id",
+        obj=enrollment,
     )
-    list_payload = enrollment_recipient_list_payload(enrollment)
-    if contact_payload is None or list_payload is None:
-        return
-
-    client = DatamailerClient(config)
-    try:
-        client.upsert_contact(contact_payload)
-        list_key, source_object_key, payload = list_payload
-        client.upsert_recipient_list_member(
-            list_key, source_object_key, payload
-        )
-    except requests.RequestException:
-        logger.exception(
-            "Datamailer enrollment sync failed for enrollment_id=%s",
-            enrollment.pk,
-        )
-        if config.strict:
-            raise
 
 
 def sync_homework_submission_to_datamailer(submission) -> None:
@@ -561,30 +562,16 @@ def sync_homework_submission_to_datamailer(submission) -> None:
     if config is None:
         return
 
-    contact_payload = contact_payload_for_user(
-        submission.student,
-        course=submission.homework.course,
+    _sync_contact_and_membership(
+        config,
+        contact_payload_for_user(
+            submission.student, course=submission.homework.course
+        ),
+        homework_submission_recipient_list_payload(submission),
+        label="homework submission",
+        id_field="submission_id",
+        obj=submission,
     )
-    list_payload = homework_submission_recipient_list_payload(
-        submission
-    )
-    if contact_payload is None or list_payload is None:
-        return
-
-    client = DatamailerClient(config)
-    try:
-        client.upsert_contact(contact_payload)
-        list_key, source_object_key, payload = list_payload
-        client.upsert_recipient_list_member(
-            list_key, source_object_key, payload
-        )
-    except requests.RequestException:
-        logger.exception(
-            "Datamailer homework submission sync failed for submission_id=%s",
-            submission.pk,
-        )
-        if config.strict:
-            raise
 
 
 def sync_project_submission_to_datamailer(submission) -> None:
@@ -592,28 +579,16 @@ def sync_project_submission_to_datamailer(submission) -> None:
     if config is None:
         return
 
-    contact_payload = contact_payload_for_user(
-        submission.student,
-        course=submission.project.course,
+    _sync_contact_and_membership(
+        config,
+        contact_payload_for_user(
+            submission.student, course=submission.project.course
+        ),
+        project_submission_recipient_list_payload(submission),
+        label="project submission",
+        id_field="submission_id",
+        obj=submission,
     )
-    list_payload = project_submission_recipient_list_payload(submission)
-    if contact_payload is None or list_payload is None:
-        return
-
-    client = DatamailerClient(config)
-    try:
-        client.upsert_contact(contact_payload)
-        list_key, source_object_key, payload = list_payload
-        client.upsert_recipient_list_member(
-            list_key, source_object_key, payload
-        )
-    except requests.RequestException:
-        logger.exception(
-            "Datamailer project submission sync failed for submission_id=%s",
-            submission.pk,
-        )
-        if config.strict:
-            raise
 
 
 def recipient_list_send_member_payload(
@@ -694,7 +669,6 @@ def homework_score_notification_payload(
     if config is None:
         return None
 
-    from course_management import email_templates
 
     course = homework.course
     list_key = homework_submitters_list_key(homework)
@@ -740,7 +714,6 @@ def project_score_notification_payload(
     if config is None:
         return None
 
-    from course_management import email_templates
 
     course = project.course
     list_key = project_submitters_list_key(project)
@@ -799,7 +772,6 @@ def certificate_availability_notification_payload(
     if not getattr(enrollment.student, "email_course_updates", True):
         return None
 
-    from course_management import email_templates
 
     course = enrollment.course
     course_url = public_url(

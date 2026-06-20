@@ -236,12 +236,12 @@ for i in [1, 2, 3]:
 
 p1 = Project.objects.get(
     course=course,
-    slug=f"project-1",
+    slug="project-1",
 )
 
 p2 = Project.objects.get(
     course=course,
-    slug=f"project-2",
+    slug="project-2",
 )
 
 criteria = ReviewCriteria.objects.filter(course=course)
@@ -308,7 +308,7 @@ for slug, title, delta, state in upcoming_hw_data:
         slug=slug,
         defaults={
             "title": title,
-            "description": f"Test homework to verify time-left display.",
+            "description": "Test homework to verify time-left display.",
             "due_date": timezone.now() + delta,
             "state": state,
         },

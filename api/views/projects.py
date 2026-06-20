@@ -1,5 +1,3 @@
-from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -15,14 +13,17 @@ from courses.projects import (
 )
 
 from api.safety import (
+    apply_patch_fields,
+    delete_object_or_error,
     error_response,
-    ensure_closed_for_delete,
-    ensure_no_related_records_for_delete,
     require_staff_token,
 )
-from api.utils import parse_date, parse_json_body, require_methods
-
-INSTRUCTIONS_URL_VALIDATOR = URLValidator(schemes=["http", "https"])
+from api.utils import (
+    instructions_url_error,
+    parse_date,
+    parse_json_body,
+    require_methods,
+)
 
 
 def _project_delete_blockers(proj):
@@ -33,16 +34,6 @@ def _project_delete_blockers(proj):
     if submissions_count > 0:
         blockers.append("has_submissions")
     return blockers
-
-
-def _instructions_url_error(value):
-    if not value:
-        return None
-    try:
-        INSTRUCTIONS_URL_VALIDATOR(value)
-    except ValidationError:
-        return "instructions_url must be a valid http(s) URL"
-    return None
 
 
 def _project_to_dict(proj):
@@ -153,7 +144,7 @@ def _create_project(course, proj_data):
 
     instructions_url = proj_data.get("instructions_url")
     if instructions_url and (
-        error := _instructions_url_error(instructions_url)
+        error := instructions_url_error(instructions_url)
     ):
         return None, error
 
@@ -260,7 +251,7 @@ def _apply_project_data(project, data):
         project.description = data["description"]
 
     if "instructions_url" in data:
-        error = _instructions_url_error(data["instructions_url"])
+        error = instructions_url_error(data["instructions_url"])
         if error:
             return error_response(
                 error,
@@ -269,40 +260,23 @@ def _apply_project_data(project, data):
             )
         project.instructions_url = data["instructions_url"]
 
-    for field in ("submission_due_date", "peer_review_due_date"):
-        if field not in data:
-            continue
-        value = parse_date(data[field])
-        if value is None:
-            return error_response(
-                f"Invalid date format for {field}",
-                "invalid_date_format",
-                details={"field": field},
-            )
-        setattr(project, field, value)
-
-    for field in (
-        "state",
-        "learning_in_public_cap_project",
-        "learning_in_public_cap_review",
-        "number_of_peers_to_evaluate",
-        "points_for_peer_review",
-        "time_spent_project_field",
-        "problems_comments_field",
-        "faq_contribution_field",
-    ):
-        if field not in data:
-            continue
-        value = data[field]
-        if field == "state" and value not in VALID_PROJECT_STATES:
-            return error_response(
-                f"Invalid state. Must be one of: {sorted(VALID_PROJECT_STATES)}",
-                "invalid_project_state",
-                details={"valid_states": sorted(VALID_PROJECT_STATES)},
-            )
-        setattr(project, field, value)
-
-    return None
+    # The remaining scalar/date fields share the generic PATCH applier.
+    # title / description / instructions_url are handled above, so exclude
+    # them; everything else in PROJECT_PATCH_FIELDS flows through.
+    handled = {"title", "name", "description", "instructions_url"}
+    patch_data = {
+        k: v
+        for k, v in data.items()
+        if k in PROJECT_PATCH_FIELDS and k not in handled
+    }
+    return apply_patch_fields(
+        project,
+        patch_data,
+        allowed_fields=PROJECT_PATCH_FIELDS,
+        valid_states=VALID_PROJECT_STATES,
+        invalid_state_code="invalid_project_state",
+        date_fields={"submission_due_date", "peer_review_due_date"},
+    )
 
 
 def _upsert_project_by_slug(request, course_slug, project_slug):
@@ -328,7 +302,7 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
         )
 
     if "instructions_url" in data:
-        error = _instructions_url_error(data.get("instructions_url"))
+        error = instructions_url_error(data.get("instructions_url"))
         if error:
             return error_response(
                 error,
@@ -400,55 +374,28 @@ def _project_detail_response(
         return staff_error
 
     if request.method == "DELETE":
-        error_response_result = ensure_closed_for_delete(
-            project, ProjectState.CLOSED.value, "project"
+        return delete_object_or_error(
+            project,
+            closed_state=ProjectState.CLOSED.value,
+            related_queryset=project.projectsubmission_set.all(),
+            related_name="submissions",
+            noun="project",
         )
-        if error_response_result:
-            return error_response_result
-
-        error_response_result = ensure_no_related_records_for_delete(
-            project.projectsubmission_set.all(),
-            "submissions",
-            "project",
-        )
-        if error_response_result:
-            return error_response_result
-
-        project.delete()
-        return JsonResponse({"deleted": True})
 
     data, err = parse_json_body(request)
     if err:
         return err
 
-    for field, value in data.items():
-        if field not in PROJECT_PATCH_FIELDS:
-            return error_response(
-                f"Cannot update field: {field}",
-                "invalid_field",
-                details={"field": field},
-            )
-
-        if field == "state":
-            if value not in VALID_PROJECT_STATES:
-                return error_response(
-                    f"Invalid state. Must be one of: {sorted(VALID_PROJECT_STATES)}",
-                    "invalid_project_state",
-                    details={
-                        "valid_states": sorted(VALID_PROJECT_STATES)
-                    },
-                )
-
-        if field in ("submission_due_date", "peer_review_due_date"):
-            value = parse_date(value)
-            if value is None:
-                return error_response(
-                    f"Invalid date format for {field}",
-                    "invalid_date_format",
-                    details={"field": field},
-                )
-
-        setattr(project, field, value)
+    error = apply_patch_fields(
+        project,
+        data,
+        allowed_fields=PROJECT_PATCH_FIELDS,
+        valid_states=VALID_PROJECT_STATES,
+        invalid_state_code="invalid_project_state",
+        date_fields={"submission_due_date", "peer_review_due_date"},
+    )
+    if error:
+        return error
 
     project.save()
     return JsonResponse(_project_to_dict(project))

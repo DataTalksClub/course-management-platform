@@ -89,50 +89,17 @@ def graduates_data_view(request, course_slug: str):
     return JsonResponse(response)
 
 
-@csrf_exempt
-@require_POST
-@token_required
-def bulk_update_enrollment_certificates_view(request, course_slug: str):
-    """
-    Update enrollment certificate URLs for many users in a course.
-
-    Expected JSON payload:
-    {
-        "certificates": [
-            {
-                "email": "user@example.com",
-                "certificate_path": "/path/to/certificate.pdf"
-            }
-        ]
-    }
-
-    A bare JSON array with the same objects is also accepted.
-    """
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
+def _extract_certificate_updates(data):
+    """Pull the updates list from a bare array or a {"certificates": [...]} body."""
     if isinstance(data, list):
-        certificate_updates = data
-    elif isinstance(data, dict):
-        certificate_updates = data.get("certificates")
-    else:
-        certificate_updates = None
+        return data
+    if isinstance(data, dict):
+        return data.get("certificates")
+    return None
 
-    if not isinstance(certificate_updates, list):
-        return JsonResponse(
-            {"error": "Expected a certificates array"},
-            status=400,
-        )
 
-    if not certificate_updates:
-        return JsonResponse(
-            {"error": "At least one certificate update is required"},
-            status=400,
-        )
-
-    course = get_object_or_404(Course, slug=course_slug)
+def _validate_certificate_update_items(certificate_updates):
+    """Split raw items into (valid_updates, errors) by shape + required fields."""
     valid_updates = []
     errors = []
 
@@ -169,22 +136,22 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
             }
         )
 
-    emails = [update["email"] for update in valid_updates]
-    users_by_email = {
-        user.email: user
-        for user in User.objects.filter(email__in=emails)
-    }
-    enrollments_by_email = {
-        enrollment.student.email: enrollment
-        for enrollment in Enrollment.objects.filter(
-            course=course,
-            student__email__in=emails,
-        ).select_related("student")
-    }
+    return valid_updates, errors
 
+
+def _apply_certificate_updates(
+    valid_updates, course_slug, users_by_email, enrollments_by_email
+):
+    """Apply validated updates to enrollments.
+
+    Returns (enrollments_to_update, enrollments_to_notify, updated, errors),
+    where _to_notify holds enrollments that gained a certificate they did not
+    have before. Mutates the enrollment objects' certificate_url in place.
+    """
     enrollments_to_update = {}
     enrollments_to_notify = {}
     updated = []
+    errors = []
 
     for update in valid_updates:
         email = update["email"]
@@ -228,6 +195,74 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
                 "certificate_url": certificate_path,
             }
         )
+
+    return enrollments_to_update, enrollments_to_notify, updated, errors
+
+
+@csrf_exempt
+@require_POST
+@token_required
+def bulk_update_enrollment_certificates_view(request, course_slug: str):
+    """
+    Update enrollment certificate URLs for many users in a course.
+
+    Expected JSON payload:
+    {
+        "certificates": [
+            {
+                "email": "user@example.com",
+                "certificate_path": "/path/to/certificate.pdf"
+            }
+        ]
+    }
+
+    A bare JSON array with the same objects is also accepted.
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    certificate_updates = _extract_certificate_updates(data)
+    if not isinstance(certificate_updates, list):
+        return JsonResponse(
+            {"error": "Expected a certificates array"},
+            status=400,
+        )
+
+    if not certificate_updates:
+        return JsonResponse(
+            {"error": "At least one certificate update is required"},
+            status=400,
+        )
+
+    course = get_object_or_404(Course, slug=course_slug)
+    valid_updates, errors = _validate_certificate_update_items(
+        certificate_updates
+    )
+
+    emails = [update["email"] for update in valid_updates]
+    users_by_email = {
+        user.email: user
+        for user in User.objects.filter(email__in=emails)
+    }
+    enrollments_by_email = {
+        enrollment.student.email: enrollment
+        for enrollment in Enrollment.objects.filter(
+            course=course,
+            student__email__in=emails,
+        ).select_related("student")
+    }
+
+    enrollments_to_update, enrollments_to_notify, updated, apply_errors = (
+        _apply_certificate_updates(
+            valid_updates,
+            course_slug,
+            users_by_email,
+            enrollments_by_email,
+        )
+    )
+    errors.extend(apply_errors)
 
     if enrollments_to_update:
         Enrollment.objects.bulk_update(

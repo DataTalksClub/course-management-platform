@@ -34,8 +34,6 @@ from courses.models import (
     ReviewCriteria,
     CriteriaResponse,
     ProjectEvaluationScore,
-    ProjectState,
-    PeerReviewState,
 )
 
 User = get_user_model()

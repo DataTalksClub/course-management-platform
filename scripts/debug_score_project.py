@@ -26,11 +26,9 @@ django.setup()
 from collections import defaultdict
 from courses.models import (
     Project,
-    ProjectSubmission,
     PeerReview,
     CriteriaResponse,
     ReviewCriteria,
-    ProjectEvaluationScore,
 )
 
 
@@ -127,7 +125,7 @@ def debug_score_project(course_slug, project_slug):
                 reviews_by_reviewer[reviewer.id].append(review)
                 review.responses = responses_by_review[review.id]
         
-        print(f"✓ Built dictionaries:")
+        print("✓ Built dictionaries:")
         print(f"  - {len(submissions)} unique submissions")
         print(f"  - {len(reviews_by_submission)} submissions have reviews")
         print(f"  - {len(reviews_by_reviewer)} reviewers")
@@ -186,7 +184,7 @@ def debug_score_project(course_slug, project_slug):
                 else:
                     for response in review.responses:
                         try:
-                            score = response.get_score()
+                            response.get_score()
                         except Exception as e:
                             errors.append(
                                 f"Review {review.id}, Response {response.id}: "

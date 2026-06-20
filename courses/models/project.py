@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .course import Course, Enrollment
+from .stat_display import build_stat_fields
 from courses.validators import validate_url_200, validate_review_criteria_options
 
 User = get_user_model()
@@ -320,75 +321,14 @@ class ProjectStatistics(models.Model):
         return getattr(self, attribute_name)
 
     def get_stat_fields(self):
-        results = []
-
-        results.append(
-            ("Project score", [
-                (self.min_project_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_project_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_project_score, "Average", "fas fa-equals"),
-                (self.q1_project_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_project_score, "Median", "fas fa-percentage"),
-                (self.q3_project_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-project-diagram')
-        )
-
-        results.append(
-            ("Project learning in public score", [
-                (self.min_project_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_project_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_project_learning_in_public_score, "Average", "fas fa-equals"),
-                (self.q1_project_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_project_learning_in_public_score, "Median", "fas fa-percentage"),
-                (self.q3_project_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-globe')
-        )
-
-        results.append(
-            ("Peer review score", [
-                (self.min_peer_review_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_peer_review_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_peer_review_score, "Average", "fas fa-equals"),
-                (self.q1_peer_review_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_peer_review_score, "Median", "fas fa-percentage"),
-                (self.q3_peer_review_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-users')
-        )
-
-        results.append(
-            ("Peer review learning in public score", [
-                (self.min_peer_review_learning_in_public_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_peer_review_learning_in_public_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_peer_review_learning_in_public_score, "Average", "fas fa-equals"),
-                (self.q1_peer_review_learning_in_public_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_peer_review_learning_in_public_score, "Median", "fas fa-percentage"),
-                (self.q3_peer_review_learning_in_public_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-share-alt')
-        )
-
-        results.append(
-            ("Total score", [
-                (self.min_total_score, "Minimum", "fas fa-arrow-down"),
-                (self.max_total_score, "Maximum", "fas fa-arrow-up"),
-                (self.avg_total_score, "Average", "fas fa-equals"),
-                (self.q1_total_score, "25th Percentile", "fas fa-percentage"),
-                (self.median_total_score, "Median", "fas fa-percentage"),
-                (self.q3_total_score, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-star')
-        )
-
-        results.append(
-            ("Time spent on project", [
-                (self.min_time_spent, "Minimum", "fas fa-arrow-down"),
-                (self.max_time_spent, "Maximum", "fas fa-arrow-up"),
-                (self.avg_time_spent, "Average", "fas fa-equals"),
-                (self.q1_time_spent, "25th Percentile", "fas fa-percentage"),
-                (self.median_time_spent, "Median", "fas fa-percentage"),
-                (self.q3_time_spent, "75th Percentile", "fas fa-percentage"),
-            ], 'fas fa-clock')
-        )
-
-        return results
+        return build_stat_fields(self, [
+            ("project_score", "Project score", "fas fa-project-diagram"),
+            ("project_learning_in_public_score", "Project learning in public score", "fas fa-globe"),
+            ("peer_review_score", "Peer review score", "fas fa-users"),
+            ("peer_review_learning_in_public_score", "Peer review learning in public score", "fas fa-share-alt"),
+            ("total_score", "Total score", "fas fa-star"),
+            ("time_spent", "Time spent on project", "fas fa-clock"),
+        ])
 
     def __str__(self):
         return f"Statistics for {self.project.slug}"

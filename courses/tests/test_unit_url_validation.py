@@ -21,13 +21,17 @@ class MockResponse:
 class UrlValidationTestCase(TestCase):
 
     def test_validation_code_200_github_mock(self):
-        mock_get = lambda url, **kwargs: MockResponse(200)
+        def mock_get(url, **kwargs):
+            return MockResponse(200)
+
         url = "https://github.com/DataTalksClub/"
         validate_url_200(url, mock_get)
         # no exceptions should be raised
 
     def test_validation_code_404_github_mock(self):
-        mock_get = lambda url, **kwargs: MockResponse(404)
+        def mock_get(url, **kwargs):
+            return MockResponse(404)
+
         url = "https://github.com/DataTalksClub/non-existing-repo"
         with self.assertRaises(ValidationError):
             validate_url_200(url, mock_get)
