@@ -1,0 +1,79 @@
+name: E2E Smoke (Dev)
+
+# Standalone Playwright e2e smoke suite against dev. Runs on demand or on a
+# schedule -- intentionally NOT tied to deploys or commits to main, so it can
+# be triggered independently. See e2e/README.md and issue #194.
+on:
+  # Manual run (the primary way to run this job).
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target base URL"
+        default: "https://dev.courses.datatalks.club"
+      expected_version:
+        description: "Expected /api/health/ version (optional)"
+        required: false
+  # Scheduled run, independent of any deploy (daily at 06:00 UTC).
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    env:
+      E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.courses.datatalks.club' }}
+      E2E_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_DEV_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_DEV_ADMIN_PASSWORD }}
+      # Default email backend: Datamailer mock inbox (#194 mock-inbox sub-task).
+      # Set once it is deployed to dev with MOCK_INBOX_ENABLED=1. URL = the
+      # Datamailer service root; the client appends /api/mock-inbox/...
+      E2E_MOCK_INBOX_URL: ${{ secrets.E2E_DEV_MOCK_INBOX_URL }}
+      E2E_MOCK_INBOX_API_KEY: ${{ secrets.E2E_DEV_MOCK_INBOX_API_KEY }}
+      # Real SES-inbound backend (#194 issue-194-ses-inbound). Placeholders;
+      # the real-backend email tests xfail until these are provided.
+      E2E_REAL_INBOX_URL: ${{ secrets.E2E_DEV_REAL_INBOX_URL }}
+      E2E_REAL_INBOX_API_KEY: ${{ secrets.E2E_DEV_REAL_INBOX_API_KEY }}
+      E2E_EXPECTED_VERSION: ${{ github.event.inputs.expected_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13.5'
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --locked
+
+      - name: Install Playwright browser
+        run: uv run playwright install --with-deps chromium
+
+      - name: Wait for dev health endpoint
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "${E2E_BASE_URL}/api/health/" | grep -q '"status": *"ok"'; then
+              echo "Dev is healthy."; exit 0
+            fi
+            echo "Waiting for dev health... ($i)"; sleep 10
+          done
+          echo "Dev health never became OK"; exit 1
+
+      - name: Run e2e smoke suite
+        working-directory: e2e
+        run: uv run --project .. pytest -c pytest.ini
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-smoke-artifacts
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          if-no-files-found: ignore

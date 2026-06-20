@@ -1,0 +1,8 @@
+# Local secrets / overrides for the e2e suite. Never commit real credentials.
+.env
+# Playwright + pytest artifacts
+.pytest_cache/
+test-results/
+playwright-report/
+videos/
+traces/

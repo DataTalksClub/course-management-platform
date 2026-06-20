@@ -1,0 +1,266 @@
+"""Unit-level tests for the email-verification clients (no network).
+
+These exercise :class:`MockInboxClient` against a fake requests session, so they
+run anywhere (CI, local) without the mock inbox being deployed. They lock down
+the wire contract the client targets (paths, params, auth header, response
+shapes, poll/timeout/clear behaviour). The *live* email assertions
+(``test_03/04``) still need the mock inbox deployed to dev + creds.
+"""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+import requests
+
+from e2e.config import Settings, load_settings
+from e2e.mock_inbox import (
+    InboxDisabled,
+    InboxNotConfigured,
+    MockInboxClient,
+    MockInboxTimeout,
+    RealInboxClient,
+)
+
+pytestmark = pytest.mark.email
+
+
+class FakeResponse:
+    def __init__(self, status_code=200, payload=None, text=""):
+        self.status_code = status_code
+        self._payload = payload
+        self.text = text or (json.dumps(payload) if payload is not None else "")
+
+    def json(self):
+        if self._payload is None:
+            raise ValueError("no json")
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code}")
+
+
+class FakeSession:
+    """Records requests and replays a scripted list of responses."""
+
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self.calls = []
+
+    def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        result = self._responses.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+def _client(responses):
+    client = MockInboxClient("https://datamailer.example", "k-secret")
+    client._session = FakeSession(responses)
+    client.retry_backoff = 0  # no real sleeping between retries
+    return client
+
+
+def _summary(**over):
+    base = {
+        "id": 42,
+        "email": "e2e+run@mailbox.test",
+        "from_email": "newsletter@example.com",
+        "subject": "Homework submission saved: E2E Homework 1",
+        "template_key": "homework-submission-confirmation",
+        "status": "sent",
+        "idempotency_key": "homework-submission:123",
+        "created_at": "2026-06-20T10:00:00Z",
+    }
+    base.update(over)
+    return base
+
+
+# -- configuration ---------------------------------------------------------
+
+
+def test_unconfigured_client_raises():
+    client = MockInboxClient(None, None)
+    assert client.configured is False
+    with pytest.raises(InboxNotConfigured):
+        client.list_messages("e2e+x@mailbox.test")
+
+
+def test_configured_requires_both_url_and_key():
+    assert MockInboxClient("https://x", None).configured is False
+    assert MockInboxClient(None, "k").configured is False
+    assert MockInboxClient("https://x", "k").configured is True
+
+
+def test_messages_url_appends_api_path():
+    client = MockInboxClient("https://datamailer.example/", "k")
+    assert client.messages_url == "https://datamailer.example/api/mock-inbox/messages"
+
+
+# -- list / auth / params --------------------------------------------------
+
+
+def test_list_messages_sends_bearer_and_params():
+    client = _client([FakeResponse(200, {"address": "a", "count": 1, "messages": [_summary()]})])
+    messages = client.list_messages("e2e+run@mailbox.test", limit=10)
+
+    method, url, kwargs = client._session.calls[0]
+    assert method == "GET"
+    assert url.endswith("/api/mock-inbox/messages")
+    assert kwargs["params"] == {"address": "e2e+run@mailbox.test", "limit": 10}
+    assert kwargs["headers"]["Authorization"] == "Bearer k-secret"
+
+    assert len(messages) == 1
+    msg = messages[0]
+    assert msg.id == 42
+    assert msg.template_key == "homework-submission-confirmation"
+    assert "E2E Homework 1" in msg.subject
+
+
+# -- detail + body/context matching ---------------------------------------
+
+
+def test_get_message_unwraps_detail_and_loads_context():
+    detail = _summary() | {
+        "html_body": "<a href='/homework/hw-1'>Update your submission</a>",
+        "text_body": "Update: https://x/homework/hw-1",
+        "context": {"update_url": "https://x/homework/hw-1", "tags": ["a"]},
+        "metadata": {"k": "v"},
+    }
+    client = _client([FakeResponse(200, {"message": detail})])
+    msg = client.get_message(42)
+    assert msg.detail_loaded
+    assert msg.context["update_url"].endswith("/homework/hw-1")
+    assert msg.body_contains("/homework/")  # found in context + body
+
+
+def test_body_contains_checks_context_values():
+    from e2e.mock_inbox import InboxMessage
+
+    msg = InboxMessage(id=1, to="x", subject="s", context={"update_url": "https://x/homework/abc"})
+    assert msg.body_contains("/homework/")
+    assert not msg.body_contains("/project/")
+
+
+# -- wait_for_message: matching, detail fetch, timeout ---------------------
+
+
+def test_wait_for_message_matches_template_and_fetches_detail():
+    list_resp = FakeResponse(200, {"messages": [_summary()]})
+    detail_resp = FakeResponse(200, {"message": _summary() | {"html_body": "<p>/homework/hw-1</p>"}})
+    client = _client([list_resp, detail_resp])
+
+    msg = client.wait_for_message(
+        "e2e+run@mailbox.test",
+        template_key="homework-submission-confirmation",
+        subject="Homework submission saved",
+        timeout=5,
+    )
+    assert msg.detail_loaded
+    assert msg.template_key == "homework-submission-confirmation"
+
+
+def test_wait_for_message_skips_non_matching_template():
+    other = _summary(template_key="welcome", subject="Welcome")
+    client = _client([FakeResponse(200, {"messages": [other]})] * 50)
+    with pytest.raises(MockInboxTimeout) as exc:
+        client.wait_for_message(
+            "e2e+run@mailbox.test",
+            template_key="homework-submission-confirmation",
+            timeout=0.2,
+            poll_interval=0.01,
+        )
+    assert "welcome" in str(exc.value)
+
+
+def test_wait_for_message_times_out_when_empty():
+    client = _client([FakeResponse(200, {"messages": []})] * 50)
+    with pytest.raises(MockInboxTimeout):
+        client.wait_for_message("e2e+run@mailbox.test", timeout=0.2, poll_interval=0.01)
+
+
+# -- disabled deployment + retries -----------------------------------------
+
+
+def test_disabled_deployment_raises_inbox_disabled():
+    disabled = FakeResponse(404, {"error": {"code": "mock_inbox_disabled"}})
+    client = _client([disabled])
+    with pytest.raises(InboxDisabled):
+        client.list_messages("e2e+run@mailbox.test")
+
+
+def test_retries_on_transport_error_then_succeeds():
+    client = _client(
+        [requests.ConnectionError("boom"), FakeResponse(200, {"messages": []})]
+    )
+    assert client.list_messages("e2e+run@mailbox.test") == []
+    assert len(client._session.calls) == 2
+
+
+def test_retries_on_5xx_then_succeeds():
+    client = _client([FakeResponse(503), FakeResponse(200, {"messages": []})])
+    assert client.list_messages("e2e+run@mailbox.test") == []
+    assert len(client._session.calls) == 2
+
+
+# -- clear -----------------------------------------------------------------
+
+
+def test_clear_sends_delete_with_address_and_returns_count():
+    client = _client([FakeResponse(200, {"address": "a", "deleted_count": 3})])
+    assert client.clear("e2e+run@mailbox.test") == 3
+    method, url, kwargs = client._session.calls[0]
+    assert method == "DELETE"
+    assert kwargs["json"] == {"address": "e2e+run@mailbox.test"}
+
+
+def test_clear_is_safe_when_unconfigured():
+    assert MockInboxClient(None, None).clear("x") == 0
+
+
+# -- real backend stub -----------------------------------------------------
+
+
+def test_real_inbox_is_unconfigured_stub():
+    real = RealInboxClient("https://x", "k")
+    assert real.configured is False
+    assert real.clear("x") == 0
+    with pytest.raises(InboxNotConfigured):
+        real.list_messages("x")
+
+
+# -- config helper ---------------------------------------------------------
+
+
+def test_mock_address_uses_tag_and_domain():
+    cfg = Settings(
+        base_url="https://x",
+        api_token=None,
+        admin_email=None,
+        admin_password=None,
+        student_email=None,
+        student_password=None,
+        mock_inbox_url=None,
+        mock_inbox_api_key=None,
+        mock_inbox_domain="mailbox.test",
+        mock_inbox_tag="e2e",
+        real_inbox_url=None,
+        real_inbox_api_key=None,
+        request_timeout=30.0,
+        ui_timeout_ms=20000,
+        expected_version=None,
+    )
+    assert cfg.mock_address("e2e-smoke-123") == "e2e+e2e-smoke-123@mailbox.test"
+    # Sanitises unexpected characters in the label.
+    assert cfg.mock_address("a b/c") == "e2e+a-b-c@mailbox.test"
+
+
+def test_load_settings_exposes_inbox_defaults():
+    cfg = load_settings()
+    assert cfg.mock_inbox_domain
+    assert cfg.mock_inbox_tag
+    # mock_address always yields a recognised mock address.
+    assert "@" in cfg.mock_address("run")
