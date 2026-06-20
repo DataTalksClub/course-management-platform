@@ -1,0 +1,78 @@
+name: E2E Smoke (Dev)
+
+# Runs the Playwright e2e smoke suite against dev after each successful dev
+# deploy. See e2e/README.md and issue #194.
+on:
+  # Triggered when "Deploy Dev" finishes.
+  workflow_run:
+    workflows: ["Deploy Dev"]
+    types:
+      - completed
+  # Allow manual runs.
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target base URL"
+        default: "https://dev.courses.datatalks.club"
+      expected_version:
+        description: "Expected /api/health/ version (optional)"
+        required: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    # For workflow_run, only proceed if the deploy succeeded.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    env:
+      E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.courses.datatalks.club' }}
+      E2E_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_DEV_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_DEV_ADMIN_PASSWORD }}
+      # Set once the Datamailer mock inbox (#194 sub-task) is available.
+      E2E_MOCK_INBOX_URL: ${{ secrets.E2E_DEV_MOCK_INBOX_URL }}
+      E2E_MOCK_INBOX_API_KEY: ${{ secrets.E2E_DEV_MOCK_INBOX_API_KEY }}
+      E2E_EXPECTED_VERSION: ${{ github.event.inputs.expected_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13.5'
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --locked
+
+      - name: Install Playwright browser
+        run: uv run playwright install --with-deps chromium
+
+      - name: Wait for dev health endpoint
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "${E2E_BASE_URL}/api/health/" | grep -q '"status": *"ok"'; then
+              echo "Dev is healthy."; exit 0
+            fi
+            echo "Waiting for dev health... ($i)"; sleep 10
+          done
+          echo "Dev health never became OK"; exit 1
+
+      - name: Run e2e smoke suite
+        working-directory: e2e
+        run: uv run --project .. pytest -c pytest.ini
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-smoke-artifacts
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          if-no-files-found: ignore
