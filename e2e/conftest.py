@@ -158,6 +158,24 @@ def admin_session(admin_page, settings: Settings, admin_creds):
     return session
 
 
+@pytest.fixture(scope="session")
+def optional_admin_session(request, settings: Settings):
+    """The admin session if admin creds are configured, else ``None``.
+
+    Teardown and the pre-run sweep delete the course through the admin UI, but
+    must still run in the API-only subset (no admin creds) -- there they fall
+    back to parking the course hidden. Unlike ``admin_session``, this fixture
+    never skips: it returns ``None`` when creds are absent or login fails, so
+    callers can degrade gracefully instead of erroring.
+    """
+    if not settings.admin_email or not settings.admin_password:
+        return None
+    try:
+        return request.getfixturevalue("admin_session")
+    except Exception:
+        return None
+
+
 def require(value, message: str):
     """Skip the current test with a clear message when a prereq is missing."""
     if not value:

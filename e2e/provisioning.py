@@ -1,28 +1,34 @@
-"""Course-lifecycle provisioning and teardown via the REST API.
+"""Course-lifecycle provisioning and teardown.
+
+Provisioning and the deletable-object pre-pass go through the REST API (fast,
+token-auth). The **course itself is deleted through the Django admin UI**
+(driven by Playwright), not via a REST endpoint.
 
 Design notes on teardown (important):
 
 The CMP API is intentionally read-only for submissions, enrollments, answers
-and peer reviews, and there is no course DELETE endpoint. So full teardown of
-a run that has created submissions is **not possible through remote tooling
-alone**:
+and peer reviews, and there is deliberately **no course DELETE API endpoint**:
+a standing remote delete capability could let any API client/agent wipe too
+much data. Admin-panel deletion is instead gated behind an interactive staff
+login plus the admin's own confirmation screen, which is the safer path.
 
-* Homework / project objects can be DELETEd only when CLOSED and with zero
-  submissions.
-* Project submissions CAN be removed via the student UI (action=delete), so
-  a project can be brought back to a deletable state.
-* Homework submissions cannot be removed by any remote caller, so a homework
-  that has been submitted to cannot be deleted. The course shell itself
-  cannot be deleted either.
+Deleting a ``Course`` through the admin cascades to ALL of its data --
+Homework, Question, Project, Submission, Answer, ProjectSubmission,
+Enrollment, PeerReview are all ``on_delete=CASCADE`` from Course/Project -- so
+one admin delete of the course fully cleans a run.
 
 The teardown therefore:
-  1. Deletes every deletable object (closed homeworks/projects with no
-     submissions) in dependency order.
-  2. Parks the residual course (rename + ``visible=false`` + ``finished``)
-     so dev stays clean to anyone browsing.
-  3. Reports the residual so the post-run "clean" assertion can xfail with a
-     TODO pointing at #194 (needs an admin/API delete path), mirroring the
-     email-verification stub.
+  1. (Best-effort, optional) deletes individual deletable objects via the API
+     in dependency order -- harmless even though the admin delete supersedes
+     it; keeps the report informative.
+  2. Deletes the course through the admin UI (``admin_session``), which
+     cascades away every remaining row.
+  3. Falls back to *parking* the course (rename + ``visible=false`` +
+     ``finished``) only if the admin delete is unavailable or fails, so dev
+     still stays clean to anyone browsing, and reports the residual.
+
+When the admin delete succeeds there is no residual and the course is fully
+purged.
 """
 
 from __future__ import annotations
@@ -152,10 +158,16 @@ class Provisioner:
             self.api.update_project(course.slug, proj["id"], {"state": "CS"})
 
     # -- teardown --------------------------------------------------------
-    def teardown_course(self, slug: str) -> dict:
+    def teardown_course(self, slug: str, admin_session=None) -> dict:
         """Best-effort teardown of a single namespaced course.
 
-        Returns a residual report: ``{"deleted": [...], "residual": [...]}``.
+        The course (and its full cascade) is deleted through the Django admin
+        UI when an authenticated ``admin_session`` is supplied. If no session
+        is given, or the admin delete fails, the course is *parked hidden* as
+        a fallback so dev stays clean and the residual is reported.
+
+        Returns a residual report:
+        ``{"deleted": [...], "residual": [...], "course": slug}``.
         Never raises -- teardown must be robust even on partial failures.
         """
         deleted: list[str] = []
@@ -165,9 +177,11 @@ class Provisioner:
         if detail is None:
             return {"deleted": deleted, "residual": residual, "course": slug}
 
-        # Projects: close, then try delete. Submissions block deletion; the
-        # caller is expected to have already removed project submissions via
-        # the UI where possible.
+        title = detail.get("title") if isinstance(detail, dict) else None
+
+        # Best-effort API pre-pass on individually-deletable objects. This is
+        # informative for the report; the admin delete below supersedes it by
+        # cascading everything away regardless.
         for proj in self.api.list_projects(slug):
             _close_and_delete(
                 lambda pid: self.api.update_project(slug, pid, {"state": "CL"}),
@@ -178,7 +192,6 @@ class Provisioner:
                 residual=residual,
             )
 
-        # Homeworks: close, then try delete.
         for hw in self.api.list_homeworks(slug):
             _close_and_delete(
                 lambda hid: self.api.update_homework(slug, hid, {"state": "CL"}),
@@ -189,7 +202,24 @@ class Provisioner:
                 residual=residual,
             )
 
-        # Park the course (cannot be deleted via API).
+        # Primary path: delete the course (and its cascade) via the admin UI.
+        if admin_session is not None:
+            try:
+                purged = admin_session.delete_course_via_admin(slug, title=title)
+            except Exception:
+                purged = False
+            if purged:
+                deleted.append(f"course:{slug} (admin-deleted, cascaded)")
+                return {"deleted": deleted, "residual": residual, "course": slug}
+            residual.append(
+                f"course:{slug} (admin delete failed; parked hidden)"
+            )
+        else:
+            residual.append(
+                f"course:{slug} (no admin session; parked hidden)"
+            )
+
+        # Fallback: park the course hidden so dev stays clean.
         try:
             self.api.update_course(
                 slug,
@@ -201,17 +231,20 @@ class Provisioner:
             )
         except ApiError:
             pass
-        residual.append(f"course:{slug} (no delete endpoint; parked hidden)")
 
         return {"deleted": deleted, "residual": residual, "course": slug}
 
-    def sweep_stale(self) -> list[dict]:
-        """Pre-run sweep: tear down any leftover ``e2e-smoke-*`` courses."""
+    def sweep_stale(self, admin_session=None) -> list[dict]:
+        """Pre-run sweep: tear down any leftover ``e2e-smoke-*`` courses.
+
+        Uses admin-UI deletion (cascade) when an ``admin_session`` is given,
+        otherwise falls back to parking each stale course hidden.
+        """
         reports = []
         for course in self.api.list_courses():
             slug = course.get("slug", "")
             if slug.startswith(NAMESPACE_PREFIX):
-                reports.append(self.teardown_course(slug))
+                reports.append(self.teardown_course(slug, admin_session=admin_session))
         return reports
 
     def list_active_namespaced_courses(self) -> list[str]:

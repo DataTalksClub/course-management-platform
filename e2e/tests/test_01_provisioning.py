@@ -10,9 +10,13 @@ import pytest
 pytestmark = pytest.mark.provisioning
 
 
-def test_pre_run_sweep_of_stale_data(provisioner):
-    """Remove leftovers from previous failed runs before provisioning."""
-    reports = provisioner.sweep_stale()
+def test_pre_run_sweep_of_stale_data(provisioner, optional_admin_session):
+    """Remove leftovers from previous failed runs before provisioning.
+
+    Deletes stale ``e2e-smoke-*`` courses through the admin UI (cascade) when
+    admin creds are configured; otherwise parks them hidden.
+    """
+    reports = provisioner.sweep_stale(admin_session=optional_admin_session)
     # Sweep is best-effort and must not fail the run; just surface what it did.
     for report in reports:
         print(

@@ -163,6 +163,93 @@ class AdminSession:
             return existing
         return self.create_student(email, password)
 
+    # -- course teardown (admin side) ------------------------------------
+    def find_course_pk(self, slug: str, *, title: str | None = None) -> int | None:
+        """Resolve a Course primary key from its slug via the admin changelist.
+
+        ``CourseAdmin`` has no ``search_fields``, so the ``?q=`` search does
+        not filter -- the changelist lists every course. We therefore walk the
+        result rows and match ours by the row text (the namespaced ``slug`` is
+        embedded in the title ``E2E Smoke <slug>``; we also accept an explicit
+        ``title``), then read the ``<pk>`` out of that row's change link
+        (``/admin/courses/course/<pk>/change/``).
+        """
+        import re
+
+        self.page.goto(self.url("/admin/courses/course/"))
+        self.page.wait_for_load_state("networkidle")
+        needle = title or slug
+        # Each result row's first cell is an <a> to the change form. Find the
+        # row whose visible text contains our slug/title and read its pk.
+        rows = self.page.locator("#result_list tbody tr")
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            try:
+                row_text = row.inner_text()
+            except Exception:
+                continue
+            if needle not in row_text and slug not in row_text:
+                continue
+            link = row.locator(
+                "a[href*='/admin/courses/course/']"
+            ).first
+            if link.count() == 0:
+                continue
+            href = link.get_attribute("href") or ""
+            m = re.search(r"/admin/courses/course/(\d+)/change/", href)
+            if m:
+                return int(m.group(1))
+        return None
+
+    def delete_course_via_admin(
+        self, slug: str, *, course_pk: int | None = None, title: str | None = None
+    ) -> bool:
+        """Delete a Course (and its cascade) through the Django admin UI.
+
+        Opens the admin delete-confirmation page
+        (``/admin/courses/course/<pk>/delete/``) and submits the "Yes, I'm
+        sure" form (which carries the CSRF token + ``post=yes``). Deleting the
+        Course cascades to all test data (homeworks, questions, projects,
+        submissions, answers, enrollments, peer reviews) because every FK back
+        to Course/Project is ``on_delete=CASCADE``.
+
+        This is the deliberate cleanup path: the platform intentionally has no
+        course DELETE API endpoint (a standing delete capability is unsafe), so
+        teardown reuses the interactive, staff-gated admin confirmation screen.
+
+        Returns ``True`` if the course is gone afterwards (change page 404s and
+        the changelist no longer lists it), ``False`` otherwise. Never raises.
+        """
+        try:
+            pk = course_pk
+            if pk is None:
+                pk = self.find_course_pk(slug, title=title)
+            if pk is None:
+                # Already absent -> nothing to delete; treat as success only
+                # if the changelist truly has no matching row.
+                return self.find_course_pk(slug, title=title) is None
+
+            self.page.goto(
+                self.url(f"/admin/courses/course/{pk}/delete/")
+            )
+            self.page.wait_for_load_state("networkidle")
+            # The confirmation page's submit button is inside a POST form that
+            # already carries csrfmiddlewaretoken + post=yes (Django renders a
+            # hidden <input name="post" value="yes">).
+            confirm = self.page.locator(
+                "form input[type='submit'], form button[type='submit']"
+            ).first
+            if confirm.count() == 0:
+                # Page may have 404'd (already deleted) -- verify and report.
+                return self.find_course_pk(slug, title=title) is None
+            confirm.click()
+            self.page.wait_for_load_state("networkidle")
+
+            # Verify: change page should 404 and changelist should not list it.
+            return self.find_course_pk(slug, title=title) is None
+        except Exception:
+            return False
+
     # -- homework flow ---------------------------------------------------
     def submit_homework(
         self,

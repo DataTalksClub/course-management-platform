@@ -3,15 +3,18 @@
 Order of operations:
 1. As the impersonated student, delete the project submission via the UI
    (the only remote way to remove a submission), then stop impersonating.
-2. Via API, close + delete every deletable homework/project, and park the
-   course (hidden) since there is no course DELETE endpoint.
-3. Post-run assertion: no *visible* ``e2e-smoke-*`` course remains.
+2. Best-effort API pre-pass on individually-deletable homeworks/projects,
+   then delete the course (and its full cascade) through the Django admin UI.
+3. Post-run assertions: the course is fully purged -- not retrievable via the
+   API and not listed among visible namespaced courses.
 
-Known platform gap: homework submissions and enrollments cannot be deleted
-by any remote caller, and courses cannot be deleted via the API. The course
-is therefore hidden rather than removed, and the "fully purged" assertion is
-xfailed with a TODO pointing at #194 (needs an admin/API delete path),
-mirroring the email-verification stub.
+Deleting the ``Course`` in the admin cascades to every related row (homeworks,
+questions, projects, submissions, answers, enrollments, peer reviews are all
+``on_delete=CASCADE``). The platform deliberately exposes **no course DELETE
+API endpoint**: a standing remote delete capability is unsafe, so cleanup goes
+through the staff-gated admin confirmation screen instead. If admin creds are
+not configured (API-only subset), teardown falls back to parking the course
+hidden and the full-purge assertion is skipped.
 """
 
 from __future__ import annotations
@@ -32,21 +35,30 @@ def test_delete_project_submission_via_ui(admin_session, run_state):
     admin_session.stop_impersonating()
 
 
-def test_teardown_deletes_provisioned_resources(provisioner, run_state):
+def test_teardown_deletes_provisioned_resources(
+    provisioner, run_state, optional_admin_session
+):
     if not run_state.course:
         pytest.skip("Nothing was provisioned.")
-    report = provisioner.teardown_course(run_state.course.slug)
+    report = provisioner.teardown_course(
+        run_state.course.slug, admin_session=optional_admin_session
+    )
     run_state.teardown_report = report
     print(
         f"[teardown] {report['course']}: "
         f"deleted={report['deleted']} residual={report['residual']}"
     )
-    # The project (submission removed via UI) should now be deletable.
-    assert any(
-        item.startswith("project:") for item in report["deleted"]
-    ) or run_state.course.project_id is None, (
-        f"Project was not deleted in teardown: {report}"
-    )
+    if optional_admin_session is not None:
+        # Admin delete should have cascaded the whole course away.
+        assert any(
+            item.startswith("course:") and "admin-deleted" in item
+            for item in report["deleted"]
+        ), f"Course was not admin-deleted in teardown: {report}"
+    else:
+        # API-only subset: no admin session, so the course is parked hidden.
+        assert any(
+            "parked hidden" in item for item in report["residual"]
+        ), f"Expected parked-hidden fallback without admin session: {report}"
 
 
 def test_no_visible_namespaced_data_remains(provisioner, run_state):
@@ -57,19 +69,22 @@ def test_no_visible_namespaced_data_remains(provisioner, run_state):
     )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Homework submissions, enrollments and the course shell cannot be "
-        "deleted via the API/admin, so test data cannot be fully purged "
-        "remotely. TODO(#194): add an admin/API delete path for e2e cleanup."
-    ),
-    strict=False,
-)
-def test_namespaced_course_fully_purged(provisioner, run_state):
+def test_namespaced_course_fully_purged(
+    provisioner, run_state, optional_admin_session
+):
+    """The course is actually deleted (admin cascade), not just hidden.
+
+    Only meaningful when admin creds are configured; the API-only subset parks
+    the course hidden instead, so this is skipped there.
+    """
     if not run_state.course:
         pytest.skip("Nothing was provisioned.")
-    # Will fail while the course still exists (parked + hidden) -> xfail.
+    if optional_admin_session is None:
+        pytest.skip(
+            "No admin session (E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD unset); "
+            "course is parked hidden rather than deleted."
+        )
     assert provisioner.api.get_course(run_state.namespace) is None, (
-        f"Course {run_state.namespace} still exists (parked hidden). "
+        f"Course {run_state.namespace} still exists after admin delete. "
         f"Residual: {run_state.teardown_report.get('residual')}"
     )

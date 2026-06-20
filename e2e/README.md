@@ -76,22 +76,42 @@ The student email is set to a unique per-run mock address
 captured messages are cleared via the `DELETE` endpoint in each email test's
 teardown.
 
-### Teardown is best-effort by design (platform gap)
+### Teardown deletes the course via the Django admin UI
 
-The API is read-only for submissions/enrollments/peer-reviews and has **no
-course DELETE**. So teardown:
+The platform deliberately exposes **no course DELETE API endpoint** — a
+standing remote delete capability could let any API client/agent wipe too much
+data. Cleanup instead reuses the suite's authenticated admin Playwright session
+(the same one used for login + impersonation) and deletes the course through
+the **Django admin confirmation screen**
+(`/admin/courses/course/<pk>/delete/` → "Yes, I'm sure"). Deleting the `Course`
+cascades to **all** of its data (homeworks, questions, projects, submissions,
+answers, enrollments, peer reviews are all `on_delete=CASCADE`), so a single
+admin delete fully purges a run.
+
+So teardown:
 
 1. removes the student's project submission via the UI (the only remote way
-   to delete a submission), then deletes the now-empty project;
-2. closes + deletes homeworks/projects that have no submissions;
-3. parks the leftover course (`visible=false`, renamed `[DELETED] ...`) since
-   it cannot be deleted; the next run's **pre-run sweep** re-parks any stale
-   `e2e-smoke-*` courses.
+   to delete a submission), then stops impersonating;
+2. runs a best-effort API pre-pass on individually-deletable homeworks/projects
+   (informative only — the admin delete supersedes it);
+3. **deletes the course through the admin UI**, cascading everything away. The
+   course pk is resolved from the slug via the admin changelist (the API does
+   not return a course id). The next run's **pre-run sweep** admin-deletes any
+   stale `e2e-smoke-*` courses the same way.
 
-The post-run assertion verifies **no _visible_ `e2e-smoke-*` course remains**.
-A separate `test_namespaced_course_fully_purged` is `xfail`ed with a TODO
-referencing #194 — it will pass once the platform grows an admin/API delete
-path for full cleanup.
+Teardown stays robust: if the admin delete is unavailable (no admin creds) or
+fails, it falls back to **parking** the course (`visible=false`, renamed
+`[DELETED] ...`) and reports the residual, so dev still stays clean.
+
+The post-run assertions verify **no _visible_ `e2e-smoke-*` course remains**
+and that the course is **fully purged** (no longer retrievable via the API).
+The full-purge check requires admin creds; in the API-only subset it is
+skipped (the course is parked hidden instead).
+
+> **Teardown now depends on `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`.** These
+> were already required for the browser login/impersonation flows; the admin
+> deletion in teardown uses the same session. Without them, teardown degrades
+> to the park-hidden fallback.
 
 ## Running it
 
@@ -124,7 +144,7 @@ secrets. The suite also falls back to the **repo-root `.env`** for
 |-----|--------------|-------|
 | `E2E_BASE_URL` | all | Defaults to `https://dev.courses.datatalks.club` (or `PUBLIC_BASE_URL`). |
 | `E2E_API_TOKEN` | provisioning/scoring/teardown | Staff token. Falls back to `DEV_AUTH_TOKEN`. |
-| `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | browser flows | Staff account; logs in via the admin form (no OAuth). |
+| `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | browser flows + teardown | Staff account; logs in via the admin form (no OAuth). Teardown deletes the course through the admin UI with this session; without it, teardown only parks the course hidden. |
 | `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `e2e+<namespace>@mailbox.test` mock-address student is created admin-side. |
 | `E2E_MOCK_INBOX_URL` / `E2E_MOCK_INBOX_API_KEY` | email checks (mock) | Datamailer service root + client key. Fall back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`. Email tests xfail when both unset. |
 | `E2E_MOCK_INBOX_DOMAIN` / `E2E_MOCK_INBOX_TAG` | optional | Mock-address shape; default `mailbox.test` / `e2e`. Must match the datamailer `MOCK_INBOX_*` settings. |
