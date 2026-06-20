@@ -1,14 +1,10 @@
 name: E2E Smoke (Dev)
 
-# Runs the Playwright e2e smoke suite against dev after each successful dev
-# deploy. See e2e/README.md and issue #194.
+# Standalone Playwright e2e smoke suite against dev. Runs on demand or on a
+# schedule -- intentionally NOT tied to deploys or commits to main, so it can
+# be triggered independently. See e2e/README.md and issue #194.
 on:
-  # Triggered when "Deploy Dev" finishes.
-  workflow_run:
-    workflows: ["Deploy Dev"]
-    types:
-      - completed
-  # Allow manual runs.
+  # Manual run (the primary way to run this job).
   workflow_dispatch:
     inputs:
       base_url:
@@ -17,14 +13,13 @@ on:
       expected_version:
         description: "Expected /api/health/ version (optional)"
         required: false
+  # Scheduled run, independent of any deploy (daily at 06:00 UTC).
+  schedule:
+    - cron: "0 6 * * *"
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    # For workflow_run, only proceed if the deploy succeeded.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
 
     env:
       E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.courses.datatalks.club' }}
