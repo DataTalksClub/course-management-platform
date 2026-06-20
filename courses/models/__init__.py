@@ -1,4 +1,4 @@
-from . import course, project, homework, wrapped
+from . import course, project, homework, wrapped  # noqa: F401
 
 from .course import *  # noqa: F403
 from .homework import *  # noqa: F403

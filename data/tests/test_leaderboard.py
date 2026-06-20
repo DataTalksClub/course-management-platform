@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.core.cache import cache
 
-from accounts.models import CustomUser, Token
+from accounts.models import CustomUser
 from courses.models import (
     Course,
     Enrollment,

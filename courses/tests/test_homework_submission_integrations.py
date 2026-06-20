@@ -63,6 +63,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
         self.client.force_login(self.user)
 
+    @override_settings(PUBLIC_BASE_URL="")
     @patch("courses.views.homework.send_transactional_email")
     def test_homework_submission_sends_confirmation_email(
         self,

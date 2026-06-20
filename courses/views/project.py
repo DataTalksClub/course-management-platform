@@ -2,15 +2,13 @@ import logging
 
 from typing import Iterable, Optional
 from collections import defaultdict
-from urllib.parse import urljoin
 
 from django.http import HttpRequest, JsonResponse
 
 from django.contrib import messages
-from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
-from django.core.exceptions import DisallowedHost, ValidationError
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
@@ -37,6 +35,7 @@ from courses.models import (
 )
 
 from courses.scoring import calculate_project_statistics
+from courses.views.url_utils import absolute_url_with_fallback
 from courses.votes import (
     PROJECT_VOTES_PER_PROJECT,
     get_project_vote_counts,
@@ -183,27 +182,7 @@ def build_project_update_url(
             "project_slug": project.slug,
         },
     )
-
-    if settings.PUBLIC_BASE_URL:
-        return urljoin(f"{settings.PUBLIC_BASE_URL}/", path.lstrip("/"))
-
-    try:
-        return request.build_absolute_uri(path)
-    except DisallowedHost:
-        fallback_host = next(
-            (
-                host
-                for host in settings.ALLOWED_HOSTS
-                if host and host != "*"
-            ),
-            "localhost",
-        )
-        logger.warning(
-            "Falling back to ALLOWED_HOSTS for project update URL "
-            "because request host is not allowed: %s",
-            fallback_host,
-        )
-        return urljoin(f"{request.scheme}://{fallback_host}", path)
+    return absolute_url_with_fallback(request, path, label="project")
 
 
 def send_project_confirmation_email(
@@ -921,6 +900,97 @@ def projects_eval_delete(request, course_slug, project_slug, review_id):
     )
 
 
+def _project_vote_response(request, course, project):
+    """Handle a POST vote on a project submission (HTML redirect or AJAX JSON)."""
+    if not request.user.is_authenticated:
+        return redirect("login")
+
+    submission_id = request.POST.get("submission_id")
+    action = request.POST.get("action", "vote")
+    submission = get_object_or_404(
+        ProjectSubmission.objects.select_related("project"),
+        id=submission_id,
+        project=project,
+        volunteer_review_only=False,
+    )
+    update_project_vote(request.user, submission, action=action)
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        voted_submission_ids = get_voted_submission_ids(request.user, course)
+        project_vote_counts = get_project_vote_counts(request.user, course)
+        project_vote_count = project_vote_counts.get(project.id, 0)
+        votes_left = max(PROJECT_VOTES_PER_PROJECT - project_vote_count, 0)
+        vote_count = (
+            ProjectSubmission.objects.filter(id=submission.id)
+            .annotate(vote_count=Count("votes"))
+            .values_list("vote_count", flat=True)
+            .get()
+        )
+
+        return JsonResponse(
+            {
+                "submission_id": submission.id,
+                "vote_count": vote_count,
+                "voted": submission.id in voted_submission_ids,
+                "voted_submission_ids": list(voted_submission_ids),
+                "votes_left": votes_left,
+                "vote_limit_reached": (
+                    project_vote_count >= PROJECT_VOTES_PER_PROJECT
+                ),
+            }
+        )
+
+    return redirect(
+        "project_list",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+
+
+def _decorate_project_submissions(
+    submissions_list,
+    *,
+    project,
+    is_authenticated,
+    review_ids,
+    own_submissions,
+    voted_submission_ids,
+    project_vote_counts,
+    has_assigned_reviews,
+):
+    """Attach per-submission display flags (ordering, ownership, review group)."""
+    in_peer_review = (
+        is_authenticated
+        and project.state == ProjectState.PEER_REVIEWING.value
+    )
+
+    for order, submission in enumerate(submissions_list):
+        submission.list_order = order
+        if submission.id in review_ids:
+            submission.to_evaluate = True
+            submission.review = review_ids[submission.id]
+        else:
+            submission.to_evaluate = False
+
+        submission.own = submission.id in own_submissions
+        submission.vote_limit_reached = (
+            submission.id not in voted_submission_ids
+            and project_vote_counts.get(project.id, 0)
+            >= PROJECT_VOTES_PER_PROJECT
+        )
+        submission.group_order = 1
+        submission.group_label = None
+
+        if in_peer_review:
+            if submission.to_evaluate and not submission.review.optional:
+                submission.group_order = 0
+                submission.group_label = "Assigned reviews"
+            else:
+                submission.group_order = 1
+                if has_assigned_reviews:
+                    submission.group_label = "Other submissions"
+
+
 def projects_list_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
@@ -928,58 +998,7 @@ def projects_list_view(request, course_slug, project_slug):
     )
 
     if request.method == "POST":
-        if not request.user.is_authenticated:
-            return redirect("login")
-
-        submission_id = request.POST.get("submission_id")
-        action = request.POST.get("action", "vote")
-        submission = get_object_or_404(
-            ProjectSubmission.objects.select_related("project"),
-            id=submission_id,
-            project=project,
-            volunteer_review_only=False,
-        )
-        update_project_vote(request.user, submission, action=action)
-
-        if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            voted_submission_ids = get_voted_submission_ids(
-                request.user, course
-            )
-            project_vote_counts = get_project_vote_counts(
-                request.user, course
-            )
-            project_vote_count = project_vote_counts.get(project.id, 0)
-            votes_left = max(
-                PROJECT_VOTES_PER_PROJECT - project_vote_count,
-                0,
-            )
-            vote_count = (
-                ProjectSubmission.objects.filter(
-                    id=submission.id,
-                )
-                .annotate(vote_count=Count("votes"))
-                .values_list("vote_count", flat=True)
-                .get()
-            )
-
-            return JsonResponse(
-                {
-                    "submission_id": submission.id,
-                    "vote_count": vote_count,
-                    "voted": submission.id in voted_submission_ids,
-                    "voted_submission_ids": list(voted_submission_ids),
-                    "votes_left": votes_left,
-                    "vote_limit_reached": (
-                        project_vote_count >= PROJECT_VOTES_PER_PROJECT
-                    ),
-                }
-            )
-
-        return redirect(
-            "project_list",
-            course_slug=course.slug,
-            project_slug=project.slug,
-        )
+        return _project_vote_response(request, course, project)
 
     submissions = (
         ProjectSubmission.objects.filter(
@@ -1035,38 +1054,16 @@ def projects_list_view(request, course_slug, project_slug):
                 has_assigned_reviews = True
 
     submissions_list = list(submissions)
-
-    for order, submission in enumerate(submissions_list):
-        submission.list_order = order
-        if submission.id in review_ids:
-            submission.to_evaluate = True
-            submission.review = review_ids[submission.id]
-        else:
-            submission.to_evaluate = False
-
-        submission.own = submission.id in own_submissions
-        submission.vote_limit_reached = (
-            submission.id not in voted_submission_ids
-            and project_vote_counts.get(project.id, 0)
-            >= PROJECT_VOTES_PER_PROJECT
-        )
-        submission.group_order = 1
-        submission.group_label = None
-
-        if (
-            is_authenticated
-            and project.state == ProjectState.PEER_REVIEWING.value
-        ):
-            if (
-                submission.to_evaluate
-                and not submission.review.optional
-            ):
-                submission.group_order = 0
-                submission.group_label = "Assigned reviews"
-            else:
-                submission.group_order = 1
-                if has_assigned_reviews:
-                    submission.group_label = "Other submissions"
+    _decorate_project_submissions(
+        submissions_list,
+        project=project,
+        is_authenticated=is_authenticated,
+        review_ids=review_ids,
+        own_submissions=own_submissions,
+        voted_submission_ids=voted_submission_ids,
+        project_vote_counts=project_vote_counts,
+        has_assigned_reviews=has_assigned_reviews,
+    )
 
     if (
         is_authenticated

@@ -67,6 +67,47 @@ def _leaderboard_yaml_page_url(course, page_number):
     return f"{url}?page={page_number}"
 
 
+def _leaderboard_homework_entry(sub):
+    """Score breakdown for one scored homework submission."""
+    entry = {
+        "homework": sub.homework.title,
+        "homework_slug": sub.homework.slug,
+        "total_score": sub.total_score,
+        "questions_score": sub.questions_score,
+        "faq_score": sub.faq_score,
+        "learning_in_public_score": sub.learning_in_public_score,
+    }
+    if sub.homework_link:
+        entry["homework_link"] = sub.homework_link
+    if sub.faq_contribution_url:
+        entry["faq_contribution_url"] = sub.faq_contribution_url
+    if sub.learning_in_public_links:
+        entry["learning_in_public_links"] = sub.learning_in_public_links
+    return entry
+
+
+def _leaderboard_project_entry(sub):
+    """Score breakdown for one completed project submission."""
+    entry = {
+        "project": sub.project.title,
+        "project_slug": sub.project.slug,
+        "total_score": sub.total_score,
+        "project_score": sub.project_score,
+        "peer_review_score": sub.peer_review_score,
+        "project_learning_in_public_score": sub.project_learning_in_public_score,
+        "peer_review_learning_in_public_score": sub.peer_review_learning_in_public_score,
+        "project_faq_score": sub.project_faq_score,
+        "passed": sub.passed,
+    }
+    if sub.github_link:
+        entry["github_link"] = sub.github_link
+    if sub.faq_contribution_url:
+        entry["faq_contribution_url"] = sub.faq_contribution_url
+    if sub.learning_in_public_links:
+        entry["learning_in_public_links"] = sub.learning_in_public_links
+    return entry
+
+
 def _build_leaderboard_data(course, page_number):
     """Build the full leaderboard JSON structure with score breakdowns."""
     enrollments = (
@@ -103,44 +144,14 @@ def _build_leaderboard_data(course, page_number):
 
     results = []
     for enrollment in page_obj.object_list:
-        hw_data = []
-        for sub in enrollment.scored_submissions:
-            hw_entry = {
-                "homework": sub.homework.title,
-                "homework_slug": sub.homework.slug,
-                "total_score": sub.total_score,
-                "questions_score": sub.questions_score,
-                "faq_score": sub.faq_score,
-                "learning_in_public_score": sub.learning_in_public_score,
-            }
-            if sub.homework_link:
-                hw_entry["homework_link"] = sub.homework_link
-            if sub.faq_contribution_url:
-                hw_entry["faq_contribution_url"] = sub.faq_contribution_url
-            if sub.learning_in_public_links:
-                hw_entry["learning_in_public_links"] = sub.learning_in_public_links
-            hw_data.append(hw_entry)
-
-        proj_data = []
-        for sub in enrollment.completed_project_submissions:
-            proj_entry = {
-                "project": sub.project.title,
-                "project_slug": sub.project.slug,
-                "total_score": sub.total_score,
-                "project_score": sub.project_score,
-                "peer_review_score": sub.peer_review_score,
-                "project_learning_in_public_score": sub.project_learning_in_public_score,
-                "peer_review_learning_in_public_score": sub.peer_review_learning_in_public_score,
-                "project_faq_score": sub.project_faq_score,
-                "passed": sub.passed,
-            }
-            if sub.github_link:
-                proj_entry["github_link"] = sub.github_link
-            if sub.faq_contribution_url:
-                proj_entry["faq_contribution_url"] = sub.faq_contribution_url
-            if sub.learning_in_public_links:
-                proj_entry["learning_in_public_links"] = sub.learning_in_public_links
-            proj_data.append(proj_entry)
+        hw_data = [
+            _leaderboard_homework_entry(sub)
+            for sub in enrollment.scored_submissions
+        ]
+        proj_data = [
+            _leaderboard_project_entry(sub)
+            for sub in enrollment.completed_project_submissions
+        ]
 
         entry = {
             "position": enrollment.position_on_leaderboard,

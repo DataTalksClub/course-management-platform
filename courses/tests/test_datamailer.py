@@ -334,7 +334,7 @@ class DatamailerClientTest(TestCase):
         with self.assertRaises(requests.RequestException):
             sync_contact(user)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
     @patch(
         "course_management.datamailer.DatamailerClient.send_transactional"
     )

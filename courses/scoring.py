@@ -3,10 +3,12 @@ import statistics
 
 from time import time
 from enum import Enum
+from datetime import datetime
 from collections import defaultdict
 
 from django.utils import timezone
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
+from django.db.models.functions import Least
 
 from django.db import transaction
 from django.core.cache import cache
@@ -27,6 +29,9 @@ from .models import (
     ProjectSubmission,
     ProjectStatistics,
     ProjectState,
+    PeerReview,
+    WrappedStatistics,
+    UserWrappedStatistics,
 )
 
 
@@ -419,23 +424,27 @@ def clear_correct_answers(homework: Homework) -> int:
     return Question.objects.filter(homework=homework).update(correct_answer="")
 
 
-def calculate_raw_homework_statistics(homework):
-    # Fetch all needed fields in one query to avoid N+1 problem
-    fields = [
-        "questions_score",
-        "learning_in_public_score",
-        "total_score",
-        "time_spent_lectures",
-        "time_spent_homework",
-    ]
+HOMEWORK_STAT_FIELDS = [
+    "questions_score",
+    "learning_in_public_score",
+    "total_score",
+    "time_spent_lectures",
+    "time_spent_homework",
+]
 
-    # Single query to get all data we need
-    submissions_data = list(
-        Submission.objects.filter(homework=homework).values(*fields)
-    )
+PROJECT_STAT_FIELDS = [
+    "project_score",
+    "project_learning_in_public_score",
+    "peer_review_score",
+    "peer_review_learning_in_public_score",
+    "total_score",
+    "time_spent",
+]
 
-    total_submissions = len(submissions_data)
-    stats = {"total_submissions": total_submissions}
+
+def _calculate_field_distributions(submissions_data, fields):
+    """Compute min/max/avg/quantiles per field from prefetched submission rows."""
+    stats = {"total_submissions": len(submissions_data)}
 
     nones = {
         "min": None,
@@ -472,6 +481,33 @@ def calculate_raw_homework_statistics(homework):
         }
 
     return stats
+
+
+def _persist_field_stats(stats, calculated_stats, fields):
+    """Copy the computed distribution for each field onto a stats model instance."""
+    stats.total_submissions = calculated_stats["total_submissions"]
+
+    for field in fields:
+        field_stats = calculated_stats[field]
+
+        setattr(stats, f"min_{field}", field_stats["min"])
+        setattr(stats, f"max_{field}", field_stats["max"])
+        setattr(stats, f"avg_{field}", field_stats["avg"])
+        setattr(stats, f"median_{field}", field_stats["median"])
+        setattr(stats, f"q1_{field}", field_stats["q1"])
+        setattr(stats, f"q3_{field}", field_stats["q3"])
+
+
+def calculate_raw_homework_statistics(homework):
+    # Single query to get all the fields we need, avoiding the N+1 problem
+    submissions_data = list(
+        Submission.objects.filter(homework=homework).values(
+            *HOMEWORK_STAT_FIELDS
+        )
+    )
+    return _calculate_field_distributions(
+        submissions_data, HOMEWORK_STAT_FIELDS
+    )
 
 
 def calculate_homework_statistics(homework, force=False):
@@ -486,86 +522,24 @@ def calculate_homework_statistics(homework, force=False):
 
     if force or created:
         calculated_stats = calculate_raw_homework_statistics(homework)
-
-        stats.total_submissions = calculated_stats["total_submissions"]
-
-        for field in [
-            "questions_score",
-            "learning_in_public_score",
-            "total_score",
-            "time_spent_lectures",
-            "time_spent_homework",
-        ]:
-            field_stats = calculated_stats[field]
-
-            setattr(stats, f"min_{field}", field_stats["min"])
-            setattr(stats, f"max_{field}", field_stats["max"])
-            setattr(stats, f"avg_{field}", field_stats["avg"])
-            setattr(stats, f"median_{field}", field_stats["median"])
-            setattr(stats, f"q1_{field}", field_stats["q1"])
-            setattr(stats, f"q3_{field}", field_stats["q3"])
-
+        _persist_field_stats(
+            stats, calculated_stats, HOMEWORK_STAT_FIELDS
+        )
         stats.save()
 
     return stats
 
 
 def calculate_raw_project_statistics(project):
-    # Fetch all needed fields in one query to avoid N+1 problem
-    fields = [
-        "project_score",
-        "project_learning_in_public_score",
-        "peer_review_score",
-        "peer_review_learning_in_public_score",
-        "total_score",
-        "time_spent",
-    ]
-
-    # Single query to get all data we need
+    # Single query to get all the fields we need, avoiding the N+1 problem
     submissions_data = list(
         ProjectSubmission.objects.filter(project=project).values(
-            *fields
+            *PROJECT_STAT_FIELDS
         )
     )
-
-    total_submissions = len(submissions_data)
-    stats = {"total_submissions": total_submissions}
-
-    nones = {
-        "min": None,
-        "max": None,
-        "avg": None,
-        "q1": None,
-        "median": None,
-        "q3": None,
-    }
-
-    for field in fields:
-        # Extract non-null values for this field from already fetched data
-        values = [
-            submission[field]
-            for submission in submissions_data
-            if submission[field] is not None
-        ]
-
-        if not values or len(values) < 3:
-            stats[field] = nones
-            continue
-
-        quantiles = statistics.quantiles(
-            values, n=4, method="inclusive"
-        )
-
-        stats[field] = {
-            "min": min(values),
-            "max": max(values),
-            "avg": statistics.mean(values),
-            "q1": quantiles[0],
-            "median": quantiles[1],
-            "q3": quantiles[2],
-        }
-
-    return stats
+    return _calculate_field_distributions(
+        submissions_data, PROJECT_STAT_FIELDS
+    )
 
 
 def calculate_project_statistics(project, force=False):
@@ -580,29 +554,173 @@ def calculate_project_statistics(project, force=False):
 
     if force or created:
         calculated_stats = calculate_raw_project_statistics(project)
-
-        stats.total_submissions = calculated_stats["total_submissions"]
-
-        for field in [
-            "project_score",
-            "project_learning_in_public_score",
-            "peer_review_score",
-            "peer_review_learning_in_public_score",
-            "total_score",
-            "time_spent",
-        ]:
-            field_stats = calculated_stats[field]
-
-            setattr(stats, f"min_{field}", field_stats["min"])
-            setattr(stats, f"max_{field}", field_stats["max"])
-            setattr(stats, f"avg_{field}", field_stats["avg"])
-            setattr(stats, f"median_{field}", field_stats["median"])
-            setattr(stats, f"q1_{field}", field_stats["q1"])
-            setattr(stats, f"q3_{field}", field_stats["q3"])
-
+        _persist_field_stats(
+            stats, calculated_stats, PROJECT_STAT_FIELDS
+        )
         stats.save()
 
     return stats
+
+
+def _wrapped_total_hours(homework_submissions, project_submissions):
+    """Sum capped (<=100h) time-spent across all submissions for the year."""
+    homework_hours = homework_submissions.aggregate(
+        total_lecture_hours=Sum(Least("time_spent_lectures", 100.0)),
+        total_homework_hours=Sum(Least("time_spent_homework", 100.0)),
+    )
+    project_hours = project_submissions.aggregate(
+        total_project_hours=Sum(Least("time_spent", 100.0))
+    )
+
+    total_hours = 0
+    for value in (
+        homework_hours["total_lecture_hours"],
+        homework_hours["total_homework_hours"],
+        project_hours["total_project_hours"],
+    ):
+        if value:
+            total_hours += value
+
+    return round(total_hours, 1) if total_hours else 0
+
+
+def _wrapped_course_stats(enrollments, courses):
+    """Per-course enrollment counts, sorted most-popular first."""
+    course_stats_list = [
+        {
+            "title": course.title,
+            "slug": course.slug,
+            "enrollment_count": enrollments.filter(course=course).count(),
+        }
+        for course in courses
+    ]
+    course_stats_list.sort(
+        key=lambda x: x["enrollment_count"], reverse=True
+    )
+    return course_stats_list
+
+
+def _wrapped_leaderboard(enrollments):
+    """Top-100 leaderboard, summing each student's score across courses."""
+    user_scores = {}
+    for enrollment in enrollments:
+        entry = user_scores.setdefault(
+            enrollment.student_id,
+            {
+                "student": enrollment.student,
+                "total_score": 0,
+                "display_name": enrollment.display_name,
+            },
+        )
+        entry["total_score"] += enrollment.total_score or 0
+
+    sorted_users = sorted(
+        user_scores.values(),
+        key=lambda x: x["total_score"],
+        reverse=True,
+    )[:100]
+
+    return [
+        {
+            "rank": idx,
+            "display_name": user_data["display_name"],
+            "total_score": user_data["total_score"],
+            "student_id": user_data["student"].id,
+        }
+        for idx, user_data in enumerate(sorted_users, start=1)
+    ]
+
+
+def _build_user_wrapped_stat(
+    stats,
+    student,
+    *,
+    homework_submissions,
+    project_submissions,
+    enrollments,
+    peer_reviews_count,
+    leaderboard_data,
+):
+    """Build an (unsaved) UserWrappedStatistics row for one student."""
+    # User hours (max 100h per submission to avoid outliers)
+    user_homework_hours = sum(
+        min(hw.time_spent_lectures or 0, 100.0)
+        + min(hw.time_spent_homework or 0, 100.0)
+        for hw in homework_submissions
+    )
+    user_total_hours = user_homework_hours + sum(
+        min(proj.time_spent or 0, 100.0)
+        for proj in project_submissions
+    )
+
+    learning_in_public_count = sum(
+        len(hw.learning_in_public_links)
+        if hw.learning_in_public_links
+        else 0
+        for hw in homework_submissions
+    ) + sum(
+        len(proj.learning_in_public_links)
+        if proj.learning_in_public_links
+        else 0
+        for proj in project_submissions
+    )
+
+    faq_count = sum(
+        1
+        for hw in homework_submissions
+        if hw.faq_contribution_url and hw.faq_contribution_url.strip()
+    ) + sum(
+        1
+        for proj in project_submissions
+        if proj.faq_contribution_url and proj.faq_contribution_url.strip()
+    )
+
+    courses_list = [
+        {
+            "title": e.course.title,
+            "score": e.total_score,
+            "slug": e.course.slug,
+            "enrollment_id": e.id,
+        }
+        for e in enrollments
+    ]
+
+    certificates_count = sum(
+        1
+        for e in enrollments
+        if e.certificate_url and e.certificate_url.strip()
+    )
+
+    total_points = sum(e.total_score or 0 for e in enrollments)
+
+    rank = next(
+        (
+            entry["rank"]
+            for entry in leaderboard_data
+            if entry["student_id"] == student.id
+        ),
+        None,
+    )
+
+    display_name = (
+        enrollments[0].display_name if enrollments else student.username
+    )
+
+    return UserWrappedStatistics(
+        wrapped=stats,
+        user=student,
+        total_points=total_points,
+        total_hours=round(user_total_hours, 1),
+        homework_count=len(homework_submissions),
+        project_count=len(project_submissions),
+        peer_reviews_given=peer_reviews_count,
+        learning_in_public_count=learning_in_public_count,
+        faq_contributions_count=faq_count,
+        certificates_earned=certificates_count,
+        courses=courses_list,
+        rank=rank,
+        display_name=display_name,
+    )
 
 
 def calculate_wrapped_statistics(year=2025, force=False):
@@ -618,11 +736,6 @@ def calculate_wrapped_statistics(year=2025, force=False):
     Returns:
         WrappedStatistics object
     """
-    from .models import WrappedStatistics, UserWrappedStatistics
-    from .models.project import PeerReview
-    from datetime import datetime
-    from django.db.models import Q
-
     # Get or create the wrapped statistics object
     stats, created = WrappedStatistics.objects.get_or_create(year=year)
 
@@ -694,25 +807,9 @@ def calculate_wrapped_statistics(year=2025, force=False):
     stats.total_enrollments = enrollments_for_active_students.count()
 
     # Calculate total hours with safeguards (max 100h per submission to avoid outliers)
-    from django.db.models.functions import Least
-
-    homework_hours = homework_submissions_2025.aggregate(
-        total_lecture_hours=Sum(Least("time_spent_lectures", 100.0)),
-        total_homework_hours=Sum(Least("time_spent_homework", 100.0)),
+    stats.total_hours = _wrapped_total_hours(
+        homework_submissions_2025, project_submissions_2025
     )
-    project_hours = project_submissions_2025.aggregate(
-        total_project_hours=Sum(Least("time_spent", 100.0))
-    )
-
-    total_hours = 0
-    if homework_hours["total_lecture_hours"]:
-        total_hours += homework_hours["total_lecture_hours"]
-    if homework_hours["total_homework_hours"]:
-        total_hours += homework_hours["total_homework_hours"]
-    if project_hours["total_project_hours"]:
-        total_hours += project_hours["total_project_hours"]
-
-    stats.total_hours = round(total_hours, 1) if total_hours else 0
 
     # Count certificates
     stats.total_certificates = enrollments_for_active_students.exclude(
@@ -727,57 +824,13 @@ def calculate_wrapped_statistics(year=2025, force=False):
         or 0
     )
 
-    # Calculate course popularity
-    course_stats_list = []
-    for course in courses_with_2025_activity:
-        enrollment_count = enrollments_for_active_students.filter(
-            course=course
-        ).count()
-        course_stats_list.append(
-            {
-                "title": course.title,
-                "slug": course.slug,
-                "enrollment_count": enrollment_count,
-            }
-        )
-
-    # Sort by enrollment count
-    course_stats_list.sort(
-        key=lambda x: x["enrollment_count"], reverse=True
+    stats.course_stats = _wrapped_course_stats(
+        enrollments_for_active_students, courses_with_2025_activity
     )
-    stats.course_stats = course_stats_list
 
-    # Calculate leaderboard (top 100)
-    user_scores = {}
-    for enrollment in enrollments_for_active_students:
-        if enrollment.student_id not in user_scores:
-            user_scores[enrollment.student_id] = {
-                "student": enrollment.student,
-                "total_score": 0,
-                "display_name": enrollment.display_name,
-            }
-        user_scores[enrollment.student_id]["total_score"] += (
-            enrollment.total_score or 0
-        )
-
-    # Sort and get top 100
-    sorted_users = sorted(
-        user_scores.values(),
-        key=lambda x: x["total_score"],
-        reverse=True,
-    )[:100]
-
-    leaderboard_data = []
-    for idx, user_data in enumerate(sorted_users, start=1):
-        leaderboard_data.append(
-            {
-                "rank": idx,
-                "display_name": user_data["display_name"],
-                "total_score": user_data["total_score"],
-                "student_id": user_data["student"].id,
-            }
-        )
-
+    leaderboard_data = _wrapped_leaderboard(
+        enrollments_for_active_students
+    )
     stats.leaderboard = leaderboard_data
     stats.save()
 
@@ -816,109 +869,18 @@ def calculate_wrapped_statistics(year=2025, force=False):
     for pr in peer_reviews:
         peer_review_counts[pr["reviewer__student"]] = pr["count"]
 
-    user_stats_objects = []
-    for student in students_with_2025_activity:
-        # Get user's submissions (now O(1) lookup)
-        user_homework_submissions = homework_by_student.get(student, [])
-        user_project_submissions = project_by_student.get(student, [])
-
-        # Get user's enrollments (now O(1) lookup)
-        user_enrollments = enrollment_by_student.get(student, [])
-
-        # Calculate user hours (max 100h per submission to avoid outliers)
-        user_homework_hours = sum(
-            min(hw.time_spent_lectures or 0, 100.0)
-            + min(hw.time_spent_homework or 0, 100.0)
-            for hw in user_homework_submissions
+    user_stats_objects = [
+        _build_user_wrapped_stat(
+            stats,
+            student,
+            homework_submissions=homework_by_student.get(student, []),
+            project_submissions=project_by_student.get(student, []),
+            enrollments=enrollment_by_student.get(student, []),
+            peer_reviews_count=peer_review_counts.get(student.id, 0),
+            leaderboard_data=leaderboard_data,
         )
-        user_total_hours = user_homework_hours + sum(
-            min(proj.time_spent or 0, 100.0)
-            for proj in user_project_submissions
-        )
-
-        # Get peer review count (pre-fetched)
-        peer_reviews_count = peer_review_counts.get(student.id, 0)
-
-        # Count learning in public
-        lip_homework = sum(
-            len(hw.learning_in_public_links)
-            if hw.learning_in_public_links
-            else 0
-            for hw in user_homework_submissions
-        )
-        lip_projects = sum(
-            len(proj.learning_in_public_links)
-            if proj.learning_in_public_links
-            else 0
-            for proj in user_project_submissions
-        )
-        learning_in_public_count = lip_homework + lip_projects
-
-        # Count FAQ contributions
-        faq_homework = sum(
-            1
-            for hw in user_homework_submissions
-            if hw.faq_contribution_url and hw.faq_contribution_url.strip()
-        )
-        faq_projects = sum(
-            1
-            for proj in user_project_submissions
-            if proj.faq_contribution_url and proj.faq_contribution_url.strip()
-        )
-        faq_count = faq_homework + faq_projects
-
-        # Get courses
-        courses_list = [
-            {
-                "title": e.course.title,
-                "score": e.total_score,
-                "slug": e.course.slug,
-                "enrollment_id": e.id,
-            }
-            for e in user_enrollments
-        ]
-
-        # Get certificates
-        certificates_count = sum(
-            1
-            for e in user_enrollments
-            if e.certificate_url and e.certificate_url.strip()
-        )
-
-        # Get total points
-        total_points = sum(e.total_score or 0 for e in user_enrollments)
-
-        # Get rank
-        rank = None
-        for lb_entry in leaderboard_data:
-            if lb_entry["student_id"] == student.id:
-                rank = lb_entry["rank"]
-                break
-
-        # Get display name
-        display_name = (
-            user_enrollments[0].display_name
-            if user_enrollments
-            else student.username
-        )
-
-        # Create user statistics object
-        user_stat = UserWrappedStatistics(
-            wrapped=stats,
-            user=student,
-            total_points=total_points,
-            total_hours=round(user_total_hours, 1),
-            homework_count=len(user_homework_submissions),
-            project_count=len(user_project_submissions),
-            peer_reviews_given=peer_reviews_count,
-            learning_in_public_count=learning_in_public_count,
-            faq_contributions_count=faq_count,
-            certificates_earned=certificates_count,
-            courses=courses_list,
-            rank=rank,
-            display_name=display_name,
-        )
-        user_stats_objects.append(user_stat)
+        for student in students_with_2025_activity
+    ]
 
     # Bulk create all user statistics
     UserWrappedStatistics.objects.bulk_create(

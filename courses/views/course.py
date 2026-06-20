@@ -342,82 +342,79 @@ def get_projects_for_course(
     return list(projects)
 
 
+def _project_days_until(due_date) -> int:
+    now = timezone.now()
+    if due_date > now:
+        return (due_date - now).days
+    return 0
+
+
+def _base_project_badge(state):
+    """Badge (name, css) from a project's state alone, before any submission."""
+    if state == ProjectState.CLOSED.value:
+        return "Closed", "bg-secondary"
+    if state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        return "Open", "bg-warning"
+    return "Not submitted", "bg-secondary"
+
+
+def _submitted_project_badge(project, submission):
+    """Badge override (name, css, score) once a project has a submission.
+
+    Returns None for states that keep the base badge (e.g. still CLOSED).
+    """
+    state = project.state
+    if state == ProjectState.COLLECTING_SUBMISSIONS.value:
+        return "Submitted", "bg-info", None
+
+    if state == ProjectState.PEER_REVIEWING.value:
+        # Real-time feedback during peer review: count submitted mandatory reviews.
+        completed_reviews_count = PeerReview.objects.filter(
+            reviewer=submission,
+            optional=False,
+            state=PeerReviewState.SUBMITTED.value,
+        ).count()
+        if completed_reviews_count >= project.number_of_peers_to_evaluate:
+            return "Review completed", "bg-success", None
+        return "Review", "bg-danger", None
+
+    if state == ProjectState.COMPLETED.value:
+        score = submission.total_score
+        if submission.passed:
+            return f"Passed ({score})", "bg-success", score
+        return f"Failed ({score})", "bg-secondary", score
+
+    return None
+
+
 def update_project_with_additional_info(project: Project) -> None:
-    days_until_submission_due = 0
+    project.days_until_submission_due = _project_days_until(
+        project.submission_due_date
+    )
+    project.days_until_pr_due = _project_days_until(
+        project.peer_review_due_date
+    )
 
-    if project.submission_due_date > timezone.now():
-        days_until_submission_due = (
-            project.submission_due_date - timezone.now()
-        ).days
-
-    project.days_until_submission_due = days_until_submission_due
-
-    days_until_pr_due = 0
-    if project.peer_review_due_date > timezone.now():
-        days_until_pr_due = (
-            project.peer_review_due_date - timezone.now()
-        ).days
-
-    project.days_until_pr_due = days_until_pr_due
-
-    project.badge_state_name = "Not submitted"
-    project.badge_css_class = "bg-secondary"
     project.submitted = False
     project.score = None
-
-    if project.state == ProjectState.CLOSED.value:
-        project.badge_state_name = "Closed"
-    elif project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        project.badge_state_name = "Open"
-        project.badge_css_class = "bg-warning"
-    elif project.state == ProjectState.PEER_REVIEWING.value:
-        pass
-    elif project.state == ProjectState.COMPLETED.value:
-        pass
-    else:
-        # log unknown state
-        pass
+    project.badge_state_name, project.badge_css_class = (
+        _base_project_badge(project.state)
+    )
 
     if not project.submissions:
         return
 
     submission = project.submissions[0]
     project.submitted = True
-
     project.submitted_at = submission.submitted_at
 
-    if project.state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        project.badge_state_name = "Submitted"
-        project.badge_css_class = "bg-info"
-
-    elif project.state == ProjectState.PEER_REVIEWING.value:
-        # Calculate if reviews are completed by counting submitted reviews
-        # This provides real-time feedback during the peer review phase
-        completed_reviews_count = PeerReview.objects.filter(
-            reviewer=submission,
-            optional=False,
-            state=PeerReviewState.SUBMITTED.value
-        ).count()
-        
-        reviews_completed = (
-            completed_reviews_count >= project.number_of_peers_to_evaluate
-        )
-        
-        if reviews_completed:
-            project.badge_state_name = "Review completed"
-            project.badge_css_class = "bg-success"
-        else:
-            project.badge_state_name = "Review"
-            project.badge_css_class = "bg-danger"
-
-    elif project.state == ProjectState.COMPLETED.value:
-        project.score = submission.total_score
-
-        if submission.passed:
-            project.badge_state_name = f"Passed ({project.score})"
-            project.badge_css_class = "bg-success"
-        else:
-            project.badge_state_name = f"Failed ({project.score})"
+    override = _submitted_project_badge(project, submission)
+    if override is not None:
+        (
+            project.badge_state_name,
+            project.badge_css_class,
+            project.score,
+        ) = override
 
 
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
@@ -1014,56 +1011,204 @@ def list_all_project_submissions_view(request, course_slug: str):
     return render(request, "projects/list_all.html", context)
 
 
-def dashboard_view(request, course_slug: str):
-    course = get_object_or_404(Course, slug=course_slug)
-    if not course.first_homework_scored:
-        return redirect("course", course_slug=course.slug)
+def _safe_quartiles(data):
+    """Return (q25, median, q75), or (None, None, None) if too little data."""
+    if len(data) < 3:
+        return None, None, None
+    try:
+        q25, median, q75 = statistics.quantiles(data, n=4)
+        return q25, median, q75
+    except statistics.StatisticsError:
+        return None, None, None
 
-    # Get total enrollments
-    total_enrollments = Enrollment.objects.filter(course=course).count()
 
-    # Get all project submissions with related data in one query
-    project_submissions = (
+def _format_median(value):
+    """Format a median: whole numbers without decimals, else one decimal."""
+    if not value:
+        return None
+    if value % 1 == 0:
+        return f"{value:.0f}"
+    return f"{value:.1f}"
+
+
+def _dashboard_project_stats(course, total_enrollments):
+    """Project-submission aggregates for the course dashboard."""
+    project_submissions = list(
         ProjectSubmission.objects.filter(project__course=course)
         .select_related("project", "enrollment")
         .values("enrollment_id", "time_spent", "total_score", "passed")
     )
 
-    # Convert to list once for processing
-    project_submissions_list = list(project_submissions)
-
-    # Calculate project completion: the share of enrolled students who
-    # submitted at least one project. Counting distinct enrollments keeps
-    # the rate <= 100% when a course has multiple projects (a student who
-    # submits several projects must not be counted more than once).
+    # Project completion: share of enrolled students who submitted at least one
+    # project. Counting distinct enrollments keeps the rate <= 100% when a
+    # course has multiple projects (a student who submits several must not be
+    # counted more than once).
     enrollments_with_submission = {
-        s["enrollment_id"] for s in project_submissions_list
+        s["enrollment_id"] for s in project_submissions
     }
-    project_completion_rate = (
+    completion_rate = (
         len(enrollments_with_submission) / total_enrollments * 100
         if total_enrollments > 0
         else 0
     )
 
-    # Process project data efficiently
-    project_time_spent = [
+    time_spent = [
         s["time_spent"]
-        for s in project_submissions_list
+        for s in project_submissions
         if s["time_spent"] is not None
     ]
-    project_scores = [
+    scores = [
         s["total_score"]
-        for s in project_submissions_list
+        for s in project_submissions
         if s["total_score"] is not None
     ]
-    project_pass_count = sum(
-        1 for s in project_submissions_list if s["passed"]
+    pass_count = sum(1 for s in project_submissions if s["passed"])
+    fail_count = sum(1 for s in project_submissions if not s["passed"])
+
+    time_q25, time_median, time_q75 = _safe_quartiles(time_spent)
+    score_q25, score_median, score_q75 = _safe_quartiles(scores)
+
+    return {
+        "project_completion_rate": round(completion_rate, 1),
+        "project_time_q25": time_q25,
+        "project_time_median": time_median,
+        "project_time_q75": time_q75,
+        "project_score_q25": score_q25,
+        "project_score_median": score_median,
+        "project_score_q75": score_q75,
+        "project_pass_count": pass_count,
+        "project_fail_count": fail_count,
+        "project_total_submissions": pass_count + fail_count,
+    }
+
+
+def _dashboard_homework_stat(homework, hw_submissions, total_enrollments):
+    """Per-homework statistics row for the dashboard."""
+    hw_time_lecture = [
+        s["time_spent_lectures"]
+        for s in hw_submissions
+        if s["time_spent_lectures"] is not None
+    ]
+    hw_time_homework = [
+        s["time_spent_homework"]
+        for s in hw_submissions
+        if s["time_spent_homework"] is not None
+    ]
+    hw_scores = [
+        s["total_score"]
+        for s in hw_submissions
+        if s["total_score"] is not None
+    ]
+    hw_questions_scores = [
+        s["questions_score"]
+        for s in hw_submissions
+        if s["questions_score"] is not None
+    ]
+    hw_time_total = [
+        s["time_spent_lectures"] + s["time_spent_homework"]
+        for s in hw_submissions
+        if s["time_spent_lectures"] is not None
+        and s["time_spent_homework"] is not None
+    ]
+
+    lecture_q25, lecture_median, lecture_q75 = _safe_quartiles(
+        hw_time_lecture
     )
-    project_fail_count = sum(
-        1 for s in project_submissions_list if not s["passed"]
+    homework_q25, homework_median, homework_q75 = _safe_quartiles(
+        hw_time_homework
+    )
+    total_q25, total_median, total_q75 = _safe_quartiles(hw_time_total)
+    score_q25, score_median, score_q75 = _safe_quartiles(hw_scores)
+
+    # Difficulty is judged on the questions score (excluding bonus points such
+    # as FAQ / learning-in-public) normalized by the max achievable questions
+    # score, so homeworks with different question counts are comparable.
+    # Lower ratio == harder.
+    _, questions_score_median, _ = _safe_quartiles(hw_questions_scores)
+    max_questions_score = homework.max_questions_score
+    score_ratio = (
+        questions_score_median / max_questions_score
+        if questions_score_median is not None and max_questions_score
+        else None
     )
 
-    # Calculate average total scores
+    return {
+        "homework": homework,
+        "submissions_count": len(hw_submissions),
+        "completion_rate": round(
+            len(hw_submissions) / total_enrollments * 100, 1
+        )
+        if total_enrollments > 0
+        else 0.0,
+        "time_lecture_q25": lecture_q25,
+        "time_lecture_median": lecture_median,
+        "time_lecture_q75": lecture_q75,
+        "time_lecture_median_formatted": _format_median(lecture_median),
+        "time_homework_q25": homework_q25,
+        "time_homework_median": homework_median,
+        "time_homework_q75": homework_q75,
+        "time_homework_median_formatted": _format_median(homework_median),
+        "time_total_q25": total_q25,
+        "time_total_median": total_median,
+        "time_total_q75": total_q75,
+        "time_total_median_formatted": _format_median(total_median),
+        "score_q25": score_q25,
+        "score_median": score_median,
+        "score_q75": score_q75,
+        "questions_score_median": questions_score_median,
+        "max_questions_score": max_questions_score,
+        "score_ratio": score_ratio,
+        "score_ratio_pct": round(score_ratio * 100, 1)
+        if score_ratio is not None
+        else None,
+    }
+
+
+def _dashboard_homework_stats(homeworks, all_hw_submissions, total_enrollments):
+    """Build per-homework stats plus the difficulty-ranked subset."""
+    hw_submissions_by_homework = defaultdict(list)
+    for submission in all_hw_submissions:
+        hw_submissions_by_homework[submission["homework_id"]].append(
+            submission
+        )
+
+    homework_stats = [
+        _dashboard_homework_stat(
+            homework,
+            hw_submissions_by_homework.get(homework.id, []),
+            total_enrollments,
+        )
+        for homework in homeworks
+    ]
+
+    difficulty_stats = [
+        hw_stat
+        for hw_stat in homework_stats
+        if hw_stat["score_ratio"] is not None
+    ]
+    difficulty_stats.sort(
+        key=lambda hw_stat: (
+            hw_stat["score_ratio"],
+            -hw_stat["submissions_count"],
+            hw_stat["homework"].title,
+        )
+    )
+    for rank, hw_stat in enumerate(difficulty_stats, start=1):
+        hw_stat["difficulty_rank"] = rank
+
+    return homework_stats, difficulty_stats
+
+
+def dashboard_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+    if not course.first_homework_scored:
+        return redirect("course", course_slug=course.slug)
+
+    total_enrollments = Enrollment.objects.filter(course=course).count()
+
+    project_stats = _dashboard_project_stats(course, total_enrollments)
+
+    # Average of stored per-enrollment total scores.
     enrollments_with_scores = Enrollment.objects.filter(
         course=course, total_score__isnull=False
     ).values_list("total_score", flat=True)
@@ -1073,33 +1218,16 @@ def dashboard_view(request, course_slug: str):
         else 0
     )
 
-    # Helper function to calculate quartiles safely
-    def safe_quartiles(data):
-        if len(data) < 3:
-            return None, None, None
-        try:
-            q25, median, q75 = statistics.quantiles(data, n=4)
-            return q25, median, q75
-        except statistics.StatisticsError:
-            return None, None, None
-
-    # Calculate quartiles for project metrics
-    project_time_q25, project_time_median, project_time_q75 = (
-        safe_quartiles(project_time_spent)
+    # The max achievable questions score (sum of points across the homework's
+    # questions) lets us normalize difficulty: a homework with fewer questions
+    # naturally has a lower median score without being harder.
+    homeworks = (
+        Homework.objects.filter(course=course)
+        .order_by("id")
+        .annotate(
+            max_questions_score=Sum("question__scores_for_correct_answer")
+        )
     )
-    project_score_q25, project_score_median, project_score_q75 = (
-        safe_quartiles(project_scores)
-    )
-
-    # Get homework data efficiently - fetch all at once. The max achievable
-    # questions score (sum of points across the homework's questions) lets us
-    # normalize difficulty: a homework with fewer questions naturally has a
-    # lower median score without being harder.
-    homeworks = Homework.objects.filter(course=course).order_by("id").annotate(
-        max_questions_score=Sum("question__scores_for_correct_answer")
-    )
-
-    # Get all homework submissions in one query
     all_hw_submissions = (
         Submission.objects.filter(homework__course=course)
         .select_related("homework")
@@ -1111,172 +1239,28 @@ def dashboard_view(request, course_slug: str):
             "total_score",
         )
     )
-
-    # Group submissions by homework
-    hw_submissions_by_homework = {}
-    for submission in all_hw_submissions:
-        hw_id = submission["homework_id"]
-        if hw_id not in hw_submissions_by_homework:
-            hw_submissions_by_homework[hw_id] = []
-        hw_submissions_by_homework[hw_id].append(submission)
-
-    homework_stats = []
-    for homework in homeworks:
-        hw_submissions = hw_submissions_by_homework.get(homework.id, [])
-
-        # Process homework data efficiently
-        hw_time_lecture = [
-            s["time_spent_lectures"]
-            for s in hw_submissions
-            if s["time_spent_lectures"] is not None
-        ]
-        hw_time_homework = [
-            s["time_spent_homework"]
-            for s in hw_submissions
-            if s["time_spent_homework"] is not None
-        ]
-        hw_scores = [
-            s["total_score"]
-            for s in hw_submissions
-            if s["total_score"] is not None
-        ]
-        hw_questions_scores = [
-            s["questions_score"]
-            for s in hw_submissions
-            if s["questions_score"] is not None
-        ]
-
-        # Calculate total time (lecture + homework) for each submission
-        hw_time_total = []
-        for s in hw_submissions:
-            if (
-                s["time_spent_lectures"] is not None
-                and s["time_spent_homework"] is not None
-            ):
-                hw_time_total.append(
-                    s["time_spent_lectures"] + s["time_spent_homework"]
-                )
-
-        # Calculate quartiles for this homework
-        (
-            hw_time_lecture_q25,
-            hw_time_lecture_median,
-            hw_time_lecture_q75,
-        ) = safe_quartiles(hw_time_lecture)
-        (
-            hw_time_homework_q25,
-            hw_time_homework_median,
-            hw_time_homework_q75,
-        ) = safe_quartiles(hw_time_homework)
-        hw_time_total_q25, hw_time_total_median, hw_time_total_q75 = (
-            safe_quartiles(hw_time_total)
-        )
-        hw_score_q25, hw_score_median, hw_score_q75 = safe_quartiles(
-            hw_scores
-        )
-
-        # Difficulty is judged on the questions score (excluding bonus points
-        # such as FAQ / learning-in-public) normalized by the max achievable
-        # questions score, so homeworks with different question counts are
-        # comparable. Lower ratio == harder.
-        _, hw_questions_score_median, _ = safe_quartiles(hw_questions_scores)
-        max_questions_score = homework.max_questions_score
-        score_ratio = (
-            hw_questions_score_median / max_questions_score
-            if hw_questions_score_median is not None and max_questions_score
-            else None
-        )
-
-        homework_stats.append(
-            {
-                "homework": homework,
-                "submissions_count": len(hw_submissions),
-                "completion_rate": round(
-                    len(hw_submissions) / total_enrollments * 100, 1
-                )
-                if total_enrollments > 0
-                else 0.0,
-                "time_lecture_q25": hw_time_lecture_q25,
-                "time_lecture_median": hw_time_lecture_median,
-                "time_lecture_q75": hw_time_lecture_q75,
-                "time_lecture_median_formatted": f"{hw_time_lecture_median:.0f}"
-                if hw_time_lecture_median
-                and hw_time_lecture_median % 1 == 0
-                else f"{hw_time_lecture_median:.1f}"
-                if hw_time_lecture_median
-                else None,
-                "time_homework_q25": hw_time_homework_q25,
-                "time_homework_median": hw_time_homework_median,
-                "time_homework_q75": hw_time_homework_q75,
-                "time_homework_median_formatted": f"{hw_time_homework_median:.0f}"
-                if hw_time_homework_median
-                and hw_time_homework_median % 1 == 0
-                else f"{hw_time_homework_median:.1f}"
-                if hw_time_homework_median
-                else None,
-                "time_total_q25": hw_time_total_q25,
-                "time_total_median": hw_time_total_median,
-                "time_total_q75": hw_time_total_q75,
-                "time_total_median_formatted": f"{hw_time_total_median:.0f}"
-                if hw_time_total_median
-                and hw_time_total_median % 1 == 0
-                else f"{hw_time_total_median:.1f}"
-                if hw_time_total_median
-                else None,
-                "score_q25": hw_score_q25,
-                "score_median": hw_score_median,
-                "score_q75": hw_score_q75,
-                "questions_score_median": hw_questions_score_median,
-                "max_questions_score": max_questions_score,
-                "score_ratio": score_ratio,
-                "score_ratio_pct": round(score_ratio * 100, 1)
-                if score_ratio is not None
-                else None,
-            }
-        )
-
-    homework_difficulty_stats = [
-        hw_stat
-        for hw_stat in homework_stats
-        if hw_stat["score_ratio"] is not None
-    ]
-    homework_difficulty_stats.sort(
-        key=lambda hw_stat: (
-            hw_stat["score_ratio"],
-            -hw_stat["submissions_count"],
-            hw_stat["homework"].title,
-        )
+    homework_stats, homework_difficulty_stats = _dashboard_homework_stats(
+        homeworks, all_hw_submissions, total_enrollments
     )
 
-    for rank, hw_stat in enumerate(homework_difficulty_stats, start=1):
-        hw_stat["difficulty_rank"] = rank
-
-    # Calculate total project submissions
-    project_total_submissions = project_pass_count + project_fail_count
-
-    # Get graduates count (enrollments with certificates)
-    graduates_count = Enrollment.objects.filter(
-        course=course, certificate_url__isnull=False
-    ).exclude(certificate_url="").count()
+    # Graduates: enrollments with a (non-empty) certificate.
+    graduates_count = (
+        Enrollment.objects.filter(
+            course=course, certificate_url__isnull=False
+        )
+        .exclude(certificate_url="")
+        .count()
+    )
 
     context = {
         "course": course,
         "total_enrollments": total_enrollments,
-        "project_completion_rate": round(project_completion_rate, 1),
-        "project_time_q25": project_time_q25,
-        "project_time_median": project_time_median,
-        "project_time_q75": project_time_q75,
-        "project_score_q25": project_score_q25,
-        "project_score_median": project_score_median,
-        "project_score_q75": project_score_q75,
         "avg_total_score": round(avg_total_score, 1),
-        "project_pass_count": project_pass_count,
-        "project_fail_count": project_fail_count,
-        "project_total_submissions": project_total_submissions,
         "project_passing_score": course.project_passing_score,
         "graduates_count": graduates_count,
         "homework_stats": homework_stats,
         "homework_difficulty_stats": homework_difficulty_stats,
+        **project_stats,
     }
 
     return render(request, "courses/dashboard.html", context)

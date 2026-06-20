@@ -6,7 +6,6 @@ The old HomeworkContentAPITestCase has been
 replaced by tests in api/tests/ for the new /api/ endpoints.
 """
 
-import json
 
 from django.test import TestCase, Client
 from django.urls import reverse

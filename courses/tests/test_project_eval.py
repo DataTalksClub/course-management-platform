@@ -65,13 +65,13 @@ class ProjectEvaluationTestCase(TestCase):
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
-            github_link=f"https://github.com/user/project",
+            github_link="https://github.com/user/project",
             commit_id="1234567",
         )
 
         self.other_user = User.objects.create_user(
-            username=f"student",
-            email=f"email@email.com",
+            username="student",
+            email="email@email.com",
             password="12345",
         )
 
@@ -84,7 +84,7 @@ class ProjectEvaluationTestCase(TestCase):
             project=self.project,
             student=self.other_user,
             enrollment=self.other_enrollment,
-            github_link=f"https://github.com/other_student/project",
+            github_link="https://github.com/other_student/project",
             commit_id="1234567",
         )
 

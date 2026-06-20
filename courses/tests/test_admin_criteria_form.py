@@ -1,7 +1,6 @@
 from django.test import TestCase
-from django.core.exceptions import ValidationError
 
-from courses.models import Course, ReviewCriteria, ReviewCriteriaTypes
+from courses.models import Course, ReviewCriteriaTypes
 from courses.admin.course import CriteriaForm
 
 

@@ -215,27 +215,142 @@ def calculate_project_score(
     return project_score, new_evaluations
 
 
+def _validate_project_scoreable(project: Project) -> str | None:
+    """Return an error message if the project can't be scored, else None."""
+    if project.points_to_pass == 0:
+        return "Project has no points to pass. Update the course's `project_passing_score` field to greater than zero value"
+
+    if project.state != ProjectState.PEER_REVIEWING.value:
+        return "Project is not in 'PEER_REVIEWING' state"
+
+    if project.peer_review_due_date > timezone.now():
+        return "The peer review due date is in the future. Update the due date to score the project."
+
+    return None
+
+
+def _group_peer_reviews(peer_reviews):
+    """Group submitted peer reviews by submission and by reviewer.
+
+    Also attaches each submitted review's criteria responses as
+    ``review.responses``. Returns (submissions, reviews_by_submission,
+    reviews_by_reviewer).
+    """
+    criteria_responses = CriteriaResponse.objects.filter(
+        review__in=peer_reviews
+    ).select_related('criteria')
+
+    responses_by_review = defaultdict(list)
+    for response in criteria_responses:
+        responses_by_review[response.review_id].append(response)
+
+    submissions = {}
+    reviews_by_submission = {}
+    reviews_by_reviewer = {}
+
+    for review in peer_reviews:
+        submission = review.submission_under_evaluation
+        submissions[submission.id] = submission
+
+        if submission.id not in reviews_by_submission:
+            reviews_by_submission[submission.id] = []
+
+        if review.reviewer.id not in reviews_by_reviewer:
+            reviews_by_reviewer[review.reviewer.id] = []
+
+        if review.state == PeerReviewState.SUBMITTED.value:
+            reviews_by_submission[submission.id].append(review)
+            reviews_by_reviewer[review.reviewer.id].append(review)
+            review.responses = responses_by_review[review.id]
+
+    return submissions, reviews_by_submission, reviews_by_reviewer
+
+
+def _project_lip_score(submission, project) -> int:
+    """Learning-in-public points for the submission's own links (capped)."""
+    if submission.enrollment.disable_learning_in_public:
+        return 0
+    if not submission.learning_in_public_links:
+        return 0
+    return min(
+        len(submission.learning_in_public_links),
+        project.learning_in_public_cap_project,
+    )
+
+
+def _peer_review_lip_score(submission, project, reviewed) -> int:
+    """Learning-in-public points earned across the reviews this student gave."""
+    if submission.enrollment.disable_learning_in_public:
+        return 0
+    cap = project.learning_in_public_cap_review
+    total = 0
+    for review in reviewed:
+        if not review.learning_in_public_links:
+            continue
+        total += min(len(review.learning_in_public_links), cap)
+    return total
+
+
+def _score_submission(submission, project, reviews, reviewed, criteria):
+    """Compute and assign every score component for a single submission.
+
+    Mutates ``submission`` in place and returns the per-criteria
+    ProjectEvaluationScore objects produced for it.
+    """
+    project_score, scores = calculate_project_score(
+        submission=submission,
+        evaluation_criteria=criteria,
+        reviews=reviews,
+    )
+    submission.project_score = project_score
+
+    num_mandatory_projects_reviewed = sum(
+        1 for review in reviewed if not review.optional
+    )
+    submission.peer_review_score = (
+        num_mandatory_projects_reviewed * project.points_for_peer_review
+    )
+
+    submission.project_learning_in_public_score = _project_lip_score(
+        submission, project
+    )
+    submission.peer_review_learning_in_public_score = (
+        _peer_review_lip_score(submission, project, reviewed)
+    )
+
+    submission.project_faq_score = (
+        1
+        if submission.faq_contribution_url
+        and len(submission.faq_contribution_url) >= 5
+        else 0
+    )
+
+    submission.total_score = (
+        submission.project_score
+        + submission.project_faq_score
+        + submission.project_learning_in_public_score
+        + submission.peer_review_score
+        + submission.peer_review_learning_in_public_score
+    )
+
+    submission.reviewed_enough_peers = (
+        num_mandatory_projects_reviewed
+        >= project.number_of_peers_to_evaluate
+    )
+    submission.passed = (
+        submission.project_score >= project.points_to_pass
+    ) and submission.reviewed_enough_peers
+
+    return scores
+
+
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
 
-        if project.points_to_pass == 0:
-            return (
-                ProjectActionStatus.FAIL,
-                "Project has no points to pass. Update the course's `project_passing_score` field to greater than zero value",
-            )
-
-        if project.state != ProjectState.PEER_REVIEWING.value:
-            return (
-                ProjectActionStatus.FAIL,
-                "Project is not in 'PEER_REVIEWING' state",
-            )
-
-        if project.peer_review_due_date > timezone.now():
-            return (
-                ProjectActionStatus.FAIL,
-                "The peer review due date is in the future. Update the due date to score the project.",
-            )
+        error = _validate_project_scoreable(project)
+        if error is not None:
+            return (ProjectActionStatus.FAIL, error)
 
         peer_reviews = PeerReview.objects.filter(
             submission_under_evaluation__project=project,
@@ -247,137 +362,26 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 "No peer reviews found for the project.",
             )
 
-        submissions_to_update = []
-
-        criteria_responses = CriteriaResponse.objects.filter(
-            review__in=peer_reviews
-        ).select_related('criteria')
-
-        responses_by_review = defaultdict(list)
-        for response in criteria_responses:
-            responses_by_review[response.review_id].append(response)
-
-        submissions = {}
-        reviews_by_submission = {}
-        reviews_by_reviewer = {}
-
-        for review in peer_reviews:
-            submission = review.submission_under_evaluation
-            submissions[submission.id] = submission
-
-            if submission.id not in reviews_by_submission:
-                reviews_by_submission[submission.id] = []
-
-            if review.reviewer.id not in reviews_by_reviewer:
-                reviews_by_reviewer[review.reviewer.id] = []
-
-            if review.state == PeerReviewState.SUBMITTED.value:
-                reviews_by_submission[submission.id].append(review)
-                reviewer = review.reviewer
-                reviews_by_reviewer[reviewer.id].append(review)
-                review.responses = responses_by_review[review.id]
+        submissions, reviews_by_submission, reviews_by_reviewer = (
+            _group_peer_reviews(peer_reviews)
+        )
 
         criteria = ReviewCriteria.objects.filter(
             course=project.course
         ).all()
 
+        submissions_to_update = []
         all_scores = []
-
         passed = 0
 
         for submission_id, submission in submissions.items():
             reviews = reviews_by_submission[submission_id]
+            reviewed = reviews_by_reviewer.get(submission_id) or []
 
-            reviewed = reviews_by_reviewer.get(submission_id)
-            if reviewed is None:
-                reviewed = []
-
-            project_score, scores = calculate_project_score(
-                submission=submission,
-                evaluation_criteria=criteria,
-                reviews=reviews,
+            scores = _score_submission(
+                submission, project, reviews, reviewed, criteria
             )
-            submission.project_score = project_score
             all_scores.extend(scores)
-
-            num_mandatory_projects_reviewed = 0
-
-            for review in reviewed:
-                if not review.optional:
-                    num_mandatory_projects_reviewed += 1
-
-            submission.peer_review_score = (
-                num_mandatory_projects_reviewed
-                * project.points_for_peer_review
-            )
-
-            learning_in_public_cap_project = (
-                project.learning_in_public_cap_project
-            )
-
-            project_learning_in_public_score = 0
-
-            # Check if learning in public is disabled for this enrollment
-            if not submission.enrollment.disable_learning_in_public:
-                if submission.learning_in_public_links:
-                    project_learning_in_public_score = len(
-                        submission.learning_in_public_links
-                    )
-                if (
-                    project_learning_in_public_score
-                    > learning_in_public_cap_project
-                ):
-                    project_learning_in_public_score = (
-                        learning_in_public_cap_project
-                    )
-
-            submission.project_learning_in_public_score = (
-                project_learning_in_public_score
-            )
-
-            peer_review_learning_in_public_score = 0
-
-            # Check if learning in public is disabled for this enrollment
-            if not submission.enrollment.disable_learning_in_public:
-                for review in reviewed:
-                    if not review.learning_in_public_links:
-                        continue
-                    points_for_review = len(review.learning_in_public_links)
-                    cap = project.learning_in_public_cap_review
-                    if points_for_review > cap:
-                        points_for_review = cap
-                    peer_review_learning_in_public_score += (
-                        points_for_review
-                    )
-
-            submission.peer_review_learning_in_public_score = (
-                peer_review_learning_in_public_score
-            )
-
-            submission.project_faq_score = 0
-
-            if (
-                submission.faq_contribution_url
-                and len(submission.faq_contribution_url) >= 5
-            ):
-                submission.project_faq_score = 1
-
-            submission.total_score = (
-                submission.project_score
-                + submission.project_faq_score
-                + submission.project_learning_in_public_score
-                + submission.peer_review_score
-                + submission.peer_review_learning_in_public_score
-            )
-
-            submission.reviewed_enough_peers = (
-                num_mandatory_projects_reviewed
-                >= project.number_of_peers_to_evaluate
-            )
-            submission.passed = (
-                submission.project_score >= project.points_to_pass
-            ) and submission.reviewed_enough_peers
-
             submissions_to_update.append(submission)
 
             if submission.passed:

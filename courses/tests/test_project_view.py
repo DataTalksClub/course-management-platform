@@ -2,7 +2,7 @@ import logging
 
 from unittest import mock
 from django.urls import reverse
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from datetime import timedelta
 
@@ -306,6 +306,7 @@ class ProjectViewTestCase(TestCase):
             data["faq_contribution_url"],
         )
 
+    @override_settings(PUBLIC_BASE_URL="")
     @mock.patch("courses.views.project.send_transactional_email")
     @mock.patch(
         "courses.views.project.sync_project_submission_to_datamailer"

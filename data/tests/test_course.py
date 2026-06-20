@@ -41,7 +41,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
     def test_course_criteria_yaml_view(self):
         """Test the course criteria YAML endpoint."""
         # Create some review criteria for the test course
-        criteria1 = ReviewCriteria.objects.create(
+        ReviewCriteria.objects.create(
             course=self.course,
             description="Code Quality",
             review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
@@ -52,7 +52,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
             ]
         )
 
-        criteria2 = ReviewCriteria.objects.create(
+        ReviewCriteria.objects.create(
             course=self.course,
             description="Features Implemented",
             review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,

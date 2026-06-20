@@ -35,6 +35,12 @@ dev = [
 
 [tool.ruff]
 line-length = 72
+# Exploratory notebooks and auto-generated migrations are not linted.
+extend-exclude = ["notebooks", "**/migrations"]
+
+[tool.ruff.lint.per-file-ignores]
+# Utility scripts call django.setup() before importing project modules.
+"scripts/*.py" = ["E402"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "course_management.settings"

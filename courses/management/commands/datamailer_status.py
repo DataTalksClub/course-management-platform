@@ -52,7 +52,10 @@ class Command(BaseCommand):
         if result is None:
             raise CommandError("Datamailer status lookup failed.")
 
-        if options["json"]:
+        self.print_email_status(result, raw_json=options["json"])
+
+    def print_email_status(self, result, *, raw_json):
+        if raw_json:
             self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
             return
 
