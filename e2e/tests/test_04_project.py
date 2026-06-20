@@ -52,23 +52,38 @@ def test_project_submission_recorded_in_api(api, run_state):
     ), f"No project submission for {run_state.student_email}: {submissions!r}"
 
 
+# Confirmation-email contract (from courses/views/project.py, read-only):
+#   template_key = "project-submission-confirmation"
+#   subject      = "Project submission saved: <project title>"
+#   context      = {update_url, profile_url, course_slug, project_slug, ...}
+PROJECT_CONFIRMATION_TEMPLATE = "project-submission-confirmation"
+
+
 @pytest.mark.email
 def test_project_confirmation_email(mock_inbox, run_state):
+    """Assert via the fast mock-store backend (default)."""
     require_project(run_state)
     if not mock_inbox.configured:
         pytest.xfail(
-            "Datamailer mock inbox endpoint not available yet "
-            "(E2E_MOCK_INBOX_URL unset). TODO: enable once #194 sub-task lands."
+            "Datamailer mock inbox not configured (E2E_MOCK_INBOX_URL / "
+            "DATAMAILER_URL unset). TODO: enable once #194 mock-inbox is "
+            "deployed to dev and creds are provided."
         )
-    message = mock_inbox.wait_for_message(
-        run_state.student_email,
-        subject="Project submission saved",
-        timeout=90,
-    )
-    assert "E2E Project 1" in message.subject
-    assert message.body_contains("/project/"), (
-        "Project confirmation email missing update link."
-    )
+    try:
+        message = mock_inbox.wait_for_message(
+            run_state.student_email,
+            template_key=PROJECT_CONFIRMATION_TEMPLATE,
+            subject="Project submission saved",
+            timeout=90,
+        )
+        assert message.template_key == PROJECT_CONFIRMATION_TEMPLATE
+        assert "E2E Project 1" in message.subject
+        assert message.body_contains("/project/"), (
+            "Project confirmation email missing update link "
+            f"(context keys: {sorted(message.context)})."
+        )
+    finally:
+        mock_inbox.clear(run_state.student_email)
 
 
 def test_assign_peer_reviews(api, run_state):

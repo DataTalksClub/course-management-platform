@@ -96,24 +96,66 @@ def test_homework_submission_recorded_in_api(api, run_state):
     ), f"No submission found for {run_state.student_email}: {submissions!r}"
 
 
-@pytest.mark.email
-def test_homework_confirmation_email(mock_inbox, run_state):
-    require_submitted(run_state)
-    if not mock_inbox.configured:
-        pytest.xfail(
-            "Datamailer mock inbox endpoint not available yet "
-            "(E2E_MOCK_INBOX_URL unset). TODO: enable once #194 sub-task lands."
-        )
-    message = mock_inbox.wait_for_message(
+# Confirmation-email contract (from courses/views/homework.py, read-only):
+#   template_key = "homework-submission-confirmation"
+#   subject      = "Homework submission saved: <homework title>"
+#   context      = {update_url, profile_url, course_slug, homework_slug, ...}
+HOMEWORK_CONFIRMATION_TEMPLATE = "homework-submission-confirmation"
+
+
+def _assert_homework_confirmation(backend, run_state):
+    message = backend.wait_for_message(
         run_state.student_email,
+        template_key=HOMEWORK_CONFIRMATION_TEMPLATE,
         subject="Homework submission saved",
         timeout=90,
     )
+    assert message.template_key == HOMEWORK_CONFIRMATION_TEMPLATE
     assert "E2E Homework 1" in message.subject
-    # Confirmation email carries an "Update your submission" link.
+    # The confirmation carries an "Update your submission" link; the homework
+    # update URL lives in context.update_url and the rendered body.
     assert message.body_contains("/homework/"), (
-        "Homework confirmation email missing update link."
+        "Homework confirmation email missing update link "
+        f"(context keys: {sorted(message.context)})."
     )
+
+
+@pytest.mark.email
+def test_homework_confirmation_email(mock_inbox, run_state):
+    """Primary path: assert via the fast mock-store backend (default)."""
+    require_submitted(run_state)
+    if not mock_inbox.configured:
+        pytest.xfail(
+            "Datamailer mock inbox not configured (E2E_MOCK_INBOX_URL / "
+            "DATAMAILER_URL unset). TODO: enable once #194 mock-inbox is "
+            "deployed to dev and creds are provided."
+        )
+    try:
+        _assert_homework_confirmation(mock_inbox, run_state)
+    finally:
+        # Teardown: clear this run's captured messages for the mock address.
+        mock_inbox.clear(run_state.student_email)
+
+
+@pytest.mark.email
+@pytest.mark.real_inbox
+def test_homework_confirmation_email_real_ses(email_backend, run_state):
+    """Dedicated real-SES round-trip check (one of the 1-2 real-backend tests).
+
+    Uses the ``real`` backend via the ``email_backend`` selector. xfails until
+    the SES-inbound capture API (issue #194, branch issue-194-ses-inbound) and
+    E2E_REAL_INBOX_* config exist.
+    """
+    require_submitted(run_state)
+    if not email_backend.configured:
+        pytest.xfail(
+            "Real SES-inbound inbox backend not ready "
+            "(issue #194 / issue-194-ses-inbound; E2E_REAL_INBOX_* unset)."
+        )
+    try:
+        _assert_homework_confirmation(email_backend, run_state)
+    finally:
+        email_backend.clear(run_state.student_email)
 
 
 def test_score_homework(api, run_state):

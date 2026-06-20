@@ -31,9 +31,15 @@ jobs:
       E2E_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_DEV_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_DEV_ADMIN_PASSWORD }}
-      # Set once the Datamailer mock inbox (#194 sub-task) is available.
+      # Default email backend: Datamailer mock inbox (#194 mock-inbox sub-task).
+      # Set once it is deployed to dev with MOCK_INBOX_ENABLED=1. URL = the
+      # Datamailer service root; the client appends /api/mock-inbox/...
       E2E_MOCK_INBOX_URL: ${{ secrets.E2E_DEV_MOCK_INBOX_URL }}
       E2E_MOCK_INBOX_API_KEY: ${{ secrets.E2E_DEV_MOCK_INBOX_API_KEY }}
+      # Real SES-inbound backend (#194 issue-194-ses-inbound). Placeholders;
+      # the real-backend email tests xfail until these are provided.
+      E2E_REAL_INBOX_URL: ${{ secrets.E2E_DEV_REAL_INBOX_URL }}
+      E2E_REAL_INBOX_API_KEY: ${{ secrets.E2E_DEV_REAL_INBOX_API_KEY }}
       E2E_EXPECTED_VERSION: ${{ github.event.inputs.expected_version }}
 
     steps:

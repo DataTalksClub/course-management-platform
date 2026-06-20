@@ -63,9 +63,24 @@ class Settings:
     student_password: str | None
     mock_inbox_url: str | None
     mock_inbox_api_key: str | None
+    mock_inbox_domain: str
+    mock_inbox_tag: str
+    real_inbox_url: str | None
+    real_inbox_api_key: str | None
     request_timeout: float
     ui_timeout_ms: int
     expected_version: str | None
+
+    def mock_address(self, label: str) -> str:
+        """Build a plus-tagged mock address the Datamailer mock inbox captures.
+
+        Shape: ``<tag>+<label>@<domain>`` (e.g. ``e2e+e2e-smoke-123@mailbox.test``).
+        The datamailer side recognises an address as "mock" when its domain is
+        ``MOCK_INBOX_DOMAIN`` *or* its local part carries ``MOCK_INBOX_PLUS_TAG``.
+        Using both keeps it a mock address regardless of which check fires.
+        """
+        clean = "".join(c if (c.isalnum() or c in "-._") else "-" for c in label)
+        return f"{self.mock_inbox_tag}+{clean}@{self.mock_inbox_domain}"
 
     def require_api_token(self) -> str:
         if not self.api_token:
@@ -109,10 +124,24 @@ def load_settings() -> Settings:
         admin_password=_first_env("E2E_ADMIN_PASSWORD"),
         student_email=_first_env("E2E_STUDENT_EMAIL"),
         student_password=_first_env("E2E_STUDENT_PASSWORD"),
-        mock_inbox_url=_first_env("E2E_MOCK_INBOX_URL"),
+        # Mock inbox: base URL is the Datamailer service root (the client
+        # appends /api/mock-inbox/...). Fall back to the datamailer settings
+        # already present in the repo .env.
+        mock_inbox_url=_first_env("E2E_MOCK_INBOX_URL", "DATAMAILER_URL"),
         mock_inbox_api_key=_first_env(
             "E2E_MOCK_INBOX_API_KEY", "DATAMAILER_API_KEY"
         ),
+        mock_inbox_domain=(
+            _first_env("E2E_MOCK_INBOX_DOMAIN", "MOCK_INBOX_DOMAIN")
+            or "mailbox.test"
+        ),
+        mock_inbox_tag=(
+            _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
+        ),
+        # Real SES-inbound backend (issue-194-ses-inbound). Unset until ready;
+        # the one/two tests using it skip/xfail.
+        real_inbox_url=_first_env("E2E_REAL_INBOX_URL"),
+        real_inbox_api_key=_first_env("E2E_REAL_INBOX_API_KEY"),
         request_timeout=float(_first_env("E2E_REQUEST_TIMEOUT") or "30"),
         ui_timeout_ms=int(_first_env("E2E_UI_TIMEOUT_MS") or "20000"),
         expected_version=_first_env("E2E_EXPECTED_VERSION"),

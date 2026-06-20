@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from e2e.api_client import CmpApiClient  # noqa: E402
 from e2e.config import load_settings, Settings  # noqa: E402
-from e2e.mock_inbox import MockInboxClient  # noqa: E402
+from e2e.mock_inbox import MockInboxClient, RealInboxClient  # noqa: E402
 from e2e.provisioning import (  # noqa: E402
     ProvisionedCourse,
     Provisioner,
@@ -62,6 +62,28 @@ def provisioner(api: CmpApiClient) -> Provisioner:
 @pytest.fixture(scope="session")
 def mock_inbox(settings: Settings) -> MockInboxClient:
     return MockInboxClient(settings.mock_inbox_url, settings.mock_inbox_api_key)
+
+
+@pytest.fixture(scope="session")
+def real_inbox(settings: Settings) -> RealInboxClient:
+    return RealInboxClient(settings.real_inbox_url, settings.real_inbox_api_key)
+
+
+@pytest.fixture(scope="session")
+def email_backend(request):
+    """Resolve the email-verification backend for a test.
+
+    Default = the fast mock-store backend (``mock_inbox``). A test opts into the
+    real SES round-trip backend by parametrizing or marking itself with
+    ``real`` (``@pytest.mark.real_inbox``); it then resolves to ``real_inbox``.
+    Either way, the test gets one object implementing the same interface.
+    """
+    backend = getattr(request, "param", None)
+    if backend is None:
+        marker = request.node.get_closest_marker("real_inbox")
+        backend = "real" if marker else "mock"
+    fixture_name = "real_inbox" if backend == "real" else "mock_inbox"
+    return request.getfixturevalue(fixture_name)
 
 
 @pytest.fixture(scope="session")

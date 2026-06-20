@@ -20,8 +20,10 @@ pytestmark = pytest.mark.enrollment
 def _student_email(settings, run_state) -> str:
     if settings.student_email:
         return settings.student_email
-    # Per-run, recognizable, and routed at the Datamailer mock address.
-    return f"{run_state.namespace}@inbox.dtcdev.click"
+    # Per-run, recognizable, and routed at the Datamailer *mock* address so the
+    # confirmation email is captured by the mock inbox (e2e+<namespace>@mailbox.test)
+    # instead of being delivered for real. Unique tag per run.
+    return settings.mock_address(run_state.namespace)
 
 
 def test_test_student_exists(admin_session, settings, run_state):
