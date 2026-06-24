@@ -618,11 +618,15 @@ def homework_score_notification_members(
     members = []
     submissions = homework.submission_set.select_related(
         "student", "homework__course"
-    ).order_by("id")
+    ).order_by("student_id", "-submitted_at", "-id")
+    seen_students = set()
     for submission in submissions:
+        if submission.student_id in seen_students:
+            continue
         item = homework_submission_recipient_list_payload(submission)
         if item is None:
             continue
+        seen_students.add(submission.student_id)
         _, source_object_key, member_payload = item
         list_data = member_payload["list"]
         members.append(
