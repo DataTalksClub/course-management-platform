@@ -783,7 +783,23 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["from_email"], "courses")
         self.assertEqual(
             payload["context"]["scores_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/",
+            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
+        )
+        self.assertEqual(
+            payload["context"]["leaderboard_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
+        )
+        self.assertEqual(
+            payload["context"]["profile_url"],
+            "https://courses.example.com/accounts/settings/",
+        )
+        self.assertIn(
+            "you submitted Homework 1",
+            payload["context"]["notification_footer"],
+        )
+        self.assertEqual(
+            payload["metadata"]["preference_key"],
+            "email_submission_confirmations",
         )
         self.assertEqual(payload["member_sync"], "reconcile")
         self.assertTrue(payload["remove_absent_members"])
@@ -804,6 +820,10 @@ class DatamailerClientTest(TestCase):
         )
         self.assertEqual(member["metadata"]["faq_score"], 1)
         self.assertEqual(member["metadata"]["total_score"], 9)
+        self.assertEqual(
+            member["metadata"]["homework_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
+        )
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_homework_score_notification_payload_dedupes_student_submissions(
@@ -856,6 +876,40 @@ class DatamailerClientTest(TestCase):
         )
         self.assertEqual(member["email"], "learner@example.com")
         self.assertEqual(member["metadata"]["total_score"], 9)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_homework_score_notification_skips_opted_out_students(self):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+        user = CustomUser.objects.create_user(
+            username="learner@example.com",
+            email="learner@example.com",
+            password="test",
+            email_submission_confirmations=False,
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        Submission.objects.create(
+            homework=homework,
+            student=user,
+            enrollment=enrollment,
+            total_score=9,
+        )
+
+        _, payload = homework_score_notification_payload(homework)
+
+        self.assertEqual(payload["members"], [])
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -946,7 +1000,27 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["from_email"], "courses")
         self.assertEqual(
             payload["context"]["scores_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1/results",
+        )
+        self.assertEqual(
+            payload["context"]["project_url"],
             "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
+        )
+        self.assertEqual(
+            payload["context"]["leaderboard_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
+        )
+        self.assertEqual(
+            payload["context"]["profile_url"],
+            "https://courses.example.com/accounts/settings/",
+        )
+        self.assertIn(
+            "you submitted Project 1",
+            payload["context"]["notification_footer"],
+        )
+        self.assertEqual(
+            payload["metadata"]["preference_key"],
+            "email_submission_confirmations",
         )
         self.assertEqual(payload["member_sync"], "reconcile")
         self.assertTrue(payload["remove_absent_members"])
@@ -970,8 +1044,54 @@ class DatamailerClientTest(TestCase):
             4,
         )
         self.assertEqual(member["metadata"]["total_score"], 98)
+        self.assertEqual(
+            member["metadata"]["github_link"],
+            "https://github.com/example/project",
+        )
+        self.assertEqual(member["metadata"]["commit_id"], "abc123")
+        self.assertEqual(
+            member["metadata"]["project_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
+        )
         self.assertTrue(member["metadata"]["reviewed_enough_peers"])
         self.assertTrue(member["metadata"]["passed"])
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_project_score_notification_skips_opted_out_students(self):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        user = CustomUser.objects.create_user(
+            username="project-learner@example.com",
+            email="project-learner@example.com",
+            password="test",
+            email_submission_confirmations=False,
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/project",
+            commit_id="abc123",
+            total_score=98,
+        )
+
+        _, payload = project_score_notification_payload(project)
+
+        self.assertEqual(payload["members"], [])
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(

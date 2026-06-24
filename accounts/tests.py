@@ -244,7 +244,7 @@ class AccountSettingsTestCase(TestCase):
         )
         self.assertContains(
             response,
-            "Sends you a copy of the submitted results",
+            "Sends confirmation and score emails",
         )
         self.assertContains(response, "Deadline reminders")
         self.assertContains(response, "within 24 hours")

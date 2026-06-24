@@ -415,6 +415,15 @@ def homework_submission_recipient_list_payload(
         "learning_in_public_score": submission.learning_in_public_score,
         "faq_score": submission.faq_score,
         "total_score": submission.total_score,
+        "homework_url": public_url(
+            reverse(
+                "homework",
+                kwargs={
+                    "course_slug": course.slug,
+                    "homework_slug": homework.slug,
+                },
+            )
+        ),
     }
     payload = recipient_list_member_payload(
         list_type="homework_submitters",
@@ -457,6 +466,18 @@ def project_submission_recipient_list_payload(
             submission.peer_review_learning_in_public_score
         ),
         "total_score": submission.total_score,
+        "github_link": submission.github_link,
+        "commit_id": submission.commit_id,
+        "faq_contribution_url": submission.faq_contribution_url or "",
+        "project_url": public_url(
+            reverse(
+                "project",
+                kwargs={
+                    "course_slug": course.slug,
+                    "project_slug": project.slug,
+                },
+            )
+        ),
         "reviewed_enough_peers": submission.reviewed_enough_peers,
         "passed": submission.passed,
     }
@@ -621,6 +642,8 @@ def homework_score_notification_members(
     ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
     for submission in submissions:
+        if not getattr(submission.student, "email_submission_confirmations", True):
+            continue
         if submission.student_id in seen_students:
             continue
         item = homework_submission_recipient_list_payload(submission)
@@ -653,6 +676,8 @@ def project_score_notification_members(
         "student", "project__course"
     ).order_by("id")
     for submission in submissions:
+        if not getattr(submission.student, "email_submission_confirmations", True):
+            continue
         item = project_submission_recipient_list_payload(submission)
         if item is None:
             continue
@@ -680,6 +705,19 @@ def homework_score_notification_payload(
     course_url = public_url(
         reverse("course", kwargs={"course_slug": course.slug})
     )
+    homework_url = public_url(
+        reverse(
+            "homework",
+            kwargs={
+                "course_slug": course.slug,
+                "homework_slug": homework.slug,
+            },
+        )
+    )
+    leaderboard_url = public_url(
+        reverse("leaderboard", kwargs={"course_slug": course.slug})
+    )
+    profile_url = public_url(reverse("account_settings"))
 
     payload = {
         "audience": config.audience,
@@ -692,7 +730,20 @@ def homework_score_notification_payload(
             "homework_slug": homework.slug,
             "homework_title": homework.title,
             "course_url": course_url,
-            "scores_url": course_url,
+            "homework_url": homework_url,
+            "scores_url": homework_url,
+            "leaderboard_url": leaderboard_url,
+            "profile_url": profile_url,
+            "notification_footer": (
+                f"You are receiving this because you submitted {homework.title} "
+                f"for {course.title} and homework/project submission emails "
+                "are enabled in your profile."
+            ),
+            "notification_footer_text": (
+                "If you don't want to receive homework/project submission "
+                "and score emails, turn off homework and project submission "
+                f"emails in your profile: {profile_url}"
+            ),
         },
         "list": list_data,
         "members": members,
@@ -704,6 +755,8 @@ def homework_score_notification_payload(
             "course_slug": course.slug,
             "homework_slug": homework.slug,
             "homework_id": homework.pk,
+            "preference_key": "email_submission_confirmations",
+            "cmp_preference_key": "email_submission_confirmations",
         },
     }
     if config.from_email:
@@ -731,6 +784,22 @@ def project_score_notification_payload(
             },
         )
     )
+    project_results_url = public_url(
+        reverse(
+            "project_results",
+            kwargs={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
+    course_url = public_url(
+        reverse("course", kwargs={"course_slug": course.slug})
+    )
+    leaderboard_url = public_url(
+        reverse("leaderboard", kwargs={"course_slug": course.slug})
+    )
+    profile_url = public_url(reverse("account_settings"))
 
     payload = {
         "audience": config.audience,
@@ -742,8 +811,22 @@ def project_score_notification_payload(
             "course_title": course.title,
             "project_slug": project.slug,
             "project_title": project.title,
+            "course_url": course_url,
             "project_url": project_url,
-            "scores_url": project_url,
+            "project_results_url": project_results_url,
+            "scores_url": project_results_url,
+            "leaderboard_url": leaderboard_url,
+            "profile_url": profile_url,
+            "notification_footer": (
+                f"You are receiving this because you submitted {project.title} "
+                f"for {course.title} and homework/project submission emails "
+                "are enabled in your profile."
+            ),
+            "notification_footer_text": (
+                "If you don't want to receive homework/project submission "
+                "and score emails, turn off homework and project submission "
+                f"emails in your profile: {profile_url}"
+            ),
         },
         "list": list_data,
         "members": members,
@@ -755,6 +838,8 @@ def project_score_notification_payload(
             "course_slug": course.slug,
             "project_slug": project.slug,
             "project_id": project.pk,
+            "preference_key": "email_submission_confirmations",
+            "cmp_preference_key": "email_submission_confirmations",
         },
     }
     if config.from_email:

@@ -41,7 +41,7 @@ class AccountSettingsForm(forms.ModelForm):
             "country": "Used to prefill course registration forms.",
             "registration_role": "Used to prefill course registration forms.",
             "email_submission_confirmations": (
-                "Sends you a copy of the submitted results after you submit "
+                "Sends confirmation and score emails after you submit "
                 "homework or a project."
             ),
             "email_deadline_reminders": (
