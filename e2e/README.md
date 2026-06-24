@@ -31,7 +31,7 @@ talks to the remote server over HTTP and a browser.
 | 3. Enrollment & identity (create/find student, impersonate, profile) | `tests/test_02_enrollment.py` | browser (loginas) |
 | 4. Homework flow (submit via UI, confirmation, score, leaderboard) | `tests/test_03_homework.py` | browser + API |
 | 5. Project flow (submit via UI, assign reviews, score, stats) | `tests/test_04_project.py` | browser + API |
-| 6. Email verification (homework + project confirmation emails) | `tests/test_03/04` (`@pytest.mark.email`) + `tests/test_06` (client unit tests) | mock-store (default) / real (xfail) |
+| 6. Email verification (homework + project confirmation emails) | `tests/test_03/04` (`@pytest.mark.email`) + `tests/test_06` (client unit tests) | real SES round-trip (default) / mock-store (opt-in) |
 | 7. Dashboards & stats render | `tests/test_05_dashboards.py` | browser |
 | 8. Teardown + pre-run sweep + clean assert | `tests/test_99_teardown.py` | browser + API |
 
@@ -41,39 +41,48 @@ Email checks go through `mock_inbox.py`, which exposes two backends with the
 same `wait_for_message(address, template_key=..., subject=...) -> InboxMessage`
 interface plus `clear(address)` (teardown):
 
-- **`MockInboxClient` (default).** A real HTTP client for the Datamailer
-  **mock-inbox** API (#194, `datamailer` branch `issue-194-mock-inbox`). Sends
-  to a *mock address* (`e2e+<tag>@mailbox.test`) are captured as
-  `TransactionalMessage` rows instead of being delivered, and this client
-  lists / fetches detail / clears them with retries + clear timeout errors.
-  Contract (base URL = the Datamailer service root, `Bearer` client key):
+- **`RealInboxClient` (default).** A real HTTP client for the Datamailer
+  **real-inbox** (SES-inbound) API. The student's address is a *real-inbox
+  address* (`e2e+<tag>@mailer.dtcdev.click`): Datamailer **really sends via
+  SES**, an SES receipt rule writes the raw MIME to S3, and this client reads it
+  back — proving the student genuinely received the email. This is the usual
+  delivery path, identical in dev and prod (there is a single shared
+  Datamailer). Contract (base URL = the Datamailer service root, `Bearer`
+  client key):
+  - `GET /api/inbox/messages?address=<addr>&limit=25` → newest-first summaries (`s3_key`, `from_email`, `to`, `subject`, `received_at`)
+  - `GET /api/inbox/messages/{s3_key}?address=<addr>` → `{message:{…, html_body, text_body, spam_verdict, virus_verdict}}`
+  - `DELETE /api/inbox/messages` `{address}` → `{deleted_count}`
+
+  Received MIME has **no `template_key`** (it's not a Datamailer row), so the
+  email tests match on `subject` + `body_contains` for this backend.
+- **`MockInboxClient` (opt-in).** A real HTTP client for the Datamailer
+  **mock-inbox** API. Sends to a *mock address* (`e2e+<tag>@mailbox.test`) are
+  captured as `TransactionalMessage` rows **without** real delivery, and this
+  client lists / fetches detail / clears them. Use it only via
+  `@pytest.mark.mock_inbox` when you want the fast, no-SES path.
   - `GET /api/mock-inbox/messages?address=<addr>&limit=25` → newest-first summaries
   - `GET /api/mock-inbox/messages/{id}` → `{message:{…, html_body, text_body, context, metadata}}`
-  - `DELETE /api/mock-inbox/messages` `{address}` (or empty = clear all) → `{deleted_count}`
-- **`RealInboxClient` (stub).** Placeholder for a real SES-inbound round-trip
-  (#194 branch `issue-194-ses-inbound`). Its read contract isn't final, so it
-  reports itself unconfigured and the tests that select it **xfail**. Exactly
-  one test (`test_homework_confirmation_email_real_ses`, marked
-  `@pytest.mark.real_inbox`) uses it via the `email_backend` selector.
+  - `DELETE /api/mock-inbox/messages` `{address}` → `{deleted_count}`
 
-**Backend selector.** The `email_backend` fixture resolves to `mock_inbox` by
-default; a test marked `@pytest.mark.real_inbox` (or parametrized with `"real"`)
-resolves to `real_inbox`. Most email assertions use the mock store; one uses
-the real backend.
+**Backend selector.** The `email_backend` fixture resolves to `real_inbox` by
+default; a test marked `@pytest.mark.mock_inbox` (or parametrized with
+`"mock"`) resolves to `mock_inbox`.
 
 **What runs now vs. what's gated.** The client logic is covered by
-`tests/test_06_mock_inbox_client.py` (17 unit tests, no network — paths, auth,
+`tests/test_06_mock_inbox_client.py` (no-network unit tests — paths, auth,
 params, response shapes, poll/timeout, retries, disabled-deployment 404,
-clear). The **live** email assertions in `test_03/04` need the mock inbox
-**deployed to dev** with `MOCK_INBOX_ENABLED=1` and `E2E_MOCK_INBOX_*` creds
-(it falls back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`). When neither is set
-they xfail; when set but the deployment has the mock inbox off, the endpoint
-returns `404 mock_inbox_disabled` and the poll times out. The real-SES test
-xfails until `issue-194-ses-inbound` and `E2E_REAL_INBOX_*` exist.
+clear — for **both** backends). The **live** email assertions in `test_03/04`
+need the real inbox **enabled on the Datamailer deployment**
+(`REAL_INBOX_ENABLED=1` + `REAL_INBOX_S3_BUCKET`; `datamailer-infra` provisions
+the SES receipt rule + inbound S3). `E2E_REAL_INBOX_*` falls back to
+`DATAMAILER_URL` / `DATAMAILER_API_KEY`. When unset, or when the deployment has
+the real inbox off (`404 real_inbox_disabled`), the email tests **xfail** (a
+fast pre-check avoids burning the poll timeout) so the suite stays green until
+the read API is switched on.
 
-The student email is set to a unique per-run mock address
-(`settings.mock_address(namespace)` → `e2e+<namespace>@mailbox.test`) and the
-captured messages are cleared via the `DELETE` endpoint in each email test's
+The student email is set to a unique per-run real-inbox address
+(`settings.real_address(namespace)` → `e2e+<namespace>@mailer.dtcdev.click`) and
+the captured messages are cleared via the `DELETE` endpoint in each email test's
 teardown.
 
 ### Teardown deletes the course via the Django admin UI
@@ -145,10 +154,11 @@ secrets. The suite also falls back to the **repo-root `.env`** for
 | `E2E_BASE_URL` | all | Defaults to `https://dev.courses.datatalks.club` (or `PUBLIC_BASE_URL`). |
 | `E2E_API_TOKEN` | provisioning/scoring/teardown | Staff token. Falls back to `DEV_AUTH_TOKEN`. |
 | `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | browser flows + teardown | Staff account; logs in via the admin form (no OAuth). Teardown deletes the course through the admin UI with this session; without it, teardown only parks the course hidden. |
-| `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `e2e+<namespace>@mailbox.test` mock-address student is created admin-side. |
-| `E2E_MOCK_INBOX_URL` / `E2E_MOCK_INBOX_API_KEY` | email checks (mock) | Datamailer service root + client key. Fall back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`. Email tests xfail when both unset. |
+| `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `e2e+<namespace>@mailer.dtcdev.click` real-inbox student is created admin-side (really receives the email via SES). |
+| `E2E_REAL_INBOX_URL` / `E2E_REAL_INBOX_API_KEY` | email checks (default) | Datamailer service root + client key. Fall back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`. Email tests xfail when the real inbox is unset or disabled on the deployment. |
+| `E2E_REAL_INBOX_DOMAIN` / `E2E_REAL_INBOX_TAG` | optional | Real-inbox address shape; default `mailer.dtcdev.click` / `e2e`. Must match the datamailer `REAL_INBOX_*` settings. |
+| `E2E_MOCK_INBOX_URL` / `E2E_MOCK_INBOX_API_KEY` | email checks (opt-in `@pytest.mark.mock_inbox`) | Datamailer service root + client key. Fall back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`. |
 | `E2E_MOCK_INBOX_DOMAIN` / `E2E_MOCK_INBOX_TAG` | optional | Mock-address shape; default `mailbox.test` / `e2e`. Must match the datamailer `MOCK_INBOX_*` settings. |
-| `E2E_REAL_INBOX_URL` / `E2E_REAL_INBOX_API_KEY` | email checks (real SES) | Not implemented yet (#194 `issue-194-ses-inbound`); real-backend test xfails. |
 | `E2E_EXPECTED_VERSION` | optional | If set, asserts `/api/health/` version matches the just-deployed build. |
 | `E2E_HEADLESS` | optional | `0` to watch the browser locally. |
 

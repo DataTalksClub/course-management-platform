@@ -221,15 +221,127 @@ def test_clear_is_safe_when_unconfigured():
     assert MockInboxClient(None, None).clear("x") == 0
 
 
-# -- real backend stub -----------------------------------------------------
+# -- real backend (SES-inbound) --------------------------------------------
 
 
-def test_real_inbox_is_unconfigured_stub():
-    real = RealInboxClient("https://x", "k")
-    assert real.configured is False
-    assert real.clear("x") == 0
+def _real_client(responses):
+    client = RealInboxClient("https://datamailer.example", "k-secret")
+    client._session = FakeSession(responses)
+    client.retry_backoff = 0
+    return client
+
+
+def _real_summary(**over):
+    base = {
+        "s3_key": "raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1",
+        "message_id": "<abc@email.amazonses.com>",
+        "from_email": "no-reply@dtcdev.click",
+        "to": ["e2e+run@mailer.dtcdev.click"],
+        "subject": "Homework submission saved: E2E Homework 1",
+        "received_at": "2026-06-20T10:00:00Z",
+    }
+    base.update(over)
+    return base
+
+
+def test_real_inbox_configured_requires_url_and_key():
+    assert RealInboxClient("https://x", None).configured is False
+    assert RealInboxClient(None, "k").configured is False
+    assert RealInboxClient("https://x", "k").configured is True
+
+
+def test_real_inbox_unconfigured_raises_and_clear_is_safe():
+    client = RealInboxClient(None, None)
+    assert client.configured is False
+    assert client.clear("e2e+x@mailer.dtcdev.click") == 0
     with pytest.raises(InboxNotConfigured):
-        real.list_messages("x")
+        client.list_messages("e2e+x@mailer.dtcdev.click")
+
+
+def test_real_inbox_messages_url_uses_inbox_path():
+    client = RealInboxClient("https://datamailer.example/", "k")
+    assert client.messages_url == "https://datamailer.example/api/inbox/messages"
+
+
+def test_real_list_parses_summary_without_template_key():
+    client = _real_client(
+        [FakeResponse(200, {"address": "a", "count": 1, "messages": [_real_summary()]})]
+    )
+    messages = client.list_messages("e2e+run@mailer.dtcdev.click", limit=10)
+
+    method, url, kwargs = client._session.calls[0]
+    assert method == "GET"
+    assert url.endswith("/api/inbox/messages")
+    assert kwargs["params"] == {"address": "e2e+run@mailer.dtcdev.click", "limit": 10}
+    assert kwargs["headers"]["Authorization"] == "Bearer k-secret"
+
+    assert len(messages) == 1
+    msg = messages[0]
+    # s3_key is this backend's identifier; 'to' is unwrapped from the list.
+    assert msg.id == "raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1"
+    assert msg.to == "e2e+run@mailer.dtcdev.click"
+    assert msg.template_key == ""  # raw MIME has no template key
+    assert "E2E Homework 1" in msg.subject
+
+
+def test_real_get_message_for_scopes_by_address_and_loads_bodies():
+    detail = _real_summary(
+        text_body="Thanks -- update at https://x/homework/hw-1/",
+        html_body="<p>update link</p>",
+        spam_verdict="PASS",
+        virus_verdict="PASS",
+    )
+    client = _real_client([FakeResponse(200, {"message": detail})])
+    msg = client.get_message_for(
+        "e2e+run@mailer.dtcdev.click",
+        "raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1",
+    )
+
+    method, url, kwargs = client._session.calls[0]
+    assert method == "GET"
+    assert url.endswith("/api/inbox/messages/raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1")
+    assert kwargs["params"] == {"address": "e2e+run@mailer.dtcdev.click"}
+    assert msg.body_contains("/homework/")
+    assert msg.metadata["spam_verdict"] == "PASS"
+
+
+def test_real_wait_for_message_matches_subject_and_fetches_detail():
+    summary = _real_summary()
+    detail = _real_summary(text_body="link https://x/homework/hw-1/")
+    client = _real_client(
+        [
+            FakeResponse(200, {"count": 1, "messages": [summary]}),  # list
+            FakeResponse(200, {"message": detail}),  # address-scoped detail
+        ]
+    )
+    msg = client.wait_for_message(
+        "e2e+run@mailer.dtcdev.click",
+        subject="Homework submission saved",
+        body_contains="/homework/",
+        timeout=5,
+        poll_interval=0,
+    )
+    assert msg.body_contains("/homework/")
+    # Detail fetch was address-scoped (the real backend's override).
+    detail_call = client._session.calls[1]
+    assert detail_call[2]["params"] == {"address": "e2e+run@mailer.dtcdev.click"}
+
+
+def test_real_disabled_deployment_raises_inbox_disabled():
+    client = _real_client(
+        [FakeResponse(404, {"error": {"code": "real_inbox_disabled"}})]
+    )
+    with pytest.raises(InboxDisabled):
+        client.list_messages("e2e+run@mailer.dtcdev.click")
+
+
+def test_real_clear_sends_delete_with_address_and_returns_count():
+    client = _real_client([FakeResponse(200, {"address": "a", "deleted_count": 3})])
+    assert client.clear("e2e+run@mailer.dtcdev.click") == 3
+    method, url, kwargs = client._session.calls[0]
+    assert method == "DELETE"
+    assert url.endswith("/api/inbox/messages")
+    assert kwargs["json"] == {"address": "e2e+run@mailer.dtcdev.click"}
 
 
 # -- config helper ---------------------------------------------------------
@@ -249,6 +361,8 @@ def test_mock_address_uses_tag_and_domain():
         mock_inbox_tag="e2e",
         real_inbox_url=None,
         real_inbox_api_key=None,
+        real_inbox_domain="mailer.dtcdev.click",
+        real_inbox_tag="e2e",
         request_timeout=30.0,
         ui_timeout_ms=20000,
         expected_version=None,
@@ -256,6 +370,8 @@ def test_mock_address_uses_tag_and_domain():
     assert cfg.mock_address("e2e-smoke-123") == "e2e+e2e-smoke-123@mailbox.test"
     # Sanitises unexpected characters in the label.
     assert cfg.mock_address("a b/c") == "e2e+a-b-c@mailbox.test"
+    # The real-inbox address sits on the datamailer SES-inbound domain.
+    assert cfg.real_address("e2e-smoke-123") == "e2e+e2e-smoke-123@mailer.dtcdev.click"
 
 
 def test_load_settings_exposes_inbox_defaults():

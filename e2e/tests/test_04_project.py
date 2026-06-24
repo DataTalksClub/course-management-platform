@@ -1,7 +1,8 @@
 """Scenario 5 (issue #194): Project flow.
 
 * Submit a project through the UI (as impersonated student).
-* Submission-confirmation email received (xfail until mock inbox lands).
+* Submission-confirmation email really received via SES, read back from the
+  Datamailer real inbox (xfails if the real inbox is not enabled on the target).
 * Assign peer reviews (API).
 * Score the project; verify score components.
 * Leaderboard + project statistics update.
@@ -14,6 +15,8 @@ succeed and return sane counts, rather than requiring assigned reviews.
 from __future__ import annotations
 
 import pytest
+
+from e2e.mock_inbox import InboxDisabled
 
 pytestmark = pytest.mark.project
 
@@ -60,30 +63,46 @@ PROJECT_CONFIRMATION_TEMPLATE = "project-submission-confirmation"
 
 
 @pytest.mark.email
-def test_project_confirmation_email(mock_inbox, run_state):
-    """Assert via the fast mock-store backend (default)."""
+def test_project_confirmation_email(email_backend, run_state):
+    """Student really receives the project submission-confirmation email.
+
+    Default backend is the real SES round-trip (Datamailer sends via SES; read
+    back from the inbound S3 bucket). xfails cleanly when the real inbox is not
+    configured or not enabled on the target deployment.
+    """
     require_project(run_state)
-    if not mock_inbox.configured:
+    if not email_backend.configured:
         pytest.xfail(
-            "Datamailer mock inbox not configured (E2E_MOCK_INBOX_URL / "
-            "DATAMAILER_URL unset). TODO: enable once #194 mock-inbox is "
-            "deployed to dev and creds are provided."
+            "Real inbox not configured (E2E_REAL_INBOX_* / DATAMAILER_* unset)."
         )
     try:
-        message = mock_inbox.wait_for_message(
-            run_state.student_email,
-            template_key=PROJECT_CONFIRMATION_TEMPLATE,
-            subject="Project submission saved",
-            timeout=90,
+        email_backend.list_messages(run_state.student_email, limit=1)
+    except InboxDisabled:
+        pytest.xfail(
+            "Real inbox disabled on this deployment (REAL_INBOX_ENABLED off); "
+            "enable REAL_INBOX_* on the Datamailer deployment to verify receipt."
         )
-        assert message.template_key == PROJECT_CONFIRMATION_TEMPLATE
+    # The real SES-inbound backend has no template_key (parsed from raw MIME);
+    # match on subject + body. Only the mock store carries a template_key.
+    expected_template = (
+        PROJECT_CONFIRMATION_TEMPLATE if email_backend.name == "mock" else None
+    )
+    try:
+        message = email_backend.wait_for_message(
+            run_state.student_email,
+            template_key=expected_template,
+            subject="Project submission saved",
+            timeout=120,
+        )
         assert "E2E Project 1" in message.subject
+        if expected_template:
+            assert message.template_key == expected_template
         assert message.body_contains("/project/"), (
             "Project confirmation email missing update link "
-            f"(context keys: {sorted(message.context)})."
+            f"(subject={message.subject!r})."
         )
     finally:
-        mock_inbox.clear(run_state.student_email)
+        email_backend.clear(run_state.student_email)
 
 
 def test_assign_peer_reviews(api, run_state):

@@ -3,17 +3,15 @@
 Two backends sit behind one interface (:class:`InboxBackend`) so the email
 tests don't care which one they run against:
 
-* :class:`MockInboxClient` -- the **default**, fast, deterministic backend. It
-  talks to the Datamailer *mock inbox* API (issue #194, owned by the
-  ``datamailer/`` repo). Transactional sends to a recognised "mock address"
-  (``e2e+<tag>@mailbox.test`` or ``e2e+<tag>@<dev-domain>``) are captured as
-  ``TransactionalMessage`` rows instead of being delivered for real, and this
-  client lists / fetches / clears them over HTTP.
+* :class:`RealInboxClient` -- the **default** backend. Datamailer really sends
+  via SES to a recognised real-inbox address
+  (``e2e+<tag>@mailer.dtcdev.click``), SES inbound writes the raw MIME to S3,
+  and this client lists / fetches / clears those received messages over HTTP.
 
-* :class:`RealInboxClient` -- a **stub** for a real SES inbound round-trip
-  (issue #194 sub-task ``issue-194-ses-inbound``). Its read contract is not
-  final yet, so this client is intentionally not implemented; one or two tests
-  opt into it and skip/xfail until ``E2E_REAL_INBOX_*`` config is provided.
+* :class:`MockInboxClient` -- the fast, deterministic opt-in backend. It talks
+  to the Datamailer *mock inbox* API. Transactional sends to a recognised mock
+  address (``e2e+<tag>@mailbox.test``) are captured as ``TransactionalMessage``
+  rows instead of being delivered for real.
 
 Mock-inbox wire contract (datamailer ``issue-194-mock-inbox``), base URL is the
 Datamailer service root (``E2E_MOCK_INBOX_URL`` / ``DATAMAILER_URL``), auth is
@@ -46,7 +44,7 @@ class InboxNotConfigured(RuntimeError):
 
 
 class InboxDisabled(RuntimeError):
-    """Raised when the deployment has the mock inbox turned off (404)."""
+    """Raised when the deployment has the selected inbox turned off (404)."""
 
 
 class MockInboxTimeout(AssertionError):
@@ -122,6 +120,14 @@ class InboxBackend:
     def clear(self, address: str | None = None) -> int:
         raise NotImplementedError
 
+    def _fetch_detail(self, address: str, message: "InboxMessage") -> "InboxMessage":
+        """Load a message's full detail (bodies/context) during polling.
+
+        Default keys only off the message id. Backends whose detail route also
+        needs the recipient address (the real inbox) override this.
+        """
+        return self.get_message(message.id)
+
     def wait_for_message(
         self,
         address: str,
@@ -162,14 +168,14 @@ class InboxBackend:
                 if body_contains:
                     candidate = message
                     if load_detail and not message.detail_loaded:
-                        candidate = self.get_message(message.id)
+                        candidate = self._fetch_detail(address, message)
                     if not candidate.body_contains(body_contains):
                         continue
                     if load_detail:
                         return candidate
                     return message
                 if load_detail and message.id is not None:
-                    return self.get_message(message.id)
+                    return self._fetch_detail(address, message)
                 return message
 
             time.sleep(poll_interval)
@@ -321,14 +327,39 @@ class MockInboxClient(InboxBackend):
         return message
 
 
-class RealInboxClient(InboxBackend):
-    """Stub for the real SES-inbound round-trip backend.
+REAL_INBOX_PATH = "/api/inbox/messages"
 
-    TODO(issue #194 / branch ``issue-194-ses-inbound``): implement against the
-    real inbound-capture read API once its contract is finalised. Until then
-    this client reports itself unconfigured so the one or two tests that select
-    it skip/xfail cleanly instead of blocking the suite. The constructor mirrors
-    :class:`MockInboxClient` so the swap is a one-liner once the contract lands.
+
+class RealInboxClient(InboxBackend):
+    """HTTP client for the Datamailer real-inbox (SES-inbound) read API.
+
+    Unlike the mock backend, this proves an email was *actually sent via SES and
+    received in a real mailbox*: Datamailer really sends to a real-inbox address
+    (``e2e+<tag>@mailer.dtcdev.click``), an SES receipt rule writes the raw MIME
+    to S3, and this API parses it back out. Same client Bearer auth as the mock
+    inbox; the base URL is the Datamailer service root.
+
+    Wire contract (datamailer ``docs/api.md`` "Real Inbox"):
+
+        GET    {base}/api/inbox/messages?address=<addr>&limit=25
+            -> 200 {"address","count","messages":[{s3_key,message_id,from_email,
+                    to:[...],subject,received_at}, ...]}  (newest first)
+        GET    {base}/api/inbox/messages/{s3_key}?address=<addr>
+            -> 200 {"message":{...summary..., text_body, html_body,
+                    spam_verdict, virus_verdict}}
+        DELETE {base}/api/inbox/messages   body {"address":"<addr>"}
+            -> 200 {"address","deleted_count"}
+
+    Differences from the mock backend the caller must know about:
+
+    * Messages are parsed from raw MIME, so there is **no ``template_key``** --
+      match on ``subject`` / ``body_contains`` instead.
+    * Capture is scoped only to the recipient address (not to a Datamailer
+      client), so isolate runs with a unique ``+<tag>``.
+    * Delivery to S3 is eventually consistent (~5-15s); poll until ``count > 0``.
+
+    When ``REAL_INBOX_ENABLED`` is off the routes return
+    ``404 {"error": {"code": "real_inbox_disabled"}}``.
     """
 
     name = "real"
@@ -339,32 +370,142 @@ class RealInboxClient(InboxBackend):
         api_key: str | None = None,
         *,
         timeout: float = 15.0,
+        max_retries: int = 3,
+        retry_backoff: float = 0.5,
     ):
         self.base_url = base_url.rstrip("/") if base_url else None
         self.api_key = api_key
         self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
+        self._session = requests.Session()
 
     @property
     def configured(self) -> bool:
-        # Intentionally always False until E2E_REAL_INBOX_* + the read contract
-        # exist. Flip this to ``bool(self.base_url and self.api_key)`` and fill
-        # in the methods below once issue-194-ses-inbound ships.
-        return False
+        return bool(self.base_url and self.api_key)
 
-    def _not_ready(self):
-        raise InboxNotConfigured(
-            "Real SES-inbound inbox backend is not implemented yet "
-            "(issue #194, branch issue-194-ses-inbound). Set E2E_REAL_INBOX_URL "
-            "/ E2E_REAL_INBOX_API_KEY and implement RealInboxClient once the "
-            "read contract is finalised."
-        )
+    @property
+    def messages_url(self) -> str:
+        return f"{self.base_url}{REAL_INBOX_PATH}"
+
+    def _headers(self) -> dict:
+        headers = {"Accept": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    def _require_configured(self) -> None:
+        if not self.configured:
+            raise InboxNotConfigured(
+                "E2E_REAL_INBOX_URL / E2E_REAL_INBOX_API_KEY (falling back to "
+                "DATAMAILER_URL / DATAMAILER_API_KEY) are not set; the "
+                "Datamailer real inbox is not reachable."
+            )
+
+    def _request(self, method: str, url: str, **kwargs) -> requests.Response:
+        """Issue a request with retries on transient transport/5xx errors."""
+        self._require_configured()
+        kwargs.setdefault("headers", self._headers())
+        kwargs.setdefault("timeout", self.timeout)
+        last_exc: Exception | None = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                resp = self._session.request(method, url, **kwargs)
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt == self.max_retries:
+                    raise
+                time.sleep(self.retry_backoff * attempt)
+                continue
+
+            if resp.status_code == 404 and self._looks_disabled(resp):
+                raise InboxDisabled(
+                    "Real inbox is disabled on this deployment "
+                    "(REAL_INBOX_ENABLED is off). 404 real_inbox_disabled."
+                )
+            if resp.status_code >= 500 and attempt < self.max_retries:
+                last_exc = requests.HTTPError(f"{resp.status_code} from real inbox")
+                time.sleep(self.retry_backoff * attempt)
+                continue
+            return resp
+
+        raise last_exc or RuntimeError("real inbox request failed")
+
+    @staticmethod
+    def _looks_disabled(resp: requests.Response) -> bool:
+        try:
+            body = resp.json()
+        except ValueError:
+            return False
+        return (body.get("error") or {}).get("code") == "real_inbox_disabled"
 
     def list_messages(self, address: str, *, limit: int = 25) -> list[InboxMessage]:
-        self._not_ready()
+        # requests urlencodes the params, turning the address '+' into '%2B'
+        # (not a space), which is exactly what the API requires.
+        resp = self._request(
+            "GET", self.messages_url, params={"address": address, "limit": limit}
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        items = payload.get("messages", []) if isinstance(payload, dict) else []
+        return [self._summary_to_message(item, address) for item in items]
 
-    def get_message(self, message_id) -> InboxMessage:
-        self._not_ready()
+    def _fetch_detail(self, address: str, message: InboxMessage) -> InboxMessage:
+        # The real-inbox detail route needs the address as a scope, so the
+        # default (id-only) hook is overridden here.
+        return self.get_message_for(address, message.id)
+
+    def get_message_for(self, address: str, s3_key) -> InboxMessage:
+        resp = self._request(
+            "GET",
+            f"{self.messages_url}/{s3_key}",
+            params={"address": address},
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        item = payload.get("message", payload) if isinstance(payload, dict) else {}
+        return self._detail_to_message(item, address)
 
     def clear(self, address: str | None = None) -> int:
-        # Safe no-op so teardown never fails on the unconfigured real backend.
-        return 0
+        """Delete the captured S3 objects for ``address`` (teardown)."""
+        body: dict = {}
+        if address:
+            body["address"] = address
+        try:
+            resp = self._request("DELETE", self.messages_url, json=body)
+        except (InboxNotConfigured, InboxDisabled):
+            return 0
+        if resp.status_code >= 400:
+            return 0
+        try:
+            return int(resp.json().get("deleted_count", 0))
+        except (ValueError, AttributeError, TypeError):
+            return 0
+
+    @staticmethod
+    def _summary_to_message(item: dict, address: str) -> InboxMessage:
+        to = item.get("to") or []
+        return InboxMessage(
+            # The s3_key is this backend's stable per-message identifier.
+            id=item.get("s3_key"),
+            to=(to[0] if isinstance(to, list) and to else address),
+            subject=item.get("subject", ""),
+            # Real MIME has no template_key -- callers match on subject/body.
+            template_key="",
+            from_email=item.get("from_email", ""),
+            created_at=item.get("received_at", ""),
+            raw=item,
+        )
+
+    @classmethod
+    def _detail_to_message(cls, item: dict, address: str) -> InboxMessage:
+        message = cls._summary_to_message(item, address)
+        message.html_body = item.get("html_body", "") or ""
+        message.text_body = item.get("text_body", "") or ""
+        # No render context in received MIME; expose the SES verdicts instead.
+        message.metadata = {
+            "spam_verdict": item.get("spam_verdict", ""),
+            "virus_verdict": item.get("virus_verdict", ""),
+            "message_id": item.get("message_id", ""),
+        }
+        return message

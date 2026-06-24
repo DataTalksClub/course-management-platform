@@ -2,8 +2,8 @@
 
 * Submit homework answers through the UI (as impersonated student).
 * Confirmation page renders with the submitted values.
-* Submission-confirmation email received at the mock inbox (xfail until the
-  mock-inbox endpoint exists -- see #194).
+* Submission-confirmation email really received via SES and read back from the
+  Datamailer real inbox (xfails if the real inbox is not enabled on the target).
 * Score the homework (API); submission shows a score.
 * Leaderboard reflects the score.
 """
@@ -11,6 +11,8 @@
 from __future__ import annotations
 
 import pytest
+
+from e2e.mock_inbox import InboxDisabled
 
 pytestmark = pytest.mark.homework
 
@@ -104,53 +106,52 @@ HOMEWORK_CONFIRMATION_TEMPLATE = "homework-submission-confirmation"
 
 
 def _assert_homework_confirmation(backend, run_state):
+    # The real SES-inbound backend parses raw MIME and carries no template_key,
+    # so match on subject + body; only the mock store has a template_key.
+    expected_template = (
+        HOMEWORK_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
+    )
     message = backend.wait_for_message(
         run_state.student_email,
-        template_key=HOMEWORK_CONFIRMATION_TEMPLATE,
+        template_key=expected_template,
         subject="Homework submission saved",
-        timeout=90,
+        # Real SES inbound is eventually consistent (~5-15s); give it headroom.
+        timeout=120,
     )
-    assert message.template_key == HOMEWORK_CONFIRMATION_TEMPLATE
     assert "E2E Homework 1" in message.subject
-    # The confirmation carries an "Update your submission" link; the homework
-    # update URL lives in context.update_url and the rendered body.
+    if expected_template:
+        assert message.template_key == expected_template
+    # The confirmation carries an "Update your submission" link to the homework
+    # (in the rendered body, and in context.update_url for the mock backend).
     assert message.body_contains("/homework/"), (
         "Homework confirmation email missing update link "
-        f"(context keys: {sorted(message.context)})."
+        f"(subject={message.subject!r})."
     )
 
 
 @pytest.mark.email
-def test_homework_confirmation_email(mock_inbox, run_state):
-    """Primary path: assert via the fast mock-store backend (default)."""
-    require_submitted(run_state)
-    if not mock_inbox.configured:
-        pytest.xfail(
-            "Datamailer mock inbox not configured (E2E_MOCK_INBOX_URL / "
-            "DATAMAILER_URL unset). TODO: enable once #194 mock-inbox is "
-            "deployed to dev and creds are provided."
-        )
-    try:
-        _assert_homework_confirmation(mock_inbox, run_state)
-    finally:
-        # Teardown: clear this run's captured messages for the mock address.
-        mock_inbox.clear(run_state.student_email)
+def test_homework_confirmation_email(email_backend, run_state):
+    """Student really receives the submission-confirmation email.
 
-
-@pytest.mark.email
-@pytest.mark.real_inbox
-def test_homework_confirmation_email_real_ses(email_backend, run_state):
-    """Dedicated real-SES round-trip check (one of the 1-2 real-backend tests).
-
-    Uses the ``real`` backend via the ``email_backend`` selector. xfails until
-    the SES-inbound capture API (issue #194, branch issue-194-ses-inbound) and
-    E2E_REAL_INBOX_* config exist.
+    Default backend is the real SES round-trip: Datamailer sends via SES and the
+    message is read back from the Datamailer real inbox (inbound S3). This is the
+    usual delivery flow -- the same in dev and prod. It xfails cleanly when the
+    real inbox is not configured or not enabled on the target deployment, so the
+    suite stays green until REAL_INBOX_* is switched on.
     """
     require_submitted(run_state)
     if not email_backend.configured:
         pytest.xfail(
-            "Real SES-inbound inbox backend not ready "
-            "(issue #194 / issue-194-ses-inbound; E2E_REAL_INBOX_* unset)."
+            "Real inbox not configured (E2E_REAL_INBOX_* / DATAMAILER_* unset)."
+        )
+    # If the deployment has the real inbox turned off, xfail right away rather
+    # than burning the full poll timeout waiting for mail that can't be read.
+    try:
+        email_backend.list_messages(run_state.student_email, limit=1)
+    except InboxDisabled:
+        pytest.xfail(
+            "Real inbox disabled on this deployment (REAL_INBOX_ENABLED off); "
+            "enable REAL_INBOX_* on the Datamailer deployment to verify receipt."
         )
     try:
         _assert_homework_confirmation(email_backend, run_state)

@@ -67,9 +67,25 @@ class Settings:
     mock_inbox_tag: str
     real_inbox_url: str | None
     real_inbox_api_key: str | None
+    real_inbox_domain: str
+    real_inbox_tag: str
     request_timeout: float
     ui_timeout_ms: int
     expected_version: str | None
+
+    def real_address(self, label: str) -> str:
+        """Build a plus-tagged address on the datamailer real-inbox domain.
+
+        Shape: ``<tag>+<label>@<domain>`` (e.g.
+        ``e2e+e2e-smoke-123@mailer.dtcdev.click``). Datamailer recognises an
+        address as a *real-inbox* address when its domain (ignoring the ``+tag``
+        sub-address) equals ``REAL_INBOX_DOMAIN``; such mail always takes the
+        real SES send path and is received back out of the inbound S3 bucket.
+        The unique ``+<label>`` isolates this run, since real capture is scoped
+        only to the recipient address.
+        """
+        clean = "".join(c if (c.isalnum() or c in "-._") else "-" for c in label)
+        return f"{self.real_inbox_tag}+{clean}@{self.real_inbox_domain}"
 
     def mock_address(self, label: str) -> str:
         """Build a plus-tagged mock address the Datamailer mock inbox captures.
@@ -138,10 +154,23 @@ def load_settings() -> Settings:
         mock_inbox_tag=(
             _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
         ),
-        # Real SES-inbound backend (issue-194-ses-inbound). Unset until ready;
-        # the one/two tests using it skip/xfail.
-        real_inbox_url=_first_env("E2E_REAL_INBOX_URL"),
-        real_inbox_api_key=_first_env("E2E_REAL_INBOX_API_KEY"),
+        # Real SES-inbound backend: Datamailer really sends via SES and the
+        # message is read back from the inbound S3 bucket. URL/key are the
+        # Datamailer service root + client Bearer key, so they fall back to the
+        # DATAMAILER_* values already in the repo .env.
+        real_inbox_url=_first_env("E2E_REAL_INBOX_URL", "DATAMAILER_URL"),
+        real_inbox_api_key=_first_env(
+            "E2E_REAL_INBOX_API_KEY", "DATAMAILER_API_KEY"
+        ),
+        # Real-inbox address shape (must match the datamailer REAL_INBOX_*
+        # settings: domain MOCK==mailbox.test but REAL==mailer.dtcdev.click).
+        real_inbox_domain=(
+            _first_env("E2E_REAL_INBOX_DOMAIN", "REAL_INBOX_DOMAIN")
+            or "mailer.dtcdev.click"
+        ),
+        real_inbox_tag=(
+            _first_env("E2E_REAL_INBOX_TAG", "REAL_INBOX_PLUS_TAG") or "e2e"
+        ),
         request_timeout=float(_first_env("E2E_REQUEST_TIMEOUT") or "30"),
         ui_timeout_ms=int(_first_env("E2E_UI_TIMEOUT_MS") or "20000"),
         expected_version=_first_env("E2E_EXPECTED_VERSION"),

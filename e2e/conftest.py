@@ -73,15 +73,17 @@ def real_inbox(settings: Settings) -> RealInboxClient:
 def email_backend(request):
     """Resolve the email-verification backend for a test.
 
-    Default = the fast mock-store backend (``mock_inbox``). A test opts into the
-    real SES round-trip backend by parametrizing or marking itself with
-    ``real`` (``@pytest.mark.real_inbox``); it then resolves to ``real_inbox``.
-    Either way, the test gets one object implementing the same interface.
+    Default = the **real** SES round-trip backend (``real_inbox``): Datamailer
+    really sends via SES and the message is read back from the inbound S3
+    bucket, so the student genuinely receives the email -- the usual flow, the
+    same in dev and prod. A test can opt back into the fast mock-store backend
+    by marking itself ``@pytest.mark.mock_inbox``. Either way, the test gets one
+    object implementing the same interface.
     """
     backend = getattr(request, "param", None)
     if backend is None:
-        marker = request.node.get_closest_marker("real_inbox")
-        backend = "real" if marker else "mock"
+        marker = request.node.get_closest_marker("mock_inbox")
+        backend = "mock" if marker else "real"
     fixture_name = "real_inbox" if backend == "real" else "mock_inbox"
     return request.getfixturevalue(fixture_name)
 
