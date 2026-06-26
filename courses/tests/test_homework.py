@@ -2173,8 +2173,8 @@ class HomeworkSubmissionsViewTests(TestCase):
             ),
             content,
         )
-        self.assertNotIn("Q1", content)
-        self.assertNotIn("Q2", content)
+        self.assertNotIn("What is 2+2?", content)
+        self.assertNotIn("What is the capital of France?", content)
         self.assertNotIn("Paris", content)
 
     def test_submissions_view_short_answers_are_hidden(self):
