@@ -75,7 +75,9 @@ class DatamailerWebhookTest(TestCase):
         )
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
-    def test_webhook_unsubscribe_updates_known_preference(self):
+    def test_webhook_unsubscribe_records_known_preference_without_user_update(
+        self,
+    ):
         user = CustomUser.objects.create_user(
             username="student",
             email="student@example.com",
@@ -94,12 +96,16 @@ class DatamailerWebhookTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["preference_updated"])
+        self.assertFalse(response.json()["preference_updated"])
         user.refresh_from_db()
-        self.assertFalse(user.email_deadline_reminders)
+        self.assertTrue(user.email_deadline_reminders)
+        event = DatamailerContactEvent.objects.get()
+        self.assertEqual(event.preference_key, "email_deadline_reminders")
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
-    def test_webhook_unsubscribe_updates_preference_from_metadata(self):
+    def test_webhook_unsubscribe_records_preference_from_metadata(
+        self,
+    ):
         user = CustomUser.objects.create_user(
             username="student",
             email="student@example.com",
@@ -120,9 +126,11 @@ class DatamailerWebhookTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["preference_updated"])
+        self.assertFalse(response.json()["preference_updated"])
         user.refresh_from_db()
-        self.assertFalse(user.email_course_updates)
+        self.assertTrue(user.email_course_updates)
+        event = DatamailerContactEvent.objects.get()
+        self.assertEqual(event.preference_key, "email_course_updates")
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
     def test_callback_status_command_reports_counts_and_duplicates(self):

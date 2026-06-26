@@ -9,7 +9,6 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from accounts.models import CustomUser
 from data.models import DatamailerContactEvent
 
 
@@ -55,16 +54,6 @@ def preference_key_from_payload(payload):
         or ""
     )
     return preference_key if preference_key in PREFERENCE_FIELDS else ""
-
-
-def apply_unsubscribe_preference(email, preference_key):
-    if not preference_key:
-        return False
-
-    updated = CustomUser.objects.filter(email__iexact=email).update(
-        **{preference_key: False}
-    )
-    return updated > 0
 
 
 @csrf_exempt
@@ -124,18 +113,11 @@ def datamailer_event_webhook(request):
         )
         event.refresh_from_db(fields=["duplicate_count", "last_seen_at"])
 
-    preference_updated = False
-    if created and event.event_type == "subscription.unsubscribed":
-        preference_updated = apply_unsubscribe_preference(
-            event.email,
-            event.preference_key,
-        )
-
     return JsonResponse(
         {
             "ok": True,
             "created": created,
             "duplicate_count": event.duplicate_count,
-            "preference_updated": preference_updated,
+            "preference_updated": False,
         }
     )

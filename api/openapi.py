@@ -1029,6 +1029,9 @@ SCHEMAS = {
                     "contact.complained",
                     "subscription.unsubscribed",
                     "subscription.resubscribed",
+                    "message.delivered",
+                    "message.opened",
+                    "message.clicked",
                     "transactional.skipped",
                     "transactional.failed",
                 ],
@@ -1177,10 +1180,12 @@ PATHS_BY_URL_NAME = {
             requires_auth=False,
             description=(
                 "Webhook used by Datamailer to report hard bounces, "
-                "complaints, and unsubscribe events back to CMP. The request "
-                "must include the configured Datamailer webhook token in the "
-                "Authorization bearer token or X-Datamailer-Webhook-Token "
-                "header."
+                "complaints, subscription changes, skipped/failed sends, and "
+                "message lifecycle events back to CMP for support and audit "
+                "visibility. CMP records these callbacks but does not use them "
+                "as its email preference store. The request must include the "
+                "configured Datamailer webhook token in the Authorization "
+                "bearer token or X-Datamailer-Webhook-Token header."
             ),
         ),
     },
