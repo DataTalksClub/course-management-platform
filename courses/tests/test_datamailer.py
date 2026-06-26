@@ -2065,12 +2065,13 @@ class DatamailerClientTest(TestCase):
     @patch(
         "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
     )
-    def test_certificate_availability_notification_respects_course_updates_preference(
+    def test_certificate_availability_notification_uses_datamailer_preference_category(
         self,
         bulk_upsert,
         send,
     ):
         bulk_upsert.return_value = {"updated_count": 1}
+        send.return_value = {"id": 123}
         user = CustomUser.objects.create(
             email="student@example.com",
             username="student",
@@ -2092,10 +2093,12 @@ class DatamailerClientTest(TestCase):
         )
         result = send_certificate_availability_notification(enrollment)
 
-        self.assertIsNone(payload)
-        self.assertIsNone(result)
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(result, {"id": 123})
         bulk_upsert.assert_called_once()
-        send.assert_not_called()
+        send.assert_called_once()
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(

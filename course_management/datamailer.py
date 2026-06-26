@@ -1443,9 +1443,6 @@ def certificate_availability_notification_payload(
     certificate_url = (enrollment.certificate_url or "").strip()
     if not email or not certificate_url:
         return None
-    if not getattr(enrollment.student, "email_course_updates", True):
-        return None
-
 
     course = enrollment.course
     course_url = public_url(
