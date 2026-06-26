@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 from django.utils import timezone
 
 DEFAULT_TIMEZONE = "UTC"
-DEFAULT_USER_DATETIME_FORMAT = "%-d %B %Y, %H:%M"
+DEFAULT_USER_DATETIME_FORMAT = "%-d %B %Y (%a), %H:%M"
 EMAIL_DEADLINE_DATETIME_FORMAT = "%A, %-d %B %Y, %H:%M"
 
 

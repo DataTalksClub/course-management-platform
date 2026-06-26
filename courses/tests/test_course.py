@@ -222,7 +222,12 @@ class CourseDetailViewTests(TestCase):
         self.assertNotContains(response, "primer-button\">Calendar feed")
         self.assertContains(
             response,
-            "All deadlines are shown in your account timezone.",
+            "All deadlines are shown in your",
+        )
+        self.assertContains(response, "account timezone")
+        self.assertContains(
+            response,
+            f'{reverse("account_settings")}#display-preferences-section',
         )
         self.assertContains(
             response,

@@ -207,7 +207,9 @@
 {% endif %}
 
 <div class="mt-8 text-sm app-muted">
-  All deadlines are shown in your account timezone.
+  All deadlines are shown in your
+  <a href="{% url 'account_settings' %}#display-preferences-section"
+     class="app-link">account timezone</a>.
   <a href="{% url 'course_calendar' course.slug %}" class="app-link">Calendar feed</a>
 </div>
 {% endblock %}
