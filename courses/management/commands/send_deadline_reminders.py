@@ -152,6 +152,7 @@ def deadline_send_payload(
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.DEADLINE_REMINDER,
+        "category_tag": "deadline-reminders",
         "idempotency_key": event_key,
         "context": template_context,
         "metadata": metadata

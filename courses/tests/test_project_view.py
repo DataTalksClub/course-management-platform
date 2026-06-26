@@ -357,6 +357,7 @@ class ProjectViewTestCase(TestCase):
             payload["template_key"],
             "project-submission-confirmation",
         )
+        self.assertEqual(payload["category_tag"], "submission-results")
         self.assertEqual(
             payload["idempotency_key"],
             (

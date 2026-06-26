@@ -108,6 +108,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             payload["template_key"],
             "homework-submission-confirmation",
         )
+        self.assertEqual(payload["category_tag"], "submission-results")
         self.assertEqual(
             payload["idempotency_key"],
             (

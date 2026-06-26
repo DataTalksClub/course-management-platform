@@ -239,20 +239,28 @@ def contact_payload_for_user(
 
 def registration_list_key(registration) -> str:
     if registration.course_id:
-        return f"course-registrants:{registration.course.slug}"
-    return f"course-registrants:{registration.campaign.slug}"
+        return registration.course.slug
+    return registration.campaign.slug
 
 
 def course_enrolled_list_key(course) -> str:
-    return f"course-enrolled:{course.slug}"
+    return f"{course.slug}:@e"
 
 
 def homework_submitters_list_key(homework) -> str:
-    return f"homework-submitters:{homework.course.slug}:{homework.slug}"
+    return f"{homework.course.slug}:@e:@homework:{homework.slug}"
 
 
 def project_submitters_list_key(project) -> str:
-    return f"project-submitters:{project.course.slug}:{project.slug}"
+    return f"{project.course.slug}:@e:@project:{project.slug}"
+
+
+def project_passed_list_key(project) -> str:
+    return f"{project_submitters_list_key(project)}:@passed"
+
+
+def course_graduates_list_key(course) -> str:
+    return f"{course.slug}:@e:@graduated"
 
 
 def public_url(path: str) -> str:
@@ -728,6 +736,7 @@ def homework_score_notification_payload(
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.HOMEWORK_SCORE_NOTIFICATION,
+        "category_tag": "submission-results",
         "idempotency_key": f"homework-score:{course.slug}:{homework.slug}",
         "context": {
             "course_slug": course.slug,
@@ -752,8 +761,6 @@ def homework_score_notification_payload(
         },
         "list": list_data,
         "members": members,
-        "member_sync": "reconcile",
-        "remove_absent_members": True,
         "metadata": {
             "source": "course-management-platform",
             "event": "homework_score_publication",
@@ -810,6 +817,7 @@ def project_score_notification_payload(
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.PROJECT_SCORE_NOTIFICATION,
+        "category_tag": "submission-results",
         "idempotency_key": f"project-score:{course.slug}:{project.slug}",
         "context": {
             "course_slug": course.slug,
@@ -835,8 +843,6 @@ def project_score_notification_payload(
         },
         "list": list_data,
         "members": members,
-        "member_sync": "reconcile",
-        "remove_absent_members": True,
         "metadata": {
             "source": "course-management-platform",
             "event": "project_score_publication",
@@ -1018,6 +1024,7 @@ def peer_review_assignment_notification_payload(
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.PEER_REVIEW_ASSIGNMENT,
+        "category_tag": "submission-results",
         "idempotency_key": (
             f"peer-review-assignment:{course.slug}:{project.slug}"
         ),
@@ -1060,8 +1067,6 @@ def peer_review_assignment_notification_payload(
         },
         "list": list_data,
         "members": members,
-        "member_sync": "reconcile",
-        "remove_absent_members": True,
         "metadata": {
             "source": "course-management-platform",
             "event": "peer_review_assignment",
@@ -1104,6 +1109,7 @@ def certificate_availability_notification_payload(
         "template_key": (
             email_templates.CERTIFICATE_AVAILABILITY_NOTIFICATION
         ),
+        "category_tag": "course-updates",
         "idempotency_key": f"certificate-available:{enrollment.pk}",
         "context": {
             "course_slug": course.slug,
@@ -1144,6 +1150,34 @@ def certificate_availability_notification_payload(
     return payload
 
 
+def recipient_list_member_sync_payload(
+    config: DatamailerConfig,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "audience": config.audience,
+        "client": config.client,
+        "list": payload["list"],
+        "members": payload["members"],
+    }
+
+
+def recipient_list_send_payload(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in payload.items()
+        if key
+        not in {
+            "list",
+            "members",
+            "member_sync",
+            "remove_absent_members",
+        }
+    }
+
+
 def send_homework_score_notification(homework) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -1156,8 +1190,12 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
     client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
+        client.bulk_upsert_recipient_list_members(
+            list_key,
+            recipient_list_member_sync_payload(config, payload),
+        )
         return client.send_recipient_list_transactional(
-            list_key, payload
+            list_key, recipient_list_send_payload(payload)
         )
     except requests.RequestException:
         logger.exception(
@@ -1181,8 +1219,12 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
     client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
+        client.bulk_upsert_recipient_list_members(
+            list_key,
+            recipient_list_member_sync_payload(config, payload),
+        )
         return client.send_recipient_list_transactional(
-            list_key, payload
+            list_key, recipient_list_send_payload(payload)
         )
     except requests.RequestException:
         logger.exception(
@@ -1208,7 +1250,14 @@ def send_peer_review_assignment_notification(
     client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
-        return client.send_recipient_list_transactional(list_key, payload)
+        client.bulk_upsert_recipient_list_members(
+            list_key,
+            recipient_list_member_sync_payload(config, payload),
+        )
+        return client.send_recipient_list_transactional(
+            list_key,
+            recipient_list_send_payload(payload),
+        )
     except requests.RequestException:
         logger.exception(
             "Datamailer peer review assignment notification failed "

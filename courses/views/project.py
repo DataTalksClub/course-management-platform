@@ -213,6 +213,7 @@ def send_project_confirmation_email(
             "template_key": (
                 email_templates.PROJECT_SUBMISSION_CONFIRMATION
             ),
+            "category_tag": "submission-results",
             "idempotency_key": (
                 f"project-submission:{submission.id}:"
                 f"{submission.submitted_at.isoformat()}"

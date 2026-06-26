@@ -205,7 +205,7 @@ class DatamailerClientTest(TestCase):
 
         client = DatamailerClient(config, session=session)
         result = client.upsert_recipient_list_member(
-            "course-registrants:ml-zoomcamp-2026",
+            "ml-zoomcamp-2026",
             "registration:42",
             {"email": "student@example.com"},
         )
@@ -213,7 +213,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(result, {"ok": True})
         session.request.assert_called_once_with(
             "PUT",
-            "https://datamailer.example.com/api/recipient-lists/course-registrants:ml-zoomcamp-2026/members/registration:42",
+            "https://datamailer.example.com/api/recipient-lists/ml-zoomcamp-2026/members/registration:42",
             json={"email": "student@example.com"},
             timeout=10,
             headers={
@@ -239,14 +239,14 @@ class DatamailerClientTest(TestCase):
 
         client = DatamailerClient(config, session=session)
         result = client.send_recipient_list_transactional(
-            "homework-submitters:ml-zoomcamp-2026:homework-1",
+            "ml-zoomcamp-2026:@e:@homework:homework-1",
             {"template_key": "homework-score-notification"},
         )
 
         self.assertEqual(result, {"ok": True})
         session.request.assert_called_once_with(
             "POST",
-            "https://datamailer.example.com/api/recipient-lists/homework-submitters:ml-zoomcamp-2026:homework-1/transactional-send",
+            "https://datamailer.example.com/api/recipient-lists/ml-zoomcamp-2026:@e:@homework:homework-1/transactional-send",
             json={"template_key": "homework-score-notification"},
             timeout=10,
             headers={
@@ -804,8 +804,9 @@ class DatamailerClientTest(TestCase):
             payload["metadata"]["preference_key"],
             "email_submission_confirmations",
         )
-        self.assertEqual(payload["member_sync"], "reconcile")
-        self.assertTrue(payload["remove_absent_members"])
+        self.assertEqual(payload["category_tag"], "submission-results")
+        self.assertNotIn("member_sync", payload)
+        self.assertNotIn("remove_absent_members", payload)
         self.assertEqual(
             payload["list"]["type"],
             "homework_submitters",
@@ -918,10 +919,15 @@ class DatamailerClientTest(TestCase):
     @patch(
         "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
     )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
     def test_send_homework_score_notification_uses_list_send(
         self,
+        bulk_upsert,
         send_list,
     ):
+        bulk_upsert.return_value = {"updated_count": 0}
         send_list.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -938,11 +944,14 @@ class DatamailerClientTest(TestCase):
         result = send_homework_score_notification(homework)
 
         self.assertEqual(result, {"enqueued_count": 1})
+        bulk_upsert.assert_called_once()
         send_list.assert_called_once()
         self.assertEqual(
             send_list.call_args.args[0],
             homework_submitters_list_key(homework),
         )
+        self.assertNotIn("members", send_list.call_args.args[1])
+        self.assertNotIn("list", send_list.call_args.args[1])
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -1025,8 +1034,9 @@ class DatamailerClientTest(TestCase):
             payload["metadata"]["preference_key"],
             "email_submission_confirmations",
         )
-        self.assertEqual(payload["member_sync"], "reconcile")
-        self.assertTrue(payload["remove_absent_members"])
+        self.assertEqual(payload["category_tag"], "submission-results")
+        self.assertNotIn("member_sync", payload)
+        self.assertNotIn("remove_absent_members", payload)
         self.assertEqual(payload["list"]["type"], "project_submitters")
         self.assertEqual(len(payload["members"]), 1)
         member = payload["members"][0]
@@ -1174,6 +1184,7 @@ class DatamailerClientTest(TestCase):
 
         self.assertEqual(list_key, project_submitters_list_key(project))
         self.assertEqual(payload["template_key"], "peer-review-assignment")
+        self.assertEqual(payload["category_tag"], "submission-results")
         self.assertEqual(
             payload["idempotency_key"],
             "peer-review-assignment:ml-zoomcamp-2026:project-1",
@@ -1257,10 +1268,15 @@ class DatamailerClientTest(TestCase):
     @patch(
         "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
     )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
     def test_send_project_score_notification_uses_list_send(
         self,
+        bulk_upsert,
         send_list,
     ):
+        bulk_upsert.return_value = {"updated_count": 0}
         send_list.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -1278,11 +1294,14 @@ class DatamailerClientTest(TestCase):
         result = send_project_score_notification(project)
 
         self.assertEqual(result, {"enqueued_count": 1})
+        bulk_upsert.assert_called_once()
         send_list.assert_called_once()
         self.assertEqual(
             send_list.call_args.args[0],
             project_submitters_list_key(project),
         )
+        self.assertNotIn("members", send_list.call_args.args[1])
+        self.assertNotIn("list", send_list.call_args.args[1])
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -1331,6 +1350,7 @@ class DatamailerClientTest(TestCase):
             payload["metadata"]["event"],
             "certificate_availability",
         )
+        self.assertEqual(payload["category_tag"], "course-updates")
         self.assertEqual(
             payload["metadata"]["preference_key"],
             "email_course_updates",
@@ -1559,7 +1579,7 @@ class DatamailerClientTest(TestCase):
 
         bulk_upsert.assert_not_called()
         self.assertIn(
-            "course-registrants:ml-zoomcamp-2026: 1 member(s)",
+            "ml-zoomcamp-2026: 1 member(s)",
             out.getvalue(),
         )
 

@@ -152,6 +152,7 @@ class DeadlineReminderCommandTest(TestCase):
             send_payload["template_key"],
             "deadline-reminder",
         )
+        self.assertEqual(send_payload["category_tag"], "deadline-reminders")
         self.assertEqual(
             send_payload["idempotency_key"],
             f"deadline-reminder:homework:{homework.pk}:24h",

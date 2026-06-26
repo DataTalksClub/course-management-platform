@@ -567,6 +567,7 @@ def send_homework_confirmation_email(
             "template_key": (
                 email_templates.HOMEWORK_SUBMISSION_CONFIRMATION
             ),
+            "category_tag": "submission-results",
             "idempotency_key": (
                 f"homework-submission:{submission.id}:"
                 f"{submission.submitted_at.isoformat()}"
