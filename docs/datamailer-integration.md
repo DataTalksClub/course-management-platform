@@ -1108,6 +1108,22 @@ a real homework/project slug (e.g. a homework literally slugged `e`). Needs a
 namespacing rule — a reserved sigil such as `{course}:@e` / `{course}:@e:@graduated`,
 or validation that no slug uses a reserved word.
 
+**G13. Email links must be absolute — and tested end to end.** Every link in a
+templated email (leaderboard, scores, profile, update URLs) must be a
+**fully-qualified URL** (scheme + host). `public_url()` returns a **bare relative
+path** when `PUBLIC_BASE_URL` is empty (`course_management/datamailer.py:258`), so a
+misconfigured / unset `PUBLIC_BASE_URL` in a sending environment produces broken
+links — observed in a real score-notification email as
+`http:///llm-zoomcamp-2026/leaderboard` (empty host) instead of
+`https://courses.datatalks.club/llm-zoomcamp-2026/leaderboard`. Two things to fix:
+- **Validate at send time** — when Datamailer sending is enabled, treat an empty
+  `PUBLIC_BASE_URL` as a hard error (or refuse to build links), so we fail fast
+  instead of emitting `http:///…`.
+- **End-to-end test** — assert the *rendered* email body contains absolute
+  `https://<host>/…` links, not relative paths. Today's tests set `PUBLIC_BASE_URL`
+  to a value (or to `""`) and check context, but nothing catches a real
+  environment shipping links with an empty host. (Reported by Luis Oliveira.)
+
 ---
 
 # Part 2 — API reference
