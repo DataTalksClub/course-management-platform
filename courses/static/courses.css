@@ -229,21 +229,48 @@ body {
   grid-template-columns: 1.1rem minmax(0, 1fr);
 }
 
-.checkbox-row input[type="checkbox"] {
+input[type="checkbox"] {
   appearance: none;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 4px;
   box-sizing: border-box;
+  cursor: pointer;
   height: 1.1rem;
-  margin: 0.15rem 0 0;
+  position: relative;
+  vertical-align: middle;
   width: 1.1rem;
 }
 
-.checkbox-row input[type="checkbox"]:checked {
+input[type="checkbox"]:checked {
   background-color: var(--link-color);
   border-color: var(--link-color);
-  box-shadow: inset 0 0 0 3px var(--input-bg);
+}
+
+input[type="checkbox"]:checked::after {
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  content: "";
+  height: 0.58rem;
+  left: 0.34rem;
+  position: absolute;
+  top: 0.12rem;
+  transform: rotate(45deg);
+  width: 0.28rem;
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.checkbox-row input[type="checkbox"] {
+  margin: 0.15rem 0 0;
 }
 
 .checkbox-label {
@@ -279,6 +306,10 @@ body {
   position: relative;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   width: 2.35rem;
+}
+
+.toggle-row input[type="checkbox"]:checked::after {
+  content: none;
 }
 
 .toggle-row input[type="checkbox"]::before {
@@ -984,6 +1015,28 @@ form select {
   cursor: pointer;
   font: inherit;
   text-align: left;
+}
+
+.dark-mode-icon-stack {
+  display: inline-flex;
+  justify-content: center;
+  width: 1rem;
+}
+
+.dark-mode-icon-stack .dark-mode-icon-light {
+  display: inline-block;
+}
+
+.dark-mode-icon-stack .dark-mode-icon-dark {
+  display: none;
+}
+
+body.dark-mode .dark-mode-icon-stack .dark-mode-icon-light {
+  display: none;
+}
+
+body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
+  display: inline-block;
 }
 
 .site-footer-brand {

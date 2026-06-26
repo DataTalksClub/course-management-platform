@@ -143,6 +143,8 @@ class CourseRegistrationForm(forms.ModelForm):
         self.campaign = campaign
         self.user = user
         super().__init__(*args, **kwargs)
+        for field_name in ("name", "country", "role", "comment"):
+            self.fields[field_name].required = False
         self.fields["country"].widget = forms.TextInput(
             attrs={
                 "class": "form-control",
@@ -186,9 +188,17 @@ class CourseRegistrationForm(forms.ModelForm):
 
     def clean_country(self):
         country = self.cleaned_data["country"]
+        if not country:
+            return ""
         if not region_for_country(country):
             raise forms.ValidationError("Select a valid country.")
         return country
+
+    def clean_accepted_newsletter(self):
+        accepted_newsletter = self.cleaned_data["accepted_newsletter"]
+        if not accepted_newsletter:
+            raise forms.ValidationError("This field is required.")
+        return accepted_newsletter
 
     def save(self, commit=True):
         registration = super().save(commit=False)
@@ -208,8 +218,8 @@ class CourseRegistrationForm(forms.ModelForm):
             return
 
         update_fields = []
-        certificate_name = registration.name or None
-        if self.user.certificate_name != certificate_name:
+        certificate_name = registration.name.strip()
+        if certificate_name and self.user.certificate_name != certificate_name:
             self.user.certificate_name = certificate_name
             update_fields.append("certificate_name")
 
@@ -218,7 +228,7 @@ class CourseRegistrationForm(forms.ModelForm):
             ("region", registration.region),
             ("registration_role", registration.role),
         ):
-            if getattr(self.user, user_field) != value:
+            if value and getattr(self.user, user_field) != value:
                 setattr(self.user, user_field, value)
                 update_fields.append(user_field)
 

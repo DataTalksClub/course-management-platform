@@ -129,9 +129,10 @@
                                             class="user-menu-item user-menu-button app-link"
                                             aria-pressed="{% if DARK_MODE %}true{% else %}false{% endif %}"
                                             type="button">
-                                        <i id="dark-mode-icon"
-                                           class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"
-                                           aria-hidden="true"></i>
+                                        <span class="dark-mode-icon-stack" aria-hidden="true">
+                                            <i class="fas fa-moon dark-mode-icon-light"></i>
+                                            <i class="fas fa-sun dark-mode-icon-dark"></i>
+                                        </span>
                                         <span id="dark-mode-label">
                                             {% if DARK_MODE %}Light mode{% else %}Dark mode{% endif %}
                                         </span>
@@ -150,8 +151,10 @@
                                 aria-label="Toggle dark mode"
                                 aria-pressed="{% if DARK_MODE %}true{% else %}false{% endif %}"
                                 type="button">
-                            <i id="dark-mode-icon"
-                               class="fas {% if DARK_MODE %}fa-sun{% else %}fa-moon{% endif %}"></i>
+                            <span class="dark-mode-icon-stack" aria-hidden="true">
+                                <i class="fas fa-moon dark-mode-icon-light"></i>
+                                <i class="fas fa-sun dark-mode-icon-dark"></i>
+                            </span>
                         </button>
                         <a href="{% url 'login' %}"
                            class="shrink-0 app-heading app-link"

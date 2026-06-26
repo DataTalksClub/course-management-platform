@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', function() {
   var STORAGE_KEY = 'darkMode';
   var body = document.body;
   var toggle = document.getElementById('dark-mode-toggle');
-  var icon = document.getElementById('dark-mode-icon');
   var label = document.getElementById('dark-mode-label');
 
   function applyDarkMode(isDarkMode) {
@@ -12,11 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (toggle) {
       toggle.setAttribute('aria-pressed', isDarkMode ? 'true' : 'false');
-    }
-
-    if (icon) {
-      icon.classList.toggle('fa-moon', !isDarkMode);
-      icon.classList.toggle('fa-sun', isDarkMode);
     }
 
     if (label) {

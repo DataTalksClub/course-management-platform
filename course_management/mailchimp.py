@@ -87,7 +87,7 @@ def sync_registration_to_mailchimp(registration: CourseRegistration) -> None:
     config = MailchimpConfig.from_settings()
     tag = registration.campaign.selected_mailchimp_tag()
 
-    if config is None or not tag:
+    if config is None or not tag or not registration.accepted_newsletter:
         registration.mailchimp_sync_status = (
             CourseRegistration.MailchimpSyncStatus.SKIPPED
         )

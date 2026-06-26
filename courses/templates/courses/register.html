@@ -148,19 +148,21 @@
   <script src="{% static 'country_combobox.js' %}"></script>
   <script>
     document.querySelectorAll('[data-registration-form]').forEach((form) => {
-      const newsletterCheckbox = form.querySelector('input[name="accepted_newsletter"]');
       const submitButton = form.querySelector('[data-registration-submit]');
 
-      if (!newsletterCheckbox || !submitButton) {
+      if (!submitButton) {
         return;
       }
 
       const syncSubmitState = () => {
-        submitButton.disabled = !newsletterCheckbox.checked;
+        submitButton.disabled = !form.checkValidity();
       };
 
       syncSubmitState();
-      newsletterCheckbox.addEventListener('change', syncSubmitState);
+      form.querySelectorAll('input, select, textarea').forEach((control) => {
+        control.addEventListener('input', syncSubmitState);
+        control.addEventListener('change', syncSubmitState);
+      });
     });
   </script>
 {% endblock %}

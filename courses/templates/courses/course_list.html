@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 {% block content %}
     <section class="home-hero py-6 md:py-10">
         <div class="max-w-3xl">
@@ -83,7 +84,7 @@
                                             {{ course.home_current_assignment.label }}: {{ course.home_current_assignment.title }}
                                         </p>
                                         <p class="mt-1 app-muted">
-                                            Due {{ course.home_current_assignment.due_date|date:"M j, Y" }}
+                                            Due {{ course.home_current_assignment.due_date|user_datetime:request }}
                                         </p>
                                     </div>
                                 {% endif %}

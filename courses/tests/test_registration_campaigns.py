@@ -115,6 +115,53 @@ class RegistrationCampaignPublicTests(TestCase):
         )
         self.assertEqual(CourseRegistration.objects.count(), 1)
 
+    @override_settings(
+        MAILCHIMP_TOKEN="",
+        MAILCHIMP_LIST_ID="",
+        DATAMAILER_URL="",
+        DATAMAILER_API_KEY="",
+        DATAMAILER_CLIENT="",
+        DATAMAILER_AUDIENCE="",
+    )
+    def test_registration_requires_only_email_and_newsletter_consent(self):
+        response = self.client.post(
+            reverse(
+                "registration_campaign",
+                kwargs={"campaign_slug": self.campaign.slug},
+            ),
+            {
+                "email": "email-only@example.com",
+                "accepted_newsletter": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        self.assertEqual(
+            registration.email_normalized, "email-only@example.com"
+        )
+        self.assertEqual(registration.name, "")
+        self.assertEqual(registration.country, "")
+        self.assertEqual(registration.region, "")
+        self.assertEqual(registration.role, "")
+        self.assertTrue(registration.accepted_newsletter)
+
+    def test_registration_requires_newsletter_consent(self):
+        response = self.client.post(
+            reverse(
+                "registration_campaign",
+                kwargs={"campaign_slug": self.campaign.slug},
+            ),
+            {"email": "email-only@example.com"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "This field is required.",
+        )
+        self.assertEqual(CourseRegistration.objects.count(), 0)
+
     def test_logged_in_user_registration_uses_account_email(self):
         user = CustomUser.objects.create_user(
             username="signed",
@@ -170,6 +217,55 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(
             user.registration_role,
             CourseRegistration.Role.DATA_ENGINEER,
+        )
+
+    @override_settings(
+        MAILCHIMP_TOKEN="",
+        MAILCHIMP_LIST_ID="",
+        DATAMAILER_URL="",
+        DATAMAILER_API_KEY="",
+        DATAMAILER_CLIENT="",
+        DATAMAILER_AUDIENCE="",
+    )
+    def test_logged_in_registration_blank_optional_fields_keeps_profile(self):
+        user = CustomUser.objects.create_user(
+            username="signed-blank",
+            email="signed-blank@example.com",
+            password="test",
+            certificate_name="Existing Name",
+            country="Canada",
+            region="North America",
+            registration_role=CourseRegistration.Role.DATA_SCIENTIST,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse(
+                "registration_campaign",
+                kwargs={"campaign_slug": self.campaign.slug},
+            ),
+            {
+                "email": "ignored@example.com",
+                "accepted_newsletter": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        self.assertEqual(
+            registration.email_normalized, "signed-blank@example.com"
+        )
+        self.assertEqual(registration.name, "")
+        self.assertEqual(registration.country, "")
+        self.assertEqual(registration.region, "")
+        self.assertEqual(registration.role, "")
+        user.refresh_from_db()
+        self.assertEqual(user.certificate_name, "Existing Name")
+        self.assertEqual(user.country, "Canada")
+        self.assertEqual(user.region, "North America")
+        self.assertEqual(
+            user.registration_role,
+            CourseRegistration.Role.DATA_SCIENTIST,
         )
 
     def test_empty_course_redirects_non_staff_to_campaign(self):
@@ -364,6 +460,47 @@ class MailchimpRegistrationSyncTests(TestCase):
         self.assertEqual(
             registration.mailchimp_sync_status,
             CourseRegistration.MailchimpSyncStatus.SYNCED,
+        )
+        self.assertEqual(
+            registration.mailchimp_tag_used, "llm-zoomcamp-2026"
+        )
+
+    @override_settings(
+        MAILCHIMP_TOKEN="secret-us19",
+        MAILCHIMP_LIST_ID="97178021aa",
+    )
+    @patch("course_management.mailchimp.MailchimpClient.add_member_tag")
+    @patch("course_management.mailchimp.MailchimpClient.upsert_member")
+    def test_registration_sync_skips_mailchimp_without_newsletter_consent(
+        self, upsert, add_tag
+    ):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            mailchimp_tag_before_switch="llm-zoomcamp-2026",
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            email="student@example.com",
+            name="",
+            country="",
+            region="",
+            role="",
+            accepted_newsletter=False,
+        )
+
+        from course_management.mailchimp import (
+            sync_registration_to_mailchimp,
+        )
+
+        sync_registration_to_mailchimp(registration)
+
+        upsert.assert_not_called()
+        add_tag.assert_not_called()
+        registration.refresh_from_db()
+        self.assertEqual(
+            registration.mailchimp_sync_status,
+            CourseRegistration.MailchimpSyncStatus.SKIPPED,
         )
         self.assertEqual(
             registration.mailchimp_tag_used, "llm-zoomcamp-2026"

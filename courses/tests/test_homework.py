@@ -216,6 +216,7 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Log in to submit this homework")
         self.assertContains(response, "You can preview the questions")
+        self.assertContains(response, "homework-preview-login-action")
         self.assertNotContains(response, "Submission details")
         self.assertNotContains(response, "Homework URL")
         self.assertNotContains(response, "Learning in public links")

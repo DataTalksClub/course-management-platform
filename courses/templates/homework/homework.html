@@ -407,6 +407,14 @@
                 {% endif %}
             </div>
             {% endif %}
+            {% if not is_authenticated and not homework.is_scored %}
+                <div class="homework-preview-login-action mt-6 flex flex-wrap gap-2 border-t app-border pt-5">
+                    <a href="{% url 'login' %}?next={{ request.path }}"
+                       class="primer-button">
+                        Log in to submit
+                    </a>
+                </div>
+            {% endif %}
         </form>
         <script src="{% static 'homework.js' %}"></script>
     </section>
