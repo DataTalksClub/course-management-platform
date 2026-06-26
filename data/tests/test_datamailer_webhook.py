@@ -219,6 +219,28 @@ class DatamailerWebhookTest(TestCase):
         )
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    def test_webhook_records_message_lifecycle_event(self):
+        response = self.post_event(
+            {
+                "event_id": "evt-message-clicked-1",
+                "event_type": "message.clicked",
+                "email": "student@example.com",
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "metadata": {
+                    "campaign_id": 123,
+                    "campaign_recipient_id": 456,
+                    "url": "https://example.com/path",
+                },
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = DatamailerContactEvent.objects.get()
+        self.assertEqual(event.event_type, "message.clicked")
+        self.assertEqual(event.payload["metadata"]["url"], "https://example.com/path")
+
+    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_resubscribe_without_preference_change(
         self,
     ):

@@ -133,14 +133,26 @@ class AdminSession:
     def create_student(self, email: str, password: str) -> int:
         """Create a non-staff student via the admin add form.
 
-        The CustomUser add form (AbstractUser) asks for username + the two
-        password fields. Username is set to the email so login/lookup work.
+        The deployed app currently registers CustomUser with a plain
+        ModelAdmin, so the add form exposes the model's raw ``password`` field.
+        Older/local variants may use UserAdmin's ``password1``/``password2``
+        add form. Support both: the smoke flow impersonates the student and
+        does not rely on the target user's password for login.
         """
         self.page.goto(self.url("/admin/accounts/customuser/add/"))
         self.page.wait_for_load_state("networkidle")
         self.page.fill("input[name='username']", email)
-        self.page.fill("input[name='password1']", password)
-        self.page.fill("input[name='password2']", password)
+        if self.page.locator("input[name='email']").count():
+            self.page.fill("input[name='email']", email)
+        if self.page.locator("input[name='password1']").count():
+            self.page.fill("input[name='password1']", password)
+            self.page.fill("input[name='password2']", password)
+        elif self.page.locator("input[name='password']").count():
+            self.page.fill("input[name='password']", password)
+        else:
+            raise AssertionError(
+                "CustomUser admin add form did not expose password fields."
+            )
         self.page.click("input[name='_save'], button[type='submit'], "
                         "input[type='submit']")
         self.page.wait_for_load_state("networkidle")

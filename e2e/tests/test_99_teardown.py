@@ -40,6 +40,8 @@ def test_teardown_deletes_provisioned_resources(
 ):
     if not run_state.course:
         pytest.skip("Nothing was provisioned.")
+    if optional_admin_session is not None:
+        optional_admin_session.stop_impersonating()
     report = provisioner.teardown_course(
         run_state.course.slug, admin_session=optional_admin_session
     )

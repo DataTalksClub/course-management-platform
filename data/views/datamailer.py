@@ -18,6 +18,9 @@ SUPPORTED_EVENT_TYPES = {
     "contact.complained",
     "subscription.unsubscribed",
     "subscription.resubscribed",
+    "message.delivered",
+    "message.opened",
+    "message.clicked",
     "transactional.skipped",
     "transactional.failed",
 }
