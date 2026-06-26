@@ -15,7 +15,9 @@ from course_management.datamailer import (
     DatamailerClient,
     DatamailerConfig,
     public_url,
+    record_datamailer_send_audit,
 )
+from data.models import DatamailerSendAuditType
 from course_management.deadlines import format_deadline_for_email
 from courses.models import (
     Enrollment,
@@ -597,17 +599,30 @@ class Command(BaseCommand):
 
         client = DatamailerClient(config)
         for event in events:
+            payload = transient_recipient_list_send_payload(event)
             try:
                 response = client.send_transient_recipient_list_transactional(
-                    transient_recipient_list_send_payload(event),
+                    payload,
                 )
             except requests.RequestException as exc:
+                record_datamailer_send_audit(
+                    send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+                    payload=payload,
+                    list_key=event.list_key,
+                    error=str(exc),
+                )
                 if config.strict:
                     raise
                 raise CommandError(
                     f"Datamailer deadline reminder failed for "
                     f"{event.list_key}: {exc}"
                 ) from exc
+            record_datamailer_send_audit(
+                send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+                payload=payload,
+                list_key=event.list_key,
+                response=response,
+            )
 
             enqueued_count = None
             if response:

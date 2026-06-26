@@ -15,6 +15,9 @@ from data.models import (
     DatamailerOutboxDispatchRunStatus,
     DatamailerOutboxEvent,
     DatamailerOutboxStatus,
+    DatamailerSendAudit,
+    DatamailerSendAuditStatus,
+    DatamailerSendAuditType,
 )
 from course_management.datamailer import (
     certificate_availability_notification_payload,
@@ -793,24 +796,55 @@ class DatamailerClientTest(TestCase):
     def test_send_transactional_email_uses_datamailer_client(
         self, send
     ):
-        send.return_value = {"id": "message-id"}
+        send.return_value = {
+            "message": {
+                "id": "message-id",
+                "status": "queued",
+                "template_key": "welcome",
+            },
+            "enqueued": True,
+            "idempotent_replay": False,
+        }
 
         result = send_transactional_email(
             {
                 "template_key": "welcome",
                 "email": "student@example.com",
+                "idempotency_key": "welcome:student",
+                "category_tag": "course-updates",
+                "metadata": {
+                    "source": "course-management-platform",
+                    "event": "welcome",
+                },
             }
         )
 
-        self.assertEqual(result, {"id": "message-id"})
+        self.assertEqual(result["message"]["id"], "message-id")
         send.assert_called_once_with(
             {
                 "audience": "dtc-courses",
                 "client": "dtc-courses",
                 "template_key": "welcome",
                 "email": "student@example.com",
+                "idempotency_key": "welcome:student",
+                "category_tag": "course-updates",
+                "metadata": {
+                    "source": "course-management-platform",
+                    "event": "welcome",
+                },
             }
         )
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.idempotency_key, "welcome:student")
+        self.assertEqual(audit.template_key, "welcome")
+        self.assertEqual(audit.category_tag, "course-updates")
+        self.assertEqual(audit.source, "course-management-platform")
+        self.assertEqual(audit.event, "welcome")
+        self.assertEqual(audit.intended_count, 1)
+        self.assertEqual(audit.enqueued_count, 1)
+        self.assertEqual(audit.skipped_count, 0)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -1245,6 +1279,45 @@ class DatamailerClientTest(TestCase):
         self.assertIn(event.event_id, output)
         self.assertIn("last_successful_run: none", output)
         self.assertIn("last_datamailer_error:", output)
+        self.assertIn("network error", output)
+
+    def test_datamailer_send_status_reports_counts_and_failures(self):
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            status=DatamailerSendAuditStatus.SUCCEEDED,
+            idempotency_key="registration:1",
+            template_key="registration-confirmation",
+            category_tag="course-updates",
+            event="registration",
+            intended_count=1,
+            created_count=1,
+            enqueued_count=1,
+        )
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+            status=DatamailerSendAuditStatus.FAILED,
+            idempotency_key="deadline-reminder:homework:1:24h",
+            template_key="deadline-reminder",
+            category_tag="deadline-reminders",
+            event="deadline_reminder",
+            list_key="deadline-reminders:homework:ml-zoomcamp:hw1:24h",
+            intended_count=3,
+            error="network error",
+        )
+
+        out = StringIO()
+        call_command("datamailer_send_status", stdout=out)
+
+        output = out.getvalue()
+        self.assertIn("Datamailer send status", output)
+        self.assertIn("total_sends: 2", output)
+        self.assertIn("succeeded: 1", output)
+        self.assertIn("failed: 1", output)
+        self.assertIn("intended: 4", output)
+        self.assertIn("enqueued: 1", output)
+        self.assertIn("deadline-reminders: 1", output)
+        self.assertIn("recent_failures:", output)
+        self.assertIn("deadline-reminder:homework:1:24h", output)
         self.assertIn("network error", output)
 
     @override_settings(**DATAMAILER_SETTINGS)
@@ -1815,7 +1888,18 @@ class DatamailerClientTest(TestCase):
         send_list,
     ):
         bulk_upsert.return_value = {"updated_count": 0}
-        send_list.return_value = {"enqueued_count": 1}
+        send_list.return_value = {
+            "recipient_list": {
+                "key": "ml-zoomcamp-2026:@e:@homework:homework-1",
+                "active_member_count": 1,
+            },
+            "template_key": "homework-score-notification",
+            "idempotency_key": "homework-score:ml-zoomcamp-2026:homework-1",
+            "created_count": 1,
+            "enqueued_count": 1,
+            "skipped_count": 0,
+            "idempotent_replay_count": 0,
+        }
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -1830,7 +1914,7 @@ class DatamailerClientTest(TestCase):
 
         result = send_homework_score_notification(homework)
 
-        self.assertEqual(result, {"enqueued_count": 1})
+        self.assertEqual(result["enqueued_count"], 1)
         bulk_upsert.assert_called_once()
         send_list.assert_called_once()
         self.assertEqual(
@@ -1839,6 +1923,15 @@ class DatamailerClientTest(TestCase):
         )
         self.assertNotIn("members", send_list.call_args.args[1])
         self.assertNotIn("list", send_list.call_args.args[1])
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.list_key, homework_submitters_list_key(homework))
+        self.assertEqual(audit.template_key, "homework-score-notification")
+        self.assertEqual(audit.category_tag, "submission-results")
+        self.assertEqual(audit.event, "homework_score_publication")
+        self.assertEqual(audit.intended_count, 1)
+        self.assertEqual(audit.enqueued_count, 1)
 
     @override_settings(
         **DATAMAILER_SETTINGS,

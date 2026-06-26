@@ -17,6 +17,11 @@ from courses.models import (
     ProjectSubmission,
     Submission,
 )
+from data.models import (
+    DatamailerSendAudit,
+    DatamailerSendAuditStatus,
+    DatamailerSendAuditType,
+)
 
 
 DATAMAILER_SETTINGS = {
@@ -168,6 +173,25 @@ class DeadlineReminderCommandTest(TestCase):
             payload["context"]["deadline_at"],
             "Wednesday, 17 June 2026, 23:00 UTC",
         )
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(
+            audit.send_type,
+            DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+        )
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(
+            audit.idempotency_key,
+            f"deadline-reminder:homework:{homework.pk}:24h",
+        )
+        self.assertEqual(audit.template_key, "deadline-reminder")
+        self.assertEqual(audit.category_tag, "deadline-reminders")
+        self.assertEqual(audit.event, "deadline_reminder")
+        self.assertEqual(
+            audit.list_key,
+            "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
+        )
+        self.assertEqual(audit.intended_count, 2)
+        self.assertEqual(audit.enqueued_count, 1)
 
     @override_settings(
         **DATAMAILER_SETTINGS,

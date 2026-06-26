@@ -11,6 +11,11 @@ from django.urls import reverse
 from course_management import email_templates
 from course_management.datamailer_outbox import enqueue_datamailer_outbox_event
 from course_management.deadlines import format_deadline_for_email
+from data.models import (
+    DatamailerSendAudit,
+    DatamailerSendAuditStatus,
+    DatamailerSendAuditType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1813,6 +1818,125 @@ def recipient_list_send_payload(
     }
 
 
+def record_datamailer_send_audit(
+    *,
+    send_type: str,
+    payload: dict[str, Any],
+    list_key: str = "",
+    response: dict[str, Any] | None = None,
+    error: str = "",
+) -> DatamailerSendAudit | None:
+    idempotency_key = payload.get("idempotency_key", "")
+    if not idempotency_key:
+        return None
+
+    response = response or {}
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    counts = datamailer_send_counts(send_type, payload, response)
+    audit, _created = DatamailerSendAudit.objects.update_or_create(
+        send_type=send_type,
+        idempotency_key=idempotency_key,
+        defaults={
+            "status": (
+                DatamailerSendAuditStatus.FAILED
+                if error
+                else DatamailerSendAuditStatus.SUCCEEDED
+            ),
+            "template_key": (
+                response.get("template_key")
+                or response.get("message", {}).get("template_key", "")
+                or payload.get("template_key", "")
+            ),
+            "category_tag": payload.get("category_tag", "")
+            or metadata.get("category_tag", ""),
+            "list_key": datamailer_send_list_key(
+                send_type,
+                explicit_list_key=list_key,
+                payload=payload,
+                response=response,
+            ),
+            "source": metadata.get("source", ""),
+            "event": metadata.get("event", ""),
+            "intended_count": counts["intended_count"],
+            "created_count": counts["created_count"],
+            "enqueued_count": counts["enqueued_count"],
+            "skipped_count": counts["skipped_count"],
+            "idempotent_replay_count": counts["idempotent_replay_count"],
+            "error": error,
+            "response_payload": response,
+        },
+    )
+    return audit
+
+
+def datamailer_send_list_key(
+    send_type: str,
+    *,
+    explicit_list_key: str,
+    payload: dict[str, Any],
+    response: dict[str, Any],
+) -> str:
+    if explicit_list_key:
+        return explicit_list_key
+    if send_type == DatamailerSendAuditType.RECIPIENT_LIST:
+        recipient_list = response.get("recipient_list") or {}
+        return recipient_list.get("key", "")
+    if send_type == DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST:
+        transient_list = response.get("transient_recipient_list") or {}
+        if transient_list.get("key"):
+            return transient_list["key"]
+        list_data = payload.get("list") or {}
+        return list_data.get("key", "")
+    return ""
+
+
+def datamailer_send_counts(
+    send_type: str,
+    payload: dict[str, Any],
+    response: dict[str, Any],
+) -> dict[str, int]:
+    if send_type == DatamailerSendAuditType.TRANSACTIONAL:
+        idempotent_replay_count = int(bool(response.get("idempotent_replay")))
+        enqueued_count = int(bool(response.get("enqueued")))
+        message = response.get("message") or {}
+        skipped_count = int(message.get("status") == "skipped")
+        created_count = int(bool(response) and not idempotent_replay_count)
+        return {
+            "intended_count": 1,
+            "created_count": created_count,
+            "enqueued_count": enqueued_count,
+            "skipped_count": skipped_count,
+            "idempotent_replay_count": idempotent_replay_count,
+        }
+
+    intended_count = 0
+    if send_type == DatamailerSendAuditType.RECIPIENT_LIST:
+        recipient_list = response.get("recipient_list") or {}
+        intended_count = recipient_list.get("active_member_count") or 0
+    elif send_type == DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST:
+        transient_list = response.get("transient_recipient_list") or {}
+        intended_count = transient_list.get("active_member_count") or 0
+        if not intended_count:
+            members = payload.get("members")
+            if isinstance(members, list):
+                intended_count = sum(
+                    1 for member in members if member.get("status") != "removed"
+                )
+
+    return {
+        "intended_count": int(intended_count or 0),
+        "created_count": int(response.get("created_count") or 0),
+        "enqueued_count": int(response.get("enqueued_count") or 0),
+        "skipped_count": int(response.get("skipped_count") or 0),
+        "idempotent_replay_count": int(
+            response.get("idempotent_replay_count") or 0
+        ),
+    }
+
+
 def send_homework_score_notification(homework) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -1829,13 +1953,26 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
             list_key,
             recipient_list_member_sync_payload(config, payload),
         )
-        return client.send_recipient_list_transactional(
+        response = client.send_recipient_list_transactional(
             list_key, recipient_list_send_payload(payload)
         )
-    except requests.RequestException:
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            payload=payload,
+            list_key=list_key,
+            response=response,
+        )
+        return response
+    except requests.RequestException as exc:
         logger.exception(
             "Datamailer homework score notification failed for homework_id=%s",
             homework.pk,
+        )
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            payload=payload,
+            list_key=list_key if "list_key" in locals() else "",
+            error=str(exc),
         )
         if config.strict:
             raise
@@ -1865,13 +2002,26 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
                 passed_list_key,
                 recipient_list_member_sync_payload(config, passed_payload),
             )
-        return client.send_recipient_list_transactional(
+        response = client.send_recipient_list_transactional(
             list_key, recipient_list_send_payload(payload)
         )
-    except requests.RequestException:
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            payload=payload,
+            list_key=list_key,
+            response=response,
+        )
+        return response
+    except requests.RequestException as exc:
         logger.exception(
             "Datamailer project score notification failed for project_id=%s",
             project.pk,
+        )
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            payload=payload,
+            list_key=list_key if "list_key" in locals() else "",
+            error=str(exc),
         )
         if config.strict:
             raise
@@ -1896,15 +2046,28 @@ def send_peer_review_assignment_notification(
             list_key,
             recipient_list_member_sync_payload(config, payload),
         )
-        return client.send_recipient_list_transactional(
+        response = client.send_recipient_list_transactional(
             list_key,
             recipient_list_send_payload(payload),
         )
-    except requests.RequestException:
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            payload=payload,
+            list_key=list_key,
+            response=response,
+        )
+        return response
+    except requests.RequestException as exc:
         logger.exception(
             "Datamailer peer review assignment notification failed "
             "for project_id=%s",
             project.pk,
+        )
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            payload=payload,
+            list_key=list_key if "list_key" in locals() else "",
+            error=str(exc),
         )
         if config.strict:
             raise
@@ -1933,13 +2096,25 @@ def send_certificate_availability_notification(
             )
         if payload is None:
             return None
-        return client.send_transactional(payload)
-    except requests.RequestException:
+        response = client.send_transactional(payload)
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            payload=payload,
+            response=response,
+        )
+        return response
+    except requests.RequestException as exc:
         logger.exception(
             "Datamailer certificate availability notification failed "
             "for enrollment_id=%s",
             enrollment.pk,
         )
+        if payload is not None:
+            record_datamailer_send_audit(
+                send_type=DatamailerSendAuditType.TRANSACTIONAL,
+                payload=payload,
+                error=str(exc),
+            )
         if config.strict:
             raise
         return None
@@ -1961,9 +2136,20 @@ def send_transactional_email(
         payload = payload | {"from_email": config.from_email}
 
     try:
-        return client.send_transactional(payload)
-    except requests.RequestException:
+        response = client.send_transactional(payload)
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            payload=payload,
+            response=response,
+        )
+        return response
+    except requests.RequestException as exc:
         logger.exception("Datamailer transactional email failed")
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            payload=payload,
+            error=str(exc),
+        )
         if config.strict:
             raise
         return None
