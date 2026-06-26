@@ -95,14 +95,13 @@ def run_state() -> RunState:
 
 @pytest.fixture(scope="session")
 def due_dates() -> dict:
-    """ISO dates used for homework/project deadlines (well in the future)."""
-    future = time.gmtime(time.time() + 90 * 24 * 3600)
-    far = time.gmtime(time.time() + 120 * 24 * 3600)
+    """ISO dates used for scoreable homework/project fixtures."""
+    past = time.gmtime(time.time() - 24 * 3600)
     fmt = "%Y-%m-%d"
     return {
-        "homework_due": time.strftime(fmt, future),
-        "project_due": time.strftime(fmt, future),
-        "peer_review_due": time.strftime(fmt, far),
+        "homework_due": time.strftime(fmt, past),
+        "project_due": time.strftime(fmt, past),
+        "peer_review_due": time.strftime(fmt, past),
     }
 
 

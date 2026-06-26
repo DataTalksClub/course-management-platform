@@ -92,7 +92,8 @@ def test_homework_submission_recorded_in_api(api, run_state):
     )
     submissions = data.get("submissions", [])
     assert any(
-        s.get("student", {}).get("email") == run_state.student_email
+        s.get("student_id") == run_state.student_user_id
+        or s.get("student", {}).get("email") == run_state.student_email
         or run_state.student_email in str(s)
         for s in submissions
     ), f"No submission found for {run_state.student_email}: {submissions!r}"

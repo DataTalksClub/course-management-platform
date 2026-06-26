@@ -178,6 +178,7 @@ class Provisioner:
             return {"deleted": deleted, "residual": residual, "course": slug}
 
         title = detail.get("title") if isinstance(detail, dict) else None
+        course_pk = detail.get("id") if isinstance(detail, dict) else None
 
         # Best-effort API pre-pass on individually-deletable objects. This is
         # informative for the report; the admin delete below supersedes it by
@@ -205,10 +206,12 @@ class Provisioner:
         # Primary path: delete the course (and its cascade) via the admin UI.
         if admin_session is not None:
             try:
-                purged = admin_session.delete_course_via_admin(slug, title=title)
+                purged = admin_session.delete_course_via_admin(
+                    slug, course_pk=course_pk, title=title
+                )
             except Exception:
                 purged = False
-            if purged:
+            if purged and self.api.get_course(slug) is None:
                 deleted.append(f"course:{slug} (admin-deleted, cascaded)")
                 return {"deleted": deleted, "residual": residual, "course": slug}
             residual.append(

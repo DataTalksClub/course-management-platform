@@ -28,8 +28,8 @@ def test_submit_project_via_ui(admin_session, run_state):
     admin_session.submit_project(
         run_state.course.slug,
         run_state.course.project_slug,
-        github_link="https://github.com/example/e2e-project",
-        commit_id="abc1234",
+        github_link="https://github.com/DataTalksClub/course-management-platform",
+        commit_id="4ce0ca4",
         certificate_name="E2E Smoke Student",
         time_spent=5,
         learning_in_public_links=[
@@ -107,17 +107,16 @@ def test_project_confirmation_email(email_backend, run_state):
 
 def test_assign_peer_reviews(api, run_state):
     require_project(run_state)
-    # Move project into peer-reviewing before assigning.
-    api.update_project(
-        run_state.course.slug, run_state.course.project_id, {"state": "PR"}
-    )
     result = api.assign_project_reviews(
         run_state.course.slug, run_state.course.project_id
     )
-    # OK with 0 assigned is acceptable for a single-submitter smoke run; the
-    # important thing is the endpoint runs without error.
     assert "status" in result, f"assign-reviews returned no status: {result}"
-    assert result.get("status") in ("OK", "ERROR"), result
+    # A single-submitter smoke run cannot satisfy the peer-review assignment
+    # threshold. The important thing is that the endpoint runs and returns the
+    # expected controlled result instead of an application error.
+    assert result.get("status") in ("OK", "FAIL"), result
+    if result.get("status") == "FAIL":
+        assert "Not enough submissions" in result.get("message", ""), result
 
 
 def test_score_project(api, run_state):
@@ -126,7 +125,10 @@ def test_score_project(api, run_state):
         run_state.course.slug, run_state.course.project_id
     )
     assert "status" in result, f"score returned no status: {result}"
-    # Verify the score-component fields exist in the submissions export.
+    if result.get("status") == "FAIL":
+        assert "PEER_REVIEWING" in result.get("message", ""), result
+    # Verify the score-component fields exist in the submissions export even
+    # when the one-student run cannot complete peer-review scoring.
     data = api.project_submissions(
         run_state.course.slug, run_state.course.project_slug
     )

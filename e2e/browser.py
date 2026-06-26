@@ -348,7 +348,8 @@ class AdminSession:
                 if i < inputs.count():
                     inputs.nth(i).fill(link)
 
-        page.click("button[type='submit'], input[type='submit']")
+        first_answer_selector = f"[name='answer_{next(iter(answers))}']"
+        self.submit_form_containing(first_answer_selector)
         page.wait_for_load_state("networkidle")
 
     def homework_confirmation_text(self) -> str:
