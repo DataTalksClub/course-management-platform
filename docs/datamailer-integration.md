@@ -93,8 +93,10 @@ Generic shape, for any client:
 
 ```text
 <all>
-└── {scope}                  e.g. a course
-    └── {scope}:{subscope}   e.g. a homework or project within that course
+└── {scope}                                  e.g. a course
+    ├── {scope}:{subscope}                   e.g. a homework or project
+    │   └── {scope}:{subscope}:{outcome}     e.g. passed that project
+    └── {scope}:{outcome}                    a course-level outcome, e.g. graduated
 ```
 
 ```mermaid
@@ -103,9 +105,13 @@ flowchart TD
     C["{course-slug}<br/>everyone touching a course"]
     HW["{course-slug}:{homework-slug}<br/>everyone in a homework"]
     PR["{course-slug}:{project-slug}<br/>everyone in a project"]
+    PRP["{course-slug}:{project-slug}:passed<br/>passed the project"]
+    GRAD["{course-slug}:graduated<br/>completed / certified"]
 
+    PRP -->|cascades to| PR
     HW -->|cascades to| C
     PR -->|cascades to| C
+    GRAD -->|cascades to| C
     C -->|cascades to| ALL
 ```
 
@@ -126,7 +132,8 @@ and they get there by an action:
 | Registers for a course | `{course}` | `<all>` |
 | Submits homework H | `{course}:{H}` | `{course}`, `<all>` |
 | Submits project P | `{course}:{P}` | `{course}`, `<all>` |
-| Completes / is certified — **Target** | `{course}:graduated` | `{course}`, `<all>` |
+| **Passes project P** — **Target** | `{course}:{P}:passed` | `{course}:{P}`, `{course}`, `<all>` |
+| **Graduates the course** (certified) — **Target** | `{course}:graduated` | `{course}`, `<all>` |
 
 So the old three-list model collapses into tree position:
 
@@ -139,6 +146,28 @@ So the old three-list model collapses into tree position:
 
 Anything that varies per person (score, `submitted_at`, country) lives in that
 membership's metadata, never in the key.
+
+#### Outcomes (passed, graduated) are deeper *outcome nodes*
+
+Scope nodes are *structural* — you enter them by an action, and roles like
+`enrolled` are positional/derived. **Outcomes** — passing a project, graduating the
+course — are different: they depend on CMP's scoring logic, so they **cannot be
+derived from tree shape** and must be written explicitly.
+
+Model each outcome as a **deeper node that cascades up**, so it stays directly
+addressable for email:
+
+- **Project graduates** (passed project P) = `{course}:{P}:passed`, a child of the
+  project node. "You passed" / project-graduate emails name this node; it cascades
+  to `{course}:{P}` and up.
+- **Course graduates** (completed / certified) = `{course}:graduated`, a child of
+  `{course}`. Certificate and alumni emails name this node.
+
+CMP emits the join when it *determines* the outcome — passing at project scoring
+(§4.8), graduating at certificate / course completion (§4.9). Because these are
+real milestones (not structural), they are **nodes with events**, unlike the
+derived `enrolled`. (Reserved outcome sub-scopes like `graduated` / `passed` must
+not collide with real homework/project slugs — a small namespacing rule, §10 G12.)
 
 > **Decision (was an open question, now closed):** we do **not** keep a separate
 > `enrolled` list. "Enrolled" = "is in `{course}` and has ≥ 1 child membership,"
@@ -159,7 +188,8 @@ redesign migrates the keys and drops the `enrolled` list:
 | `{course}` + has children *(derived)* | `course-enrolled:{course}` | **drop the list — derive it** |
 | `{course}:{homework}` | `homework-submitters:{course}:{homework}` | rename to path key |
 | `{course}:{project}` | `project-submitters:{course}:{project}` | rename to path key |
-| `{course}:graduated` *(Target)* | `course-graduates:{course}` *(not built)* | add |
+| `{course}:{project}:passed` *(Target)* | — *(not built)* | add (outcome node) |
+| `{course}:graduated` *(Target)* | `course-graduates:{course}` *(not built)* | add (outcome node) |
 
 The two structural changes in this redesign are **(a) pure path keys + derived
 `enrolled`** (gap #9) and **(b) upward cascade so parents are implicit** (gap #8).
@@ -527,6 +557,9 @@ like homework scoring (§4.4) — **pushes each score as member metadata on the 
 then names the node** to send.
 
 - **Node:** `{course}:{project}` (today keyed `project-submitters:{course}:{project}`).
+- **Outcome event (target):** learners whose submission `passed` also join the
+  outcome node `{course}:{project}:passed` (§2), enabling later project-graduate /
+  "you passed" emails.
 - **Category:** submission — Datamailer-enforced at delivery (§5).
 - **Idempotency:** `project-score:{course}:{project}`.
 
@@ -556,9 +589,10 @@ sequenceDiagram
 - **Idempotency:** `certificate-available:{enrollment_id}` (per enrollment).
 - **List:** none — direct send to one address.
 
-**Today:** direct send, gated by `email_course_updates`. **Target:** optionally
-back it with a `certificate-eligible` / `course-graduates` list so we can also
-run graduate campaigns later (⚠️ gap — list not maintained today).
+**Today:** direct send, gated by `email_course_updates`. **Target:** issuing a
+certificate is the **graduation outcome event** — the learner joins the outcome
+node `{course}:graduated` (§2), and the certificate email is a send to that node.
+The same node powers later alumni / graduate campaigns.
 
 ### 4.10 Deadline reminders
 
@@ -804,10 +838,11 @@ otherwise. Decide before adding more result-type emails.
 ```text
 # Audience tree nodes — TARGET (pure path keys, §2)
 <all>
-{course_slug}
-{course_slug}:{homework_slug}
-{course_slug}:{project_slug}
-{course_slug}:graduated
+{course_slug}                                # everyone touching the course
+{course_slug}:{homework_slug}                # submitted the homework
+{course_slug}:{project_slug}                 # submitted the project
+{course_slug}:{project_slug}:passed          # outcome: passed the project
+{course_slug}:graduated                      # outcome: completed / certified
 
 # Current keys in code — TODAY, to migrate (gap #9)
 course-registrants:{course_slug}                   -> {course_slug}
@@ -930,6 +965,11 @@ have no obvious node — decide where they live.
 **G11. Category taxonomy.** "Submission confirmation" and "results" share one category,
 and peer-review assignment is parked in it (see §7 Q3). Revisit before adding more
 result-type emails.
+
+**G12. Reserved outcome sub-scopes.** Outcome nodes use reserved sub-scope names
+(`{course}:graduated`, `{course}:{project}:passed`, §2). These must not collide with
+real homework/project slugs — needs a namespacing rule (reserved prefix, or a
+distinct segment like `{course}:@graduated`).
 
 ---
 
