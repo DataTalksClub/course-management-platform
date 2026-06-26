@@ -1106,7 +1106,10 @@ class DatamailerClientTest(TestCase):
         )
         self.assertEqual(member["metadata"]["total_score"], 90)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
     def test_peer_review_assignment_payload_includes_links_and_deadline(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",

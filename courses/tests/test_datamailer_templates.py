@@ -60,4 +60,4 @@ class DatamailerTemplatesTest(TestCase):
         )
         self.assertIn("Open all your peer reviews", html)
         self.assertIn("/eval/4567", html)
-        self.assertIn("18:00 UTC", html)
+        self.assertIn("20:00 Europe/Berlin", html)
