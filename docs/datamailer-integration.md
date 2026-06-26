@@ -282,6 +282,23 @@ audience or remove-absent. Keyed by `source_object_key`, bulk-upsert
 creates-or-updates, so it is also self-healing for membership — a member is correct
 even if an earlier join was missed.
 
+**Transport — two paths by size.** A cohort batch can be large (thousands of
+submitters with score metadata), so choose the transport by size:
+
+- **Inline, chunked** *(default)* — POST to `members/bulk-upsert` in pages of
+  ~500–1000. Each page is small, individually retriable, and acks synchronously.
+  Fine up to a few thousand members.
+- **By reference** *(large batches)* — CMP writes the batch as a **JSONL** file
+  (one member per line — *streamable*, unlike a single JSON array or YAML), uploads
+  it to **its own S3**, and hands Datamailer a **time-limited pre-signed URL**.
+  Datamailer fetches and ingests **asynchronously**, returning an import-job id; the
+  **send waits for the import to ack** (G7). This keeps CMP's bucket private (no
+  cross-account IAM) and decouples transfer from processing.
+
+Use **JSONL, not YAML** — YAML isn't streamable and is slow to parse at scale. The
+outbox holds a *reference* to the file, not thousands of individual events. This is
+still bulk-upsert (push what changed), never reconcile. (gap #12)
+
 **CMP builds the batch from its own data — it does not mirror Datamailer's list.**
 To push scores it iterates its **own** submissions; to push assignments, its **own**
 assignment graph. It needs neither a local copy of node membership nor any
@@ -312,6 +329,13 @@ sequenceDiagram
 
 The send fires **only after the batch is acked** (gap #10 reliable emission, G7
 ordering), so no one is emailed with missing scores.
+
+The same **compute-then-bulk-push** pattern also handles *negative* audiences —
+"who has **not** done X" (deadline reminders). CMP computes the set (Datamailer
+can't, it's a set-difference) and materializes it as a **transient send-list**.
+Note the distinction: the **durable audience tree** is never reconciled (§3's
+rule); a reminder list is a separate, **send-scoped** object CMP legitimately
+recomputes each run. See §4.10 and G3.
 
 ### What we need to do to get there
 
@@ -670,15 +694,17 @@ sequenceDiagram
     Sched->>CMP: Run one-off task
     CMP->>DB: Compute who still owes the action (negative audience)
     loop per active reminder event
-        CMP->>DM: Send to the computed audience, category = deadline
+        CMP->>DM: bulk-upsert the computed set → reminder list
+        CMP->>DM: Send to the reminder list, category = deadline
     end
 ```
 
-> ⚠️ **Reminders are a *negative* audience and don't fit "name a node."** Their
-> audience is *who has **not** submitted / still owes reviews* — a set-difference,
-> not a node. This is the one place §3's "name a node, no reconcile" doesn't apply;
-> see design gap **G3** in §10 for the unresolved decision (Datamailer node
-> set-difference vs. a sanctioned CMP-computed snapshot).
+> **Reminders are a *negative* audience — a CMP-computed send-list.** Their audience
+> is *who has **not** submitted / still owes reviews* — a set-difference Datamailer
+> can't derive. So the scheduled CMP job **computes the set and pushes it as a
+> transient send-list** via bulk-upsert (file-by-reference if large, §3 / gap #12),
+> then sends. This does **not** violate "no reconcile" (§3): that rule governs the
+> durable audience *tree*; a reminder list is a separate, send-scoped object. See G3.
 
 Three reminder types, **all implemented today**:
 
@@ -953,6 +979,7 @@ production rollout.
 | 9 | **Pure path key scheme** — drop role prefixes (`course-registrants`→`{course}`, `homework-submitters`→`{course}:{homework}`); `enrolled` becomes derived, not a list | Audience tree (§2) | CMP (+ Datamailer list rename) |
 | 10 | **Reliable event emission** — transactional outbox + retry for every membership event, plus removals, so the list never drifts and no per-send reconcile is needed | Event-driven list (§3) | CMP |
 | 11 | **Delivery-time category enforcement** — a node send declares its category and Datamailer suppresses contacts opted out of that category | §5 sending | Datamailer |
+| 12 | **Bulk import by reference** — accept a fetchable JSONL file (CMP S3 pre-signed URL), ingest asynchronously, expose import-job status to ack before send | Large computed batches & negative audiences (§3, §4.10) | Datamailer |
 
 ---
 
@@ -978,13 +1005,16 @@ and metadata win, and does leaving the child strand them in `{course}`? Ties to 
 *Lean:* the cascade membership is implicit and reference-counted, never overwrites an
 explicit one; an explicit registration membership is its own reason to stay.
 
-**G3. Reminders are a *negative* audience — they don't fit "name a node."** Deadline
-reminders (§4.10) target who has **not** submitted / **still owes** reviews — a
-set-difference (`{course}` minus `{course}:{item}`), recomputed each run. This is the
-one place "name a node, no reconcile" (§3) fails. *Decision needed:* either
-Datamailer supports node **set-difference** queries, or reminders are the **single
-sanctioned exception** to "no reconcile" (CMP computes the absence-audience and sends
-a snapshot). Until decided, §4.10 stays a computed snapshot.
+**G3. Reminders are a *negative* audience — RESOLVED: CMP computes the list.**
+Deadline reminders (§4.10) target who has **not** submitted / **still owes** reviews
+— a set-difference (`{course}` minus `{course}:{item}`) Datamailer can't derive.
+**Decision:** CMP computes the set each run and materializes it as a **transient
+send-list** via bulk-upsert (inline, or file-by-reference for large batches, gap
+#12), triggered by the scheduled CMP job; Datamailer set-difference is **not**
+needed. This does **not** violate §3's "no reconcile" — that rule governs the
+*durable audience tree*; a reminder list is a separate, send-scoped object CMP
+recomputes per run. (Remaining detail: whether to reuse one reminder-list key per
+event and replace its contents each run, or create a per-run list.)
 
 **G4. Email change = re-key the contact.** Datamailer keys contacts by email;
 changing it in CMP strands the contact, its memberships, and preferences on the old
