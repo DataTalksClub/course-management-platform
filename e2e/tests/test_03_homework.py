@@ -70,7 +70,7 @@ def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
         run_state.course.slug,
         run_state.course.homework_slug,
         answers,
-        homework_url="https://github.com/example/e2e-homework",
+        homework_url="https://github.com/DataTalksClub/course-management-platform",
         learning_in_public_links=[
             f"https://twitter.com/e2e/{run_state.namespace}-hw"
         ],

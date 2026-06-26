@@ -140,6 +140,8 @@ class AdminSession:
                 });
             }"""
         )
+        self.page.goto(self.url("/admin/"))
+        self.page.wait_for_load_state("networkidle")
 
     # -- test student management (admin side) ----------------------------
     def find_user_id_by_email(self, email: str) -> int | None:
@@ -349,7 +351,12 @@ class AdminSession:
                     inputs.nth(i).fill(link)
 
         first_answer_selector = f"[name='answer_{next(iter(answers))}']"
-        self.submit_form_containing(first_answer_selector)
+        submit_selector = (
+            f"form:has({first_answer_selector}) #submit-button, "
+            f"form:has({first_answer_selector}) button[type='submit'], "
+            f"form:has({first_answer_selector}) input[type='submit']"
+        )
+        self.click_first_visible(submit_selector)
         page.wait_for_load_state("networkidle")
 
     def homework_confirmation_text(self) -> str:

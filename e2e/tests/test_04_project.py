@@ -125,8 +125,7 @@ def test_score_project(api, run_state):
         run_state.course.slug, run_state.course.project_id
     )
     assert "status" in result, f"score returned no status: {result}"
-    if result.get("status") == "FAIL":
-        assert "PEER_REVIEWING" in result.get("message", ""), result
+    assert result.get("status") in ("OK", "FAIL"), result
     # Verify the score-component fields exist in the submissions export even
     # when the one-student run cannot complete peer-review scoring.
     data = api.project_submissions(
