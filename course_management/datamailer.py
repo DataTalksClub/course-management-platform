@@ -127,6 +127,17 @@ class DatamailerClient:
             },
         )
 
+    def erase_contact(self, email: str) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            "/api/contacts/erase",
+            json={
+                "email": email,
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
     def contact_history(
         self,
         contact_id: int,
@@ -796,6 +807,34 @@ def sync_contact(user, course=None) -> None:
         )
         if config.strict:
             raise
+
+
+def erase_contact_from_datamailer(user=None, *, user_id=None, email=None) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    if email is None and user is not None:
+        email = user.email
+    if user_id is None and user is not None:
+        user_id = user.pk
+
+    email = (email or "").strip().lower()
+    if not email:
+        return
+
+    ordering_key = f"user:{user_id}" if user_id is not None else f"email:{email}"
+    enqueue_datamailer_outbox_event(
+        event_type="contact.erase",
+        idempotency_key=f"contact.erase:{ordering_key}:{email}",
+        ordering_key=ordering_key,
+        payload={
+            "email": email,
+            "audience": config.audience,
+            "client": config.client,
+            "user_id": user_id,
+        },
+    )
 
 
 def _sync_contact_and_membership(

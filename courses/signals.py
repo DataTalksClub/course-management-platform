@@ -5,6 +5,7 @@ from django.dispatch import receiver
 
 from accounts.models import CustomUser
 from course_management.datamailer import (
+    erase_contact_from_datamailer,
     remove_enrollment_from_datamailer as remove_enrollment_recipient_list,
     remove_homework_submission_from_datamailer as remove_homework_submission_recipient_list,
     remove_project_submission_from_datamailer as remove_project_submission_recipient_list,
@@ -24,6 +25,15 @@ def sync_user_to_datamailer(sender, instance, created, **kwargs):
         return
 
     transaction.on_commit(lambda: sync_contact(instance))
+
+
+@receiver(post_delete, sender=CustomUser)
+def erase_user_from_datamailer(sender, instance, **kwargs):
+    user_id = instance.pk
+    email = instance.email
+    transaction.on_commit(
+        lambda: erase_contact_from_datamailer(user_id=user_id, email=email)
+    )
 
 
 @receiver(post_save, sender=Enrollment)

@@ -24,6 +24,7 @@ from course_management.datamailer import (
     contact_tags_for_course,
     contact_payload_for_user,
     datamailer_enabled,
+    erase_contact_from_datamailer,
     enrollment_recipient_list_payload,
     get_contact_history,
     get_contact_status,
@@ -134,6 +135,38 @@ class DatamailerClientTest(TestCase):
             "https://datamailer.example.com/api/contacts/status",
             json=None,
             params={
+                "email": "student@example.com",
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+            },
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_erase_contact_uses_configured_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"erased": true}')
+        response.json.return_value = {"erased": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.erase_contact("student@example.com")
+
+        self.assertEqual(result, {"erased": True})
+        session.request.assert_called_once_with(
+            "POST",
+            "https://datamailer.example.com/api/contacts/erase",
+            json={
                 "email": "student@example.com",
                 "audience": "dtc-courses",
                 "client": "dtc-courses",
@@ -756,6 +789,35 @@ class DatamailerClientTest(TestCase):
 
         self.assertEqual(result, {"message": {"id": 42}})
         message_status.assert_called_once_with(42)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.erase_contact")
+    def test_erase_contact_enqueues_outbox_event(self, erase_contact):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="Student@Example.com",
+        )
+
+        erase_contact_from_datamailer(user)
+
+        erase_contact.assert_called_once_with("student@example.com")
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(event.event_type, "contact.erase")
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(event.ordering_key, f"user:{user.pk}")
+        self.assertEqual(
+            event.idempotency_key,
+            f"contact.erase:user:{user.pk}:student@example.com",
+        )
+        self.assertEqual(
+            event.payload,
+            {
+                "email": "student@example.com",
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "user_id": user.pk,
+            },
+        )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -2535,6 +2597,23 @@ class DatamailerSignalTest(TestCase):
             )
 
         sync.assert_called_once_with(enrollment)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.signals.erase_contact_from_datamailer")
+    def test_deleted_user_erases_contact_after_commit(self, erase_contact):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        user_id = user.pk
+
+        with self.captureOnCommitCallbacks(execute=True):
+            user.delete()
+
+        erase_contact.assert_called_once_with(
+            user_id=user_id,
+            email="student@example.com",
+        )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("courses.signals.remove_registration_recipient_list")

@@ -215,6 +215,9 @@ def _send_event(client, event_type: str, payload: dict[str, Any]):
             payload["member_payload"],
         )
 
+    if event_type == "contact.erase":
+        return client.erase_contact(payload["email"])
+
     raise ValueError(f"Unsupported Datamailer outbox event type: {event_type}")
 
 
