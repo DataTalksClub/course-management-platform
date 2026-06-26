@@ -452,7 +452,7 @@ class ProjectViewTestCase(TestCase):
     )
     @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_project_submission_skips_confirmation_when_preference_off(
+    def test_project_submission_uses_datamailer_when_local_preference_off(
         self, mock_get, mock_head, sync_submission, send_email
     ):
         mock_response = mock.Mock()
@@ -483,7 +483,10 @@ class ProjectViewTestCase(TestCase):
             enrollment=self.enrollment,
         )
         sync_submission.assert_called_once_with(submission)
-        send_email.assert_not_called()
+        send_email.assert_called_once()
+        payload = send_email.call_args.args[0]
+        self.assertEqual(payload["email"], "test@test.com")
+        self.assertEqual(payload["category_tag"], "submission-results")
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")

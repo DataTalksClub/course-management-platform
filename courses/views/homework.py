@@ -548,8 +548,6 @@ def send_homework_confirmation_email(
 ) -> None:
     if not user.email:
         return
-    if not getattr(user, "email_submission_confirmations", True):
-        return
 
     context = homework_confirmation_context(
         course=course,

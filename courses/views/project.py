@@ -194,8 +194,6 @@ def send_project_confirmation_email(
 ) -> None:
     if not user.email:
         return
-    if not getattr(user, "email_submission_confirmations", True):
-        return
 
     context = project_confirmation_context(
         course=course,

@@ -226,7 +226,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
 
     @patch("courses.views.homework.send_transactional_email")
-    def test_homework_submission_skips_confirmation_when_preference_off(
+    def test_homework_submission_uses_datamailer_when_local_preference_off(
         self,
         send_email,
     ):
@@ -254,7 +254,10 @@ class HomeworkSubmissionIntegrationTest(TestCase):
                 homework=self.homework,
             ).exists()
         )
-        send_email.assert_not_called()
+        send_email.assert_called_once()
+        payload = send_email.call_args.args[0]
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(payload["category_tag"], "submission-results")
 
     @override_settings(PUBLIC_BASE_URL="https://dev.courses.datatalks.club")
     @patch("courses.views.homework.send_transactional_email")
