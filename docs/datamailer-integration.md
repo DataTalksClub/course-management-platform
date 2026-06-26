@@ -86,8 +86,8 @@ works for any client that has broad and narrow audiences.
 - Each `:`-separated segment descends one level into a narrower scope.
 - **Membership cascades upward.** Adding a person to any node automatically makes
   them a member of every ancestor node, up to `<all>`. So when CMP adds someone
-  to `{course-slug}:{homework-slug}`, that person is — by construction — also in
-  `{course-slug}` and in `<all>`. CMP never has to maintain the parent levels.
+  to `{course-slug}:e:{homework-slug}`, that person is — by construction — also in
+  `{course-slug}:e`, `{course-slug}` and in `<all>`. CMP never maintains parents.
 
 Generic shape, for any client:
 
@@ -99,102 +99,119 @@ Generic shape, for any client:
     └── {scope}:{outcome}                    a course-level outcome, e.g. graduated
 ```
 
+A client may also insert **intermediate grouping nodes**. CMP uses one — a reserved
+synthetic segment `e` (*enrolled*) — to separate **registered** from **enrolled**:
+
+```text
+<all>
+└── {course}                          registered
+    └── {course}:e                    enrolled (submitted ≥ 1 thing)
+        ├── {course}:e:{homework}     submitted a homework
+        ├── {course}:e:{project}      submitted a project
+        │   └── {course}:e:{project}:passed   passed the project
+        └── {course}:e:graduated      graduated / certified
+```
+
 ```mermaid
 flowchart TD
     ALL["&lt;all&gt;<br/>entire client audience"]
-    C["{course-slug}<br/>everyone touching a course"]
-    HW["{course-slug}:{homework-slug}<br/>everyone in a homework"]
-    PR["{course-slug}:{project-slug}<br/>everyone in a project"]
-    PRP["{course-slug}:{project-slug}:passed<br/>passed the project"]
-    GRAD["{course-slug}:graduated<br/>completed / certified"]
+    C["{course}<br/>registered"]
+    E["{course}:e<br/>enrolled — submitted ≥ 1"]
+    HW["{course}:e:{homework}<br/>submitted a homework"]
+    PR["{course}:e:{project}<br/>submitted a project"]
+    PRP["{course}:e:{project}:passed<br/>passed the project"]
+    GRAD["{course}:e:graduated<br/>graduated / certified"]
 
+    HW -->|cascades to| E
+    PR -->|cascades to| E
     PRP -->|cascades to| PR
-    HW -->|cascades to| C
-    PR -->|cascades to| C
-    GRAD -->|cascades to| C
+    GRAD -->|cascades to| E
+    E -->|cascades to| C
     C -->|cascades to| ALL
 ```
 
-Arrows point **the way membership cascades**: a member of a leaf is automatically
-a member of every ancestor. So "everyone who submitted homework 2 of ML Zoomcamp
-2026" is just the node `ml-zoomcamp-2026:homework-2`; emailing it is "name the
-node." Email `ml-zoomcamp-2026` to reach the whole course; email `<all>` to reach
-everyone.
+Arrows point **the way membership cascades**: a member of a leaf is automatically a
+member of every ancestor. So "everyone who submitted homework 2 of ML Zoomcamp
+2026" is the node `ml-zoomcamp-2026:e:homework-2`; emailing it is "name the node."
+Email `ml-zoomcamp-2026:e` to reach everyone **enrolled**, `ml-zoomcamp-2026` to
+reach everyone **registered**, and `<all>` to reach everyone. (`e` is a reserved
+synthetic segment — not a real slug; see namespacing in §10 G12.)
 
 ### How CMP populates the tree — and what "registrant / enrolled / submitter" become
 
-The tree has **no role vocabulary** — no `registrants`, no `enrolled`, no
-`submitters` keyspaces. A learner's role is simply **where they sit in the tree**,
-and they get there by an action:
+A learner's role is simply **where they sit in the tree**, and they get there by an
+action:
 
 | Action | Node the learner joins | cascades up to |
 | --- | --- | --- |
 | Registers for a course | `{course}` | `<all>` |
-| Submits homework H | `{course}:{H}` | `{course}`, `<all>` |
-| Submits project P | `{course}:{P}` | `{course}`, `<all>` |
-| **Passes project P** — **Target** | `{course}:{P}:passed` | `{course}:{P}`, `{course}`, `<all>` |
-| **Graduates the course** (certified) — **Target** | `{course}:graduated` | `{course}`, `<all>` |
+| Submits homework H | `{course}:e:{H}` | `{course}:e`, `{course}`, `<all>` |
+| Submits project P | `{course}:e:{P}` | `{course}:e`, `{course}`, `<all>` |
+| **Passes project P** — **Target** | `{course}:e:{P}:passed` | `{course}:e:{P}`, `{course}:e`, `{course}`, `<all>` |
+| **Graduates the course** — **Target** | `{course}:e:graduated` | `{course}:e`, `{course}`, `<all>` |
 
-So the old three-list model collapses into tree position:
+So the old three-list model becomes tree position:
 
 - **Registered** = member of `{course}`.
-- **Submitted item X** = member of `{course}:{X}`.
-- **Enrolled (active learner)** = member of `{course}` who has **≥ 1 child
-  membership** (submitted something). This is a **derived predicate, not a list** —
-  there is **no `enrolled` node** in the tree.
-- **Registered but inactive** = member of `{course}` with no children.
+- **Enrolled (active learner)** = member of `{course}:e`. Populated **by cascade** —
+  submitting anything joins `{course}:e:{item}`, which cascades into `{course}:e`.
+  It is a **real, addressable node**, not a derived query.
+- **Submitted item X** = member of `{course}:e:{X}`.
+- **Registered but not enrolled** = in `{course}` but not `{course}:e` (registered,
+  never submitted).
 
 Anything that varies per person (score, `submitted_at`, country) lives in that
 membership's metadata, never in the key.
 
 #### Outcomes (passed, graduated) are deeper *outcome nodes*
 
-Scope nodes are *structural* — you enter them by an action, and roles like
-`enrolled` are positional/derived. **Outcomes** — passing a project, graduating the
-course — are different: they depend on CMP's scoring logic, so they **cannot be
-derived from tree shape** and must be written explicitly.
+Scope nodes fill *automatically* — you enter `{course}:e:{item}` by submitting, and
+`{course}:e` (enrolled) by cascade. **Outcomes** — passing a project, graduating —
+are different: they depend on CMP's scoring logic, so they **cannot be derived from
+tree shape** and must be written by an explicit event.
 
 Model each outcome as a **deeper node that cascades up**, so it stays directly
 addressable for email:
 
-- **Project graduates** (passed project P) = `{course}:{P}:passed`, a child of the
-  project node. "You passed" / project-graduate emails name this node; it cascades
-  to `{course}:{P}` and up.
-- **Course graduates** (completed / certified) = `{course}:graduated`, a child of
-  `{course}`. Certificate and alumni emails name this node.
+- **Project graduates** (passed project P) = `{course}:e:{P}:passed`, a child of the
+  project node. "You passed" / project-graduate emails name this node.
+- **Course graduates** (completed / certified) = `{course}:e:graduated`, a child of
+  `{course}:e` (graduates are necessarily enrolled). Certificate and alumni emails
+  name this node.
 
 CMP emits the join when it *determines* the outcome — passing at project scoring
-(§4.8), graduating at certificate / course completion (§4.9). Because these are
-real milestones (not structural), they are **nodes with events**, unlike the
-derived `enrolled`. (Reserved outcome sub-scopes like `graduated` / `passed` must
-not collide with real homework/project slugs — a small namespacing rule, §10 G12.)
+(§4.8), graduating at certificate / course completion (§4.9). Unlike `{course}:e`
+(which fills automatically by cascade), outcome nodes need explicit milestone
+events. (Reserved synthetic segments — `e`, `passed`, `graduated` — must not collide
+with real homework/project slugs; a small namespacing rule, §10 G12.)
 
-> **Decision (was an open question, now closed):** we do **not** keep a separate
-> `enrolled` list. "Enrolled" = "is in `{course}` and has ≥ 1 child membership,"
-> computed from the tree. This is the change from the earlier registrant /
-> enrolled / submitter model.
+> **Decision (updated):** enrolled **is** a node — `{course}:e`, filled by cascade —
+> not a derived predicate and not a flat `course-enrolled` side list. The reserved
+> `e` segment separates *registered* (`{course}`) from *enrolled* (`{course}:e`), so
+> enrolled is directly addressable (this closes G8) while staying a clean tree level
+> rather than a role-keyed list.
 
 #### Today's implementation — to be migrated
 
 The code does **not** use this tree yet. Today it writes flat, **role-prefixed**
-keys and keeps `enrolled` as a real (materialised) list, with **no upward
-cascade** — every level is written by hand (or by the backfill command). The
-redesign migrates the keys and drops the `enrolled` list:
+keys (`course-registrants`, `course-enrolled`, `homework-submitters`, …) with **no
+upward cascade** — every level is written by hand (or by the backfill command). The
+redesign renames them to path keys and introduces the `e` level:
 
 | Target tree node | Current key in code (today) | Migration |
 | --- | --- | --- |
 | `<all>` | the audience (`dtc-courses`) | keep |
 | `{course}` | `course-registrants:{course}` | rename to path key |
-| `{course}` + has children *(derived)* | `course-enrolled:{course}` | **drop the list — derive it** |
-| `{course}:{homework}` | `homework-submitters:{course}:{homework}` | rename to path key |
-| `{course}:{project}` | `project-submitters:{course}:{project}` | rename to path key |
-| `{course}:{project}:passed` *(Target)* | — *(not built)* | add (outcome node) |
-| `{course}:graduated` *(Target)* | `course-graduates:{course}` *(not built)* | add (outcome node) |
+| `{course}:e` | `course-enrolled:{course}` | rename to the `:e` node |
+| `{course}:e:{homework}` | `homework-submitters:{course}:{homework}` | rename to path key |
+| `{course}:e:{project}` | `project-submitters:{course}:{project}` | rename to path key |
+| `{course}:e:{project}:passed` *(Target)* | — *(not built)* | add (outcome node) |
+| `{course}:e:graduated` *(Target)* | `course-graduates:{course}` *(not built)* | add (outcome node) |
 
-The two structural changes in this redesign are **(a) pure path keys + derived
-`enrolled`** (gap #9) and **(b) upward cascade so parents are implicit** (gap #8).
-Until both land, the per-event flows in §4 still describe the current flat keys —
-each one notes the target node it maps to.
+The two structural changes are **(a) pure path keys with the `:e` enrolled level**
+(gap #9) and **(b) upward cascade so parents are implicit** (gap #8). Until both
+land, the per-event flows in §4 describe the current flat keys — each notes the
+target node it maps to.
 
 **Two building blocks** compose every flow below:
 
@@ -205,7 +222,7 @@ each one notes the target node it maps to.
 | **Transactional send** | an actual email | `POST /api/transactional/send` (one person) or `POST /api/recipient-lists/{key}/transactional-send` (a whole node) |
 
 The target maintains these nodes **by events** (§3), adds the
-`{course}:graduated` node, and relies on **upward cascade** so parent nodes are
+`{course}:e:graduated` node, and relies on **upward cascade** so parent nodes are
 implicit. Today the code writes flat role-prefixed keys explicitly, with no
 cascade — see the migration table above and gaps #8–#9.
 
@@ -234,9 +251,9 @@ Every membership change is one small event from CMP to Datamailer:
 | When this happens in CMP | CMP emits |
 | --- | --- |
 | Learner registers | add member to `{course}` |
-| Learner submits homework / project | add member to `{course}:{item}` (cascades up) |
+| Learner submits homework / project | add member to `{course}:e:{item}` (cascades up) |
 | Learner is scored | update that member's metadata (score) on the node |
-| Learner completes / is certified | add member to `{course}:graduated` |
+| Learner completes / is certified | add member to `{course}:e:graduated` |
 | Learner toggles a preference / unsubscribes | update / remove the contact or membership |
 
 Datamailer applies each event and keeps the node current. When it's time to email
@@ -489,7 +506,7 @@ sequenceDiagram
 ```
 
 - **Confirmation gated by:** `email_submission_confirmations` (default `True`).
-- **Node joined:** `{course}:{homework}` (today keyed
+- **Node joined:** `{course}:e:{homework}` (today keyed
   `homework-submitters:{course}:{homework}`, gap #9), member key
   `homework-submission:{submission_id}`.
 - **Resubmission:** updating a submission refreshes `submitted_at`, so:
@@ -520,14 +537,14 @@ sequenceDiagram
     Operator->>CMP: Click "Score homework"
     CMP->>DB: Recompute & persist scores
     loop per scored submission (event)
-        CMP->>DM: PUT {course}:{homework} member metadata = score
+        CMP->>DM: PUT {course}:e:{homework} member metadata = score
     end
-    CMP->>DM: Send template to node {course}:{homework}
+    CMP->>DM: Send template to node {course}:e:{homework}
     DM->>DM: Render per-member context from node metadata
     DM-->>Operator: created / enqueued / skipped counts
 ```
 
-- **Audience:** node `{course}:{homework}` — no snapshot, no `remove_absent`. The
+- **Audience:** node `{course}:e:{homework}` — no snapshot, no `remove_absent`. The
   node is already correct because submission and preference events kept it correct.
 - **Category:** submission — Datamailer suppresses opted-out contacts at delivery
   (§5), not a per-send DB filter.
@@ -547,7 +564,7 @@ emission (gap #10) is what lets us trust the node without the snapshot.
 Identical shape to homework submission, on the project list.
 
 - **Confirmation gated by:** `email_submission_confirmations`.
-- **Node joined:** `{course}:{project}` (today keyed
+- **Node joined:** `{course}:e:{project}` (today keyed
   `project-submitters:{course}:{project}`, gap #9), member key
   `project-submission:{submission_id}`.
 - **Resubmission:** same semantics as homework (new `submitted_at` → new
@@ -586,7 +603,7 @@ sequenceDiagram
   CMP computes who reviews whom and pushes **each reviewer's assigned-project links
   as member metadata** (bulk-upsert), *then* sends. The submitter set itself is
   already present from join events; only the assignment data is new.
-- **Send (target):** name the node `{course}:{project}` — Datamailer already holds
+- **Send (target):** name the node `{course}:e:{project}` — Datamailer already holds
   the members; the email renders each reviewer's links from the pushed metadata. No
   snapshot.
 - **Gated by:** `email_submission_confirmations`.
@@ -594,9 +611,10 @@ sequenceDiagram
 
 **Today (delta):** the code builds a submitter snapshot and sends it with the
 per-send reconcile (the §3 stopgap), to the `project-submitters` key.
-**Target refinement:** a dedicated review-pending subset of the node, scoped to
-learners who *still owe* reviews, so the reminder targets only them rather than all
-submitters (gap #2). Also consider whether "go do your reviews" should be gated by
+Note this is the *"go review your peers"* assignment email, sent once to all
+submitters. The *reminder* for those who **still owe** reviews is separate and
+CMP-computed at run time (§4.10) — it needs no maintained node (gap #2 is optional).
+Also consider whether "go do your reviews" should be gated by
 `email_deadline_reminders` rather than `email_submission_confirmations` (see
 [preference granularity](#q3-preference-granularity)).
 
@@ -637,9 +655,9 @@ median peer scores, persists them, moves the project to `COMPLETED`, and — exa
 like homework scoring (§4.4) — **pushes each score as member metadata on the node,
 then names the node** to send.
 
-- **Node:** `{course}:{project}` (today keyed `project-submitters:{course}:{project}`).
+- **Node:** `{course}:e:{project}` (today keyed `project-submitters:{course}:{project}`).
 - **Outcome event (target):** learners whose submission `passed` also join the
-  outcome node `{course}:{project}:passed` (§2), enabling later project-graduate /
+  outcome node `{course}:e:{project}:passed` (§2), enabling later project-graduate /
   "you passed" emails.
 - **Category:** submission — Datamailer-enforced at delivery (§5).
 - **Idempotency:** `project-score:{course}:{project}`.
@@ -672,7 +690,7 @@ sequenceDiagram
 
 **Today:** direct send, gated by `email_course_updates`. **Target:** issuing a
 certificate is the **graduation outcome event** — the learner joins the outcome
-node `{course}:graduated` (§2), and the certificate email is a send to that node.
+node `{course}:e:graduated` (§2), and the certificate email is a send to that node.
 The same node powers later alumni / graduate campaigns.
 
 ### 4.10 Deadline reminders
@@ -719,9 +737,22 @@ Idempotency keys mirror the event (`deadline-reminder:homework:{hw_id}:24h`,
 `deadline-reminder:peer-review:{project_id}:24h`) and omit the command timestamp,
 so the command can run repeatedly without duplicating.
 
-The **peer-review-due** audience is the tightest and the model for the others: a
-learner drops out of it the moment they finish their non-optional reviews —
-exactly the self-clearing behavior §4.7 would reinforce.
+**All three are computed the same way — none need a maintained "pending" node.**
+CMP queries its own data each run and pushes the result:
+
+- **Homework / project due** are conceptually a node diff —
+  `{course}:e` (enrolled) **minus** `{course}:e:{item}` (submitted it). CMP runs the
+  diff from source (more robust than asking Datamailer to diff nodes, and no new
+  Datamailer capability).
+- **Peer-review due** has no clean node diff ("still owes reviews" depends on the
+  assignment graph and review progress), so CMP queries `PeerReview` rows
+  (`state=TO_REVIEW`, non-optional) directly. Same mechanism, richer query.
+
+Eligibility is **self-clearing**: finishing the action (submitting, completing
+reviews) drops the learner from the next run's computed set — no node removal
+needed. A dedicated `peer-review-pending` node (gap #2) is therefore **optional** —
+justified only if a *non-reminder* feature needs to address "who owes reviews"
+directly via Datamailer.
 
 **Today:** all three implemented; because eligibility is recomputed each run,
 moving a deadline just changes the next run (no campaign to update).
@@ -816,6 +847,22 @@ CMP's category set — **a client-defined example; the model itself is generic**
 | **deadline reminders** | the three reminders (§4.10) |
 | **course updates** | certificate availability, announcements |
 
+**No duplication — CMP never needs a local copy.** The three places CMP might seem
+to need preferences, it doesn't:
+
+- *Settings page* — proxies to Datamailer (above); stores nothing.
+- *Sending* — CMP names a node + category; **Datamailer suppresses opt-outs at
+  delivery** (gap #11). CMP never filters by preference.
+- *Audience computation, incl. reminders* — CMP computes by **who did the work**
+  (its own enrollments / submissions), not by preference. A reminder batch is
+  "everyone who hasn't submitted"; Datamailer drops the deadline-unsubscribed when
+  it sends. The batch may be slightly larger than what's delivered — that's fine;
+  pre-filtering would require a local preference copy, i.e. the duplication we are
+  removing.
+
+(The **only** duplication is in *today's* code — three CMP booleans plus
+Datamailer's own unsubscribe state — and they drift. See below.)
+
 ### Today (the delta to close)
 
 Today CMP **does** store three boolean fields on the user
@@ -844,14 +891,14 @@ are designing out.
 
 | Area | Today | Target |
 | --- | --- | --- |
-| Audience model | flat role-prefixed lists incl. a materialised `enrolled` | **path-keyed tree**; `enrolled` derived; `{course}:graduated` added (gap #9) |
+| Audience model | flat role-prefixed lists incl. a materialised `enrolled` | **path-keyed tree**; `enrolled` = `{course}:e` node; `{course}:e:graduated` added (gap #9) |
 | List maintenance | **reconcile a full DB snapshot on every send** | **event-driven** — emit each change; Datamailer's tree is the live list; **no per-send reconcile** (§3) |
 | Bulk / reconcile API | used at send time | **one-time only** — midway onboarding & key migration |
 | Event emission | joins only; no preference/unsubscribe push; rarely removals | **complete + reliable** (outbox + retry), incl. removals & preferences (gap #10) |
 | Preference sync | Datamailer → CMP only | **bidirectional** (add CMP → Datamailer, gap #1) |
 | Cascade | none — every level written by hand | adding a leaf implies ancestors (gap #8) |
 | Peer-review audience | all project submitters | only those who still owe reviews (gap #2) |
-| Certificate audience | direct send, no list | optional `{course}:graduated`-backed |
+| Certificate audience | direct send, no list | `{course}:e:graduated`-backed |
 | Broad announcements | operator UI campaigns | CMP-driven campaign API with external key (gap #5) |
 | Submit confirmation + membership | two separate calls | possibly unified trigger-on-membership (open, §7) |
 | Preference granularity | results share `email_submission_confirmations` | possible dedicated results / review prefs (open, §7) |
@@ -919,21 +966,22 @@ otherwise. Decide before adding more result-type emails.
 ## 8. Glossary of keys
 
 ```text
-# Audience tree nodes — TARGET (pure path keys, §2)
+# Audience tree nodes — TARGET (pure path keys, §2; 'e' = reserved enrolled segment)
 <all>
-{course_slug}                                # everyone touching the course
-{course_slug}:{homework_slug}                # submitted the homework
-{course_slug}:{project_slug}                 # submitted the project
-{course_slug}:{project_slug}:passed          # outcome: passed the project
-{course_slug}:graduated                      # outcome: completed / certified
+{course_slug}                                  # registered
+{course_slug}:e                                # enrolled (submitted >= 1)
+{course_slug}:e:{homework_slug}                # submitted the homework
+{course_slug}:e:{project_slug}                 # submitted the project
+{course_slug}:e:{project_slug}:passed          # outcome: passed the project
+{course_slug}:e:graduated                      # outcome: completed / certified
 
 # Current keys in code — TODAY, to migrate (gap #9)
 course-registrants:{course_slug}                   -> {course_slug}
-course-enrolled:{course_slug}                      -> dropped (enrolled is derived)
-homework-submitters:{course_slug}:{homework_slug}  -> {course_slug}:{homework_slug}
-project-submitters:{course_slug}:{project_slug}    -> {course_slug}:{project_slug}
-peer-review-pending:{course_slug}:{project_slug}   -> review-pending subset of node   # not built ⚠️
-certificate-eligible:{course_slug}                 -> {course_slug}:graduated          # not built ⚠️
+course-enrolled:{course_slug}                      -> {course_slug}:e
+homework-submitters:{course_slug}:{homework_slug}  -> {course_slug}:e:{homework_slug}
+project-submitters:{course_slug}:{project_slug}    -> {course_slug}:e:{project_slug}
+peer-review-pending:{course_slug}:{project_slug}   -> {course_slug}:e:{project_slug} review-pending subset  # not built ⚠️
+certificate-eligible:{course_slug}                 -> {course_slug}:e:graduated         # not built ⚠️
 
 # Deadline-reminder lists (scoped to who still owes the action)
 deadline-reminders:homework:{course_slug}:{homework_slug}:24h
@@ -969,14 +1017,14 @@ production rollout.
 | # | Gap | Needed for | Side |
 | --- | --- | --- | --- |
 | 1 | **Datamailer owns preferences** — a per-contact, per-category preference **read + write** API with **client-defined category tags**; CMP hosts the settings UI but proxies to it **asynchronously** and stores nothing | Single store, no divergence (§5) | Datamailer + CMP |
-| 2 | `peer-review-pending` list maintained with only learners who still owe reviews | Targeted review nudges | CMP + Datamailer |
+| 2 | `peer-review-pending` node *(optional)* — only if a **non-reminder** feature needs to address "who still owes reviews" directly; reminders don't need it (CMP computes the set, §4.10) | Optional targeted addressing | CMP + Datamailer |
 | 3 | `certificate-eligible` / `course-graduates` list | Graduate campaigns; list-backed certs | CMP + Datamailer |
 | 4 | **Force-send-on-membership** flag (opt-in) | Q1, special-case unified add+send | Datamailer |
 | 5 | Campaign API with external key (`PUT /api/campaigns/{key}`, queue, cancel) | CMP-driven broad announcements | Datamailer |
 | 6 | Dedicated result / review preference fields | Q3 finer learner control | CMP |
 | 7 | Resubscribe → optionally re-enable CMP preference (today: stored only) | Honor re-opt-in | CMP policy + Datamailer metadata |
 | 8 | **Upward-cascade membership** — adding a member to a node implies all ancestor nodes up to `<all>` | Generic audience tree (§2); CMP stops maintaining parent levels by hand | Datamailer |
-| 9 | **Pure path key scheme** — drop role prefixes (`course-registrants`→`{course}`, `homework-submitters`→`{course}:{homework}`); `enrolled` becomes derived, not a list | Audience tree (§2) | CMP (+ Datamailer list rename) |
+| 9 | **Pure path key scheme** — drop role prefixes (`course-registrants`→`{course}`, `homework-submitters`→`{course}:e:{homework}`); add the `{course}:e` enrolled level | Audience tree (§2) | CMP (+ Datamailer list rename) |
 | 10 | **Reliable event emission** — transactional outbox + retry for every membership event, plus removals, so the list never drifts and no per-send reconcile is needed | Event-driven list (§3) | CMP |
 | 11 | **Delivery-time category enforcement** — a node send declares its category and Datamailer suppresses contacts opted out of that category | §5 sending | Datamailer |
 | 12 | **Bulk import by reference** — accept a fetchable JSONL file (CMP S3 pre-signed URL), ingest asynchronously, expose import-job status to ack before send | Large computed batches & negative audiences (§3, §4.10) | Datamailer |
@@ -1038,9 +1086,10 @@ metadata then sends the node; nothing guarantees all metadata landed (or none fa
 before the send renders. Define ordering/consistency — e.g. send only after metadata
 writes are acked.
 
-**G8. "Enrolled" must be queryable.** We made enrolled *derived* ("member of
-`{course}` with ≥ 1 child"). If Datamailer can't express that query, enrolled is
-describable but not targetable.
+**G8. "Enrolled" must be queryable — RESOLVED.** Earlier enrolled was a *derived*
+predicate, which Datamailer might not be able to query. Now enrolled is the real
+node `{course}:e`, filled by cascade (§2) — directly addressable, no query needed.
+Closed.
 
 **G9. Course family vs cohort.** Nodes are per-cohort (`ml-zoomcamp-2026`); "everyone
 who ever did ML Zoomcamp" has no node and falls back to family tags. Document the
@@ -1053,10 +1102,11 @@ have no obvious node — decide where they live.
 and peer-review assignment is parked in it (see §7 Q3). Revisit before adding more
 result-type emails.
 
-**G12. Reserved outcome sub-scopes.** Outcome nodes use reserved sub-scope names
-(`{course}:graduated`, `{course}:{project}:passed`, §2). These must not collide with
-real homework/project slugs — needs a namespacing rule (reserved prefix, or a
-distinct segment like `{course}:@graduated`).
+**G12. Reserved synthetic segments.** The tree uses reserved segments that are not
+real slugs — `e` (enrolled), `passed`, `graduated` (§2). These must not collide with
+a real homework/project slug (e.g. a homework literally slugged `e`). Needs a
+namespacing rule — a reserved sigil such as `{course}:@e` / `{course}:@e:@graduated`,
+or validation that no slug uses a reserved word.
 
 ---
 
