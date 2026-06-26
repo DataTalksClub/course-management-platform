@@ -92,7 +92,7 @@ def format_user_datetime(
 
     timezone_name = user_timezone_name(user, browser_timezone)
     localized = value.astimezone(ZoneInfo(timezone_name))
-    return f"{localized.strftime(fmt or DEFAULT_USER_DATETIME_FORMAT)} {timezone_name}"
+    return localized.strftime(fmt or DEFAULT_USER_DATETIME_FORMAT)
 
 
 def format_deadline_for_user(value: datetime, user=None) -> dict:

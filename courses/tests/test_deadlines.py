@@ -80,7 +80,7 @@ class FormatUserDatetimeTest(TestCase):
 
         result = format_user_datetime(value, request)
 
-        self.assertEqual(result, "3 July 2026, 00:00 Europe/Berlin")
+        self.assertEqual(result, "3 July 2026, 00:00")
 
     def test_saved_timezone_overrides_browser_timezone_cookie(self):
         value = datetime(2026, 7, 2, 22, 0, 0, tzinfo=UTC)
@@ -91,4 +91,4 @@ class FormatUserDatetimeTest(TestCase):
 
         result = format_user_datetime(value, request)
 
-        self.assertEqual(result, "2 July 2026, 18:00 America/New_York")
+        self.assertEqual(result, "2 July 2026, 18:00")
