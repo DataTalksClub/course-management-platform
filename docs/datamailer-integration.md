@@ -1115,10 +1115,15 @@ path** when `PUBLIC_BASE_URL` is empty (`course_management/datamailer.py:258`), 
 misconfigured / unset `PUBLIC_BASE_URL` in a sending environment produces broken
 links — observed in a real score-notification email as
 `http:///llm-zoomcamp-2026/leaderboard` (empty host) instead of
-`https://courses.datatalks.club/llm-zoomcamp-2026/leaderboard`. Two things to fix:
-- **Validate at send time** — when Datamailer sending is enabled, treat an empty
-  `PUBLIC_BASE_URL` as a hard error (or refuse to build links), so we fail fast
-  instead of emitting `http:///…`.
+`https://courses.datatalks.club/llm-zoomcamp-2026/leaderboard`.
+
+**Decision: the client (CMP) pins it.** Absolute URLs are *content*, and CMP owns
+content (§1) — so CMP is responsible for sending fully-qualified URLs, and
+Datamailer renders exactly what it's given and **never synthesizes a host**.
+Concretely:
+- **`PUBLIC_BASE_URL` is a required setting in any sending environment** — pin it,
+  and treat empty/scheme-only as a **hard error** at send time (fail fast) rather
+  than letting `public_url()` emit a relative path.
 - **End-to-end test** — assert the *rendered* email body contains absolute
   `https://<host>/…` links, not relative paths. Today's tests set `PUBLIC_BASE_URL`
   to a value (or to `""`) and check context, but nothing catches a real
