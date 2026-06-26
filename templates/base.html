@@ -60,6 +60,21 @@
               data-timezone-update-url="{% url 'update_timezone_preference' %}"
           {% endif %}
           data-toggle-url="{% url 'toggle_dark_mode' %}">
+        <script>
+            (function() {
+                try {
+                    var body = document.body;
+                    if (
+                        body
+                        && body.getAttribute('data-authenticated') !== 'true'
+                        && localStorage.getItem('darkMode') === 'true'
+                    ) {
+                        body.classList.add('dark', 'dark-mode');
+                        body.setAttribute('data-dark-mode', 'true');
+                    }
+                } catch (e) {}
+            })();
+        </script>
         {% if user.is_authenticated %}<input type="hidden" id="csrf-token" value="{{ csrf_token }}">{% endif %}
         {% if IS_IMPERSONATING %}
             <div id="impersonation-banner" class="impersonation-banner">

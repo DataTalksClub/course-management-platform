@@ -37,9 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var storedPreference = localStorage.getItem(STORAGE_KEY);
     if (storedPreference !== null) {
       var isDarkMode = storedPreference === 'true';
-      if (isDarkMode !== serverDarkMode) {
-        applyDarkMode(isDarkMode);
-      }
+      applyDarkMode(isDarkMode);
       return isDarkMode;
     }
 
