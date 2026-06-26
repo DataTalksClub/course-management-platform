@@ -1,22 +1,28 @@
 # CMP ↔ Datamailer Integration (Conceptual)
 
-This is the single source of truth for how the course management platform (CMP)
-and Datamailer work together to send email. It has two parts:
+**Purpose of this document: describe the state we want to be in — how the CMP ↔
+Datamailer integration *should* work — and what we need to do to get there.**
+It is a design document, not a description of the current code. Current behaviour
+appears only as the **starting point for migration**: where it already matches the
+target, we say so; where it differs, we call out the change as work to do.
 
-- **Part 1 — Conceptual / design** (sections 1–9): the mental model, every
-  lifecycle event, and — for each — what exists **today** versus where we want
-  to go (**target**).
-- **Part 2 — API reference** (the appendix): exact endpoints, payloads,
-  idempotency rules, callbacks, and failure handling.
+It has two parts:
+
+- **Part 1 — Target design** (sections 1–9): the mental model, every lifecycle
+  event, the preference model, and the gaps/work to reach the target.
+- **Part 2 — API reference** (the appendix): the endpoints and payloads the target
+  uses, annotated with what the current code already does.
 
 Legend used throughout:
 
-- **Today** — implemented and running (sandbox; there is no Datamailer
-  production yet).
-- **Target** — the ideal state we are designing toward.
-- ⚠️ **Gap** — something the Target needs that does not exist yet, often on the
-  Datamailer side. All gaps are collected in [Open design questions](#open-design-questions)
-  and [Capability gaps](#capability-gaps).
+- **Target** — how it should work; the thing we are building toward. This is the
+  default voice of the document.
+- **Today** — what the current code does, called out only to mark the delta we
+  need to close (sandbox only; there is no Datamailer production yet).
+- ⚠️ **Gap / work to do** — something the target needs that does not exist yet.
+  Build work is collected in [§9 Capability gaps](#9-capability-gaps-things-to-raise-on-the-datamailer-side);
+  softer questions in [§7 Open design questions](#7-open-design-questions); and
+  unresolved holes in the design itself in [§10 Unresolved design gaps](#10-unresolved-design-gaps).
 
 ---
 
@@ -29,20 +35,21 @@ Datamailer decides whether that email *can be delivered*.**
 flowchart LR
     subgraph CMP["CMP — owns intent"]
         direction TB
-        users[Users & preferences]
+        users[Users & accounts]
         courses[Courses, registrations, enrollments]
         work[Submissions, scores, certificates]
         deadlines[Deadlines & schedule]
         users ~~~ courses ~~~ work ~~~ deadlines
     end
 
-    subgraph DM["Datamailer — owns delivery"]
+    subgraph DM["Datamailer — owns delivery & preferences"]
         direction TB
         templates[Email templates]
         senders[Sender / from config]
+        prefs[Subscription preferences]
         suppress[Suppression: bounces, complaints, unsubscribes]
         delivery[SQS → SES → delivery events]
-        templates ~~~ senders ~~~ suppress ~~~ delivery
+        templates ~~~ senders ~~~ prefs ~~~ suppress ~~~ delivery
     end
 
     CMP -->|"contact sync"| DM
@@ -51,14 +58,21 @@ flowchart LR
     DM -->|"callbacks: unsubscribe, bounce, complaint, fail"| CMP
 ```
 
-CMP holds the source data (users, enrollments, submissions, scores, deadlines,
-preferences). Datamailer holds the delivery machinery (templates, sender config,
-hard-bounce/complaint/unsubscribe suppression, queueing, SES, events). CMP never
-asks Datamailer "who is subscribed" before a routine send — it computes the
-audience itself and lets Datamailer apply its own suppression at delivery time.
+CMP holds the source data (users, enrollments, submissions, scores, deadlines).
+Datamailer holds the delivery machinery **and the learner's email preferences**
+(templates, sender config, subscription preferences, hard-bounce/complaint/
+unsubscribe suppression, queueing, SES, events). Preferences live in Datamailer so
+there is only one store to keep correct (§5).
 
-**Today:** this split is implemented. **Target:** unchanged — this is the right
-boundary and we keep it.
+In the target, CMP **keeps Datamailer's audience tree current by emitting events**
+(§2–§3): a learner joins or leaves a node, a preference flips, an unsubscribe
+arrives. A send then just **names a node** — Datamailer already knows who is in
+it. CMP does not compute or attach a recipient list per send. Datamailer still
+applies its own deliverability suppression (bounces, complaints) at delivery time.
+
+This ownership split already holds today; the part we need to build is making the
+event stream **complete and reliable** enough that Datamailer's list can be
+trusted without a per-send reconcile (§3).
 
 ---
 
@@ -101,37 +115,56 @@ a member of every ancestor. So "everyone who submitted homework 2 of ML Zoomcamp
 node." Email `ml-zoomcamp-2026` to reach the whole course; email `<all>` to reach
 everyone.
 
-### How CMP maps onto the tree
+### How CMP populates the tree — and what "registrant / enrolled / submitter" become
 
-This generic model has **no CMP-specific vocabulary** (no "registrants",
-"enrolled", etc.). Those are CMP's own *roles*, which today CMP encodes as a key
-prefix instead of relying on pure scope + cascade:
+The tree has **no role vocabulary** — no `registrants`, no `enrolled`, no
+`submitters` keyspaces. A learner's role is simply **where they sit in the tree**,
+and they get there by an action:
 
-| Generic tree node | CMP key today | Who is in it |
+| Action | Node the learner joins | cascades up to |
 | --- | --- | --- |
-| `<all>` | the audience (`dtc-courses`) | every contact |
-| `{course}` | `course-registrants:{course}` | registered for the course |
-| `{course}` (active) | `course-enrolled:{course}` | submitted at least once |
-| `{course}:{homework}` | `homework-submitters:{course}:{homework}` | submitted that homework |
-| `{course}:{project}` | `project-submitters:{course}:{project}` | submitted that project |
-| `{course}` (done) — **Target** | `course-graduates:{course}` | completed / certified |
+| Registers for a course | `{course}` | `<all>` |
+| Submits homework H | `{course}:{H}` | `{course}`, `<all>` |
+| Submits project P | `{course}:{P}` | `{course}`, `<all>` |
+| Completes / is certified — **Target** | `{course}:graduated` | `{course}`, `<all>` |
 
-**Today:** CMP writes each membership explicitly with these role-prefixed keys,
-and there is **no automatic upward cascade** — CMP (or the backfill command)
-maintains every level separately. **Target:** Datamailer provides the generic
-cascade, so adding a leaf membership implies the ancestors, and a CMP *role*
-(registered / enrolled / submitted / graduated) becomes either a position in the
-tree or a status on the membership — not a separate keyspace.
+So the old three-list model collapses into tree position:
 
-> ⚠️ **Gap (cascade):** upward-cascade membership is a new Datamailer capability.
-> Until it exists, CMP must keep writing each ancestor list itself. See gap #8 in
-> [§9](#9-capability-gaps-things-to-raise-on-the-datamailer-side).
+- **Registered** = member of `{course}`.
+- **Submitted item X** = member of `{course}:{X}`.
+- **Enrolled (active learner)** = member of `{course}` who has **≥ 1 child
+  membership** (submitted something). This is a **derived predicate, not a list** —
+  there is **no `enrolled` node** in the tree.
+- **Registered but inactive** = member of `{course}` with no children.
 
-> Open modeling question: in the pure cascade tree, "registrant" = added at the
-> course node, "submitter" = added at an item node (cascades up), and "enrolled"
-> (submitted ≥ 1) becomes *derivable* ("has any item-level membership") rather
-> than its own list. Whether to keep an explicit `enrolled` distinction is a
-> design choice — see [§7](#open-design-questions).
+Anything that varies per person (score, `submitted_at`, country) lives in that
+membership's metadata, never in the key.
+
+> **Decision (was an open question, now closed):** we do **not** keep a separate
+> `enrolled` list. "Enrolled" = "is in `{course}` and has ≥ 1 child membership,"
+> computed from the tree. This is the change from the earlier registrant /
+> enrolled / submitter model.
+
+#### Today's implementation — to be migrated
+
+The code does **not** use this tree yet. Today it writes flat, **role-prefixed**
+keys and keeps `enrolled` as a real (materialised) list, with **no upward
+cascade** — every level is written by hand (or by the backfill command). The
+redesign migrates the keys and drops the `enrolled` list:
+
+| Target tree node | Current key in code (today) | Migration |
+| --- | --- | --- |
+| `<all>` | the audience (`dtc-courses`) | keep |
+| `{course}` | `course-registrants:{course}` | rename to path key |
+| `{course}` + has children *(derived)* | `course-enrolled:{course}` | **drop the list — derive it** |
+| `{course}:{homework}` | `homework-submitters:{course}:{homework}` | rename to path key |
+| `{course}:{project}` | `project-submitters:{course}:{project}` | rename to path key |
+| `{course}:graduated` *(Target)* | `course-graduates:{course}` *(not built)* | add |
+
+The two structural changes in this redesign are **(a) pure path keys + derived
+`enrolled`** (gap #9) and **(b) upward cascade so parents are implicit** (gap #8).
+Until both land, the per-event flows in §4 still describe the current flat keys —
+each one notes the target node it maps to.
 
 **Two building blocks** compose every flow below:
 
@@ -141,62 +174,96 @@ tree or a status on the membership — not a separate keyspace.
 | **Recipient-list membership** | a person inside one tree node | `PUT /api/recipient-lists/{key}/members/{source_object_key}` |
 | **Transactional send** | an actual email | `POST /api/transactional/send` (one person) or `POST /api/recipient-lists/{key}/transactional-send` (a whole node) |
 
-**Today:** the registrants, enrolled, homework-submitter, and project-submitter
-nodes are created and maintained, each written explicitly.
-**Target:** add the `course-graduates` / `certificate-eligible` node, adopt
-upward cascade so parents are implicit, and fill two gaps in how membership stays
-correct (see §5 and §9).
-
-> ⚠️ **Gap:** the protocol reference lists `peer-review-pending:{course}:{project}`
-> and `certificate-eligible:{course}` as *recommended* keys, but they are **not
-> maintained today**. Peer-review and certificate flows reuse other lists (see
-> §4.6 and §4.9).
+The target maintains these nodes **by events** (§3), adds the
+`{course}:graduated` node, and relies on **upward cascade** so parent nodes are
+implicit. Today the code writes flat role-prefixed keys explicitly, with no
+cascade — see the migration table above and gaps #8–#9.
 
 ---
 
-## 3. CMP is the source of truth — why we reconcile at send time
+## 3. How the audience list is maintained — keep the two in sync
 
-This is the design decision people stumble on, so it gets its own section.
+This is the core design decision, so it gets its own section.
 
-When an operator publishes scores, CMP does **not** trust the slowly-accumulated
-list in Datamailer. It **re-queries its own database**, builds the complete set
-of eligible recipients, and sends that full snapshot with two flags:
+**Guiding principle: keep CMP and Datamailer continuously synchronized — never let
+them diverge.** Every change in CMP is mirrored to Datamailer *as it happens*, so
+Datamailer's copy always matches CMP. There is no separate "rebuild the list"
+step, because the list never went out of sync in the first place.
 
-```json
-"member_sync": "reconcile",
-"remove_absent_members": true
-```
+**We explicitly reject reconcile-at-send.** Stopping to re-query the whole
+database, rebuild a full recipient snapshot, and diff it against Datamailer on
+*every* email is fragile and slow — it treats divergence as normal and papers over
+it once per send, instead of preventing it. The fix for "the two might disagree"
+is to **not let them disagree**: emit the events reliably.
 
-Datamailer then makes its list match the snapshot (adding anyone missing,
-soft-removing anyone absent) and sends one message per active member.
+**Target: CMP maintains Datamailer's tree as a live list by emitting events. The
+list in Datamailer is the audience. A send just names a node.**
+
+Every membership change is one small event from CMP to Datamailer:
+
+| When this happens in CMP | CMP emits |
+| --- | --- |
+| Learner registers | add member to `{course}` |
+| Learner submits homework / project | add member to `{course}:{item}` (cascades up) |
+| Learner is scored | update that member's metadata (score) on the node |
+| Learner completes / is certified | add member to `{course}:graduated` |
+| Learner toggles a preference / unsubscribes | update / remove the contact or membership |
+
+Datamailer applies each event and keeps the node current. When it's time to email
+"everyone who submitted homework 2," CMP makes **one call** — "send template T to
+node `{course}:homework-2`" — and Datamailer already holds the right members and
+their metadata.
 
 ```mermaid
 flowchart LR
-    subgraph cont["Continuous (Today)"]
-        s1[Each submission] -->|"PUT member"| L[(Datamailer list)]
+    subgraph events["Event stream (target)"]
+        e1[register] --> L
+        e2[submit] --> L
+        e3[score = metadata update] --> L
+        e4[preference / unsubscribe] --> L
     end
-    subgraph send["At send time (Today)"]
-        q[Query CMP DB fresh] --> snap[Full recipient snapshot]
-        snap -->|"reconcile + remove_absent"| L
-        L --> mail[One email per active member]
-    end
+    L[(Datamailer tree node = live list)]
+    send[Send: name the node] --> L
+    L --> mail[Datamailer emails current members]
 ```
 
-Why both? The continuous push keeps the list *warm* (good for dashboards and
-audience-size checks), but it is **delta-based** and therefore fragile — its
-correctness depends on every event over months having landed. The
-reconcile-at-send is **idempotent and self-correcting**: it re-derives truth from
-the database every time, so a missed push, a submission that predates the
-integration, or a preference change all get fixed before a single email goes out.
+**No reconcile at send time.** CMP does not re-query its database and ship a full
+snapshot with `remove_absent_members` on every send. The list is already correct
+because the events kept it correct.
 
-**This is the opposite of fragile** — the snapshot reconcile is what *prevents*
-drift. The alternative (let Datamailer's accumulated list be authoritative and
-only send deltas) is the classic distributed-sync bug source, and it would break
-on the very real gap in §5: CMP-side unsubscribes are not pushed to Datamailer.
+### What we need to do to get there
 
-**Today:** reconcile-at-send is implemented for all list sends. **Target:** keep
-it. Treat the continuous push and the backfill command as *warm-up*, never as the
-authority.
+Event-driven is only correct if the event stream is **complete and reliable**.
+That is the work:
+
+1. **Emit every membership event — including removals and preference changes.**
+   Today CMP emits joins (submissions) but **not** preference/unsubscribe changes
+   from the CMP profile (gap #1), and rarely emits removals. The target must emit
+   all of them so the list never silently drifts.
+2. **Make emission reliable (transactional outbox + retry).** A dropped event
+   means a wrong list with no automatic correction. CMP should write events to an
+   outbox in the same DB transaction as the change, then deliver with retry, so no
+   event is ever lost (gap #10).
+3. **Seed once, and only when integrating midway (bulk API).** The single
+   legitimate use of bulk/reconcile is **onboarding data that predates the
+   integration** — people who already registered or submitted before Datamailer
+   was wired in (or before the key migration). A one-time script loads them per
+   node through the **bulk API** (`members/bulk-upsert`), then we switch to events.
+
+After that seed, the system is **purely event-driven — there is no reconcile in
+normal operation.** Reconcile is a migration tool, not a send-time step.
+
+```mermaid
+flowchart LR
+    one["One-time only — bulk API<br/>(integrate midway / migrate keys)"] --> steady["Steady state — events only<br/>no reconcile, ever"]
+```
+
+> **Today (the delta to close):** the current code does the opposite — it treats
+> Datamailer's accumulated list as untrusted and **reconciles a full DB snapshot
+> on every score send** (`member_sync: reconcile`, `remove_absent_members: true`).
+> That stopgap exists *because* the event stream is incomplete today (preferences
+> aren't pushed at all). Once steps 1–2 land, the per-send reconcile goes away and
+> bulk-load is used only for the one-time midway onboarding above.
 
 ---
 
@@ -247,19 +314,18 @@ sequenceDiagram
     CMP->>DM: PUT course-registrants:{course} member (registration:{id})
 ```
 
-- **Fires:** `sync_registration_to_datamailer` (`course_management/datamailer.py`),
-  via `transaction.on_commit` in `courses/views/registration.py`.
-- **List:** `course-registrants:{course_slug}` (or `:{campaign_slug}` if no
-  course is attached yet).
+- **Event (target):** add member to node `{course}` (cascades to `<all>`).
+  Registering is simply what puts a learner in the course audience.
 - **Contact:** upserted as `status: subscribed`, `verified: true`,
   `email_validation: externally_validated` — the form requires newsletter
   consent, so we mark it validated.
 - **Preference:** none gates this; it sends no email.
 - **Email sent:** none.
 
-**Today:** contact + registrants-list membership, plus a parallel Mailchimp sync.
-**Target:** same, with Mailchimp eventually retired once Datamailer is the single
-audience store.
+**Today (delta):** already emits the membership, but under the role-prefixed key
+`course-registrants:{course_slug}` (or `:{campaign_slug}` if no course is attached
+yet) — to be renamed to the path key `{course}` (gap #9). A parallel Mailchimp
+sync runs too, eventually retired once Datamailer is the single audience store.
 
 ### 4.2 Course enrollment
 
@@ -280,16 +346,21 @@ sequenceDiagram
     CMP->>DM: PUT course-enrolled:{course} member (user:{student_id})
 ```
 
-- **Fires:** `sync_enrollment_to_datamailer` from `courses/signals.py`
-  (guards `if not created: return`).
-- **List:** `course-enrolled:{course_slug}`, member key `user:{student_id}`.
-- **Contact:** re-upserted with cohort tags (`course-{family}`,
-  `course-cohort-{course}`) and custom fields (course slug/title/family/cohort).
+In the target there is **no `enrolled` list**. "Enrolled" is derived — a member of
+`{course}` who has ≥ 1 child membership (§2). The first submission's node join
+(§4.3 / §4.5) is what makes the learner enrolled; the only extra thing to do here
+is **enrich the contact**.
+
+- **Event (target):** on first submission, enrich the contact with cohort tags
+  (`course-{family}`, `course-cohort-{course}`) and custom fields (course
+  slug/title/family/cohort). No separate `enrolled` membership is written.
 - **Preference:** none; no email.
 
-**Today:** enrolled-list membership + enriched contact, on first submission only.
-**Target:** same. ⚠️ Note the *only-on-create* guard means later changes (e.g. a
-preference toggle) never re-sync the contact — see §5.
+**Today (delta):** the code materialises a real `course-enrolled:{course_slug}`
+list (member key `user:{student_id}`) via a `post_save` signal that fires **only
+on create** (`if not created: return`). The target drops that list (gap #9). ⚠️ The
+only-on-create guard also means later changes (e.g. a preference toggle) never
+re-sync the contact — see §5 and gap #1.
 
 ### 4.3 Homework submission (and resubmission)
 
@@ -312,7 +383,8 @@ sequenceDiagram
 ```
 
 - **Confirmation gated by:** `email_submission_confirmations` (default `True`).
-- **List:** `homework-submitters:{course_slug}:{homework_slug}`, member key
+- **Node joined:** `{course}:{homework}` (today keyed
+  `homework-submitters:{course}:{homework}`, gap #9), member key
   `homework-submission:{submission_id}`.
 - **Resubmission:** updating a submission refreshes `submitted_at`, so:
   - the confirmation's idempotency key
@@ -328,8 +400,9 @@ correct because the learner changed what they submitted (see the
 
 ### 4.4 Homework scoring (operator publishes results)
 
-An operator scores the homework in cadmin. CMP recomputes scores, then sends one
-recipient-list transactional send carrying the **full submitter snapshot**.
+An operator scores the homework in cadmin. CMP persists scores, **pushes each
+score as a metadata update on the member's node**, then triggers one send that
+just **names the node** — Datamailer already holds the members.
 
 ```mermaid
 sequenceDiagram
@@ -337,33 +410,39 @@ sequenceDiagram
     participant CMP
     participant DB as CMP DB
     participant DM as Datamailer
-    participant List as homework-submitters list
 
     Operator->>CMP: Click "Score homework"
     CMP->>DB: Recompute & persist scores
-    CMP->>DB: Build submitter snapshot (filter by preference)
-    CMP->>DM: POST recipient-lists/.../transactional-send (members, reconcile, remove_absent)
-    DM->>List: Reconcile membership from snapshot
-    DM->>DM: Merge each member's score metadata into template context
+    loop per scored submission (event)
+        CMP->>DM: PUT {course}:{homework} member metadata = score
+    end
+    CMP->>DM: Send template to node {course}:{homework}
+    DM->>DM: Render per-member context from node metadata
     DM-->>Operator: created / enqueued / skipped counts
 ```
 
-- **Gated by:** `email_submission_confirmations` (per member, at snapshot time).
+- **Audience:** node `{course}:{homework}` — no snapshot, no `remove_absent`. The
+  node is already correct because submission and preference events kept it correct.
+- **Category:** submission — Datamailer suppresses opted-out contacts at delivery
+  (§5), not a per-send DB filter.
 - **Idempotency:** base key `homework-score:{course}:{homework}`, Datamailer
   appends each member's `source_object_key` → safe to re-run.
-- **Audience correctness:** filters that exclude a submitter are exactly: the
-  preference is off, the account has no email, or it is a duplicate (only the
-  latest submission per student is kept). A submission predating the integration
-  is **still included** because the snapshot is a fresh DB query.
 
-**Today:** implemented as described. **Target:** keep.
+**Today (delta):** the code instead **builds a full submitter snapshot from the DB
+and sends it with `member_sync: reconcile` + `remove_absent_members`** — the
+per-send reconcile §3 removes. It filters the snapshot by preference, drops
+no-email and duplicate submissions, and (usefully) still includes submissions that
+predate the integration. The target replaces that snapshot with the event-kept
+node; the preference filtering moves to preference events (gap #1), and reliable
+emission (gap #10) is what lets us trust the node without the snapshot.
 
 ### 4.5 Project submission
 
 Identical shape to homework submission, on the project list.
 
 - **Confirmation gated by:** `email_submission_confirmations`.
-- **List:** `project-submitters:{course_slug}:{project_slug}`, member key
+- **Node joined:** `{course}:{project}` (today keyed
+  `project-submitters:{course}:{project}`, gap #9), member key
   `project-submission:{submission_id}`.
 - **Resubmission:** same semantics as homework (new `submitted_at` → new
   confirmation; member upserted in place).
@@ -397,19 +476,18 @@ sequenceDiagram
     CMP->>DM: POST project-submitters:{course}:{project}/transactional-send — peer-review-assignment
 ```
 
-- **Fires:** `send_peer_review_assignment_notification` after
-  `assign_peer_reviews_for_project` (cadmin action).
-- **List used:** `project-submitters:{course}:{project}` (⚠️ **not**
-  `peer-review-pending`, despite that key being recommended).
+- **Send (target):** name the node `{course}:{project}` — Datamailer already holds
+  the submitters from their join events. No snapshot.
 - **Gated by:** `email_submission_confirmations`.
 - **Idempotency:** `peer-review-assignment:{course}:{project}`.
 
-**Today:** uses the project-submitters list, gated by the submission preference.
-**Target:** consider a dedicated `peer-review-pending` list scoped to learners who
-*still owe* reviews, so reminders target only them rather than all submitters
-(⚠️ gap — list not maintained today). Also consider whether "go do your reviews"
-should be gated by `email_deadline_reminders` rather than
-`email_submission_confirmations` (see [preference granularity](#q3-preference-granularity)).
+**Today (delta):** the code builds a submitter snapshot and sends it with the
+per-send reconcile (the §3 stopgap), to the `project-submitters` key.
+**Target refinement:** a dedicated review-pending subset of the node, scoped to
+learners who *still owe* reviews, so the reminder targets only them rather than all
+submitters (gap #2). Also consider whether "go do your reviews" should be gated by
+`email_deadline_reminders` rather than `email_submission_confirmations` (see
+[preference granularity](#q3-preference-granularity)).
 
 ### 4.7 Peer review submitted (by a learner)
 
@@ -444,15 +522,16 @@ reviews — which would make the peer-review-due reminder (§4.10) self-clearing
 ### 4.8 Project scoring
 
 After the review window closes, the operator scores the project. CMP computes
-median peer scores, persists them, moves the project to `COMPLETED`, and sends
-the score notification — same list, reconcile snapshot.
+median peer scores, persists them, moves the project to `COMPLETED`, and — exactly
+like homework scoring (§4.4) — **pushes each score as member metadata on the node,
+then names the node** to send.
 
-- **Fires:** `send_project_score_notification` after `score_project`.
-- **List:** `project-submitters:{course}:{project}`.
-- **Gated by:** `email_submission_confirmations`.
+- **Node:** `{course}:{project}` (today keyed `project-submitters:{course}:{project}`).
+- **Category:** submission — Datamailer-enforced at delivery (§5).
 - **Idempotency:** `project-score:{course}:{project}`.
 
-**Today / Target:** same as homework scoring.
+**Today (delta):** same per-send reconcile snapshot as §4.4; the target replaces it
+the same way (events keep the node correct).
 
 ### 4.9 Certificate availability
 
@@ -498,20 +577,25 @@ sequenceDiagram
     participant DM as Datamailer
 
     Sched->>CMP: Run one-off task
-    CMP->>DB: Load deadlines, eligible learners, preferences
+    CMP->>DB: Compute who still owes the action (negative audience)
     loop per active reminder event
-        CMP->>DM: Reconcile reminder list
-        CMP->>DM: Trigger recipient-list transactional send
+        CMP->>DM: Send to the computed audience, category = deadline
     end
 ```
+
+> ⚠️ **Reminders are a *negative* audience and don't fit "name a node."** Their
+> audience is *who has **not** submitted / still owes reviews* — a set-difference,
+> not a node. This is the one place §3's "name a node, no reconcile" doesn't apply;
+> see design gap **G3** in §10 for the unresolved decision (Datamailer node
+> set-difference vs. a sanctioned CMP-computed snapshot).
 
 Three reminder types, **all implemented today**:
 
 | Reminder | When | Audience (who gets it) | List key |
 | --- | --- | --- | --- |
-| **Homework due** | 24h before due | enrolled, **not yet submitted**, pref on | `deadline-reminders:homework:{course}:{hw}:24h` |
-| **Project due** | 7d **and** 24h before due | enrolled, **not yet submitted**, pref on | `deadline-reminders:project-submission:{course}:{project}:{7d\|24h}` |
-| **Peer review due** | 24h before review deadline | submitted a project **and still has ≥1 unsubmitted, non-optional** assigned review, pref on | `deadline-reminders:peer-review:{course}:{project}:24h` |
+| **Homework due** | 24h before due | enrolled, **not yet submitted** | `deadline-reminders:homework:{course}:{hw}:24h` |
+| **Project due** | 7d **and** 24h before due | enrolled, **not yet submitted** | `deadline-reminders:project-submission:{course}:{project}:{7d\|24h}` |
+| **Peer review due** | 24h before review deadline | submitted a project **and still has ≥1 unsubmitted, non-optional** assigned review | `deadline-reminders:peer-review:{course}:{project}:24h` |
 
 Idempotency keys mirror the event (`deadline-reminder:homework:{hw_id}:24h`,
 `deadline-reminder:project:{project_id}:{7d|24h}`,
@@ -538,7 +622,7 @@ audience node, not one-per-learner with per-learner context.
 
 - **Audience:** a tree node — `<all>` for a platform-wide notice, `{course-slug}`
   for one course/cohort, optionally `{course-slug}` filtered by module progress.
-- **Gated by:** `email_course_updates`.
+- **Category:** course updates — Datamailer-enforced at delivery (§5).
 - **Mechanism (target):** a Datamailer **campaign** with an external key (Part 2 →
   Broad course emails / Campaign API, gap #5), so CMP can create / queue / cancel
   a scheduled announcement and Datamailer snapshots recipients at queue time.
@@ -549,66 +633,93 @@ campaign API (gap #5).
 
 ---
 
-## 5. Unsubscribes and the three preferences
+## 5. Preferences — store them in Datamailer, not CMP
 
-CMP has exactly three notification preferences on the user, **all default
-`True`**:
+The cleanest way to keep two stores in sync is to **not have two stores.** So in
+the target, **CMP does not store email preferences at all.** They live only in
+Datamailer, which already owns unsubscribe and suppression state. With a single
+store, preference divergence is *impossible* — there is nothing to sync.
 
-| Preference | Gates | Today's default |
-| --- | --- | --- |
-| `email_submission_confirmations` | homework & project submission confirmations, homework & project **score** notifications, peer-review assignment | `True` |
-| `email_deadline_reminders` | deadline reminders | `True` |
-| `email_course_updates` | certificate availability, general course updates | `True` |
+In the target, **CMP barely touches preferences** — it hosts the settings UI but
+**proxies reads and writes to Datamailer asynchronously**, and stores nothing.
 
-### Three unsubscribe cases
-
-A learner can opt out of any one of the three categories independently. The send
-flows already read these (they filter the snapshot / skip the send), so the
-preference is honored on the **next** send after it changes.
-
-### Direction of sync — and the real gap
+- **Settings page = CMP-hosted, preferences loaded asynchronously.** CMP renders
+  its settings page **immediately** and does **not** block on Datamailer. The email
+  preferences panel fetches the learner's toggles **asynchronously** (a client-side
+  call to CMP's own backend) *after* the page is shown. If Datamailer is slow or
+  down, the page still loads — only the preferences panel shows a **fallback**
+  ("email preferences are temporarily unavailable — try again later").
+- **CMP backend proxies to Datamailer (no storage).** The async request hits CMP's
+  own backend, which calls Datamailer for that contact's toggles and relays them;
+  saving a toggle goes the same path (browser → CMP backend → Datamailer). CMP is a
+  pass-through and persists no preference. Identity is ordinary: the learner is
+  logged into CMP, and CMP's backend authenticates to Datamailer with its API key —
+  no token is handed to the browser and nothing is embedded from Datamailer.
+- **Categories are generic, tag-driven, and client-defined.** A client defines its
+  own set of subscription categories; each category is a **tag**, and every
+  triggered message type declares the category tag it belongs to. The settings
+  panel renders one toggle per category that client defined. **CMP happens to
+  define three** — but nothing is hardcoded to three; another client defines its own.
+  This mirrors the generic audience tree (§2): generic on the Datamailer side,
+  specialized per client.
+- **Sending = Datamailer enforces.** A send names a node and declares its category
+  tag; Datamailer suppresses contacts who toggled that category off, at delivery.
+  CMP never filters by a stored preference.
 
 ```mermaid
 sequenceDiagram
     participant Learner
+    participant Page as CMP page (browser)
+    participant API as CMP backend
     participant DM as Datamailer
-    participant CMP
-    participant DB as CMP DB
 
-    rect rgb(230,245,230)
-    Note over DM,CMP: Datamailer → CMP (works today)
-    Learner->>DM: Unsubscribe via email footer / DM
-    DM->>CMP: POST /api/datamailer/events (subscription.unsubscribed + preference_key)
-    CMP->>DB: Set matching preference = False
-    end
-
-    rect rgb(250,235,235)
-    Note over Learner,DM: CMP → Datamailer (NOT implemented ⚠️)
-    Learner->>CMP: Toggle preference off in CMP profile
-    CMP->>DB: Save preference = False
-    CMP--xDM: nothing pushed
+    Learner->>Page: Open settings
+    Page-->>Learner: Render page immediately (no wait on Datamailer)
+    Page->>API: async fetch preferences
+    API->>DM: GET this contact's category toggles
+    alt Datamailer reachable
+        DM-->>API: toggles
+        API-->>Page: toggles
+        Page-->>Learner: show toggles
+        Learner->>Page: toggle a category
+        Page->>API: async save
+        API->>DM: write toggle
+    else Datamailer slow / down
+        DM--xAPI: unavailable
+        API-->>Page: error
+        Page-->>Learner: panel shows "temporarily unavailable — try later"
     end
 ```
 
-- **Datamailer → CMP works:** an unsubscribe webhook with a recognized
-  `preference_key` (one of the three) flips the matching CMP preference to
-  `False`. Hard bounces, complaints, transactional skips/failures are stored for
-  support. **Resubscribe is stored but does not auto-re-enable** a CMP preference.
-- ⚠️ **CMP → Datamailer is the gap.** Toggling a preference in the CMP profile
-  saves locally and pushes **nothing** to Datamailer. The contact is only synced
-  on *creation* (`if not created: return`). So Datamailer's contact state can be
-  stale relative to CMP.
+CMP's category set — **a client-defined example; the model itself is generic**:
 
-Why this matters for the funnel: reconcile-at-send rereads the CMP preference, so
-**CMP-initiated unsubscribes are still honored at score/list-send time** (the
-person is dropped from the snapshot). But Datamailer's own contact `subscribed`
-flag and any campaign audience built from Datamailer state would be wrong. This
-is the concrete reason we cannot let Datamailer's accumulated list be the
-authority (see §3).
+| CMP category (tag) | Message types it gates |
+| --- | --- |
+| **submission & results** | submission/score confirmations, peer-review assignment |
+| **deadline reminders** | the three reminders (§4.10) |
+| **course updates** | certificate availability, announcements |
 
-**Target:** push CMP preference changes to Datamailer on save (drop the
-only-on-create guard), so the two stores agree *between* sends, not just at send
-time.
+### Today (the delta to close)
+
+Today CMP **does** store three boolean fields on the user
+(`email_submission_confirmations`, `email_deadline_reminders`,
+`email_course_updates`, all default `True`) and gates every send by reading them.
+Sync is **one-way and broken**: a Datamailer unsubscribe webhook writes back to
+those fields (`subscription.unsubscribed` + a recognized `preference_key`), but a
+**CMP-side toggle pushes nothing** to Datamailer (the contact is synced only on
+*creation*, `if not created: return`). That asymmetry is exactly the divergence we
+are designing out.
+
+### Work to do
+
+- **Datamailer:** a per-contact, per-category preference **read + write** API with
+  client-defined category tags (gap #1); **delivery-time enforcement** of a send's
+  declared category tag (gap #11).
+- **CMP:** host the settings UI and load/save preferences **asynchronously via its
+  backend**, proxying to Datamailer, with the unavailable-fallback panel; **remove
+  the three preference fields** and all per-send preference gating.
+- Keep the existing Datamailer→CMP webhook only for *storing* events for support
+  (bounces, complaints) — not as the preference store.
 
 ---
 
@@ -616,15 +727,17 @@ time.
 
 | Area | Today | Target |
 | --- | --- | --- |
-| Audience funnel lists | registrants, enrolled, homework-submitters, project-submitters | + certificate-eligible / graduates; + peer-review-pending |
-| Source of truth | CMP DB; reconcile full snapshot at send | unchanged (keep reconcile) |
-| Continuous list push | best-effort, delta-based, warm-up only | unchanged (stays warm-up, not authority) |
-| Preference sync | Datamailer → CMP only | **bidirectional** (add CMP → Datamailer) ⚠️ |
-| Peer-review audience | all project submitters | only those who still owe reviews ⚠️ |
-| Certificate audience | direct send, no list | optional list-backed ⚠️ |
-| Broad announcements | operator UI campaigns | CMP-driven campaign API with external key ⚠️ |
-| Submit confirmation + membership | two separate calls | possibly unified trigger-on-membership (open) |
-| Preference granularity | results share `email_submission_confirmations` | possible dedicated results / review prefs (open) |
+| Audience model | flat role-prefixed lists incl. a materialised `enrolled` | **path-keyed tree**; `enrolled` derived; `{course}:graduated` added (gap #9) |
+| List maintenance | **reconcile a full DB snapshot on every send** | **event-driven** — emit each change; Datamailer's tree is the live list; **no per-send reconcile** (§3) |
+| Bulk / reconcile API | used at send time | **one-time only** — midway onboarding & key migration |
+| Event emission | joins only; no preference/unsubscribe push; rarely removals | **complete + reliable** (outbox + retry), incl. removals & preferences (gap #10) |
+| Preference sync | Datamailer → CMP only | **bidirectional** (add CMP → Datamailer, gap #1) |
+| Cascade | none — every level written by hand | adding a leaf implies ancestors (gap #8) |
+| Peer-review audience | all project submitters | only those who still owe reviews (gap #2) |
+| Certificate audience | direct send, no list | optional `{course}:graduated`-backed |
+| Broad announcements | operator UI campaigns | CMP-driven campaign API with external key (gap #5) |
+| Submit confirmation + membership | two separate calls | possibly unified trigger-on-membership (open, §7) |
+| Preference granularity | results share `email_submission_confirmations` | possible dedicated results / review prefs (open, §7) |
 
 ---
 
@@ -689,22 +802,29 @@ otherwise. Decide before adding more result-type emails.
 ## 8. Glossary of keys
 
 ```text
-# Recipient lists (tree nodes — CMP's role-prefixed names; see §2)
-course-registrants:{course_slug}
-course-enrolled:{course_slug}
-homework-submitters:{course_slug}:{homework_slug}
-project-submitters:{course_slug}:{project_slug}
-peer-review-pending:{course_slug}:{project_slug}      # recommended, not used today ⚠️
-certificate-eligible:{course_slug}                    # recommended, not used today ⚠️
+# Audience tree nodes — TARGET (pure path keys, §2)
+<all>
+{course_slug}
+{course_slug}:{homework_slug}
+{course_slug}:{project_slug}
+{course_slug}:graduated
 
-# Deadline-reminder lists
+# Current keys in code — TODAY, to migrate (gap #9)
+course-registrants:{course_slug}                   -> {course_slug}
+course-enrolled:{course_slug}                      -> dropped (enrolled is derived)
+homework-submitters:{course_slug}:{homework_slug}  -> {course_slug}:{homework_slug}
+project-submitters:{course_slug}:{project_slug}    -> {course_slug}:{project_slug}
+peer-review-pending:{course_slug}:{project_slug}   -> review-pending subset of node   # not built ⚠️
+certificate-eligible:{course_slug}                 -> {course_slug}:graduated          # not built ⚠️
+
+# Deadline-reminder lists (scoped to who still owes the action)
 deadline-reminders:homework:{course_slug}:{homework_slug}:24h
 deadline-reminders:project-submission:{course_slug}:{project_slug}:{7d|24h}
 deadline-reminders:peer-review:{course_slug}:{project_slug}:24h
 
 # Member keys (source_object_key)
 registration:{registration_id}
-user:{student_id}                                     # enrolled list
+user:{student_id}                                     # today's enrolled list (dropped in target)
 homework-submission:{submission_id}
 project-submission:{submission_id}
 
@@ -730,7 +850,7 @@ production rollout.
 
 | # | Gap | Needed for | Side |
 | --- | --- | --- | --- |
-| 1 | **CMP → Datamailer preference push** on profile toggle (drop only-on-create guard) | Stores agree between sends; correct Datamailer campaign audiences | CMP (+ contact update API, exists) |
+| 1 | **Datamailer owns preferences** — a per-contact, per-category preference **read + write** API with **client-defined category tags**; CMP hosts the settings UI but proxies to it **asynchronously** and stores nothing | Single store, no divergence (§5) | Datamailer + CMP |
 | 2 | `peer-review-pending` list maintained with only learners who still owe reviews | Targeted review nudges | CMP + Datamailer |
 | 3 | `certificate-eligible` / `course-graduates` list | Graduate campaigns; list-backed certs | CMP + Datamailer |
 | 4 | **Force-send-on-membership** flag (opt-in) | Q1, special-case unified add+send | Datamailer |
@@ -738,6 +858,78 @@ production rollout.
 | 6 | Dedicated result / review preference fields | Q3 finer learner control | CMP |
 | 7 | Resubscribe → optionally re-enable CMP preference (today: stored only) | Honor re-opt-in | CMP policy + Datamailer metadata |
 | 8 | **Upward-cascade membership** — adding a member to a node implies all ancestor nodes up to `<all>` | Generic audience tree (§2); CMP stops maintaining parent levels by hand | Datamailer |
+| 9 | **Pure path key scheme** — drop role prefixes (`course-registrants`→`{course}`, `homework-submitters`→`{course}:{homework}`); `enrolled` becomes derived, not a list | Audience tree (§2) | CMP (+ Datamailer list rename) |
+| 10 | **Reliable event emission** — transactional outbox + retry for every membership event, plus removals, so the list never drifts and no per-send reconcile is needed | Event-driven list (§3) | CMP |
+| 11 | **Delivery-time category enforcement** — a node send declares its category and Datamailer suppresses contacts opted out of that category | §5 sending | Datamailer |
+
+---
+
+## 10. Unresolved design gaps
+
+Holes in the **design itself** (distinct from the build work in §9). Each needs a
+decision before implementation. Ordered roughly by risk; "Lean" is a proposed
+resolution, not a commitment.
+
+### Must resolve first
+
+**G1. Removal & reverse-cascade.** The tree (§2) defines *joining* — add a leaf,
+cascade up — but not *leaving*. When a learner withdraws or a submission is deleted,
+what removes them from `{course}:{item}`, and does it cascade **down** from
+`{course}`? Cascade-up for joins is easy; removal is the hard half and is undesigned.
+*Lean:* reference-count membership — a contact stays in `{course}` while any child
+membership or explicit registration membership remains; removed when the last goes.
+
+**G2. Explicit vs cascade-implied membership at the same node.** A contact reaches
+`{course}` both directly (registration, key `registration:{id}`) and by cascade
+(submission). With one membership per contact per list, which `source_object_key`
+and metadata win, and does leaving the child strand them in `{course}`? Ties to G1.
+*Lean:* the cascade membership is implicit and reference-counted, never overwrites an
+explicit one; an explicit registration membership is its own reason to stay.
+
+**G3. Reminders are a *negative* audience — they don't fit "name a node."** Deadline
+reminders (§4.10) target who has **not** submitted / **still owes** reviews — a
+set-difference (`{course}` minus `{course}:{item}`), recomputed each run. This is the
+one place "name a node, no reconcile" (§3) fails. *Decision needed:* either
+Datamailer supports node **set-difference** queries, or reminders are the **single
+sanctioned exception** to "no reconcile" (CMP computes the absence-audience and sends
+a snapshot). Until decided, §4.10 stays a computed snapshot.
+
+**G4. Email change = re-key the contact.** Datamailer keys contacts by email;
+changing it in CMP strands the contact, its memberships, and preferences on the old
+address. We need an email-change event that re-keys / migrates the Datamailer contact.
+
+### Required for §5 and compliance
+
+**G5. Contact lifecycle & default preferences.** The settings panel (§5) assumes a
+contact already exists with sane defaults. Define **when** the Datamailer contact is
+created (registration? account creation?) and the **default** category state before
+any toggle (opted-in to all?).
+
+**G6. Account deletion / erasure (GDPR).** No event deletes a Datamailer contact +
+memberships + preferences when a learner deletes their account or requests erasure.
+Required for EU learners.
+
+### Lower risk
+
+**G7. Score-metadata ↔ send ordering.** Scoring (§4.4/§4.8) pushes per-member
+metadata then sends the node; nothing guarantees all metadata landed (or none failed)
+before the send renders. Define ordering/consistency — e.g. send only after metadata
+writes are acked.
+
+**G8. "Enrolled" must be queryable.** We made enrolled *derived* ("member of
+`{course}` with ≥ 1 child"). If Datamailer can't express that query, enrolled is
+describable but not targetable.
+
+**G9. Course family vs cohort.** Nodes are per-cohort (`ml-zoomcamp-2026`); "everyone
+who ever did ML Zoomcamp" has no node and falls back to family tags. Document the
+tree/tag boundary.
+
+**G10. Volunteer / review-only participants** (reviewers who didn't submit a project)
+have no obvious node — decide where they live.
+
+**G11. Category taxonomy.** "Submission confirmation" and "results" share one category,
+and peer-review assignment is parked in it (see §7 Q3). Revisit before adding more
+result-type emails.
 
 ---
 
@@ -886,8 +1078,10 @@ Authorization: Bearer <DATAMAILER_API_KEY>
 ```
 
 List sends (score publication, peer-review assignment, deadline reminders) carry
-the current member snapshot in the same request and reconcile before sending
-(see Part 1, §3):
+the current member snapshot in the same request and reconcile before sending. This
+is the **current** mechanism; the target replaces the per-send reconcile with
+event-kept nodes — a send just names a node (Part 1, §3). The payload below is
+what the code does today:
 
 ```text
 POST /api/recipient-lists/{list_key}/transactional-send
