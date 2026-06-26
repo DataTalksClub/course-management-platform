@@ -226,7 +226,7 @@ ACCOUNT_AUTHENTICATION_METHOD = "username_email"
 ACCOUNT_EMAIL_REQUIRED = True
 
 LOGIN_REDIRECT_URL = "/"
-LOGIN_URL = "/login"
+LOGIN_URL = "/accounts/login/"
 
 AUTH_USER_MODEL = "accounts.CustomUser"
 

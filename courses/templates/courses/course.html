@@ -68,7 +68,7 @@
   {% if is_authenticated and course.first_homework_scored %}
     <div class="mt-6 flex items-baseline gap-2 text-sm">
       <span class="app-muted">Total score</span>
-      <span class="text-base font-semibold app-heading">{{ total_score }}</span>
+      <span class="text-base font-semibold app-heading">{{ total_score|default:"N/A" }}</span>
     </div>
   {% endif %}
 </section>
@@ -207,9 +207,13 @@
 {% endif %}
 
 <div class="mt-8 text-sm app-muted">
-  All deadlines are shown in your
-  <a href="{% url 'account_settings' %}#display-preferences-section"
-     class="app-link">account timezone</a>.
+  {% if is_authenticated %}
+    All deadlines are shown in your
+    <a href="{% url 'account_settings' %}#display-preferences-section"
+       class="app-link">account timezone</a>.
+  {% else %}
+    All deadlines are shown in your timezone.
+  {% endif %}
   <a href="{% url 'course_calendar' course.slug %}" class="app-link">Calendar feed</a>
 </div>
 {% endblock %}

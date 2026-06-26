@@ -122,6 +122,11 @@ class AccountSettingsTestCase(TestCase):
     def test_account_settings_requires_login(self):
         response = self.client.get(reverse("account_settings"))
         self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            response.url.startswith(
+                f"{reverse('login')}?next={reverse('account_settings')}"
+            )
+        )
 
     def test_account_settings_shows_user_and_enrolled_courses(self):
         self.client.force_login(self.user)

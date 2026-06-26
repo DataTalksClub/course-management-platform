@@ -222,10 +222,10 @@ class CourseDetailViewTests(TestCase):
         self.assertNotContains(response, "primer-button\">Calendar feed")
         self.assertContains(
             response,
-            "All deadlines are shown in your",
+            "All deadlines are shown in your timezone.",
         )
-        self.assertContains(response, "account timezone")
-        self.assertContains(
+        self.assertNotContains(response, "account timezone")
+        self.assertNotContains(
             response,
             f'{reverse("account_settings")}#display-preferences-section',
         )
@@ -335,6 +335,11 @@ class CourseDetailViewTests(TestCase):
 
         self.assertEqual(context["total_score"], total_score)
         self.assertTrue(context["has_enrollment"])
+        self.assertContains(response, "account timezone")
+        self.assertContains(
+            response,
+            f'{reverse("account_settings")}#display-preferences-section',
+        )
         self.assertContains(response, "Edit course profile")
         self.assertContains(
             response,
@@ -345,6 +350,8 @@ class CourseDetailViewTests(TestCase):
         # Test the view for an authenticated user
 
         self.enrollment.delete()
+        self.course.first_homework_scored = True
+        self.course.save(update_fields=["first_homework_scored"])
 
         self.client.login(**credentials)
 
@@ -391,6 +398,9 @@ class CourseDetailViewTests(TestCase):
 
         self.assertIsNone(context["total_score"])
         self.assertFalse(context["has_enrollment"])
+        self.assertContains(response, "Total score")
+        self.assertContains(response, "N/A")
+        self.assertNotContains(response, "None")
         self.assertNotContains(response, "Edit course profile")
         self.assertNotContains(
             response,
