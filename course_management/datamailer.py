@@ -967,6 +967,34 @@ def sync_project_submission_to_datamailer(submission) -> None:
     )
 
 
+def sync_project_passed_outcome_to_datamailer(submission) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    outcome_payload = project_passed_recipient_list_member_payload(submission)
+    if submission.passed:
+        _sync_contact_and_membership(
+            config,
+            contact_payload_for_user(
+                submission.student, course=submission.project.course
+            ),
+            outcome_payload,
+            label="project passed outcome",
+            id_field="submission_id",
+            obj=submission,
+        )
+        return
+
+    _remove_recipient_list_memberships(
+        config,
+        [outcome_payload],
+        label="project passed outcome",
+        id_field="submission_id",
+        obj=submission,
+    )
+
+
 def recipient_list_send_member_payload(
     source_object_key: str,
     payload: dict[str, Any],
@@ -1810,7 +1838,7 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
         )
         if passed_list_payload is not None:
             passed_list_key, passed_payload = passed_list_payload
-            client.reconcile_recipient_list_members(
+            client.bulk_upsert_recipient_list_members(
                 passed_list_key,
                 recipient_list_member_sync_payload(config, passed_payload),
             )

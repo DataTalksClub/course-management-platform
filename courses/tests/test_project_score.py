@@ -1,6 +1,7 @@
 import logging
 
 import random
+from unittest.mock import patch
 
 from django.urls import reverse
 from django.test import TestCase, Client
@@ -414,6 +415,21 @@ class ProjectEvaluationTestCase(TestCase):
             expected_project_score
             + 3 * self.project.points_for_peer_review,
         )
+
+    @patch("courses.projects._sync_scored_project_submission_to_datamailer")
+    def test_project_scoring_syncs_datamailer_after_commit(self, sync):
+        other_prs = self.create_reverse_assignments(self.peer_reviews)
+        self.submit_peer_review(other_prs[0], "4")
+        self.submit_peer_review(other_prs[1], "3")
+        self.submit_peer_review(other_prs[2], "3")
+        answers_and_scores = [("4", 3), ("4", 3), ("3", 2)]
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assert_evaluation_score(answers_and_scores, 3)
+
+        self.assertEqual(sync.call_count, 4)
+        synced_submission_ids = {call.args[0].pk for call in sync.call_args_list}
+        self.assertIn(self.submission.pk, synced_submission_ids)
 
     def test_project_not_passed(self):
         # 3 peers evaluated

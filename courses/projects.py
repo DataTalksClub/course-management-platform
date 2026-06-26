@@ -14,6 +14,10 @@ import statistics
 from django.db import transaction
 from django.utils import timezone
 
+from course_management.datamailer import (
+    sync_project_passed_outcome_to_datamailer,
+    sync_project_submission_to_datamailer,
+)
 from course_management.deadlines import ceil_to_next_hour
 
 from courses.models import (
@@ -356,6 +360,11 @@ def _score_submission(submission, project, reviews, reviewed, criteria):
     return scores
 
 
+def _sync_scored_project_submission_to_datamailer(submission):
+    sync_project_submission_to_datamailer(submission)
+    sync_project_passed_outcome_to_datamailer(submission)
+
+
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
@@ -418,6 +427,14 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 "passed",
             ],
         )
+        for submission in submissions_to_update:
+            transaction.on_commit(
+                lambda submission=submission: (
+                    _sync_scored_project_submission_to_datamailer(
+                        submission
+                    )
+                )
+            )
 
         scores_to_delete = ProjectEvaluationScore.objects.filter(
             submission_id__in=submissions.keys()
