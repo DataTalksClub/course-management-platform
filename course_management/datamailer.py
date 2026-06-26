@@ -231,6 +231,20 @@ class DatamailerClient:
             json=payload,
         )
 
+    def remove_recipient_list_member(
+        self,
+        list_key: str,
+        source_object_key: str,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "DELETE",
+            f"/api/recipient-lists/{list_key}/members/{source_object_key}",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
     def bulk_upsert_recipient_list_members(
         self,
         list_key: str,

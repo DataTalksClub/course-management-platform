@@ -209,10 +209,9 @@ def _send_event(client, event_type: str, payload: dict[str, Any]):
         )
 
     if event_type == "recipient_list.member_remove":
-        return client.upsert_recipient_list_member(
+        return client.remove_recipient_list_member(
             payload["list_key"],
             payload["source_object_key"],
-            payload["member_payload"],
         )
 
     if event_type == "contact.erase":

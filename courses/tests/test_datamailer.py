@@ -308,6 +308,37 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_recipient_list_member_remove_uses_expected_endpoint_and_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"ok": true}')
+        response.json.return_value = {"ok": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.remove_recipient_list_member(
+            "ml-zoomcamp-2026",
+            "registration:42",
+        )
+
+        self.assertEqual(result, {"ok": True})
+        session.request.assert_called_once_with(
+            "DELETE",
+            "https://datamailer.example.com/api/recipient-lists/ml-zoomcamp-2026/members/registration:42",
+            json={"audience": "dtc-courses", "client": "dtc-courses"},
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
     def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
         config = DatamailerConfig(
             url="https://datamailer.example.com",
@@ -1404,11 +1435,11 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
     )
-    def test_remove_registration_marks_registrant_member_removed(
+    def test_remove_registration_deletes_registrant_member(
         self,
-        upsert_member,
+        remove_member,
     ):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -1429,14 +1460,14 @@ class DatamailerClientTest(TestCase):
 
         remove_registration_from_datamailer(registration)
 
-        upsert_member.assert_called_once()
+        remove_member.assert_called_once()
         self.assertEqual(
-            upsert_member.call_args.args[0],
+            remove_member.call_args.args[0],
             registration_list_key(registration),
         )
         self.assertEqual(
-            upsert_member.call_args.args[2]["member"]["status"],
-            "removed",
+            remove_member.call_args.args[1],
+            f"registration:{registration.pk}",
         )
         event = DatamailerOutboxEvent.objects.get()
         self.assertEqual(
@@ -1454,11 +1485,11 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
     )
     def test_remove_enrollment_removes_enrolled_and_graduate_members(
         self,
-        upsert_member,
+        remove_member,
     ):
         user = CustomUser.objects.create_user(
             username="student",
@@ -1477,22 +1508,27 @@ class DatamailerClientTest(TestCase):
 
         remove_enrollment_from_datamailer(enrollment)
 
-        self.assertEqual(upsert_member.call_count, 2)
-        list_keys = [call.args[0] for call in upsert_member.call_args_list]
+        self.assertEqual(remove_member.call_count, 2)
+        list_keys = [call.args[0] for call in remove_member.call_args_list]
         self.assertEqual(
             list_keys,
             [course_enrolled_list_key(course), course_graduates_list_key(course)],
         )
-        for call in upsert_member.call_args_list:
-            self.assertEqual(call.args[2]["member"]["status"], "removed")
+        source_object_keys = [
+            call.args[1] for call in remove_member.call_args_list
+        ]
+        self.assertEqual(
+            source_object_keys,
+            [f"user:{user.pk}", f"enrollment:{enrollment.pk}"],
+        )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
     )
-    def test_remove_homework_submission_marks_submitter_member_removed(
+    def test_remove_homework_submission_deletes_submitter_member(
         self,
-        upsert_member,
+        remove_member,
     ):
         user = CustomUser.objects.create_user(
             username="student",
@@ -1521,23 +1557,23 @@ class DatamailerClientTest(TestCase):
 
         remove_homework_submission_from_datamailer(submission)
 
-        upsert_member.assert_called_once()
+        remove_member.assert_called_once()
         self.assertEqual(
-            upsert_member.call_args.args[0],
+            remove_member.call_args.args[0],
             homework_submitters_list_key(homework),
         )
         self.assertEqual(
-            upsert_member.call_args.args[2]["member"]["status"],
-            "removed",
+            remove_member.call_args.args[1],
+            f"homework-submission:{submission.pk}",
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
     )
     def test_remove_project_submission_removes_submitter_and_passed_members(
         self,
-        upsert_member,
+        remove_member,
     ):
         user = CustomUser.objects.create_user(
             username="student",
@@ -1570,14 +1606,14 @@ class DatamailerClientTest(TestCase):
 
         remove_project_submission_from_datamailer(submission)
 
-        self.assertEqual(upsert_member.call_count, 2)
-        list_keys = [call.args[0] for call in upsert_member.call_args_list]
+        self.assertEqual(remove_member.call_count, 2)
+        list_keys = [call.args[0] for call in remove_member.call_args_list]
         self.assertEqual(
             list_keys,
             [project_submitters_list_key(project), project_passed_list_key(project)],
         )
-        for call in upsert_member.call_args_list:
-            self.assertEqual(call.args[2]["member"]["status"], "removed")
+        for call in remove_member.call_args_list:
+            self.assertEqual(call.args[1], f"project-submission:{submission.pk}")
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -2313,11 +2349,11 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
     )
     def test_sync_project_passed_outcome_removes_failed_member(
         self,
-        upsert_member,
+        remove_member,
     ):
         user = CustomUser.objects.create_user(
             username="student",
@@ -2349,13 +2385,15 @@ class DatamailerClientTest(TestCase):
 
         sync_project_passed_outcome_to_datamailer(submission)
 
-        upsert_member.assert_called_once()
+        remove_member.assert_called_once()
         self.assertEqual(
-            upsert_member.call_args.args[0],
+            remove_member.call_args.args[0],
             project_passed_list_key(project),
         )
-        payload = upsert_member.call_args.args[2]
-        self.assertEqual(payload["member"]["status"], "removed")
+        self.assertEqual(
+            remove_member.call_args.args[1],
+            f"project-submission:{submission.pk}",
+        )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
