@@ -36,7 +36,6 @@ class DeadlineReminderCommandTest(TestCase):
         username,
         email,
         *,
-        reminders=True,
         preferred_timezone="",
     ):
         user = CustomUser.objects.create_user(
@@ -44,9 +43,8 @@ class DeadlineReminderCommandTest(TestCase):
             email=email,
             password="password",
         )
-        user.email_deadline_reminders = reminders
         user.preferred_timezone = preferred_timezone
-        user.save(update_fields=["email_deadline_reminders", "preferred_timezone"])
+        user.save(update_fields=["preferred_timezone"])
         return user
 
     def create_enrollment(self, user, course):
@@ -88,7 +86,6 @@ class DeadlineReminderCommandTest(TestCase):
         opted_out_user = self.create_user(
             "opted-out",
             "opted-out@example.com",
-            reminders=False,
         )
         eligible_enrollment = self.create_enrollment(
             eligible_user,
@@ -194,7 +191,6 @@ class DeadlineReminderCommandTest(TestCase):
         opted_out_user = self.create_user(
             "opted-out",
             "opted-out@example.com",
-            reminders=False,
         )
         self.create_enrollment(user, course)
         self.create_enrollment(opted_out_user, course)
@@ -274,7 +270,6 @@ class DeadlineReminderCommandTest(TestCase):
         opted_out_reviewer = self.create_user(
             "opted-out-reviewer",
             "opted-out-reviewer@example.com",
-            reminders=False,
         )
         author = self.create_user("author", "author@example.com")
         reviewer_enrollment = self.create_enrollment(reviewer, course)

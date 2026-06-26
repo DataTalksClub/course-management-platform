@@ -226,12 +226,10 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
 
     @patch("courses.views.homework.send_transactional_email")
-    def test_homework_submission_uses_datamailer_when_local_preference_off(
+    def test_homework_submission_uses_datamailer_without_local_preference(
         self,
         send_email,
     ):
-        self.user.email_submission_confirmations = False
-        self.user.save(update_fields=["email_submission_confirmations"])
         url = reverse(
             "homework",
             args=[self.course.slug, self.homework.slug],

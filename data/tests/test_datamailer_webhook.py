@@ -83,7 +83,6 @@ class DatamailerWebhookTest(TestCase):
             email="student@example.com",
             password="password",
         )
-        self.assertTrue(user.email_deadline_reminders)
 
         response = self.post_event(
             {
@@ -98,7 +97,6 @@ class DatamailerWebhookTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["preference_updated"])
         user.refresh_from_db()
-        self.assertTrue(user.email_deadline_reminders)
         event = DatamailerContactEvent.objects.get()
         self.assertEqual(event.preference_key, "email_deadline_reminders")
 
@@ -111,7 +109,6 @@ class DatamailerWebhookTest(TestCase):
             email="student@example.com",
             password="password",
         )
-        self.assertTrue(user.email_course_updates)
 
         response = self.post_event(
             {
@@ -128,7 +125,6 @@ class DatamailerWebhookTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["preference_updated"])
         user.refresh_from_db()
-        self.assertTrue(user.email_course_updates)
         event = DatamailerContactEvent.objects.get()
         self.assertEqual(event.preference_key, "email_course_updates")
 
@@ -182,7 +178,6 @@ class DatamailerWebhookTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["preference_updated"])
         user.refresh_from_db()
-        self.assertTrue(user.email_course_updates)
         self.assertEqual(DatamailerContactEvent.objects.count(), 1)
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
@@ -257,8 +252,6 @@ class DatamailerWebhookTest(TestCase):
             email="student@example.com",
             password="password",
         )
-        user.email_course_updates = False
-        user.save(update_fields=["email_course_updates"])
 
         response = self.post_event(
             {
@@ -272,4 +265,5 @@ class DatamailerWebhookTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["preference_updated"])
         user.refresh_from_db()
-        self.assertFalse(user.email_course_updates)
+        event = DatamailerContactEvent.objects.get()
+        self.assertEqual(event.preference_key, "email_course_updates")

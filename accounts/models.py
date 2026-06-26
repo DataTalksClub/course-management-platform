@@ -69,34 +69,6 @@ class CustomUser(AbstractUser):
             "notification emails."
         ),
     )
-    email_submission_confirmations = models.BooleanField(
-        verbose_name="Submission confirmations",
-        default=True,
-        help_text=(
-            "Receive homework and project submission emails with a copy "
-            "of submitted results."
-        ),
-    )
-    email_deadline_reminders = models.BooleanField(
-        verbose_name="Deadline reminders",
-        default=True,
-        help_text=(
-            "Receive reminder emails when homework or peer review "
-            "deadlines are within 24 hours and you have not submitted, "
-            "plus project reminders one week before and one day before "
-            "the deadline when you have not submitted. Peer review "
-            "reminders are sent when assigned reviews are unfinished."
-        ),
-    )
-    email_course_updates = models.BooleanField(
-        verbose_name="General course-related emails",
-        default=True,
-        help_text=(
-            "Receive general course and workshop emails, such as course "
-            "start announcements and workshop start announcements."
-        ),
-    )
-
     def __str__(self):
         # safest is to display something stable
         return self.username or self.email or str(self.pk)

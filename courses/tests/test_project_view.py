@@ -452,15 +452,13 @@ class ProjectViewTestCase(TestCase):
     )
     @mock.patch("requests.head")
     @mock.patch("requests.get")
-    def test_project_submission_uses_datamailer_when_local_preference_off(
+    def test_project_submission_uses_datamailer_without_local_preference(
         self, mock_get, mock_head, sync_submission, send_email
     ):
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_get.return_value = mock_response
         mock_head.return_value = mock_response
-        self.user.email_submission_confirmations = False
-        self.user.save(update_fields=["email_submission_confirmations"])
 
         self.client.login(**credentials)
         url = reverse(

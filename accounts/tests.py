@@ -161,9 +161,6 @@ class AccountSettingsTestCase(TestCase):
                 "personal_website_url": "https://student.example.com",
                 "about_me": "Learning data.",
                 "dark_mode": "on",
-                "email_submission_confirmations": "on",
-                "email_deadline_reminders": "on",
-                "email_course_updates": "on",
             },
         )
 
@@ -182,9 +179,6 @@ class AccountSettingsTestCase(TestCase):
         )
         self.assertEqual(self.user.about_me, "Learning data.")
         self.assertFalse(self.user.dark_mode)
-        self.assertTrue(self.user.email_submission_confirmations)
-        self.assertTrue(self.user.email_deadline_reminders)
-        self.assertTrue(self.user.email_course_updates)
 
     @patch("accounts.views.update_email_preferences_for_user")
     def test_account_email_preferences_update_proxies_to_datamailer(
@@ -192,16 +186,6 @@ class AccountSettingsTestCase(TestCase):
         update_email_preferences,
     ):
         update_email_preferences.return_value = True
-        self.user.email_submission_confirmations = True
-        self.user.email_deadline_reminders = True
-        self.user.email_course_updates = True
-        self.user.save(
-            update_fields=[
-                "email_submission_confirmations",
-                "email_deadline_reminders",
-                "email_course_updates",
-            ]
-        )
         self.client.force_login(self.user)
 
         response = self.client.post(
@@ -222,10 +206,6 @@ class AccountSettingsTestCase(TestCase):
             self.user,
             {"email_deadline_reminders": False},
         )
-        self.user.refresh_from_db()
-        self.assertTrue(self.user.email_submission_confirmations)
-        self.assertTrue(self.user.email_deadline_reminders)
-        self.assertTrue(self.user.email_course_updates)
 
     @patch("accounts.views.get_email_preferences_for_user")
     def test_account_email_preferences_read_proxies_to_datamailer(
@@ -272,21 +252,14 @@ class AccountSettingsTestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         get_email_preferences.assert_not_called()
-        self.assertNotIn("email_submission_confirmations", response.context["form"].fields)
-
-    def test_account_settings_profile_save_preserves_toggle_preferences(self):
-        self.user.dark_mode = True
-        self.user.email_submission_confirmations = False
-        self.user.email_deadline_reminders = False
-        self.user.email_course_updates = False
-        self.user.save(
-            update_fields=[
-                "dark_mode",
-                "email_submission_confirmations",
-                "email_deadline_reminders",
-                "email_course_updates",
-            ]
+        self.assertNotIn(
+            "email_submission_confirmations",
+            response.context["form"].fields,
         )
+
+    def test_account_settings_profile_save_preserves_dark_mode_toggle(self):
+        self.user.dark_mode = True
+        self.user.save(update_fields=["dark_mode"])
         self.client.force_login(self.user)
 
         response = self.client.post(
@@ -303,9 +276,15 @@ class AccountSettingsTestCase(TestCase):
         self.assertRedirects(response, reverse("account_settings"))
         self.user.refresh_from_db()
         self.assertTrue(self.user.dark_mode)
-        self.assertFalse(self.user.email_submission_confirmations)
-        self.assertFalse(self.user.email_deadline_reminders)
-        self.assertFalse(self.user.email_course_updates)
+
+    def test_custom_user_does_not_store_email_preference_fields(self):
+        field_names = {
+            field.name for field in CustomUser._meta.get_fields()
+        }
+
+        self.assertNotIn("email_submission_confirmations", field_names)
+        self.assertNotIn("email_deadline_reminders", field_names)
+        self.assertNotIn("email_course_updates", field_names)
 
     def test_account_settings_shows_email_preference_categories(self):
         self.client.force_login(self.user)
@@ -407,9 +386,6 @@ class AccountSettingsTestCase(TestCase):
                 "personal_website_url": "",
                 "about_me": "",
                 "dark_mode": "",
-                "email_submission_confirmations": "on",
-                "email_deadline_reminders": "on",
-                "email_course_updates": "on",
             },
         )
 

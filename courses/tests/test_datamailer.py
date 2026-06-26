@@ -1731,7 +1731,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(member["metadata"]["total_score"], 9)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    def test_homework_score_notification_includes_local_opted_out_students(self):
+    def test_homework_score_notification_includes_submitters(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -1747,7 +1747,6 @@ class DatamailerClientTest(TestCase):
             username="learner@example.com",
             email="learner@example.com",
             password="test",
-            email_submission_confirmations=False,
         )
         enrollment = Enrollment.objects.create(
             student=user,
@@ -1991,7 +1990,6 @@ class DatamailerClientTest(TestCase):
             username="passed@example.com",
             email="passed@example.com",
             password="test",
-            email_submission_confirmations=False,
         )
         failed_user = CustomUser.objects.create_user(
             username="failed@example.com",
@@ -2153,7 +2151,7 @@ class DatamailerClientTest(TestCase):
             self.assertTrue(item["eval_url"].startswith("https://"))
 
     @override_settings(**DATAMAILER_SETTINGS)
-    def test_project_score_notification_includes_local_opted_out_students(self):
+    def test_project_score_notification_includes_submitters(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -2170,7 +2168,6 @@ class DatamailerClientTest(TestCase):
             username="project-learner@example.com",
             email="project-learner@example.com",
             password="test",
-            email_submission_confirmations=False,
         )
         enrollment = Enrollment.objects.create(
             student=user,
@@ -2483,7 +2480,6 @@ class DatamailerClientTest(TestCase):
         user = CustomUser.objects.create(
             email="student@example.com",
             username="student",
-            email_course_updates=False,
         )
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
