@@ -556,6 +556,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["subject"], "Course starts")
         self.assertEqual(payload["text_body"], "Hello learners")
         self.assertEqual(payload["html_body"], "")
+        self.assertEqual(payload["category_tag"], "course-updates")
         self.assertEqual(payload["include_tags"], ["course-ml-zoomcamp"])
         self.assertEqual(payload["exclude_tags"], ["course-ml-zoomcamp-alumni"])
         self.assertEqual(
@@ -585,6 +586,20 @@ class DatamailerClientTest(TestCase):
                 "course-start-2026",
                 "--subject",
                 "Course starts",
+            )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_datamailer_campaign_command_requires_category_tag(self):
+        with self.assertRaisesMessage(CommandError, "--category-tag is required."):
+            call_command(
+                "datamailer_campaign",
+                "course-start-2026",
+                "--subject",
+                "Course starts",
+                "--text",
+                "Hello learners",
+                "--category-tag",
+                "",
             )
 
     @override_settings(**DATAMAILER_SETTINGS)

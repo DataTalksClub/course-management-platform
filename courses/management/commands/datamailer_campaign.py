@@ -47,12 +47,16 @@ def campaign_payload(options):
     subject = options["subject"].strip()
     if not subject:
         raise CommandError("--subject is required.")
+    category_tag = options["category_tag"].strip()
+    if not category_tag:
+        raise CommandError("--category-tag is required.")
 
     payload = {
         "subject": subject,
         "preview_text": options["preview_text"],
         "html_body": html_body,
         "text_body": text_body,
+        "category_tag": category_tag,
         "include_tags": options["include_tag"],
         "exclude_tags": options["exclude_tag"],
         "metadata": parse_metadata(options["metadata"]),
@@ -96,6 +100,11 @@ class Command(BaseCommand):
             action="append",
             default=[],
             help="Datamailer tag to exclude. May be used more than once.",
+        )
+        parser.add_argument(
+            "--category-tag",
+            default="course-updates",
+            help="Datamailer preference category for this campaign.",
         )
         parser.add_argument(
             "--metadata",
