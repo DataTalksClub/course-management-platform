@@ -1833,6 +1833,161 @@ class DatamailerClientTest(TestCase):
             "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
         )
 
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+    )
+    def test_recipient_list_backfill_command_reconciles_project_passed_outcomes(
+        self,
+        reconcile,
+    ):
+        reconcile.return_value = {
+            "recipient_list": {
+                "active_member_count": 1,
+            },
+        }
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        passed_user = CustomUser.objects.create_user(
+            username="passed@example.com",
+            email="passed@example.com",
+            password="test",
+        )
+        failed_user = CustomUser.objects.create_user(
+            username="failed@example.com",
+            email="failed@example.com",
+            password="test",
+        )
+        passed_enrollment = Enrollment.objects.create(
+            student=passed_user,
+            course=course,
+        )
+        failed_enrollment = Enrollment.objects.create(
+            student=failed_user,
+            course=course,
+        )
+        passed_submission = ProjectSubmission.objects.create(
+            project=project,
+            student=passed_user,
+            enrollment=passed_enrollment,
+            github_link="https://github.com/example/passed",
+            total_score=98,
+            passed=True,
+        )
+        ProjectSubmission.objects.create(
+            project=project,
+            student=failed_user,
+            enrollment=failed_enrollment,
+            github_link="https://github.com/example/failed",
+            total_score=50,
+            passed=False,
+        )
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "project-passed",
+            "--project-slug",
+            project.slug,
+            "--reconcile",
+            stdout=out,
+        )
+
+        reconcile.assert_called_once()
+        self.assertEqual(
+            reconcile.call_args.args[0],
+            project_passed_list_key(project),
+        )
+        payload = reconcile.call_args.args[1]
+        self.assertEqual(payload["list"]["metadata"]["outcome"], "project_passed")
+        self.assertEqual(len(payload["members"]), 1)
+        self.assertEqual(
+            payload["members"][0]["source_object_key"],
+            f"project-submission:{passed_submission.pk}",
+        )
+        self.assertIn(
+            "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
+    def test_recipient_list_backfill_command_bulk_upserts_graduates(
+        self,
+        bulk_upsert,
+    ):
+        bulk_upsert.return_value = {
+            "recipient_list": {
+                "active_member_count": 1,
+            },
+        }
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        no_certificate_user = CustomUser.objects.create_user(
+            username="no-certificate",
+            email="no-certificate@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+            total_score=91,
+            certificate_url="/certificates/student.pdf",
+        )
+        Enrollment.objects.create(
+            student=no_certificate_user,
+            course=course,
+            certificate_url="",
+        )
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "graduates",
+            "--course-slug",
+            course.slug,
+            stdout=out,
+        )
+
+        bulk_upsert.assert_called_once()
+        self.assertEqual(
+            bulk_upsert.call_args.args[0],
+            course_graduates_list_key(course),
+        )
+        payload = bulk_upsert.call_args.args[1]
+        self.assertEqual(payload["list"]["metadata"]["outcome"], "course_graduated")
+        self.assertEqual(len(payload["members"]), 1)
+        self.assertEqual(
+            payload["members"][0]["source_object_key"],
+            f"enrollment:{enrollment.pk}",
+        )
+        self.assertIn(
+            "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
+        )
+
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"

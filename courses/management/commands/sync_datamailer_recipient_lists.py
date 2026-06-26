@@ -6,14 +6,17 @@ from django.core.management.base import BaseCommand, CommandError
 from course_management.datamailer import (
     DatamailerClient,
     DatamailerConfig,
+    course_graduate_recipient_list_payload,
     enrollment_recipient_list_payload,
     homework_submission_recipient_list_payload,
+    project_passed_recipient_list_payload,
     project_submission_recipient_list_payload,
     registration_recipient_list_payload,
 )
 from courses.models import (
     CourseRegistration,
     Enrollment,
+    Project,
     ProjectSubmission,
     Submission,
 )
@@ -39,6 +42,19 @@ def add_member_to_batches(
             "metadata": payload["member"]["metadata"],
         }
     )
+
+
+def add_payload_members_to_batches(batches, list_key, payload):
+    batch = batches.setdefault(
+        list_key,
+        {
+            "audience": payload["audience"],
+            "client": payload["client"],
+            "list": payload["list"],
+            "members": [],
+        },
+    )
+    batch["members"].extend(payload["members"])
 
 
 def registration_queryset(course_slug):
@@ -86,6 +102,39 @@ def project_submission_queryset(course_slug, project_slug):
     return queryset
 
 
+def project_queryset(course_slug, project_slug):
+    queryset = ProjectSubmission.objects.select_related(
+        "project",
+        "project__course",
+    ).filter(passed=True)
+    if course_slug:
+        queryset = queryset.filter(project__course__slug=course_slug)
+    if project_slug:
+        queryset = queryset.filter(project__slug=project_slug)
+    project_ids = (
+        queryset.order_by("project_id")
+        .values_list("project_id", flat=True)
+        .distinct()
+    )
+    return (
+        Project.objects.filter(pk__in=project_ids)
+        .select_related("course")
+        .order_by("pk")
+    )
+
+
+def graduates_queryset(course_slug):
+    queryset = (
+        Enrollment.objects.select_related("student", "course")
+        .exclude(certificate_url__isnull=True)
+        .exclude(certificate_url="")
+        .order_by("pk")
+    )
+    if course_slug:
+        queryset = queryset.filter(course__slug=course_slug)
+    return queryset
+
+
 # kind -> (queryset(course_slug, homework_slug, project_slug), payload_builder)
 _RECIPIENT_LIST_SOURCES = {
     "registrations": (
@@ -104,6 +153,14 @@ _RECIPIENT_LIST_SOURCES = {
         lambda c, h, p: project_submission_queryset(c, p),
         project_submission_recipient_list_payload,
     ),
+    "project-passed": (
+        lambda c, h, p: project_queryset(c, p),
+        project_passed_recipient_list_payload,
+    ),
+    "graduates": (
+        lambda c, h, p: graduates_queryset(c),
+        course_graduate_recipient_list_payload,
+    ),
 }
 
 
@@ -120,10 +177,14 @@ def build_batches(
         item = payload_for(obj)
         if item is None:
             continue
-        list_key, source_object_key, payload = item
-        add_member_to_batches(
-            batches, list_key, source_object_key, payload
-        )
+        if len(item) == 2:
+            list_key, payload = item
+            add_payload_members_to_batches(batches, list_key, payload)
+        else:
+            list_key, source_object_key, payload = item
+            add_member_to_batches(
+                batches, list_key, source_object_key, payload
+            )
     return batches
 
 
@@ -138,6 +199,8 @@ class Command(BaseCommand):
                 "enrollments",
                 "homework",
                 "project",
+                "project-passed",
+                "graduates",
             ],
             help="CMP source to sync into Datamailer recipient lists.",
         )
@@ -180,9 +243,9 @@ class Command(BaseCommand):
             raise CommandError(
                 "--homework-slug can only be used with kind=homework."
             )
-        if kind != "project" and options["project_slug"]:
+        if kind not in {"project", "project-passed"} and options["project_slug"]:
             raise CommandError(
-                "--project-slug can only be used with kind=project."
+                "--project-slug can only be used with kind=project or kind=project-passed."
             )
 
         batches = build_batches(
