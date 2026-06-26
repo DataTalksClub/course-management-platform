@@ -237,8 +237,8 @@ asynchronously.
 Datamailer transactional template keys are stable code-level constants in CMP.
 Don't configure one environment variable per template.
 
-The CMP/Datamailer interaction protocol is documented in
-[`docs/datamailer-protocol.md`](docs/datamailer-protocol.md).
+The CMP/Datamailer integration — conceptual design and API reference — is
+documented in [`docs/datamailer-integration.md`](docs/datamailer-integration.md).
 
 ## API Data Access
 
