@@ -30,6 +30,22 @@ def generate_password(length=16):
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def choose_user(matches, email):
+    username_matches = [user for user in matches if user.username == email]
+    if len(username_matches) == 1:
+        return username_matches[0]
+
+    active_admins = [
+        user
+        for user in matches
+        if user.is_superuser and user.is_staff and user.is_active
+    ]
+    if len(active_admins) == 1:
+        return active_admins[0]
+
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--email", default="alexey@datatalks.club")
@@ -50,15 +66,23 @@ def main():
     else:
         matches = list(User.objects.filter(email=args.email))
         if len(matches) > 1:
-            print(f"Multiple users with email {args.email}:")
-            for u in matches:
-                print(
-                    f"  id={u.pk} username={u.username!r} "
-                    f"superuser={u.is_superuser} staff={u.is_staff} "
-                    f"active={u.is_active}"
-                )
-            print("\nRe-run with --user-id <id> to pick one.")
-            return
+            user = choose_user(matches, args.email)
+            if user is None:
+                print(f"Multiple users with email {args.email}:")
+                for u in matches:
+                    print(
+                        f"  id={u.pk} username={u.username!r} "
+                        f"superuser={u.is_superuser} staff={u.is_staff} "
+                        f"active={u.is_active}"
+                    )
+                print("\nRe-run with --user-id <id> to pick one.")
+                raise SystemExit(1)
+
+            print(
+                f"Multiple users with email {args.email}; selected "
+                f"id={user.pk} username={user.username!r}."
+            )
+            created = False
         elif len(matches) == 1:
             user = matches[0]
             created = False
