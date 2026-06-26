@@ -5,7 +5,6 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from course_management.datamailer import sync_registration_to_datamailer
-from course_management.mailchimp import sync_registration_to_mailchimp
 from courses.models import (
     CourseRegistration,
     Homework,
@@ -59,9 +58,6 @@ def registration_campaign_view(
         )
         if form.is_valid():
             registration = form.save()
-            transaction.on_commit(
-                lambda: sync_registration_to_mailchimp(registration)
-            )
             transaction.on_commit(
                 lambda: sync_registration_to_datamailer(registration)
             )

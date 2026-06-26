@@ -400,12 +400,12 @@ class RegistrationCampaignPublicTests(TestCase):
         DATAMAILER_CLIENT="dtc-courses",
         DATAMAILER_AUDIENCE="dtc-courses",
     )
+    @patch("course_management.mailchimp.MailchimpClient.upsert_member")
     @patch("courses.views.registration.sync_registration_to_datamailer")
-    @patch("courses.views.registration.sync_registration_to_mailchimp")
-    def test_registration_syncs_to_mailchimp_and_datamailer(
+    def test_registration_syncs_to_datamailer_only(
         self,
-        sync_mailchimp,
         sync_datamailer,
+        upsert_mailchimp,
     ):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
@@ -418,8 +418,12 @@ class RegistrationCampaignPublicTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
-        sync_mailchimp.assert_called_once_with(registration)
         sync_datamailer.assert_called_once_with(registration)
+        upsert_mailchimp.assert_not_called()
+        self.assertEqual(
+            registration.mailchimp_sync_status,
+            CourseRegistration.MailchimpSyncStatus.SKIPPED,
+        )
 
 
 class MailchimpRegistrationSyncTests(TestCase):
@@ -429,8 +433,7 @@ class MailchimpRegistrationSyncTests(TestCase):
     )
     @patch("course_management.mailchimp.MailchimpClient.add_member_tag")
     @patch("course_management.mailchimp.MailchimpClient.upsert_member")
-    def test_registration_sync_adds_selected_tag(self, upsert, add_tag):
-        upsert.return_value = ("subscriber-hash", {})
+    def test_registration_sync_hook_is_retired(self, upsert, add_tag):
         campaign = RegistrationCampaign.objects.create(
             slug="llm-zoomcamp",
             title="LLM Zoomcamp",
@@ -452,14 +455,12 @@ class MailchimpRegistrationSyncTests(TestCase):
 
         sync_registration_to_mailchimp(registration)
 
-        upsert.assert_called_once()
-        add_tag.assert_called_once_with(
-            "subscriber-hash", "llm-zoomcamp-2026"
-        )
+        upsert.assert_not_called()
+        add_tag.assert_not_called()
         registration.refresh_from_db()
         self.assertEqual(
             registration.mailchimp_sync_status,
-            CourseRegistration.MailchimpSyncStatus.SYNCED,
+            CourseRegistration.MailchimpSyncStatus.SKIPPED,
         )
         self.assertEqual(
             registration.mailchimp_tag_used, "llm-zoomcamp-2026"

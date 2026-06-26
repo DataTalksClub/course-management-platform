@@ -460,14 +460,12 @@ sequenceDiagram
     participant Browser
     participant CMP
     participant DB as CMP DB
-    participant MC as Mailchimp
     participant DM as Datamailer
 
     Browser->>CMP: Submit registration form
     CMP->>DB: Create CourseRegistration
     CMP-->>Browser: Success
     Note over CMP,DM: after commit (on_commit)
-    CMP->>MC: Upsert member + tag
     CMP->>DM: POST /api/contacts (subscribed, verified)
     CMP->>DM: PUT course-registrants:{course} member (registration:{id})
 ```
@@ -482,8 +480,9 @@ sequenceDiagram
 
 **Today (delta):** already emits the membership, but under the role-prefixed key
 `course-registrants:{course_slug}` (or `:{campaign_slug}` if no course is attached
-yet) — to be renamed to the path key `{course}` (gap #9). A parallel Mailchimp
-sync runs too, eventually retired once Datamailer is the single audience store.
+yet) — to be renamed to the path key `{course}` (gap #9). CMP no longer syncs new
+course registrations to Mailchimp; Datamailer is the only registration audience
+sync path.
 
 ### 4.2 Course enrollment
 
@@ -1495,8 +1494,8 @@ Core error codes:
 ## Contact sync
 
 CMP syncs contacts when it creates users, enrollments, and course registrations
-(conceptually §4.1–4.2). During rollout, CMP keeps the existing Mailchimp sync
-and also upserts the registrant into Datamailer.
+(conceptually §4.1–4.2). CMP no longer runs the old Mailchimp registration sync;
+it upserts registrants into Datamailer.
 
 ```text
 POST /api/contacts

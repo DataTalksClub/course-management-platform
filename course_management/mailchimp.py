@@ -1,15 +1,11 @@
 import hashlib
-import logging
 from dataclasses import dataclass
 from typing import Any
 
 import requests
 from django.conf import settings
-from django.utils import timezone
 
 from courses.models import CourseRegistration
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -84,73 +80,21 @@ class MailchimpClient:
 
 
 def sync_registration_to_mailchimp(registration: CourseRegistration) -> None:
-    config = MailchimpConfig.from_settings()
+    """Retired compatibility hook.
+
+    Datamailer owns course-registration audience sync. Keep this function
+    harmless while older manual scripts/imports still exist.
+    """
     tag = registration.campaign.selected_mailchimp_tag()
-
-    if config is None or not tag or not registration.accepted_newsletter:
-        registration.mailchimp_sync_status = (
-            CourseRegistration.MailchimpSyncStatus.SKIPPED
-        )
-        registration.mailchimp_tag_used = tag or ""
-        registration.mailchimp_error = ""
-        registration.save(
-            update_fields=[
-                "mailchimp_sync_status",
-                "mailchimp_tag_used",
-                "mailchimp_error",
-                "updated_at",
-            ]
-        )
-        return
-
-    client = MailchimpClient(config)
     registration.mailchimp_sync_status = (
-        CourseRegistration.MailchimpSyncStatus.PENDING
+        CourseRegistration.MailchimpSyncStatus.SKIPPED
     )
     registration.mailchimp_tag_used = tag
-    registration.save(
-        update_fields=[
-            "mailchimp_sync_status",
-            "mailchimp_tag_used",
-            "updated_at",
-        ]
-    )
-
-    try:
-        subscriber_hash, _response = client.upsert_member(
-            registration.email_normalized,
-            {"FNAME": registration.name[:255]},
-        )
-        client.add_member_tag(subscriber_hash, tag)
-    except requests.RequestException as exc:
-        logger.exception(
-            "Mailchimp registration sync failed for registration_id=%s",
-            registration.pk,
-        )
-        registration.mailchimp_sync_status = (
-            CourseRegistration.MailchimpSyncStatus.FAILED
-        )
-        registration.mailchimp_error = str(exc)
-        registration.save(
-            update_fields=[
-                "mailchimp_sync_status",
-                "mailchimp_error",
-                "updated_at",
-            ]
-        )
-        if config.strict:
-            raise
-        return
-
-    registration.mailchimp_sync_status = (
-        CourseRegistration.MailchimpSyncStatus.SYNCED
-    )
-    registration.mailchimp_synced_at = timezone.now()
     registration.mailchimp_error = ""
     registration.save(
         update_fields=[
             "mailchimp_sync_status",
-            "mailchimp_synced_at",
+            "mailchimp_tag_used",
             "mailchimp_error",
             "updated_at",
         ]
