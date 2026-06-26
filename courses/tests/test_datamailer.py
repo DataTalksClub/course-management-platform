@@ -342,6 +342,43 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_recipient_list_members_uses_expected_endpoint_and_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"members": []}')
+        response.json.return_value = {"members": []}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.recipient_list_members(
+            "ml-zoomcamp-2026:@e",
+            limit=500,
+        )
+
+        self.assertEqual(result, {"members": []})
+        session.request.assert_called_once_with(
+            "GET",
+            "https://datamailer.example.com/api/recipient-lists/ml-zoomcamp-2026:@e/members",
+            json=None,
+            params={
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "include_removed": "false",
+                "limit": 500,
+            },
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
     def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
         config = DatamailerConfig(
             url="https://datamailer.example.com",
@@ -2887,6 +2924,129 @@ class DatamailerClientTest(TestCase):
         self.assertIn(
             "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
         )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_members"
+    )
+    def test_recipient_list_audit_reports_no_drift(
+        self,
+        recipient_list_members,
+        reconcile,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        list_key, source_object_key, payload = (
+            enrollment_recipient_list_payload(enrollment)
+        )
+        recipient_list_members.return_value = {
+            "has_more": False,
+            "members": [
+                {
+                    "source_object_key": source_object_key,
+                    "email": payload["member"]["email"],
+                    "status": "active",
+                    "metadata": payload["member"]["metadata"],
+                }
+            ],
+        }
+
+        out = StringIO()
+        call_command(
+            "audit_datamailer_recipient_lists",
+            "enrollments",
+            "--course-slug",
+            course.slug,
+            stdout=out,
+        )
+
+        recipient_list_members.assert_called_once_with(
+            list_key,
+            include_removed=False,
+            limit=10000,
+        )
+        reconcile.assert_not_called()
+        output = out.getvalue()
+        self.assertIn("missing=0 unexpected=0", output)
+        self.assertIn("drifted=0", output)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_members"
+    )
+    def test_recipient_list_audit_can_repair_drift(
+        self,
+        recipient_list_members,
+        reconcile,
+    ):
+        reconcile.return_value = {"upsert_count": 1, "removed_count": 1}
+        recipient_list_members.return_value = {
+            "has_more": False,
+            "members": [
+                {
+                    "source_object_key": "user:999",
+                    "email": "old@example.com",
+                    "status": "active",
+                    "metadata": {},
+                }
+            ],
+        }
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        list_key, source_object_key, _payload = (
+            enrollment_recipient_list_payload(enrollment)
+        )
+
+        out = StringIO()
+        call_command(
+            "audit_datamailer_recipient_lists",
+            "enrollments",
+            "--course-slug",
+            course.slug,
+            "--repair",
+            stdout=out,
+        )
+
+        reconcile.assert_called_once()
+        self.assertEqual(reconcile.call_args.args[0], list_key)
+        repaired_payload = reconcile.call_args.args[1]
+        self.assertEqual(
+            repaired_payload["members"][0]["source_object_key"],
+            source_object_key,
+        )
+        output = out.getvalue()
+        self.assertIn(f"missing: {source_object_key}", output)
+        self.assertIn("unexpected: user:999", output)
+        self.assertIn(f"Repaired {list_key}: upserted=1 removed=1", output)
+        self.assertIn("drifted=1", output)
 
     @override_settings(
         **DATAMAILER_SETTINGS,

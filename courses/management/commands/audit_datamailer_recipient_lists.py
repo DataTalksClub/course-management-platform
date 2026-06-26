@@ -1,0 +1,226 @@
+import requests
+from django.core.management.base import BaseCommand, CommandError
+
+from course_management.datamailer import DatamailerClient, DatamailerConfig
+from courses.management.commands.sync_datamailer_recipient_lists import (
+    build_batches,
+)
+
+RECIPIENT_LIST_KINDS = [
+    "registrations",
+    "enrollments",
+    "homework",
+    "project",
+    "project-passed",
+    "graduates",
+]
+
+
+class Command(BaseCommand):
+    help = "Compare CMP recipient-list source data with Datamailer active members."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "kind",
+            choices=RECIPIENT_LIST_KINDS,
+            help="CMP source to audit against Datamailer recipient lists.",
+        )
+        parser.add_argument(
+            "--course-slug",
+            default="",
+            help="Limit the audit to one course cohort slug.",
+        )
+        parser.add_argument(
+            "--homework-slug",
+            default="",
+            help="Limit homework audit to one homework slug.",
+        )
+        parser.add_argument(
+            "--project-slug",
+            default="",
+            help="Limit project audit to one project slug.",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=10000,
+            help="Maximum Datamailer members to fetch per list.",
+        )
+        parser.add_argument(
+            "--repair",
+            action="store_true",
+            help="Repair drift by reconciling Datamailer to the CMP snapshot.",
+        )
+        parser.add_argument(
+            "--fail-on-drift",
+            action="store_true",
+            help="Exit with an error if any drift is detected.",
+        )
+
+    def handle(self, *args, **options):
+        config = DatamailerConfig.from_settings()
+        if config is None:
+            raise CommandError(
+                "Datamailer is not configured. Set DATAMAILER_URL, "
+                "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
+            )
+
+        self._validate_options(options)
+        batches = build_batches(
+            options["kind"],
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
+        if not batches:
+            self.stdout.write(
+                "No Datamailer recipient-list members to audit."
+            )
+            return
+
+        client = DatamailerClient(config)
+        drift_count = 0
+        for list_key, payload in batches.items():
+            drift = self._audit_list(
+                client,
+                config,
+                list_key,
+                payload,
+                limit=options["limit"],
+                repair=options["repair"],
+            )
+            if drift["has_drift"]:
+                drift_count += 1
+
+        self.stdout.write(
+            f"Audited {len(batches)} recipient list(s); "
+            f"drifted={drift_count}."
+        )
+        if drift_count and options["fail_on_drift"]:
+            raise CommandError(
+                f"Datamailer recipient-list drift detected in {drift_count} list(s)."
+            )
+
+    def _validate_options(self, options):
+        kind = options["kind"]
+        if kind != "homework" and options["homework_slug"]:
+            raise CommandError(
+                "--homework-slug can only be used with kind=homework."
+            )
+        if kind not in {"project", "project-passed"} and options["project_slug"]:
+            raise CommandError(
+                "--project-slug can only be used with kind=project or kind=project-passed."
+            )
+        if options["limit"] <= 0 or options["limit"] > 10000:
+            raise CommandError("--limit must be between 1 and 10000.")
+
+    def _audit_list(self, client, config, list_key, payload, *, limit, repair):
+        try:
+            response = client.recipient_list_members(
+                list_key,
+                include_removed=False,
+                limit=limit,
+            )
+        except requests.RequestException as exc:
+            if config.strict:
+                raise
+            raise CommandError(
+                f"Datamailer member listing failed for {list_key}: {exc}"
+            ) from exc
+
+        if (response or {}).get("has_more"):
+            raise CommandError(
+                f"Datamailer returned more than {limit} active members for {list_key}; "
+                "rerun with a narrower course/item filter."
+            )
+
+        expected = expected_members(payload)
+        actual = actual_members(response or {})
+        drift = compare_members(expected, actual)
+        self._print_drift(list_key, expected, actual, drift)
+
+        if repair and drift["has_drift"]:
+            try:
+                repair_response = client.reconcile_recipient_list_members(
+                    list_key,
+                    payload,
+                )
+            except requests.RequestException as exc:
+                if config.strict:
+                    raise
+                raise CommandError(
+                    f"Datamailer repair failed for {list_key}: {exc}"
+                ) from exc
+            self.stdout.write(
+                "Repaired "
+                f"{list_key}: upserted={repair_response.get('upsert_count', 0)} "
+                f"removed={repair_response.get('removed_count', 0)}"
+            )
+        return drift
+
+    def _print_drift(self, list_key, expected, actual, drift):
+        self.stdout.write(
+            f"Audited {list_key}: expected={len(expected)} "
+            f"actual={len(actual)} missing={len(drift['missing'])} "
+            f"unexpected={len(drift['unexpected'])} "
+            f"email_mismatches={len(drift['email_mismatches'])} "
+            f"metadata_mismatches={len(drift['metadata_mismatches'])}"
+        )
+        for label in (
+            "missing",
+            "unexpected",
+            "email_mismatches",
+            "metadata_mismatches",
+        ):
+            if drift[label]:
+                self.stdout.write(f"{label}: {', '.join(drift[label])}")
+
+
+def expected_members(payload):
+    return {
+        member["source_object_key"]: {
+            "email": member["email"].strip().lower(),
+            "metadata": member.get("metadata") or {},
+        }
+        for member in payload["members"]
+        if member.get("status", "active") != "removed"
+    }
+
+
+def actual_members(response):
+    return {
+        member["source_object_key"]: {
+            "email": member["email"].strip().lower(),
+            "metadata": member.get("metadata") or {},
+        }
+        for member in response.get("members", [])
+        if member.get("status", "active") != "removed"
+    }
+
+
+def compare_members(expected, actual):
+    expected_keys = set(expected)
+    actual_keys = set(actual)
+    shared_keys = expected_keys & actual_keys
+    email_mismatches = sorted(
+        key for key in shared_keys if expected[key]["email"] != actual[key]["email"]
+    )
+    metadata_mismatches = sorted(
+        key
+        for key in shared_keys
+        if expected[key]["metadata"] != actual[key]["metadata"]
+    )
+    missing = sorted(expected_keys - actual_keys)
+    unexpected = sorted(actual_keys - expected_keys)
+    return {
+        "missing": missing,
+        "unexpected": unexpected,
+        "email_mismatches": email_mismatches,
+        "metadata_mismatches": metadata_mismatches,
+        "has_drift": bool(
+            missing
+            or unexpected
+            or email_mismatches
+            or metadata_mismatches
+        ),
+    }

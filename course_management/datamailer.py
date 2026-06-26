@@ -250,6 +250,24 @@ class DatamailerClient:
             },
         )
 
+    def recipient_list_members(
+        self,
+        list_key: str,
+        *,
+        include_removed: bool = False,
+        limit: int = 10000,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            f"/api/recipient-lists/{list_key}/members",
+            params={
+                "audience": self.config.audience,
+                "client": self.config.client,
+                "include_removed": "true" if include_removed else "false",
+                "limit": limit,
+            },
+        )
+
     def bulk_upsert_recipient_list_members(
         self,
         list_key: str,
