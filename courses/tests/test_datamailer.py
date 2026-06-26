@@ -306,6 +306,71 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+        cases = [
+            (
+                "create_recipient_list_import",
+                (
+                    "ml-zoomcamp-2026:@e",
+                    {
+                        "source_url": "https://storage.example.com/import.jsonl",
+                        "idempotency_key": "cmp-import-1",
+                    },
+                ),
+                "POST",
+                "/api/recipient-lists/ml-zoomcamp-2026:@e/imports",
+                {
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                    "source_url": "https://storage.example.com/import.jsonl",
+                    "idempotency_key": "cmp-import-1",
+                },
+                None,
+            ),
+            (
+                "recipient_list_import",
+                ("ml-zoomcamp-2026:@e", 42),
+                "GET",
+                "/api/recipient-lists/ml-zoomcamp-2026:@e/imports/42",
+                None,
+                {"audience": "dtc-courses", "client": "dtc-courses"},
+            ),
+        ]
+
+        for method_name, args, method, path, expected_json, expected_params in cases:
+            with self.subTest(method_name=method_name):
+                session = Mock()
+                response = Mock(content=b'{"ok": true}')
+                response.json.return_value = {"ok": True}
+                session.request.return_value = response
+                client = DatamailerClient(config, session=session)
+
+                result = getattr(client, method_name)(*args)
+
+                self.assertEqual(result, {"ok": True})
+                request_kwargs = {
+                    "json": expected_json,
+                    "timeout": 10,
+                    "headers": {
+                        "Authorization": "Bearer secret-token",
+                        "Content-Type": "application/json",
+                    },
+                }
+                if expected_params is not None:
+                    request_kwargs["params"] = expected_params
+                session.request.assert_called_once_with(
+                    method,
+                    f"https://datamailer.example.com{path}",
+                    **request_kwargs,
+                )
+                response.raise_for_status.assert_called_once()
+
     def test_recipient_list_transactional_send_uses_expected_endpoint(
         self,
     ):

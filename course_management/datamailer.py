@@ -235,6 +235,35 @@ class DatamailerClient:
             json=payload,
         )
 
+    def create_recipient_list_import(
+        self,
+        list_key: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            f"/api/recipient-lists/{list_key}/imports",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            }
+            | payload,
+        )
+
+    def recipient_list_import(
+        self,
+        list_key: str,
+        job_id: int,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            f"/api/recipient-lists/{list_key}/imports/{job_id}",
+            params={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
     def send_recipient_list_transactional(
         self,
         list_key: str,
