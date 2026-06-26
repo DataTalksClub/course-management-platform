@@ -61,7 +61,15 @@
                       data-deadline="{{ project.submission_due_date | date:"c" }}"
                       data-prefix="false"></span>
                 <span aria-hidden="true" class="app-muted">&middot;</span>
-                <span class="app-muted">Shown in your account timezone.</span>
+                {% if is_authenticated %}
+                    <span class="app-muted">
+                        Shown in your
+                        <a href="{% url 'account_settings' %}#display-preferences-section"
+                           class="app-link">account timezone</a>.
+                    </span>
+                {% else %}
+                    <span class="app-muted">Shown in your timezone.</span>
+                {% endif %}
             </div>
             {% if is_authenticated %}
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">

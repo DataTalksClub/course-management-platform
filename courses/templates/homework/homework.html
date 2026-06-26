@@ -61,7 +61,15 @@
                           data-deadline="{{ homework.due_date | date:"c" }}"
                           data-prefix="false"></span>
                     <span aria-hidden="true" class="app-muted">&middot;</span>
-                    <span class="app-muted">Shown in your account timezone.</span>
+                    {% if is_authenticated %}
+                        <span class="app-muted">
+                            Shown in your
+                            <a href="{% url 'account_settings' %}#display-preferences-section"
+                               class="app-link">account timezone</a>.
+                        </span>
+                    {% else %}
+                        <span class="app-muted">Shown in your timezone.</span>
+                    {% endif %}
                 </div>
                 {% if is_authenticated %}
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -247,7 +255,7 @@
                     {% endfor %}
                 </div>
             </section>
-            {% if is_authenticated or not homework.is_scored %}
+            {% if is_authenticated %}
             <section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
                 <h2 class="text-2xl font-semibold">Submission details</h2>
                 <div class="mt-5 space-y-5">

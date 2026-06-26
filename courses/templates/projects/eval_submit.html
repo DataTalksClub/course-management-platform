@@ -37,7 +37,14 @@
 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 <span class="time-left app-muted" data-deadline="{{ project.peer_review_due_date|date:"c" }}" data-prefix="false"></span>
 <span aria-hidden="true" class="app-muted">&middot;</span>
-<span class="app-muted">Shown in your account timezone.</span>
+{% if is_authenticated %}
+<span class="app-muted">
+Shown in your
+<a href="{% url 'account_settings' %}#display-preferences-section" class="app-link">account timezone</a>.
+</span>
+{% else %}
+<span class="app-muted">Shown in your timezone.</span>
+{% endif %}
 </div>
 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 pt-3">
 <span class="text-xs font-semibold uppercase app-muted">Repository:</span>

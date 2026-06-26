@@ -190,6 +190,41 @@ class HomeworkDetailViewTests(TestCase):
         ]
         self.assertEqual(answer6["options"], expected_options6)
 
+        self.assertContains(response, "Shown in your timezone.")
+        self.assertNotContains(response, "account timezone")
+
+    def test_homework_detail_unauthenticated_hides_submission_fields(self):
+        self.homework.homework_url_field = True
+        self.homework.learning_in_public_cap = 2
+        self.homework.time_spent_lectures_field = True
+        self.homework.time_spent_homework_field = True
+        self.homework.faq_contribution_field = True
+        self.homework.save()
+        self.course.homework_problems_comments_field = True
+        self.course.save()
+
+        response = self.client.get(
+            reverse(
+                "homework",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Log in to submit this homework")
+        self.assertContains(response, "You can preview the questions")
+        self.assertNotContains(response, "Submission details")
+        self.assertNotContains(response, "Homework URL")
+        self.assertNotContains(response, "Learning in public links")
+        self.assertNotContains(response, "No learning in public links submitted")
+        self.assertNotContains(response, "Time spent on lectures")
+        self.assertNotContains(response, "Time spent on homework")
+        self.assertNotContains(response, "Problems or comments")
+        self.assertNotContains(response, "FAQ contribution")
+
     def test_homework_detail_displays_optional_instructions_url(self):
         self.homework.instructions_url = (
             "https://github.com/DataTalksClub/course-management-platform/"
@@ -247,6 +282,11 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(context["course"], self.course)
         self.assertEqual(context["homework"], self.homework)
         self.assertTrue(context["is_authenticated"])
+        self.assertContains(response, "account timezone")
+        self.assertContains(
+            response,
+            f'{reverse("account_settings")}#display-preferences-section',
+        )
 
         question_answers = context["question_answers"]
         self.assertEqual(len(question_answers), 6)
