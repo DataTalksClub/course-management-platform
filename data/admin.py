@@ -1,7 +1,11 @@
 
 from django.contrib import admin
 
-from data.models import DatamailerContactEvent, DatamailerOutboxEvent
+from data.models import (
+    DatamailerContactEvent,
+    DatamailerOutboxDispatchRun,
+    DatamailerOutboxEvent,
+)
 
 
 @admin.register(DatamailerContactEvent)
@@ -44,4 +48,28 @@ class DatamailerOutboxEventAdmin(admin.ModelAdmin):
         "occurred_at",
         "created_at",
         "updated_at",
+    )
+
+
+@admin.register(DatamailerOutboxDispatchRun)
+class DatamailerOutboxDispatchRunAdmin(admin.ModelAdmin):
+    list_display = (
+        "started_at",
+        "status",
+        "processed_count",
+        "acked_count",
+        "retrying_count",
+        "failed_count",
+    )
+    list_filter = ("status",)
+    readonly_fields = (
+        "started_at",
+        "finished_at",
+        "status",
+        "processed_count",
+        "acked_count",
+        "retrying_count",
+        "failed_count",
+        "last_error",
+        "created_at",
     )

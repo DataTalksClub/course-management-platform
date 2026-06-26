@@ -8,7 +8,12 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import CustomUser
-from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
+from data.models import (
+    DatamailerOutboxDispatchRun,
+    DatamailerOutboxDispatchRunStatus,
+    DatamailerOutboxEvent,
+    DatamailerOutboxStatus,
+)
 from course_management.datamailer import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
@@ -900,6 +905,55 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(upsert_contact.call_count, 2)
         self.assertEqual(upsert_member.call_count, 2)
         self.assertIn("1 acked", out.getvalue())
+        run = DatamailerOutboxDispatchRun.objects.get()
+        self.assertEqual(run.status, DatamailerOutboxDispatchRunStatus.SUCCESS)
+        self.assertIsNotNone(run.finished_at)
+        self.assertEqual(run.processed_count, 1)
+        self.assertEqual(run.acked_count, 1)
+        self.assertEqual(run.retrying_count, 0)
+        self.assertEqual(run.failed_count, 0)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_datamailer_outbox_status_reports_counts_and_last_error(
+        self,
+        upsert_contact,
+        upsert_member,
+    ):
+        upsert_member.side_effect = requests.RequestException("network error")
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        sync_enrollment_to_datamailer(enrollment)
+        event = DatamailerOutboxEvent.objects.get()
+        event.next_attempt_at = timezone.now() - timedelta(seconds=1)
+        event.save(update_fields=["next_attempt_at"])
+
+        out = StringIO()
+        call_command("datamailer_outbox_status", stdout=out)
+
+        output = out.getvalue()
+        self.assertIn("retrying: 1", output)
+        self.assertIn("due: 1", output)
+        self.assertIn(event.event_id, output)
+        self.assertIn("last_successful_run: none", output)
+        self.assertIn("last_datamailer_error:", output)
+        self.assertIn("network error", output)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_enrollment_recipient_list_payload_targets_course_enrolled(

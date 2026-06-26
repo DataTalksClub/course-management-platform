@@ -7,7 +7,12 @@ import requests
 from django.db import transaction
 from django.utils import timezone
 
-from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
+from data.models import (
+    DatamailerOutboxDispatchRun,
+    DatamailerOutboxDispatchRunStatus,
+    DatamailerOutboxEvent,
+    DatamailerOutboxStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +48,15 @@ def enqueue_datamailer_outbox_event(
     return event
 
 
-def process_due_datamailer_outbox(*, limit=100) -> dict[str, int]:
+def process_due_datamailer_outbox(*, limit=100, record_run=True) -> dict[str, int]:
+    started_at = timezone.now()
+    run = None
+    if record_run:
+        run = DatamailerOutboxDispatchRun.objects.create(
+            started_at=started_at,
+            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+        )
+
     now = timezone.now()
     event_ids = list(
         DatamailerOutboxEvent.objects.filter(
@@ -54,18 +67,94 @@ def process_due_datamailer_outbox(*, limit=100) -> dict[str, int]:
         .values_list("id", flat=True)[:limit]
     )
     counts = {"processed": 0, "acked": 0, "retrying": 0, "failed": 0}
-    for event_id in event_ids:
-        event = DatamailerOutboxEvent.objects.get(id=event_id)
-        dispatch_datamailer_outbox_event(event)
-        event.refresh_from_db()
-        counts["processed"] += 1
-        if event.status in {
-            DatamailerOutboxStatus.ACKED,
-            DatamailerOutboxStatus.RETRYING,
-            DatamailerOutboxStatus.FAILED,
-        }:
-            counts[event.status] += 1
+    try:
+        for event_id in event_ids:
+            event = DatamailerOutboxEvent.objects.get(id=event_id)
+            dispatch_datamailer_outbox_event(event)
+            event.refresh_from_db()
+            counts["processed"] += 1
+            if event.status in {
+                DatamailerOutboxStatus.ACKED,
+                DatamailerOutboxStatus.RETRYING,
+                DatamailerOutboxStatus.FAILED,
+            }:
+                counts[event.status] += 1
+    except Exception as exc:
+        if run is not None:
+            _finish_dispatch_run(
+                run,
+                counts,
+                status=DatamailerOutboxDispatchRunStatus.FAILED,
+                last_error=str(exc),
+            )
+        raise
+
+    if run is not None:
+        _finish_dispatch_run(
+            run,
+            counts,
+            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+            last_error="",
+        )
     return counts
+
+
+def datamailer_outbox_status_summary() -> dict[str, Any]:
+    now = timezone.now()
+    event_counts = {
+        status: DatamailerOutboxEvent.objects.filter(status=status).count()
+        for status in DatamailerOutboxStatus.values
+    }
+    due_count = DatamailerOutboxEvent.objects.filter(
+        status__in=RETRYABLE_STATUSES,
+        next_attempt_at__lte=now,
+    ).count()
+    oldest_due = (
+        DatamailerOutboxEvent.objects.filter(
+            status__in=RETRYABLE_STATUSES,
+            next_attempt_at__lte=now,
+        )
+        .order_by("next_attempt_at", "created_at", "id")
+        .first()
+    )
+    last_successful_run = DatamailerOutboxDispatchRun.objects.filter(
+        status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+    ).first()
+    last_run = DatamailerOutboxDispatchRun.objects.first()
+    last_error_event = (
+        DatamailerOutboxEvent.objects.exclude(last_error="")
+        .order_by("-last_attempt_at", "-updated_at", "-id")
+        .first()
+    )
+    return {
+        "event_counts": event_counts,
+        "due_count": due_count,
+        "oldest_due": oldest_due,
+        "last_successful_run": last_successful_run,
+        "last_run": last_run,
+        "last_error_event": last_error_event,
+    }
+
+
+def _finish_dispatch_run(run, counts, *, status, last_error):
+    run.status = status
+    run.finished_at = timezone.now()
+    run.processed_count = counts["processed"]
+    run.acked_count = counts["acked"]
+    run.retrying_count = counts["retrying"]
+    run.failed_count = counts["failed"]
+    run.last_error = last_error
+    run.save(
+        update_fields=[
+            "status",
+            "finished_at",
+            "processed_count",
+            "acked_count",
+            "retrying_count",
+            "failed_count",
+            "last_error",
+        ]
+    )
 
 
 def dispatch_datamailer_outbox_event(event: DatamailerOutboxEvent) -> None:

@@ -78,3 +78,36 @@ class DatamailerOutboxEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type} {self.event_id} ({self.status})"
+
+
+class DatamailerOutboxDispatchRunStatus(models.TextChoices):
+    SUCCESS = "success", "Success"
+    FAILED = "failed", "Failed"
+
+
+class DatamailerOutboxDispatchRun(models.Model):
+    started_at = models.DateTimeField(default=timezone.now, db_index=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=DatamailerOutboxDispatchRunStatus.choices,
+        db_index=True,
+    )
+    processed_count = models.PositiveIntegerField(default=0)
+    acked_count = models.PositiveIntegerField(default=0)
+    retrying_count = models.PositiveIntegerField(default=0)
+    failed_count = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["status", "started_at"],
+                name="dm_outbox_run_status_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Datamailer outbox run {self.started_at} ({self.status})"
