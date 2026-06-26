@@ -13,6 +13,21 @@ from course_management.deadlines import format_deadline_for_email
 
 logger = logging.getLogger(__name__)
 
+EMAIL_PREFERENCE_CATEGORIES = {
+    "email_submission_confirmations": {
+        "tag": "submission-results",
+        "label": "Homework and project submissions",
+    },
+    "email_deadline_reminders": {
+        "tag": "deadline-reminders",
+        "label": "Deadline reminders",
+    },
+    "email_course_updates": {
+        "tag": "course-updates",
+        "label": "General course-related emails",
+    },
+}
+
 
 @dataclass(frozen=True)
 class DatamailerConfig:
@@ -134,6 +149,39 @@ class DatamailerClient:
         return self.request(
             "GET",
             f"/api/transactional/messages/{message_id}",
+        )
+
+    def contact_preferences(
+        self,
+        email: str,
+        *,
+        category_tags: list[str],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            "/api/contacts/preferences",
+            params={
+                "email": email,
+                "audience": self.config.audience,
+                "client": self.config.client,
+                "category_tags": ",".join(category_tags),
+            },
+        )
+
+    def update_contact_preferences(
+        self,
+        email: str,
+        categories: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "PUT",
+            "/api/contacts/preferences",
+            json={
+                "email": email,
+                "audience": self.config.audience,
+                "client": self.config.client,
+                "categories": categories,
+            },
         )
 
     def upsert_recipient_list_member(
@@ -268,6 +316,105 @@ def public_url(path: str) -> str:
     if not base_url:
         return path
     return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
+
+
+def email_preference_category_tags() -> list[str]:
+    return [
+        category["tag"]
+        for category in EMAIL_PREFERENCE_CATEGORIES.values()
+    ]
+
+
+def email_preference_values_from_response(
+    response: dict[str, Any] | None,
+) -> dict[str, bool]:
+    if not response:
+        return {}
+    by_tag = {
+        category.get("tag"): category
+        for category in response.get("categories", [])
+        if isinstance(category, dict)
+    }
+    values = {}
+    for field, category in EMAIL_PREFERENCE_CATEGORIES.items():
+        item = by_tag.get(category["tag"])
+        if item is not None and isinstance(item.get("enabled"), bool):
+            values[field] = item["enabled"]
+    return values
+
+
+def get_email_preferences_for_user(user) -> dict[str, bool] | None:
+    email = (user.email or "").strip().lower()
+    if not email:
+        return None
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    client = DatamailerClient(config)
+    try:
+        response = client.contact_preferences(
+            email,
+            category_tags=email_preference_category_tags(),
+        )
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer preference lookup failed for user_id=%s",
+            user.pk,
+        )
+        if config.strict:
+            raise
+        return None
+    return email_preference_values_from_response(response)
+
+
+def apply_email_preferences_to_user(user) -> bool:
+    preferences = get_email_preferences_for_user(user)
+    if preferences is None:
+        return False
+    for field, enabled in preferences.items():
+        setattr(user, field, enabled)
+    return True
+
+
+def update_email_preferences_for_user(
+    user,
+    values: dict[str, bool],
+) -> bool:
+    email = (user.email or "").strip().lower()
+    if not email:
+        return False
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return False
+
+    categories = []
+    for field, enabled in values.items():
+        category = EMAIL_PREFERENCE_CATEGORIES.get(field)
+        if category is None:
+            continue
+        categories.append(
+            {
+                "tag": category["tag"],
+                "label": category["label"],
+                "enabled": bool(enabled),
+            }
+        )
+    if not categories:
+        return False
+
+    client = DatamailerClient(config)
+    try:
+        client.update_contact_preferences(email, categories)
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer preference update failed for user_id=%s",
+            user.pk,
+        )
+        if config.strict:
+            raise
+        return False
+    return True
 
 
 def registration_contact_payload(registration) -> dict[str, Any] | None:
@@ -1105,6 +1252,8 @@ def certificate_availability_notification_payload(
     profile_url = public_url(reverse("account_settings"))
 
     payload = {
+        "audience": config.audience,
+        "client": config.client,
         "email": email,
         "template_key": (
             email_templates.CERTIFICATE_AVAILABILITY_NOTIFICATION
@@ -1302,6 +1451,10 @@ def send_transactional_email(
         return None
 
     client = DatamailerClient(config)
+    if "audience" not in payload:
+        payload = payload | {"audience": config.audience}
+    if "client" not in payload:
+        payload = payload | {"client": config.client}
     if config.from_email and "from_email" not in payload:
         payload = payload | {"from_email": config.from_email}
 

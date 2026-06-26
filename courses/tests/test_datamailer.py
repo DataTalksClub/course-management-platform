@@ -20,6 +20,7 @@ from course_management.datamailer import (
     get_contact_history,
     get_contact_status,
     get_email_status,
+    get_email_preferences_for_user,
     get_transactional_message_status,
     homework_score_notification_payload,
     homework_submitters_list_key,
@@ -36,6 +37,7 @@ from course_management.datamailer import (
     sync_homework_submission_to_datamailer,
     sync_project_submission_to_datamailer,
     sync_registration_to_datamailer,
+    update_email_preferences_for_user,
 )
 from courses.models import (
     Course,
@@ -358,6 +360,8 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(result, {"id": "message-id"})
         send.assert_called_once_with(
             {
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
                 "template_key": "welcome",
                 "email": "student@example.com",
             }
@@ -384,6 +388,8 @@ class DatamailerClientTest(TestCase):
 
         send.assert_called_once_with(
             {
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
                 "template_key": "welcome",
                 "email": "student@example.com",
                 "from_email": "courses",
@@ -412,6 +418,8 @@ class DatamailerClientTest(TestCase):
 
         send.assert_called_once_with(
             {
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
                 "template_key": "welcome",
                 "email": "student@example.com",
                 "from_email": "no-reply",
@@ -474,6 +482,83 @@ class DatamailerClientTest(TestCase):
         )
         contact_status.assert_called_once_with("student@example.com")
         contact_history.assert_called_once_with(42, limit=5)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.contact_preferences"
+    )
+    def test_get_email_preferences_for_user_reads_datamailer_categories(
+        self,
+        contact_preferences,
+    ):
+        contact_preferences.return_value = {
+            "categories": [
+                {"tag": "submission-results", "enabled": False},
+                {"tag": "deadline-reminders", "enabled": True},
+                {"tag": "course-updates", "enabled": False},
+            ]
+        }
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="Student@Example.com",
+        )
+
+        result = get_email_preferences_for_user(user)
+
+        self.assertEqual(
+            result,
+            {
+                "email_submission_confirmations": False,
+                "email_deadline_reminders": True,
+                "email_course_updates": False,
+            },
+        )
+        contact_preferences.assert_called_once_with(
+            "student@example.com",
+            category_tags=[
+                "submission-results",
+                "deadline-reminders",
+                "course-updates",
+            ],
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.update_contact_preferences"
+    )
+    def test_update_email_preferences_for_user_writes_datamailer_categories(
+        self,
+        update_contact_preferences,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+
+        result = update_email_preferences_for_user(
+            user,
+            {
+                "email_submission_confirmations": False,
+                "email_course_updates": True,
+            },
+        )
+
+        self.assertTrue(result)
+        update_contact_preferences.assert_called_once_with(
+            "student@example.com",
+            [
+                {
+                    "tag": "submission-results",
+                    "label": "Homework and project submissions",
+                    "enabled": False,
+                },
+                {
+                    "tag": "course-updates",
+                    "label": "General course-related emails",
+                    "enabled": True,
+                },
+            ],
+        )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -1329,6 +1414,8 @@ class DatamailerClientTest(TestCase):
         )
 
         self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(payload["audience"], "dtc-courses")
+        self.assertEqual(payload["client"], "dtc-courses")
         self.assertEqual(
             payload["template_key"],
             "certificate-availability-notification",

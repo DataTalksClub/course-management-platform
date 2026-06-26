@@ -1,6 +1,7 @@
 import json
+from unittest.mock import patch
 
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from accounts.models import CustomUser, Token
 from courses.models import Course, Enrollment
@@ -93,6 +94,12 @@ class DarkModeToggleTestCase(TestCase):
         self.assertFalse(user.dark_mode)
 
 
+@override_settings(
+    DATAMAILER_URL="",
+    DATAMAILER_API_KEY="",
+    DATAMAILER_CLIENT="",
+    DATAMAILER_AUDIENCE="",
+)
 class AccountSettingsTestCase(TestCase):
     def setUp(self):
         self.client = Client()
@@ -202,6 +209,59 @@ class AccountSettingsTestCase(TestCase):
         self.assertFalse(self.user.email_submission_confirmations)
         self.assertFalse(self.user.email_deadline_reminders)
         self.assertFalse(self.user.email_course_updates)
+
+    @patch("accounts.views.update_email_preferences_for_user")
+    def test_account_settings_updates_email_preference_in_datamailer(
+        self,
+        update_email_preferences,
+    ):
+        update_email_preferences.return_value = True
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_account_toggle"),
+            {
+                "field": "email_deadline_reminders",
+                "value": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["datamailer_synced"], True)
+        update_email_preferences.assert_called_once_with(
+            self.user,
+            {"email_deadline_reminders": False},
+        )
+
+    @patch("accounts.views.apply_email_preferences_to_user")
+    def test_account_settings_hydrates_email_preferences_from_datamailer(
+        self,
+        apply_email_preferences,
+    ):
+        def apply_preferences(user):
+            user.email_submission_confirmations = False
+            user.email_deadline_reminders = True
+            user.email_course_updates = False
+            return True
+
+        apply_email_preferences.side_effect = apply_preferences
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            response.context["form"].initial[
+                "email_submission_confirmations"
+            ]
+        )
+        self.assertTrue(
+            response.context["form"].initial["email_deadline_reminders"]
+        )
+        self.assertFalse(
+            response.context["form"].initial["email_course_updates"]
+        )
+        self.assertTrue(response.context["datamailer_preferences_loaded"])
 
     def test_account_settings_profile_save_preserves_toggle_preferences(self):
         self.user.dark_mode = True

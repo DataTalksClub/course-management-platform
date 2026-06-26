@@ -18,6 +18,10 @@ from loginas.utils import restore_original_login
 
 from accounts.forms import AccountSettingsForm
 from accounts.services.timezones import get_timezone_label, is_valid_timezone
+from course_management.datamailer import (
+    apply_email_preferences_to_user,
+    update_email_preferences_for_user,
+)
 from courses.models import Enrollment
 
 ACCOUNT_TOGGLE_FIELDS = {
@@ -35,6 +39,7 @@ def disabled(request):
 @login_required
 def account_settings(request):
     user = request.user
+    datamailer_preferences_loaded = apply_email_preferences_to_user(user)
 
     if request.method == "POST":
         data = request.POST.copy()
@@ -73,6 +78,7 @@ def account_settings(request):
                 user.preferred_timezone
             ),
             "browser_timezone_label": browser_timezone_label,
+            "datamailer_preferences_loaded": datamailer_preferences_loaded,
         },
     )
 
@@ -101,11 +107,19 @@ def update_account_toggle(request):
     enabled = value.lower() in {"1", "true", "yes", "on"}
     setattr(request.user, field, enabled)
     request.user.save(update_fields=[field])
+    datamailer_synced = False
+    if field.startswith("email_"):
+        datamailer_synced = update_email_preferences_for_user(
+            request.user,
+            {field: enabled},
+        )
 
     response = {
         "field": field,
         "value": enabled,
     }
+    if field.startswith("email_"):
+        response["datamailer_synced"] = datamailer_synced
     if field == "dark_mode":
         response["dark_mode"] = enabled
     return JsonResponse(response)
