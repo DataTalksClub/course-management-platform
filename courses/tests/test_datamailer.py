@@ -10,7 +10,9 @@ from django.utils import timezone
 from accounts.models import CustomUser
 from course_management.datamailer import (
     certificate_availability_notification_payload,
+    course_graduate_recipient_list_payload,
     course_enrolled_list_key,
+    course_graduates_list_key,
     DatamailerClient,
     DatamailerConfig,
     contact_tags_for_course,
@@ -25,6 +27,8 @@ from course_management.datamailer import (
     homework_score_notification_payload,
     homework_submitters_list_key,
     peer_review_assignment_notification_payload,
+    project_passed_list_key,
+    project_passed_recipient_list_payload,
     project_score_notification_payload,
     project_submitters_list_key,
     registration_list_key,
@@ -1239,6 +1243,79 @@ class DatamailerClientTest(TestCase):
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
+    def test_project_passed_recipient_list_payload_targets_passed_outcome(
+        self,
+    ):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        passed_user = CustomUser.objects.create_user(
+            username="passed@example.com",
+            email="passed@example.com",
+            password="test",
+            email_submission_confirmations=False,
+        )
+        failed_user = CustomUser.objects.create_user(
+            username="failed@example.com",
+            email="failed@example.com",
+            password="test",
+        )
+        passed_enrollment = Enrollment.objects.create(
+            student=passed_user,
+            course=course,
+        )
+        failed_enrollment = Enrollment.objects.create(
+            student=failed_user,
+            course=course,
+        )
+        passed_submission = ProjectSubmission.objects.create(
+            project=project,
+            student=passed_user,
+            enrollment=passed_enrollment,
+            github_link="https://github.com/example/passed",
+            total_score=98,
+            passed=True,
+        )
+        ProjectSubmission.objects.create(
+            project=project,
+            student=failed_user,
+            enrollment=failed_enrollment,
+            github_link="https://github.com/example/failed",
+            total_score=50,
+            passed=False,
+        )
+
+        list_key, payload = project_passed_recipient_list_payload(project)
+
+        self.assertEqual(list_key, project_passed_list_key(project))
+        self.assertEqual(payload["list"]["type"], "custom")
+        self.assertEqual(
+            payload["list"]["metadata"]["outcome"], "project_passed"
+        )
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(member["email"], "passed@example.com")
+        self.assertEqual(
+            member["source_object_key"],
+            f"project-submission:{passed_submission.pk}",
+        )
+        self.assertEqual(member["metadata"]["outcome"], "project_passed")
+        self.assertEqual(member["metadata"]["total_score"], 98)
+        self.assertTrue(member["metadata"]["passed"])
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
     def test_peer_review_assignment_payload_includes_links_and_deadline(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -1388,14 +1465,19 @@ class DatamailerClientTest(TestCase):
         "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
     )
     @patch(
+        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+    )
+    @patch(
         "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
     )
-    def test_send_project_score_notification_uses_list_send(
+    def test_send_project_score_notification_syncs_passed_outcome_before_send(
         self,
         bulk_upsert,
+        reconcile,
         send_list,
     ):
         bulk_upsert.return_value = {"updated_count": 0}
+        reconcile.return_value = {"upsert_count": 0}
         send_list.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -1409,11 +1491,29 @@ class DatamailerClientTest(TestCase):
             submission_due_date="2026-01-01T00:00:00Z",
             peer_review_due_date="2026-01-08T00:00:00Z",
         )
+        user = CustomUser.objects.create_user(
+            username="project-learner@example.com",
+            email="project-learner@example.com",
+            password="test",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/project",
+            total_score=98,
+            passed=True,
+        )
 
         result = send_project_score_notification(project)
 
         self.assertEqual(result, {"enqueued_count": 1})
         bulk_upsert.assert_called_once()
+        reconcile.assert_called_once()
         send_list.assert_called_once()
         self.assertEqual(
             send_list.call_args.args[0],
@@ -1421,6 +1521,19 @@ class DatamailerClientTest(TestCase):
         )
         self.assertNotIn("members", send_list.call_args.args[1])
         self.assertNotIn("list", send_list.call_args.args[1])
+        self.assertEqual(
+            reconcile.call_args.args[0],
+            project_passed_list_key(project),
+        )
+        passed_payload = reconcile.call_args.args[1]
+        self.assertEqual(
+            passed_payload["members"][0]["source_object_key"],
+            f"project-submission:{submission.pk}",
+        )
+        self.assertEqual(
+            passed_payload["members"][0]["metadata"]["outcome"],
+            "project_passed",
+        )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -1485,14 +1598,62 @@ class DatamailerClientTest(TestCase):
             "course-related emails",
         )
 
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    def test_course_graduate_recipient_list_payload_targets_graduated_outcome(
+        self,
+    ):
+        user = CustomUser.objects.create(
+            email="student@example.com",
+            username="student",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+            total_score=91,
+            certificate_url="/certificates/student.pdf",
+        )
+
+        list_key, payload = course_graduate_recipient_list_payload(
+            enrollment
+        )
+
+        self.assertEqual(list_key, course_graduates_list_key(course))
+        self.assertEqual(payload["list"]["type"], "custom")
+        self.assertEqual(payload["list"]["metadata"]["outcome"], "course_graduated")
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(member["email"], "student@example.com")
+        self.assertEqual(
+            member["source_object_key"], f"enrollment:{enrollment.pk}"
+        )
+        self.assertEqual(member["metadata"]["outcome"], "course_graduated")
+        self.assertEqual(member["metadata"]["total_score"], 91)
+        self.assertEqual(
+            member["metadata"]["certificate_url"],
+            "https://courses.example.com/certificates/student.pdf",
+        )
+
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.DatamailerClient.send_transactional"
     )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
     def test_certificate_availability_notification_respects_course_updates_preference(
         self,
+        bulk_upsert,
         send,
     ):
+        bulk_upsert.return_value = {"updated_count": 1}
         user = CustomUser.objects.create(
             email="student@example.com",
             username="student",
@@ -1516,16 +1677,22 @@ class DatamailerClientTest(TestCase):
 
         self.assertIsNone(payload)
         self.assertIsNone(result)
+        bulk_upsert.assert_called_once()
         send.assert_not_called()
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.DatamailerClient.send_transactional"
     )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
     def test_send_certificate_availability_notification_uses_transactional_send(
         self,
+        bulk_upsert,
         send,
     ):
+        bulk_upsert.return_value = {"updated_count": 1}
         send.return_value = {"id": 123}
         user = CustomUser.objects.create(
             email="student@example.com",
@@ -1545,6 +1712,11 @@ class DatamailerClientTest(TestCase):
         result = send_certificate_availability_notification(enrollment)
 
         self.assertEqual(result, {"id": 123})
+        bulk_upsert.assert_called_once()
+        self.assertEqual(
+            bulk_upsert.call_args.args[0],
+            course_graduates_list_key(course),
+        )
         send.assert_called_once()
         payload = send.call_args.args[0]
         self.assertEqual(

@@ -861,6 +861,57 @@ def project_score_notification_members(
     return list_data, members
 
 
+def project_passed_recipient_list_payload(
+    project,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    course = project.course
+    list_key = project_passed_list_key(project)
+    list_data = {
+        "type": "custom",
+        "name": f"{course.title} {project.title} passed learners",
+        "metadata": {
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+            "project_id": project.pk,
+            "outcome": "project_passed",
+        },
+    }
+    members = []
+    submissions = project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
+    seen_students = set()
+    for submission in submissions:
+        if submission.student_id in seen_students:
+            continue
+        seen_students.add(submission.student_id)
+        if not submission.passed:
+            continue
+        item = project_submission_recipient_list_payload(submission)
+        if item is None:
+            continue
+        _, source_object_key, member_payload = item
+        member = recipient_list_send_member_payload(
+            source_object_key, member_payload
+        )
+        member["metadata"] = member["metadata"] | {
+            "outcome": "project_passed",
+        }
+        members.append(member)
+
+    payload = {
+        "audience": config.audience,
+        "client": config.client,
+        "list": list_data,
+        "members": members,
+    }
+    return list_key, payload
+
+
 def homework_score_notification_payload(
     homework,
 ) -> tuple[str, dict[str, Any]] | None:
@@ -1309,6 +1360,52 @@ def certificate_availability_notification_payload(
     return payload
 
 
+def course_graduate_recipient_list_payload(
+    enrollment,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    email = (enrollment.student.email or "").strip().lower()
+    certificate_url = (enrollment.certificate_url or "").strip()
+    if not email or not certificate_url:
+        return None
+
+    course = enrollment.course
+    list_key = course_graduates_list_key(course)
+    source_object_key = f"enrollment:{enrollment.pk}"
+    metadata = {
+        "enrollment_id": enrollment.pk,
+        "user_id": enrollment.student_id,
+        "course_slug": course.slug,
+        "display_name": enrollment.display_name,
+        "total_score": enrollment.total_score,
+        "certificate_url": public_url(certificate_url),
+        "outcome": "course_graduated",
+    }
+    member_payload = recipient_list_member_payload(
+        list_type="custom",
+        list_name=f"{course.title} graduates",
+        email=email,
+        source_object_key=source_object_key,
+        metadata=metadata,
+    )
+    if member_payload is None:
+        return None
+
+    return list_key, {
+        "audience": config.audience,
+        "client": config.client,
+        "list": member_payload["list"],
+        "members": [
+            recipient_list_send_member_payload(
+                source_object_key, member_payload
+            )
+        ],
+    }
+
+
 def recipient_list_member_sync_payload(
     config: DatamailerConfig,
     payload: dict[str, Any],
@@ -1378,10 +1475,17 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
     client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
+        passed_list_payload = project_passed_recipient_list_payload(project)
         client.bulk_upsert_recipient_list_members(
             list_key,
             recipient_list_member_sync_payload(config, payload),
         )
+        if passed_list_payload is not None:
+            passed_list_key, passed_payload = passed_list_payload
+            client.reconcile_recipient_list_members(
+                passed_list_key,
+                recipient_list_member_sync_payload(config, passed_payload),
+            )
         return client.send_recipient_list_transactional(
             list_key, recipient_list_send_payload(payload)
         )
@@ -1435,12 +1539,21 @@ def send_certificate_availability_notification(
     if config is None:
         return None
 
+    graduate_list_payload = course_graduate_recipient_list_payload(enrollment)
     payload = certificate_availability_notification_payload(enrollment)
-    if payload is None:
+    if graduate_list_payload is None and payload is None:
         return None
 
     client = DatamailerClient(config)
     try:
+        if graduate_list_payload is not None:
+            list_key, list_payload = graduate_list_payload
+            client.bulk_upsert_recipient_list_members(
+                list_key,
+                recipient_list_member_sync_payload(config, list_payload),
+            )
+        if payload is None:
+            return None
         return client.send_transactional(payload)
     except requests.RequestException:
         logger.exception(
