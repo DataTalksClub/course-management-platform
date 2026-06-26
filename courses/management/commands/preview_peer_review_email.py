@@ -68,8 +68,6 @@ class Command(BaseCommand):
         recipients = 0
         for submission in submissions:
             student = submission.student
-            if not getattr(student, "email_submission_confirmations", True):
-                continue
             if submission.student_id in seen:
                 continue
             seen.add(submission.student_id)

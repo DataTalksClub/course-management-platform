@@ -924,8 +924,6 @@ def homework_score_notification_members(
     ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
     for submission in submissions:
-        if not getattr(submission.student, "email_submission_confirmations", True):
-            continue
         if submission.student_id in seen_students:
             continue
         item = homework_submission_recipient_list_payload(submission)
@@ -959,8 +957,6 @@ def project_score_notification_members(
     ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
     for submission in submissions:
-        if not getattr(submission.student, "email_submission_confirmations", True):
-            continue
         if submission.student_id in seen_students:
             continue
         item = project_submission_recipient_list_payload(submission)
@@ -1320,8 +1316,6 @@ def peer_review_assignment_notification_members(
     ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
     for submission in submissions:
-        if not getattr(submission.student, "email_submission_confirmations", True):
-            continue
         if submission.student_id in seen_students:
             continue
         item = peer_review_assignment_recipient_list_payload(submission)

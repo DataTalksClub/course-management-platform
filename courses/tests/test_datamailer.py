@@ -1416,7 +1416,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(member["metadata"]["total_score"], 9)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    def test_homework_score_notification_skips_opted_out_students(self):
+    def test_homework_score_notification_includes_local_opted_out_students(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -1447,7 +1447,10 @@ class DatamailerClientTest(TestCase):
 
         _, payload = homework_score_notification_payload(homework)
 
-        self.assertEqual(payload["members"], [])
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(member["email"], "learner@example.com")
+        self.assertEqual(member["metadata"]["total_score"], 9)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -1835,7 +1838,7 @@ class DatamailerClientTest(TestCase):
             self.assertTrue(item["eval_url"].startswith("https://"))
 
     @override_settings(**DATAMAILER_SETTINGS)
-    def test_project_score_notification_skips_opted_out_students(self):
+    def test_project_score_notification_includes_local_opted_out_students(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -1869,7 +1872,10 @@ class DatamailerClientTest(TestCase):
 
         _, payload = project_score_notification_payload(project)
 
-        self.assertEqual(payload["members"], [])
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(member["email"], "project-learner@example.com")
+        self.assertEqual(member["metadata"]["total_score"], 98)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
