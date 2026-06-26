@@ -1,10 +1,13 @@
 
 from django.contrib import admin
+from django.contrib import messages
+from django.utils import timezone
 
 from data.models import (
     DatamailerContactEvent,
     DatamailerOutboxDispatchRun,
     DatamailerOutboxEvent,
+    DatamailerOutboxStatus,
     DatamailerSendAudit,
 )
 
@@ -27,6 +30,7 @@ class DatamailerContactEventAdmin(admin.ModelAdmin):
 
 @admin.register(DatamailerOutboxEvent)
 class DatamailerOutboxEventAdmin(admin.ModelAdmin):
+    actions = ("requeue_selected_events",)
     list_display = (
         "event_type",
         "status",
@@ -52,6 +56,26 @@ class DatamailerOutboxEventAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+
+    @admin.action(description="Requeue failed/dead Datamailer events")
+    def requeue_selected_events(self, request, queryset):
+        now = timezone.now()
+        requeued = queryset.filter(
+            status__in=[
+                DatamailerOutboxStatus.FAILED,
+                DatamailerOutboxStatus.DEAD,
+            ]
+        ).update(
+            status=DatamailerOutboxStatus.RETRYING,
+            next_attempt_at=now,
+            last_error="",
+            updated_at=now,
+        )
+        self.message_user(
+            request,
+            f"Requeued {requeued} Datamailer outbox event(s).",
+            messages.SUCCESS,
+        )
 
 
 @admin.register(DatamailerOutboxDispatchRun)
