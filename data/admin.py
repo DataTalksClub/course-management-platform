@@ -15,11 +15,13 @@ class DatamailerContactEventAdmin(admin.ModelAdmin):
         "email",
         "client",
         "audience",
+        "duplicate_count",
+        "last_seen_at",
         "created_at",
     )
     list_filter = ("event_type", "client", "audience")
     search_fields = ("event_id", "email")
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "duplicate_count", "last_seen_at")
 
 
 @admin.register(DatamailerOutboxEvent)

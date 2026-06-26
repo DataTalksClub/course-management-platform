@@ -1,5 +1,7 @@
 import json
+from io import StringIO
 
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -59,11 +61,15 @@ class DatamailerWebhookTest(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertTrue(first.json()["created"])
         self.assertFalse(second.json()["created"])
+        self.assertEqual(first.json()["duplicate_count"], 0)
+        self.assertEqual(second.json()["duplicate_count"], 1)
         self.assertEqual(DatamailerContactEvent.objects.count(), 1)
         event = DatamailerContactEvent.objects.get()
         self.assertEqual(event.email, "student@example.com")
         self.assertEqual(event.event_type, "contact.hard_bounced")
         self.assertEqual(event.audience, "dtc-courses")
+        self.assertEqual(event.duplicate_count, 1)
+        self.assertIsNotNone(event.last_seen_at)
         self.assertEqual(
             event.payload["metadata"]["bounce_type"], "Permanent"
         )
@@ -117,6 +123,34 @@ class DatamailerWebhookTest(TestCase):
         self.assertTrue(response.json()["preference_updated"])
         user.refresh_from_db()
         self.assertFalse(user.email_course_updates)
+
+    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    def test_callback_status_command_reports_counts_and_duplicates(self):
+        payload = {
+            "event_id": "evt-1",
+            "event_type": "transactional.failed",
+            "email": "student@example.com",
+            "metadata": {"reason": "ses_permanent_failure"},
+        }
+        self.post_event(payload)
+        self.post_event(payload)
+        self.post_event(
+            {
+                "event_id": "evt-2",
+                "event_type": "subscription.unsubscribed",
+                "email": "student@example.com",
+                "preference_key": "email_course_updates",
+            }
+        )
+
+        out = StringIO()
+        call_command("datamailer_callback_status", stdout=out)
+
+        output = out.getvalue()
+        self.assertIn("total_events: 2", output)
+        self.assertIn("duplicate_callbacks: 1", output)
+        self.assertIn("transactional.failed: 1 (duplicates=1)", output)
+        self.assertIn("subscription.unsubscribed: 1 (duplicates=0)", output)
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
     def test_webhook_unsubscribe_without_preference_only_records_event(

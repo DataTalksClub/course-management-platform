@@ -2,7 +2,9 @@ import hmac
 import json
 
 from django.conf import settings
+from django.db.models import F
 from django.http import JsonResponse
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -109,8 +111,15 @@ def datamailer_event_webhook(request):
             "client": str(payload.get("client") or ""),
             "preference_key": preference_key,
             "payload": payload,
+            "last_seen_at": timezone.now(),
         },
     )
+    if not created:
+        DatamailerContactEvent.objects.filter(pk=event.pk).update(
+            duplicate_count=F("duplicate_count") + 1,
+            last_seen_at=timezone.now(),
+        )
+        event.refresh_from_db(fields=["duplicate_count", "last_seen_at"])
 
     preference_updated = False
     if created and event.event_type == "subscription.unsubscribed":
@@ -123,6 +132,7 @@ def datamailer_event_webhook(request):
         {
             "ok": True,
             "created": created,
+            "duplicate_count": event.duplicate_count,
             "preference_updated": preference_updated,
         }
     )
