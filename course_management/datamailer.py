@@ -12,6 +12,7 @@ from course_management import email_templates
 from course_management.datamailer_outbox import enqueue_datamailer_outbox_event
 from course_management.deadlines import format_deadline_for_email
 from data.models import (
+    DatamailerOutboxStatus,
     DatamailerSendAudit,
     DatamailerSendAuditStatus,
     DatamailerSendAuditType,
@@ -1725,6 +1726,45 @@ def recipient_list_member_sync_payload(
     }
 
 
+def enqueue_recipient_list_bulk_upsert(
+    *,
+    config: DatamailerConfig,
+    list_key: str,
+    payload: dict[str, Any],
+    idempotency_key: str,
+    ordering_key: str,
+):
+    return enqueue_datamailer_outbox_event(
+        event_type="recipient_list.members_bulk_upsert",
+        idempotency_key=f"recipient-list.members-bulk-upsert:{idempotency_key}",
+        ordering_key=ordering_key,
+        payload={
+            "list_key": list_key,
+            "member_sync_payload": recipient_list_member_sync_payload(
+                config, payload
+            ),
+        },
+    )
+
+
+def bulk_upsert_recipient_list_members_before_send(
+    *,
+    config: DatamailerConfig,
+    list_key: str,
+    payload: dict[str, Any],
+    idempotency_key: str,
+    ordering_key: str,
+) -> bool:
+    event = enqueue_recipient_list_bulk_upsert(
+        config=config,
+        list_key=list_key,
+        payload=payload,
+        idempotency_key=idempotency_key,
+        ordering_key=ordering_key,
+    )
+    return event.status == DatamailerOutboxStatus.ACKED
+
+
 def _remove_recipient_list_memberships(
     config,
     list_payloads,
@@ -1964,13 +2004,23 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
     if list_payload is None:
         return None
 
-    client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
-        client.bulk_upsert_recipient_list_members(
-            list_key,
-            recipient_list_member_sync_payload(config, payload),
-        )
+        if not bulk_upsert_recipient_list_members_before_send(
+            config=config,
+            list_key=list_key,
+            payload=payload,
+            idempotency_key=f"{payload['idempotency_key']}:members",
+            ordering_key=list_key,
+        ):
+            record_datamailer_send_audit(
+                send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+                payload=payload,
+                list_key=list_key,
+                error="Datamailer metadata sync was not acknowledged",
+            )
+            return None
+        client = DatamailerClient(config)
         response = client.send_recipient_list_transactional(
             list_key, recipient_list_send_payload(payload)
         )
@@ -2006,20 +2056,42 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
     if list_payload is None:
         return None
 
-    client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
         passed_list_payload = project_passed_recipient_list_payload(project)
-        client.bulk_upsert_recipient_list_members(
-            list_key,
-            recipient_list_member_sync_payload(config, payload),
-        )
+        if not bulk_upsert_recipient_list_members_before_send(
+            config=config,
+            list_key=list_key,
+            payload=payload,
+            idempotency_key=f"{payload['idempotency_key']}:members",
+            ordering_key=list_key,
+        ):
+            record_datamailer_send_audit(
+                send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+                payload=payload,
+                list_key=list_key,
+                error="Datamailer metadata sync was not acknowledged",
+            )
+            return None
         if passed_list_payload is not None:
             passed_list_key, passed_payload = passed_list_payload
-            client.bulk_upsert_recipient_list_members(
-                passed_list_key,
-                recipient_list_member_sync_payload(config, passed_payload),
-            )
+            if not bulk_upsert_recipient_list_members_before_send(
+                config=config,
+                list_key=passed_list_key,
+                payload=passed_payload,
+                idempotency_key=(
+                    f"{payload['idempotency_key']}:passed-outcome"
+                ),
+                ordering_key=passed_list_key,
+            ):
+                record_datamailer_send_audit(
+                    send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+                    payload=payload,
+                    list_key=list_key,
+                    error="Datamailer passed-outcome sync was not acknowledged",
+                )
+                return None
+        client = DatamailerClient(config)
         response = client.send_recipient_list_transactional(
             list_key, recipient_list_send_payload(payload)
         )
@@ -2057,13 +2129,23 @@ def send_peer_review_assignment_notification(
     if list_payload is None:
         return None
 
-    client = DatamailerClient(config)
     try:
         list_key, payload = list_payload
-        client.bulk_upsert_recipient_list_members(
-            list_key,
-            recipient_list_member_sync_payload(config, payload),
-        )
+        if not bulk_upsert_recipient_list_members_before_send(
+            config=config,
+            list_key=list_key,
+            payload=payload,
+            idempotency_key=f"{payload['idempotency_key']}:members",
+            ordering_key=list_key,
+        ):
+            record_datamailer_send_audit(
+                send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+                payload=payload,
+                list_key=list_key,
+                error="Datamailer metadata sync was not acknowledged",
+            )
+            return None
+        client = DatamailerClient(config)
         response = client.send_recipient_list_transactional(
             list_key,
             recipient_list_send_payload(payload),
@@ -2104,16 +2186,30 @@ def send_certificate_availability_notification(
     if graduate_list_payload is None and payload is None:
         return None
 
-    client = DatamailerClient(config)
     try:
         if graduate_list_payload is not None:
             list_key, list_payload = graduate_list_payload
-            client.bulk_upsert_recipient_list_members(
-                list_key,
-                recipient_list_member_sync_payload(config, list_payload),
-            )
+            if not bulk_upsert_recipient_list_members_before_send(
+                config=config,
+                list_key=list_key,
+                payload=list_payload,
+                idempotency_key=(
+                    f"{payload['idempotency_key']}:graduate-outcome"
+                    if payload is not None
+                    else f"certificate-available:{enrollment.pk}:graduate-outcome"
+                ),
+                ordering_key=list_key,
+            ):
+                if payload is not None:
+                    record_datamailer_send_audit(
+                        send_type=DatamailerSendAuditType.TRANSACTIONAL,
+                        payload=payload,
+                        error="Datamailer graduate-outcome sync was not acknowledged",
+                    )
+                return None
         if payload is None:
             return None
+        client = DatamailerClient(config)
         response = client.send_transactional(payload)
         record_datamailer_send_audit(
             send_type=DatamailerSendAuditType.TRANSACTIONAL,

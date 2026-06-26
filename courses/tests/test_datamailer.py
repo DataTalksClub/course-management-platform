@@ -1969,6 +1969,55 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(audit.event, "homework_score_publication")
         self.assertEqual(audit.intended_count, 1)
         self.assertEqual(audit.enqueued_count, 1)
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.members_bulk_upsert",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(
+            event.payload["list_key"],
+            homework_submitters_list_key(homework),
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
+    def test_score_notification_does_not_send_without_metadata_ack(
+        self,
+        bulk_upsert,
+        send_list,
+    ):
+        bulk_upsert.side_effect = requests.RequestException("network error")
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+
+        result = send_homework_score_notification(homework)
+
+        self.assertIsNone(result)
+        send_list.assert_not_called()
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.members_bulk_upsert",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.RETRYING)
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.FAILED)
+        self.assertIn("metadata sync", audit.error)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -2404,6 +2453,13 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(result, {"enqueued_count": 1})
         self.assertEqual(bulk_upsert.call_count, 2)
         send_list.assert_called_once()
+        self.assertEqual(
+            DatamailerOutboxEvent.objects.filter(
+                event_type="recipient_list.members_bulk_upsert",
+                status=DatamailerOutboxStatus.ACKED,
+            ).count(),
+            2,
+        )
         self.assertEqual(
             send_list.call_args.args[0],
             project_submitters_list_key(project),

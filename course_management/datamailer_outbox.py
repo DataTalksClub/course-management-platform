@@ -214,6 +214,12 @@ def _send_event(client, event_type: str, payload: dict[str, Any]):
             payload["source_object_key"],
         )
 
+    if event_type == "recipient_list.members_bulk_upsert":
+        return client.bulk_upsert_recipient_list_members(
+            payload["list_key"],
+            payload["member_sync_payload"],
+        )
+
     if event_type == "contact.erase":
         return client.erase_contact(payload["email"])
 
