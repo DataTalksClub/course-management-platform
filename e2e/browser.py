@@ -28,6 +28,21 @@ class AdminSession:
     def url(self, path: str) -> str:
         return f"{self.base_url}{path}"
 
+    def click_first_visible(self, selector: str) -> None:
+        """Click the first visible element matching ``selector``.
+
+        The site shell includes hidden submit buttons, such as the account-menu
+        logout button, before admin form buttons in DOM order. Playwright's
+        plain ``locator.click()`` acts on the first match even if it is hidden.
+        """
+        candidates = self.page.locator(selector)
+        for index in range(candidates.count()):
+            candidate = candidates.nth(index)
+            if candidate.is_visible():
+                candidate.click()
+                return
+        raise AssertionError(f"No visible element matched selector: {selector}")
+
     # -- auth ------------------------------------------------------------
     def login_admin(self, email: str, password: str) -> None:
         self.page.goto(self.url("/admin/login/"))
@@ -153,14 +168,24 @@ class AdminSession:
             raise AssertionError(
                 "CustomUser admin add form did not expose password fields."
             )
-        self.page.click("input[name='_save'], button[type='submit'], "
-                        "input[type='submit']")
+        self.click_first_visible(
+            "form#customuser_form input[name='_save'], "
+            "form#customuser_form button[name='_save'], "
+            "form#customuser_form input[type='submit'], "
+            "form#customuser_form button[type='submit'], "
+            "input[name='_save']"
+        )
         self.page.wait_for_load_state("networkidle")
         # On the resulting change form, also set the email field if present.
         if self.page.locator("input[name='email']").count():
             self.page.fill("input[name='email']", email)
-            self.page.click("input[name='_save'], button[type='submit'], "
-                            "input[type='submit']")
+            self.click_first_visible(
+                "form#customuser_form input[name='_save'], "
+                "form#customuser_form button[name='_save'], "
+                "form#customuser_form input[type='submit'], "
+                "form#customuser_form button[type='submit'], "
+                "input[name='_save']"
+            )
             self.page.wait_for_load_state("networkidle")
         user_id = self.find_user_id_by_email(email)
         if user_id is None:
@@ -249,12 +274,18 @@ class AdminSession:
             # already carries csrfmiddlewaretoken + post=yes (Django renders a
             # hidden <input name="post" value="yes">).
             confirm = self.page.locator(
-                "form input[type='submit'], form button[type='submit']"
-            ).first
+                "form:has(input[name='post'][value='yes']) input[type='submit'], "
+                "form:has(input[name='post'][value='yes']) button[type='submit'], "
+                "input[name='post'][value='yes'] ~ input[type='submit']"
+            )
             if confirm.count() == 0:
                 # Page may have 404'd (already deleted) -- verify and report.
                 return self.find_course_pk(slug, title=title) is None
-            confirm.click()
+            self.click_first_visible(
+                "form:has(input[name='post'][value='yes']) input[type='submit'], "
+                "form:has(input[name='post'][value='yes']) button[type='submit'], "
+                "input[name='post'][value='yes'] ~ input[type='submit']"
+            )
             self.page.wait_for_load_state("networkidle")
 
             # Verify: change page should 404 and changelist should not list it.
