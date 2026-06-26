@@ -43,6 +43,25 @@ class AdminSession:
                 return
         raise AssertionError(f"No visible element matched selector: {selector}")
 
+    def submit_form_containing(self, selector: str) -> None:
+        """Submit the form that owns the first element matching ``selector``."""
+        field = self.page.locator(selector).first
+        if field.count() == 0:
+            raise AssertionError(f"No field matched selector: {selector}")
+        field.evaluate(
+            """(element) => {
+                const form = element.form || element.closest('form');
+                if (!form) {
+                    throw new Error('Matched element is not inside a form');
+                }
+                if (form.requestSubmit) {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            }"""
+        )
+
     # -- auth ------------------------------------------------------------
     def login_admin(self, email: str, password: str) -> None:
         self.page.goto(self.url("/admin/login/"))
@@ -168,24 +187,12 @@ class AdminSession:
             raise AssertionError(
                 "CustomUser admin add form did not expose password fields."
             )
-        self.click_first_visible(
-            "form#customuser_form input[name='_save'], "
-            "form#customuser_form button[name='_save'], "
-            "form#customuser_form input[type='submit'], "
-            "form#customuser_form button[type='submit'], "
-            "input[name='_save']"
-        )
+        self.submit_form_containing("input[name='username']")
         self.page.wait_for_load_state("networkidle")
         # On the resulting change form, also set the email field if present.
         if self.page.locator("input[name='email']").count():
             self.page.fill("input[name='email']", email)
-            self.click_first_visible(
-                "form#customuser_form input[name='_save'], "
-                "form#customuser_form button[name='_save'], "
-                "form#customuser_form input[type='submit'], "
-                "form#customuser_form button[type='submit'], "
-                "input[name='_save']"
-            )
+            self.submit_form_containing("input[name='email']")
             self.page.wait_for_load_state("networkidle")
         user_id = self.find_user_id_by_email(email)
         if user_id is None:
@@ -273,19 +280,10 @@ class AdminSession:
             # The confirmation page's submit button is inside a POST form that
             # already carries csrfmiddlewaretoken + post=yes (Django renders a
             # hidden <input name="post" value="yes">).
-            confirm = self.page.locator(
-                "form:has(input[name='post'][value='yes']) input[type='submit'], "
-                "form:has(input[name='post'][value='yes']) button[type='submit'], "
-                "input[name='post'][value='yes'] ~ input[type='submit']"
-            )
-            if confirm.count() == 0:
+            if self.page.locator("input[name='post'][value='yes']").count() == 0:
                 # Page may have 404'd (already deleted) -- verify and report.
                 return self.find_course_pk(slug, title=title) is None
-            self.click_first_visible(
-                "form:has(input[name='post'][value='yes']) input[type='submit'], "
-                "form:has(input[name='post'][value='yes']) button[type='submit'], "
-                "input[name='post'][value='yes'] ~ input[type='submit']"
-            )
+            self.submit_form_containing("input[name='post'][value='yes']")
             self.page.wait_for_load_state("networkidle")
 
             # Verify: change page should 404 and changelist should not list it.
