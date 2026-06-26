@@ -2,6 +2,7 @@ import random
 import logging
 
 from time import time
+from datetime import timedelta
 from enum import Enum
 from collections import defaultdict
 
@@ -12,6 +13,8 @@ import statistics
 
 from django.db import transaction
 from django.utils import timezone
+
+from course_management.deadlines import ceil_to_next_hour
 
 from courses.models import (
     Project,
@@ -28,6 +31,9 @@ from .scoring import update_leaderboard
 
 
 logger = logging.getLogger(__name__)
+
+# How long the peer-review window stays open after submissions close.
+PEER_REVIEW_WINDOW = timedelta(days=7)
 
 
 class ProjectActionStatus(Enum):
@@ -136,6 +142,12 @@ def assign_peer_reviews_for_project(
 
         PeerReview.objects.bulk_create(assignments)
 
+        # Open the peer-review window for 7 days from now, rounded up to the
+        # next whole hour. This always overwrites any previously set deadline
+        # so closing submissions deterministically (re)starts the review clock.
+        project.peer_review_due_date = ceil_to_next_hour(
+            timezone.now() + PEER_REVIEW_WINDOW
+        )
         project.state = ProjectState.PEER_REVIEWING.value
         project.save()
 

@@ -104,10 +104,10 @@
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             {% if hw.is_scored %}
-              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span>
+              <span class="md:whitespace-nowrap">{{ hw.due_date|user_datetime:request }}</span>
               <div class="mt-1 text-xs app-muted">Already scored</div>
             {% else %}
-              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ hw.due_date|date:'U' }}">{{ hw.due_date | date:"j F Y, H:i" }}</span>
+              <span class="md:whitespace-nowrap">{{ hw.due_date|user_datetime:request }}</span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ hw.due_date | date:"c" }}" data-past-tone="muted"></div>
             {% endif %}
           </div>
@@ -164,13 +164,13 @@
           <div class="text-sm app-text">
             <i class="far fa-calendar-alt mr-2 hidden app-muted md:inline"></i>
             {% if project.state == 'PR' and project.submitted %}
-              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span>
+              <span class="md:whitespace-nowrap">{{ project.peer_review_due_date|user_datetime:request }}</span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.peer_review_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% elif project.state == 'CO' %}
-              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}">{{ project.peer_review_due_date | date:"j F Y, H:i" }}</span>
+              <span class="md:whitespace-nowrap">{{ project.peer_review_due_date|user_datetime:request }}</span>
               <div class="mt-1 text-xs app-muted">Completed</div>
             {% else %}
-              <span class="md:whitespace-nowrap local-date" data-timestamp="{{ project.submission_due_date|date:'U' }}">{{ project.submission_due_date | date:"j F Y, H:i" }}</span>
+              <span class="md:whitespace-nowrap">{{ project.submission_due_date|user_datetime:request }}</span>
               <div class="time-left mt-1 text-xs app-muted" data-deadline="{{ project.submission_due_date | date:"c" }}" data-past-tone="muted"></div>
             {% endif %}
           </div>
@@ -207,7 +207,7 @@
 {% endif %}
 
 <div class="mt-8 text-sm app-muted">
-  All deadlines are in your local timezone.
+  All deadlines are shown in your account timezone.
   <a href="{% url 'course_calendar' course.slug %}" class="app-link">Calendar feed</a>
 </div>
 {% endblock %}

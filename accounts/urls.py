@@ -12,5 +12,10 @@ urlpatterns = [
         views.update_account_toggle,
         name='update_account_toggle',
     ),
+    path(
+        'settings/timezone/',
+        views.update_timezone_preference,
+        name='update_timezone_preference',
+    ),
     path('stop-impersonating/', views.stop_impersonating, name='stop_impersonating'),
 ]

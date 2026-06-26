@@ -59,6 +59,16 @@ class CustomUser(AbstractUser):
         default=False,
         help_text="Enable dark mode theme"
     )
+    preferred_timezone = models.CharField(
+        verbose_name="Preferred timezone",
+        max_length=100,
+        blank=True,
+        default="",
+        help_text=(
+            "IANA timezone used for backend-rendered deadlines and "
+            "notification emails."
+        ),
+    )
     email_submission_confirmations = models.BooleanField(
         verbose_name="Submission confirmations",
         default=True,

@@ -53,9 +53,7 @@
             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                     <span class="text-xs font-semibold uppercase app-muted">Deadline:</span>
                     <span class="font-medium app-heading">
-                        <span class="local-date"
-                              data-timestamp="{{ project.submission_due_date|date:'U' }}"
-                              data-show-timezone="true">{{ project.submission_due_date|date:"j F Y, H:i" }}</span>
+                        <span>{{ project.submission_due_date|user_datetime:request }}</span>
                     </span>
                 </div>
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -63,7 +61,7 @@
                       data-deadline="{{ project.submission_due_date | date:"c" }}"
                       data-prefix="false"></span>
                 <span aria-hidden="true" class="app-muted">&middot;</span>
-                <span class="app-muted">Shown in your timezone.</span>
+                <span class="app-muted">Shown in your account timezone.</span>
             </div>
             {% if is_authenticated %}
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -248,9 +246,7 @@
             <div class="text-sm app-muted">
                 {% if submission %}
                     Last saved at:
-                    <span class="local-date"
-                          data-timestamp="{{ submission.submitted_at|date:'U' }}"
-                          data-show-timezone="true">{{ submission.submitted_at|date:"F d, Y H:i" }}</span>
+                    <span>{{ submission.submitted_at|user_datetime:request }}</span>
                 {% else %}
                     Status: Not saved yet
                 {% endif %}

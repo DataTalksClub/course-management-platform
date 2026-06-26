@@ -15,6 +15,7 @@ from django.utils import timezone
 from course_management.datamailer import (
     send_homework_score_notification,
     send_project_score_notification,
+    send_peer_review_assignment_notification,
 )
 from .forms import RegistrationCampaignForm
 from courses.models import (
@@ -628,6 +629,7 @@ def project_assign_reviews(request, course_slug, project_slug):
 
     if status == ProjectActionStatus.OK:
         messages.success(request, message)
+        send_peer_review_assignment_notification(project)
     else:
         messages.warning(request, message)
 

@@ -11,7 +11,7 @@
         <div class="mt-2 flex flex-col gap-2">
             <h1 class="settings-page-title text-2xl font-semibold md:text-3xl">Account settings</h1>
             <p class="settings-section-copy max-w-2xl text-sm">
-                Manage your certificate name, theme preference, and course enrollments.
+                Manage your certificate name, timezone, theme preference, and course enrollments.
             </p>
         </div>
     </section>
@@ -116,6 +116,41 @@
                 <span class="toggle-copy">
                     <span class="toggle-label">{{ form.dark_mode.label }}</span>
                 </span>
+            </div>
+        </section>
+
+        <section class="settings-section space-y-4 border-t pt-6" id="display-preferences-section">
+            <div>
+                <h2 class="settings-section-title text-lg font-semibold">Display preferences</h2>
+                <p class="settings-section-copy mt-1 text-sm leading-6">
+                    Deadlines and notification emails use this timezone.
+                </p>
+            </div>
+            <div>
+                <label for="{{ form.preferred_timezone.id_for_label }}"
+                       class="settings-label mb-2 block text-sm font-semibold">
+                    {{ form.preferred_timezone.label }}
+                </label>
+                {{ form.preferred_timezone }}
+                <p id="timezone-preference-status"
+                   class="settings-helper mt-1 text-xs leading-5">
+                    {% if preferred_timezone_label %}
+                        Current timezone: {{ preferred_timezone_label }}
+                    {% elif browser_timezone_label %}
+                        Using browser timezone: {{ browser_timezone_label }}
+                    {% else %}
+                        Using UTC until your browser timezone is detected.
+                    {% endif %}
+                </p>
+                <p class="settings-helper mt-1 text-xs leading-5">
+                    {{ form.preferred_timezone.help_text }}
+                </p>
+                {% if form.preferred_timezone.errors %}
+                    <div class="mt-2 text-sm font-medium">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {{ form.preferred_timezone.errors|join:" " }}
+                    </div>
+                {% endif %}
             </div>
         </section>
 

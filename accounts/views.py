@@ -1,3 +1,6 @@
+import json
+from urllib.parse import unquote
+
 from django.shortcuts import redirect, render
 from asgiref.sync import sync_to_async
 from allauth.socialaccount.providers import registry
@@ -14,6 +17,7 @@ from django.views.decorators.http import require_POST
 from loginas.utils import restore_original_login
 
 from accounts.forms import AccountSettingsForm
+from accounts.services.timezones import get_timezone_label, is_valid_timezone
 from courses.models import Enrollment
 
 ACCOUNT_TOGGLE_FIELDS = {
@@ -34,6 +38,8 @@ def account_settings(request):
 
     if request.method == "POST":
         data = request.POST.copy()
+        if "preferred_timezone" not in data:
+            data["preferred_timezone"] = user.preferred_timezone
         for field in ACCOUNT_TOGGLE_FIELDS:
             if getattr(user, field):
                 data[field] = "on"
@@ -52,12 +58,21 @@ def account_settings(request):
         .order_by("course__title")
     )
 
+    browser_timezone = unquote(request.COOKIES.get("browser_timezone", ""))
+    browser_timezone_label = ""
+    if not user.preferred_timezone and is_valid_timezone(browser_timezone):
+        browser_timezone_label = get_timezone_label(browser_timezone)
+
     return render(
         request,
         "accounts/account_settings.html",
         {
             "form": form,
             "enrollments": enrollments,
+            "preferred_timezone_label": get_timezone_label(
+                user.preferred_timezone
+            ),
+            "browser_timezone_label": browser_timezone_label,
         },
     )
 
@@ -94,6 +109,46 @@ def update_account_toggle(request):
     if field == "dark_mode":
         response["dark_mode"] = enabled
     return JsonResponse(response)
+
+
+@login_required
+@require_POST
+def update_timezone_preference(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    timezone_name = data.get("timezone")
+    if timezone_name is None:
+        return JsonResponse({"error": "timezone field is required"}, status=400)
+    if not isinstance(timezone_name, str):
+        return JsonResponse({"error": "timezone must be a string"}, status=400)
+
+    timezone_name = timezone_name.strip()
+    if timezone_name and not is_valid_timezone(timezone_name):
+        return JsonResponse({"error": "Invalid timezone"}, status=400)
+
+    user = request.user
+    if data.get("passive") and user.preferred_timezone:
+        return JsonResponse(
+            {
+                "status": "ok",
+                "timezone": user.preferred_timezone,
+                "label": get_timezone_label(user.preferred_timezone),
+            }
+        )
+
+    user.preferred_timezone = timezone_name
+    user.save(update_fields=["preferred_timezone"])
+
+    return JsonResponse(
+        {
+            "status": "ok",
+            "timezone": user.preferred_timezone,
+            "label": get_timezone_label(user.preferred_timezone),
+        }
+    )
 
 
 @login_required

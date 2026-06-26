@@ -31,14 +31,22 @@ class DeadlineReminderCommandTest(TestCase):
     def reminder_run_time(self):
         return datetime(2026, 6, 16, 9, tzinfo=datetime_timezone.utc)
 
-    def create_user(self, username, email, *, reminders=True):
+    def create_user(
+        self,
+        username,
+        email,
+        *,
+        reminders=True,
+        preferred_timezone="",
+    ):
         user = CustomUser.objects.create_user(
             username=username,
             email=email,
             password="password",
         )
         user.email_deadline_reminders = reminders
-        user.save(update_fields=["email_deadline_reminders"])
+        user.preferred_timezone = preferred_timezone
+        user.save(update_fields=["email_deadline_reminders", "preferred_timezone"])
         return user
 
     def create_enrollment(self, user, course):
@@ -75,6 +83,7 @@ class DeadlineReminderCommandTest(TestCase):
         eligible_user = self.create_user(
             "eligible",
             "eligible@example.com",
+            preferred_timezone="Europe/Berlin",
         )
         submitted_user = self.create_user(
             "submitted",
@@ -129,6 +138,14 @@ class DeadlineReminderCommandTest(TestCase):
             payload["members"][0]["source_object_key"],
             f"enrollment:{eligible_enrollment.pk}",
         )
+        self.assertEqual(
+            payload["members"][0]["metadata"]["deadline_at"],
+            "Thursday, 18 June 2026, 01:00 Europe/Berlin",
+        )
+        self.assertEqual(
+            payload["members"][0]["metadata"]["deadline_timezone"],
+            "Europe/Berlin",
+        )
 
         send_payload = send_list.call_args.args[1]
         self.assertEqual(
@@ -142,6 +159,10 @@ class DeadlineReminderCommandTest(TestCase):
         self.assertEqual(
             send_payload["context"]["action_url"],
             "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
+        )
+        self.assertEqual(
+            send_payload["context"]["deadline_at"],
+            "Wednesday, 17 June 2026, 23:00 UTC",
         )
 
     @override_settings(

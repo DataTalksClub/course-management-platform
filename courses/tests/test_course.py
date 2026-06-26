@@ -220,7 +220,10 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Calendar feed")
         self.assertNotContains(response, "primer-button\">Calendar feed")
-        self.assertContains(response, "All deadlines are in your local timezone.")
+        self.assertContains(
+            response,
+            "All deadlines are shown in your account timezone.",
+        )
         self.assertContains(
             response,
             reverse(

@@ -23,6 +23,7 @@ from course_management.datamailer import (
     get_transactional_message_status,
     homework_score_notification_payload,
     homework_submitters_list_key,
+    peer_review_assignment_notification_payload,
     project_score_notification_payload,
     project_submitters_list_key,
     registration_list_key,
@@ -41,7 +42,9 @@ from courses.models import (
     CourseRegistration,
     Enrollment,
     Homework,
+    PeerReview,
     Project,
+    ProjectState,
     ProjectSubmission,
     RegistrationCampaign,
     Submission,
@@ -1055,6 +1058,160 @@ class DatamailerClientTest(TestCase):
         )
         self.assertTrue(member["metadata"]["reviewed_enough_peers"])
         self.assertTrue(member["metadata"]["passed"])
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_project_score_notification_dedupes_student_submissions(self):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        user = CustomUser.objects.create_user(
+            username="project-learner@example.com",
+            email="project-learner@example.com",
+            password="test",
+        )
+        enrollment = Enrollment.objects.create(student=user, course=course)
+        ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/old",
+            submitted_at=timezone.now() - timedelta(days=1),
+            total_score=40,
+        )
+        latest = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/new",
+            submitted_at=timezone.now(),
+            total_score=90,
+        )
+
+        _, payload = project_score_notification_payload(project)
+
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(
+            member["source_object_key"],
+            f"project-submission:{latest.pk}",
+        )
+        self.assertEqual(member["metadata"]["total_score"], 90)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_peer_review_assignment_payload_includes_links_and_deadline(self):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            state=ProjectState.PEER_REVIEWING.value,
+            number_of_peers_to_evaluate=3,
+            submission_due_date="2026-01-01T00:00:00Z",
+            # Summer instant: PT 15:00, Berlin 00:00 next day.
+            peer_review_due_date="2026-07-02T22:00:00Z",
+        )
+
+        submissions = []
+        for i in range(4):
+            user = CustomUser.objects.create_user(
+                username=f"learner-{i}@example.com",
+                email=f"learner-{i}@example.com",
+                password="test",
+            )
+            if i == 0:
+                user.preferred_timezone = "Europe/Berlin"
+                user.save(update_fields=["preferred_timezone"])
+            enrollment = Enrollment.objects.create(
+                student=user, course=course
+            )
+            submissions.append(
+                ProjectSubmission.objects.create(
+                    project=project,
+                    student=user,
+                    enrollment=enrollment,
+                    github_link=f"https://github.com/example/p{i}",
+                )
+            )
+
+        reviewer = submissions[0]
+        targets = submissions[1:]
+        for target in targets:
+            PeerReview.objects.create(
+                reviewer=reviewer,
+                submission_under_evaluation=target,
+                note_to_peer="",
+                optional=False,
+            )
+        # An optional (volunteer) review must not appear in the email.
+        PeerReview.objects.create(
+            reviewer=reviewer,
+            submission_under_evaluation=targets[0],
+            note_to_peer="",
+            optional=True,
+        )
+
+        # Reload so the deadline is a real datetime (not the literal string).
+        project.refresh_from_db()
+        list_key, payload = peer_review_assignment_notification_payload(
+            project
+        )
+
+        self.assertEqual(list_key, project_submitters_list_key(project))
+        self.assertEqual(payload["template_key"], "peer-review-assignment")
+        self.assertEqual(
+            payload["idempotency_key"],
+            "peer-review-assignment:ml-zoomcamp-2026:project-1",
+        )
+        self.assertEqual(payload["metadata"]["event"], "peer_review_assignment")
+
+        context = payload["context"]
+        self.assertEqual(context["number_of_peers_to_evaluate"], 3)
+        self.assertEqual(
+            context["peer_review_due_at"],
+            project.peer_review_due_date.isoformat(),
+        )
+        # Shared context remains a UTC fallback.
+        self.assertEqual(context["deadline_weekday"], "Thursday")
+        self.assertEqual(context["deadline_time"], "22:00")
+        self.assertEqual(
+            context["deadline_summary"], "Thursday, 2 July 2026, 22:00 UTC"
+        )
+
+        members_by_email = {m["email"]: m for m in payload["members"]}
+        self.assertEqual(len(members_by_email), 4)
+
+        reviewer_member = members_by_email["learner-0@example.com"]
+        self.assertEqual(
+            reviewer_member["metadata"]["deadline_summary"],
+            "Friday, 3 July 2026, 00:00 Europe/Berlin",
+        )
+        self.assertEqual(
+            reviewer_member["metadata"]["deadline_timezone"],
+            "Europe/Berlin",
+        )
+        assigned = reviewer_member["metadata"]["assigned_reviews"]
+        # Only the 3 non-optional assignments.
+        self.assertEqual(reviewer_member["metadata"]["assigned_reviews_count"], 3)
+        self.assertEqual(len(assigned), 3)
+        for item in assigned:
+            self.assertIn(
+                f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
+                item["eval_url"],
+            )
+            self.assertTrue(item["eval_url"].startswith("https://"))
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_project_score_notification_skips_opted_out_students(self):

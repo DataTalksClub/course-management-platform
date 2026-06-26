@@ -1,3 +1,5 @@
+import json
+
 from django.test import TestCase, Client
 from django.urls import reverse
 from accounts.models import CustomUser, Token
@@ -141,6 +143,7 @@ class AccountSettingsTestCase(TestCase):
             reverse("account_settings"),
             {
                 "certificate_name": "Student Certificate",
+                "preferred_timezone": "Europe/Berlin",
                 "github_url": "https://github.com/student",
                 "linkedin_url": "https://linkedin.com/in/student",
                 "personal_website_url": "https://student.example.com",
@@ -155,6 +158,7 @@ class AccountSettingsTestCase(TestCase):
         self.assertRedirects(response, reverse("account_settings"))
         self.user.refresh_from_db()
         self.assertEqual(self.user.certificate_name, "Student Certificate")
+        self.assertEqual(self.user.preferred_timezone, "Europe/Berlin")
         self.assertEqual(self.user.github_url, "https://github.com/student")
         self.assertEqual(
             self.user.linkedin_url,
@@ -254,6 +258,70 @@ class AccountSettingsTestCase(TestCase):
         self.assertContains(response, "mandatory for project completion")
         self.assertContains(response, "General course-related emails")
         self.assertContains(response, "course start announcements")
+
+    def test_account_settings_shows_timezone_preference(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Display preferences")
+        self.assertContains(response, "Deadlines and notification emails")
+        self.assertContains(response, "Europe/Berlin")
+
+    def test_account_settings_shows_browser_timezone_cookie_fallback(self):
+        self.client.force_login(self.user)
+        self.client.cookies["browser_timezone"] = "Europe%2FBerlin"
+
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Using browser timezone")
+        self.assertContains(response, "Europe/Berlin")
+
+    def test_update_timezone_preference_passive_detects_browser_timezone(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_timezone_preference"),
+            data=json.dumps(
+                {"timezone": "Europe/Berlin", "passive": True}
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.preferred_timezone, "Europe/Berlin")
+
+    def test_update_timezone_preference_passive_does_not_override_saved(self):
+        self.user.preferred_timezone = "America/New_York"
+        self.user.save(update_fields=["preferred_timezone"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_timezone_preference"),
+            data=json.dumps(
+                {"timezone": "Europe/Berlin", "passive": True}
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.preferred_timezone, "America/New_York")
+
+    def test_update_timezone_preference_rejects_invalid_timezone(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("update_timezone_preference"),
+            data=json.dumps({"timezone": "Mars/Olympus"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_account_settings_certificate_name_shows_in_enrollment_form(self):
         self.client.force_login(self.user)

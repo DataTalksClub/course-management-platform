@@ -3,6 +3,8 @@ from django.template.defaultfilters import stringfilter
 from django.utils.safestring import mark_safe
 from django.utils.html import urlize as urlize_impl
 
+from accounts.services.timezones import format_user_datetime
+
 register = template.Library()
 
 
@@ -17,3 +19,8 @@ def urlize_target_blank(value, limit=30, autoescape=None):
             autoescape=autoescape,
         ).replace("<a", '<a target="_blank"')
     )
+
+
+@register.filter
+def user_datetime(value, user):
+    return format_user_datetime(value, user)

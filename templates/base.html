@@ -55,6 +55,10 @@
     <body class="flex min-h-screen flex-col app-surface font-sans app-heading antialiased {% block body_class %}{% endblock %} {% if DARK_MODE %}dark dark-mode{% endif %}"
           data-dark-mode="{% if DARK_MODE %}true{% else %}false{% endif %}"
           data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}"
+          {% if user.is_authenticated %}
+              data-preferred-timezone="{{ user.preferred_timezone|default:'' }}"
+              data-timezone-update-url="{% url 'update_timezone_preference' %}"
+          {% endif %}
           data-toggle-url="{% url 'toggle_dark_mode' %}">
         {% if user.is_authenticated %}<input type="hidden" id="csrf-token" value="{{ csrf_token }}">{% endif %}
         {% if IS_IMPERSONATING %}
@@ -185,6 +189,7 @@
         </footer>
         <script src="{% static 'local_date.js' %}"></script>
         <script src="{% static 'time_left.js' %}"></script>
+        <script src="{% static 'timezone_preference.js' %}"></script>
         <script src="{% static 'dark_mode.js' %}"></script>
         {% block extra_js %}{% endblock %}
     </body>

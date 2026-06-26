@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 {% block meta_robots %}
 <meta name="robots" content="noindex">
 {% endblock %}
@@ -30,13 +31,13 @@
 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 <span class="text-xs font-semibold uppercase app-muted">Deadline:</span>
 <span class="font-medium app-heading">
-<span class="local-date" data-timestamp="{{ project.peer_review_due_date|date:'U' }}" data-show-timezone="true">{{ project.peer_review_due_date|date:"j F Y, H:i" }}</span>
+<span>{{ project.peer_review_due_date|user_datetime:request }}</span>
 </span>
 </div>
 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 <span class="time-left app-muted" data-deadline="{{ project.peer_review_due_date|date:"c" }}" data-prefix="false"></span>
 <span aria-hidden="true" class="app-muted">&middot;</span>
-<span class="app-muted">Shown in your timezone.</span>
+<span class="app-muted">Shown in your account timezone.</span>
 </div>
 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 pt-3">
 <span class="text-xs font-semibold uppercase app-muted">Repository:</span>
@@ -158,9 +159,7 @@ Update
 {% if review.state == 'SU' and review.submitted_at %}
 <p class="mt-4 text-sm app-muted">
 Last submission at:
-<span class="local-date"
-      data-timestamp="{{ review.submitted_at|date:'U' }}"
-      data-show-timezone="true">{{ review.submitted_at|date:"F d, Y H:i" }}</span>
+<span>{{ review.submitted_at|user_datetime:request }}</span>
 </p>
 {% endif %}
 </section>

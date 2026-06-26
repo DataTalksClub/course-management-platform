@@ -16,6 +16,7 @@ from course_management.datamailer import (
     DatamailerConfig,
     public_url,
 )
+from course_management.deadlines import format_deadline_for_email
 from courses.models import (
     Enrollment,
     Homework,
@@ -68,15 +69,33 @@ def is_within_window(value, start, end):
     return start <= value_utc < end
 
 
-def member_from_enrollment(enrollment, metadata):
+def deadline_metadata(deadline, user):
+    formatted = format_deadline_for_email(deadline, user)
+    return {
+        "deadline_at": formatted["deadline_summary"],
+        "deadline_iso": formatted["deadline_iso"],
+        "deadline_weekday": formatted["deadline_weekday"],
+        "deadline_date": formatted["deadline_date"],
+        "deadline_time": formatted["deadline_time"],
+        "deadline_timezone": formatted["deadline_timezone"],
+        "deadline_summary": formatted["deadline_summary"],
+    }
+
+
+def member_from_enrollment(enrollment, metadata, *, deadline=None):
     email = (enrollment.student.email or "").strip().lower()
     if not email:
         return None
+    member_metadata = metadata
+    if deadline is not None:
+        member_metadata = member_metadata | deadline_metadata(
+            deadline, enrollment.student
+        )
     return {
         "source_object_key": f"enrollment:{enrollment.pk}",
         "email": email,
         "status": "active",
-        "metadata": metadata
+        "metadata": member_metadata
         | {
             "enrollment_id": enrollment.pk,
             "user_id": enrollment.student_id,
@@ -85,16 +104,21 @@ def member_from_enrollment(enrollment, metadata):
     }
 
 
-def member_from_project_submission(submission, metadata):
+def member_from_project_submission(submission, metadata, *, deadline=None):
     email = (submission.student.email or "").strip().lower()
     if not email:
         return None
     source_object_key = f"project-submission:{submission.pk}"
+    member_metadata = metadata
+    if deadline is not None:
+        member_metadata = member_metadata | deadline_metadata(
+            deadline, submission.student
+        )
     return {
         "source_object_key": source_object_key,
         "email": email,
         "status": "active",
-        "metadata": metadata
+        "metadata": member_metadata
         | {
             "submission_id": submission.pk,
             "enrollment_id": submission.enrollment_id,
@@ -158,7 +182,8 @@ def base_context(
         "item_type": item_type,
         "item_slug": item_slug,
         "item_title": item_title,
-        "deadline_at": deadline.isoformat(),
+        "deadline_at": format_deadline_for_email(deadline)["deadline_summary"],
+        "deadline_iso": deadline.isoformat(),
         "action_url": action_url,
         "profile_url": public_url(reverse("account_settings")),
         "notification_category": "deadline reminders",
@@ -203,7 +228,13 @@ def homework_events(config, now, course_slug):
         members = [
             member
             for enrollment in enrollments
-            if (member := member_from_enrollment(enrollment, metadata))
+            if (
+                member := member_from_enrollment(
+                    enrollment,
+                    metadata,
+                    deadline=homework.due_date,
+                )
+            )
             is not None
         ]
         if not members:
@@ -322,7 +353,13 @@ def project_submission_events(config, now, course_slug):
         members = [
             member
             for enrollment in enrollments
-            if (member := member_from_enrollment(enrollment, metadata))
+            if (
+                member := member_from_enrollment(
+                    enrollment,
+                    metadata,
+                    deadline=project.submission_due_date,
+                )
+            )
             is not None
         ]
         if not members:
@@ -431,7 +468,9 @@ def peer_review_events(config, now, course_slug):
             for submission in reviewer_submissions
             if (
                 member := member_from_project_submission(
-                    submission, metadata
+                    submission,
+                    metadata,
+                    deadline=project.peer_review_due_date,
                 )
             )
             is not None

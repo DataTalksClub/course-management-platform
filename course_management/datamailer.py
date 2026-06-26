@@ -9,6 +9,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from course_management import email_templates
+from course_management.deadlines import format_deadline_for_email
 
 logger = logging.getLogger(__name__)
 
@@ -674,13 +675,17 @@ def project_score_notification_members(
     members = []
     submissions = project.projectsubmission_set.select_related(
         "student", "project__course"
-    ).order_by("id")
+    ).order_by("student_id", "-submitted_at", "-id")
+    seen_students = set()
     for submission in submissions:
         if not getattr(submission.student, "email_submission_confirmations", True):
+            continue
+        if submission.student_id in seen_students:
             continue
         item = project_submission_recipient_list_payload(submission)
         if item is None:
             continue
+        seen_students.add(submission.student_id)
         _, source_object_key, member_payload = item
         list_data = member_payload["list"]
         members.append(
@@ -847,6 +852,231 @@ def project_score_notification_payload(
     return list_key, payload
 
 
+def _assigned_review_links(submission) -> list[dict[str, Any]]:
+    """The non-optional peer reviews this submission's author must complete,
+    each with a direct evaluation link and the target's GitHub link."""
+    project = submission.project
+    course = project.course
+    reviews = (
+        submission.reviewers.filter(optional=False)
+        .select_related("submission_under_evaluation")
+        .order_by("id")
+    )
+    items = []
+    for review in reviews:
+        target = review.submission_under_evaluation
+        items.append(
+            {
+                "review_id": review.id,
+                "eval_url": public_url(
+                    reverse(
+                        "projects_eval_submit",
+                        kwargs={
+                            "course_slug": course.slug,
+                            "project_slug": project.slug,
+                            "review_id": review.id,
+                        },
+                    )
+                ),
+                "submission_github_link": (
+                    getattr(target, "github_link", "") or ""
+                ),
+            }
+        )
+    return items
+
+
+def peer_review_assignment_recipient_list_payload(
+    submission,
+) -> tuple[str, str, dict[str, Any]] | None:
+    email = (submission.student.email or "").strip().lower()
+    if not email:
+        return None
+
+    project = submission.project
+    course = project.course
+    list_key = project_submitters_list_key(project)
+    source_object_key = f"project-submission:{submission.pk}"
+    assigned_reviews = _assigned_review_links(submission)
+    deadline = format_deadline_for_email(
+        project.peer_review_due_date,
+        submission.student,
+    )
+    metadata = {
+        "submission_id": submission.pk,
+        "user_id": submission.student_id,
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+        "submitted_at": submission.submitted_at.isoformat()
+        if submission.submitted_at
+        else "",
+        "github_link": submission.github_link,
+        "evaluations_url": public_url(
+            reverse(
+                "projects_eval",
+                kwargs={
+                    "course_slug": course.slug,
+                    "project_slug": project.slug,
+                },
+            )
+        ),
+        "number_of_peers_to_evaluate": project.number_of_peers_to_evaluate,
+        "assigned_reviews": assigned_reviews,
+        "assigned_reviews_count": len(assigned_reviews),
+        "deadline_weekday": deadline["deadline_weekday"],
+        "deadline_date": deadline["deadline_date"],
+        "deadline_time": deadline["deadline_time"],
+        "deadline_timezone": deadline["deadline_timezone"],
+        "deadline_summary": deadline["deadline_summary"],
+    }
+    payload = recipient_list_member_payload(
+        list_type="project_submitters",
+        list_name=f"{course.title} {project.title} submitters",
+        email=email,
+        source_object_key=source_object_key,
+        metadata=metadata,
+    )
+    if payload is None:
+        return None
+    return list_key, source_object_key, payload
+
+
+def peer_review_assignment_notification_members(
+    project,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    list_data = {
+        "type": "project_submitters",
+        "name": f"{project.course.title} {project.title} submitters",
+        "metadata": {
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+        },
+    }
+    members = []
+    submissions = project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
+    seen_students = set()
+    for submission in submissions:
+        if not getattr(submission.student, "email_submission_confirmations", True):
+            continue
+        if submission.student_id in seen_students:
+            continue
+        item = peer_review_assignment_recipient_list_payload(submission)
+        if item is None:
+            continue
+        seen_students.add(submission.student_id)
+        _, source_object_key, member_payload = item
+        list_data = member_payload["list"]
+        members.append(
+            recipient_list_send_member_payload(
+                source_object_key, member_payload
+            )
+        )
+    return list_data, members
+
+
+def peer_review_assignment_notification_payload(
+    project,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    course = project.course
+    list_key = project_submitters_list_key(project)
+    list_data, members = peer_review_assignment_notification_members(project)
+    course_url = public_url(
+        reverse("course", kwargs={"course_slug": course.slug})
+    )
+    project_url = public_url(
+        reverse(
+            "project",
+            kwargs={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
+    evaluations_url = public_url(
+        reverse(
+            "projects_eval",
+            kwargs={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
+    leaderboard_url = public_url(
+        reverse("leaderboard", kwargs={"course_slug": course.slug})
+    )
+    profile_url = public_url(reverse("account_settings"))
+    deadline = format_deadline_for_email(project.peer_review_due_date)
+    num_peers = project.number_of_peers_to_evaluate
+
+    payload = {
+        "audience": config.audience,
+        "client": config.client,
+        "template_key": email_templates.PEER_REVIEW_ASSIGNMENT,
+        "idempotency_key": (
+            f"peer-review-assignment:{course.slug}:{project.slug}"
+        ),
+        "context": {
+            "course_slug": course.slug,
+            "course_title": course.title,
+            "project_slug": project.slug,
+            "project_title": project.title,
+            "course_url": course_url,
+            "project_url": project_url,
+            "evaluations_url": evaluations_url,
+            "leaderboard_url": leaderboard_url,
+            "profile_url": profile_url,
+            "number_of_peers_to_evaluate": num_peers,
+            "peer_review_due_at": project.peer_review_due_date.isoformat(),
+            "deadline_weekday": deadline["deadline_weekday"],
+            "deadline_date": deadline["deadline_date"],
+            "deadline_time": deadline["deadline_time"],
+            "deadline_summary": deadline["deadline_summary"],
+            "email_subject": f"Peer review is open: {project.title}",
+            "email_preview": (
+                f"Time to evaluate {num_peers} projects for "
+                f"{project.title}."
+            ),
+            "intro_text": (
+                f"Thanks for submitting {project.title} in {course.title}. "
+                f"Peer review is now open - you have {num_peers} projects to "
+                "evaluate before the deadline."
+            ),
+            "notification_footer": (
+                f"You are receiving this because you submitted {project.title} "
+                f"for {course.title} and homework/project submission emails "
+                "are enabled in your profile."
+            ),
+            "notification_footer_text": (
+                "If you don't want to receive homework/project submission "
+                "and score emails, turn off homework and project submission "
+                f"emails in your profile: {profile_url}"
+            ),
+        },
+        "list": list_data,
+        "members": members,
+        "member_sync": "reconcile",
+        "remove_absent_members": True,
+        "metadata": {
+            "source": "course-management-platform",
+            "event": "peer_review_assignment",
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+            "project_id": project.pk,
+            "preference_key": "email_submission_confirmations",
+            "cmp_preference_key": "email_submission_confirmations",
+        },
+    }
+    if config.from_email:
+        payload["from_email"] = config.from_email
+    return list_key, payload
+
+
 def certificate_availability_notification_payload(
     enrollment,
 ) -> dict[str, Any] | None:
@@ -957,6 +1187,32 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
     except requests.RequestException:
         logger.exception(
             "Datamailer project score notification failed for project_id=%s",
+            project.pk,
+        )
+        if config.strict:
+            raise
+        return None
+
+
+def send_peer_review_assignment_notification(
+    project,
+) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    list_payload = peer_review_assignment_notification_payload(project)
+    if list_payload is None:
+        return None
+
+    client = DatamailerClient(config)
+    try:
+        list_key, payload = list_payload
+        return client.send_recipient_list_transactional(list_key, payload)
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer peer review assignment notification failed "
+            "for project_id=%s",
             project.pk,
         )
         if config.strict:

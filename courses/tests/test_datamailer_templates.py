@@ -1,0 +1,63 @@
+from django.template import Context, Template
+from django.test import TestCase
+
+from course_management import email_templates
+from course_management.datamailer_templates import TEMPLATES
+
+EXPECTED_KEYS = {
+    "homework-submission-confirmation",
+    "project-submission-confirmation",
+    "homework-score-notification",
+    "project-score-notification",
+    "certificate-availability-notification",
+    "deadline-reminder",
+    "peer-review-assignment",
+}
+
+
+class DatamailerTemplatesTest(TestCase):
+    def test_covers_every_cmp_template_key(self):
+        self.assertEqual(set(TEMPLATES), EXPECTED_KEYS)
+        # Every key CMP references as a constant has a definition here.
+        for key in (
+            email_templates.HOMEWORK_SCORE_NOTIFICATION,
+            email_templates.PROJECT_SCORE_NOTIFICATION,
+            email_templates.PEER_REVIEW_ASSIGNMENT,
+        ):
+            self.assertIn(key, TEMPLATES)
+
+    def test_every_template_is_well_formed(self):
+        for key, payload in TEMPLATES.items():
+            with self.subTest(template=key):
+                self.assertTrue(payload["name"])
+                self.assertTrue(payload["subject"])
+                self.assertTrue(payload["html_body"])
+                self.assertTrue(payload["text_body"])
+                self.assertTrue(payload["required_context"])
+                self.assertTrue(payload["example_context"])
+                self.assertIs(payload["is_active"], True)
+                # The description records the triggering process.
+                self.assertIn("Triggered", payload["description"])
+
+    def test_examples_render_with_no_unresolved_variables(self):
+        for key, payload in TEMPLATES.items():
+            with self.subTest(template=key):
+                ctx = Context(payload["example_context"])
+                for field in ("subject", "html_body", "text_body"):
+                    rendered = Template(payload[field]).render(
+                        Context(payload["example_context"])
+                    )
+                    self.assertNotIn("{{", rendered)
+                    self.assertNotIn("{%", rendered)
+                # touch ctx so flake doesn't complain about unused in some flows
+                self.assertIsNotNone(ctx)
+
+    def test_peer_review_assignment_lists_assigned_links(self):
+        html = Template(
+            TEMPLATES["peer-review-assignment"]["html_body"]
+        ).render(
+            Context(TEMPLATES["peer-review-assignment"]["example_context"])
+        )
+        self.assertIn("Open all your peer reviews", html)
+        self.assertIn("/eval/4567", html)
+        self.assertIn("18:00 UTC", html)

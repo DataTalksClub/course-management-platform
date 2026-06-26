@@ -139,6 +139,31 @@ class ProjectActionsTestCase(TestCase):
                 self.project.number_of_peers_to_evaluate,
             )
 
+    def test_assign_sets_peer_review_deadline_to_seven_days_next_hour(self):
+        # A clearly-wrong existing deadline must be overwritten on assign.
+        self.project.peer_review_due_date = timezone.now() - timedelta(days=30)
+        self.project.save()
+
+        before = timezone.now()
+        self.generate_submissions(10)
+
+        status, _ = assign_peer_reviews_for_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.OK)
+        after = timezone.now()
+
+        deadline = fetch_fresh(self.project).peer_review_due_date
+
+        # Rounded up to a whole hour.
+        self.assertEqual(deadline.minute, 0)
+        self.assertEqual(deadline.second, 0)
+        self.assertEqual(deadline.microsecond, 0)
+
+        # Within the next-hour rounding window of now + 7 days.
+        self.assertGreaterEqual(deadline, before + timedelta(days=7))
+        self.assertLess(
+            deadline, after + timedelta(days=7) + timedelta(hours=1)
+        )
+
     def test_select_random_assignment_3_3(self):
         num_submissions = 3
         self.generate_submissions(num_submissions)
