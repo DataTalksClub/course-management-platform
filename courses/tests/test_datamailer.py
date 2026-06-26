@@ -4,6 +4,7 @@ from io import StringIO
 
 import requests
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -505,6 +506,86 @@ class DatamailerClientTest(TestCase):
                     },
                 )
                 response.raise_for_status.assert_called_once()
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.queue_campaign")
+    @patch("course_management.datamailer.DatamailerClient.test_send_campaign")
+    @patch("course_management.datamailer.DatamailerClient.preview_campaign")
+    @patch("course_management.datamailer.DatamailerClient.upsert_campaign")
+    def test_datamailer_campaign_command_upserts_and_runs_actions(
+        self,
+        upsert_campaign,
+        preview_campaign,
+        test_send_campaign,
+        queue_campaign,
+    ):
+        upsert_campaign.return_value = {
+            "campaign": {
+                "external_key": "course-start-2026",
+                "status": "draft",
+            },
+        }
+        preview_campaign.return_value = {"subject": "Course starts"}
+        test_send_campaign.return_value = {"queued_count": 1}
+        queue_campaign.return_value = {"campaign": {"status": "queued"}}
+
+        out = StringIO()
+        call_command(
+            "datamailer_campaign",
+            "course-start-2026",
+            "--subject",
+            "Course starts",
+            "--text",
+            "Hello learners",
+            "--include-tag",
+            "course-ml-zoomcamp",
+            "--exclude-tag",
+            "course-ml-zoomcamp-alumni",
+            "--metadata",
+            "course_slug=ml-zoomcamp-2026",
+            "--preview",
+            "--test-send",
+            "ops@example.com",
+            "--queue",
+            stdout=out,
+        )
+
+        upsert_campaign.assert_called_once()
+        self.assertEqual(upsert_campaign.call_args.args[0], "course-start-2026")
+        payload = upsert_campaign.call_args.args[1]
+        self.assertEqual(payload["subject"], "Course starts")
+        self.assertEqual(payload["text_body"], "Hello learners")
+        self.assertEqual(payload["html_body"], "")
+        self.assertEqual(payload["include_tags"], ["course-ml-zoomcamp"])
+        self.assertEqual(payload["exclude_tags"], ["course-ml-zoomcamp-alumni"])
+        self.assertEqual(
+            payload["metadata"],
+            {"course_slug": "ml-zoomcamp-2026"},
+        )
+        preview_campaign.assert_called_once_with("course-start-2026")
+        test_send_campaign.assert_called_once_with(
+            "course-start-2026",
+            ["ops@example.com"],
+        )
+        queue_campaign.assert_called_once_with("course-start-2026")
+        self.assertIn(
+            "Upserted course-start-2026: status=draft",
+            out.getvalue(),
+        )
+        self.assertIn("queue: ok", out.getvalue())
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_datamailer_campaign_command_requires_body(self):
+        with self.assertRaisesMessage(
+            CommandError,
+            "Provide --html, --html-file, --text, or --text-file.",
+        ):
+            call_command(
+                "datamailer_campaign",
+                "course-start-2026",
+                "--subject",
+                "Course starts",
+            )
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
