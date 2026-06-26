@@ -13,19 +13,23 @@ from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from loginas.utils import restore_original_login
 
 from accounts.forms import AccountSettingsForm
 from accounts.services.timezones import get_timezone_label, is_valid_timezone
 from course_management.datamailer import (
-    apply_email_preferences_to_user,
+    EMAIL_PREFERENCE_CATEGORIES,
+    get_email_preferences_for_user,
     update_email_preferences_for_user,
 )
 from courses.models import Enrollment
 
-ACCOUNT_TOGGLE_FIELDS = {
+LOCAL_ACCOUNT_TOGGLE_FIELDS = {
     "dark_mode",
+}
+
+EMAIL_PREFERENCE_FIELDS = {
     "email_submission_confirmations",
     "email_deadline_reminders",
     "email_course_updates",
@@ -39,13 +43,12 @@ def disabled(request):
 @login_required
 def account_settings(request):
     user = request.user
-    datamailer_preferences_loaded = apply_email_preferences_to_user(user)
 
     if request.method == "POST":
         data = request.POST.copy()
         if "preferred_timezone" not in data:
             data["preferred_timezone"] = user.preferred_timezone
-        for field in ACCOUNT_TOGGLE_FIELDS:
+        for field in LOCAL_ACCOUNT_TOGGLE_FIELDS:
             if getattr(user, field):
                 data[field] = "on"
             else:
@@ -78,7 +81,7 @@ def account_settings(request):
                 user.preferred_timezone
             ),
             "browser_timezone_label": browser_timezone_label,
-            "datamailer_preferences_loaded": datamailer_preferences_loaded,
+            "email_preference_categories": EMAIL_PREFERENCE_CATEGORIES,
         },
     )
 
@@ -98,7 +101,7 @@ def update_account_toggle(request):
     field = request.POST.get("field", "")
     value = request.POST.get("value", "")
 
-    if field not in ACCOUNT_TOGGLE_FIELDS:
+    if field not in LOCAL_ACCOUNT_TOGGLE_FIELDS:
         return JsonResponse(
             {"error": "Unsupported account setting."},
             status=400,
@@ -107,22 +110,54 @@ def update_account_toggle(request):
     enabled = value.lower() in {"1", "true", "yes", "on"}
     setattr(request.user, field, enabled)
     request.user.save(update_fields=[field])
-    datamailer_synced = False
-    if field.startswith("email_"):
-        datamailer_synced = update_email_preferences_for_user(
-            request.user,
-            {field: enabled},
-        )
 
     response = {
         "field": field,
         "value": enabled,
     }
-    if field.startswith("email_"):
-        response["datamailer_synced"] = datamailer_synced
     if field == "dark_mode":
         response["dark_mode"] = enabled
     return JsonResponse(response)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def account_email_preferences(request):
+    if request.method == "GET":
+        preferences = get_email_preferences_for_user(request.user)
+        if preferences is None:
+            return JsonResponse(
+                {"error": "Email preferences are unavailable."},
+                status=503,
+            )
+        return JsonResponse({"preferences": preferences})
+
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "")
+    if field not in EMAIL_PREFERENCE_FIELDS:
+        return JsonResponse(
+            {"error": "Unsupported email preference."},
+            status=400,
+        )
+
+    enabled = value.lower() in {"1", "true", "yes", "on"}
+    datamailer_synced = update_email_preferences_for_user(
+        request.user,
+        {field: enabled},
+    )
+    if not datamailer_synced:
+        return JsonResponse(
+            {"error": "Email preferences are unavailable."},
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "field": field,
+            "value": enabled,
+            "datamailer_synced": True,
+        }
+    )
 
 
 @login_required

@@ -186,7 +186,12 @@ class AccountSettingsTestCase(TestCase):
         self.assertTrue(self.user.email_deadline_reminders)
         self.assertTrue(self.user.email_course_updates)
 
-    def test_account_settings_updates_email_preferences(self):
+    @patch("accounts.views.update_email_preferences_for_user")
+    def test_account_email_preferences_update_proxies_to_datamailer(
+        self,
+        update_email_preferences,
+    ):
+        update_email_preferences.return_value = True
         self.user.email_submission_confirmations = True
         self.user.email_deadline_reminders = True
         self.user.email_course_updates = True
@@ -199,74 +204,75 @@ class AccountSettingsTestCase(TestCase):
         )
         self.client.force_login(self.user)
 
-        for field in [
-            "email_submission_confirmations",
-            "email_deadline_reminders",
-            "email_course_updates",
-        ]:
-            response = self.client.post(
-                reverse("update_account_toggle"),
-                {"field": field, "value": "false"},
-            )
-            self.assertEqual(response.status_code, 200)
-
-        self.user.refresh_from_db()
-        self.assertFalse(self.user.email_submission_confirmations)
-        self.assertFalse(self.user.email_deadline_reminders)
-        self.assertFalse(self.user.email_course_updates)
-
-    @patch("accounts.views.update_email_preferences_for_user")
-    def test_account_settings_updates_email_preference_in_datamailer(
-        self,
-        update_email_preferences,
-    ):
-        update_email_preferences.return_value = True
-        self.client.force_login(self.user)
-
         response = self.client.post(
-            reverse("update_account_toggle"),
-            {
-                "field": "email_deadline_reminders",
-                "value": "false",
-            },
+            reverse("account_email_preferences"),
+            {"field": "email_deadline_reminders", "value": "false"},
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["datamailer_synced"], True)
+        self.assertEqual(
+            response.json(),
+            {
+                "field": "email_deadline_reminders",
+                "value": False,
+                "datamailer_synced": True,
+            },
+        )
         update_email_preferences.assert_called_once_with(
             self.user,
             {"email_deadline_reminders": False},
         )
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.email_submission_confirmations)
+        self.assertTrue(self.user.email_deadline_reminders)
+        self.assertTrue(self.user.email_course_updates)
 
-    @patch("accounts.views.apply_email_preferences_to_user")
-    def test_account_settings_hydrates_email_preferences_from_datamailer(
+    @patch("accounts.views.get_email_preferences_for_user")
+    def test_account_email_preferences_read_proxies_to_datamailer(
         self,
-        apply_email_preferences,
+        get_email_preferences,
     ):
-        def apply_preferences(user):
-            user.email_submission_confirmations = False
-            user.email_deadline_reminders = True
-            user.email_course_updates = False
-            return True
+        get_email_preferences.return_value = {
+            "email_submission_confirmations": False,
+            "email_deadline_reminders": True,
+            "email_course_updates": False,
+        }
+        self.client.force_login(self.user)
 
-        apply_email_preferences.side_effect = apply_preferences
+        response = self.client.get(reverse("account_email_preferences"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "preferences": {
+                    "email_submission_confirmations": False,
+                    "email_deadline_reminders": True,
+                    "email_course_updates": False,
+                },
+            },
+        )
+        get_email_preferences.assert_called_once_with(self.user)
+
+    def test_account_email_preferences_unavailable_returns_503(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("account_email_preferences"))
+
+        self.assertEqual(response.status_code, 503)
+
+    @patch("accounts.views.get_email_preferences_for_user")
+    def test_account_settings_does_not_block_on_datamailer_preferences(
+        self,
+        get_email_preferences,
+    ):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("account_settings"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(
-            response.context["form"].initial[
-                "email_submission_confirmations"
-            ]
-        )
-        self.assertTrue(
-            response.context["form"].initial["email_deadline_reminders"]
-        )
-        self.assertFalse(
-            response.context["form"].initial["email_course_updates"]
-        )
-        self.assertTrue(response.context["datamailer_preferences_loaded"])
+        get_email_preferences.assert_not_called()
+        self.assertNotIn("email_submission_confirmations", response.context["form"].fields)
 
     def test_account_settings_profile_save_preserves_toggle_preferences(self):
         self.user.dark_mode = True

@@ -157,61 +157,75 @@
             </div>
         </section>
 
-        <section class="settings-section space-y-4 border-t pt-6">
+        <section class="settings-section space-y-4 border-t pt-6"
+                 data-email-preferences-url="{% url 'account_email_preferences' %}">
             <div>
                 <h2 class="settings-section-title text-lg font-semibold">Email subscriptions</h2>
                 <p class="settings-section-copy mt-1 text-sm leading-6">
                     Choose which course workflow emails you want to receive.
                 </p>
             </div>
+            <p class="settings-helper js-email-preferences-status text-xs leading-5"
+               role="status">
+                Loading email subscriptions...
+            </p>
             <div class="space-y-4">
                 <div>
-                    <div class="toggle-row js-immediate-toggle-row"
-                         data-toggle-url="{% url 'update_account_toggle' %}">
-                        {{ form.email_submission_confirmations }}
+                    <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
+                         data-toggle-url="{% url 'account_email_preferences' %}">
+                        <input type="checkbox"
+                               name="email_submission_confirmations"
+                               id="id_email_submission_confirmations"
+                               class="h-4 w-4 js-email-preference-toggle"
+                               disabled>
                         <span class="toggle-copy">
-                            <span class="toggle-label">{{ form.email_submission_confirmations.label }}</span>
-                            <span class="toggle-help">{{ form.email_submission_confirmations.help_text }}</span>
+                            <label for="id_email_submission_confirmations"
+                                   class="toggle-label">
+                                {{ email_preference_categories.email_submission_confirmations.label }}
+                            </label>
+                            <span class="toggle-help">
+                                {{ email_preference_categories.email_submission_confirmations.description }}
+                            </span>
                         </span>
                     </div>
-                    {% if form.email_submission_confirmations.errors %}
-                        <div class="mt-2 text-sm font-medium">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            {{ form.email_submission_confirmations.errors|join:" " }}
-                        </div>
-                    {% endif %}
                 </div>
                 <div>
-                    <div class="toggle-row js-immediate-toggle-row"
-                         data-toggle-url="{% url 'update_account_toggle' %}">
-                        {{ form.email_deadline_reminders }}
+                    <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
+                         data-toggle-url="{% url 'account_email_preferences' %}">
+                        <input type="checkbox"
+                               name="email_deadline_reminders"
+                               id="id_email_deadline_reminders"
+                               class="h-4 w-4 js-email-preference-toggle"
+                               disabled>
                         <span class="toggle-copy">
-                            <span class="toggle-label">{{ form.email_deadline_reminders.label }}</span>
-                            <span class="toggle-help">{{ form.email_deadline_reminders.help_text }}</span>
+                            <label for="id_email_deadline_reminders"
+                                   class="toggle-label">
+                                {{ email_preference_categories.email_deadline_reminders.label }}
+                            </label>
+                            <span class="toggle-help">
+                                {{ email_preference_categories.email_deadline_reminders.description }}
+                            </span>
                         </span>
                     </div>
-                    {% if form.email_deadline_reminders.errors %}
-                        <div class="mt-2 text-sm font-medium">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            {{ form.email_deadline_reminders.errors|join:" " }}
-                        </div>
-                    {% endif %}
                 </div>
                 <div>
-                    <div class="toggle-row js-immediate-toggle-row"
-                         data-toggle-url="{% url 'update_account_toggle' %}">
-                        {{ form.email_course_updates }}
+                    <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
+                         data-toggle-url="{% url 'account_email_preferences' %}">
+                        <input type="checkbox"
+                               name="email_course_updates"
+                               id="id_email_course_updates"
+                               class="h-4 w-4 js-email-preference-toggle"
+                               disabled>
                         <span class="toggle-copy">
-                            <span class="toggle-label">{{ form.email_course_updates.label }}</span>
-                            <span class="toggle-help">{{ form.email_course_updates.help_text }}</span>
+                            <label for="id_email_course_updates"
+                                   class="toggle-label">
+                                {{ email_preference_categories.email_course_updates.label }}
+                            </label>
+                            <span class="toggle-help">
+                                {{ email_preference_categories.email_course_updates.description }}
+                            </span>
                         </span>
                     </div>
-                    {% if form.email_course_updates.errors %}
-                        <div class="mt-2 text-sm font-medium">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            {{ form.email_course_updates.errors|join:" " }}
-                        </div>
-                    {% endif %}
                 </div>
             </div>
         </section>

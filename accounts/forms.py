@@ -37,9 +37,6 @@ class AccountSettingsForm(forms.ModelForm):
             "about_me",
             "preferred_timezone",
             "dark_mode",
-            "email_submission_confirmations",
-            "email_deadline_reminders",
-            "email_course_updates",
         ]
         labels = {
             "certificate_name": "Certificate name",
@@ -51,11 +48,6 @@ class AccountSettingsForm(forms.ModelForm):
             "about_me": "About me",
             "preferred_timezone": "Timezone",
             "dark_mode": "Use dark mode",
-            "email_submission_confirmations": (
-                "Homework and project submissions"
-            ),
-            "email_deadline_reminders": "Deadline reminders",
-            "email_course_updates": "General course-related emails",
         }
         help_texts = {
             "certificate_name": (
@@ -66,24 +58,6 @@ class AccountSettingsForm(forms.ModelForm):
             "preferred_timezone": (
                 "Used to render deadlines and notification emails. We detect "
                 "your browser timezone automatically, and you can override it."
-            ),
-            "email_submission_confirmations": (
-                "Sends confirmation and score emails after you submit "
-                "homework or a project."
-            ),
-            "email_deadline_reminders": (
-                "Sends reminders when homework or peer review deadlines "
-                "are within 24 hours and you have not submitted. For "
-                "projects, sends one reminder one week before the deadline "
-                "encouraging half-finished submissions, and another one "
-                "day before the deadline because submissions will close "
-                "soon. For peer reviews, sends links to unfinished reviews "
-                "and explains that peer review completion is mandatory for "
-                "project completion and receiving a certificate."
-            ),
-            "email_course_updates": (
-                "Sends general course and workshop messages, such as "
-                "course start announcements and workshop start announcements."
             ),
         }
         widgets = {
@@ -118,13 +92,4 @@ class AccountSettingsForm(forms.ModelForm):
                 }
             ),
             "dark_mode": forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
-            "email_submission_confirmations": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
-            "email_deadline_reminders": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
-            "email_course_updates": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
         }

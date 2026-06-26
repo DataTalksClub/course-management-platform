@@ -13,6 +13,11 @@ urlpatterns = [
         name='update_account_toggle',
     ),
     path(
+        'settings/email-preferences/',
+        views.account_email_preferences,
+        name='account_email_preferences',
+    ),
+    path(
         'settings/timezone/',
         views.update_timezone_preference,
         name='update_timezone_preference',

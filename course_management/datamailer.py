@@ -18,14 +18,32 @@ EMAIL_PREFERENCE_CATEGORIES = {
     "email_submission_confirmations": {
         "tag": "submission-results",
         "label": "Homework and project submissions",
+        "description": (
+            "Sends confirmation and score emails after you submit homework "
+            "or a project."
+        ),
     },
     "email_deadline_reminders": {
         "tag": "deadline-reminders",
         "label": "Deadline reminders",
+        "description": (
+            "Sends reminders when homework or peer review deadlines are "
+            "within 24 hours and you have not submitted. For projects, "
+            "sends one reminder one week before the deadline encouraging "
+            "half-finished submissions, and another one day before the "
+            "deadline because submissions will close soon. For peer "
+            "reviews, sends links to unfinished reviews and explains that "
+            "peer review completion is mandatory for project completion "
+            "and receiving a certificate."
+        ),
     },
     "email_course_updates": {
         "tag": "course-updates",
         "label": "General course-related emails",
+        "description": (
+            "Sends general course and workshop messages, such as course "
+            "start announcements and workshop start announcements."
+        ),
     },
 }
 
@@ -504,15 +522,6 @@ def get_email_preferences_for_user(user) -> dict[str, bool] | None:
             raise
         return None
     return email_preference_values_from_response(response)
-
-
-def apply_email_preferences_to_user(user) -> bool:
-    preferences = get_email_preferences_for_user(user)
-    if preferences is None:
-        return False
-    for field, enabled in preferences.items():
-        setattr(user, field, enabled)
-    return True
 
 
 def update_email_preferences_for_user(
