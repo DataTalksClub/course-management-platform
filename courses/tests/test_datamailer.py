@@ -541,6 +541,8 @@ class DatamailerClientTest(TestCase):
             "course-ml-zoomcamp",
             "--exclude-tag",
             "course-ml-zoomcamp-alumni",
+            "--recipient-list-key",
+            "ml-zoomcamp-2026:@e",
             "--metadata",
             "course_slug=ml-zoomcamp-2026",
             "--preview",
@@ -557,6 +559,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["text_body"], "Hello learners")
         self.assertEqual(payload["html_body"], "")
         self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(payload["recipient_list_key"], "ml-zoomcamp-2026:@e")
         self.assertEqual(payload["include_tags"], ["course-ml-zoomcamp"])
         self.assertEqual(payload["exclude_tags"], ["course-ml-zoomcamp-alumni"])
         self.assertEqual(

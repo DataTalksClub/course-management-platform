@@ -61,6 +61,8 @@ def campaign_payload(options):
         "exclude_tags": options["exclude_tag"],
         "metadata": parse_metadata(options["metadata"]),
     }
+    if options["recipient_list_key"]:
+        payload["recipient_list_key"] = options["recipient_list_key"]
     if options["scheduled_at"]:
         payload["scheduled_at"] = options["scheduled_at"]
     return payload
@@ -105,6 +107,11 @@ class Command(BaseCommand):
             "--category-tag",
             default="course-updates",
             help="Datamailer preference category for this campaign.",
+        )
+        parser.add_argument(
+            "--recipient-list-key",
+            default="",
+            help="Optional Datamailer recipient-list key to target.",
         )
         parser.add_argument(
             "--metadata",
