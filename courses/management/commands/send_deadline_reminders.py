@@ -128,19 +128,6 @@ def member_from_project_submission(submission, metadata, *, deadline=None):
     }
 
 
-def recipient_list_payload(config, event):
-    return {
-        "audience": config.audience,
-        "client": config.client,
-        "list": {
-            "type": "deadline_reminders",
-            "name": event.list_name,
-            "metadata": event.list_metadata,
-        },
-        "members": event.members,
-    }
-
-
 def deadline_send_payload(
     config,
     *,
@@ -164,6 +151,17 @@ def deadline_send_payload(
     if config.from_email:
         payload["from_email"] = config.from_email
     return payload
+
+
+def transient_recipient_list_send_payload(event):
+    return event.send_payload | {
+        "list": {
+            "key": event.list_key,
+            "name": event.list_name,
+            "metadata": event.list_metadata,
+        },
+        "members": event.members,
+    }
 
 
 def base_context(
@@ -554,7 +552,7 @@ def build_reminder_events(config, now, course_slug=""):
 
 
 class Command(BaseCommand):
-    help = "Reconcile and send Datamailer deadline reminders."
+    help = "Send Datamailer deadline reminders with transient recipient lists."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -602,15 +600,9 @@ class Command(BaseCommand):
 
         client = DatamailerClient(config)
         for event in events:
-            payload = recipient_list_payload(config, event)
             try:
-                client.reconcile_recipient_list_members(
-                    event.list_key,
-                    payload,
-                )
-                response = client.send_recipient_list_transactional(
-                    event.list_key,
-                    event.send_payload,
+                response = client.send_transient_recipient_list_transactional(
+                    transient_recipient_list_send_payload(event),
                 )
             except requests.RequestException as exc:
                 if config.strict:

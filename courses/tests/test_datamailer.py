@@ -258,6 +258,40 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_transient_recipient_list_transactional_send_uses_expected_endpoint(
+        self,
+    ):
+        session = Mock()
+        response = Mock(content=b'{"ok": true}')
+        response.json.return_value = {"ok": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        payload = {
+            "template_key": "deadline-reminder",
+            "members": [{"email": "learner@example.com"}],
+        }
+        result = client.send_transient_recipient_list_transactional(payload)
+
+        self.assertEqual(result, {"ok": True})
+        session.request.assert_called_once_with(
+            "POST",
+            "https://datamailer.example.com/api/transient-recipient-lists/transactional-send",
+            json=payload,
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
         user = CustomUser.objects.create(

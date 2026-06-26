@@ -57,18 +57,14 @@ class DeadlineReminderCommandTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
     )
-    @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
-    )
-    def test_homework_deadline_reminder_reconciles_eligible_learners(
+    def test_homework_deadline_reminder_sends_transient_eligible_learners(
         self,
-        reconcile,
-        send_list,
+        send_transient,
     ):
         now = self.reminder_run_time()
-        send_list.return_value = {"enqueued_count": 1}
+        send_transient.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -121,14 +117,20 @@ class DeadlineReminderCommandTest(TestCase):
             "Prepared 1 reminder event(s), 1 member(s).",
             out.getvalue(),
         )
-        reconcile.assert_called_once()
-        send_list.assert_called_once()
+        send_transient.assert_called_once()
+        payload = send_transient.call_args.args[0]
         self.assertEqual(
-            reconcile.call_args.args[0],
+            payload["list"]["key"],
             "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
         )
-        payload = reconcile.call_args.args[1]
-        self.assertEqual(payload["list"]["type"], "deadline_reminders")
+        self.assertEqual(
+            payload["list"]["name"],
+            "ML Zoomcamp 2026 Homework 1 24h deadline reminders",
+        )
+        self.assertEqual(
+            payload["list"]["metadata"]["deadline_kind"],
+            "homework",
+        )
         self.assertEqual(len(payload["members"]), 1)
         self.assertEqual(
             payload["members"][0]["email"],
@@ -146,23 +148,21 @@ class DeadlineReminderCommandTest(TestCase):
             payload["members"][0]["metadata"]["deadline_timezone"],
             "Europe/Berlin",
         )
-
-        send_payload = send_list.call_args.args[1]
         self.assertEqual(
-            send_payload["template_key"],
+            payload["template_key"],
             "deadline-reminder",
         )
-        self.assertEqual(send_payload["category_tag"], "deadline-reminders")
+        self.assertEqual(payload["category_tag"], "deadline-reminders")
         self.assertEqual(
-            send_payload["idempotency_key"],
+            payload["idempotency_key"],
             f"deadline-reminder:homework:{homework.pk}:24h",
         )
         self.assertEqual(
-            send_payload["context"]["action_url"],
+            payload["context"]["action_url"],
             "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
         )
         self.assertEqual(
-            send_payload["context"]["deadline_at"],
+            payload["context"]["deadline_at"],
             "Wednesday, 17 June 2026, 23:00 UTC",
         )
 
@@ -171,18 +171,14 @@ class DeadlineReminderCommandTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
-    )
-    @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_project_deadline_reminders_use_7d_and_24h_windows(
         self,
-        reconcile,
-        send_list,
+        send_transient,
     ):
         now = self.reminder_run_time()
-        send_list.return_value = {"enqueued_count": 1}
+        send_transient.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -213,8 +209,11 @@ class DeadlineReminderCommandTest(TestCase):
             now.isoformat(),
         )
 
-        self.assertEqual(reconcile.call_count, 2)
-        list_keys = [call.args[0] for call in reconcile.call_args_list]
+        self.assertEqual(send_transient.call_count, 2)
+        list_keys = [
+            call.args[0]["list"]["key"]
+            for call in send_transient.call_args_list
+        ]
         self.assertEqual(
             list_keys,
             [
@@ -223,7 +222,7 @@ class DeadlineReminderCommandTest(TestCase):
             ],
         )
         send_payloads = [
-            call.args[1] for call in send_list.call_args_list
+            call.args[0] for call in send_transient.call_args_list
         ]
         self.assertEqual(
             [
@@ -238,18 +237,14 @@ class DeadlineReminderCommandTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
-    )
-    @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_peer_review_deadline_reminder_targets_unfinished_reviewers(
         self,
-        reconcile,
-        send_list,
+        send_transient,
     ):
         now = self.reminder_run_time()
-        send_list.return_value = {"enqueued_count": 1}
+        send_transient.return_value = {"enqueued_count": 1}
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -296,12 +291,12 @@ class DeadlineReminderCommandTest(TestCase):
             now.isoformat(),
         )
 
-        reconcile.assert_called_once()
+        send_transient.assert_called_once()
+        payload = send_transient.call_args.args[0]
         self.assertEqual(
-            reconcile.call_args.args[0],
+            payload["list"]["key"],
             "deadline-reminders:peer-review:ml-zoomcamp-2026:project-1:24h",
         )
-        payload = reconcile.call_args.args[1]
         self.assertEqual(len(payload["members"]), 1)
         self.assertEqual(
             payload["members"][0]["email"],
@@ -311,27 +306,22 @@ class DeadlineReminderCommandTest(TestCase):
             payload["members"][0]["source_object_key"],
             f"project-submission:{reviewer_submission.pk}",
         )
-        send_payload = send_list.call_args.args[1]
         self.assertEqual(
-            send_payload["idempotency_key"],
+            payload["idempotency_key"],
             f"deadline-reminder:peer-review:{project.pk}:24h",
         )
         self.assertEqual(
-            send_payload["context"]["action_url"],
+            payload["context"]["action_url"],
             "https://courses.example.com/ml-zoomcamp-2026/project/project-1/eval",
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
-    )
-    @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_deadline_reminder_dry_run_does_not_call_datamailer(
         self,
-        reconcile,
-        send_list,
+        send_transient,
     ):
         now = self.reminder_run_time()
         course = Course.objects.create(
@@ -361,5 +351,4 @@ class DeadlineReminderCommandTest(TestCase):
             "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h: 1 member(s)",
             out.getvalue(),
         )
-        reconcile.assert_not_called()
-        send_list.assert_not_called()
+        send_transient.assert_not_called()

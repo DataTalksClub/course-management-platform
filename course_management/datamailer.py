@@ -229,6 +229,16 @@ class DatamailerClient:
             json=payload,
         )
 
+    def send_transient_recipient_list_transactional(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            "/api/transient-recipient-lists/transactional-send",
+            json=payload,
+        )
+
 
 def datamailer_enabled() -> bool:
     return DatamailerConfig.from_settings() is not None
