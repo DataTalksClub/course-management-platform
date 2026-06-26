@@ -107,6 +107,11 @@ class DatamailerClient:
     ) -> dict[str, Any] | None:
         return self.request("POST", "/api/contacts", json=payload)
 
+    def bulk_import_contacts(
+        self, payload: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        return self.request("POST", "/api/contacts/imports", json=payload)
+
     def send_transactional(
         self, payload: dict[str, Any]
     ) -> dict[str, Any] | None:

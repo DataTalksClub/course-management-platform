@@ -114,6 +114,39 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_bulk_import_contacts_uses_bearer_auth(self):
+        session = Mock()
+        response = Mock(content=b'{"counts": {"created": 1}}')
+        response.json.return_value = {"counts": {"created": 1}}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+        payload = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+            "contacts": [{"email": "student@example.com"}],
+        }
+
+        client = DatamailerClient(config, session=session)
+        result = client.bulk_import_contacts(payload)
+
+        self.assertEqual(result, {"counts": {"created": 1}})
+        session.request.assert_called_once_with(
+            "POST",
+            "https://datamailer.example.com/api/contacts/imports",
+            json=payload,
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
     def test_contact_status_uses_configured_scope(self):
         session = Mock()
         response = Mock(content=b'{"exists": true}')
@@ -2259,6 +2292,106 @@ class DatamailerClientTest(TestCase):
             payload["template_key"],
             "certificate-availability-notification",
         )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_import_contacts"
+    )
+    def test_contact_backfill_command_bulk_imports_users(
+        self,
+        bulk_import,
+    ):
+        bulk_import.return_value = {
+            "counts": {
+                "created": 1,
+                "updated": 1,
+                "unchanged": 0,
+                "skipped": 0,
+                "invalid": 0,
+            },
+        }
+        CustomUser.objects.create_user(
+            username="student-1",
+            email="Student1@Example.com",
+        )
+        CustomUser.objects.create_user(
+            username="student-2",
+            email="student2@example.com",
+        )
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_contacts",
+            "--batch-size",
+            "1",
+            stdout=out,
+        )
+
+        self.assertEqual(bulk_import.call_count, 2)
+        first_payload = bulk_import.call_args_list[0].args[0]
+        self.assertEqual(first_payload["audience"], "dtc-courses")
+        self.assertEqual(first_payload["client"], "dtc-courses")
+        self.assertEqual(first_payload["idempotency_key"], "cmp-contact-bootstrap:1")
+        self.assertEqual(
+            first_payload["contacts"][0]["email"],
+            "student1@example.com",
+        )
+        self.assertEqual(
+            first_payload["contacts"][0]["email_validation"]["status"],
+            "externally_validated",
+        )
+        self.assertIn(
+            "Prepared 2 contact batch(es), 2 contact(s).",
+            out.getvalue(),
+        )
+        self.assertIn("Synced batch 1: 1 contact(s); created=1", out.getvalue())
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_import_contacts"
+    )
+    def test_contact_backfill_command_dry_run_does_not_call_datamailer(
+        self,
+        bulk_import,
+    ):
+        CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+
+        out = StringIO()
+        call_command("sync_datamailer_contacts", "--dry-run", stdout=out)
+
+        bulk_import.assert_not_called()
+        self.assertIn("Prepared 1 contact batch(es), 1 contact(s).", out.getvalue())
+        self.assertIn("batch 1: 1 contact(s)", out.getvalue())
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_import_contacts"
+    )
+    def test_contact_backfill_command_can_limit_to_active_users(
+        self,
+        bulk_import,
+    ):
+        bulk_import.return_value = {"counts": {"created": 1}}
+        CustomUser.objects.create_user(
+            username="active",
+            email="active@example.com",
+        )
+        CustomUser.objects.create_user(
+            username="inactive",
+            email="inactive@example.com",
+            is_active=False,
+        )
+
+        out = StringIO()
+        call_command("sync_datamailer_contacts", "--active-only", stdout=out)
+
+        bulk_import.assert_called_once()
+        payload = bulk_import.call_args.args[0]
+        self.assertEqual(len(payload["contacts"]), 1)
+        self.assertEqual(payload["contacts"][0]["email"], "active@example.com")
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
