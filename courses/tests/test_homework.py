@@ -1088,6 +1088,89 @@ class HomeworkDetailViewTests(TestCase):
         self.assertEqual(submission.problems_comments, "")
         self.assertEqual(submission.faq_contribution_url, "")
 
+    def test_submit_homework_rejects_non_faq_contribution_url(self):
+        self.homework.faq_contribution_field = True
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            f"answer_{self.question2.id}": ["Some other text"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["1", "2"],
+            "faq_contribution_url": (
+                "https://gist.github.com/Sanjomwa/"
+                "2dcb7a95baa01c07c10048fbac1a8461"
+            ),
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "FAQ contribution must be a DataTalksClub/faq issue "
+            "or pull request URL",
+        )
+        self.assertContains(
+            response,
+            'value="https://gist.github.com/Sanjomwa/'
+            '2dcb7a95baa01c07c10048fbac1a8461"',
+        )
+        self.assertContains(
+            response,
+            'class="form-control mt-2 is-invalid"',
+        )
+        self.assertFalse(
+            Submission.objects.filter(
+                homework=self.homework, student=self.user
+            ).exists()
+        )
+
+    def test_submit_homework_accepts_faq_issue_url(self):
+        self.homework.faq_contribution_field = True
+        self.homework.save()
+
+        self.client.login(**credentials)
+
+        faq_url = "https://github.com/DataTalksClub/faq/issues/281"
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            f"answer_{self.question2.id}": ["Some other text"],
+            f"answer_{self.question3.id}": ["1", "2", "4"],
+            f"answer_{self.question4.id}": ["3"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["1", "2"],
+            "faq_contribution_url": faq_url,
+        }
+
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+        submission = Submission.objects.get(
+            homework=self.homework, student=self.user
+        )
+        self.assertEqual(submission.faq_contribution_url, faq_url)
+
     @mock.patch("requests.head")
     @mock.patch("requests.get")
     def test_submit_homework_url_validation_404_error(
@@ -1155,6 +1238,63 @@ class HomeworkDetailViewTests(TestCase):
         self.assertFalse(
             Submission.objects.filter(
                 homework=self.homework, student=self.user
+            ).exists()
+        )
+
+    def test_closed_homework_without_submission_hides_form(self):
+        self.homework.state = HomeworkState.CLOSED.value
+        self.homework.save(update_fields=["state"])
+
+        self.client.login(**credentials)
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "This homework is not open for submissions yet.",
+        )
+        self.assertContains(response, "Status:")
+        self.assertContains(response, "Closed")
+        self.assertNotContains(response, "Not submitted")
+        self.assertNotContains(response, 'name="answer_')
+        self.assertNotContains(response, "Submission details")
+        self.assertNotContains(response, "Save submission")
+
+    def test_closed_homework_post_does_not_create_submission(self):
+        self.homework.state = HomeworkState.CLOSED.value
+        self.homework.save(update_fields=["state"])
+
+        self.client.login(**credentials)
+        url = reverse(
+            "homework",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        post_data = {
+            f"answer_{self.question1.id}": ["1"],
+            f"answer_{self.question2.id}": ["Some text"],
+        }
+
+        response = self.client.post(url, post_data, follow=True)
+
+        self.assertRedirects(response, url)
+        self.assertContains(
+            response, "This homework is not open for submissions."
+        )
+        self.assertFalse(
+            Submission.objects.filter(
+                homework=self.homework,
+                student=self.user,
             ).exists()
         )
 
@@ -1962,8 +2102,8 @@ class HomeworkSubmissionsViewTests(TestCase):
         content = response.content.decode("utf-8")
         self.assertNotIn("Manage homework in cadmin", content)
 
-    def test_submissions_view_displays_questions_and_answers(self):
-        """Test that submissions view displays questions and answers instead of scores"""
+    def test_submissions_view_hides_answers_and_links_to_edit_page(self):
+        """Test that submissions view keeps answers out of the compact list."""
         # Create some questions for the homework
         q1 = Question.objects.create(
             homework=self.homework,
@@ -2005,44 +2145,37 @@ class HomeworkSubmissionsViewTests(TestCase):
         response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
-        
-        # Check that questions are in context
-        questions = response.context["questions"]
-        self.assertEqual(len(questions), 2)
-        
-        # Check that submissions_data has the right structure
+
+        self.assertNotIn("questions", response.context)
+
         submissions_data = response.context["submissions_data"]
         self.assertEqual(len(submissions_data), 1)
-        
+
         item = submissions_data[0]
         self.assertEqual(item["submission"], self.submission)
-        self.assertEqual(len(item["answers"]), 2)
-        self.assertEqual(item["answers"][0], "4")
-        self.assertEqual(item["answers"][1], "Paris")
-        
-        # Check that the page does NOT contain score columns
-        content = response.content.decode("utf-8")
-        self.assertNotIn("Questions Score", content)
-        self.assertNotIn("FAQ Score", content)
-        self.assertNotIn("Learning in Public Score", content)
-        self.assertNotIn("Total Score", content)
-        
-        # Check that the page contains question headers
-        self.assertIn("Q1", content)
-        self.assertIn("Q2", content)
-        
-        # Check that the page contains answers
-        self.assertIn("4", content)
-        self.assertIn("Paris", content)
-        
-        # Check that email is displayed but not username
-        self.assertIn(self.user.email, content)
-        # The username should not appear in a table cell context
-        # (it may appear elsewhere like in navigation)
+        self.assertNotIn("answers", item)
 
-    def test_submissions_view_short_answers_displayed_fully(self):
-        """Test that short answers (< 1000 chars) are displayed in full"""
-        # Create a question with a short answer
+        content = response.content.decode("utf-8")
+        self.assertIn(self.user.email, content)
+        self.assertIn("Score", content)
+        self.assertIn("Open", content)
+        self.assertIn(
+            reverse(
+                "cadmin_homework_submission_edit",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                    "submission_id": self.submission.id,
+                },
+            ),
+            content,
+        )
+        self.assertNotIn("Q1", content)
+        self.assertNotIn("Q2", content)
+        self.assertNotIn("Paris", content)
+
+    def test_submissions_view_short_answers_are_hidden(self):
+        """Test that short answers are hidden from the compact submissions list."""
         q1 = Question.objects.create(
             homework=self.homework,
             text="Short answer question",
@@ -2069,23 +2202,19 @@ class HomeworkSubmissionsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
-        
-        # Check that the short answer is displayed in full
-        self.assertIn(short_answer, content)
-        # Check that there's no toggle button class in the table body
+
+        self.assertNotIn(short_answer, content)
         self.assertNotIn('class="btn btn-sm btn-outline-primary mt-1 toggle-answer"', content)
 
-    def test_submissions_view_long_answers_have_toggle(self):
-        """Test that long answers are displayed with truncation and tooltip in cadmin view"""
-        # Create a question with a long answer
+    def test_submissions_view_long_answers_are_hidden(self):
+        """Test that long answers are hidden from the compact submissions list."""
         q1 = Question.objects.create(
             homework=self.homework,
             text="Long answer question",
             question_type=QuestionTypes.FREE_FORM.value,
             answer_type=AnswerTypes.ANY.value,
         )
-        
-        # Create a long answer (>1000 characters)
+
         long_answer = "This is a very long answer. " * 100  # Should be over 1000 chars
         Answer.objects.create(
             submission=self.submission,
@@ -2105,8 +2234,7 @@ class HomeworkSubmissionsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
-        
-        # Check that the cadmin view shows truncated long answers with full text in title attribute
-        self.assertIn('title="' + long_answer, content)
-        # Check that the truncated version is present with ellipsis
-        self.assertIn("…", content)
+
+        self.assertNotIn(long_answer, content)
+        self.assertNotIn('title="' + long_answer, content)
+        self.assertNotIn("…", content)

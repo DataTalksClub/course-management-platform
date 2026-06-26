@@ -15,12 +15,47 @@
     <section class="border-b app-border pb-5">
         <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
         <h1 class="mt-2 text-2xl font-semibold app-heading md:text-3xl">{{ project.title }} - Submissions</h1>
-        <div class="dense-utility-links mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        <div class="mt-4 flex flex-col gap-3">
+            <div class="dense-utility-links flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 <a href="{% url 'cadmin_course' course.slug %}"
                    class="app-link">Back to Course Admin</a>
                 <a href="{% url 'project' course.slug project.slug %}" class="app-link">
                     <i class="fas fa-external-link-alt"></i> Public
                 </a>
+                <a href="/admin/courses/project/{{ project.id }}/change/"
+                   title="Edit in Django Admin"
+                   class="app-link">
+                    <i class="fas fa-edit"></i> Django
+                </a>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                {% if project.needs_review_assignment %}
+                    <form method="post"
+                          action="{% url 'cadmin_project_assign_reviews' course.slug project.slug %}"
+                          onsubmit="return confirm('Assign peer reviews for {{ project.title }}?');">
+                        {% csrf_token %}
+                        <input type="hidden"
+                               name="next"
+                               value="{% url 'cadmin_project_submissions' course.slug project.slug %}">
+                        <button type="submit" class="primer-button primer-button-secondary">
+                            <i class="fas fa-random" aria-hidden="true"></i> Assign peer reviews
+                        </button>
+                    </form>
+                {% endif %}
+                {% if project.needs_scoring %}
+                    <form method="post"
+                          action="{% url 'cadmin_project_score' course.slug project.slug %}"
+                          onsubmit="return confirm('Score all submissions for {{ project.title }}?');">
+                        {% csrf_token %}
+                        <input type="hidden"
+                               name="next"
+                               value="{% url 'cadmin_project_submissions' course.slug project.slug %}">
+                        <button type="submit" class="primer-button cadmin-primary">
+                            <i class="fas fa-calculator" aria-hidden="true"></i> Score projects
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
         </div>
     </section>
     {% if submissions or search_query or status_filter != 'all' %}

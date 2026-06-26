@@ -635,21 +635,25 @@ input[type="checkbox"]:disabled {
 
 .app-badge-info {
   background: var(--info-bg);
+  border-color: var(--info-border);
   color: var(--info-text);
 }
 
 .app-badge-success {
   background: var(--success-bg);
+  border-color: var(--success-border);
   color: var(--success-text);
 }
 
 .app-badge-warning {
   background: var(--warning-bg);
+  border-color: var(--warning-border);
   color: var(--warning-text);
 }
 
 .app-badge-danger {
   background: var(--danger-bg);
+  border-color: var(--danger-border);
   color: var(--danger-text);
 }
 
@@ -664,6 +668,8 @@ body.dark-mode .app-badge-neutral {
 .app-badge-success,
 .app-badge-warning,
 .app-badge-danger {
+  border-style: solid;
+  border-width: 1px;
   border-radius: 6px;
   letter-spacing: 0;
   line-height: 1.25;

@@ -35,6 +35,7 @@ from courses.scoring import (
     is_free_form_answer_correct,
     calculate_homework_statistics,
 )
+from courses.validators import clean_faq_contribution_url
 from courses.views.url_utils import absolute_url_with_fallback
 
 logger = logging.getLogger(__name__)
@@ -643,8 +644,8 @@ def _apply_homework_submission_fields(
         ).strip()
 
     if homework.faq_contribution_field:
-        submission.faq_contribution_url = request.POST.get(
-            "faq_contribution_url", ""
+        submission.faq_contribution_url = clean_faq_contribution_url(
+            request.POST.get("faq_contribution_url", "")
         ).strip()
 
 
@@ -743,6 +744,9 @@ def homework_detail_build_context_not_authenticated(
         "question_answers": question_answers,
         "is_authenticated": False,
         "disabled": True,
+        "accepting_submissions": (
+            homework.state == HomeworkState.OPEN.value
+        ),
     }
 
     return context
@@ -947,6 +951,18 @@ def homework_view(
 
     # Process the form submission
     if request.method == "POST":
+        if homework.state != HomeworkState.OPEN.value:
+            messages.error(
+                request,
+                "This homework is not open for submissions.",
+                extra_tags="homework",
+            )
+            return redirect(
+                "homework",
+                course_slug=course.slug,
+                homework_slug=homework.slug,
+            )
+
         try:
             with transaction.atomic():
                 return process_homework_submission(

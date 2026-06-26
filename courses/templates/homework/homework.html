@@ -76,6 +76,8 @@
                         <span class="text-xs font-semibold uppercase app-muted">Status:</span>
                         {% if submission.pk %}
                             <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
+                        {% elif not accepting_submissions and not homework.is_scored %}
+                            <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Closed</span>
                         {% else %}
                             <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Not submitted</span>
                         {% endif %}
@@ -95,7 +97,7 @@
                 {% endif %}
             </div>
         </div>
-        {% if not is_authenticated and not homework.is_scored %}
+        {% if not is_authenticated and accepting_submissions %}
             <div class="auth-required-panel mt-6 rounded-md border app-border app-surface-muted p-4 app-heading ">
                 <div class="font-semibold">Log in to submit this homework</div>
                 <p class="mt-1 mb-0 text-sm app-text ">
@@ -108,6 +110,23 @@
             </div>
         {% endif %}
         <div class="mt-6 space-y-3">
+            {% if disabled and not homework.is_scored %}
+                {% if is_authenticated %}
+                    {% if submission.pk %}
+                        <div class="rounded-md border app-alert-warning p-4">
+                            This homework is closed. Your saved submission is shown below and cannot be modified.
+                        </div>
+                    {% else %}
+                        <div class="rounded-md border app-alert-warning p-4">
+                            This homework is not open for submissions yet.
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="rounded-md border app-alert-info p-4 app-heading">
+                        <a href="{% url 'login' %}" class="app-link">Log in</a> to see the status of your submission.
+                    </div>
+                {% endif %}
+            {% endif %}
             {% if homework.is_scored %}
                 {% if is_authenticated %}
                     {% if submission.pk %}
@@ -141,6 +160,7 @@
                 {% endif %}
             {% endif %}
         </div>
+        {% if accepting_submissions or submission.pk or homework.is_scored %}
         <form method="post" class="needs-validation mt-7 md:mt-8" novalidate>
             {% if is_authenticated %}
                 {% csrf_token %}
@@ -362,9 +382,12 @@
                                       data-form-help="Create a GitHub issue or pull request in the FAQ repo for your contribution, then paste that issue or PR URL here."><i class="fas fa-question-circle" aria-hidden="true"></i></span>
                             </label>
                             <input type="url"
-                                   class="form-control mt-2"
+                                   class="form-control mt-2 {% if 'faq_contribution_url' in error_fields %}is-invalid{% endif %}"
                                    name="faq_contribution_url"
                                    id="faq_contribution_url"
+                                   pattern="https://github\.com/[Dd]ata[Tt]alks[Cc]lub/faq/(issues|pull)/[0-9]+/?([?#].*)?"
+                                   placeholder="https://github.com/DataTalksClub/faq/issues/281"
+                                   title="Paste a DataTalksClub/faq issue or pull request URL."
                                    value="{{ submission.faq_contribution_url|default:'' }}"
                                    {% if disabled %}disabled{% endif %} />
                         </div>
@@ -416,6 +439,7 @@
                 </div>
             {% endif %}
         </form>
+        {% endif %}
         <script src="{% static 'homework.js' %}"></script>
     </section>
 {% endblock %}

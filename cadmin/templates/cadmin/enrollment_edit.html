@@ -46,8 +46,7 @@ Edit Enrollment - {{ course.title }}
 <p class="mt-1 font-semibold app-heading">{{ enrollment.position_on_leaderboard|default:"Not ranked" }}</p>
 </div>
 </section>
-<section class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-<div class="space-y-6">
+<section class="mt-6 space-y-6">
 <section class="overflow-hidden rounded-md border app-border app-surface ">
 <div class="border-b app-border app-surface-muted px-4 py-3 ">
 <h2 class="text-base font-semibold app-heading">Homework Submissions</h2>
@@ -152,20 +151,9 @@ Edit Enrollment - {{ course.title }}
 <p class="px-4 py-6 text-sm app-muted">No project submissions yet.</p>
 {% endif %}
 </section>
-</div>
-<aside class="space-y-6">
-<section class="rounded-md border app-border app-surface p-4 ">
-<h2 class="text-base font-semibold app-heading">Learning in Public Statistics</h2>
-<dl class="mt-4 space-y-3 text-sm">
-<div class="flex justify-between gap-3"><dt class="app-muted">Homework Submissions</dt><dd class="font-semibold">{{ homework_submissions_count }}</dd></div>
-<div class="flex justify-between gap-3"><dt class="app-muted">Total Homework LiP Score</dt><dd class="font-semibold">{{ total_homework_lip_score }}</dd></div>
-<div class="flex justify-between gap-3"><dt class="app-muted">Project Submissions</dt><dd class="font-semibold">{{ project_submissions_count }}</dd></div>
-<div class="flex justify-between gap-3"><dt class="app-muted">Total Project LiP Score</dt><dd class="font-semibold">{{ total_project_lip_score }}</dd></div>
-<div class="flex justify-between gap-3 border-t app-border pt-3 "><dt class="font-semibold app-heading">Total LiP Score</dt><dd class="font-semibold">{{ total_homework_lip_score|add:total_project_lip_score }}</dd></div>
-</dl>
-</section>
-<section class="rounded-md border app-border app-surface p-3 ">
-<div class="flex flex-wrap items-center justify-between gap-2">
+<section class="overflow-hidden rounded-md border app-border app-surface">
+<div class="border-b app-border app-surface-muted px-4 py-3">
+<div class="flex flex-wrap items-center gap-2">
 <h2 class="text-base font-semibold app-heading">Learning in Public</h2>
 {% if enrollment.disable_learning_in_public %}
 <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium  ">DISABLED</span>
@@ -173,7 +161,31 @@ Edit Enrollment - {{ course.title }}
 <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">ENABLED</span>
 {% endif %}
 </div>
-<form class="mt-3" method="post" onsubmit="return confirm('Are you sure you want to
+</div>
+<div class="px-4 py-4">
+<dl class="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Homework Submissions</dt>
+<dd class="mt-1 font-semibold app-heading">{{ homework_submissions_count }}</dd>
+</div>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Homework LiP Score</dt>
+<dd class="mt-1 font-semibold app-heading">{{ total_homework_lip_score }}</dd>
+</div>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Project Submissions</dt>
+<dd class="mt-1 font-semibold app-heading">{{ project_submissions_count }}</dd>
+</div>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Project LiP Score</dt>
+<dd class="mt-1 font-semibold app-heading">{{ total_project_lip_score }}</dd>
+</div>
+<div>
+<dt class="text-xs font-semibold uppercase app-muted">Total LiP Score</dt>
+<dd class="mt-1 font-semibold app-heading">{{ total_homework_lip_score|add:total_project_lip_score }}</dd>
+</div>
+</dl>
+<form class="mt-4 border-t app-border pt-4" method="post" onsubmit="return confirm('Are you sure you want to
 {% if enrollment.disable_learning_in_public %}
 enable
 {% else %}
@@ -186,13 +198,13 @@ This will zero out all their learning in public scores and recalculate the leade
 ');">
 {% csrf_token %}
 <input type="hidden" name="action" value="toggle_learning_in_public">
-<div class="rounded-md border app-border app-surface-muted px-3 py-2 text-sm app-text ">
+<p class="max-w-3xl text-sm app-muted">
 {% if enrollment.disable_learning_in_public %}
-<strong>Note:</strong> Learning in public is currently disabled for this student. All their learning in public scores are zero and they cannot submit new learning in public links.
+Learning in public is currently disabled for this student. All their learning in public scores are zero and they cannot submit new learning in public links.
 {% else %}
-<strong>Note:</strong> Disabling learning in public will zero homework/project LiP scores, recalculate the leaderboard, and prevent future LiP submissions from counting.
+Disabling learning in public will zero homework/project LiP scores, recalculate the leaderboard, and prevent future LiP submissions from counting.
 {% endif %}
-</div>
+</p>
 <button type="submit" class="primer-button mt-3
 {% if enrollment.disable_learning_in_public %}
 primer-button-success
@@ -207,7 +219,7 @@ Disable LiP
 {% endif %}
 </button>
 </form>
+</div>
 </section>
-</aside>
 </section>
 {% endblock %}

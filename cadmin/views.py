@@ -448,17 +448,11 @@ def homework_submissions(request, course_slug, homework_slug):
         Homework, course=course, slug=homework_slug
     )
 
-    # Get all questions for this homework
-    questions = Question.objects.filter(homework=homework).order_by(
-        "id"
-    )
-
     search_query = request.GET.get("q", "").strip()
 
     submissions = (
         Submission.objects.filter(homework=homework)
         .select_related("student", "enrollment")
-        .prefetch_related("answer_set__question")
         .order_by("-submitted_at")
     )
 
@@ -472,28 +466,15 @@ def homework_submissions(request, course_slug, homework_slug):
 
     submissions_data = []
     for submission in submissions_page.object_list:
-        answer_map = {
-            answer.question_id: answer
-            for answer in submission.answer_set.all()
-        }
-
-        answers = []
-        for question in questions:
-            answer = answer_map.get(question.id)
-            answer_text = answer.answer_text if answer else ""
-            answers.append(answer_text or "")
-
         submissions_data.append(
             {
                 "submission": submission,
-                "answers": answers,
             }
         )
 
     context = {
         "course": course,
         "homework": homework,
-        "questions": questions,
         "submissions_data": submissions_data,
         "submissions_page": submissions_page,
         "search_query": search_query,
@@ -542,8 +523,16 @@ def homework_submission_edit(
     if request.method == "POST":
         # Store the old score to check if it changed
         old_total_score = submission.total_score
+        faq_contribution_url = request.POST.get(
+            "faq_contribution_url", ""
+        ).strip()
+        faq_score = request.POST.get("faq_score", submission.faq_score)
 
         try:
+            faq_score = int(faq_score)
+            if faq_score < 0:
+                raise ValueError("FAQ score cannot be negative")
+
             # Update answers
             for question in questions:
                 answer_text = request.POST.get(
@@ -575,6 +564,8 @@ def homework_submission_edit(
             else:
                 submission.learning_in_public_links = None
 
+            submission.faq_contribution_url = faq_contribution_url
+
             # Recalculate the score
             # Get updated answers
             updated_answers = list(
@@ -583,6 +574,19 @@ def homework_submission_edit(
                 ).select_related("question")
             )
             update_score(submission, updated_answers, save=True)
+            submission.faq_score = faq_score
+            submission.total_score = (
+                submission.questions_score
+                + submission.learning_in_public_score
+                + submission.faq_score
+            )
+            submission.save(
+                update_fields=[
+                    "faq_contribution_url",
+                    "faq_score",
+                    "total_score",
+                ]
+            )
 
             # If the score changed, update the leaderboard
             if submission.total_score != old_total_score:
@@ -599,6 +603,9 @@ def homework_submission_edit(
             )
         except Exception as e:
             messages.error(request, f"Error updating submission: {e}")
+    else:
+        faq_contribution_url = submission.faq_contribution_url or ""
+        faq_score = submission.faq_score
 
     context = {
         "course": course,
@@ -608,6 +615,8 @@ def homework_submission_edit(
         "learning_in_public_links_text": "\n".join(
             submission.learning_in_public_links or []
         ),
+        "faq_contribution_url": faq_contribution_url,
+        "faq_score": faq_score,
     }
 
     return render(
@@ -633,7 +642,9 @@ def project_assign_reviews(request, course_slug, project_slug):
     else:
         messages.warning(request, message)
 
-    return redirect("cadmin_course", course_slug=course_slug)
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
 
 
 @staff_required
@@ -654,7 +665,9 @@ def project_score(request, course_slug, project_slug):
     else:
         messages.warning(request, message)
 
-    return redirect("cadmin_course", course_slug=course_slug)
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
 
 
 @staff_required
@@ -663,6 +676,12 @@ def project_submissions(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
+    )
+    project.needs_review_assignment = (
+        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+    )
+    project.needs_scoring = (
+        project.state == ProjectState.PEER_REVIEWING.value
     )
     search_query = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "all")

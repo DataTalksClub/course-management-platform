@@ -460,6 +460,57 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.homework.title)
 
+    def test_cadmin_homework_submissions_hides_answer_previews(self):
+        """Submission lists stay compact and link to the edit page."""
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        question = Question.objects.create(
+            homework=self.homework,
+            text="Explain your answer",
+            question_type=QuestionTypes.FREE_FORM.value,
+        )
+        submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=enrollment,
+            total_score=1,
+        )
+        Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text="This long answer should only be visible after opening the submission.",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "This long answer should only")
+        self.assertContains(response, "Open")
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_homework_submission_edit",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "homework_slug": self.homework.slug,
+                    "submission_id": submission.id,
+                },
+            ),
+        )
+
     def test_cadmin_homework_submissions_shows_course_actions(self):
         """Homework submissions page exposes the same homework actions as course admin."""
         self.client.login(
@@ -604,6 +655,65 @@ class CadminViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.project.title)
+
+    def test_cadmin_project_submissions_shows_project_actions(self):
+        """Project submissions page exposes project actions."""
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "project",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.project.slug,
+                },
+            ),
+        )
+        self.assertContains(
+            response,
+            f"/admin/courses/project/{self.project.id}/change/",
+        )
+        self.assertContains(response, "Assign peer reviews")
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_project_assign_reviews",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.project.slug,
+                },
+            ),
+        )
+
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save(update_fields=["state"])
+
+        response = self.client.get(url)
+
+        self.assertContains(response, "Score projects")
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_project_score",
+                kwargs={
+                    "course_slug": self.course.slug,
+                    "project_slug": self.project.slug,
+                },
+            ),
+        )
 
     def test_project_submission_email_links_to_leaderboard_record(self):
         """Project submission email links to the student's leaderboard record."""
@@ -1209,6 +1319,45 @@ class CadminViewTests(TestCase):
         send_score_notification.assert_called_once_with(self.project)
 
     @patch("cadmin.views.send_project_score_notification")
+    @patch("cadmin.views.score_project")
+    def test_project_score_can_redirect_back_to_project_submissions(
+        self,
+        score_project_mock,
+        send_score_notification,
+    ):
+        """Scoring from project submissions returns to that page."""
+        from courses.projects import ProjectActionStatus
+
+        score_project_mock.return_value = (
+            ProjectActionStatus.OK,
+            "Project scored",
+        )
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        next_url = reverse(
+            "cadmin_project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+        url = reverse(
+            "cadmin_project_score",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+        response = self.client.post(
+            url, {"next": next_url}, follow=True
+        )
+
+        self.assertRedirects(response, next_url)
+        send_score_notification.assert_called_once_with(self.project)
+
+    @patch("cadmin.views.send_project_score_notification")
     def test_project_assign_reviews_shows_message(
         self,
         send_score_notification,
@@ -1239,6 +1388,37 @@ class CadminViewTests(TestCase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
         send_score_notification.assert_not_called()
+
+    @patch("cadmin.views.send_peer_review_assignment_notification")
+    def test_project_assign_reviews_can_redirect_back_to_project_submissions(
+        self,
+        send_assignment_notification,
+    ):
+        """Assigning reviews from project submissions returns to that page."""
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        next_url = reverse(
+            "cadmin_project_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+        url = reverse(
+            "cadmin_project_assign_reviews",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+        response = self.client.post(
+            url, {"next": next_url}, follow=True
+        )
+
+        self.assertRedirects(response, next_url)
+        send_assignment_notification.assert_not_called()
 
     def test_log_as_user_requires_post_request(self):
         """Test that the log as user endpoint requires a POST request"""
@@ -1619,6 +1799,73 @@ class CadminViewTests(TestCase):
             "https://example.com/post2",
             submission.learning_in_public_links,
         )
+
+    def test_homework_submission_edit_updates_faq_entry_and_score(self):
+        """Test that staff can edit FAQ contribution fields."""
+        from courses.models import (
+            Submission,
+            Question,
+            Answer,
+            QuestionTypes,
+            AnswerTypes,
+        )
+
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        question = Question.objects.create(
+            homework=self.homework,
+            text="What is 2+2?",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.INTEGER.value,
+            correct_answer="4",
+            scores_for_correct_answer=10,
+        )
+        submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.user,
+            enrollment=enrollment,
+            questions_score=0,
+            faq_score=0,
+            learning_in_public_score=0,
+            total_score=0,
+        )
+        Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text="5",
+            is_correct=False,
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_homework_submission_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+                "submission_id": submission.id,
+            },
+        )
+        faq_entry = "https://gist.github.com/example/not-validated-here"
+
+        response = self.client.post(
+            url,
+            {
+                f"answer_{question.id}": "4",
+                "learning_in_public_links": "",
+                "faq_contribution_url": faq_entry,
+                "faq_score": "3",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        submission.refresh_from_db()
+        self.assertEqual(submission.faq_contribution_url, faq_entry)
+        self.assertEqual(submission.faq_score, 3)
+        self.assertEqual(submission.total_score, 13)
 
     def test_homework_submission_edit_triggers_leaderboard_update(self):
         """Test that editing homework submission triggers leaderboard recalculation if score changes"""

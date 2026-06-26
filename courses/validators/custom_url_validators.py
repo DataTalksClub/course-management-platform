@@ -1,7 +1,54 @@
+from typing import Optional
+from urllib.parse import urlparse
+
 import requests
 
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+
+
+def clean_faq_contribution_url(url: Optional[str]) -> str:
+    url = (url or "").strip()
+    if not url:
+        return ""
+
+    url_validator = URLValidator(schemes=["https"])
+    try:
+        url_validator(url)
+    except ValidationError:
+        raise ValidationError(
+            {
+                "faq_contribution_url": (
+                    "FAQ contribution must be a valid HTTPS GitHub issue "
+                    "or pull request URL."
+                )
+            }
+        )
+
+    parsed = urlparse(url)
+    path_parts = [part for part in parsed.path.split("/") if part]
+
+    is_faq_issue_or_pr = (
+        parsed.hostname == "github.com"
+        and len(path_parts) == 4
+        and path_parts[0].lower() == "datatalksclub"
+        and path_parts[1].lower() == "faq"
+        and path_parts[2].lower() in {"issues", "pull"}
+        and path_parts[3].isdigit()
+    )
+
+    if not is_faq_issue_or_pr:
+        raise ValidationError(
+            {
+                "faq_contribution_url": (
+                    "FAQ contribution must be a DataTalksClub/faq issue "
+                    "or pull request URL, for example "
+                    "https://github.com/DataTalksClub/faq/issues/281."
+                )
+            }
+        )
+
+    return url
 
 
 def get_error_message(status_code, url):

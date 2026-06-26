@@ -121,17 +121,6 @@
                                 </span>
                             </div>
                         </div>
-                        <details class="mt-2 text-sm">
-                            <summary class="cursor-pointer font-medium app-muted">Answer preview</summary>
-                            <dl class="mt-2 space-y-2">
-                                {% for answer in data.answers %}
-                                    <div>
-                                        <dt class="text-xs font-semibold uppercase app-muted">Q{{ forloop.counter }}</dt>
-                                        <dd class="mt-0.5 break-words app-text" title="{{ answer|default:'No answer' }}">{{ answer|default:"No answer"|truncatechars:160 }}</dd>
-                                    </div>
-                                {% endfor %}
-                            </dl>
-                        </details>
                         <div class="mt-2">
                             <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}"
                                class="text-sm font-medium app-link">Open submission <span aria-hidden="true">&rarr;</span></a>
@@ -177,18 +166,7 @@
                                         -
                                     {% endif %}
                                 </td>
-                                <td class="px-3 py-2">
-                                    <details class="text-sm">
-                                        <summary class="cursor-pointer font-medium app-link">Answers</summary>
-                                        <dl class="mt-2 max-w-xl space-y-2 text-left">
-                                            {% for answer in data.answers %}
-                                                <div>
-                                                    <dt class="text-xs font-semibold uppercase app-muted">Q{{ forloop.counter }}</dt>
-                                                    <dd class="mt-0.5 break-words app-text" title="{{ answer|default:'No answer' }}">{{ answer|default:"No answer"|truncatechars:220 }}</dd>
-                                                </div>
-                                            {% endfor %}
-                                        </dl>
-                                    </details>
+                                <td class="px-3 py-2 text-right">
                                     <a href="{% url 'cadmin_homework_submission_edit' course.slug homework.slug data.submission.id %}"
                                        class="font-medium app-link">Open</a>
                                 </td>

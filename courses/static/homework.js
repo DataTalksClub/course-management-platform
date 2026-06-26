@@ -50,6 +50,35 @@ document.addEventListener('DOMContentLoaded', function() {
     return '';
   }
 
+  function validateFaqContributionField(selector) {
+    var field = document.querySelector(selector);
+    if (!field) {
+      return '';
+    }
+
+    var link = field.value.trim();
+    if (!link) {
+      setFieldError(field, '');
+      return '';
+    }
+    if (!isValidUrl(link)) {
+      var invalidMessage = 'FAQ contribution URL must start with https://.';
+      setFieldError(field, invalidMessage);
+      return invalidMessage;
+    }
+
+    var url = new URL(link);
+    var pathPattern = /^\/datatalksclub\/faq\/(issues|pull)\/[0-9]+\/?$/;
+    if (url.protocol !== 'https:' || url.hostname !== 'github.com' || !pathPattern.test(url.pathname.toLowerCase())) {
+      var repoMessage = 'FAQ contribution must be a DataTalksClub/faq issue or pull request URL.';
+      setFieldError(field, repoMessage);
+      return repoMessage;
+    }
+
+    setFieldError(field, '');
+    return '';
+  }
+
   function validateCommitIdField(selector) {
     var commitField = document.querySelector(selector);
     if (!commitField) {
@@ -80,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var errors = [];
     var urlFieldsToValidate = [
       ['#homework_url', 'Homework', false],
-      ['#faq_contribution_url', 'FAQ contribution', true],
       ['#github_link', 'GitHub link', false],
       ['#id_github_url', 'GitHub profile link', true],
       ['#id_linkedin_url', 'LinkedIn profile link', true],
@@ -93,6 +121,11 @@ document.addEventListener('DOMContentLoaded', function() {
         errors.push(error);
       }
     });
+
+    var faqContributionError = validateFaqContributionField('#faq_contribution_url');
+    if (faqContributionError) {
+      errors.push(faqContributionError);
+    }
 
     var commitError = validateCommitIdField('#commit_id');
     if (commitError) {
