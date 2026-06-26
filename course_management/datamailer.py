@@ -9,6 +9,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from course_management import email_templates
+from course_management.datamailer_outbox import enqueue_datamailer_outbox_event
 from course_management.deadlines import format_deadline_for_email
 
 logger = logging.getLogger(__name__)
@@ -581,6 +582,26 @@ def removed_recipient_list_member_payload(
     }
 
 
+def datamailer_ordering_key(obj) -> str:
+    student_id = getattr(obj, "student_id", None)
+    if student_id:
+        return f"user:{student_id}"
+
+    user_id = getattr(obj, "user_id", None)
+    if user_id:
+        return f"user:{user_id}"
+
+    email = (
+        getattr(obj, "email_normalized", "")
+        or getattr(obj, "email", "")
+        or ""
+    ).strip().lower()
+    if email:
+        return f"email:{email}"
+
+    return f"{obj.__class__.__name__}:{obj.pk}"
+
+
 def registration_recipient_list_payload(
     registration,
 ) -> tuple[str, str, dict[str, Any]] | None:
@@ -788,22 +809,23 @@ def _sync_contact_and_membership(
     if contact_payload is None or list_payload is None:
         return
 
-    client = DatamailerClient(config)
-    try:
-        client.upsert_contact(contact_payload)
-        list_key, source_object_key, payload = list_payload
-        client.upsert_recipient_list_member(
-            list_key, source_object_key, payload
-        )
-    except requests.RequestException:
-        logger.exception(
-            "Datamailer %s sync failed for %s=%s",
-            label,
-            id_field,
-            obj.pk,
-        )
-        if config.strict:
-            raise
+    list_key, source_object_key, payload = list_payload
+    enqueue_datamailer_outbox_event(
+        event_type="recipient_list.member_upsert",
+        idempotency_key=(
+            f"recipient-list.member-upsert:{list_key}:{source_object_key}:"
+            f"{obj.pk}:{obj.__class__.__name__}"
+        ),
+        ordering_key=datamailer_ordering_key(obj),
+        payload={
+            "contact_payload": contact_payload,
+            "list_key": list_key,
+            "source_object_key": source_object_key,
+            "member_payload": payload,
+            "label": label,
+            "object_id": obj.pk,
+        },
+    )
 
 
 def sync_registration_to_datamailer(registration) -> None:
@@ -1573,26 +1595,27 @@ def _remove_recipient_list_memberships(
     id_field,
     obj,
 ) -> None:
-    client = DatamailerClient(config)
-    try:
-        for list_payload in list_payloads:
-            if list_payload is None:
-                continue
-            list_key, source_object_key, payload = list_payload
-            client.upsert_recipient_list_member(
-                list_key,
-                source_object_key,
-                removed_recipient_list_member_payload(payload),
-            )
-    except requests.RequestException:
-        logger.exception(
-            "Datamailer %s removal failed for %s=%s",
-            label,
-            id_field,
-            obj.pk,
+    for list_payload in list_payloads:
+        if list_payload is None:
+            continue
+        list_key, source_object_key, payload = list_payload
+        enqueue_datamailer_outbox_event(
+            event_type="recipient_list.member_remove",
+            idempotency_key=(
+                f"recipient-list.member-remove:{list_key}:{source_object_key}:"
+                f"{obj.pk}:{obj.__class__.__name__}"
+            ),
+            ordering_key=datamailer_ordering_key(obj),
+            payload={
+                "list_key": list_key,
+                "source_object_key": source_object_key,
+                "member_payload": removed_recipient_list_member_payload(
+                    payload
+                ),
+                "label": label,
+                "object_id": obj.pk,
+            },
         )
-        if config.strict:
-            raise
 
 
 def remove_registration_from_datamailer(registration) -> None:

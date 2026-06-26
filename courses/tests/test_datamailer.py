@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import CustomUser
+from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
 from course_management.datamailer import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
@@ -804,6 +805,101 @@ class DatamailerClientTest(TestCase):
             upsert_member.call_args.args[2]["member"]["email"],
             "student@example.com",
         )
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.member_upsert",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(event.ordering_key, "email:student@example.com")
+        self.assertEqual(event.payload["list_key"], registration_list_key(registration))
+        self.assertEqual(
+            event.payload["source_object_key"],
+            f"registration:{registration.pk}",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_membership_sync_failure_records_retryable_outbox_event(
+        self,
+        upsert_contact,
+        upsert_member,
+    ):
+        upsert_member.side_effect = requests.RequestException("network error")
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+
+        sync_enrollment_to_datamailer(enrollment)
+
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.member_upsert",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.RETRYING)
+        self.assertEqual(event.attempt_count, 1)
+        self.assertIn("network error", event.last_error)
+        self.assertEqual(event.ordering_key, f"user:{user.pk}")
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_contact"
+    )
+    def test_process_datamailer_outbox_retries_due_events(
+        self,
+        upsert_contact,
+        upsert_member,
+    ):
+        upsert_member.side_effect = [
+            requests.RequestException("network error"),
+            {"ok": True},
+        ]
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        sync_enrollment_to_datamailer(enrollment)
+        event = DatamailerOutboxEvent.objects.get()
+        event.next_attempt_at = timezone.now() - timedelta(seconds=1)
+        event.save(update_fields=["next_attempt_at"])
+
+        out = StringIO()
+        call_command("process_datamailer_outbox", stdout=out)
+
+        event.refresh_from_db()
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(event.attempt_count, 2)
+        self.assertEqual(upsert_contact.call_count, 2)
+        self.assertEqual(upsert_member.call_count, 2)
+        self.assertIn("1 acked", out.getvalue())
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_enrollment_recipient_list_payload_targets_course_enrolled(
@@ -1025,6 +1121,16 @@ class DatamailerClientTest(TestCase):
         )
         self.assertEqual(
             upsert_member.call_args.args[2]["member"]["status"],
+            "removed",
+        )
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.member_remove",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(
+            event.payload["member_payload"]["member"]["status"],
             "removed",
         )
 
