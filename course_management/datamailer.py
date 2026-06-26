@@ -239,6 +239,88 @@ class DatamailerClient:
             json=payload,
         )
 
+    def upsert_campaign(
+        self,
+        external_key: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "PUT",
+            f"/api/campaigns/{external_key}",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            }
+            | payload,
+        )
+
+    def campaign(
+        self,
+        external_key: str,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "GET",
+            f"/api/campaigns/{external_key}",
+            params={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
+    def queue_campaign(
+        self,
+        external_key: str,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            f"/api/campaigns/{external_key}/queue",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
+    def cancel_campaign(
+        self,
+        external_key: str,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            f"/api/campaigns/{external_key}/cancel",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
+    def preview_campaign(
+        self,
+        external_key: str,
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            f"/api/campaigns/{external_key}/preview",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+            },
+        )
+
+    def test_send_campaign(
+        self,
+        external_key: str,
+        emails: list[str],
+    ) -> dict[str, Any] | None:
+        return self.request(
+            "POST",
+            f"/api/campaigns/{external_key}/test-send",
+            json={
+                "audience": self.config.audience,
+                "client": self.config.client,
+                "emails": emails,
+            },
+        )
+
 
 def datamailer_enabled() -> bool:
     return DatamailerConfig.from_settings() is not None

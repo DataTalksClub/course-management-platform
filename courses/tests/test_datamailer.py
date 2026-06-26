@@ -300,6 +300,140 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def test_campaign_upsert_uses_expected_endpoint_and_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"created": true}')
+        response.json.return_value = {"created": True}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.upsert_campaign(
+            "course-start-2026",
+            {
+                "subject": "Course starts tomorrow",
+                "html_body": "<p>Hello</p>",
+                "text_body": "Hello",
+            },
+        )
+
+        self.assertEqual(result, {"created": True})
+        session.request.assert_called_once_with(
+            "PUT",
+            "https://datamailer.example.com/api/campaigns/course-start-2026",
+            json={
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "subject": "Course starts tomorrow",
+                "html_body": "<p>Hello</p>",
+                "text_body": "Hello",
+            },
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_campaign_read_uses_expected_endpoint_and_scope(self):
+        session = Mock()
+        response = Mock(content=b'{"campaign": {"external_key": "course-start-2026"}}')
+        response.json.return_value = {"campaign": {"external_key": "course-start-2026"}}
+        session.request.return_value = response
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+        client = DatamailerClient(config, session=session)
+        result = client.campaign("course-start-2026")
+
+        self.assertEqual(result, {"campaign": {"external_key": "course-start-2026"}})
+        session.request.assert_called_once_with(
+            "GET",
+            "https://datamailer.example.com/api/campaigns/course-start-2026",
+            json=None,
+            params={
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+            },
+            timeout=10,
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status.assert_called_once()
+
+    def test_campaign_action_methods_use_expected_endpoints_and_scope(self):
+        config = DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+        actions = [
+            (
+                "queue_campaign",
+                (),
+                "/api/campaigns/course-start-2026/queue",
+                {"audience": "dtc-courses", "client": "dtc-courses"},
+            ),
+            (
+                "cancel_campaign",
+                (),
+                "/api/campaigns/course-start-2026/cancel",
+                {"audience": "dtc-courses", "client": "dtc-courses"},
+            ),
+            (
+                "preview_campaign",
+                (),
+                "/api/campaigns/course-start-2026/preview",
+                {"audience": "dtc-courses", "client": "dtc-courses"},
+            ),
+            (
+                "test_send_campaign",
+                (["test@example.com"],),
+                "/api/campaigns/course-start-2026/test-send",
+                {
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                    "emails": ["test@example.com"],
+                },
+            ),
+        ]
+
+        for method_name, extra_args, path, expected_json in actions:
+            with self.subTest(method_name=method_name):
+                session = Mock()
+                response = Mock(content=b'{"ok": true}')
+                response.json.return_value = {"ok": True}
+                session.request.return_value = response
+                client = DatamailerClient(config, session=session)
+
+                result = getattr(client, method_name)("course-start-2026", *extra_args)
+
+                self.assertEqual(result, {"ok": True})
+                session.request.assert_called_once_with(
+                    "POST",
+                    f"https://datamailer.example.com{path}",
+                    json=expected_json,
+                    timeout=10,
+                    headers={
+                        "Authorization": "Bearer secret-token",
+                        "Content-Type": "application/json",
+                    },
+                )
+                response.raise_for_status.assert_called_once()
+
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
         user = CustomUser.objects.create(
