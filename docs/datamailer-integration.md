@@ -1117,17 +1117,23 @@ links — observed in a real score-notification email as
 `http:///llm-zoomcamp-2026/leaderboard` (empty host) instead of
 `https://courses.datatalks.club/llm-zoomcamp-2026/leaderboard`.
 
-**Decision: the client (CMP) pins it.** Absolute URLs are *content*, and CMP owns
-content (§1) — so CMP is responsible for sending fully-qualified URLs, and
-Datamailer renders exactly what it's given and **never synthesizes a host**.
-Concretely:
-- **`PUBLIC_BASE_URL` is a required setting in any sending environment** — pin it,
-  and treat empty/scheme-only as a **hard error** at send time (fail fast) rather
-  than letting `public_url()` emit a relative path.
-- **End-to-end test** — assert the *rendered* email body contains absolute
-  `https://<host>/…` links, not relative paths. Today's tests set `PUBLIC_BASE_URL`
-  to a value (or to `""`) and check context, but nothing catches a real
-  environment shipping links with an empty host. (Reported by Luis Oliveira.)
+**Decision: pin the host on exactly one side; never empty; never guessed.** The
+link base host is *pinned configuration*, and config is split across two sides (see
+[Configuration → Where configuration lives](#where-configuration-lives--two-sides)).
+Two valid homes:
+- **Datamailer client-global** *(preferred)* — the base host is a stable per-client
+  brand value, so make it a **global client variable** on the Datamailer side;
+  templates compose `{{ base_url }}/{path}` and CMP sends only paths/slugs. Pinned
+  here, an empty host is impossible.
+- **CMP-side** — CMP pins `PUBLIC_BASE_URL` (required in any sending environment;
+  empty/scheme-only is a **hard error** at send time, not a relative path) and sends
+  fully-qualified URLs; Datamailer renders verbatim.
+
+Either way, Datamailer **never *guesses* a host from the request** — it uses a
+pinned client-global or the CMP-provided absolute URL. And: an **end-to-end test**
+asserting the *rendered* body has absolute `https://<host>/…` links, since today's
+tests pin `PUBLIC_BASE_URL` (or set `""`) and only check context — nothing catches
+a real environment shipping an empty host. (Reported by Luis Oliveira.)
 
 ---
 
@@ -1193,6 +1199,26 @@ CMP uses it when it builds links for email context.
 When `DATAMAILER_STRICT=0`, CMP logs Datamailer failures and lets the course
 flow continue. When `DATAMAILER_STRICT=1`, CMP raises the Datamailer API failure
 to the caller.
+
+### Where configuration lives — two sides
+
+Configuration for the client is **split across two sides**, and each value should
+have **exactly one home**:
+
+- **Datamailer-side — global client variables.** Stable, per-client brand/delivery
+  values configured once on the Datamailer side and available to every template for
+  that client: sender identity, brand name/logo, legal & unsubscribe footer, support
+  address, the subscription **category tags** (§5), and — a strong candidate — the
+  **link base host** (so templates compose `{{ base_url }}/{path}` and CMP never
+  repeats it). Pinned here, an empty host is impossible.
+- **CMP-side — settings + per-send context.** Connection config (`DATAMAILER_URL`,
+  `_API_KEY`, `_CLIENT`, `_AUDIENCE`), and the **per-message context** CMP computes:
+  course title, slugs, scores, paths. If the base host is *not* a Datamailer
+  client-global, then CMP pins `PUBLIC_BASE_URL` and sends fully-qualified URLs.
+
+Rule of thumb: a value that's the same for the whole client → Datamailer global;
+a value that varies per course/learner/message → CMP context. The link host is the
+boundary case (G13) — pick one side and pin it.
 
 ## Contact sync
 
