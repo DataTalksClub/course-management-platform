@@ -261,6 +261,58 @@ flowchart LR
 snapshot with `remove_absent_members` on every send. The list is already correct
 because the events kept it correct.
 
+### Some events are computed, not user actions
+
+Not every event is a single user click. Datamailer cannot know things CMP computes
+at a lifecycle transition — **final scores, the peer-review assignment graph
+(who reviews whom), pass/fail.** These reach Datamailer because **the computation
+itself is an event source.** Two kinds of event:
+
+- **Action events** — one user action → one event (register, submit). The submitter
+  *set* is already current at form-close this way: every submission emitted a join.
+- **Computed (batch) events** — at a transition CMP computes derived state and emits
+  the results as a batch of **member-metadata updates and outcome-node joins**
+  (scoring → per-submission scores + `:passed`; project form closes → each
+  reviewer's assigned-project links as metadata). Datamailer never runs course
+  logic — CMP computes, then tells it.
+
+**This is bulk-upsert, not reconcile.** The batch *pushes what CMP computed*
+(`members/bulk-upsert`, keyed by `source_object_key`); it does **not** diff the
+audience or remove-absent. Keyed by `source_object_key`, bulk-upsert
+creates-or-updates, so it is also self-healing for membership — a member is correct
+even if an earlier join was missed.
+
+**CMP builds the batch from its own data — it does not mirror Datamailer's list.**
+To push scores it iterates its **own** submissions; to push assignments, its **own**
+assignment graph. It needs neither a local copy of node membership nor any
+subscription state: preferences live in Datamailer (§5) and are applied at delivery,
+so the batch includes *everyone who did the work* and Datamailer suppresses opt-outs.
+
+**What triggers the batch:** the CMP-side transition — never the send, never
+Datamailer. Either an **operator action** in cadmin (Score homework, Assign peer
+reviews, Score project) or a **scheduled job** (EventBridge) for time-based
+transitions. ("Form closes" is not itself an event — the trigger is the operator
+action allowed *after* the deadline, or a scheduled job.)
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator / scheduler
+    participant CMP
+    participant Outbox as CMP outbox
+    participant DM as Datamailer
+
+    Op->>CMP: Score homework (transition)
+    CMP->>CMP: Compute scores + outcomes (own data)
+    CMP->>Outbox: Enqueue batch (same DB txn)
+    Outbox->>DM: bulk-upsert member metadata + outcome joins (retry)
+    DM-->>Outbox: acked
+    Outbox->>DM: Send — name the node
+    DM->>DM: suppress opt-outs, render per-member metadata
+```
+
+The send fires **only after the batch is acked** (gap #10 reliable emission, G7
+ordering), so no one is emailed with missing scores.
+
 ### What we need to do to get there
 
 Event-driven is only correct if the event stream is **complete and reliable**.
@@ -506,8 +558,13 @@ sequenceDiagram
     CMP->>DM: POST project-submitters:{course}:{project}/transactional-send — peer-review-assignment
 ```
 
+- **Computed batch (target):** assigning reviews is a *computed transition* (§3) —
+  CMP computes who reviews whom and pushes **each reviewer's assigned-project links
+  as member metadata** (bulk-upsert), *then* sends. The submitter set itself is
+  already present from join events; only the assignment data is new.
 - **Send (target):** name the node `{course}:{project}` — Datamailer already holds
-  the submitters from their join events. No snapshot.
+  the members; the email renders each reviewer's links from the pushed metadata. No
+  snapshot.
 - **Gated by:** `email_submission_confirmations`.
 - **Idempotency:** `peer-review-assignment:{course}:{project}`.
 
