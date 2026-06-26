@@ -98,7 +98,7 @@ class DeadlineReminderCommandTest(TestCase):
             submitted_user,
             course,
         )
-        self.create_enrollment(opted_out_user, course)
+        opted_out_enrollment = self.create_enrollment(opted_out_user, course)
         Submission.objects.create(
             homework=homework,
             student=submitted_user,
@@ -114,7 +114,7 @@ class DeadlineReminderCommandTest(TestCase):
         )
 
         self.assertIn(
-            "Prepared 1 reminder event(s), 1 member(s).",
+            "Prepared 1 reminder event(s), 2 member(s).",
             out.getvalue(),
         )
         send_transient.assert_called_once()
@@ -131,21 +131,27 @@ class DeadlineReminderCommandTest(TestCase):
             payload["list"]["metadata"]["deadline_kind"],
             "homework",
         )
-        self.assertEqual(len(payload["members"]), 1)
+        members_by_email = {m["email"]: m for m in payload["members"]}
         self.assertEqual(
-            payload["members"][0]["email"],
-            "eligible@example.com",
+            set(members_by_email),
+            {"eligible@example.com", "opted-out@example.com"},
         )
         self.assertEqual(
-            payload["members"][0]["source_object_key"],
+            members_by_email["eligible@example.com"]["source_object_key"],
             f"enrollment:{eligible_enrollment.pk}",
         )
         self.assertEqual(
-            payload["members"][0]["metadata"]["deadline_at"],
+            members_by_email["opted-out@example.com"]["source_object_key"],
+            f"enrollment:{opted_out_enrollment.pk}",
+        )
+        self.assertEqual(
+            members_by_email["eligible@example.com"]["metadata"]["deadline_at"],
             "Thursday, 18 June 2026, 01:00 Europe/Berlin",
         )
         self.assertEqual(
-            payload["members"][0]["metadata"]["deadline_timezone"],
+            members_by_email["eligible@example.com"]["metadata"][
+                "deadline_timezone"
+            ],
             "Europe/Berlin",
         )
         self.assertEqual(
@@ -185,7 +191,13 @@ class DeadlineReminderCommandTest(TestCase):
             description="Machine learning",
         )
         user = self.create_user("student", "student@example.com")
+        opted_out_user = self.create_user(
+            "opted-out",
+            "opted-out@example.com",
+            reminders=False,
+        )
         self.create_enrollment(user, course)
+        self.create_enrollment(opted_out_user, course)
         Project.objects.create(
             course=course,
             slug="project-week",
@@ -231,6 +243,11 @@ class DeadlineReminderCommandTest(TestCase):
             ],
             ["24h", "7d"],
         )
+        for payload in send_payloads:
+            self.assertEqual(
+                {member["email"] for member in payload["members"]},
+                {"student@example.com", "opted-out@example.com"},
+            )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -254,8 +271,17 @@ class DeadlineReminderCommandTest(TestCase):
             "reviewer",
             "reviewer@example.com",
         )
+        opted_out_reviewer = self.create_user(
+            "opted-out-reviewer",
+            "opted-out-reviewer@example.com",
+            reminders=False,
+        )
         author = self.create_user("author", "author@example.com")
         reviewer_enrollment = self.create_enrollment(reviewer, course)
+        opted_out_reviewer_enrollment = self.create_enrollment(
+            opted_out_reviewer,
+            course,
+        )
         author_enrollment = self.create_enrollment(author, course)
         project = Project.objects.create(
             course=course,
@@ -279,9 +305,21 @@ class DeadlineReminderCommandTest(TestCase):
             github_link="https://github.com/author/project",
             commit_id="1234567",
         )
+        opted_out_reviewer_submission = ProjectSubmission.objects.create(
+            project=project,
+            student=opted_out_reviewer,
+            enrollment=opted_out_reviewer_enrollment,
+            github_link="https://github.com/opted-out/project",
+            commit_id="1234567",
+        )
         PeerReview.objects.create(
             submission_under_evaluation=author_submission,
             reviewer=reviewer_submission,
+            state=PeerReviewState.TO_REVIEW.value,
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=author_submission,
+            reviewer=opted_out_reviewer_submission,
             state=PeerReviewState.TO_REVIEW.value,
         )
 
@@ -297,14 +335,23 @@ class DeadlineReminderCommandTest(TestCase):
             payload["list"]["key"],
             "deadline-reminders:peer-review:ml-zoomcamp-2026:project-1:24h",
         )
-        self.assertEqual(len(payload["members"]), 1)
+        members_by_email = {m["email"]: m for m in payload["members"]}
         self.assertEqual(
-            payload["members"][0]["email"],
-            "reviewer@example.com",
+            set(members_by_email),
+            {
+                "reviewer@example.com",
+                "opted-out-reviewer@example.com",
+            },
         )
         self.assertEqual(
-            payload["members"][0]["source_object_key"],
+            members_by_email["reviewer@example.com"]["source_object_key"],
             f"project-submission:{reviewer_submission.pk}",
+        )
+        self.assertEqual(
+            members_by_email["opted-out-reviewer@example.com"][
+                "source_object_key"
+            ],
+            f"project-submission:{opted_out_reviewer_submission.pk}",
         )
         self.assertEqual(
             payload["idempotency_key"],

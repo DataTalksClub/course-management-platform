@@ -211,7 +211,6 @@ def homework_events(config, now, course_slug):
         enrollments = (
             Enrollment.objects.filter(
                 course=homework.course,
-                student__email_deadline_reminders=True,
             )
             .exclude(student_id__in=submitted_student_ids)
             .select_related("student", "course")
@@ -336,7 +335,6 @@ def project_submission_events(config, now, course_slug):
         enrollments = (
             Enrollment.objects.filter(
                 course=project.course,
-                student__email_deadline_reminders=True,
             )
             .exclude(student_id__in=submitted_student_ids)
             .select_related("student", "course")
@@ -444,7 +442,6 @@ def peer_review_events(config, now, course_slug):
             ProjectSubmission.objects.filter(
                 project=project,
                 volunteer_review_only=False,
-                student__email_deadline_reminders=True,
                 reviewers__state=PeerReviewState.TO_REVIEW.value,
                 reviewers__optional=False,
             )
