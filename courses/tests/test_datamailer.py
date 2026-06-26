@@ -32,6 +32,10 @@ from course_management.datamailer import (
     project_score_notification_payload,
     project_submitters_list_key,
     registration_list_key,
+    remove_enrollment_from_datamailer,
+    remove_homework_submission_from_datamailer,
+    remove_project_submission_from_datamailer,
+    remove_registration_from_datamailer,
     send_certificate_availability_notification,
     send_homework_score_notification,
     send_project_score_notification,
@@ -852,6 +856,173 @@ class DatamailerClientTest(TestCase):
             upsert_member.call_args.args[2]["list"]["type"],
             "project_submitters",
         )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    def test_remove_registration_marks_registrant_member_removed(
+        self,
+        upsert_member,
+    ):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+        )
+
+        remove_registration_from_datamailer(registration)
+
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            registration_list_key(registration),
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[2]["member"]["status"],
+            "removed",
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    def test_remove_enrollment_removes_enrolled_and_graduate_members(
+        self,
+        upsert_member,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+            certificate_url="/certificates/student.pdf",
+        )
+
+        remove_enrollment_from_datamailer(enrollment)
+
+        self.assertEqual(upsert_member.call_count, 2)
+        list_keys = [call.args[0] for call in upsert_member.call_args_list]
+        self.assertEqual(
+            list_keys,
+            [course_enrolled_list_key(course), course_graduates_list_key(course)],
+        )
+        for call in upsert_member.call_args_list:
+            self.assertEqual(call.args[2]["member"]["status"], "removed")
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    def test_remove_homework_submission_marks_submitter_member_removed(
+        self,
+        upsert_member,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+        submission = Submission.objects.create(
+            homework=homework,
+            student=user,
+            enrollment=enrollment,
+        )
+
+        remove_homework_submission_from_datamailer(submission)
+
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            homework_submitters_list_key(homework),
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[2]["member"]["status"],
+            "removed",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+    )
+    def test_remove_project_submission_removes_submitter_and_passed_members(
+        self,
+        upsert_member,
+    ):
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/project",
+            total_score=98,
+            passed=True,
+        )
+
+        remove_project_submission_from_datamailer(submission)
+
+        self.assertEqual(upsert_member.call_count, 2)
+        list_keys = [call.args[0] for call in upsert_member.call_args_list]
+        self.assertEqual(
+            list_keys,
+            [project_submitters_list_key(project), project_passed_list_key(project)],
+        )
+        for call in upsert_member.call_args_list:
+            self.assertEqual(call.args[2]["member"]["status"], "removed")
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -2061,3 +2232,111 @@ class DatamailerSignalTest(TestCase):
             )
 
         sync.assert_called_once_with(enrollment)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.signals.remove_registration_recipient_list")
+    def test_deleted_registration_removes_member_after_commit(self, remove):
+        course = Course.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="student@example.com",
+            name="Student",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            registration.delete()
+
+        remove.assert_called_once()
+        self.assertEqual(remove.call_args.args[0].pk, registration.pk)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.signals.remove_enrollment_recipient_list")
+    def test_deleted_enrollment_removes_member_after_commit(self, remove):
+        user = CustomUser.objects.create(email="student@example.com")
+        course = Course.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(student=user, course=course)
+        remove.reset_mock()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            enrollment.delete()
+
+        remove.assert_called_once()
+        self.assertEqual(remove.call_args.args[0].pk, enrollment.pk)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.signals.remove_homework_submission_recipient_list")
+    def test_deleted_homework_submission_removes_member_after_commit(
+        self,
+        remove,
+    ):
+        user = CustomUser.objects.create(email="student@example.com")
+        course = Course.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(student=user, course=course)
+        homework = Homework.objects.create(
+            course=course,
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+        submission = Submission.objects.create(
+            homework=homework,
+            student=user,
+            enrollment=enrollment,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            submission.delete()
+
+        remove.assert_called_once()
+        self.assertEqual(remove.call_args.args[0].pk, submission.pk)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.signals.remove_project_submission_recipient_list")
+    def test_deleted_project_submission_removes_member_after_commit(
+        self,
+        remove,
+    ):
+        user = CustomUser.objects.create(email="student@example.com")
+        course = Course.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            description="Machine learning",
+        )
+        enrollment = Enrollment.objects.create(student=user, course=course)
+        project = Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date="2026-01-01T00:00:00Z",
+            peer_review_due_date="2026-01-08T00:00:00Z",
+        )
+        submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/project",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            submission.delete()
+
+        remove.assert_called_once()
+        self.assertEqual(remove.call_args.args[0].pk, submission.pk)

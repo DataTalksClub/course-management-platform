@@ -487,6 +487,18 @@ def recipient_list_member_payload(
     }
 
 
+def removed_recipient_list_member_payload(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        **payload,
+        "member": {
+            **payload["member"],
+            "status": "removed",
+        },
+    }
+
+
 def registration_recipient_list_payload(
     registration,
 ) -> tuple[str, str, dict[str, Any]] | None:
@@ -910,6 +922,38 @@ def project_passed_recipient_list_payload(
         "members": members,
     }
     return list_key, payload
+
+
+def project_passed_recipient_list_member_payload(
+    submission,
+) -> tuple[str, str, dict[str, Any]] | None:
+    item = project_submission_recipient_list_payload(submission)
+    if item is None:
+        return None
+
+    project = submission.project
+    course = project.course
+    _, source_object_key, payload = item
+    return project_passed_list_key(project), source_object_key, {
+        **payload,
+        "list": {
+            "type": "custom",
+            "name": f"{course.title} {project.title} passed learners",
+            "metadata": {
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+                "project_id": project.pk,
+                "outcome": "project_passed",
+            },
+        },
+        "member": {
+            **payload["member"],
+            "metadata": payload["member"]["metadata"]
+            | {
+                "outcome": "project_passed",
+            },
+        },
+    }
 
 
 def homework_score_notification_payload(
@@ -1406,6 +1450,27 @@ def course_graduate_recipient_list_payload(
     }
 
 
+def course_graduate_recipient_list_member_payload(
+    enrollment,
+) -> tuple[str, str, dict[str, Any]] | None:
+    list_payload = course_graduate_recipient_list_payload(enrollment)
+    if list_payload is None:
+        return None
+
+    list_key, payload = list_payload
+    member = payload["members"][0]
+    return list_key, member["source_object_key"], {
+        "audience": payload["audience"],
+        "client": payload["client"],
+        "list": payload["list"],
+        "member": {
+            "email": member["email"],
+            "status": member["status"],
+            "metadata": member["metadata"],
+        },
+    }
+
+
 def recipient_list_member_sync_payload(
     config: DatamailerConfig,
     payload: dict[str, Any],
@@ -1416,6 +1481,100 @@ def recipient_list_member_sync_payload(
         "list": payload["list"],
         "members": payload["members"],
     }
+
+
+def _remove_recipient_list_memberships(
+    config,
+    list_payloads,
+    *,
+    label,
+    id_field,
+    obj,
+) -> None:
+    client = DatamailerClient(config)
+    try:
+        for list_payload in list_payloads:
+            if list_payload is None:
+                continue
+            list_key, source_object_key, payload = list_payload
+            client.upsert_recipient_list_member(
+                list_key,
+                source_object_key,
+                removed_recipient_list_member_payload(payload),
+            )
+    except requests.RequestException:
+        logger.exception(
+            "Datamailer %s removal failed for %s=%s",
+            label,
+            id_field,
+            obj.pk,
+        )
+        if config.strict:
+            raise
+
+
+def remove_registration_from_datamailer(registration) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    _remove_recipient_list_memberships(
+        config,
+        [registration_recipient_list_payload(registration)],
+        label="registration",
+        id_field="registration_id",
+        obj=registration,
+    )
+
+
+def remove_enrollment_from_datamailer(enrollment) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    _remove_recipient_list_memberships(
+        config,
+        [
+            enrollment_recipient_list_payload(enrollment),
+            course_graduate_recipient_list_member_payload(enrollment),
+        ],
+        label="enrollment",
+        id_field="enrollment_id",
+        obj=enrollment,
+    )
+
+
+def remove_homework_submission_from_datamailer(submission) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    _remove_recipient_list_memberships(
+        config,
+        [homework_submission_recipient_list_payload(submission)],
+        label="homework submission",
+        id_field="submission_id",
+        obj=submission,
+    )
+
+
+def remove_project_submission_from_datamailer(submission) -> None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    list_payloads = [project_submission_recipient_list_payload(submission)]
+    if submission.passed:
+        list_payloads.append(
+            project_passed_recipient_list_member_payload(submission)
+        )
+    _remove_recipient_list_memberships(
+        config,
+        list_payloads,
+        label="project submission",
+        id_field="submission_id",
+        obj=submission,
+    )
 
 
 def recipient_list_send_payload(
