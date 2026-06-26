@@ -1,4 +1,5 @@
 from datetime import timedelta
+import json
 from unittest.mock import Mock, patch
 from io import StringIO
 
@@ -2863,6 +2864,214 @@ class DatamailerClientTest(TestCase):
             "ml-zoomcamp-2026: 1 member(s)",
             out.getvalue(),
         )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+        DATAMAILER_IMPORT_S3_PREFIX="datamailer-test",
+        DATAMAILER_IMPORT_URL_EXPIRES_SECONDS=900,
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+    )
+    @patch(
+        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+    )
+    def test_recipient_list_backfill_command_creates_import_job(
+        self,
+        boto3_client,
+        create_import,
+    ):
+        s3 = boto3_client.return_value
+        s3.generate_presigned_url.return_value = (
+            "https://storage.example.com/import.jsonl?signature=abc"
+        )
+        create_import.return_value = {
+            "import_job": {"id": 17, "status": "pending"}
+        }
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+        )
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "registrations",
+            "--course-slug",
+            course.slug,
+            "--import-by-reference",
+            stdout=out,
+        )
+
+        s3.put_object.assert_called_once()
+        put_kwargs = s3.put_object.call_args.kwargs
+        self.assertEqual(put_kwargs["Bucket"], "cmp-imports")
+        self.assertTrue(
+            put_kwargs["Key"].startswith(
+                "datamailer-test/dtc-courses/dtc-courses/registrations/"
+            )
+        )
+        self.assertEqual(
+            put_kwargs["ContentType"],
+            "application/x-ndjson",
+        )
+        rows = [
+            json.loads(line)
+            for line in put_kwargs["Body"].decode("utf-8").splitlines()
+        ]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0]["source_object_key"],
+            f"registration:{registration.pk}",
+        )
+        self.assertEqual(rows[0]["email"], "student@example.com")
+
+        s3.generate_presigned_url.assert_called_once_with(
+            "get_object",
+            Params={"Bucket": "cmp-imports", "Key": put_kwargs["Key"]},
+            ExpiresIn=900,
+            HttpMethod="GET",
+        )
+        create_import.assert_called_once()
+        self.assertEqual(
+            create_import.call_args.args[0],
+            registration_list_key(registration),
+        )
+        payload = create_import.call_args.args[1]
+        self.assertEqual(
+            payload["source_url"],
+            "https://storage.example.com/import.jsonl?signature=abc",
+        )
+        self.assertEqual(payload["list"]["type"], "registrants")
+        self.assertFalse(payload["remove_absent"])
+        self.assertTrue(
+            payload["idempotency_key"].startswith(
+                "cmp-recipient-list-import:registrations:"
+            )
+        )
+        self.assertNotIn("members", payload)
+        self.assertIn(
+            "Created import job for ml-zoomcamp-2026: job_id=17",
+            out.getvalue(),
+        )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_import"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+    )
+    @patch(
+        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+    )
+    def test_recipient_list_backfill_command_waits_for_import_success(
+        self,
+        boto3_client,
+        create_import,
+        recipient_list_import,
+    ):
+        s3 = boto3_client.return_value
+        s3.generate_presigned_url.return_value = (
+            "https://storage.example.com/import.jsonl?signature=abc"
+        )
+        create_import.return_value = {
+            "import_job": {"id": 18, "status": "pending"}
+        }
+        recipient_list_import.side_effect = [
+            {"import_job": {"id": 18, "status": "processing"}},
+            {
+                "import_job": {
+                    "id": 18,
+                    "status": "succeeded",
+                    "row_count": 1,
+                    "created_count": 1,
+                    "updated_count": 0,
+                    "removed_count": 0,
+                }
+            },
+        ]
+        user = CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
+        )
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        Enrollment.objects.create(student=user, course=course)
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "enrollments",
+            "--course-slug",
+            course.slug,
+            "--import-by-reference",
+            "--wait-for-import",
+            "--import-poll-interval",
+            "0.01",
+            stdout=out,
+        )
+
+        self.assertEqual(recipient_list_import.call_count, 2)
+        recipient_list_import.assert_called_with(
+            course_enrolled_list_key(course),
+            18,
+        )
+        self.assertIn(
+            "Import job succeeded for ml-zoomcamp-2026:@e: job_id=18",
+            out.getvalue(),
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_recipient_list_import_by_reference_requires_s3_bucket(self):
+        course = Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="student@example.com",
+            name="Student One",
+        )
+
+        with self.assertRaisesMessage(
+            CommandError,
+            "DATAMAILER_IMPORT_S3_BUCKET must be set",
+        ):
+            call_command(
+                "sync_datamailer_recipient_lists",
+                "registrations",
+                "--import-by-reference",
+            )
 
 
 class DatamailerSignalTest(TestCase):

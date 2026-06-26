@@ -1,6 +1,13 @@
 from collections import OrderedDict
+import hashlib
+import json
+import re
+import time
 
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 import requests
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from course_management.datamailer import (
@@ -188,6 +195,88 @@ def build_batches(
     return batches
 
 
+def import_member_jsonl(members):
+    lines = [
+        json.dumps(member, sort_keys=True, separators=(",", ":"))
+        for member in members
+    ]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def safe_s3_key_part(value):
+    safe = re.sub(r"[^A-Za-z0-9._:@=-]+", "_", value.strip())
+    return safe.strip("._") or "recipient-list"
+
+
+def import_object_key(kind, config, list_key, content_sha256):
+    parts = [
+        getattr(settings, "DATAMAILER_IMPORT_S3_PREFIX", ""),
+        config.client,
+        config.audience,
+        kind,
+        safe_s3_key_part(list_key),
+        f"{content_sha256}.jsonl",
+    ]
+    return "/".join(part.strip("/") for part in parts if part)
+
+
+def upload_import_file(kind, config, list_key, payload):
+    bucket = getattr(settings, "DATAMAILER_IMPORT_S3_BUCKET", "")
+    if not bucket:
+        raise CommandError(
+            "DATAMAILER_IMPORT_S3_BUCKET must be set when using "
+            "--import-by-reference."
+        )
+
+    body = import_member_jsonl(payload["members"])
+    content_sha256 = hashlib.sha256(body).hexdigest()
+    key = import_object_key(kind, config, list_key, content_sha256)
+    region = getattr(settings, "DATAMAILER_IMPORT_S3_REGION", "")
+    s3_kwargs = {"region_name": region} if region else {}
+    s3 = boto3.client("s3", **s3_kwargs)
+    s3.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=body,
+        ContentType="application/x-ndjson",
+        Metadata={
+            "client": config.client,
+            "audience": config.audience,
+            "list-key-sha256": hashlib.sha256(
+                list_key.encode("utf-8")
+            ).hexdigest(),
+            "content-sha256": content_sha256,
+        },
+    )
+    source_url = s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": bucket, "Key": key},
+        ExpiresIn=getattr(
+            settings, "DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", 3600
+        ),
+        HttpMethod="GET",
+    )
+    return {
+        "source_url": source_url,
+        "s3_bucket": bucket,
+        "s3_key": key,
+        "content_sha256": content_sha256,
+        "row_count": len(payload["members"]),
+    }
+
+
+def import_idempotency_key(kind, list_key, content_sha256, *, remove_absent):
+    remove_absent_value = "true" if remove_absent else "false"
+    list_key_sha256 = hashlib.sha256(
+        list_key.encode("utf-8")
+    ).hexdigest()
+    return (
+        "cmp-recipient-list-import:"
+        f"{kind}:{list_key_sha256}:{content_sha256}:"
+        f"remove-absent-{remove_absent_value}"
+    )
+
+
 class Command(BaseCommand):
     help = "Backfill Datamailer recipient lists from CMP registrations, enrollments, and submissions."
 
@@ -225,6 +314,31 @@ class Command(BaseCommand):
             help="Mark existing Datamailer members absent from CMP as removed.",
         )
         parser.add_argument(
+            "--import-by-reference",
+            action="store_true",
+            help=(
+                "Upload JSONL to CMP S3 and create Datamailer async import "
+                "jobs instead of sending members inline."
+            ),
+        )
+        parser.add_argument(
+            "--wait-for-import",
+            action="store_true",
+            help="Poll Datamailer import jobs until they succeed or fail.",
+        )
+        parser.add_argument(
+            "--import-timeout",
+            type=int,
+            default=600,
+            help="Seconds to wait for each import job with --wait-for-import.",
+        )
+        parser.add_argument(
+            "--import-poll-interval",
+            type=float,
+            default=5.0,
+            help="Seconds between import job status checks.",
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Print planned batches without calling Datamailer.",
@@ -247,6 +361,14 @@ class Command(BaseCommand):
             raise CommandError(
                 "--project-slug can only be used with kind=project or kind=project-passed."
             )
+        if options["wait_for_import"] and not options["import_by_reference"]:
+            raise CommandError(
+                "--wait-for-import requires --import-by-reference."
+            )
+        if options["import_timeout"] <= 0:
+            raise CommandError("--import-timeout must be positive.")
+        if options["import_poll_interval"] <= 0:
+            raise CommandError("--import-poll-interval must be positive.")
 
         batches = build_batches(
             kind,
@@ -272,15 +394,53 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"{list_key}: {len(payload['members'])} member(s)"
                 )
+                if options["import_by_reference"]:
+                    self.stdout.write(
+                        f"{list_key}: would create import job"
+                    )
             return
 
         client = DatamailerClient(config)
         self._sync_batches(
-            client, batches, config, reconcile=options["reconcile"]
+            client,
+            batches,
+            config,
+            kind=kind,
+            reconcile=options["reconcile"],
+            import_by_reference=options["import_by_reference"],
+            wait_for_import=options["wait_for_import"],
+            import_timeout=options["import_timeout"],
+            import_poll_interval=options["import_poll_interval"],
         )
 
-    def _sync_batches(self, client, batches, config, *, reconcile):
+    def _sync_batches(
+        self,
+        client,
+        batches,
+        config,
+        *,
+        kind,
+        reconcile,
+        import_by_reference,
+        wait_for_import,
+        import_timeout,
+        import_poll_interval,
+    ):
         for list_key, payload in batches.items():
+            if import_by_reference:
+                self._create_import_job(
+                    client,
+                    config,
+                    kind,
+                    list_key,
+                    payload,
+                    remove_absent=reconcile,
+                    wait_for_import=wait_for_import,
+                    import_timeout=import_timeout,
+                    import_poll_interval=import_poll_interval,
+                )
+                continue
+
             try:
                 if reconcile:
                     response = client.reconcile_recipient_list_members(
@@ -312,3 +472,96 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"Synced {list_key}: {len(payload['members'])} member(s){suffix}"
             )
+
+    def _create_import_job(
+        self,
+        client,
+        config,
+        kind,
+        list_key,
+        payload,
+        *,
+        remove_absent,
+        wait_for_import,
+        import_timeout,
+        import_poll_interval,
+    ):
+        try:
+            upload = upload_import_file(kind, config, list_key, payload)
+            response = client.create_recipient_list_import(
+                list_key,
+                {
+                    "source_url": upload["source_url"],
+                    "idempotency_key": import_idempotency_key(
+                        kind,
+                        list_key,
+                        upload["content_sha256"],
+                        remove_absent=remove_absent,
+                    ),
+                    "list": payload["list"],
+                    "remove_absent": remove_absent,
+                },
+            )
+        except (BotoCoreError, ClientError, requests.RequestException) as exc:
+            if config.strict:
+                raise
+            raise CommandError(
+                f"Datamailer import job creation failed for {list_key}: {exc}"
+            ) from exc
+
+        job = (response or {}).get("import_job", {})
+        job_id = job.get("id")
+        status = job.get("status", "unknown")
+        self.stdout.write(
+            "Created import job for "
+            f"{list_key}: job_id={job_id}; status={status}; "
+            f"rows={upload['row_count']}; s3_key={upload['s3_key']}"
+        )
+        if wait_for_import:
+            if not job_id:
+                raise CommandError(
+                    f"Datamailer did not return an import job id for {list_key}."
+                )
+            self._wait_for_import_job(
+                client,
+                list_key,
+                job_id,
+                timeout=import_timeout,
+                poll_interval=import_poll_interval,
+            )
+
+    def _wait_for_import_job(
+        self,
+        client,
+        list_key,
+        job_id,
+        *,
+        timeout,
+        poll_interval,
+    ):
+        deadline = time.monotonic() + timeout
+        while True:
+            response = client.recipient_list_import(list_key, job_id)
+            job = (response or {}).get("import_job", {})
+            status = job.get("status")
+            if status == "succeeded":
+                self.stdout.write(
+                    "Import job succeeded for "
+                    f"{list_key}: job_id={job_id}; "
+                    f"rows={job.get('row_count')}; "
+                    f"created={job.get('created_count')}; "
+                    f"updated={job.get('updated_count')}; "
+                    f"removed={job.get('removed_count')}"
+                )
+                return
+            if status == "failed":
+                raise CommandError(
+                    "Datamailer import job failed for "
+                    f"{list_key}: job_id={job_id}; error={job.get('error')}"
+                )
+            if time.monotonic() >= deadline:
+                raise CommandError(
+                    "Timed out waiting for Datamailer import job "
+                    f"{job_id} for {list_key}; last status={status}"
+                )
+            time.sleep(poll_interval)

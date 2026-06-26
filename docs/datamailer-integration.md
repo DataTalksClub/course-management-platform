@@ -2049,6 +2049,22 @@ $ uv run python manage.py sync_datamailer_recipient_lists homework --course-slug
 $ uv run python manage.py sync_datamailer_recipient_lists registrations --dry-run
 ```
 
+For large lists, CMP can use Datamailer's file-by-reference import jobs instead
+of sending members inline:
+
+```console
+DATAMAILER_IMPORT_S3_BUCKET=cmp-datamailer-imports \
+  uv run python manage.py sync_datamailer_recipient_lists registrations \
+    --course-slug ml-zoomcamp-2026 \
+    --import-by-reference \
+    --wait-for-import
+```
+
+The command writes JSONL to CMP-owned S3, creates a short-lived pre-signed URL,
+and sends Datamailer a stable import idempotency key. `--reconcile` maps to
+Datamailer's `remove_absent` import flag and is for bootstrap or operator repair,
+not normal sends.
+
 ## Idempotency keys
 
 CMP sends stable idempotency keys for every transactional email. The key
