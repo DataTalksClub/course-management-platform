@@ -3,9 +3,12 @@
 {% block cadmin_content %}
 <section class="border-b app-border pb-5">
 <h1 class="text-2xl font-semibold app-heading md:text-3xl">Course admin</h1>
-<div class="mt-3">
+<div class="mt-3 flex flex-wrap gap-2">
 <a href="{% url 'cadmin_campaign_create' %}" class="primer-button cadmin-primary">
 <i class="fas fa-plus" aria-hidden="true"></i> New landing page
+</a>
+<a href="{% url 'cadmin_datamailer_events' %}" class="primer-button primer-button-secondary">
+<i class="fas fa-envelope-open-text" aria-hidden="true"></i> Datamailer events
 </a>
 </div>
 </section>

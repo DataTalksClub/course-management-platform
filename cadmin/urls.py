@@ -19,6 +19,11 @@ urlpatterns = [
         views.campaign_registrations,
         name="cadmin_campaign_registrations",
     ),
+    path(
+        "datamailer/events/",
+        views.datamailer_events,
+        name="cadmin_datamailer_events",
+    ),
     path("<slug:course_slug>/", views.course_admin, name="cadmin_course"),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/score",

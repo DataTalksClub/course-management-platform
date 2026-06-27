@@ -1,0 +1,118 @@
+{% extends 'cadmin/base.html' %}
+
+{% block title %}Datamailer events{% endblock %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li>Datamailer events</li>
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Operations</p>
+    <h1 class="mt-1 text-2xl font-semibold app-heading md:text-3xl">Datamailer events</h1>
+    <p class="mt-1 text-sm app-muted">Stored callback events for support and audit.</p>
+  </div>
+</section>
+
+<section class="mt-5">
+  <div class="cadmin-metrics-grid">
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Total</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ metrics.total }}</p>
+    </div>
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Last 24h</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ metrics.last_24h }}</p>
+    </div>
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Duplicates</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ metrics.duplicates }}</p>
+    </div>
+  </div>
+
+  <div class="mt-5">
+    <h2 class="text-sm font-semibold uppercase app-muted">Event types</h2>
+    <div class="mt-2 flex flex-wrap gap-2 text-sm">
+      {% for row in metrics.by_type %}
+        <a href="?event_type={{ row.event_type|urlencode }}" class="rounded-md border app-border px-2 py-1 app-link">
+          {{ row.event_type }} <span class="app-muted">{{ row.count }}</span>
+        </a>
+      {% empty %}
+        <p class="app-muted">No callback events yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="mt-6 border-t app-border pt-5">
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Callback log</h2>
+    <span class="cadmin-count-badge">{{ events_page.paginator.count }} records</span>
+  </div>
+
+  <form method="get" class="mb-4 grid gap-2 md:grid-cols-[14rem_minmax(0,1fr)_auto]">
+    <select name="event_type" class="form-control">
+      <option value="">All event types</option>
+      {% for type in event_types %}
+        <option value="{{ type }}" {% if selected_event_type == type %}selected{% endif %}>{{ type }}</option>
+      {% endfor %}
+    </select>
+    <input type="search"
+           name="q"
+           value="{{ search_query }}"
+           class="form-control"
+           placeholder="Search email, event id, client, audience, or preference">
+    <button type="submit" class="primer-button primer-button-secondary">Filter</button>
+  </form>
+
+  {% if selected_event_type or search_query %}
+    <p class="mb-4 text-sm app-muted">
+      Filters are active.
+      <a href="{% url 'cadmin_datamailer_events' %}" class="app-link">Clear filters</a>
+    </p>
+  {% endif %}
+
+  <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[9rem_12rem_minmax(0,1fr)_10rem_8rem_7rem] md:gap-3">
+    <div>Received</div>
+    <div>Event</div>
+    <div>Contact</div>
+    <div>Preference</div>
+    <div>Source</div>
+    <div class="text-right">Duplicates</div>
+  </div>
+
+  <div class="divide-y app-divide">
+    {% for event in events_page.object_list %}
+      <article class="grid gap-2 py-3 text-sm md:grid-cols-[9rem_12rem_minmax(0,1fr)_10rem_8rem_7rem] md:items-center md:gap-3">
+        <div class="app-muted">
+          {{ event.created_at|date:"Y-m-d H:i" }}
+          {% if event.occurred_at %}
+            <p class="text-xs">Occurred {{ event.occurred_at|date:"Y-m-d H:i" }}</p>
+          {% endif %}
+        </div>
+        <div>
+          <p class="font-medium app-heading">{{ event.event_type }}</p>
+          <p class="truncate text-xs app-muted" title="{{ event.event_id }}">{{ event.event_id }}</p>
+        </div>
+        <div class="min-w-0">
+          <p class="truncate font-medium app-heading">{{ event.email }}</p>
+          {% if event.audience %}
+            <p class="truncate text-xs app-muted">{{ event.audience }}</p>
+          {% endif %}
+        </div>
+        <div>{{ event.preference_key|default:"-" }}</div>
+        <div class="min-w-0">
+          <p class="truncate">{{ event.client|default:"-" }}</p>
+        </div>
+        <div class="md:text-right">{{ event.duplicate_count }}</div>
+      </article>
+    {% empty %}
+      <p class="py-4 text-sm app-muted">No Datamailer events found.</p>
+    {% endfor %}
+  </div>
+
+  {% include 'include/pagination.html' with pagination_page=events_page pagination_range=page_range pagination_querystring=pagination_querystring pagination_label='Datamailer event pages' %}
+</section>
+{% endblock %}

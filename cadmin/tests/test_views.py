@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
 
+from data.models import DatamailerContactEvent
 from courses.models import (
     User,
     Course,
@@ -157,8 +158,76 @@ class CadminViewTests(TestCase):
             response,
             f"/admin/courses/course/{self.course.id}/change/",
         )
+        self.assertContains(response, reverse("cadmin_datamailer_events"))
         self.assertNotContains(response, "> Manage <")
         self.assertNotContains(response, "> View <")
+
+    def test_datamailer_events_non_staff_denied(self):
+        self.client.login(username="test@test.com", password="12345")
+        response = self.client.get(reverse("cadmin_datamailer_events"))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_datamailer_events_staff_allowed(self):
+        DatamailerContactEvent.objects.create(
+            event_id="evt-hard-bounce",
+            event_type="contact.hard_bounced",
+            email="student@example.com",
+            client="dtc-courses",
+            audience="ml-zoomcamp",
+            duplicate_count=2,
+        )
+        DatamailerContactEvent.objects.create(
+            event_id="evt-opened",
+            event_type="message.opened",
+            email="other@example.com",
+            client="dtc-courses",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        response = self.client.get(reverse("cadmin_datamailer_events"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Datamailer events")
+        self.assertContains(response, "student@example.com")
+        self.assertContains(response, "contact.hard_bounced")
+        self.assertContains(response, "ml-zoomcamp")
+        self.assertEqual(response.context["metrics"]["total"], 2)
+        self.assertEqual(response.context["metrics"]["duplicates"], 2)
+
+    def test_datamailer_events_filters_by_type_and_search(self):
+        DatamailerContactEvent.objects.create(
+            event_id="evt-hard-bounce",
+            event_type="contact.hard_bounced",
+            email="student@example.com",
+            client="dtc-courses",
+            audience="ml-zoomcamp",
+        )
+        DatamailerContactEvent.objects.create(
+            event_id="evt-opened",
+            event_type="message.opened",
+            email="other@example.com",
+            client="dtc-courses",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        response = self.client.get(
+            reverse("cadmin_datamailer_events"),
+            {"event_type": "contact.hard_bounced", "q": "student"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "student@example.com")
+        self.assertNotContains(response, "other@example.com")
+        self.assertEqual(
+            response.context["selected_event_type"],
+            "contact.hard_bounced",
+        )
+        self.assertEqual(response.context["search_query"], "student")
 
     def test_course_admin_staff_allowed(self):
         """Test that staff users can access course admin page"""

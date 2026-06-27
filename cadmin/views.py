@@ -2,9 +2,10 @@ import logging
 import re
 
 from collections import defaultdict
+from datetime import timedelta
 
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
@@ -16,6 +17,7 @@ from course_management.datamailer import (
     send_project_score_notification,
     send_peer_review_assignment_notification,
 )
+from data.models import DatamailerContactEvent
 from .forms import RegistrationCampaignForm
 from courses.models import (
     Course,
@@ -172,6 +174,60 @@ def course_list(request):
     }
 
     return render(request, "cadmin/course_list.html", context)
+
+
+@staff_required
+def datamailer_events(request):
+    events = DatamailerContactEvent.objects.all()
+    event_type = request.GET.get("event_type", "").strip()
+    search_query = request.GET.get("q", "").strip()
+
+    if event_type:
+        events = events.filter(event_type=event_type)
+    if search_query:
+        events = events.filter(
+            Q(email__icontains=search_query)
+            | Q(event_id__icontains=search_query)
+            | Q(client__icontains=search_query)
+            | Q(audience__icontains=search_query)
+            | Q(preference_key__icontains=search_query)
+        )
+
+    event_types = list(
+        DatamailerContactEvent.objects.order_by("event_type")
+        .values_list("event_type", flat=True)
+        .distinct()
+    )
+    events_page = paginate_queryset(request, events, per_page=50)
+    total_events = DatamailerContactEvent.objects.count()
+    since = timezone.now() - timedelta(hours=24)
+    metrics = {
+        "total": total_events,
+        "last_24h": DatamailerContactEvent.objects.filter(
+            created_at__gte=since
+        ).count(),
+        "duplicates": DatamailerContactEvent.objects.aggregate(
+            total=Sum("duplicate_count")
+        )["total"]
+        or 0,
+        "by_type": count_by(DatamailerContactEvent.objects.all(), "event_type"),
+    }
+
+    return render(
+        request,
+        "cadmin/datamailer_events.html",
+        {
+            "events_page": events_page,
+            "event_types": event_types,
+            "selected_event_type": event_type,
+            "search_query": search_query,
+            "metrics": metrics,
+            "page_range": events_page.paginator.get_elided_page_range(
+                events_page.number
+            ),
+            "pagination_querystring": pagination_querystring(request),
+        },
+    )
 
 
 @staff_required
