@@ -16,10 +16,6 @@
     <h1 class="mt-1 truncate text-2xl font-semibold app-heading md:text-3xl">{{ campaign.title }}</h1>
     <p class="mt-1 text-sm app-muted">
       <a href="{% url 'registration_campaign' campaign.slug %}" class="app-link">/register/{{ campaign.slug }}/</a>
-      {% if campaign.selected_mailchimp_tag %}
-        <span aria-hidden="true">&middot;</span>
-        Current tag: {{ campaign.selected_mailchimp_tag }}
-      {% endif %}
     </p>
   </div>
   <div class="flex flex-wrap gap-2">
@@ -38,12 +34,6 @@
       <p class="text-xs font-semibold uppercase app-muted">Total</p>
       <p class="mt-1 text-lg font-semibold app-heading">{{ metrics.total }}</p>
     </div>
-    {% for status in metrics.by_status %}
-      <a href="?mailchimp_sync_status={{ status.mailchimp_sync_status|urlencode }}" class="cadmin-metric">
-        <p class="text-xs font-semibold uppercase app-muted">{{ status.mailchimp_sync_status|default:"Unset" }}</p>
-        <p class="mt-1 text-lg font-semibold app-heading">{{ status.count }}</p>
-      </a>
-    {% endfor %}
   </div>
 
   <div class="mt-5 grid gap-4 md:grid-cols-3">
@@ -104,24 +94,23 @@
     <button type="submit" class="primer-button primer-button-secondary">Search</button>
   </form>
 
-  {% if filters.role or filters.country or filters.region or filters.mailchimp_sync_status or search_query %}
+  {% if filters.role or filters.country or filters.region or search_query %}
     <p class="mb-4 text-sm app-muted">
       Filters are active.
       <a href="{% url 'cadmin_campaign_registrations' campaign.slug %}" class="app-link">Clear filters</a>
     </p>
   {% endif %}
 
-  <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem_8rem] md:gap-3">
+  <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem] md:gap-3">
     <div>Person</div>
     <div>Country</div>
     <div>Role</div>
-    <div>Status</div>
     <div class="text-right">Created</div>
   </div>
 
   <div class="divide-y app-divide">
     {% for registration in registrations_page.object_list %}
-      <article class="grid gap-2 py-3 text-sm md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem_8rem] md:items-center md:gap-3">
+      <article class="grid gap-2 py-3 text-sm md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem] md:items-center md:gap-3">
         <div class="min-w-0">
           <p class="truncate font-medium app-heading">{{ registration.name }}</p>
           <p class="truncate app-muted">{{ registration.email_normalized }}</p>
@@ -136,12 +125,6 @@
           </p>
         </div>
         <div>{{ registration.get_role_display }}</div>
-        <div>
-          <a href="?mailchimp_sync_status={{ registration.mailchimp_sync_status|urlencode }}" class="app-link">{{ registration.mailchimp_sync_status }}</a>
-          {% if registration.mailchimp_tag_used %}
-            <p class="text-xs app-muted">{{ registration.mailchimp_tag_used }}</p>
-          {% endif %}
-        </div>
         <div class="app-muted md:text-right">
           {{ registration.created_at|date:"M j, Y" }}
         </div>

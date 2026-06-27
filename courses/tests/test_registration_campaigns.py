@@ -29,7 +29,6 @@ class RegistrationCampaignPublicTests(TestCase):
             edition_label="2026 cohort",
             current_course=self.course,
             marketing_markdown="## Learn LLMs\n\nBuild useful apps.",
-            mailchimp_tag_before_switch="llm-zoomcamp-2026",
         )
 
     def registration_payload(self, email="Student@Example.com"):
@@ -56,8 +55,6 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertContains(response, "Register")
 
     @override_settings(
-        MAILCHIMP_TOKEN="",
-        MAILCHIMP_LIST_ID="",
         DATAMAILER_URL="",
         DATAMAILER_API_KEY="",
         DATAMAILER_CLIENT="",
@@ -83,10 +80,6 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(registration.course, self.course)
         self.assertEqual(registration.region, "Europe")
         self.assertIsNone(registration.user)
-        self.assertEqual(
-            registration.mailchimp_sync_status,
-            CourseRegistration.MailchimpSyncStatus.SKIPPED,
-        )
 
     def test_duplicate_registration_shows_message(self):
         CourseRegistration.objects.create(
@@ -116,8 +109,6 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(CourseRegistration.objects.count(), 1)
 
     @override_settings(
-        MAILCHIMP_TOKEN="",
-        MAILCHIMP_LIST_ID="",
         DATAMAILER_URL="",
         DATAMAILER_API_KEY="",
         DATAMAILER_CLIENT="",
@@ -220,8 +211,6 @@ class RegistrationCampaignPublicTests(TestCase):
         )
 
     @override_settings(
-        MAILCHIMP_TOKEN="",
-        MAILCHIMP_LIST_ID="",
         DATAMAILER_URL="",
         DATAMAILER_API_KEY="",
         DATAMAILER_CLIENT="",
@@ -393,19 +382,15 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertNotContains(response, 'name="email"')
 
     @override_settings(
-        MAILCHIMP_TOKEN="secret-us19",
-        MAILCHIMP_LIST_ID="97178021aa",
         DATAMAILER_URL="https://datamailer.example.com",
         DATAMAILER_API_KEY="secret-token",
         DATAMAILER_CLIENT="dtc-courses",
         DATAMAILER_AUDIENCE="dtc-courses",
     )
-    @patch("course_management.mailchimp.MailchimpClient.upsert_member")
     @patch("courses.views.registration.sync_registration_to_datamailer")
     def test_registration_syncs_to_datamailer_only(
         self,
         sync_datamailer,
-        upsert_mailchimp,
     ):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
@@ -419,105 +404,3 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
         sync_datamailer.assert_called_once_with(registration)
-        upsert_mailchimp.assert_not_called()
-        self.assertEqual(
-            registration.mailchimp_sync_status,
-            CourseRegistration.MailchimpSyncStatus.SKIPPED,
-        )
-
-
-class MailchimpRegistrationSyncTests(TestCase):
-    @override_settings(
-        MAILCHIMP_TOKEN="secret-us19",
-        MAILCHIMP_LIST_ID="97178021aa",
-    )
-    @patch("course_management.mailchimp.MailchimpClient.add_member_tag")
-    @patch("course_management.mailchimp.MailchimpClient.upsert_member")
-    def test_registration_sync_hook_is_retired(self, upsert, add_tag):
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            mailchimp_tag_before_switch="llm-zoomcamp-2026",
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            email="student@example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
-
-        from course_management.mailchimp import (
-            sync_registration_to_mailchimp,
-        )
-
-        sync_registration_to_mailchimp(registration)
-
-        upsert.assert_not_called()
-        add_tag.assert_not_called()
-        registration.refresh_from_db()
-        self.assertEqual(
-            registration.mailchimp_sync_status,
-            CourseRegistration.MailchimpSyncStatus.SKIPPED,
-        )
-        self.assertEqual(
-            registration.mailchimp_tag_used, "llm-zoomcamp-2026"
-        )
-
-    @override_settings(
-        MAILCHIMP_TOKEN="secret-us19",
-        MAILCHIMP_LIST_ID="97178021aa",
-    )
-    @patch("course_management.mailchimp.MailchimpClient.add_member_tag")
-    @patch("course_management.mailchimp.MailchimpClient.upsert_member")
-    def test_registration_sync_skips_mailchimp_without_newsletter_consent(
-        self, upsert, add_tag
-    ):
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            mailchimp_tag_before_switch="llm-zoomcamp-2026",
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            email="student@example.com",
-            name="",
-            country="",
-            region="",
-            role="",
-            accepted_newsletter=False,
-        )
-
-        from course_management.mailchimp import (
-            sync_registration_to_mailchimp,
-        )
-
-        sync_registration_to_mailchimp(registration)
-
-        upsert.assert_not_called()
-        add_tag.assert_not_called()
-        registration.refresh_from_db()
-        self.assertEqual(
-            registration.mailchimp_sync_status,
-            CourseRegistration.MailchimpSyncStatus.SKIPPED,
-        )
-        self.assertEqual(
-            registration.mailchimp_tag_used, "llm-zoomcamp-2026"
-        )
-
-    def test_campaign_selects_after_switch_tag(self):
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            mailchimp_tag_before_switch="llm-zoomcamp-2026",
-            mailchimp_tag_after_switch="llm-zoomcamp-next",
-            mailchimp_tag_switch_at=timezone.now()
-            - timezone.timedelta(days=1),
-        )
-
-        self.assertEqual(
-            campaign.selected_mailchimp_tag(),
-            "llm-zoomcamp-next",
-        )

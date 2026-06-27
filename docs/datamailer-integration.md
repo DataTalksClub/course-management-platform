@@ -1303,7 +1303,6 @@ The current CMP integration has:
 - Datamailer callbacks to CMP for hard bounces, complaints, unsubscribes,
   resubscribes, transactional skips, and transactional failures.
 - CMP backfill command for Datamailer recipient lists.
-- Mailchimp sync for course registrations.
 
 Planned, not implemented yet:
 

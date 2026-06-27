@@ -2,7 +2,6 @@ import logging
 import re
 
 from collections import defaultdict
-from datetime import datetime, time
 
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
@@ -104,7 +103,6 @@ def registration_campaign_metrics(campaign):
         "by_role": count_by(registrations, "role"),
         "by_country": count_by(registrations, "country"),
         "by_region": count_by(registrations, "region"),
-        "by_status": count_by(registrations, "mailchimp_sync_status"),
     }
 
 
@@ -148,27 +146,6 @@ def campaign_form_initial(request):
         initial["title"] = title_base
     if year:
         initial["edition_label"] = f"{year} cohort"
-        # Keep the year on the current tag; the after-switch tag is "<name>-next".
-        initial["mailchimp_tag_before_switch"] = f"{slug_base}-{year}"
-    else:
-        initial["mailchimp_tag_before_switch"] = (
-            slug_base or course.slug
-        )
-    initial["mailchimp_tag_after_switch"] = (
-        f"{slug_base or course.slug}-next"
-    )
-
-    # Default the tag switch to the midpoint between the course start and end.
-    if (
-        course.start_date
-        and course.end_date
-        and course.end_date >= course.start_date
-    ):
-        start_dt = datetime.combine(course.start_date, time())
-        end_dt = datetime.combine(course.end_date, time())
-        initial["mailchimp_tag_switch_at"] = (
-            start_dt + (end_dt - start_dt) / 2
-        )
 
     return initial
 
@@ -338,9 +315,6 @@ def campaign_registrations(request, campaign_slug):
         "role": request.GET.get("role", "").strip(),
         "country": request.GET.get("country", "").strip(),
         "region": request.GET.get("region", "").strip(),
-        "mailchimp_sync_status": request.GET.get(
-            "mailchimp_sync_status", ""
-        ).strip(),
     }
     for field, value in filters.items():
         if value:

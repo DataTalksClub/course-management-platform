@@ -76,15 +76,6 @@
     </div>
   </section>
 
-  <section class="border-t app-border pt-5">
-    <h2 class="text-base font-semibold app-heading">Mailchimp tagging</h2>
-    <div class="mt-4 space-y-5">
-      {% include 'cadmin/include/campaign_field.html' with field=form.mailchimp_tag_before_switch %}
-      {% include 'cadmin/include/campaign_field.html' with field=form.mailchimp_tag_after_switch %}
-      {% include 'cadmin/include/campaign_field.html' with field=form.mailchimp_tag_switch_at %}
-    </div>
-  </section>
-
   <div class="flex flex-wrap justify-end gap-2 border-t app-border pt-5">
     {% if course %}
       <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Cancel</a>

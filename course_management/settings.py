@@ -208,10 +208,6 @@ DATAMAILER_SYNC_ON_USER_CREATE = (
     os.getenv("DATAMAILER_SYNC_ON_USER_CREATE", "1") == "1"
 )
 
-MAILCHIMP_TOKEN = os.getenv("MAILCHIMP_TOKEN", "")
-MAILCHIMP_LIST_ID = os.getenv("MAILCHIMP_LIST_ID", "")
-MAILCHIMP_STRICT = os.getenv("MAILCHIMP_STRICT", "0") == "1"
-
 # Cache configuration
 CACHES = {
     "default": {

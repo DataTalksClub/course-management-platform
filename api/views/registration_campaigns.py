@@ -2,7 +2,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.auth import token_required
@@ -21,9 +20,6 @@ CAMPAIGN_FIELDS = {
     "meta_description",
     "hero_image_url",
     "video_url",
-    "mailchimp_tag_before_switch",
-    "mailchimp_tag_after_switch",
-    "mailchimp_tag_switch_at",
 }
 
 
@@ -46,12 +42,6 @@ def _campaign_to_dict(campaign):
         "meta_description": campaign.meta_description,
         "hero_image_url": campaign.hero_image_url,
         "video_url": campaign.video_url,
-        "mailchimp_tag_before_switch": campaign.mailchimp_tag_before_switch,
-        "mailchimp_tag_after_switch": campaign.mailchimp_tag_after_switch,
-        "mailchimp_tag_switch_at": _datetime_to_iso(
-            campaign.mailchimp_tag_switch_at
-        ),
-        "selected_mailchimp_tag": campaign.selected_mailchimp_tag(),
     }
 
 
@@ -67,12 +57,6 @@ def _registration_to_dict(registration):
         "role": registration.role,
         "role_display": registration.get_role_display(),
         "comment": registration.comment,
-        "mailchimp_sync_status": registration.mailchimp_sync_status,
-        "mailchimp_tag_used": registration.mailchimp_tag_used,
-        "mailchimp_synced_at": _datetime_to_iso(
-            registration.mailchimp_synced_at
-        ),
-        "mailchimp_error": registration.mailchimp_error,
         "created_at": _datetime_to_iso(registration.created_at),
     }
 
@@ -93,20 +77,6 @@ def _normalize_campaign_data(data):
                     "course_not_found",
                     details={"current_course": slug},
                 )
-
-    if "mailchimp_tag_switch_at" in result:
-        value = result["mailchimp_tag_switch_at"]
-        if value in ("", None):
-            result["mailchimp_tag_switch_at"] = None
-        else:
-            parsed = parse_datetime(value)
-            if parsed is None:
-                return None, error_response(
-                    "mailchimp_tag_switch_at must use ISO datetime format",
-                    "invalid_datetime",
-                    details={"field": "mailchimp_tag_switch_at"},
-                )
-            result["mailchimp_tag_switch_at"] = parsed
 
     return result, None
 
@@ -248,7 +218,7 @@ def registration_campaign_registrations_view(request, campaign_slug):
             | Q(name__icontains=search)
         )
 
-    for field in ("role", "country", "region", "mailchimp_sync_status"):
+    for field in ("role", "country", "region"):
         value = request.GET.get(field, "").strip()
         if value:
             registrations = registrations.filter(**{field: value})
@@ -259,10 +229,6 @@ def registration_campaign_registrations_view(request, campaign_slug):
         "by_role": _count_by(stats_base, "role"),
         "by_country": _count_by(stats_base, "country"),
         "by_region": _count_by(stats_base, "region"),
-        "by_mailchimp_sync_status": _count_by(
-            stats_base,
-            "mailchimp_sync_status",
-        ),
     }
 
     try:

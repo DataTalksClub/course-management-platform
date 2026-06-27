@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
@@ -133,10 +132,6 @@ class RegistrationCampaign(models.Model):
         validators=[URLValidator()],
     )
 
-    mailchimp_tag_before_switch = models.CharField(max_length=100, blank=True)
-    mailchimp_tag_after_switch = models.CharField(max_length=100, blank=True)
-    mailchimp_tag_switch_at = models.DateTimeField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -145,16 +140,6 @@ class RegistrationCampaign(models.Model):
 
     def __str__(self):
         return self.title
-
-    def selected_mailchimp_tag(self, now=None):
-        now = now or timezone.now()
-        if (
-            self.mailchimp_tag_switch_at
-            and now >= self.mailchimp_tag_switch_at
-            and self.mailchimp_tag_after_switch
-        ):
-            return self.mailchimp_tag_after_switch
-        return self.mailchimp_tag_before_switch
 
 
 class CourseRegistration(models.Model):
@@ -174,12 +159,6 @@ class CourseRegistration(models.Model):
         STUDENT_STEM = "student_stem", "Student (STEM)"
         STUDENT_NON_STEM = "student_non_stem", "Student (Non-STEM)"
         OTHER = "other", "Other"
-
-    class MailchimpSyncStatus(models.TextChoices):
-        SKIPPED = "skipped", "Skipped"
-        PENDING = "pending", "Pending"
-        SYNCED = "synced", "Synced"
-        FAILED = "failed", "Failed"
 
     campaign = models.ForeignKey(
         RegistrationCampaign,
@@ -209,15 +188,6 @@ class CourseRegistration(models.Model):
     role = models.CharField(max_length=40, choices=Role.choices)
     comment = models.TextField(blank=True)
     accepted_newsletter = models.BooleanField(default=False)
-
-    mailchimp_sync_status = models.CharField(
-        max_length=20,
-        choices=MailchimpSyncStatus.choices,
-        default=MailchimpSyncStatus.SKIPPED,
-    )
-    mailchimp_tag_used = models.CharField(max_length=100, blank=True)
-    mailchimp_synced_at = models.DateTimeField(null=True, blank=True)
-    mailchimp_error = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

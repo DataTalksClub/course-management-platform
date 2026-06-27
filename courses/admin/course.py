@@ -156,9 +156,6 @@ class RegistrationCampaignAdmin(ModelAdmin):
         "slug",
         "current_course",
         "is_active",
-        "mailchimp_tag_before_switch",
-        "mailchimp_tag_after_switch",
-        "mailchimp_tag_switch_at",
     ]
     search_fields = ["title", "slug"]
     list_filter = ["is_active", "current_course"]
@@ -181,16 +178,6 @@ class RegistrationCampaignAdmin(ModelAdmin):
             },
         ),
         (
-            "Mailchimp",
-            {
-                "fields": [
-                    "mailchimp_tag_before_switch",
-                    "mailchimp_tag_after_switch",
-                    "mailchimp_tag_switch_at",
-                ]
-            },
-        ),
-        (
             "Timestamps",
             {
                 "classes": ["collapse"],
@@ -209,8 +196,6 @@ class CourseRegistrationAdmin(ModelAdmin):
         "country",
         "region",
         "role",
-        "mailchimp_sync_status",
-        "mailchimp_tag_used",
         "created_at",
     ]
     search_fields = ["email", "email_normalized", "name"]
@@ -219,11 +204,9 @@ class CourseRegistrationAdmin(ModelAdmin):
         "course",
         "region",
         "role",
-        "mailchimp_sync_status",
     ]
     readonly_fields = [
         "email_normalized",
-        "mailchimp_synced_at",
         "created_at",
         "updated_at",
     ]
@@ -243,17 +226,6 @@ class CourseRegistrationAdmin(ModelAdmin):
                     "role",
                     "comment",
                     "accepted_newsletter",
-                ]
-            },
-        ),
-        (
-            "Mailchimp",
-            {
-                "fields": [
-                    "mailchimp_sync_status",
-                    "mailchimp_tag_used",
-                    "mailchimp_synced_at",
-                    "mailchimp_error",
                 ]
             },
         ),

@@ -31,7 +31,6 @@ class RegistrationCampaignAPITestCase(TestCase):
                 "edition_label": "2026 cohort",
                 "current_course": self.course.slug,
                 "marketing_markdown": "Register now",
-                "mailchimp_tag_before_switch": "llm-zoomcamp-2026",
             }),
             content_type="application/json",
         )
@@ -40,15 +39,10 @@ class RegistrationCampaignAPITestCase(TestCase):
         data = response.json()
         self.assertEqual(data["slug"], "llm-zoomcamp")
         self.assertEqual(data["current_course"], self.course.slug)
-        self.assertEqual(
-            data["selected_mailchimp_tag"],
-            "llm-zoomcamp-2026",
-        )
 
         response = self.client.patch(
             "/api/registration-campaigns/llm-zoomcamp/",
             json.dumps({
-                "mailchimp_tag_after_switch": "llm-zoomcamp-next",
                 "current_course": None,
             }),
             content_type="application/json",
@@ -57,10 +51,6 @@ class RegistrationCampaignAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsNone(data["current_course"])
-        self.assertEqual(
-            data["mailchimp_tag_after_switch"],
-            "llm-zoomcamp-next",
-        )
 
     def test_registration_campaign_registrations_stats(self):
         campaign = RegistrationCampaign.objects.create(

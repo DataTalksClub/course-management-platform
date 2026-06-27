@@ -421,16 +421,12 @@ SCHEMAS = {
                     "meta_description",
                     "hero_image_url",
                     "video_url",
-                    "mailchimp_tag_before_switch",
-                    "mailchimp_tag_after_switch",
-                    "mailchimp_tag_switch_at",
                 ],
             ),
             "current_course": {
                 "type": ["string", "null"],
                 "description": "Slug of the currently promoted course.",
             },
-            "selected_mailchimp_tag": {"type": "string"},
         },
     },
     "RegistrationCampaignCreate": {
@@ -449,9 +445,6 @@ SCHEMAS = {
                     "meta_description",
                     "hero_image_url",
                     "video_url",
-                    "mailchimp_tag_before_switch",
-                    "mailchimp_tag_after_switch",
-                    "mailchimp_tag_switch_at",
                 ],
             ),
             "current_course": {"type": ["string", "null"]},
@@ -472,9 +465,6 @@ SCHEMAS = {
                     "meta_description",
                     "hero_image_url",
                     "video_url",
-                    "mailchimp_tag_before_switch",
-                    "mailchimp_tag_after_switch",
-                    "mailchimp_tag_switch_at",
                 ],
             ),
             "current_course": {"type": ["string", "null"]},
@@ -499,10 +489,6 @@ SCHEMAS = {
             "region",
             "role",
             "comment",
-            "mailchimp_sync_status",
-            "mailchimp_tag_used",
-            "mailchimp_synced_at",
-            "mailchimp_error",
             "created_at",
         ],
         extra_properties={
@@ -525,9 +511,6 @@ SCHEMAS = {
             "by_role": array_of(ref("RegistrationCount")),
             "by_country": array_of(ref("RegistrationCount")),
             "by_region": array_of(ref("RegistrationCount")),
-            "by_mailchimp_sync_status": array_of(
-                ref("RegistrationCount")
-            ),
         },
     },
     "RegistrationCampaignRegistrations": {

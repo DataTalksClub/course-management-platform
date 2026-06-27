@@ -80,10 +80,6 @@
             <h3 class="text-lg font-semibold app-heading">{{ item.campaign.title }}</h3>
             <p class="mt-1 text-sm app-muted">
               <a href="{% url 'registration_campaign' item.campaign.slug %}" class="app-link">/register/{{ item.campaign.slug }}/</a>
-              {% if item.campaign.selected_mailchimp_tag %}
-                <span aria-hidden="true">&middot;</span>
-                Tag: {{ item.campaign.selected_mailchimp_tag }}
-              {% endif %}
             </p>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -101,12 +97,6 @@
             <p class="text-xs font-semibold uppercase app-muted">Total</p>
             <p class="mt-1 text-lg font-semibold app-heading">{{ item.total }}</p>
           </div>
-          {% for status in item.by_status %}
-            <a href="{% url 'cadmin_campaign_registrations' item.campaign.slug %}?mailchimp_sync_status={{ status.mailchimp_sync_status|urlencode }}" class="cadmin-metric">
-              <p class="text-xs font-semibold uppercase app-muted">{{ status.mailchimp_sync_status|default:"Unset" }}</p>
-              <p class="mt-1 text-lg font-semibold app-heading">{{ status.count }}</p>
-            </a>
-          {% endfor %}
         </div>
 
         <div class="mt-4 grid gap-4 md:grid-cols-3">

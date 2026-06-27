@@ -193,7 +193,6 @@ class CadminViewTests(TestCase):
             slug="llm-zoomcamp",
             title="LLM Zoomcamp",
             current_course=self.course,
-            mailchimp_tag_before_switch="llm-zoomcamp-2026",
         )
         CourseRegistration.objects.create(
             campaign=campaign,
@@ -245,9 +244,6 @@ class CadminViewTests(TestCase):
                 "video_url": "https://youtu.be/example",
                 "meta_description": "Learn LLMs",
                 "marketing_markdown": "## Register now",
-                "mailchimp_tag_before_switch": "llm-zoomcamp-2026",
-                "mailchimp_tag_after_switch": "",
-                "mailchimp_tag_switch_at": "",
             },
         )
 
@@ -275,7 +271,6 @@ class CadminViewTests(TestCase):
             title="LLM Zoomcamp",
             current_course=self.course,
             marketing_markdown="Old copy",
-            mailchimp_tag_before_switch="old-tag",
         )
 
         self.client.login(
@@ -303,9 +298,6 @@ class CadminViewTests(TestCase):
                 "video_url": "",
                 "meta_description": "",
                 "marketing_markdown": "New copy",
-                "mailchimp_tag_before_switch": "new-tag",
-                "mailchimp_tag_after_switch": "",
-                "mailchimp_tag_switch_at": "",
             },
         )
 
@@ -313,9 +305,6 @@ class CadminViewTests(TestCase):
         campaign.refresh_from_db()
         self.assertEqual(campaign.title, "LLM Zoomcamp 2026")
         self.assertEqual(campaign.marketing_markdown, "New copy")
-        self.assertEqual(
-            campaign.mailchimp_tag_before_switch, "new-tag"
-        )
 
     def test_leaderboard_complaints_sorted_by_open_count(self):
         self.client.login(
