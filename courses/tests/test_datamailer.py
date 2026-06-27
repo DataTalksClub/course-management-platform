@@ -43,6 +43,7 @@ from course_management.datamailer import (
     project_passed_recipient_list_payload,
     project_score_notification_payload,
     project_submitters_list_key,
+    registration_confirmation_payload,
     registration_list_key,
     remove_enrollment_from_datamailer,
     remove_homework_submission_from_datamailer,
@@ -51,6 +52,7 @@ from course_management.datamailer import (
     send_certificate_availability_notification,
     send_homework_score_notification,
     send_project_score_notification,
+    send_registration_confirmation_email,
     send_transactional_email,
     sync_contact,
     sync_enrollment_to_datamailer,
@@ -941,6 +943,110 @@ class DatamailerClientTest(TestCase):
                 "from_email": "no-reply",
             }
         )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    def test_registration_confirmation_payload(self):
+        course = Course.objects.create(
+            slug="llm-zoomcamp-2026",
+            title="LLM Zoomcamp 2026",
+            description="LLM course",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=course,
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
+        payload = registration_confirmation_payload(registration)
+
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(
+            payload["template_key"],
+            "registration-confirmation",
+        )
+        self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(
+            payload["idempotency_key"],
+            f"registration-confirmation:{registration.pk}",
+        )
+        self.assertEqual(
+            payload["context"]["registration_url"],
+            "https://courses.example.com/register/llm-zoomcamp/",
+        )
+        self.assertEqual(
+            payload["context"]["course_url"],
+            "https://courses.example.com/llm-zoomcamp-2026/",
+        )
+        self.assertEqual(
+            payload["metadata"]["event"],
+            "course_registration",
+        )
+        self.assertEqual(
+            payload["metadata"]["preference_key"],
+            "email_course_updates",
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_send_registration_confirmation_email_uses_transactional_send(
+        self, send
+    ):
+        send.return_value = {
+            "message": {
+                "id": "message-id",
+                "status": "queued",
+                "template_key": "registration-confirmation",
+            },
+            "enqueued": True,
+        }
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+        )
+        registration = CourseRegistration.objects.create(
+            campaign=campaign,
+            email="student@example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
+        result = send_registration_confirmation_email(registration)
+
+        self.assertEqual(result["message"]["id"], "message-id")
+        send.assert_called_once()
+        payload = send.call_args.args[0]
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(
+            payload["template_key"],
+            "registration-confirmation",
+        )
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(
+            audit.send_type,
+            DatamailerSendAuditType.TRANSACTIONAL,
+        )
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.template_key, "registration-confirmation")
+        self.assertEqual(audit.category_tag, "course-updates")
+        self.assertEqual(audit.event, "course_registration")
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(

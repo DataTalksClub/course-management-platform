@@ -4,7 +4,10 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from course_management.datamailer import sync_registration_to_datamailer
+from course_management.datamailer import (
+    send_registration_confirmation_email,
+    sync_registration_to_datamailer,
+)
 from courses.models import (
     CourseRegistration,
     Homework,
@@ -60,6 +63,9 @@ def registration_campaign_view(
             registration = form.save()
             transaction.on_commit(
                 lambda: sync_registration_to_datamailer(registration)
+            )
+            transaction.on_commit(
+                lambda: send_registration_confirmation_email(registration)
             )
     else:
         form = CourseRegistrationForm(

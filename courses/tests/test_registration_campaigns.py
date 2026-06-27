@@ -387,10 +387,14 @@ class RegistrationCampaignPublicTests(TestCase):
         DATAMAILER_CLIENT="dtc-courses",
         DATAMAILER_AUDIENCE="dtc-courses",
     )
+    @patch(
+        "courses.views.registration.send_registration_confirmation_email"
+    )
     @patch("courses.views.registration.sync_registration_to_datamailer")
-    def test_registration_syncs_to_datamailer_only(
+    def test_registration_syncs_to_datamailer_and_sends_confirmation(
         self,
         sync_datamailer,
+        send_confirmation,
     ):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
@@ -404,3 +408,4 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
         sync_datamailer.assert_called_once_with(registration)
+        send_confirmation.assert_called_once_with(registration)

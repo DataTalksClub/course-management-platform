@@ -552,6 +552,88 @@ def registration_campaign_datamailer_payload(campaign) -> dict[str, Any]:
     return payload
 
 
+def registration_confirmation_payload(registration) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    email = (
+        (registration.email_normalized or registration.email or "")
+        .strip()
+        .lower()
+    )
+    if not email:
+        return None
+
+    campaign = registration.campaign
+    course = registration.course
+    registration_path = reverse(
+        "registration_campaign",
+        kwargs={"campaign_slug": campaign.slug},
+    )
+    course_url = ""
+    if course is not None:
+        course_url = public_url(
+            reverse("course", kwargs={"course_slug": course.slug})
+        )
+    profile_url = public_url(reverse("account_settings"))
+
+    metadata = {
+        "source": "course-management-platform",
+        "event": "course_registration",
+        "registration_id": registration.pk,
+        "campaign_slug": campaign.slug,
+        "course_slug": course.slug if course is not None else "",
+        "preference_key": "email_course_updates",
+        "cmp_preference_key": "email_course_updates",
+    }
+    context = {
+        "email_subject": f"Registration confirmed: {campaign.title}",
+        "campaign_title": campaign.title,
+        "campaign_slug": campaign.slug,
+        "course_title": course.title if course is not None else "",
+        "course_slug": course.slug if course is not None else "",
+        "registration_id": registration.pk,
+        "registration_url": public_url(registration_path),
+        "course_url": course_url,
+        "profile_url": profile_url,
+        "intro_text": (
+            f"Your registration for {campaign.title} is confirmed."
+        ),
+        "notification_category": "course-related emails",
+        "notification_footer": (
+            "You are receiving this because course-related emails are "
+            "enabled."
+        ),
+        "notification_footer_text": (
+            "If you don't want to receive course-related emails, turn "
+            f"them off in your profile: {profile_url}"
+        ),
+    }
+
+    return {
+        "audience": config.audience,
+        "client": config.client,
+        "email": email,
+        "template_key": email_templates.REGISTRATION_CONFIRMATION,
+        "category_tag": EMAIL_PREFERENCE_CATEGORIES[
+            "email_course_updates"
+        ]["tag"],
+        "idempotency_key": f"registration-confirmation:{registration.pk}",
+        "context": context,
+        "metadata": metadata,
+    }
+
+
+def send_registration_confirmation_email(
+    registration,
+) -> dict[str, Any] | None:
+    payload = registration_confirmation_payload(registration)
+    if payload is None:
+        return None
+    return send_transactional_email(payload)
+
+
 def email_preference_category_tags() -> list[str]:
     return [
         category["tag"]

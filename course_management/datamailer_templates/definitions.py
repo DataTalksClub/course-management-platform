@@ -82,6 +82,57 @@ PEER_REVIEW_ASSIGNMENT_TEXT = (
 
 
 TEMPLATES = {
+    "registration-confirmation": {
+        "name": "Course Registration Confirmation",
+        "description": (
+            "Triggered when a learner registers for a course campaign. "
+            "Sent to that learner."
+        ),
+        "subject": "{{ email_subject }}",
+        "html_body": (
+            "<p>{{ intro_text }}</p>"
+            "{% if course_url %}"
+            '<p><a href="{{ course_url }}">Open the course workspace</a></p>'
+            "{% endif %}"
+            "{% if registration_url %}"
+            '<p><a href="{{ registration_url }}">View registration page</a></p>'
+            "{% endif %}"
+            '<hr><p style="color:#57606a;font-size:13px;line-height:1.5">'
+            "{{ notification_footer }} "
+            'Manage preferences: <a href="{{ profile_url }}">{{ profile_url }}</a>'
+            "</p>"
+        ),
+        "text_body": (
+            "{{ intro_text }}\n\n"
+            "{% if course_url %}Course workspace: {{ course_url }}\n{% endif %}"
+            "{% if registration_url %}Registration page: {{ registration_url }}\n{% endif %}"
+            "\n{{ notification_footer_text }}\n"
+        ),
+        "required_context": [
+            {"name": "campaign_title", "description": "Registration campaign title."},
+            {"name": "registration_id", "description": "CMP registration id."},
+            {"name": "registration_url", "description": "Registration page URL."},
+            {"name": "profile_url", "description": "Preference settings URL."},
+            {"name": "intro_text", "description": "Opening sentence."},
+            {"name": "notification_footer", "description": "Preference footer."},
+            {"name": "notification_footer_text", "description": "Plain-text preference footer."},
+        ],
+        "example_context": {
+            "email_subject": "Registration confirmed: LLM Zoomcamp",
+            "campaign_title": "LLM Zoomcamp",
+            "campaign_slug": "llm-zoomcamp",
+            "course_title": "LLM Zoomcamp 2026",
+            "course_slug": "llm-zoomcamp-2026",
+            "registration_id": 789,
+            "registration_url": "https://courses.datatalks.club/register/llm-zoomcamp/",
+            "course_url": "https://courses.datatalks.club/llm-zoomcamp-2026/",
+            "profile_url": "https://courses.datatalks.club/accounts/settings/",
+            "intro_text": "Your registration for LLM Zoomcamp is confirmed.",
+            "notification_footer": "You are receiving this because course-related emails are enabled.",
+            "notification_footer_text": "Manage preferences: https://courses.datatalks.club/accounts/settings/",
+        },
+        "is_active": True,
+    },
     "homework-submission-confirmation": {
         "name": "Homework Submission Confirmation",
         "description": (

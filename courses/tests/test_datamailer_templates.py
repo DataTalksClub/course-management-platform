@@ -5,6 +5,7 @@ from course_management import email_templates
 from course_management.datamailer_templates import TEMPLATES
 
 EXPECTED_KEYS = {
+    "registration-confirmation",
     "homework-submission-confirmation",
     "project-submission-confirmation",
     "homework-score-notification",
@@ -20,9 +21,14 @@ class DatamailerTemplatesTest(TestCase):
         self.assertEqual(set(TEMPLATES), EXPECTED_KEYS)
         # Every key CMP references as a constant has a definition here.
         for key in (
+            email_templates.REGISTRATION_CONFIRMATION,
+            email_templates.HOMEWORK_SUBMISSION_CONFIRMATION,
+            email_templates.PROJECT_SUBMISSION_CONFIRMATION,
             email_templates.HOMEWORK_SCORE_NOTIFICATION,
             email_templates.PROJECT_SCORE_NOTIFICATION,
             email_templates.PEER_REVIEW_ASSIGNMENT,
+            email_templates.CERTIFICATE_AVAILABILITY_NOTIFICATION,
+            email_templates.DEADLINE_REMINDER,
         ):
             self.assertIn(key, TEMPLATES)
 
