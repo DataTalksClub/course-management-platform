@@ -17,7 +17,14 @@ from course_management.datamailer import (
     send_project_score_notification,
     send_peer_review_assignment_notification,
 )
+from course_management.datamailer_outbox import datamailer_outbox_status_summary
 from data.models import DatamailerContactEvent
+from data.models import (
+    DatamailerOutboxEvent,
+    DatamailerOutboxStatus,
+    DatamailerSendAudit,
+    DatamailerSendAuditStatus,
+)
 from .forms import RegistrationCampaignForm
 from courses.models import (
     Course,
@@ -174,6 +181,98 @@ def course_list(request):
     }
 
     return render(request, "cadmin/course_list.html", context)
+
+
+def send_audit_totals():
+    return DatamailerSendAudit.objects.aggregate(
+        total=Count("id"),
+        intended_count=Sum("intended_count"),
+        created_count=Sum("created_count"),
+        enqueued_count=Sum("enqueued_count"),
+        skipped_count=Sum("skipped_count"),
+        idempotent_replay_count=Sum("idempotent_replay_count"),
+    )
+
+
+def send_audit_grouped(field):
+    return list(
+        DatamailerSendAudit.objects.values(field)
+        .annotate(
+            count=Count("id"),
+            intended_count=Sum("intended_count"),
+            enqueued_count=Sum("enqueued_count"),
+            skipped_count=Sum("skipped_count"),
+        )
+        .order_by(field)
+    )
+
+
+@staff_required
+def datamailer_operations(request):
+    if request.method == "POST" and request.POST.get("action") == "requeue":
+        now = timezone.now()
+        requeued = DatamailerOutboxEvent.objects.filter(
+            status__in=[
+                DatamailerOutboxStatus.FAILED,
+                DatamailerOutboxStatus.DEAD,
+            ]
+        ).update(
+            status=DatamailerOutboxStatus.RETRYING,
+            next_attempt_at=now,
+            last_error="",
+            updated_at=now,
+        )
+        messages.success(
+            request,
+            f"Requeued {requeued} Datamailer outbox event(s).",
+        )
+        return redirect("cadmin_datamailer_operations")
+
+    outbox_summary = datamailer_outbox_status_summary()
+    send_totals = send_audit_totals()
+    recent_failed_events = DatamailerOutboxEvent.objects.filter(
+        status__in=[
+            DatamailerOutboxStatus.RETRYING,
+            DatamailerOutboxStatus.FAILED,
+            DatamailerOutboxStatus.DEAD,
+        ]
+    ).exclude(last_error="")[:10]
+    recent_failed_sends = DatamailerSendAudit.objects.filter(
+        status=DatamailerSendAuditStatus.FAILED,
+    )[:10]
+
+    return render(
+        request,
+        "cadmin/datamailer_operations.html",
+        {
+            "outbox_summary": outbox_summary,
+            "outbox_statuses": [
+                {
+                    "status": status,
+                    "count": outbox_summary["event_counts"].get(status, 0),
+                }
+                for status in DatamailerOutboxStatus.values
+            ],
+            "recent_failed_events": recent_failed_events,
+            "send_totals": {
+                "total": send_totals["total"] or 0,
+                "intended_count": send_totals["intended_count"] or 0,
+                "created_count": send_totals["created_count"] or 0,
+                "enqueued_count": send_totals["enqueued_count"] or 0,
+                "skipped_count": send_totals["skipped_count"] or 0,
+                "idempotent_replay_count": send_totals[
+                    "idempotent_replay_count"
+                ]
+                or 0,
+                "failed": DatamailerSendAudit.objects.filter(
+                    status=DatamailerSendAuditStatus.FAILED,
+                ).count(),
+            },
+            "send_by_status": send_audit_grouped("status"),
+            "send_by_type": send_audit_grouped("send_type"),
+            "recent_failed_sends": recent_failed_sends,
+        },
+    )
 
 
 @staff_required

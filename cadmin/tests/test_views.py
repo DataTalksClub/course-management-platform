@@ -6,7 +6,16 @@ from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
 
-from data.models import DatamailerContactEvent
+from data.models import (
+    DatamailerContactEvent,
+    DatamailerOutboxDispatchRun,
+    DatamailerOutboxDispatchRunStatus,
+    DatamailerOutboxEvent,
+    DatamailerOutboxStatus,
+    DatamailerSendAudit,
+    DatamailerSendAuditStatus,
+    DatamailerSendAuditType,
+)
 from courses.models import (
     User,
     Course,
@@ -158,9 +167,103 @@ class CadminViewTests(TestCase):
             response,
             f"/admin/courses/course/{self.course.id}/change/",
         )
-        self.assertContains(response, reverse("cadmin_datamailer_events"))
+        self.assertContains(response, reverse("cadmin_datamailer_operations"))
         self.assertNotContains(response, "> Manage <")
         self.assertNotContains(response, "> View <")
+
+    def test_datamailer_operations_non_staff_denied(self):
+        self.client.login(username="test@test.com", password="12345")
+        response = self.client.get(reverse("cadmin_datamailer_operations"))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_datamailer_operations_staff_allowed(self):
+        DatamailerOutboxEvent.objects.create(
+            event_id="evt-outbox-failed",
+            event_type="recipient_list.member_upsert",
+            idempotency_key="idem-outbox-failed",
+            status=DatamailerOutboxStatus.FAILED,
+            last_error="network error",
+        )
+        DatamailerOutboxDispatchRun.objects.create(
+            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+            processed_count=3,
+            acked_count=3,
+        )
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            status=DatamailerSendAuditStatus.SUCCEEDED,
+            idempotency_key="send-ok",
+            intended_count=5,
+            created_count=4,
+            enqueued_count=4,
+            skipped_count=1,
+        )
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            status=DatamailerSendAuditStatus.FAILED,
+            idempotency_key="send-failed",
+            template_key="course-registration-confirmation",
+            error="Datamailer failed",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        response = self.client.get(reverse("cadmin_datamailer_operations"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Datamailer operations")
+        self.assertContains(response, "network error")
+        self.assertContains(response, "Datamailer failed")
+        self.assertContains(response, reverse("cadmin_datamailer_events"))
+        self.assertEqual(response.context["send_totals"]["intended_count"], 5)
+        self.assertEqual(response.context["send_totals"]["created_count"], 4)
+        self.assertEqual(response.context["send_totals"]["enqueued_count"], 4)
+        self.assertEqual(response.context["send_totals"]["skipped_count"], 1)
+        self.assertEqual(response.context["send_totals"]["failed"], 1)
+
+    def test_datamailer_operations_requeues_failed_and_dead_outbox_events(self):
+        failed = DatamailerOutboxEvent.objects.create(
+            event_id="evt-failed",
+            event_type="recipient_list.member_upsert",
+            idempotency_key="idem-failed",
+            status=DatamailerOutboxStatus.FAILED,
+            last_error="network error",
+        )
+        dead = DatamailerOutboxEvent.objects.create(
+            event_id="evt-dead",
+            event_type="recipient_list.member_upsert",
+            idempotency_key="idem-dead",
+            status=DatamailerOutboxStatus.DEAD,
+            last_error="permanent error",
+        )
+        acked = DatamailerOutboxEvent.objects.create(
+            event_id="evt-acked",
+            event_type="recipient_list.member_upsert",
+            idempotency_key="idem-acked",
+            status=DatamailerOutboxStatus.ACKED,
+            last_error="old error",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        response = self.client.post(
+            reverse("cadmin_datamailer_operations"),
+            {"action": "requeue"},
+        )
+
+        self.assertRedirects(response, reverse("cadmin_datamailer_operations"))
+        failed.refresh_from_db()
+        dead.refresh_from_db()
+        acked.refresh_from_db()
+        self.assertEqual(failed.status, DatamailerOutboxStatus.RETRYING)
+        self.assertEqual(dead.status, DatamailerOutboxStatus.RETRYING)
+        self.assertEqual(failed.last_error, "")
+        self.assertEqual(dead.last_error, "")
+        self.assertEqual(acked.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(acked.last_error, "old error")
 
     def test_datamailer_events_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")

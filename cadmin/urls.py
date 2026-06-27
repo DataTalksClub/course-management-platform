@@ -20,6 +20,11 @@ urlpatterns = [
         name="cadmin_campaign_registrations",
     ),
     path(
+        "datamailer/",
+        views.datamailer_operations,
+        name="cadmin_datamailer_operations",
+    ),
+    path(
         "datamailer/events/",
         views.datamailer_events,
         name="cadmin_datamailer_events",

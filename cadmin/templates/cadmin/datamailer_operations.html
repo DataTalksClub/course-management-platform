@@ -1,0 +1,180 @@
+{% extends 'cadmin/base.html' %}
+
+{% block title %}Datamailer operations{% endblock %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li>Datamailer operations</li>
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Operations</p>
+    <h1 class="mt-1 text-2xl font-semibold app-heading md:text-3xl">Datamailer operations</h1>
+    <p class="mt-1 text-sm app-muted">Delivery health, API errors, and send audit counts.</p>
+  </div>
+  <div class="mt-3 flex flex-wrap gap-2">
+    <a href="{% url 'cadmin_datamailer_events' %}" class="primer-button primer-button-secondary">
+      <i class="fas fa-envelope-open-text" aria-hidden="true"></i> Callback log
+    </a>
+    <a href="/admin/data/datamaileroutboxevent/" class="primer-button primer-button-secondary">
+      <i class="fas fa-tools" aria-hidden="true"></i> Django outbox
+    </a>
+    <a href="/admin/data/datamailersendaudit/" class="primer-button primer-button-secondary">
+      <i class="fas fa-list" aria-hidden="true"></i> Django sends
+    </a>
+  </div>
+</section>
+
+<section class="mt-5">
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Event delivery</h2>
+    <span class="cadmin-count-badge">{{ outbox_summary.due_count }} due</span>
+  </div>
+
+  <div class="cadmin-metrics-grid">
+    {% for row in outbox_statuses %}
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">{{ row.status }}</p>
+        <p class="mt-1 text-lg font-semibold app-heading">{{ row.count }}</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="mt-4 grid gap-3 md:grid-cols-3">
+    <div class="rounded-md border app-border app-surface-muted px-3 py-2">
+      <p class="text-xs font-semibold uppercase app-muted">Last successful run</p>
+      {% if outbox_summary.last_successful_run %}
+        <p class="mt-1 text-sm app-heading">{{ outbox_summary.last_successful_run.finished_at|default:outbox_summary.last_successful_run.started_at|date:"Y-m-d H:i" }}</p>
+        <p class="text-xs app-muted">{{ outbox_summary.last_successful_run.processed_count }} processed</p>
+      {% else %}
+        <p class="mt-1 text-sm app-muted">None</p>
+      {% endif %}
+    </div>
+    <div class="rounded-md border app-border app-surface-muted px-3 py-2">
+      <p class="text-xs font-semibold uppercase app-muted">Last run</p>
+      {% if outbox_summary.last_run %}
+        <p class="mt-1 text-sm app-heading">{{ outbox_summary.last_run.status }}</p>
+        <p class="text-xs app-muted">{{ outbox_summary.last_run.processed_count }} processed</p>
+      {% else %}
+        <p class="mt-1 text-sm app-muted">None</p>
+      {% endif %}
+    </div>
+    <div class="rounded-md border app-border app-surface-muted px-3 py-2">
+      <p class="text-xs font-semibold uppercase app-muted">Last API error</p>
+      {% if outbox_summary.last_error_event %}
+        <p class="mt-1 truncate text-sm app-heading" title="{{ outbox_summary.last_error_event.event_id }}">{{ outbox_summary.last_error_event.event_type }}</p>
+        <p class="truncate text-xs app-muted" title="{{ outbox_summary.last_error_event.last_error }}">{{ outbox_summary.last_error_event.last_error }}</p>
+      {% else %}
+        <p class="mt-1 text-sm app-muted">None</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post" class="mt-4 flex flex-wrap gap-2 border-t app-border pt-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="requeue">
+    <button type="submit" class="primer-button primer-button-secondary">
+      <i class="fas fa-redo" aria-hidden="true"></i> Requeue failed/dead events
+    </button>
+  </form>
+
+  <div class="mt-5">
+    <h3 class="text-sm font-semibold uppercase app-muted">Recent API errors</h3>
+    <div class="mt-2 divide-y app-divide">
+      {% for event in recent_failed_events %}
+        <article class="grid gap-2 py-3 text-sm md:grid-cols-[10rem_12rem_minmax(0,1fr)_8rem] md:items-center md:gap-3">
+          <div class="app-muted">{{ event.last_attempt_at|default:event.updated_at|date:"Y-m-d H:i" }}</div>
+          <div>
+            <p class="font-medium app-heading">{{ event.event_type }}</p>
+            <p class="truncate text-xs app-muted" title="{{ event.event_id }}">{{ event.event_id }}</p>
+          </div>
+          <div class="truncate app-muted" title="{{ event.last_error }}">{{ event.last_error }}</div>
+          <div class="md:text-right">{{ event.status }}</div>
+        </article>
+      {% empty %}
+        <p class="py-3 text-sm app-muted">No recent Datamailer API errors.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="mt-6 border-t app-border pt-5">
+  <div class="cadmin-section-heading mb-3">
+    <h2 class="text-base font-semibold app-heading">Send audits</h2>
+    <span class="cadmin-count-badge">{{ send_totals.total }} sends</span>
+  </div>
+
+  <div class="cadmin-metrics-grid">
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Intended</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ send_totals.intended_count }}</p>
+    </div>
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Created</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ send_totals.created_count }}</p>
+    </div>
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Enqueued</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ send_totals.enqueued_count }}</p>
+    </div>
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Skipped</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ send_totals.skipped_count }}</p>
+    </div>
+    <div class="cadmin-metric">
+      <p class="text-xs font-semibold uppercase app-muted">Failed</p>
+      <p class="mt-1 text-lg font-semibold app-heading">{{ send_totals.failed }}</p>
+    </div>
+  </div>
+
+  <div class="mt-5 grid gap-4 md:grid-cols-2">
+    <div>
+      <h3 class="text-sm font-semibold uppercase app-muted">By status</h3>
+      <div class="mt-2 space-y-1 text-sm">
+        {% for row in send_by_status %}
+          <div class="flex justify-between gap-3">
+            <span>{{ row.status|default:"Unset" }}</span>
+            <span>{{ row.count }}</span>
+          </div>
+        {% empty %}
+          <p class="app-muted">No send audits yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h3 class="text-sm font-semibold uppercase app-muted">By type</h3>
+      <div class="mt-2 space-y-1 text-sm">
+        {% for row in send_by_type %}
+          <div class="flex justify-between gap-3">
+            <span>{{ row.send_type|default:"Unset" }}</span>
+            <span>{{ row.count }}</span>
+          </div>
+        {% empty %}
+          <p class="app-muted">No send audits yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-5">
+    <h3 class="text-sm font-semibold uppercase app-muted">Recent send failures</h3>
+    <div class="mt-2 divide-y app-divide">
+      {% for send in recent_failed_sends %}
+        <article class="grid gap-2 py-3 text-sm md:grid-cols-[10rem_10rem_minmax(0,1fr)_8rem] md:items-center md:gap-3">
+          <div class="app-muted">{{ send.occurred_at|date:"Y-m-d H:i" }}</div>
+          <div>{{ send.send_type }}</div>
+          <div class="min-w-0">
+            <p class="truncate font-medium app-heading" title="{{ send.idempotency_key }}">{{ send.idempotency_key }}</p>
+            <p class="truncate text-xs app-muted" title="{{ send.error }}">{{ send.error|default:"No error message" }}</p>
+          </div>
+          <div class="md:text-right">{{ send.template_key|default:"-" }}</div>
+        </article>
+      {% empty %}
+        <p class="py-3 text-sm app-muted">No recent send failures.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
