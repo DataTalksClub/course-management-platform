@@ -1,7 +1,7 @@
 import logging
 from unittest.mock import patch
 
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
@@ -39,6 +39,14 @@ from courses.models import (
 
 
 logger = logging.getLogger(__name__)
+
+
+DATAMAILER_SETTINGS = {
+    "DATAMAILER_URL": "https://datamailer.example.com",
+    "DATAMAILER_API_KEY": "secret-token",
+    "DATAMAILER_CLIENT": "dtc-courses",
+    "DATAMAILER_AUDIENCE": "dtc-courses",
+}
 
 
 credentials = dict(
@@ -477,6 +485,216 @@ class CadminViewTests(TestCase):
         campaign.refresh_from_db()
         self.assertEqual(campaign.title, "LLM Zoomcamp 2026")
         self.assertEqual(campaign.marketing_markdown, "New copy")
+
+    def test_campaign_edit_shows_datamailer_campaign_controls(self):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            marketing_markdown="Register now",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        response = self.client.get(
+            reverse(
+                "cadmin_campaign_edit",
+                kwargs={"campaign_slug": campaign.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Datamailer campaign")
+        self.assertContains(response, "cmp-registration-llm-zoomcamp")
+        self.assertContains(response, self.course.slug)
+        self.assertContains(response, "Sync draft")
+        self.assertContains(response, "Test send")
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    def test_campaign_edit_syncs_datamailer_campaign_draft(
+        self, upsert_campaign
+    ):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            meta_description="Learn LLMs",
+            marketing_markdown="## Register now",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        response = self.client.post(
+            url,
+            {"datamailer_action": "sync"},
+        )
+
+        self.assertRedirects(response, url)
+        upsert_campaign.assert_called_once()
+        self.assertEqual(
+            upsert_campaign.call_args.args[0],
+            "cmp-registration-llm-zoomcamp",
+        )
+        payload = upsert_campaign.call_args.args[1]
+        self.assertEqual(payload["subject"], "LLM Zoomcamp")
+        self.assertEqual(payload["preview_text"], "Learn LLMs")
+        self.assertIn("<h2>Register now</h2>", payload["html_body"])
+        self.assertEqual(payload["text_body"], "## Register now")
+        self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(payload["recipient_list_key"], self.course.slug)
+        self.assertEqual(
+            payload["metadata"]["registration_url"],
+            "https://courses.example.com/register/llm-zoomcamp/",
+        )
+        self.assertEqual(
+            payload["metadata"]["course_slug"], self.course.slug
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("cadmin.views.DatamailerClient.preview_campaign")
+    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    def test_campaign_edit_previews_datamailer_campaign(
+        self, upsert_campaign, preview_campaign
+    ):
+        preview_campaign.return_value = {
+            "preview": {
+                "subject": "Preview subject",
+                "text": "Preview text",
+            }
+        }
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            marketing_markdown="Register now",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        response = self.client.post(
+            reverse(
+                "cadmin_campaign_edit",
+                kwargs={"campaign_slug": campaign.slug},
+            ),
+            {"datamailer_action": "preview"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        upsert_campaign.assert_called_once()
+        preview_campaign.assert_called_once_with(
+            "cmp-registration-llm-zoomcamp"
+        )
+        self.assertContains(response, "Preview subject")
+        self.assertContains(response, "Preview text")
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("cadmin.views.DatamailerClient.test_send_campaign")
+    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    def test_campaign_edit_sends_datamailer_campaign_test(
+        self, upsert_campaign, test_send_campaign
+    ):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            marketing_markdown="Register now",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        response = self.client.post(
+            url,
+            {
+                "datamailer_action": "test_send",
+                "test_recipients": "ops@example.com, reviewer@example.com",
+            },
+        )
+
+        self.assertRedirects(response, url)
+        upsert_campaign.assert_called_once()
+        test_send_campaign.assert_called_once_with(
+            "cmp-registration-llm-zoomcamp",
+            ["ops@example.com", "reviewer@example.com"],
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("cadmin.views.DatamailerClient.queue_campaign")
+    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    def test_campaign_edit_queues_datamailer_campaign(
+        self, upsert_campaign, queue_campaign
+    ):
+        queue_campaign.return_value = {"recipient_count": 42}
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            marketing_markdown="Register now",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        response = self.client.post(
+            url,
+            {"datamailer_action": "queue"},
+        )
+
+        self.assertRedirects(response, url)
+        upsert_campaign.assert_called_once()
+        queue_campaign.assert_called_once_with(
+            "cmp-registration-llm-zoomcamp"
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("cadmin.views.DatamailerClient.cancel_campaign")
+    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    def test_campaign_edit_cancels_datamailer_campaign_without_upsert(
+        self, upsert_campaign, cancel_campaign
+    ):
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=self.course,
+            marketing_markdown="Register now",
+        )
+
+        self.client.login(
+            username="admin@test.com", password="admin123"
+        )
+        url = reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        response = self.client.post(
+            url,
+            {"datamailer_action": "cancel"},
+        )
+
+        self.assertRedirects(response, url)
+        upsert_campaign.assert_not_called()
+        cancel_campaign.assert_called_once_with(
+            "cmp-registration-llm-zoomcamp"
+        )
 
     def test_leaderboard_complaints_sorted_by_open_count(self):
         self.client.login(

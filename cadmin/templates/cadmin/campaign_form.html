@@ -76,13 +76,97 @@
     </div>
   </section>
 
-  <div class="flex flex-wrap justify-end gap-2 border-t app-border pt-5">
+  <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+    <button type="submit" class="primer-button cadmin-primary">{{ submit_label }}</button>
     {% if course %}
       <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Cancel</a>
     {% else %}
       <a href="{% url 'cadmin_course_list' %}" class="primer-button primer-button-secondary">Cancel</a>
     {% endif %}
-    <button type="submit" class="primer-button cadmin-primary">{{ submit_label }}</button>
   </div>
 </form>
+
+{% if campaign %}
+  <section class="mt-7 border-t app-border pt-5">
+    <div class="cadmin-section-heading mb-3">
+      <h2 class="text-base font-semibold app-heading">Datamailer campaign</h2>
+      <span class="cadmin-count-badge">{{ datamailer_external_key }}</span>
+    </div>
+
+    <div class="cadmin-metrics-grid">
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">Recipient list</p>
+        <p class="mt-1 truncate text-sm app-heading" title="{{ datamailer_payload.recipient_list_key|default:'Audience default' }}">
+          {{ datamailer_payload.recipient_list_key|default:"Audience default" }}
+        </p>
+      </div>
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">Category</p>
+        <p class="mt-1 text-sm app-heading">{{ datamailer_payload.category_tag }}</p>
+      </div>
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">Subject</p>
+        <p class="mt-1 truncate text-sm app-heading" title="{{ datamailer_payload.subject }}">{{ datamailer_payload.subject }}</p>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="sync">
+        <button type="submit" class="primer-button cadmin-primary">
+          <i class="fas fa-sync" aria-hidden="true"></i> Sync draft
+        </button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="preview">
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-eye" aria-hidden="true"></i> Preview
+        </button>
+      </form>
+      <form method="post" class="flex flex-wrap gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="test_send">
+        <label class="sr-only" for="test_recipients">Test recipients</label>
+        <input
+          id="test_recipients"
+          name="test_recipients"
+          class="form-control min-w-64"
+          placeholder="ops@example.com"
+        >
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-paper-plane" aria-hidden="true"></i> Test send
+        </button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="queue">
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-play" aria-hidden="true"></i> Queue
+        </button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="cancel">
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-ban" aria-hidden="true"></i> Cancel
+        </button>
+      </form>
+    </div>
+
+    {% if datamailer_preview %}
+      <div class="mt-5 divide-y app-divide rounded-md border app-border app-surface-muted">
+        <div class="px-3 py-2 text-sm">
+          <p class="text-xs font-semibold uppercase app-muted">Subject</p>
+          <p class="mt-1 app-heading">{{ datamailer_preview.preview.subject|default:datamailer_payload.subject }}</p>
+        </div>
+        <div class="px-3 py-2 text-sm">
+          <p class="text-xs font-semibold uppercase app-muted">Text</p>
+          <pre class="mt-1 whitespace-pre-wrap text-sm app-heading">{{ datamailer_preview.preview.text|default:datamailer_payload.text_body }}</pre>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
 {% endblock %}

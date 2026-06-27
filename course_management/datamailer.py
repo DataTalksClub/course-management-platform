@@ -6,11 +6,13 @@ from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
+from django.utils.text import slugify
 from django.urls import reverse
 
 from course_management import email_templates
 from course_management.datamailer_outbox import enqueue_datamailer_outbox_event
 from course_management.deadlines import format_deadline_for_email
+from courses.registration import render_markdown
 from data.models import (
     DatamailerOutboxStatus,
     DatamailerSendAudit,
@@ -505,11 +507,49 @@ def course_graduates_list_key(course) -> str:
     return f"{course.slug}:@e:@graduated"
 
 
+def registration_campaign_external_key(campaign) -> str:
+    return f"cmp-registration-{slugify(campaign.slug)}"
+
+
 def public_url(path: str) -> str:
     base_url = getattr(settings, "PUBLIC_BASE_URL", "")
     if not base_url:
         return path
     return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
+
+
+def registration_campaign_datamailer_payload(campaign) -> dict[str, Any]:
+    public_path = reverse(
+        "registration_campaign",
+        kwargs={"campaign_slug": campaign.slug},
+    )
+    body_text = (
+        campaign.marketing_markdown.strip()
+        or campaign.meta_description.strip()
+        or campaign.title
+    )
+    payload: dict[str, Any] = {
+        "subject": campaign.title,
+        "preview_text": campaign.meta_description[:255],
+        "html_body": render_markdown(body_text),
+        "text_body": body_text,
+        "category_tag": EMAIL_PREFERENCE_CATEGORIES[
+            "email_course_updates"
+        ]["tag"],
+        "include_tags": [],
+        "exclude_tags": [],
+        "metadata": {
+            "cmp_registration_campaign_slug": campaign.slug,
+            "registration_url": public_url(public_path),
+        },
+    }
+    if campaign.current_course_id:
+        payload["recipient_list_key"] = campaign.current_course.slug
+        payload["metadata"] |= {
+            "course_slug": campaign.current_course.slug,
+            "course_title": campaign.current_course.title,
+        }
+    return payload
 
 
 def email_preference_category_tags() -> list[str]:

@@ -4,7 +4,10 @@ import re
 from collections import defaultdict
 from datetime import timedelta
 
+import requests
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.core.validators import validate_email
 from django.db.models import Count, Q, Sum
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -13,6 +16,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
 from course_management.datamailer import (
+    DatamailerClient,
+    DatamailerConfig,
+    registration_campaign_datamailer_payload,
+    registration_campaign_external_key,
     send_homework_score_notification,
     send_project_score_notification,
     send_peer_review_assignment_notification,
@@ -169,6 +176,100 @@ def campaign_form_course(form):
         return None
 
     return Course.objects.filter(pk=course_id).first()
+
+
+def parse_test_recipients(value):
+    emails = [
+        item.strip()
+        for item in re.split(r"[\s,;]+", value or "")
+        if item.strip()
+    ]
+    if not emails:
+        raise ValidationError("Enter at least one test recipient.")
+    if len(emails) > 25:
+        raise ValidationError("Enter no more than 25 test recipients.")
+    for email in emails:
+        validate_email(email)
+    return emails
+
+
+def datamailer_campaign_context(campaign):
+    return {
+        "datamailer_external_key": registration_campaign_external_key(
+            campaign
+        ),
+        "datamailer_payload": registration_campaign_datamailer_payload(
+            campaign
+        ),
+    }
+
+
+def handle_datamailer_campaign_action(request, campaign):
+    action = request.POST.get("datamailer_action", "").strip()
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        messages.error(
+            request,
+            "Datamailer is not configured for campaign operations.",
+        )
+        return None, True
+
+    external_key = registration_campaign_external_key(campaign)
+    payload = registration_campaign_datamailer_payload(campaign)
+    client = DatamailerClient(config)
+
+    try:
+        if action in {"sync", "preview", "test_send", "queue"}:
+            client.upsert_campaign(external_key, payload)
+
+        if action == "sync":
+            messages.success(request, "Datamailer campaign draft synced.")
+            return None, True
+
+        if action == "preview":
+            preview = client.preview_campaign(external_key)
+            messages.success(request, "Datamailer campaign preview rendered.")
+            return preview, False
+
+        if action == "test_send":
+            recipients = parse_test_recipients(
+                request.POST.get("test_recipients", "")
+            )
+            client.test_send_campaign(external_key, recipients)
+            messages.success(
+                request,
+                f"Datamailer test send queued for {len(recipients)} recipient(s).",
+            )
+            return None, True
+
+        if action == "queue":
+            response = client.queue_campaign(external_key) or {}
+            recipient_count = response.get("recipient_count")
+            if recipient_count is None:
+                campaign_payload = response.get("campaign") or {}
+                recipient_count = campaign_payload.get("recipient_count", 0)
+            messages.success(
+                request,
+                f"Datamailer campaign queued for {recipient_count} recipient(s).",
+            )
+            return None, True
+
+        if action == "cancel":
+            client.cancel_campaign(external_key)
+            messages.success(request, "Datamailer campaign cancelled.")
+            return None, True
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return None, False
+    except requests.RequestException as exc:
+        messages.error(
+            request,
+            f"Datamailer campaign request failed: {exc}",
+        )
+        return None, False
+
+    messages.error(request, "Unknown Datamailer campaign action.")
+    return None, False
 
 
 @staff_required
@@ -432,8 +533,18 @@ def campaign_edit(request, campaign_slug):
         RegistrationCampaign.objects.select_related("current_course"),
         slug=campaign_slug,
     )
+    datamailer_preview = None
 
-    if request.method == "POST":
+    if request.method == "POST" and request.POST.get("datamailer_action"):
+        datamailer_preview, should_redirect = (
+            handle_datamailer_campaign_action(request, campaign)
+        )
+        if should_redirect:
+            return redirect(
+                "cadmin_campaign_edit", campaign_slug=campaign.slug
+            )
+        form = RegistrationCampaignForm(instance=campaign)
+    elif request.method == "POST":
         form = RegistrationCampaignForm(request.POST, instance=campaign)
         if form.is_valid():
             campaign = form.save()
@@ -452,6 +563,8 @@ def campaign_edit(request, campaign_slug):
         "course": campaign.current_course,
         "page_title": "Edit registration landing page",
         "submit_label": "Save changes",
+        "datamailer_preview": datamailer_preview,
+        **datamailer_campaign_context(campaign),
     }
     return render(request, "cadmin/campaign_form.html", context)
 
