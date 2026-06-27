@@ -225,6 +225,20 @@ class CadminViewTests(TestCase):
         self.assertContains(response, "network error")
         self.assertContains(response, "Datamailer failed")
         self.assertContains(response, reverse("cadmin_datamailer_events"))
+        self.assertContains(response, "Bootstrap and repair")
+        self.assertContains(
+            response,
+            "sync_datamailer_contacts --active-only",
+        )
+        self.assertContains(
+            response,
+            "sync_datamailer_recipient_lists &lt;kind&gt; --reconcile",
+        )
+        self.assertContains(
+            response,
+            "audit_datamailer_recipient_lists &lt;kind&gt; --repair",
+        )
+        self.assertContains(response, "project-passed")
         self.assertEqual(response.context["send_totals"]["intended_count"], 5)
         self.assertEqual(response.context["send_totals"]["created_count"], 4)
         self.assertEqual(response.context["send_totals"]["enqueued_count"], 4)

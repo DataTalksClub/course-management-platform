@@ -308,6 +308,46 @@ def send_audit_grouped(field):
     )
 
 
+def datamailer_operator_commands():
+    return [
+        {
+            "title": "Bootstrap contacts",
+            "description": "Load active CMP users into Datamailer contacts.",
+            "command": "uv run python manage.py sync_datamailer_contacts --active-only",
+        },
+        {
+            "title": "Bootstrap recipient lists",
+            "description": (
+                "Load the target path-key audience tree from CMP source data."
+            ),
+            "command": (
+                "uv run python manage.py sync_datamailer_recipient_lists "
+                "<kind> --reconcile"
+            ),
+        },
+        {
+            "title": "Audit list drift",
+            "description": (
+                "Compare one CMP recipient-list source with Datamailer members."
+            ),
+            "command": (
+                "uv run python manage.py audit_datamailer_recipient_lists "
+                "<kind> --fail-on-drift"
+            ),
+        },
+        {
+            "title": "Repair list drift",
+            "description": (
+                "Reconcile Datamailer to the CMP snapshot for one source."
+            ),
+            "command": (
+                "uv run python manage.py audit_datamailer_recipient_lists "
+                "<kind> --repair"
+            ),
+        },
+    ]
+
+
 @staff_required
 def datamailer_operations(request):
     if request.method == "POST" and request.POST.get("action") == "requeue":
@@ -372,6 +412,15 @@ def datamailer_operations(request):
             "send_by_status": send_audit_grouped("status"),
             "send_by_type": send_audit_grouped("send_type"),
             "recent_failed_sends": recent_failed_sends,
+            "operator_commands": datamailer_operator_commands(),
+            "recipient_list_kinds": [
+                "registrations",
+                "enrollments",
+                "homework",
+                "project",
+                "project-passed",
+                "graduates",
+            ],
         },
     )
 

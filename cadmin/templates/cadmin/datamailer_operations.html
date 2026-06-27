@@ -80,6 +80,38 @@
     </button>
   </form>
 
+  <div class="mt-5 border-t app-border pt-5">
+    <div class="cadmin-section-heading mb-3">
+      <div>
+        <h2 class="text-base font-semibold app-heading">Bootstrap and repair</h2>
+        <p class="mt-1 text-sm app-muted">
+          Run these commands from a configured CMP shell when Datamailer needs initial load,
+          drift audit, or targeted repair.
+        </p>
+      </div>
+      <span class="cadmin-count-badge">{{ recipient_list_kinds|length }} list kinds</span>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-2">
+      {% for item in operator_commands %}
+        <article class="rounded-md border app-border app-surface-muted px-3 py-3">
+          <h3 class="text-sm font-semibold app-heading">{{ item.title }}</h3>
+          <p class="mt-1 text-xs app-muted">{{ item.description }}</p>
+          <code class="mt-3 block whitespace-normal break-all rounded app-surface px-2 py-2 text-xs app-heading">
+            {{ item.command }}
+          </code>
+        </article>
+      {% endfor %}
+    </div>
+
+    <p class="mt-3 text-xs app-muted">
+      Replace <code>&lt;kind&gt;</code> with one of:
+      {% for kind in recipient_list_kinds %}
+        <code>{{ kind }}</code>{% if not forloop.last %},{% endif %}
+      {% endfor %}.
+    </p>
+  </div>
+
   <div class="mt-5">
     <h3 class="text-sm font-semibold uppercase app-muted">Recent API errors</h3>
     <div class="mt-2 divide-y app-divide">
