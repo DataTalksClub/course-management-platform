@@ -4,12 +4,14 @@ A Django-based web application for managing and participating in
 DataTalks.Club courses.
 
 The platform supports course administration, homework and project
-submissions, peer review workflows, course leaderboards, and API access
-to course data.
+submissions, peer review workflows, and course leaderboards. It also
+provides API access to course data.
 
 ## Features
 
-- User authentication: registration and login for students and instructors.
+The main features are:
+
+- User authentication: registration and login.
 - Course management: instructors can create and manage courses.
 - Homework and projects: students can submit homework and projects.
 - Peer reviews: students can evaluate project submissions from their peers.
@@ -19,6 +21,8 @@ to course data.
 - Health check: a public endpoint for service monitoring.
 
 ## Project Structure
+
+The main directories are:
 
 ```text
 ├── accounts/             # User accounts and authentication
@@ -34,6 +38,8 @@ to course data.
 ```
 
 ## Requirements
+
+Install these tools before running the app:
 
 - Python 3.13
 - uv
@@ -142,6 +148,8 @@ Build and run the application image without Compose:
 docker build -t course_management .
 ```
 
+Then run the image:
+
 ```bash
 DBDIR=`cygpath -w ${PWD}/db`
 
@@ -189,7 +197,8 @@ variable and falls back to `local-development-build-version-not-configured`.
 ## Datamailer
 
 The platform can sync created users and course enrollments to Datamailer.
-The integration is disabled unless all required environment variables are set:
+
+Set all required environment variables to enable the integration:
 
 ```bash
 export DATAMAILER_URL="https://datamailer.dtcdev.click"
@@ -206,7 +215,7 @@ export DATAMAILER_STRICT="0"
 export DATAMAILER_SYNC_ON_USER_CREATE="1"
 ```
 
-With `DATAMAILER_STRICT=0`, Datamailer API failures are logged and do not
+With `DATAMAILER_STRICT=0`, Datamailer API failures are logged and don't
 break signup or enrollment flows. Set `DATAMAILER_STRICT=1` only when those
 flows should fail on Datamailer errors.
 
@@ -218,6 +227,24 @@ instead of `localhost` links.
 export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
 ```
 
+## Local Datamailer Capture
+
+Use the Compose override to run CMP with a local Datamailer in capture mode:
+
+```bash
+make datamailer_capture
+```
+
+The command expects the Datamailer repository at `../datamailer`, starts
+Datamailer on `http://localhost:8001`, seeds the local `dtc-courses` API key,
+and points CMP at `http://datamailer-web:8000` inside the Compose network.
+CMP remains available at `http://localhost:8000`.
+
+Datamailer captures rendered transactional and campaign messages instead of
+sending real email. Look at captured subject, text, and HTML in Datamailer at
+`/api/testbed/runs`. You can also use the Datamailer UI to review links,
+metadata, and suppression details.
+
 Deadline reminder emails are triggered by a short CMP management command:
 
 ```bash
@@ -228,7 +255,7 @@ For deployed environments, this command is run on a schedule as a one-off ECS
 task. The recurring trigger (an EventBridge/CloudWatch rule targeting
 `ecs:RunTask` with the `send_deadline_reminders` command override) and its
 invocation role are provisioned via Terraform in `DataTalksClub/infra-terraform`,
-alongside the CMP ECS service. CMP itself does not configure the schedule.
+alongside the CMP ECS service. CMP doesn't configure the schedule.
 
 The scheduled task exits after reconciling Datamailer recipient lists and
 triggering Datamailer list sends. Datamailer handles per-recipient delivery
@@ -237,8 +264,9 @@ asynchronously.
 Datamailer transactional template keys are stable code-level constants in CMP.
 Don't configure one environment variable per template.
 
-The CMP/Datamailer integration — conceptual design and API reference — is
-documented in [`docs/datamailer-integration.md`](docs/datamailer-integration.md).
+The CMP/Datamailer integration, including the conceptual design and API
+reference, is documented in
+[`docs/datamailer-integration.md`](docs/datamailer-integration.md).
 
 ## API Data Access
 
@@ -287,7 +315,7 @@ To configure Google OAuth locally:
 4. Note the site ID, usually `2`.
 5. Add a record to `Social applications`.
 6. Use `GoogleDTC` as the name and `Google` as the provider.
-7. Ask for the local OAuth keys. Do not share them publicly.
+7. Ask for the local OAuth keys. Don't share them publicly.
 8. Attach the application to the localhost site.
 
 Export the local site ID:

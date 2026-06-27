@@ -4,6 +4,8 @@ REPO_URI := $(REPO_ROOT)/course-management
 
 SITE_ID ?= 2
 
+.PHONY: run migrations admin user tests data load_rds_export test_data shell tunnel_prod notebook docker_build docker_run docker_bash docker_auth docker_publish deploy_dev deploy_prod sync datamailer_capture datamailer_capture_down help
+
 run: ## Run django server
 run:
 	uv run python manage.py runserver 0.0.0.0:8000
@@ -73,6 +75,16 @@ docker_run: docker_build
 docker_bash: ## Run bash in docker container
 docker_bash:
 	docker exec -it course_management bash
+
+
+datamailer_capture: ## Run CMP with local Datamailer capture mode
+datamailer_capture:
+	docker compose -f docker-compose.yml -f docker-compose.datamailer-capture.yml up --build
+
+
+datamailer_capture_down: ## Stop CMP with local Datamailer capture mode
+datamailer_capture_down:
+	docker compose -f docker-compose.yml -f docker-compose.datamailer-capture.yml down
 
 
 docker_auth: ## Authenticate to ECR

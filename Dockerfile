@@ -13,7 +13,7 @@ RUN uv sync --locked
 
 # Copy project
 COPY . .
-RUN chmod +x entrypoint.sh && \
+RUN chmod +x entrypoint.sh docker-entrypoint.sh && \
     mkdir -p static && \
     python manage.py collectstatic --noinput
 
