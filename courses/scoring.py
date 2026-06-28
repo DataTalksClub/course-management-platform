@@ -211,6 +211,67 @@ def update_score(
         submission.save()
 
 
+def _homework_scoring_error(homework, homework_id):
+    if homework.due_date > timezone.now():
+        return (
+            "The due date for "
+            f"{homework_id} is in the future. Update the due date to score."
+        )
+    if homework.state == HomeworkState.CLOSED.value:
+        return (
+            f"Homework {homework_id} is closed. "
+            "Update the state to OPEN to score."
+        )
+    if homework.state == HomeworkState.SCORED.value:
+        return f"Homework {homework_id} is already scored."
+    return None
+
+
+def _answers_by_submission(answers):
+    answers_by_submission_id = defaultdict(list)
+    for answer in answers:
+        answers_by_submission_id[answer.submission_id].append(answer)
+    return answers_by_submission_id
+
+
+def _score_homework_submission_batch(
+    submissions,
+    answers_by_submission_id,
+):
+    for submission in submissions:
+        submission_answers = answers_by_submission_id[submission.id]
+        update_score(submission, submission_answers, save=False)
+
+
+def _persist_scored_homework_submissions(homework_id, submissions, answers):
+    logger.info(f"Updating the submissions for homework {homework_id}")
+    Submission.objects.bulk_update(
+        submissions,
+        [
+            "questions_score",
+            "learning_in_public_score",
+            "faq_score",
+            "total_score",
+        ],
+    )
+
+    logger.info(f"Updating answers for homework {homework_id}")
+    Answer.objects.bulk_update(answers, ["is_correct"])
+
+
+def _mark_homework_scored(homework):
+    homework.state = HomeworkState.SCORED.value
+    homework.save()
+
+    course = homework.course
+    update_leaderboard(course)
+
+    course.first_homework_scored = True
+    course.save()
+
+    calculate_homework_statistics(homework, force=True)
+
+
 def score_homework_submissions(
     homework_id: str,
 ) -> tuple[HomeworkScoringStatus, str]:
@@ -220,23 +281,8 @@ def score_homework_submissions(
 
         homework = Homework.objects.get(pk=homework_id)
 
-        if homework.due_date > timezone.now():
-            return (
-                HomeworkScoringStatus.FAIL,
-                f"The due date for {homework_id} is in the future. Update the due date to score.",
-            )
-
-        if homework.state == HomeworkState.CLOSED.value:
-            return (
-                HomeworkScoringStatus.FAIL,
-                f"Homework {homework_id} is closed. Update the state to OPEN to score.",
-            )
-
-        if homework.state == HomeworkState.SCORED.value:
-            return (
-                HomeworkScoringStatus.FAIL,
-                f"Homework {homework_id} is already scored.",
-            )
+        if error := _homework_scoring_error(homework, homework_id):
+            return (HomeworkScoringStatus.FAIL, error)
 
         submissions = Submission.objects.filter(
             homework__id=homework_id
@@ -245,50 +291,27 @@ def score_homework_submissions(
             submission__in=submissions
         ).select_related("question", "submission")
 
-        answers_by_submission_id = defaultdict(list)
-        for answer in answers:
-            aid = answer.submission_id
-            answers_by_submission_id[aid].append(answer)
-
+        answers_by_submission_id = _answers_by_submission(
+            answers,
+        )
         logger.info(
             f"Scoring {len(answers_by_submission_id)} submissions for homework {homework_id}"
         )
 
-        for submission in submissions:
-            submission_answers = answers_by_submission_id[submission.id]
-            update_score(submission, submission_answers, save=False)
-
-        logger.info(
-            f"Updating the submissions for homework {homework_id}"
-        )
-
-        Submission.objects.bulk_update(
+        _score_homework_submission_batch(
             submissions,
-            [
-                "questions_score",
-                "learning_in_public_score",
-                "faq_score",
-                "total_score",
-            ],
+            answers_by_submission_id,
         )
-
-        logger.info(f"Updating answers for homework {homework_id}")
-        Answer.objects.bulk_update(answers, ["is_correct"])
-
-        homework.state = HomeworkState.SCORED.value
-        homework.save()
+        _persist_scored_homework_submissions(
+            homework_id,
+            submissions,
+            answers,
+        )
 
         logger.info(
             f"Scored {len(submissions)} submissions for homework {homework_id}"
         )
-
-        course = homework.course
-        update_leaderboard(course)
-
-        course.first_homework_scored = True
-        course.save()
-
-        calculate_homework_statistics(homework, force=True)
+        _mark_homework_scored(homework)
 
         t1 = time()
         logger.info(f"Scored homework in {(t1 - t0):.2f} seconds")
@@ -298,24 +321,21 @@ def score_homework_submissions(
         )
 
 
-def update_leaderboard(course: Course):
-    t0 = time()
-    logger.info(f"Updating leaderboard for course {course.id}")
-
+def _homework_scores_by_enrollment(course):
     homeworks = Homework.objects.filter(course=course)
-
     aggregated_homework_scores = (
         Submission.objects.filter(homework__in=homeworks)
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
     )
-    homework_scores_by_enrollment = {
+    return {
         score["enrollment"]: score["total_score"]
         for score in aggregated_homework_scores
     }
 
-    projects = Project.objects.filter(course=course)
 
+def _project_scores_by_enrollment(course):
+    projects = Project.objects.filter(course=course)
     aggregated_project_scores = (
         ProjectSubmission.objects.filter(
             project__in=projects,
@@ -324,38 +344,42 @@ def update_leaderboard(course: Course):
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
     )
-
-    project_score_by_enrollment = {
+    return {
         score["enrollment"]: score["total_score"]
         for score in aggregated_project_scores
     }
 
-    enrollments = list(Enrollment.objects.filter(course=course))
 
-    for enrollment in enrollments:
-        homework_score = homework_scores_by_enrollment.get(
-            enrollment.id, 0
-        )
-        project_score = project_score_by_enrollment.get(
-            enrollment.id, 0
-        )
-
-        enrollment.total_score = homework_score + project_score
-
+def _rank_enrollments(enrollments):
     enrollments = sorted(
         enrollments,
         key=lambda x: (-(x.total_score or 0), x.id),
     )
-
     for rank, enrollment in enumerate(enrollments, 1):
         enrollment.position_on_leaderboard = rank
+    return enrollments
+
+
+def _update_enrollment_totals(course):
+    homework_scores = _homework_scores_by_enrollment(course)
+    project_scores = _project_scores_by_enrollment(course)
+    enrollments = list(Enrollment.objects.filter(course=course))
+
+    for enrollment in enrollments:
+        enrollment.total_score = (
+            homework_scores.get(enrollment.id, 0)
+            + project_scores.get(enrollment.id, 0)
+        )
+
+    enrollments = _rank_enrollments(enrollments)
 
     Enrollment.objects.bulk_update(
         enrollments,
         ["total_score", "position_on_leaderboard"],
     )
 
-    # Invalidate the leaderboard caches
+
+def _invalidate_leaderboard_caches(course):
     cache.delete(f"leaderboard:{course.id}")
     cache.delete(f"leaderboard_data:{course.id}")
     cache.delete(f"leaderboard_yaml:{course.id}")
@@ -363,6 +387,12 @@ def update_leaderboard(course: Course):
     cache.set(version_key, cache.get(version_key, 1) + 1, None)
     logger.info(f"Invalidated cache for leaderboard of course {course.id}")
 
+
+def update_leaderboard(course: Course):
+    t0 = time()
+    logger.info(f"Updating leaderboard for course {course.id}")
+    _update_enrollment_totals(course)
+    _invalidate_leaderboard_caches(course)
     t1 = time()
     logger.info(f"Updated leaderboard in {(t1 - t0):.2f} seconds")
 

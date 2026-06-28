@@ -325,9 +325,8 @@ def build_reminder_event(
     )
 
 
-def homework_events(config, now, course_slug):
-    events = []
-    spec = ReminderSpec(
+def homework_reminder_spec():
+    return ReminderSpec(
         deadline_kind="homework",
         event_kind="homework",
         list_kind="homework",
@@ -336,89 +335,10 @@ def homework_events(config, now, course_slug):
         route_slug_kwarg="homework_slug",
         list_name_suffix="deadline reminders",
     )
-    reminder_start, reminder_end = reminder_window(now, "24h")
-    queryset = Homework.objects.select_related("course").filter(
-        state=HomeworkState.OPEN.value,
-        due_date__gte=reminder_start,
-        due_date__lt=reminder_end,
-    )
-    if course_slug:
-        queryset = queryset.filter(course__slug=course_slug)
-
-    for homework in queryset.order_by("due_date", "pk"):
-        submitted_student_ids = Submission.objects.filter(
-            homework=homework
-        ).values("student_id")
-        enrollments = (
-            Enrollment.objects.filter(
-                course=homework.course,
-            )
-            .exclude(student_id__in=submitted_student_ids)
-            .select_related("student", "course")
-            .order_by("pk")
-        )
-        metadata = reminder_metadata(
-            homework.course,
-            item_slug_key="homework_slug",
-            item_slug=homework.slug,
-            item_id_key="homework_id",
-            item_id=homework.pk,
-            reminder_key="24h",
-            deadline_kind=spec.deadline_kind,
-        )
-        members = [
-            member
-            for enrollment in enrollments
-            if (
-                member := member_from_enrollment(
-                    enrollment,
-                    metadata,
-                    deadline=homework.due_date,
-                )
-            )
-            is not None
-        ]
-        if not members:
-            continue
-
-        events.append(
-            build_reminder_event(
-                config,
-                spec,
-                course=homework.course,
-                item_id=homework.pk,
-                item_slug=homework.slug,
-                item_title=homework.title,
-                reminder_key="24h",
-                deadline=homework.due_date,
-                members=members,
-                metadata=metadata,
-                context_extra=lambda action_url: {
-                    "homework_slug": homework.slug,
-                    "homework_title": homework.title,
-                    "homework_due_at": homework.due_date.isoformat(),
-                    "email_subject": (
-                        f"Homework deadline soon: {homework.title}"
-                    ),
-                    "email_preview": (
-                        "Your homework deadline is within 24 hours."
-                    ),
-                    "intro_text": (
-                        f"{homework.title} in {homework.course.title} "
-                        "is due within 24 hours."
-                    ),
-                    "action_text": (
-                        f"Submit or update homework: {action_url}"
-                    ),
-                },
-            )
-        )
-    return events
 
 
-def project_submission_events(config, now, course_slug):
-    events = []
-    spec = ReminderSpec(
+def project_submission_reminder_spec():
+    return ReminderSpec(
         deadline_kind="project_submission",
         event_kind="project",
         list_kind="project-submission",
@@ -427,12 +347,44 @@ def project_submission_events(config, now, course_slug):
         route_slug_kwarg="project_slug",
         list_name_suffix="submission deadline reminders",
     )
+
+
+def peer_review_reminder_spec():
+    return ReminderSpec(
+        deadline_kind="peer_review",
+        event_kind="peer-review",
+        list_kind="peer-review",
+        item_type="peer_review",
+        route_name="projects_eval",
+        route_slug_kwarg="project_slug",
+        list_name_suffix="peer review deadline reminders",
+    )
+
+
+def homework_reminder_queryset(now, course_slug):
+    reminder_start, reminder_end = reminder_window(now, "24h")
+    queryset = Homework.objects.select_related("course").filter(
+        state=HomeworkState.OPEN.value,
+        due_date__gte=reminder_start,
+        due_date__lt=reminder_end,
+    )
+    if course_slug:
+        queryset = queryset.filter(course__slug=course_slug)
+    return queryset.order_by("due_date", "pk")
+
+
+def project_submission_reminder_windows(now):
     daily_start, daily_end = reminder_window(now, "24h")
     weekly_start, weekly_end = reminder_window(now, "7d")
-    windows = (
+    return (
         ("24h", daily_start, daily_end),
         ("7d", weekly_start, weekly_end),
     )
+
+
+def project_submission_reminder_queryset(windows, course_slug):
+    _, daily_start, daily_end = windows[0]
+    _, weekly_start, weekly_end = windows[1]
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.COLLECTING_SUBMISSIONS.value,
     ).filter(
@@ -447,97 +399,10 @@ def project_submission_events(config, now, course_slug):
     )
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
-
-    for project in queryset.order_by("submission_due_date", "pk"):
-        reminder_key = matching_reminder_key(
-            project.submission_due_date,
-            windows,
-        )
-
-        submitted_student_ids = ProjectSubmission.objects.filter(
-            project=project,
-            volunteer_review_only=False,
-        ).values("student_id")
-        enrollments = (
-            Enrollment.objects.filter(
-                course=project.course,
-            )
-            .exclude(student_id__in=submitted_student_ids)
-            .select_related("student", "course")
-            .order_by("pk")
-        )
-        metadata = reminder_metadata(
-            project.course,
-            item_slug_key="project_slug",
-            item_slug=project.slug,
-            item_id_key="project_id",
-            item_id=project.pk,
-            reminder_key=reminder_key,
-            deadline_kind=spec.deadline_kind,
-        )
-        members = [
-            member
-            for enrollment in enrollments
-            if (
-                member := member_from_enrollment(
-                    enrollment,
-                    metadata,
-                    deadline=project.submission_due_date,
-                )
-            )
-            is not None
-        ]
-        if not members:
-            continue
-
-        events.append(
-            build_reminder_event(
-                config,
-                spec,
-                course=project.course,
-                item_id=project.pk,
-                item_slug=project.slug,
-                item_title=project.title,
-                reminder_key=reminder_key,
-                deadline=project.submission_due_date,
-                members=members,
-                metadata=metadata,
-                context_extra=lambda action_url: {
-                    "project_slug": project.slug,
-                    "project_title": project.title,
-                    "project_due_at": (
-                        project.submission_due_date.isoformat()
-                    ),
-                    "email_subject": (
-                        f"Project deadline soon: {project.title}"
-                    ),
-                    "email_preview": (
-                        "Your project submission deadline is coming up."
-                    ),
-                    "intro_text": (
-                        f"{project.title} in {project.course.title} "
-                        "is due soon."
-                    ),
-                    "action_text": (
-                        f"Submit or update project: {action_url}"
-                    ),
-                },
-            )
-        )
-    return events
+    return queryset.order_by("submission_due_date", "pk")
 
 
-def peer_review_events(config, now, course_slug):
-    events = []
-    spec = ReminderSpec(
-        deadline_kind="peer_review",
-        event_kind="peer-review",
-        list_kind="peer-review",
-        item_type="peer_review",
-        route_name="projects_eval",
-        route_slug_kwarg="project_slug",
-        list_name_suffix="peer review deadline reminders",
-    )
+def peer_review_reminder_queryset(now, course_slug):
     reminder_start, reminder_end = reminder_window(now, "24h")
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.PEER_REVIEWING.value,
@@ -546,80 +411,255 @@ def peer_review_events(config, now, course_slug):
     )
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
+    return queryset.order_by("peer_review_due_date", "pk")
 
-    for project in queryset.order_by("peer_review_due_date", "pk"):
-        reviewer_submissions = (
-            ProjectSubmission.objects.filter(
-                project=project,
-                volunteer_review_only=False,
-                reviewers__state=PeerReviewState.TO_REVIEW.value,
-                reviewers__optional=False,
-            )
-            .filter(
-                Q(student__email__isnull=False) & ~Q(student__email="")
-            )
-            .select_related("student", "enrollment", "project")
-            .distinct()
-            .order_by("pk")
-        )
-        metadata = reminder_metadata(
-            project.course,
-            item_slug_key="project_slug",
-            item_slug=project.slug,
-            item_id_key="project_id",
-            item_id=project.pk,
-            reminder_key="24h",
-            deadline_kind=spec.deadline_kind,
-        )
-        members = [
-            member
-            for submission in reviewer_submissions
-            if (
-                member := member_from_project_submission(
-                    submission,
-                    metadata,
-                    deadline=project.peer_review_due_date,
-                )
-            )
-            is not None
-        ]
-        if not members:
-            continue
 
-        events.append(
-            build_reminder_event(
-                config,
-                spec,
-                course=project.course,
-                item_id=project.pk,
-                item_slug=project.slug,
-                item_title=project.title,
-                reminder_key="24h",
-                deadline=project.peer_review_due_date,
-                members=members,
-                metadata=metadata,
-                context_extra=lambda action_url: {
-                    "project_slug": project.slug,
-                    "project_title": project.title,
-                    "peer_review_due_at": (
-                        project.peer_review_due_date.isoformat()
-                    ),
-                    "email_subject": (
-                        f"Peer review deadline soon: {project.title}"
-                    ),
-                    "email_preview": (
-                        "Your assigned peer reviews are due within 24 hours."
-                    ),
-                    "intro_text": (
-                        f"Your assigned peer reviews for {project.title} "
-                        f"in {project.course.title} are due within 24 hours."
-                    ),
-                    "action_text": (
-                        f"Complete peer reviews: {action_url}"
-                    ),
-                },
+def pending_homework_enrollments(homework):
+    submitted_student_ids = Submission.objects.filter(
+        homework=homework
+    ).values("student_id")
+    return (
+        Enrollment.objects.filter(course=homework.course)
+        .exclude(student_id__in=submitted_student_ids)
+        .select_related("student", "course")
+        .order_by("pk")
+    )
+
+
+def pending_project_submission_enrollments(project):
+    submitted_student_ids = ProjectSubmission.objects.filter(
+        project=project,
+        volunteer_review_only=False,
+    ).values("student_id")
+    return (
+        Enrollment.objects.filter(course=project.course)
+        .exclude(student_id__in=submitted_student_ids)
+        .select_related("student", "course")
+        .order_by("pk")
+    )
+
+
+def pending_peer_review_submissions(project):
+    return (
+        ProjectSubmission.objects.filter(
+            project=project,
+            volunteer_review_only=False,
+            reviewers__state=PeerReviewState.TO_REVIEW.value,
+            reviewers__optional=False,
+        )
+        .filter(Q(student__email__isnull=False) & ~Q(student__email=""))
+        .select_related("student", "enrollment", "project")
+        .distinct()
+        .order_by("pk")
+    )
+
+
+def reminder_members_from_enrollments(enrollments, metadata, deadline):
+    return [
+        member
+        for enrollment in enrollments
+        if (
+            member := member_from_enrollment(
+                enrollment,
+                metadata,
+                deadline=deadline,
             )
         )
+        is not None
+    ]
+
+
+def reminder_members_from_submissions(submissions, metadata, deadline):
+    return [
+        member
+        for submission in submissions
+        if (
+            member := member_from_project_submission(
+                submission,
+                metadata,
+                deadline=deadline,
+            )
+        )
+        is not None
+    ]
+
+
+def homework_deadline_context(homework):
+    return lambda action_url: {
+        "homework_slug": homework.slug,
+        "homework_title": homework.title,
+        "homework_due_at": homework.due_date.isoformat(),
+        "email_subject": f"Homework deadline soon: {homework.title}",
+        "email_preview": "Your homework deadline is within 24 hours.",
+        "intro_text": (
+            f"{homework.title} in {homework.course.title} "
+            "is due within 24 hours."
+        ),
+        "action_text": f"Submit or update homework: {action_url}",
+    }
+
+
+def project_submission_deadline_context(project):
+    return lambda action_url: {
+        "project_slug": project.slug,
+        "project_title": project.title,
+        "project_due_at": project.submission_due_date.isoformat(),
+        "email_subject": f"Project deadline soon: {project.title}",
+        "email_preview": "Your project submission deadline is coming up.",
+        "intro_text": f"{project.title} in {project.course.title} is due soon.",
+        "action_text": f"Submit or update project: {action_url}",
+    }
+
+
+def peer_review_deadline_context(project):
+    return lambda action_url: {
+        "project_slug": project.slug,
+        "project_title": project.title,
+        "peer_review_due_at": project.peer_review_due_date.isoformat(),
+        "email_subject": f"Peer review deadline soon: {project.title}",
+        "email_preview": (
+            "Your assigned peer reviews are due within 24 hours."
+        ),
+        "intro_text": (
+            f"Your assigned peer reviews for {project.title} "
+            f"in {project.course.title} are due within 24 hours."
+        ),
+        "action_text": f"Complete peer reviews: {action_url}",
+    }
+
+
+def homework_reminder_event(config, spec, homework):
+    metadata = reminder_metadata(
+        homework.course,
+        item_slug_key="homework_slug",
+        item_slug=homework.slug,
+        item_id_key="homework_id",
+        item_id=homework.pk,
+        reminder_key="24h",
+        deadline_kind=spec.deadline_kind,
+    )
+    members = reminder_members_from_enrollments(
+        pending_homework_enrollments(homework),
+        metadata,
+        homework.due_date,
+    )
+    if not members:
+        return None
+    return build_reminder_event(
+        config,
+        spec,
+        course=homework.course,
+        item_id=homework.pk,
+        item_slug=homework.slug,
+        item_title=homework.title,
+        reminder_key="24h",
+        deadline=homework.due_date,
+        members=members,
+        metadata=metadata,
+        context_extra=homework_deadline_context(homework),
+    )
+
+
+def project_submission_reminder_event(config, spec, project, reminder_key):
+    metadata = reminder_metadata(
+        project.course,
+        item_slug_key="project_slug",
+        item_slug=project.slug,
+        item_id_key="project_id",
+        item_id=project.pk,
+        reminder_key=reminder_key,
+        deadline_kind=spec.deadline_kind,
+    )
+    members = reminder_members_from_enrollments(
+        pending_project_submission_enrollments(project),
+        metadata,
+        project.submission_due_date,
+    )
+    if not members:
+        return None
+    return build_reminder_event(
+        config,
+        spec,
+        course=project.course,
+        item_id=project.pk,
+        item_slug=project.slug,
+        item_title=project.title,
+        reminder_key=reminder_key,
+        deadline=project.submission_due_date,
+        members=members,
+        metadata=metadata,
+        context_extra=project_submission_deadline_context(project),
+    )
+
+
+def peer_review_reminder_event(config, spec, project):
+    metadata = reminder_metadata(
+        project.course,
+        item_slug_key="project_slug",
+        item_slug=project.slug,
+        item_id_key="project_id",
+        item_id=project.pk,
+        reminder_key="24h",
+        deadline_kind=spec.deadline_kind,
+    )
+    members = reminder_members_from_submissions(
+        pending_peer_review_submissions(project),
+        metadata,
+        project.peer_review_due_date,
+    )
+    if not members:
+        return None
+    return build_reminder_event(
+        config,
+        spec,
+        course=project.course,
+        item_id=project.pk,
+        item_slug=project.slug,
+        item_title=project.title,
+        reminder_key="24h",
+        deadline=project.peer_review_due_date,
+        members=members,
+        metadata=metadata,
+        context_extra=peer_review_deadline_context(project),
+    )
+
+
+def homework_events(config, now, course_slug):
+    spec = homework_reminder_spec()
+    events = []
+    for homework in homework_reminder_queryset(now, course_slug):
+        event = homework_reminder_event(config, spec, homework)
+        if event is not None:
+            events.append(event)
+    return events
+
+
+def project_submission_events(config, now, course_slug):
+    events = []
+    spec = project_submission_reminder_spec()
+    windows = project_submission_reminder_windows(now)
+    for project in project_submission_reminder_queryset(
+        windows, course_slug
+    ):
+        reminder_key = matching_reminder_key(
+            project.submission_due_date,
+            windows,
+        )
+        event = project_submission_reminder_event(
+            config, spec, project, reminder_key
+        )
+        if event is not None:
+            events.append(event)
+    return events
+
+
+def peer_review_events(config, now, course_slug):
+    events = []
+    spec = peer_review_reminder_spec()
+    for project in peer_review_reminder_queryset(now, course_slug):
+        event = peer_review_reminder_event(config, spec, project)
+        if event is not None:
+            events.append(event)
     return events
 
 
@@ -632,6 +672,54 @@ def build_reminder_events(config, now, course_slug=""):
     ):
         events[event.list_key] = event
     return list(events.values())
+
+
+def require_datamailer_config():
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        raise CommandError(
+            "Datamailer is not configured. Set DATAMAILER_URL, "
+            "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
+        )
+    return config
+
+
+def event_send_suffix(response):
+    if not response:
+        return ""
+    enqueued_count = response.get("enqueued_count")
+    if enqueued_count is None:
+        return ""
+    return f"; enqueued={enqueued_count}"
+
+
+def send_reminder_event(client, config, event):
+    payload = transient_recipient_list_send_payload(event)
+    try:
+        response = client.send_transient_recipient_list_transactional(
+            payload,
+        )
+    except requests.RequestException as exc:
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+            payload=payload,
+            list_key=event.list_key,
+            error=str(exc),
+        )
+        if config.strict:
+            raise
+        raise CommandError(
+            f"Datamailer deadline reminder failed for "
+            f"{event.list_key}: {exc}"
+        ) from exc
+
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+        payload=payload,
+        list_key=event.list_key,
+        response=response,
+    )
+    return response
 
 
 class Command(BaseCommand):
@@ -655,13 +743,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        config = DatamailerConfig.from_settings()
-        if config is None:
-            raise CommandError(
-                "Datamailer is not configured. Set DATAMAILER_URL, "
-                "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
-            )
-
+        config = require_datamailer_config()
         now = aware_now(options["now"])
         events = build_reminder_events(
             config,
@@ -683,40 +765,9 @@ class Command(BaseCommand):
 
         client = DatamailerClient(config)
         for event in events:
-            payload = transient_recipient_list_send_payload(event)
-            try:
-                response = client.send_transient_recipient_list_transactional(
-                    payload,
-                )
-            except requests.RequestException as exc:
-                record_datamailer_send_audit(
-                    send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-                    payload=payload,
-                    list_key=event.list_key,
-                    error=str(exc),
-                )
-                if config.strict:
-                    raise
-                raise CommandError(
-                    f"Datamailer deadline reminder failed for "
-                    f"{event.list_key}: {exc}"
-                ) from exc
-            record_datamailer_send_audit(
-                send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-                payload=payload,
-                list_key=event.list_key,
-                response=response,
-            )
-
-            enqueued_count = None
-            if response:
-                enqueued_count = response.get("enqueued_count")
-            suffix = (
-                f"; enqueued={enqueued_count}"
-                if enqueued_count is not None
-                else ""
-            )
+            response = send_reminder_event(client, config, event)
             self.stdout.write(
                 f"Sent {event.list_key}: "
-                f"{len(event.members)} member(s){suffix}"
+                f"{len(event.members)} member(s)"
+                f"{event_send_suffix(response)}"
             )

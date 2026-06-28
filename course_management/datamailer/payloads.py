@@ -557,88 +557,69 @@ def project_passed_recipient_list_member_payload(
         },
     }
 
-def homework_score_notification_payload(
-    homework,
-) -> tuple[str, dict[str, Any]] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
 
-
-    course = homework.course
-    list_key = homework_submitters_list_key(homework)
-    list_data, members = homework_score_notification_members(homework)
-    course_url = public_url(
-        reverse("course", kwargs={"course_slug": course.slug})
-    )
-    homework_url = public_url(
+def _score_notification_urls(course, assignment, route_name, slug_kwarg):
+    assignment_url = public_url(
         reverse(
-            "homework",
+            route_name,
             kwargs={
                 "course_slug": course.slug,
-                "homework_slug": homework.slug,
+                slug_kwarg: assignment.slug,
             },
         )
     )
-    leaderboard_url = public_url(
-        reverse("leaderboard", kwargs={"course_slug": course.slug})
-    )
-    profile_url = public_url(reverse("account_settings"))
-
-    payload = {
-        "audience": config.audience,
-        "client": config.client,
-        "template_key": email_templates.HOMEWORK_SCORE_NOTIFICATION,
-        "category_tag": "submission-results",
-        "idempotency_key": f"homework-score:{course.slug}:{homework.slug}",
-        "context": {
-            "course_slug": course.slug,
-            "course_title": course.title,
-            "homework_slug": homework.slug,
-            "homework_title": homework.title,
-            "course_url": course_url,
-            "homework_url": homework_url,
-            "scores_url": homework_url,
-            "leaderboard_url": leaderboard_url,
-            "profile_url": profile_url,
-            "notification_footer": (
-                f"You are receiving this because you submitted {homework.title} "
-                f"for {course.title} and homework/project submission emails "
-                "are enabled in your profile."
-            ),
-            "notification_footer_text": (
-                "If you don't want to receive homework/project submission "
-                "and score emails, turn off homework and project submission "
-                f"emails in your profile: {profile_url}"
-            ),
-        },
-        "list": list_data,
-        "members": members,
-        "metadata": {
-            "source": "course-management-platform",
-            "event": "homework_score_publication",
-            "course_slug": course.slug,
-            "homework_slug": homework.slug,
-            "homework_id": homework.pk,
-            "preference_key": "email_submission_confirmations",
-            "cmp_preference_key": "email_submission_confirmations",
-        },
+    return {
+        "course_url": public_url(
+            reverse("course", kwargs={"course_slug": course.slug})
+        ),
+        "assignment_url": assignment_url,
+        "leaderboard_url": public_url(
+            reverse("leaderboard", kwargs={"course_slug": course.slug})
+        ),
+        "profile_url": public_url(reverse("account_settings")),
     }
-    if config.from_email:
-        payload["from_email"] = config.from_email
-    return list_key, payload
-
-def project_score_notification_payload(
-    project,
-) -> tuple[str, dict[str, Any]] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
 
 
+def _score_notification_footer(course, assignment, profile_url):
+    return {
+        "notification_footer": (
+            f"You are receiving this because you submitted {assignment.title} "
+            f"for {course.title} and homework/project submission emails "
+            "are enabled in your profile."
+        ),
+        "notification_footer_text": (
+            "If you don't want to receive homework/project submission "
+            "and score emails, turn off homework and project submission "
+            f"emails in your profile: {profile_url}"
+        ),
+    }
+
+
+def _homework_score_notification_context(homework):
+    course = homework.course
+    urls = _score_notification_urls(
+        course,
+        homework,
+        "homework",
+        "homework_slug",
+    )
+    homework_url = urls["assignment_url"]
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "homework_slug": homework.slug,
+        "homework_title": homework.title,
+        "course_url": urls["course_url"],
+        "homework_url": homework_url,
+        "scores_url": homework_url,
+        "leaderboard_url": urls["leaderboard_url"],
+        "profile_url": urls["profile_url"],
+        **_score_notification_footer(course, homework, urls["profile_url"]),
+    }
+
+
+def _project_score_notification_context(project):
     course = project.course
-    list_key = project_submitters_list_key(project)
-    list_data, members = project_score_notification_members(project)
     project_url = public_url(
         reverse(
             "project",
@@ -657,53 +638,95 @@ def project_score_notification_payload(
             },
         )
     )
-    course_url = public_url(
-        reverse("course", kwargs={"course_slug": course.slug})
-    )
-    leaderboard_url = public_url(
-        reverse("leaderboard", kwargs={"course_slug": course.slug})
-    )
     profile_url = public_url(reverse("account_settings"))
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "project_slug": project.slug,
+        "project_title": project.title,
+        "course_url": public_url(
+            reverse("course", kwargs={"course_slug": course.slug})
+        ),
+        "project_url": project_url,
+        "project_results_url": project_results_url,
+        "scores_url": project_results_url,
+        "leaderboard_url": public_url(
+            reverse("leaderboard", kwargs={"course_slug": course.slug})
+        ),
+        "profile_url": profile_url,
+        **_score_notification_footer(course, project, profile_url),
+    }
 
+
+def _homework_score_notification_metadata(homework):
+    return {
+        "source": "course-management-platform",
+        "event": "homework_score_publication",
+        "course_slug": homework.course.slug,
+        "homework_slug": homework.slug,
+        "homework_id": homework.pk,
+        "preference_key": "email_submission_confirmations",
+        "cmp_preference_key": "email_submission_confirmations",
+    }
+
+
+def _project_score_notification_metadata(project):
+    return {
+        "source": "course-management-platform",
+        "event": "project_score_publication",
+        "course_slug": project.course.slug,
+        "project_slug": project.slug,
+        "project_id": project.pk,
+        "preference_key": "email_submission_confirmations",
+        "cmp_preference_key": "email_submission_confirmations",
+    }
+
+
+def homework_score_notification_payload(
+    homework,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    course = homework.course
+    list_key = homework_submitters_list_key(homework)
+    list_data, members = homework_score_notification_members(homework)
+    payload = {
+        "audience": config.audience,
+        "client": config.client,
+        "template_key": email_templates.HOMEWORK_SCORE_NOTIFICATION,
+        "category_tag": "submission-results",
+        "idempotency_key": f"homework-score:{course.slug}:{homework.slug}",
+        "context": _homework_score_notification_context(homework),
+        "list": list_data,
+        "members": members,
+        "metadata": _homework_score_notification_metadata(homework),
+    }
+    if config.from_email:
+        payload["from_email"] = config.from_email
+    return list_key, payload
+
+def project_score_notification_payload(
+    project,
+) -> tuple[str, dict[str, Any]] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    course = project.course
+    list_key = project_submitters_list_key(project)
+    list_data, members = project_score_notification_members(project)
     payload = {
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.PROJECT_SCORE_NOTIFICATION,
         "category_tag": "submission-results",
         "idempotency_key": f"project-score:{course.slug}:{project.slug}",
-        "context": {
-            "course_slug": course.slug,
-            "course_title": course.title,
-            "project_slug": project.slug,
-            "project_title": project.title,
-            "course_url": course_url,
-            "project_url": project_url,
-            "project_results_url": project_results_url,
-            "scores_url": project_results_url,
-            "leaderboard_url": leaderboard_url,
-            "profile_url": profile_url,
-            "notification_footer": (
-                f"You are receiving this because you submitted {project.title} "
-                f"for {course.title} and homework/project submission emails "
-                "are enabled in your profile."
-            ),
-            "notification_footer_text": (
-                "If you don't want to receive homework/project submission "
-                "and score emails, turn off homework and project submission "
-                f"emails in your profile: {profile_url}"
-            ),
-        },
+        "context": _project_score_notification_context(project),
         "list": list_data,
         "members": members,
-        "metadata": {
-            "source": "course-management-platform",
-            "event": "project_score_publication",
-            "course_slug": course.slug,
-            "project_slug": project.slug,
-            "project_id": project.pk,
-            "preference_key": "email_submission_confirmations",
-            "cmp_preference_key": "email_submission_confirmations",
-        },
+        "metadata": _project_score_notification_metadata(project),
     }
     if config.from_email:
         payload["from_email"] = config.from_email
