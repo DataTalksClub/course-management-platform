@@ -62,62 +62,100 @@ def paginate_project_submissions(request, submissions):
     return paginator.get_page(request.GET.get("page"))
 
 
+def project_repository_submission_field(
+    submission: ProjectSubmission,
+) -> dict:
+    return {
+        "key": "github_link",
+        "label": "GitHub repository",
+        "value": submission.github_link or "",
+    }
+
+
+def project_commit_submission_field(
+    submission: ProjectSubmission,
+) -> dict:
+    return {
+        "key": "commit_id",
+        "label": "Commit ID",
+        "value": submission.commit_id or "",
+    }
+
+
+def project_learning_in_public_submission_field(
+    project: Project,
+    submission: ProjectSubmission,
+) -> dict | None:
+    if project.learning_in_public_cap_project <= 0:
+        return None
+
+    links = submission.learning_in_public_links or []
+    return {
+        "key": "learning_in_public_links",
+        "label": "Learning in public links",
+        "value": "\n".join(links),
+        "values": links,
+    }
+
+
+def project_time_submission_field(
+    project: Project,
+    submission: ProjectSubmission,
+) -> dict | None:
+    if not project.time_spent_project_field:
+        return None
+
+    return {
+        "key": "time_spent",
+        "label": "Time spent on project",
+        "value": format_hours(submission.time_spent),
+    }
+
+
+def project_problems_comments_submission_field(
+    project: Project,
+    submission: ProjectSubmission,
+) -> dict | None:
+    if not project.problems_comments_field:
+        return None
+
+    return {
+        "key": "problems_comments",
+        "label": "Problems, comments, or feedback",
+        "value": submission.problems_comments or "",
+    }
+
+
+def project_faq_contribution_submission_field(
+    project: Project,
+    submission: ProjectSubmission,
+) -> dict | None:
+    if not project.faq_contribution_field:
+        return None
+
+    return {
+        "key": "faq_contribution_url",
+        "label": "FAQ contribution URL",
+        "value": submission.faq_contribution_url or "",
+    }
+
+
 def project_submission_fields(
     project: Project,
     submission: ProjectSubmission,
 ) -> list[dict]:
     fields = [
-        {
-            "key": "github_link",
-            "label": "GitHub repository",
-            "value": submission.github_link or "",
-        },
-        {
-            "key": "commit_id",
-            "label": "Commit ID",
-            "value": submission.commit_id or "",
-        },
+        project_repository_submission_field(submission),
+        project_commit_submission_field(submission),
+        project_learning_in_public_submission_field(
+            project, submission
+        ),
+        project_time_submission_field(project, submission),
+        project_problems_comments_submission_field(project, submission),
+        project_faq_contribution_submission_field(project, submission),
     ]
 
-    if project.learning_in_public_cap_project > 0:
-        links = submission.learning_in_public_links or []
-        fields.append(
-            {
-                "key": "learning_in_public_links",
-                "label": "Learning in public links",
-                "value": "\n".join(links),
-                "values": links,
-            }
-        )
-
-    if project.time_spent_project_field:
-        fields.append(
-            {
-                "key": "time_spent",
-                "label": "Time spent on project",
-                "value": format_hours(submission.time_spent),
-            }
-        )
-
-    if project.problems_comments_field:
-        fields.append(
-            {
-                "key": "problems_comments",
-                "label": "Problems, comments, or feedback",
-                "value": submission.problems_comments or "",
-            }
-        )
-
-    if project.faq_contribution_field:
-        fields.append(
-            {
-                "key": "faq_contribution_url",
-                "label": "FAQ contribution URL",
-                "value": submission.faq_contribution_url or "",
-            }
-        )
-
-    return fields
+    return [field for field in fields if field is not None]
 
 
 def project_confirmation_context(
