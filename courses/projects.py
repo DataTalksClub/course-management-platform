@@ -51,64 +51,116 @@ def select_random_assignment(
     seed: int = 1,
 ) -> list[PeerReview]:
     n = len(submissions)
-
-    if n <= num_projects_to_review:
-        raise ValueError(
-            "The number of projects to review should be greater than the number of submissions. "
-            + f"Number of projects to review: {num_projects_to_review}, Number of submissions: {n}"
-        )
-
+    _validate_peer_review_assignment_size(n, num_projects_to_review)
     random.seed(seed)
 
     submissions_list = list(submissions)
+    projects_pool = _review_slot_project_pools(
+        n, num_projects_to_review
+    )
+
     all_assignments = []
-
-    # Create pools for each review slot to ensure balanced distribution
-    # Each pool tracks which submissions can still be assigned for that slot
-    projects_pool = []
-    for _ in range(num_projects_to_review):
-        projects_pool.append(list(range(n)))
-
-    # For each reviewer, assign them projects to review
-    for reviewer_idx in range(n):
-        reviewer_submission = submissions_list[reviewer_idx]
-        
-        # Track which projects this reviewer has already been assigned
-        selected = {reviewer_idx}  # Can't review their own submission
-        
-        # Assign one project for each review slot
-        for slot_idx in range(num_projects_to_review):
-            projects = projects_pool[slot_idx]
-            
-            # Find available projects (not already selected and still in pool)
-            available = [p for p in projects if p not in selected]
-            
-            if not available:
-                # Pool is depleted for this slot, select from any unselected project
-                # This is safe because n > num_projects_to_review guarantees
-                # we have more projects than we need to select
-                available = [p for p in range(n) if p not in selected]
-            
-            # Select a random project from available ones
-            selected_project_idx = random.choice(available)
-            selected.add(selected_project_idx)
-            
-            # Remove from pool only if it was in the pool
-            if selected_project_idx in projects:
-                projects.remove(selected_project_idx)
-            
-            selected_project = submissions_list[selected_project_idx]
-            
-            assignment = PeerReview(
-                submission_under_evaluation=selected_project,
-                reviewer=reviewer_submission,
-                state=PeerReviewState.TO_REVIEW.value,
-                optional=False,
+    for reviewer_idx, reviewer_submission in enumerate(
+        submissions_list
+    ):
+        all_assignments.extend(
+            _select_reviewer_assignments(
+                reviewer_idx,
+                reviewer_submission,
+                submissions_list,
+                projects_pool,
             )
-            
-            all_assignments.append(assignment)
+        )
 
     return all_assignments
+
+
+def _validate_peer_review_assignment_size(
+    num_submissions: int,
+    num_projects_to_review: int,
+) -> None:
+    if num_submissions > num_projects_to_review:
+        return
+
+    raise ValueError(
+        "The number of projects to review should be greater than the number of submissions. "
+        + f"Number of projects to review: {num_projects_to_review}, Number of submissions: {num_submissions}"
+    )
+
+
+def _review_slot_project_pools(
+    num_submissions: int,
+    num_projects_to_review: int,
+) -> list[list[int]]:
+    return [
+        list(range(num_submissions))
+        for _ in range(num_projects_to_review)
+    ]
+
+
+def _select_reviewer_assignments(
+    reviewer_idx: int,
+    reviewer_submission: ProjectSubmission,
+    submissions: list[ProjectSubmission],
+    projects_pool: list[list[int]],
+) -> list[PeerReview]:
+    selected = {reviewer_idx}
+    assignments = []
+
+    for projects in projects_pool:
+        selected_project_idx = _select_project_for_review(
+            projects,
+            selected,
+            len(submissions),
+        )
+        selected.add(selected_project_idx)
+        _remove_project_from_slot_pool(selected_project_idx, projects)
+        assignments.append(
+            _peer_review_assignment(
+                reviewer_submission,
+                submissions[selected_project_idx],
+            )
+        )
+
+    return assignments
+
+
+def _select_project_for_review(
+    projects: list[int],
+    selected: set[int],
+    num_submissions: int,
+) -> int:
+    available = [
+        project for project in projects if project not in selected
+    ]
+    if not available:
+        available = [
+            project
+            for project in range(num_submissions)
+            if project not in selected
+        ]
+
+    return random.choice(available)
+
+
+def _remove_project_from_slot_pool(
+    project_idx: int,
+    projects: list[int],
+) -> None:
+    if project_idx in projects:
+        projects.remove(project_idx)
+
+
+def _peer_review_assignment(
+    reviewer_submission: ProjectSubmission,
+    selected_project: ProjectSubmission,
+) -> PeerReview:
+    return PeerReview(
+        submission_under_evaluation=selected_project,
+        reviewer=reviewer_submission,
+        state=PeerReviewState.TO_REVIEW.value,
+        optional=False,
+    )
 
 
 def assign_peer_reviews_for_project(
@@ -254,7 +306,7 @@ def _group_peer_reviews(peer_reviews):
     """
     criteria_responses = CriteriaResponse.objects.filter(
         review__in=peer_reviews
-    ).select_related('criteria')
+    ).select_related("criteria")
 
     responses_by_review = defaultdict(list)
     for response in criteria_responses:
@@ -419,7 +471,9 @@ def _sync_project_submissions_after_commit(submissions_to_update):
     for submission in submissions_to_update:
         transaction.on_commit(
             lambda submission=submission: (
-                _sync_scored_project_submission_to_datamailer(submission)
+                _sync_scored_project_submission_to_datamailer(
+                    submission
+                )
             )
         )
 
