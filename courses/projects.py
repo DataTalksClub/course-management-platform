@@ -163,52 +163,64 @@ def _peer_review_assignment(
     )
 
 
+def _assignment_precondition_failure(
+    project: Project,
+    submissions_count: int,
+    num_evaluations: int,
+) -> tuple[ProjectActionStatus, str] | None:
+    if project.state != ProjectState.COLLECTING_SUBMISSIONS.value:
+        return (
+            ProjectActionStatus.FAIL,
+            "Project is not in 'COLLECTING_SUBMISSIONS' state to assign peer reviews.",
+        )
+
+    if project.submission_due_date > timezone.now():
+        return (
+            ProjectActionStatus.FAIL,
+            "The submission due date is in the future. Update the due date to assign peer reviews.",
+        )
+
+    if submissions_count <= num_evaluations:
+        return (
+            ProjectActionStatus.FAIL,
+            f"Not enough submissions to assign {num_evaluations} peer reviews each.",
+        )
+
+    return None
+
+
+def _open_peer_review_window(project: Project) -> None:
+    project.peer_review_due_date = ceil_to_next_hour(
+        timezone.now() + PEER_REVIEW_WINDOW
+    )
+    project.state = ProjectState.PEER_REVIEWING.value
+    project.save()
+
+
 def assign_peer_reviews_for_project(
     project: Project,
 ) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
-
-        if project.state != ProjectState.COLLECTING_SUBMISSIONS.value:
-            return (
-                ProjectActionStatus.FAIL,
-                "Project is not in 'COLLECTING_SUBMISSIONS' state to assign peer reviews.",
-            )
-
-        if project.submission_due_date > timezone.now():
-            return (
-                ProjectActionStatus.FAIL,
-                "The submission due date is in the future. Update the due date to assign peer reviews.",
-            )
-
         submissions = ProjectSubmission.objects.filter(
             project=project
         ).select_related("enrollment")
-
         num_evaluations = project.number_of_peers_to_evaluate
-        if submissions.count() <= num_evaluations:
-            return (
-                ProjectActionStatus.FAIL,
-                f"Not enough submissions to assign {num_evaluations} peer reviews each.",
-            )
+        failure = _assignment_precondition_failure(
+            project, submissions.count(), num_evaluations
+        )
+        if failure is not None:
+            return failure
 
         assignments = select_random_assignment(
             submissions, num_evaluations, seed=42
         )
-
         PeerReview.objects.bulk_create(assignments)
-
         # Open the peer-review window for 7 days from now, rounded up to the
         # next whole hour. This always overwrites any previously set deadline
         # so closing submissions deterministically (re)starts the review clock.
-        project.peer_review_due_date = ceil_to_next_hour(
-            timezone.now() + PEER_REVIEW_WINDOW
-        )
-        project.state = ProjectState.PEER_REVIEWING.value
-        project.save()
-
+        _open_peer_review_window(project)
         t_end = time()
-
         logger.info(
             f"Peer reviews assigned for project {project.id} in {t_end - t0:.2f} seconds."
         )
@@ -359,6 +371,40 @@ def _peer_review_lip_score(submission, project, reviewed) -> int:
     return total
 
 
+def _mandatory_reviews_count(reviewed) -> int:
+    return sum(1 for review in reviewed if not review.optional)
+
+
+def _project_faq_score(submission) -> int:
+    if submission.faq_contribution_url and len(submission.faq_contribution_url) >= 5:
+        return 1
+    return 0
+
+
+def _project_total_score(submission) -> int:
+    return (
+        submission.project_score
+        + submission.project_faq_score
+        + submission.project_learning_in_public_score
+        + submission.peer_review_score
+        + submission.peer_review_learning_in_public_score
+    )
+
+
+def _assign_peer_review_scores(submission, project, reviewed) -> int:
+    mandatory_reviews_count = _mandatory_reviews_count(reviewed)
+    submission.peer_review_score = (
+        mandatory_reviews_count * project.points_for_peer_review
+    )
+    submission.peer_review_learning_in_public_score = (
+        _peer_review_lip_score(submission, project, reviewed)
+    )
+    submission.reviewed_enough_peers = (
+        mandatory_reviews_count >= project.number_of_peers_to_evaluate
+    )
+    return mandatory_reviews_count
+
+
 def _score_submission(submission, project, reviews, reviewed, criteria):
     """Compute and assign every score component for a single submission.
 
@@ -372,39 +418,12 @@ def _score_submission(submission, project, reviews, reviewed, criteria):
     )
     submission.project_score = project_score
 
-    num_mandatory_projects_reviewed = sum(
-        1 for review in reviewed if not review.optional
-    )
-    submission.peer_review_score = (
-        num_mandatory_projects_reviewed * project.points_for_peer_review
-    )
-
+    _assign_peer_review_scores(submission, project, reviewed)
     submission.project_learning_in_public_score = _project_lip_score(
         submission, project
     )
-    submission.peer_review_learning_in_public_score = (
-        _peer_review_lip_score(submission, project, reviewed)
-    )
-
-    submission.project_faq_score = (
-        1
-        if submission.faq_contribution_url
-        and len(submission.faq_contribution_url) >= 5
-        else 0
-    )
-
-    submission.total_score = (
-        submission.project_score
-        + submission.project_faq_score
-        + submission.project_learning_in_public_score
-        + submission.peer_review_score
-        + submission.peer_review_learning_in_public_score
-    )
-
-    submission.reviewed_enough_peers = (
-        num_mandatory_projects_reviewed
-        >= project.number_of_peers_to_evaluate
-    )
+    submission.project_faq_score = _project_faq_score(submission)
+    submission.total_score = _project_total_score(submission)
     submission.passed = (
         submission.project_score >= project.points_to_pass
     ) and submission.reviewed_enough_peers
