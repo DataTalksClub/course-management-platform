@@ -368,6 +368,56 @@ def remove_project_submission_from_datamailer(submission) -> None:
     )
 
 
+def datamailer_audit_status(error: str) -> str:
+    if error:
+        return DatamailerSendAuditStatus.FAILED
+    return DatamailerSendAuditStatus.SUCCEEDED
+
+
+def datamailer_audit_template_key(payload, response) -> str:
+    return (
+        response.get("template_key")
+        or response.get("message", {}).get("template_key", "")
+        or payload.get("template_key", "")
+    )
+
+
+def datamailer_audit_category_tag(payload, metadata) -> str:
+    return payload.get("category_tag", "") or metadata.get("category_tag", "")
+
+
+def datamailer_send_audit_defaults(
+    *,
+    send_type: str,
+    payload: dict[str, Any],
+    list_key: str,
+    response: dict[str, Any],
+    error: str,
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    counts = datamailer_send_counts(send_type, payload, response)
+    return {
+        "status": datamailer_audit_status(error),
+        "template_key": datamailer_audit_template_key(payload, response),
+        "category_tag": datamailer_audit_category_tag(payload, metadata),
+        "list_key": datamailer_send_list_key(
+            send_type,
+            explicit_list_key=list_key,
+            payload=payload,
+            response=response,
+        ),
+        "source": metadata.get("source", ""),
+        "event": metadata.get("event", ""),
+        "intended_count": counts["intended_count"],
+        "created_count": counts["created_count"],
+        "enqueued_count": counts["enqueued_count"],
+        "skipped_count": counts["skipped_count"],
+        "idempotent_replay_count": counts["idempotent_replay_count"],
+        "error": error,
+        "response_payload": response,
+    }
+
+
 def record_datamailer_send_audit(
     *,
     send_type: str,
@@ -385,41 +435,17 @@ def record_datamailer_send_audit(
     if not isinstance(metadata, dict):
         metadata = {}
 
-    counts = datamailer_send_counts(send_type, payload, response)
     audit, _created = DatamailerSendAudit.objects.update_or_create(
         send_type=send_type,
         idempotency_key=idempotency_key,
-        defaults={
-            "status": (
-                DatamailerSendAuditStatus.FAILED
-                if error
-                else DatamailerSendAuditStatus.SUCCEEDED
-            ),
-            "template_key": (
-                response.get("template_key")
-                or response.get("message", {}).get("template_key", "")
-                or payload.get("template_key", "")
-            ),
-            "category_tag": payload.get("category_tag", "")
-            or metadata.get("category_tag", ""),
-            "list_key": datamailer_send_list_key(
-                send_type,
-                explicit_list_key=list_key,
-                payload=payload,
-                response=response,
-            ),
-            "source": metadata.get("source", ""),
-            "event": metadata.get("event", ""),
-            "intended_count": counts["intended_count"],
-            "created_count": counts["created_count"],
-            "enqueued_count": counts["enqueued_count"],
-            "skipped_count": counts["skipped_count"],
-            "idempotent_replay_count": counts[
-                "idempotent_replay_count"
-            ],
-            "error": error,
-            "response_payload": response,
-        },
+        defaults=datamailer_send_audit_defaults(
+            send_type=send_type,
+            payload=payload,
+            list_key=list_key,
+            response=response,
+            error=error,
+            metadata=metadata,
+        ),
     )
     return audit
 
@@ -598,32 +624,18 @@ def send_peer_review_assignment_notification(
 
     try:
         list_key, payload = list_payload
-        if not bulk_upsert_recipient_list_members_before_send(
+        if not _sync_members_before_recipient_list_send_or_audit(
             config=config,
             list_key=list_key,
             payload=payload,
             idempotency_key=f"{payload['idempotency_key']}:members",
             ordering_key=list_key,
+            error="Datamailer metadata sync was not acknowledged",
         ):
-            record_datamailer_send_audit(
-                send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-                payload=payload,
-                list_key=list_key,
-                error="Datamailer metadata sync was not acknowledged",
-            )
             return None
-        client = DatamailerClient(config)
-        response = client.send_recipient_list_transactional(
-            list_key,
-            recipient_list_send_payload(payload),
+        return _send_recipient_list_transactional_and_audit(
+            config, list_key, payload
         )
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-            payload=payload,
-            list_key=list_key,
-            response=response,
-        )
-        return response
     except requests.RequestException as exc:
         logger.exception(
             "Datamailer peer review assignment notification failed "

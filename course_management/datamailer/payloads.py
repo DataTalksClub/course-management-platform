@@ -373,18 +373,11 @@ def homework_submission_recipient_list_payload(
         return None
     return list_key, source_object_key, payload
 
-def project_submission_recipient_list_payload(
-    submission,
-) -> tuple[str, str, dict[str, Any]] | None:
-    email = (submission.student.email or "").strip().lower()
-    if not email:
-        return None
 
+def project_submission_metadata(submission) -> dict[str, Any]:
     project = submission.project
     course = project.course
-    list_key = project_submitters_list_key(project)
-    source_object_key = f"project-submission:{submission.pk}"
-    metadata = {
+    return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
         "course_slug": course.slug,
@@ -417,12 +410,25 @@ def project_submission_recipient_list_payload(
         "reviewed_enough_peers": submission.reviewed_enough_peers,
         "passed": submission.passed,
     }
+
+
+def project_submission_recipient_list_payload(
+    submission,
+) -> tuple[str, str, dict[str, Any]] | None:
+    email = (submission.student.email or "").strip().lower()
+    if not email:
+        return None
+
+    project = submission.project
+    course = project.course
+    list_key = project_submitters_list_key(project)
+    source_object_key = f"project-submission:{submission.pk}"
     payload = recipient_list_member_payload(
         list_type="project_submitters",
         list_name=f"{course.title} {project.title} submitters",
         email=email,
         source_object_key=source_object_key,
-        metadata=metadata,
+        metadata=project_submission_metadata(submission),
     )
     if payload is None:
         return None
@@ -793,23 +799,16 @@ def _assigned_review_links(submission) -> list[dict[str, Any]]:
         )
     return items
 
-def peer_review_assignment_recipient_list_payload(
-    submission,
-) -> tuple[str, str, dict[str, Any]] | None:
-    email = (submission.student.email or "").strip().lower()
-    if not email:
-        return None
 
+def peer_review_assignment_metadata(submission) -> dict[str, Any]:
     project = submission.project
     course = project.course
-    list_key = project_submitters_list_key(project)
-    source_object_key = f"project-submission:{submission.pk}"
     assigned_reviews = _assigned_review_links(submission)
     deadline = format_deadline_for_email(
         project.peer_review_due_date,
         submission.student,
     )
-    metadata = {
+    return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
         "course_slug": course.slug,
@@ -836,12 +835,25 @@ def peer_review_assignment_recipient_list_payload(
         "deadline_timezone": deadline["deadline_timezone"],
         "deadline_summary": deadline["deadline_summary"],
     }
+
+
+def peer_review_assignment_recipient_list_payload(
+    submission,
+) -> tuple[str, str, dict[str, Any]] | None:
+    email = (submission.student.email or "").strip().lower()
+    if not email:
+        return None
+
+    project = submission.project
+    course = project.course
+    list_key = project_submitters_list_key(project)
+    source_object_key = f"project-submission:{submission.pk}"
     payload = recipient_list_member_payload(
         list_type="project_submitters",
         list_name=f"{course.title} {project.title} submitters",
         email=email,
         source_object_key=source_object_key,
-        metadata=metadata,
+        metadata=peer_review_assignment_metadata(submission),
     )
     if payload is None:
         return None
