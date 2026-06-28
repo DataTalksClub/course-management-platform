@@ -294,6 +294,56 @@ class AdminSession:
             return False
 
     # -- homework flow ---------------------------------------------------
+    def _check_homework_checkboxes(self, field: str, value: str) -> None:
+        for idx in str(value).split(","):
+            idx = idx.strip()
+            checkbox = self.page.locator(
+                f"input[name='{field}'][type='checkbox'][value='{idx}']"
+            )
+            if checkbox.count() > 0:
+                checkbox.first.check()
+
+    def _fill_homework_answer(self, question_id: int, value: str) -> None:
+        field = f"answer_{question_id}"
+        radios = self.page.locator(
+            f"input[name='{field}'][type='radio'][value='{value}']"
+        )
+        checkboxes = self.page.locator(
+            f"input[name='{field}'][type='checkbox']"
+        )
+
+        if radios.count() > 0:
+            radios.first.check()
+        elif checkboxes.count() > 0:
+            self._check_homework_checkboxes(field, value)
+        else:
+            self.page.fill(f"[name='{field}']", str(value))
+
+    def _fill_optional_homework_field(
+        self,
+        selector: str,
+        value: str | float | None,
+    ) -> None:
+        if value is not None and self.page.locator(selector).count():
+            self.page.fill(selector, str(value))
+
+    def _fill_learning_in_public_links(self, links: list[str] | None) -> None:
+        if not links:
+            return
+
+        inputs = self.page.locator("[name='learning_in_public_links[]']")
+        for i, link in enumerate(links):
+            if i < inputs.count():
+                inputs.nth(i).fill(link)
+
+    def _homework_submit_selector(self, answers: dict[int, str]) -> str:
+        first_answer_selector = f"[name='answer_{next(iter(answers))}']"
+        return (
+            f"form:has({first_answer_selector}) #submit-button, "
+            f"form:has({first_answer_selector}) button[type='submit'], "
+            f"form:has({first_answer_selector}) input[type='submit']"
+        )
+
     def submit_homework(
         self,
         course_slug: str,
@@ -310,53 +360,20 @@ class AdminSession:
         page.wait_for_load_state("networkidle")
 
         for question_id, value in answers.items():
-            field = f"answer_{question_id}"
-            # Radio (MC) / checkbox (CB): value is the 1-based option index.
-            radios = page.locator(
-                f"input[name='{field}'][type='radio'][value='{value}']"
-            )
-            checkboxes = page.locator(
-                f"input[name='{field}'][type='checkbox']"
-            )
-            if radios.count() > 0:
-                radios.first.check()
-            elif checkboxes.count() > 0:
-                for idx in str(value).split(","):
-                    idx = idx.strip()
-                    cb = page.locator(
-                        f"input[name='{field}'][type='checkbox'][value='{idx}']"
-                    )
-                    if cb.count() > 0:
-                        cb.first.check()
-            else:
-                # Free-form text / textarea.
-                page.fill(f"[name='{field}']", str(value))
+            self._fill_homework_answer(question_id, value)
 
-        if homework_url is not None and page.locator(
-            "[name='homework_url']"
-        ).count():
-            page.fill("[name='homework_url']", homework_url)
-        if time_spent_lectures is not None and page.locator(
-            "[name='time_spent_lectures']"
-        ).count():
-            page.fill("[name='time_spent_lectures']", str(time_spent_lectures))
-        if time_spent_homework is not None and page.locator(
-            "[name='time_spent_homework']"
-        ).count():
-            page.fill("[name='time_spent_homework']", str(time_spent_homework))
-        if learning_in_public_links:
-            inputs = page.locator("[name='learning_in_public_links[]']")
-            for i, link in enumerate(learning_in_public_links):
-                if i < inputs.count():
-                    inputs.nth(i).fill(link)
-
-        first_answer_selector = f"[name='answer_{next(iter(answers))}']"
-        submit_selector = (
-            f"form:has({first_answer_selector}) #submit-button, "
-            f"form:has({first_answer_selector}) button[type='submit'], "
-            f"form:has({first_answer_selector}) input[type='submit']"
+        self._fill_optional_homework_field("[name='homework_url']", homework_url)
+        self._fill_optional_homework_field(
+            "[name='time_spent_lectures']",
+            time_spent_lectures,
         )
-        self.click_first_visible(submit_selector)
+        self._fill_optional_homework_field(
+            "[name='time_spent_homework']",
+            time_spent_homework,
+        )
+        self._fill_learning_in_public_links(learning_in_public_links)
+
+        self.click_first_visible(self._homework_submit_selector(answers))
         page.wait_for_load_state("networkidle")
 
     def homework_confirmation_text(self) -> str:
