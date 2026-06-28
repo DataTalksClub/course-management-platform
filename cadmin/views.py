@@ -1081,11 +1081,11 @@ def project_submissions(request, course_slug, project_slug):
     return render(request, "cadmin/project_submissions.html", context)
 
 
-@staff_required
-def project_submission_edit(
-    request, course_slug, project_slug, submission_id
+def _project_submission_edit_objects(
+    course_slug,
+    project_slug,
+    submission_id,
 ):
-    """Edit a project submission"""
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
@@ -1093,55 +1093,107 @@ def project_submission_edit(
     submission = get_object_or_404(
         ProjectSubmission, id=submission_id, project=project
     )
+    return course, project, submission
 
-    # Get all review criteria for this course
-    review_criteria = ReviewCriteria.objects.filter(
-        course=course
-    ).order_by("id")
 
-    # Get existing evaluation scores for this submission
-    evaluation_scores = {
+def _project_review_criteria(course):
+    return ReviewCriteria.objects.filter(course=course).order_by("id")
+
+
+def _project_evaluation_score_map(submission):
+    return {
         score.review_criteria_id: score
         for score in ProjectEvaluationScore.objects.filter(
             submission=submission
         )
     }
 
-    # Build a list of criteria with their current scores
-    criteria_with_scores = []
-    for criteria in review_criteria:
-        score_obj = evaluation_scores.get(criteria.id)
-        criteria_with_scores.append(
-            {
-                "criteria": criteria,
-                "score": score_obj.score if score_obj else 0,
-                "score_id": score_obj.id if score_obj else None,
-            }
-        )
 
-    if request.method == "POST":
-        form = ProjectSubmissionEditForm(
-            request.POST,
-            review_criteria=review_criteria,
-        )
-        if form.is_valid():
-            update_project_submission_from_admin(
-                submission,
-                form.cleaned_data,
-            )
-            messages.success(
-                request,
-                f"Project submission for {submission.student.username} updated successfully",
-            )
-            return redirect(
-                "cadmin_project_submissions",
-                course_slug=course_slug,
-                project_slug=project_slug,
-            )
+def _criteria_with_project_scores(review_criteria, submission):
+    evaluation_scores = _project_evaluation_score_map(submission)
+    return [
+        {
+            "criteria": criteria,
+            "score": (
+                evaluation_scores[criteria.id].score
+                if criteria.id in evaluation_scores
+                else 0
+            ),
+            "score_id": (
+                evaluation_scores[criteria.id].id
+                if criteria.id in evaluation_scores
+                else None
+            ),
+        }
+        for criteria in review_criteria
+    ]
+
+
+def _project_submission_edit_redirect(course_slug, project_slug):
+    return redirect(
+        "cadmin_project_submissions",
+        course_slug=course_slug,
+        project_slug=project_slug,
+    )
+
+
+def _handle_project_submission_edit_post(
+    request,
+    *,
+    submission,
+    review_criteria,
+    course_slug,
+    project_slug,
+):
+    form = ProjectSubmissionEditForm(
+        request.POST,
+        review_criteria=review_criteria,
+    )
+    if not form.is_valid():
         messages.error(
             request,
             f"Error updating submission: {first_form_error(form)}",
         )
+        return None
+
+    update_project_submission_from_admin(
+        submission,
+        form.cleaned_data,
+    )
+    messages.success(
+        request,
+        f"Project submission for {submission.student.username} updated successfully",
+    )
+    return _project_submission_edit_redirect(course_slug, project_slug)
+
+
+@staff_required
+def project_submission_edit(
+    request, course_slug, project_slug, submission_id
+):
+    """Edit a project submission"""
+    course, project, submission = _project_submission_edit_objects(
+        course_slug,
+        project_slug,
+        submission_id,
+    )
+
+    review_criteria = _project_review_criteria(course)
+    criteria_with_scores = _criteria_with_project_scores(
+        review_criteria,
+        submission,
+    )
+
+    if request.method == "POST":
+        response = _handle_project_submission_edit_post(
+            request,
+            submission=submission,
+            review_criteria=review_criteria,
+            course_slug=course_slug,
+            project_slug=project_slug,
+        )
+        if response is not None:
+            return response
 
     context = {
         "course": course,
