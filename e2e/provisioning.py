@@ -158,6 +158,109 @@ class Provisioner:
             self.api.update_project(course.slug, proj["id"], {"state": "CS"})
 
     # -- teardown --------------------------------------------------------
+    def _delete_project_prepass(
+        self,
+        slug: str,
+        deleted: list[str],
+        residual: list[str],
+    ) -> None:
+        for proj in self.api.list_projects(slug):
+            _close_and_delete(
+                lambda pid: self.api.update_project(slug, pid, {"state": "CL"}),
+                lambda pid: self.api.delete_project(slug, pid),
+                proj,
+                kind="project",
+                deleted=deleted,
+                residual=residual,
+            )
+
+    def _delete_homework_prepass(
+        self,
+        slug: str,
+        deleted: list[str],
+        residual: list[str],
+    ) -> None:
+        for hw in self.api.list_homeworks(slug):
+            _close_and_delete(
+                lambda hid: self.api.update_homework(slug, hid, {"state": "CL"}),
+                lambda hid: self.api.delete_homework(slug, hid),
+                hw,
+                kind="homework",
+                deleted=deleted,
+                residual=residual,
+            )
+
+    def _delete_child_objects(
+        self,
+        slug: str,
+        deleted: list[str],
+        residual: list[str],
+    ) -> None:
+        self._delete_project_prepass(slug, deleted, residual)
+        self._delete_homework_prepass(slug, deleted, residual)
+
+    def _admin_delete_course(
+        self,
+        slug: str,
+        detail: dict,
+        admin_session,
+    ) -> bool:
+        title = detail.get("title") if isinstance(detail, dict) else None
+        course_pk = detail.get("id") if isinstance(detail, dict) else None
+
+        try:
+            purged = admin_session.delete_course_via_admin(
+                slug, course_pk=course_pk, title=title
+            )
+        except Exception:
+            purged = False
+
+        return bool(purged and self.api.get_course(slug) is None)
+
+    def _record_admin_delete_result(
+        self,
+        slug: str,
+        admin_session,
+        detail: dict,
+        deleted: list[str],
+        residual: list[str],
+    ) -> bool:
+        if admin_session is None:
+            residual.append(
+                f"course:{slug} (no admin session; parked hidden)"
+            )
+            return False
+
+        if self._admin_delete_course(slug, detail, admin_session):
+            deleted.append(f"course:{slug} (admin-deleted, cascaded)")
+            return True
+
+        residual.append(
+            f"course:{slug} (admin delete failed; parked hidden)"
+        )
+        return False
+
+    def _park_course_hidden(self, slug: str) -> None:
+        try:
+            self.api.update_course(
+                slug,
+                {
+                    "title": f"[DELETED] {slug}",
+                    "visible": False,
+                    "finished": True,
+                },
+            )
+        except ApiError:
+            pass
+
+    def _teardown_report(
+        self,
+        slug: str,
+        deleted: list[str],
+        residual: list[str],
+    ) -> dict:
+        return {"deleted": deleted, "residual": residual, "course": slug}
+
     def teardown_course(self, slug: str, admin_session=None) -> dict:
         """Best-effort teardown of a single namespaced course.
 
@@ -175,67 +278,23 @@ class Provisioner:
 
         detail = self.api.get_course(slug)
         if detail is None:
-            return {"deleted": deleted, "residual": residual, "course": slug}
-
-        title = detail.get("title") if isinstance(detail, dict) else None
-        course_pk = detail.get("id") if isinstance(detail, dict) else None
+            return self._teardown_report(slug, deleted, residual)
 
         # Best-effort API pre-pass on individually-deletable objects. This is
         # informative for the report; the admin delete below supersedes it by
         # cascading everything away regardless.
-        for proj in self.api.list_projects(slug):
-            _close_and_delete(
-                lambda pid: self.api.update_project(slug, pid, {"state": "CL"}),
-                lambda pid: self.api.delete_project(slug, pid),
-                proj,
-                kind="project",
-                deleted=deleted,
-                residual=residual,
-            )
-
-        for hw in self.api.list_homeworks(slug):
-            _close_and_delete(
-                lambda hid: self.api.update_homework(slug, hid, {"state": "CL"}),
-                lambda hid: self.api.delete_homework(slug, hid),
-                hw,
-                kind="homework",
-                deleted=deleted,
-                residual=residual,
-            )
+        self._delete_child_objects(slug, deleted, residual)
 
         # Primary path: delete the course (and its cascade) via the admin UI.
-        if admin_session is not None:
-            try:
-                purged = admin_session.delete_course_via_admin(
-                    slug, course_pk=course_pk, title=title
-                )
-            except Exception:
-                purged = False
-            if purged and self.api.get_course(slug) is None:
-                deleted.append(f"course:{slug} (admin-deleted, cascaded)")
-                return {"deleted": deleted, "residual": residual, "course": slug}
-            residual.append(
-                f"course:{slug} (admin delete failed; parked hidden)"
-            )
-        else:
-            residual.append(
-                f"course:{slug} (no admin session; parked hidden)"
-            )
+        if self._record_admin_delete_result(
+            slug, admin_session, detail, deleted, residual
+        ):
+            return self._teardown_report(slug, deleted, residual)
 
         # Fallback: park the course hidden so dev stays clean.
-        try:
-            self.api.update_course(
-                slug,
-                {
-                    "title": f"[DELETED] {slug}",
-                    "visible": False,
-                    "finished": True,
-                },
-            )
-        except ApiError:
-            pass
+        self._park_course_hidden(slug)
 
-        return {"deleted": deleted, "residual": residual, "course": slug}
+        return self._teardown_report(slug, deleted, residual)
 
     def sweep_stale(self, admin_session=None) -> list[dict]:
         """Pre-run sweep: tear down any leftover ``e2e-smoke-*`` courses.
