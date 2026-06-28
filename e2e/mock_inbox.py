@@ -128,6 +128,97 @@ class InboxBackend:
         """
         return self.get_message(message.id)
 
+    def _summary_matches(
+        self,
+        message: InboxMessage,
+        *,
+        template_key: str | None,
+        subject: str | None,
+    ) -> bool:
+        if template_key and message.template_key != template_key:
+            return False
+        if subject and subject not in message.subject:
+            return False
+        return True
+
+    def _message_with_detail(
+        self,
+        address: str,
+        message: InboxMessage,
+        load_detail: bool,
+    ) -> InboxMessage:
+        if load_detail and not message.detail_loaded:
+            return self._fetch_detail(address, message)
+        return message
+
+    def _message_matches_body(
+        self,
+        address: str,
+        message: InboxMessage,
+        *,
+        body_contains: str | None,
+        load_detail: bool,
+    ) -> InboxMessage | None:
+        if not body_contains:
+            return message
+
+        candidate = self._message_with_detail(address, message, load_detail)
+        if candidate.body_contains(body_contains):
+            return candidate if load_detail else message
+        return None
+
+    def _matched_message(
+        self,
+        address: str,
+        messages: list[InboxMessage],
+        *,
+        template_key: str | None,
+        subject: str | None,
+        body_contains: str | None,
+        load_detail: bool,
+    ) -> InboxMessage | None:
+        for message in messages:
+            if not self._summary_matches(
+                message,
+                template_key=template_key,
+                subject=subject,
+            ):
+                continue
+
+            matched = self._message_matches_body(
+                address,
+                message,
+                body_contains=body_contains,
+                load_detail=load_detail,
+            )
+            if matched is None:
+                continue
+
+            if load_detail and not body_contains and message.id is not None:
+                return self._fetch_detail(address, message)
+            return matched
+
+        return None
+
+    def _timeout_error(
+        self,
+        address: str,
+        *,
+        template_key: str | None,
+        subject: str | None,
+        body_contains: str | None,
+        timeout: float,
+        last_seen: list[InboxMessage],
+        last_error: Exception | None,
+    ) -> MockInboxTimeout:
+        seen = [(m.template_key, m.subject) for m in last_seen]
+        hint = f" Last error: {last_error!r}." if last_error else ""
+        return MockInboxTimeout(
+            f"[{self.name}] No email to {address} matching "
+            f"template_key={template_key!r} / subject={subject!r} / "
+            f"body~={body_contains!r} within {timeout}s. Seen: {seen}.{hint}"
+        )
+
     def wait_for_message(
         self,
         address: str,
@@ -139,13 +230,7 @@ class InboxBackend:
         poll_interval: float = 3.0,
         load_detail: bool = True,
     ) -> InboxMessage:
-        """Poll until a matching message arrives or ``timeout`` elapses.
-
-        Matching is by ``template_key`` (exact), ``subject`` (substring) and/or
-        ``body_contains`` (substring across bodies + context). When
-        ``load_detail`` is set, the matched message's full detail (bodies +
-        context) is fetched before returning so callers can assert on links.
-        """
+        """Poll until a matching message arrives or ``timeout`` elapses."""
         deadline = time.monotonic() + timeout
         last_seen: list[InboxMessage] = []
         last_error: Exception | None = None
@@ -160,32 +245,27 @@ class InboxBackend:
                 time.sleep(poll_interval)
                 continue
 
-            for message in last_seen:
-                if template_key and message.template_key != template_key:
-                    continue
-                if subject and subject not in message.subject:
-                    continue
-                if body_contains:
-                    candidate = message
-                    if load_detail and not message.detail_loaded:
-                        candidate = self._fetch_detail(address, message)
-                    if not candidate.body_contains(body_contains):
-                        continue
-                    if load_detail:
-                        return candidate
-                    return message
-                if load_detail and message.id is not None:
-                    return self._fetch_detail(address, message)
-                return message
+            matched = self._matched_message(
+                address,
+                last_seen,
+                template_key=template_key,
+                subject=subject,
+                body_contains=body_contains,
+                load_detail=load_detail,
+            )
+            if matched is not None:
+                return matched
 
             time.sleep(poll_interval)
 
-        seen = [(m.template_key, m.subject) for m in last_seen]
-        hint = f" Last error: {last_error!r}." if last_error else ""
-        raise MockInboxTimeout(
-            f"[{self.name}] No email to {address} matching "
-            f"template_key={template_key!r} / subject={subject!r} / "
-            f"body~={body_contains!r} within {timeout}s. Seen: {seen}.{hint}"
+        raise self._timeout_error(
+            address,
+            template_key=template_key,
+            subject=subject,
+            body_contains=body_contains,
+            timeout=timeout,
+            last_seen=last_seen,
+            last_error=last_error,
         )
 
 

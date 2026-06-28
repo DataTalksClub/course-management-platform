@@ -123,54 +123,63 @@ def _first_env(*names: str) -> str | None:
     return None
 
 
-def load_settings() -> Settings:
-    _ensure_env_loaded()
-
+def _base_url() -> str:
     # Default to dev; PUBLIC_BASE_URL in the repo .env already points at dev.
     base_url = _first_env(
         "E2E_BASE_URL", "PUBLIC_BASE_URL"
     ) or "https://dev.courses.datatalks.club"
-    base_url = base_url.rstrip("/")
+    return base_url.rstrip("/")
+
+
+def _mock_inbox_settings() -> dict:
+    # Base URL is the Datamailer service root; the client appends
+    # /api/mock-inbox/... Fall back to the datamailer settings in repo .env.
+    return {
+        "mock_inbox_url": _first_env("E2E_MOCK_INBOX_URL", "DATAMAILER_URL"),
+        "mock_inbox_api_key": _first_env(
+            "E2E_MOCK_INBOX_API_KEY", "DATAMAILER_API_KEY"
+        ),
+        "mock_inbox_domain": (
+            _first_env("E2E_MOCK_INBOX_DOMAIN", "MOCK_INBOX_DOMAIN")
+            or "mailbox.test"
+        ),
+        "mock_inbox_tag": (
+            _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
+        ),
+    }
+
+
+def _real_inbox_settings() -> dict:
+    # Real SES-inbound backend: Datamailer sends via SES and reads the
+    # inbound S3 object back over HTTP. URL/key fall back to DATAMAILER_*.
+    return {
+        "real_inbox_url": _first_env("E2E_REAL_INBOX_URL", "DATAMAILER_URL"),
+        "real_inbox_api_key": _first_env(
+            "E2E_REAL_INBOX_API_KEY", "DATAMAILER_API_KEY"
+        ),
+        "real_inbox_domain": (
+            _first_env("E2E_REAL_INBOX_DOMAIN", "REAL_INBOX_DOMAIN")
+            or "mailer.dtcdev.click"
+        ),
+        "real_inbox_tag": (
+            _first_env("E2E_REAL_INBOX_TAG", "REAL_INBOX_PLUS_TAG") or "e2e"
+        ),
+    }
+
+
+def load_settings() -> Settings:
+    _ensure_env_loaded()
 
     return Settings(
-        base_url=base_url,
+        base_url=_base_url(),
         # Prefer an explicit e2e token; fall back to the dev token in .env.
         api_token=_first_env("E2E_API_TOKEN", "DEV_AUTH_TOKEN"),
         admin_email=_first_env("E2E_ADMIN_EMAIL"),
         admin_password=_first_env("E2E_ADMIN_PASSWORD"),
         student_email=_first_env("E2E_STUDENT_EMAIL"),
         student_password=_first_env("E2E_STUDENT_PASSWORD"),
-        # Mock inbox: base URL is the Datamailer service root (the client
-        # appends /api/mock-inbox/...). Fall back to the datamailer settings
-        # already present in the repo .env.
-        mock_inbox_url=_first_env("E2E_MOCK_INBOX_URL", "DATAMAILER_URL"),
-        mock_inbox_api_key=_first_env(
-            "E2E_MOCK_INBOX_API_KEY", "DATAMAILER_API_KEY"
-        ),
-        mock_inbox_domain=(
-            _first_env("E2E_MOCK_INBOX_DOMAIN", "MOCK_INBOX_DOMAIN")
-            or "mailbox.test"
-        ),
-        mock_inbox_tag=(
-            _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
-        ),
-        # Real SES-inbound backend: Datamailer really sends via SES and the
-        # message is read back from the inbound S3 bucket. URL/key are the
-        # Datamailer service root + client Bearer key, so they fall back to the
-        # DATAMAILER_* values already in the repo .env.
-        real_inbox_url=_first_env("E2E_REAL_INBOX_URL", "DATAMAILER_URL"),
-        real_inbox_api_key=_first_env(
-            "E2E_REAL_INBOX_API_KEY", "DATAMAILER_API_KEY"
-        ),
-        # Real-inbox address shape (must match the datamailer REAL_INBOX_*
-        # settings: domain MOCK==mailbox.test but REAL==mailer.dtcdev.click).
-        real_inbox_domain=(
-            _first_env("E2E_REAL_INBOX_DOMAIN", "REAL_INBOX_DOMAIN")
-            or "mailer.dtcdev.click"
-        ),
-        real_inbox_tag=(
-            _first_env("E2E_REAL_INBOX_TAG", "REAL_INBOX_PLUS_TAG") or "e2e"
-        ),
+        **_mock_inbox_settings(),
+        **_real_inbox_settings(),
         request_timeout=float(_first_env("E2E_REQUEST_TIMEOUT") or "30"),
         ui_timeout_ms=int(_first_env("E2E_UI_TIMEOUT_MS") or "20000"),
         expected_version=_first_env("E2E_EXPECTED_VERSION"),
