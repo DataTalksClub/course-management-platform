@@ -1,6 +1,66 @@
 import sys
 import json
 
+
+REGISTER_TASK_DEFINITION_EXCLUDED_FIELDS = (
+    "status",
+    "revision",
+    "taskDefinitionArn",
+    "requiresAttributes",
+    "compatibilities",
+    "registeredAt",
+    "registeredBy",
+)
+
+
+def load_task_definition(input_file):
+    with open(input_file, "r") as file:
+        return json.load(file)["taskDefinition"]
+
+
+def update_container_definitions(task_def, new_tag):
+    for container_def in task_def["containerDefinitions"]:
+        update_container_image(container_def, new_tag)
+        update_container_version(container_def, new_tag)
+
+
+def update_container_image(container_def, new_tag):
+    if "image" not in container_def:
+        return
+
+    image = container_def["image"]
+    base_image, _ = image.split(":")
+    container_def["image"] = f"{base_image}:{new_tag}"
+
+
+def update_container_version(container_def, new_tag):
+    environment = container_def.get("environment", [])
+    version_var = next(
+        (
+            env_var
+            for env_var in environment
+            if env_var["name"] == "VERSION"
+        ),
+        None,
+    )
+
+    if version_var is not None:
+        version_var["value"] = new_tag
+        return
+
+    environment.append({"name": "VERSION", "value": new_tag})
+
+
+def remove_register_task_definition_fields(task_def):
+    for field in REGISTER_TASK_DEFINITION_EXCLUDED_FIELDS:
+        task_def.pop(field, None)
+
+
+def write_task_definition(output_file, task_def):
+    with open(output_file, "w") as file:
+        json.dump(task_def, file, indent=4)
+
+
 def update_task_definition(input_file, new_tag, output_file):
     """
     Update the image tag in the task definition and save to a new file.
@@ -9,45 +69,20 @@ def update_task_definition(input_file, new_tag, output_file):
     :param new_tag: New tag to update the image with.
     :param output_file: Path to the file where the updated task definition will be saved.
     """
-    
-    print(f"Updating task definition from {input_file} with new tag {new_tag} and saving to {output_file}")
-    
+
+    print(
+        f"Updating task definition from {input_file} with new tag {new_tag} "
+        f"and saving to {output_file}"
+    )
+
     try:
-        with open(input_file, 'r') as file:
-            task_def = json.load(file)["taskDefinition"]
-
-        # Extract and update the container definition
-        for container_def in task_def["containerDefinitions"]:
-            if "image" in container_def:
-                image = container_def["image"]
-                base_image, _ = image.split(":")
-                new_image = f"{base_image}:{new_tag}"
-                container_def["image"] = new_image
-            
-            environment = container_def.get("environment", [])
-            executed = False
-            for env_var in environment:
-                if env_var["name"] == "VERSION":
-                    executed = True
-                    env_var["value"] = new_tag
-            if not executed:
-                version = {"name": "VERSION", "value": new_tag}
-                environment.append(version)
-
-        # Remove fields not allowed in register-task-definition
-        task_def.pop("status", None)
-        task_def.pop("revision", None)
-        task_def.pop("taskDefinitionArn", None)
-        task_def.pop("requiresAttributes", None)
-        task_def.pop("compatibilities", None)
-        task_def.pop("registeredAt", None)
-        task_def.pop("registeredBy", None)
-
-        with open(output_file, 'w') as file:
-            json.dump(task_def, file, indent=4)
+        task_def = load_task_definition(input_file)
+        update_container_definitions(task_def, new_tag)
+        remove_register_task_definition_fields(task_def)
+        write_task_definition(output_file, task_def)
 
         print(f"Updated task definition saved to {output_file}")
-        
+
     except FileNotFoundError:
         print(f"File not found: {input_file}")
         sys.exit(1)
@@ -58,9 +93,13 @@ def update_task_definition(input_file, new_tag, output_file):
         print("Invalid task definition structure.")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: python update_task_def.py <input_file> <new_tag> <output_file>")
+        print(
+            "Usage: python update_task_def.py "
+            "<input_file> <new_tag> <output_file>"
+        )
         sys.exit(1)
 
     argv = sys.argv
