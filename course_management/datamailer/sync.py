@@ -3,7 +3,9 @@ from typing import Any
 
 import requests
 
-from course_management.datamailer_outbox import enqueue_datamailer_outbox_event
+from course_management.datamailer_outbox import (
+    enqueue_datamailer_outbox_event,
+)
 from data.models import (
     DatamailerOutboxStatus,
     DatamailerSendAudit,
@@ -47,6 +49,7 @@ def send_registration_confirmation_email(
         return None
     return send_transactional_email(payload)
 
+
 def sync_contact(user, course=None) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -70,7 +73,10 @@ def sync_contact(user, course=None) -> None:
         if config.strict:
             raise
 
-def erase_contact_from_datamailer(user=None, *, user_id=None, email=None) -> None:
+
+def erase_contact_from_datamailer(
+    user=None, *, user_id=None, email=None
+) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
         return
@@ -84,7 +90,9 @@ def erase_contact_from_datamailer(user=None, *, user_id=None, email=None) -> Non
     if not email:
         return
 
-    ordering_key = f"user:{user_id}" if user_id is not None else f"email:{email}"
+    ordering_key = (
+        f"user:{user_id}" if user_id is not None else f"email:{email}"
+    )
     enqueue_datamailer_outbox_event(
         event_type="contact.erase",
         idempotency_key=f"contact.erase:{ordering_key}:{email}",
@@ -96,6 +104,7 @@ def erase_contact_from_datamailer(user=None, *, user_id=None, email=None) -> Non
             "user_id": user_id,
         },
     )
+
 
 def _sync_contact_and_membership(
     config, contact_payload, list_payload, *, label, id_field, obj
@@ -126,6 +135,7 @@ def _sync_contact_and_membership(
         },
     )
 
+
 def sync_registration_to_datamailer(registration) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -139,6 +149,7 @@ def sync_registration_to_datamailer(registration) -> None:
         id_field="registration_id",
         obj=registration,
     )
+
 
 def sync_enrollment_to_datamailer(enrollment) -> None:
     config = DatamailerConfig.from_settings()
@@ -156,6 +167,7 @@ def sync_enrollment_to_datamailer(enrollment) -> None:
         obj=enrollment,
     )
 
+
 def sync_homework_submission_to_datamailer(submission) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -171,6 +183,7 @@ def sync_homework_submission_to_datamailer(submission) -> None:
         id_field="submission_id",
         obj=submission,
     )
+
 
 def sync_project_submission_to_datamailer(submission) -> None:
     config = DatamailerConfig.from_settings()
@@ -188,12 +201,15 @@ def sync_project_submission_to_datamailer(submission) -> None:
         obj=submission,
     )
 
+
 def sync_project_passed_outcome_to_datamailer(submission) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
         return
 
-    outcome_payload = project_passed_recipient_list_member_payload(submission)
+    outcome_payload = project_passed_recipient_list_member_payload(
+        submission
+    )
     if submission.passed:
         _sync_contact_and_membership(
             config,
@@ -215,6 +231,7 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
         obj=submission,
     )
 
+
 def enqueue_recipient_list_bulk_upsert(
     *,
     config: DatamailerConfig,
@@ -235,6 +252,7 @@ def enqueue_recipient_list_bulk_upsert(
         },
     )
 
+
 def bulk_upsert_recipient_list_members_before_send(
     *,
     config: DatamailerConfig,
@@ -251,6 +269,7 @@ def bulk_upsert_recipient_list_members_before_send(
         ordering_key=ordering_key,
     )
     return event.status == DatamailerOutboxStatus.ACKED
+
 
 def _remove_recipient_list_memberships(
     config,
@@ -282,6 +301,7 @@ def _remove_recipient_list_memberships(
             },
         )
 
+
 def remove_registration_from_datamailer(registration) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -294,6 +314,7 @@ def remove_registration_from_datamailer(registration) -> None:
         id_field="registration_id",
         obj=registration,
     )
+
 
 def remove_enrollment_from_datamailer(enrollment) -> None:
     config = DatamailerConfig.from_settings()
@@ -311,6 +332,7 @@ def remove_enrollment_from_datamailer(enrollment) -> None:
         obj=enrollment,
     )
 
+
 def remove_homework_submission_from_datamailer(submission) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -324,12 +346,15 @@ def remove_homework_submission_from_datamailer(submission) -> None:
         obj=submission,
     )
 
+
 def remove_project_submission_from_datamailer(submission) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
         return
 
-    list_payloads = [project_submission_recipient_list_payload(submission)]
+    list_payloads = [
+        project_submission_recipient_list_payload(submission)
+    ]
     if submission.passed:
         list_payloads.append(
             project_passed_recipient_list_member_payload(submission)
@@ -341,6 +366,7 @@ def remove_project_submission_from_datamailer(submission) -> None:
         id_field="submission_id",
         obj=submission,
     )
+
 
 def record_datamailer_send_audit(
     *,
@@ -388,12 +414,15 @@ def record_datamailer_send_audit(
             "created_count": counts["created_count"],
             "enqueued_count": counts["enqueued_count"],
             "skipped_count": counts["skipped_count"],
-            "idempotent_replay_count": counts["idempotent_replay_count"],
+            "idempotent_replay_count": counts[
+                "idempotent_replay_count"
+            ],
             "error": error,
             "response_payload": response,
         },
     )
     return audit
+
 
 def send_homework_score_notification(homework) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
@@ -446,6 +475,7 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
             raise
         return None
 
+
 def send_project_score_notification(project) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -457,50 +487,22 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
 
     try:
         list_key, payload = list_payload
-        passed_list_payload = project_passed_recipient_list_payload(project)
-        if not bulk_upsert_recipient_list_members_before_send(
+        if not _sync_members_before_recipient_list_send_or_audit(
             config=config,
             list_key=list_key,
             payload=payload,
             idempotency_key=f"{payload['idempotency_key']}:members",
             ordering_key=list_key,
+            error="Datamailer metadata sync was not acknowledged",
         ):
-            record_datamailer_send_audit(
-                send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-                payload=payload,
-                list_key=list_key,
-                error="Datamailer metadata sync was not acknowledged",
-            )
             return None
-        if passed_list_payload is not None:
-            passed_list_key, passed_payload = passed_list_payload
-            if not bulk_upsert_recipient_list_members_before_send(
-                config=config,
-                list_key=passed_list_key,
-                payload=passed_payload,
-                idempotency_key=(
-                    f"{payload['idempotency_key']}:passed-outcome"
-                ),
-                ordering_key=passed_list_key,
-            ):
-                record_datamailer_send_audit(
-                    send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-                    payload=payload,
-                    list_key=list_key,
-                    error="Datamailer passed-outcome sync was not acknowledged",
-                )
-                return None
-        client = DatamailerClient(config)
-        response = client.send_recipient_list_transactional(
-            list_key, recipient_list_send_payload(payload)
+        if not _sync_project_passed_outcome_before_score_send(
+            config, project, list_key, payload
+        ):
+            return None
+        return _send_recipient_list_transactional_and_audit(
+            config, list_key, payload
         )
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-            payload=payload,
-            list_key=list_key,
-            response=response,
-        )
-        return response
     except requests.RequestException as exc:
         logger.exception(
             "Datamailer project score notification failed for project_id=%s",
@@ -515,6 +517,73 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
         if config.strict:
             raise
         return None
+
+
+def _sync_members_before_recipient_list_send_or_audit(
+    *,
+    config,
+    list_key,
+    payload,
+    idempotency_key,
+    ordering_key,
+    error,
+    audit_payload=None,
+    audit_list_key=None,
+):
+    synced = bulk_upsert_recipient_list_members_before_send(
+        config=config,
+        list_key=list_key,
+        payload=payload,
+        idempotency_key=idempotency_key,
+        ordering_key=ordering_key,
+    )
+    if synced:
+        return True
+
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+        payload=audit_payload or payload,
+        list_key=audit_list_key or list_key,
+        error=error,
+    )
+    return False
+
+
+def _sync_project_passed_outcome_before_score_send(
+    config, project, list_key, payload
+):
+    passed_list_payload = project_passed_recipient_list_payload(project)
+    if passed_list_payload is None:
+        return True
+
+    passed_list_key, passed_payload = passed_list_payload
+    return _sync_members_before_recipient_list_send_or_audit(
+        config=config,
+        list_key=passed_list_key,
+        payload=passed_payload,
+        idempotency_key=f"{payload['idempotency_key']}:passed-outcome",
+        ordering_key=passed_list_key,
+        error="Datamailer passed-outcome sync was not acknowledged",
+        audit_payload=payload,
+        audit_list_key=list_key,
+    )
+
+
+def _send_recipient_list_transactional_and_audit(
+    config, list_key, payload
+):
+    client = DatamailerClient(config)
+    response = client.send_recipient_list_transactional(
+        list_key, recipient_list_send_payload(payload)
+    )
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+        payload=payload,
+        list_key=list_key,
+        response=response,
+    )
+    return response
+
 
 def send_peer_review_assignment_notification(
     project,
@@ -571,6 +640,7 @@ def send_peer_review_assignment_notification(
             raise
         return None
 
+
 def send_certificate_availability_notification(
     enrollment,
 ) -> dict[str, Any] | None:
@@ -578,7 +648,9 @@ def send_certificate_availability_notification(
     if config is None:
         return None
 
-    graduate_list_payload = course_graduate_recipient_list_payload(enrollment)
+    graduate_list_payload = course_graduate_recipient_list_payload(
+        enrollment
+    )
     payload = certificate_availability_notification_payload(enrollment)
     if graduate_list_payload is None and payload is None:
         return None
@@ -630,6 +702,7 @@ def send_certificate_availability_notification(
             raise
         return None
 
+
 def send_transactional_email(
     payload: dict[str, Any],
 ) -> dict[str, Any] | None:
@@ -664,6 +737,7 @@ def send_transactional_email(
             raise
         return None
 
+
 def get_contact_status(email: str) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -678,6 +752,7 @@ def get_contact_status(email: str) -> dict[str, Any] | None:
         if config.strict:
             raise
         return None
+
 
 def get_contact_history(
     contact_id: int,
@@ -698,6 +773,7 @@ def get_contact_history(
             raise
         return None
 
+
 def get_email_status(
     email: str, *, limit: int = 25
 ) -> dict[str, Any] | None:
@@ -714,6 +790,7 @@ def get_email_status(
         "status": status,
         "history": history,
     }
+
 
 def get_transactional_message_status(
     message_id: int,
