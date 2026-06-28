@@ -440,14 +440,10 @@ def update_project_with_additional_info(project: Project) -> None:
         ) = override
 
 
-def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
-    course = get_object_or_404(Course, slug=course_slug)
-    add_course_homepage_info(course, timezone.now())
-
-    user = request.user
-    homeworks = get_homeworks_for_course(course, user)
-    projects = get_projects_for_course(course, user)
-    registration_campaign = (
+def active_registration_campaign_for_course(
+    course: Course,
+) -> RegistrationCampaign | None:
+    return (
         RegistrationCampaign.objects.filter(
             current_course=course,
             is_active=True,
@@ -456,57 +452,136 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         .first()
     )
 
-    if (
-        registration_campaign
+
+def should_redirect_to_registration_campaign(
+    *,
+    registration_campaign: RegistrationCampaign | None,
+    homeworks,
+    projects,
+    user,
+) -> bool:
+    return (
+        registration_campaign is not None
         and not homeworks
         and not projects
         and not user.is_staff
+    )
+
+
+def has_completed_projects(projects) -> bool:
+    return any(
+        project.state == ProjectState.COMPLETED.value
+        for project in projects
+    )
+
+
+def _authenticated_course_progress(
+    user,
+    course: Course,
+    registration_campaign: RegistrationCampaign | None,
+) -> dict:
+    context = {
+        "has_enrollment": False,
+        "total_score": None,
+        "certificate_url": None,
+        "has_registration": False,
+    }
+
+    try:
+        enrollment = Enrollment.objects.get(
+            student=user,
+            course=course,
+        )
+        context["has_enrollment"] = True
+        context["total_score"] = enrollment.total_score
+        context["certificate_url"] = enrollment.certificate_url
+    except Enrollment.DoesNotExist:
+        pass
+
+    if registration_campaign:
+        context["has_registration"] = CourseRegistration.objects.filter(
+            campaign=registration_campaign,
+            email_normalized=(user.email or "").strip().lower(),
+        ).exists()
+
+    return context
+
+
+def course_user_context(
+    user,
+    course: Course,
+    registration_campaign: RegistrationCampaign | None,
+) -> dict:
+    if not user.is_authenticated:
+        return {
+            "has_enrollment": False,
+            "total_score": None,
+            "certificate_url": None,
+            "has_registration": False,
+        }
+
+    return _authenticated_course_progress(
+        user,
+        course,
+        registration_campaign,
+    )
+
+
+def course_page_context(
+    *,
+    course: Course,
+    user,
+    homeworks,
+    projects,
+    registration_campaign: RegistrationCampaign | None,
+) -> dict:
+    context = {
+        "course": course,
+        "homeworks": homeworks,
+        "projects": projects,
+        "has_completed_projects": has_completed_projects(projects),
+        "is_authenticated": user.is_authenticated,
+        "registration_campaign": registration_campaign,
+    }
+    context.update(
+        course_user_context(user, course, registration_campaign)
+    )
+    return context
+
+
+def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
+    course = get_object_or_404(Course, slug=course_slug)
+    add_course_homepage_info(course, timezone.now())
+
+    user = request.user
+    homeworks = get_homeworks_for_course(course, user)
+    projects = get_projects_for_course(course, user)
+    registration_campaign = active_registration_campaign_for_course(
+        course
+    )
+
+    if should_redirect_to_registration_campaign(
+        registration_campaign=registration_campaign,
+        homeworks=homeworks,
+        projects=projects,
+        user=user,
     ):
         return redirect(
             "registration_campaign",
             campaign_slug=registration_campaign.slug,
         )
 
-    has_completed_projects = False
-    for project in projects:
-        if project.state == ProjectState.COMPLETED.value:
-            has_completed_projects = True
-
-    total_score = None
-    certificate_url = None
-    has_enrollment = False
-    has_registration = False
-    if user.is_authenticated:
-        try:
-            enrollment = Enrollment.objects.get(
-                student=user,
-                course=course,
-            )
-            has_enrollment = True
-            total_score = enrollment.total_score
-            certificate_url = enrollment.certificate_url
-        except Enrollment.DoesNotExist:
-            pass
-        if registration_campaign:
-            has_registration = CourseRegistration.objects.filter(
-                campaign=registration_campaign,
-                email_normalized=(user.email or "").strip().lower(),
-            ).exists()
-
-    context = {
-        "course": course,
-        "homeworks": homeworks,
-        "projects": projects,
-        "has_completed_projects": has_completed_projects,
-        "is_authenticated": user.is_authenticated,
-        "has_enrollment": has_enrollment,
-        "total_score": total_score,
-        "certificate_url": certificate_url,
-        "registration_campaign": registration_campaign,
-        "has_registration": has_registration,
-    }
-
-    return render(request, "courses/course.html", context)
+    return render(
+        request,
+        "courses/course.html",
+        course_page_context(
+            course=course,
+            user=user,
+            homeworks=homeworks,
+            projects=projects,
+            registration_campaign=registration_campaign,
+        ),
+    )
 
 
 def escape_ics_text(value: str) -> str:
