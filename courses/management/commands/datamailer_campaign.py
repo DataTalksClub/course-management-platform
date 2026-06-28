@@ -73,6 +73,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("external_key", help="Stable external campaign key.")
+        self.add_content_arguments(parser)
+        self.add_targeting_arguments(parser)
+        self.add_action_arguments(parser)
+        self.add_output_arguments(parser)
+
+    def add_content_arguments(self, parser):
         parser.add_argument("--subject", default="", help="Campaign subject.")
         parser.add_argument(
             "--preview-text",
@@ -91,6 +97,8 @@ class Command(BaseCommand):
             default="",
             help="Path to a text body file.",
         )
+
+    def add_targeting_arguments(self, parser):
         parser.add_argument(
             "--include-tag",
             action="append",
@@ -124,6 +132,8 @@ class Command(BaseCommand):
             default="",
             help="Optional ISO timestamp for scheduled delivery.",
         )
+
+    def add_action_arguments(self, parser):
         parser.add_argument(
             "--queue",
             action="store_true",
@@ -148,6 +158,8 @@ class Command(BaseCommand):
                 "than once."
             ),
         )
+
+    def add_output_arguments(self, parser):
         parser.add_argument(
             "--json",
             action="store_true",
