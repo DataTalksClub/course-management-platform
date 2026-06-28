@@ -56,63 +56,96 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        config = self.get_datamailer_config()
+        batch_size = self.validate_batch_size(options["batch_size"])
+        contact_batches, total_contacts = self.get_contact_batches(
+            active_only=options["active_only"],
+            batch_size=batch_size,
+        )
+        if not contact_batches:
+            self.stdout.write("No Datamailer contacts to sync.")
+            return
+
+        self.write_batch_summary(contact_batches, total_contacts)
+
+        if options["dry_run"]:
+            self.write_dry_run(contact_batches)
+            return
+
+        self.sync_contact_batches(config, contact_batches)
+
+    def get_datamailer_config(self):
         config = DatamailerConfig.from_settings()
         if config is None:
             raise CommandError(
                 "Datamailer is not configured. Set DATAMAILER_URL, "
                 "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
             )
+        return config
 
-        batch_size = options["batch_size"]
+    def validate_batch_size(self, batch_size):
         if batch_size < 1:
             raise CommandError("--batch-size must be greater than zero.")
+        return batch_size
 
-        payloads = contact_payloads(active_only=options["active_only"])
+    def get_contact_batches(self, *, active_only, batch_size):
+        payloads = contact_payloads(active_only=active_only)
         if not payloads:
-            self.stdout.write("No Datamailer contacts to sync.")
-            return
+            return [], 0
+        return list(batches(payloads, batch_size)), len(payloads)
 
-        contact_batches = list(batches(payloads, batch_size))
+    def write_batch_summary(self, contact_batches, total_contacts):
         self.stdout.write(
             f"Prepared {len(contact_batches)} contact batch(es), "
-            f"{len(payloads)} contact(s)."
+            f"{total_contacts} contact(s)."
         )
 
-        if options["dry_run"]:
-            for index, batch in enumerate(contact_batches, start=1):
-                self.stdout.write(f"batch {index}: {len(batch)} contact(s)")
-            return
+    def write_dry_run(self, contact_batches):
+        for index, batch in enumerate(contact_batches, start=1):
+            self.stdout.write(f"batch {index}: {len(batch)} contact(s)")
 
+    def sync_contact_batches(self, config, contact_batches):
         client = DatamailerClient(config)
         for index, batch in enumerate(contact_batches, start=1):
-            payload = {
-                "audience": config.audience,
-                "client": config.client,
-                "idempotency_key": f"cmp-contact-bootstrap:{index}",
-                "contacts": batch,
-            }
-            try:
-                response = client.bulk_import_contacts(payload)
-            except requests.RequestException as exc:
-                if config.strict:
-                    raise
-                raise CommandError(
-                    f"Datamailer contact sync failed for batch {index}: {exc}"
-                ) from exc
+            response = self.sync_contact_batch(config, client, index, batch)
+            self.write_sync_result(index, batch, response)
 
-            counts = response.get("counts", {}) if response else {}
-            summary = ", ".join(
-                f"{key}={counts[key]}"
-                for key in (
-                    "created",
-                    "updated",
-                    "unchanged",
-                    "skipped",
-                    "invalid",
-                )
-                if key in counts
+    def sync_contact_batch(self, config, client, index, batch):
+        payload = self.contact_import_payload(config, index, batch)
+        try:
+            return client.bulk_import_contacts(payload)
+        except requests.RequestException as exc:
+            if config.strict:
+                raise
+            raise CommandError(
+                f"Datamailer contact sync failed for batch {index}: {exc}"
+            ) from exc
+
+    def contact_import_payload(self, config, index, batch):
+        return {
+            "audience": config.audience,
+            "client": config.client,
+            "idempotency_key": f"cmp-contact-bootstrap:{index}",
+            "contacts": batch,
+        }
+
+    def write_sync_result(self, index, batch, response):
+        summary = self.sync_count_summary(response)
+        suffix = f"; {summary}" if summary else ""
+        self.stdout.write(
+            f"Synced batch {index}: {len(batch)} contact(s){suffix}"
+        )
+
+    def sync_count_summary(self, response):
+        counts = response.get("counts", {}) if response else {}
+        return ", ".join(
+            f"{key}={counts[key]}"
+            for key in (
+                "created",
+                "updated",
+                "unchanged",
+                "skipped",
+                "invalid",
             )
-            suffix = f"; {summary}" if summary else ""
-            self.stdout.write(
-                f"Synced batch {index}: {len(batch)} contact(s){suffix}"
-            )
+            if key in counts
+        )
