@@ -138,9 +138,6 @@ class ProjectEvaluationTestCase(TestCase):
         ):
             pr = self.peer_reviews[i]
 
-            print(
-                f"processing peer review {pr.id}, answer={answer}, expected_score={expected_score}"
-            )
             response = CriteriaResponse.objects.create(
                 review=pr,
                 criteria=self.criteria,
@@ -166,8 +163,6 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(score.score, expected_project_score)
 
         self.submission.refresh_from_db()
-        print(self.submission.project_score)
-        print(self.submission.total_score)
         self.assertEqual(
             self.submission.project_score, expected_project_score
         )

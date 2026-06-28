@@ -340,7 +340,6 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(review.state, PeerReviewState.SUBMITTED.value)
 
         criteria_response_pairs = context["criteria_response_pairs"]
-        print(criteria_response_pairs)
 
         self.assertEqual(len(criteria_response_pairs), 3)
         c1, r1_actual = criteria_response_pairs[0]

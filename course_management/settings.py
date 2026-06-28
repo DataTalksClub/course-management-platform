@@ -37,7 +37,6 @@ extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"] + extra_allowed_hosts_parsed
 
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
-print(f"IS_LOCAL={IS_LOCAL}")
 
 CSRF_TRUSTED_ORIGINS = []
 
@@ -169,9 +168,6 @@ is_test = (
     or ("vscode_pytest" in sys.argv[0])
     or ("test_coverage" in sys.argv)
 )
-
-print(sys.argv)
-print(f"Is test: {is_test}")
 
 if is_test:
     STATICFILES_STORAGE = (

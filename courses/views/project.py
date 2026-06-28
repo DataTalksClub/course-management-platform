@@ -990,15 +990,7 @@ def _decorate_project_submissions(
                     submission.group_label = "Other submissions"
 
 
-def projects_list_view(request, course_slug, project_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
-    )
-
-    if request.method == "POST":
-        return _project_vote_response(request, course, project)
-
+def _project_submissions_queryset(project):
     submissions = (
         ProjectSubmission.objects.filter(
             project=project,
@@ -1009,61 +1001,64 @@ def projects_list_view(request, course_slug, project_slug):
     )
 
     if project.state == ProjectState.COMPLETED.value:
-        submissions = submissions.order_by("-project_score")
-    else:
-        submissions = submissions.order_by("-submitted_at")
+        return submissions.order_by("-project_score")
 
-    user = request.user
+    return submissions.order_by("-submitted_at")
+
+
+def _project_viewer_state(project, course, user):
     is_authenticated = user.is_authenticated
-
-    review_ids = {}
-    own_submissions = set()
-    has_submission = False
     voted_submission_ids = get_voted_submission_ids(user, course)
     project_vote_counts = get_project_vote_counts(user, course)
     project_vote_count = project_vote_counts.get(project.id, 0)
-    has_assigned_reviews = False
-    project_votes_left = max(
-        PROJECT_VOTES_PER_PROJECT - project_vote_count,
-        0,
+
+    state = {
+        "is_authenticated": is_authenticated,
+        "review_ids": {},
+        "own_submissions": set(),
+        "has_submission": False,
+        "voted_submission_ids": voted_submission_ids,
+        "project_vote_counts": project_vote_counts,
+        "project_votes_left": max(
+            PROJECT_VOTES_PER_PROJECT - project_vote_count,
+            0,
+        ),
+        "has_assigned_reviews": False,
+    }
+
+    if not is_authenticated:
+        return state
+
+    student_submissions = ProjectSubmission.objects.filter(
+        project=project, student=user
     )
-
-    if is_authenticated:
-        student_submissions = ProjectSubmission.objects.filter(
-            project=project, student=user
-        )
-
-        project_submissions = student_submissions.filter(
-            volunteer_review_only=False,
-        )
-        own_submissions = set(
-            project_submissions.values_list("id", flat=True)
-        )
-        has_submission = len(own_submissions) > 0
-
-        reviews = PeerReview.objects.filter(
-            reviewer__in=student_submissions,
-            submission_under_evaluation__project=project,
-        )
-
-        for review in reviews:
-            eval_id = review.submission_under_evaluation_id
-            review_ids[eval_id] = review
-            if not review.optional:
-                has_assigned_reviews = True
-
-    submissions_list = list(submissions)
-    _decorate_project_submissions(
-        submissions_list,
-        project=project,
-        is_authenticated=is_authenticated,
-        review_ids=review_ids,
-        own_submissions=own_submissions,
-        voted_submission_ids=voted_submission_ids,
-        project_vote_counts=project_vote_counts,
-        has_assigned_reviews=has_assigned_reviews,
+    project_submissions = student_submissions.filter(
+        volunteer_review_only=False,
     )
+    state["own_submissions"] = set(
+        project_submissions.values_list("id", flat=True)
+    )
+    state["has_submission"] = len(state["own_submissions"]) > 0
 
+    reviews = PeerReview.objects.filter(
+        reviewer__in=student_submissions,
+        submission_under_evaluation__project=project,
+    )
+    for review in reviews:
+        eval_id = review.submission_under_evaluation_id
+        state["review_ids"][eval_id] = review
+        if not review.optional:
+            state["has_assigned_reviews"] = True
+
+    return state
+
+
+def _sort_project_submissions_for_view(
+    submissions_list,
+    *,
+    project,
+    is_authenticated,
+):
     if (
         is_authenticated
         and project.state == ProjectState.PEER_REVIEWING.value
@@ -1075,10 +1070,8 @@ def projects_list_view(request, course_slug, project_slug):
             )
         )
 
-    submissions_page = paginate_project_submissions(
-        request, submissions_list
-    )
 
+def _apply_project_group_headings(submissions_page):
     previous_group_label = None
     for submission in submissions_page.object_list:
         submission.group_heading = None
@@ -1089,6 +1082,40 @@ def projects_list_view(request, course_slug, project_slug):
             submission.group_heading = submission.group_label
         previous_group_label = submission.group_label
 
+
+def projects_list_view(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    if request.method == "POST":
+        return _project_vote_response(request, course, project)
+
+    user = request.user
+    viewer_state = _project_viewer_state(project, course, user)
+    submissions_list = list(_project_submissions_queryset(project))
+    _decorate_project_submissions(
+        submissions_list,
+        project=project,
+        is_authenticated=viewer_state["is_authenticated"],
+        review_ids=viewer_state["review_ids"],
+        own_submissions=viewer_state["own_submissions"],
+        voted_submission_ids=viewer_state["voted_submission_ids"],
+        project_vote_counts=viewer_state["project_vote_counts"],
+        has_assigned_reviews=viewer_state["has_assigned_reviews"],
+    )
+    _sort_project_submissions_for_view(
+        submissions_list,
+        project=project,
+        is_authenticated=viewer_state["is_authenticated"],
+    )
+
+    submissions_page = paginate_project_submissions(
+        request, submissions_list
+    )
+    _apply_project_group_headings(submissions_page)
+
     context = {
         "course": course,
         "project": project,
@@ -1097,11 +1124,11 @@ def projects_list_view(request, course_slug, project_slug):
         "page_range": submissions_page.paginator.get_elided_page_range(
             submissions_page.number
         ),
-        "is_authenticated": is_authenticated,
-        "has_submission": has_submission,
-        "voted_submission_ids": voted_submission_ids,
+        "is_authenticated": viewer_state["is_authenticated"],
+        "has_submission": viewer_state["has_submission"],
+        "voted_submission_ids": viewer_state["voted_submission_ids"],
         "project_votes_per_project": PROJECT_VOTES_PER_PROJECT,
-        "project_votes_left": project_votes_left,
+        "project_votes_left": viewer_state["project_votes_left"],
     }
 
     return render(request, "projects/list.html", context)

@@ -668,108 +668,144 @@ def update_homework_with_additional_info(homework: Homework) -> None:
         homework.submitted_at = submission.submitted_at
 
 
-def leaderboard_view(request, course_slug: str):
-    course = get_object_or_404(Course, slug=course_slug)
-
-    user = request.user
-    current_student_enrollment = None
-    current_student_enrollment_id = None
-
+def _current_student_leaderboard_enrollment(course, user):
     if user.is_authenticated:
         try:
-            current_student_enrollment = Enrollment.objects.get(
+            enrollment = Enrollment.objects.get(
                 student=user,
                 course=course,
             )
-            current_student_enrollment_id = current_student_enrollment.id
+            return enrollment, enrollment.id
         except Enrollment.DoesNotExist:
             pass
 
-    cache_key = f"leaderboard:{course.id}"
+    return None, None
 
-    def build_leaderboard_data():
-        logger.info(f"Cache miss for leaderboard of course {course.slug}")
-        completed_project_submissions = Prefetch(
-            "projectsubmission_set",
-            queryset=ProjectSubmission.objects.filter(
-                project__state=ProjectState.COMPLETED.value,
-                volunteer_review_only=False,
-            )
-            .select_related("project")
-            .order_by("project__id"),
-            to_attr="completed_project_submissions",
+
+def _completed_project_submissions_prefetch():
+    return Prefetch(
+        "projectsubmission_set",
+        queryset=ProjectSubmission.objects.filter(
+            project__state=ProjectState.COMPLETED.value,
+            volunteer_review_only=False,
         )
-        enrollments = list(
-            Enrollment.objects.filter(
-                course=course,
-                display_on_leaderboard=True,
-            )
-            .select_related('student')
-            .prefetch_related(completed_project_submissions)
-            .order_by(
-                Coalesce("position_on_leaderboard", Value(999999)),
-                "id",
-            )
-        )
-        # Store as list of dictionaries to avoid stale model instances
-        enrollments_data = [
+        .select_related("project")
+        .order_by("project__id"),
+        to_attr="completed_project_submissions",
+    )
+
+
+def _serialize_leaderboard_enrollment(enrollment):
+    return {
+        "id": enrollment.id,
+        "display_name": enrollment.display_name,
+        "total_score": enrollment.total_score,
+        "position_on_leaderboard": enrollment.position_on_leaderboard,
+        "passed_projects": [
             {
-                'id': e.id,
-                'display_name': e.display_name,
-                'total_score': e.total_score,
-                'position_on_leaderboard': e.position_on_leaderboard,
-                'passed_projects': [
-                    {
-                        "title": sub.project.title,
-                        "slug": sub.project.slug,
-                        "attempt": index,
-                        "medal_index": ((index - 1) % 5) + 1,
-                    }
-                    for index, sub in enumerate(
-                        e.completed_project_submissions,
-                        1,
-                    )
-                    if sub.passed
-                ],
+                "title": submission.project.title,
+                "slug": submission.project.slug,
+                "attempt": index,
+                "medal_index": ((index - 1) % 5) + 1,
             }
-            for e in enrollments
-        ]
-        cache.set(cache_key, enrollments_data, 3600)
-        return enrollments_data
+            for index, submission in enumerate(
+                enrollment.completed_project_submissions,
+                1,
+            )
+            if submission.passed
+        ],
+    }
 
-    # Try to get enrollments from cache. If the current student enrolled after
-    # the cache was built, refresh so the jump link points to a rendered row.
+
+def _build_leaderboard_data(course, cache_key):
+    logger.info(f"Cache miss for leaderboard of course {course.slug}")
+    enrollments = (
+        Enrollment.objects.filter(
+            course=course,
+            display_on_leaderboard=True,
+        )
+        .select_related("student")
+        .prefetch_related(_completed_project_submissions_prefetch())
+        .order_by(
+            Coalesce("position_on_leaderboard", Value(999999)),
+            "id",
+        )
+    )
+    # Store dictionaries in cache to avoid stale model instances.
+    enrollments_data = [
+        _serialize_leaderboard_enrollment(enrollment)
+        for enrollment in enrollments
+    ]
+    cache.set(cache_key, enrollments_data, 3600)
+    return enrollments_data
+
+
+def _get_leaderboard_data(
+    course,
+    cache_key,
+    current_student_enrollment,
+    current_student_enrollment_id,
+):
     enrollments_data = cache.get(cache_key)
 
     if enrollments_data is None:
-        enrollments_data = build_leaderboard_data()
-    else:
-        logger.info(f"Cache hit for leaderboard of course {course.slug}")
-        if (
-            current_student_enrollment_id is not None
-            and current_student_enrollment.display_on_leaderboard
-            and not any(
-                enrollment["id"] == current_student_enrollment_id
-                for enrollment in enrollments_data
-            )
-        ):
-            enrollments_data = build_leaderboard_data()
+        return _build_leaderboard_data(course, cache_key)
+
+    logger.info(f"Cache hit for leaderboard of course {course.slug}")
+    if (
+        current_student_enrollment_id is not None
+        and current_student_enrollment.display_on_leaderboard
+        and not any(
+            enrollment["id"] == current_student_enrollment_id
+            for enrollment in enrollments_data
+        )
+    ):
+        return _build_leaderboard_data(course, cache_key)
+
+    return enrollments_data
+
+
+def _current_student_page_number(
+    enrollments_data,
+    current_student_enrollment,
+    current_student_enrollment_id,
+):
+    if (
+        current_student_enrollment_id is None
+        or not current_student_enrollment.display_on_leaderboard
+    ):
+        return None
+
+    for index, enrollment in enumerate(enrollments_data):
+        if enrollment["id"] == current_student_enrollment_id:
+            return (index // LEADERBOARD_PAGE_SIZE) + 1
+
+    return None
+
+
+def leaderboard_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+    current_student_enrollment, current_student_enrollment_id = (
+        _current_student_leaderboard_enrollment(course, request.user)
+    )
+
+    cache_key = f"leaderboard:{course.id}"
+    enrollments_data = _get_leaderboard_data(
+        course,
+        cache_key,
+        current_student_enrollment,
+        current_student_enrollment_id,
+    )
 
     paginator = Paginator(enrollments_data, LEADERBOARD_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
     enrollments_page = page_obj.object_list
 
-    current_student_page_number = None
-    if (
-        current_student_enrollment_id is not None
-        and current_student_enrollment.display_on_leaderboard
-    ):
-        for index, enrollment in enumerate(enrollments_data):
-            if enrollment["id"] == current_student_enrollment_id:
-                current_student_page_number = (
-                    index // LEADERBOARD_PAGE_SIZE
-                ) + 1
-                break
+    current_student_page_number = _current_student_page_number(
+        enrollments_data,
+        current_student_enrollment,
+        current_student_enrollment_id,
+    )
 
     context = {
         "enrollments": enrollments_page,

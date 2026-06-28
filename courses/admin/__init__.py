@@ -1,5 +1,9 @@
+import logging
+
 from pathlib import Path
 from importlib import import_module
+
+logger = logging.getLogger(__name__)
 
 
 def import_admin_modules():
@@ -16,7 +20,7 @@ def import_admin_modules():
         try:
             import_module(module_name)
         except ImportError as e:
-            print(f"Failed to import {module_name}: {e}")
+            logger.warning("Failed to import %s: %s", module_name, e)
 
 
 import_admin_modules()

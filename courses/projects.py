@@ -411,7 +411,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
         passed_ratio = passed / len(submissions)
 
         logger.info(
-            f"updading {len(submissions_to_update)} submissions..."
+            f"updating {len(submissions_to_update)} submissions..."
         )
 
         ProjectSubmission.objects.bulk_update(
