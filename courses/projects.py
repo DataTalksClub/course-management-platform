@@ -485,6 +485,54 @@ def _replace_project_evaluation_scores(submission_ids, all_scores):
     ProjectEvaluationScore.objects.bulk_create(all_scores)
 
 
+def _calculate_project_scoring(project, peer_reviews):
+    submissions, reviews_by_submission, reviews_by_reviewer = (
+        _group_peer_reviews(peer_reviews)
+    )
+
+    criteria = ReviewCriteria.objects.filter(
+        course=project.course
+    ).all()
+
+    submissions_to_update, all_scores, passed = (
+        _score_project_submissions(
+            project,
+            submissions,
+            reviews_by_submission,
+            reviews_by_reviewer,
+            criteria,
+        )
+    )
+
+    return submissions, submissions_to_update, all_scores, passed
+
+
+def _complete_scored_project(
+    project,
+    submissions,
+    submissions_to_update,
+    all_scores,
+):
+    _bulk_update_project_submissions(submissions_to_update)
+    _sync_project_submissions_after_commit(submissions_to_update)
+    _replace_project_evaluation_scores(
+        submissions.keys(),
+        all_scores,
+    )
+
+    project.state = ProjectState.COMPLETED.value
+    project.save()
+
+    update_leaderboard(project.course)
+
+
+def _project_score_success_message(project, passed, passed_ratio):
+    return (
+        f"Project {project.id} scored and state updated to "
+        f"'COMPLETED'. {passed} passed ({passed_ratio:.2f})."
+    )
+
+
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
@@ -500,36 +548,17 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
                 "No peer reviews found for the project.",
             )
 
-        submissions, reviews_by_submission, reviews_by_reviewer = (
-            _group_peer_reviews(peer_reviews)
-        )
-
-        criteria = ReviewCriteria.objects.filter(
-            course=project.course
-        ).all()
-
-        submissions_to_update, all_scores, passed = (
-            _score_project_submissions(
-                project,
-                submissions,
-                reviews_by_submission,
-                reviews_by_reviewer,
-                criteria,
-            )
+        submissions, submissions_to_update, all_scores, passed = (
+            _calculate_project_scoring(project, peer_reviews)
         )
         passed_ratio = passed / len(submissions)
 
-        _bulk_update_project_submissions(submissions_to_update)
-        _sync_project_submissions_after_commit(submissions_to_update)
-        _replace_project_evaluation_scores(
-            submissions.keys(),
+        _complete_scored_project(
+            project,
+            submissions,
+            submissions_to_update,
             all_scores,
         )
-
-        project.state = ProjectState.COMPLETED.value
-        project.save()
-
-        update_leaderboard(project.course)
 
         t_end = time()
 
@@ -539,5 +568,5 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
 
     return (
         ProjectActionStatus.OK,
-        f"Project {project.id} scored and state updated to 'COMPLETED'. {passed} passed ({passed_ratio:.2f}).",
+        _project_score_success_message(project, passed, passed_ratio),
     )
