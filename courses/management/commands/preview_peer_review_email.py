@@ -32,6 +32,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        course, project = self.get_project(options)
+
+        self.write_project_summary(course, project)
+        self.write_deadline(project)
+        recipients = self.write_submission_previews(project)
+        self.write_recipient_count(recipients)
+
+        if options["json"]:
+            self.write_json_payload(project)
+
+    def get_project(self, options):
         try:
             course = Course.objects.get(slug=options["course_slug"])
             project = Project.objects.get(
@@ -45,6 +56,9 @@ class Command(BaseCommand):
                 f"'{options['course_slug']}'."
             )
 
+        return course, project
+
+    def write_project_summary(self, course, project):
         out = self.stdout
         out.write(f"Project:  {project.title} ({project.slug})")
         out.write(f"Course:   {course.title} ({course.slug})")
@@ -55,11 +69,14 @@ class Command(BaseCommand):
         )
         out.write("")
 
+    def write_deadline(self, project):
+        out = self.stdout
         deadline = format_deadline_for_email(project.peer_review_due_date)
         out.write("Deadline shown in the email:")
         out.write(f"  {deadline['deadline_summary']}")
         out.write("")
 
+    def write_submission_previews(self, project):
         submissions = (
             project.projectsubmission_set.select_related("student")
             .order_by("student_id", "-submitted_at", "-id")
@@ -89,23 +106,29 @@ class Command(BaseCommand):
                         f"         (project: {link['submission_github_link']})"
                     )
 
+        return recipients
+
+    def write_recipient_count(self, recipients):
+        out = self.stdout
         out.write("")
         out.write(
             self.style.SUCCESS(f"{recipients} recipient(s) would be emailed.")
         )
 
-        if options["json"]:
-            out.write("")
-            list_payload = datamailer.peer_review_assignment_notification_payload(
-                project
-            )
-            if list_payload is None:
-                out.write(
-                    self.style.WARNING(
-                        "Datamailer not configured - no payload to show."
-                    )
+    def write_json_payload(self, project):
+        out = self.stdout
+        out.write("")
+        list_payload = datamailer.peer_review_assignment_notification_payload(
+            project
+        )
+        if list_payload is None:
+            out.write(
+                self.style.WARNING(
+                    "Datamailer not configured - no payload to show."
                 )
-            else:
-                list_key, payload = list_payload
-                out.write(f"list_key: {list_key}")
-                out.write(json.dumps(payload, indent=2, sort_keys=True))
+            )
+            return
+
+        list_key, payload = list_payload
+        out.write(f"list_key: {list_key}")
+        out.write(json.dumps(payload, indent=2, sort_keys=True))
