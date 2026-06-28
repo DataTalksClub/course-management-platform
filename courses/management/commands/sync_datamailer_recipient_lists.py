@@ -29,6 +29,16 @@ from courses.models import (
 )
 
 
+RECIPIENT_LIST_KINDS = [
+    "registrations",
+    "enrollments",
+    "homework",
+    "project",
+    "project-passed",
+    "graduates",
+]
+
+
 def add_member_to_batches(
     batches, list_key, source_object_key, payload
 ):
@@ -265,7 +275,9 @@ def upload_import_file(kind, config, list_key, payload):
     }
 
 
-def import_idempotency_key(kind, list_key, content_sha256, *, remove_absent):
+def import_idempotency_key(
+    kind, list_key, content_sha256, *, remove_absent
+):
     remove_absent_value = "true" if remove_absent else "false"
     list_key_sha256 = hashlib.sha256(
         list_key.encode("utf-8")
@@ -281,18 +293,19 @@ class Command(BaseCommand):
     help = "Backfill Datamailer recipient lists from CMP registrations, enrollments, and submissions."
 
     def add_arguments(self, parser):
+        self.add_source_arguments(parser)
+        self.add_filter_arguments(parser)
+        self.add_import_arguments(parser)
+        self.add_execution_arguments(parser)
+
+    def add_source_arguments(self, parser):
         parser.add_argument(
             "kind",
-            choices=[
-                "registrations",
-                "enrollments",
-                "homework",
-                "project",
-                "project-passed",
-                "graduates",
-            ],
+            choices=RECIPIENT_LIST_KINDS,
             help="CMP source to sync into Datamailer recipient lists.",
         )
+
+    def add_filter_arguments(self, parser):
         parser.add_argument(
             "--course-slug",
             default="",
@@ -308,6 +321,8 @@ class Command(BaseCommand):
             default="",
             help="Limit project sync to one project slug.",
         )
+
+    def add_import_arguments(self, parser):
         parser.add_argument(
             "--reconcile",
             action="store_true",
@@ -338,6 +353,8 @@ class Command(BaseCommand):
             default=5.0,
             help="Seconds between import job status checks.",
         )
+
+    def add_execution_arguments(self, parser):
         parser.add_argument(
             "--dry-run",
             action="store_true",
@@ -345,43 +362,69 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        config = DatamailerConfig.from_settings()
-        if config is None:
-            raise CommandError(
-                "Datamailer is not configured. Set DATAMAILER_URL, "
-                "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
-            )
-
+        config = self.get_datamailer_config()
         kind = options["kind"]
-        if kind != "homework" and options["homework_slug"]:
-            raise CommandError(
-                "--homework-slug can only be used with kind=homework."
-            )
-        if kind not in {"project", "project-passed"} and options["project_slug"]:
-            raise CommandError(
-                "--project-slug can only be used with kind=project or kind=project-passed."
-            )
-        if options["wait_for_import"] and not options["import_by_reference"]:
-            raise CommandError(
-                "--wait-for-import requires --import-by-reference."
-            )
-        if options["import_timeout"] <= 0:
-            raise CommandError("--import-timeout must be positive.")
-        if options["import_poll_interval"] <= 0:
-            raise CommandError("--import-poll-interval must be positive.")
+        self.validate_options(kind, options)
 
-        batches = build_batches(
-            kind,
-            course_slug=options["course_slug"],
-            homework_slug=options["homework_slug"],
-            project_slug=options["project_slug"],
-        )
+        batches = self.get_batches(kind, options)
         if not batches:
             self.stdout.write(
                 "No Datamailer recipient-list members to sync."
             )
             return
 
+        self.write_batch_summary(batches)
+
+        if options["dry_run"]:
+            self.write_dry_run(batches, options)
+            return
+
+        self.sync_batches(config, kind, batches, options)
+
+    def get_datamailer_config(self):
+        config = DatamailerConfig.from_settings()
+        if config is None:
+            raise CommandError(
+                "Datamailer is not configured. Set DATAMAILER_URL, "
+                "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
+            )
+        return config
+
+    def validate_options(self, kind, options):
+        if kind != "homework" and options["homework_slug"]:
+            raise CommandError(
+                "--homework-slug can only be used with kind=homework."
+            )
+        if (
+            kind not in {"project", "project-passed"}
+            and options["project_slug"]
+        ):
+            raise CommandError(
+                "--project-slug can only be used with kind=project or kind=project-passed."
+            )
+        if (
+            options["wait_for_import"]
+            and not options["import_by_reference"]
+        ):
+            raise CommandError(
+                "--wait-for-import requires --import-by-reference."
+            )
+        if options["import_timeout"] <= 0:
+            raise CommandError("--import-timeout must be positive.")
+        if options["import_poll_interval"] <= 0:
+            raise CommandError(
+                "--import-poll-interval must be positive."
+            )
+
+    def get_batches(self, kind, options):
+        return build_batches(
+            kind,
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
+
+    def write_batch_summary(self, batches):
         total_members = sum(
             len(payload["members"]) for payload in batches.values()
         )
@@ -389,17 +432,17 @@ class Command(BaseCommand):
             f"Prepared {len(batches)} recipient list(s), {total_members} member(s)."
         )
 
-        if options["dry_run"]:
-            for list_key, payload in batches.items():
+    def write_dry_run(self, batches, options):
+        for list_key, payload in batches.items():
+            self.stdout.write(
+                f"{list_key}: {len(payload['members'])} member(s)"
+            )
+            if options["import_by_reference"]:
                 self.stdout.write(
-                    f"{list_key}: {len(payload['members'])} member(s)"
+                    f"{list_key}: would create import job"
                 )
-                if options["import_by_reference"]:
-                    self.stdout.write(
-                        f"{list_key}: would create import job"
-                    )
-            return
 
+    def sync_batches(self, config, kind, batches, options):
         client = DatamailerClient(config)
         self._sync_batches(
             client,
@@ -441,37 +484,46 @@ class Command(BaseCommand):
                 )
                 continue
 
-            try:
-                if reconcile:
-                    response = client.reconcile_recipient_list_members(
-                        list_key, payload
-                    )
-                else:
-                    response = (
-                        client.bulk_upsert_recipient_list_members(
-                            list_key, payload
-                        )
-                    )
-            except requests.RequestException as exc:
-                if config.strict:
-                    raise
-                raise CommandError(
-                    f"Datamailer sync failed for {list_key}: {exc}"
-                ) from exc
+            response = self._sync_inline_batch(
+                client, config, list_key, payload, reconcile=reconcile
+            )
+            self._write_sync_result(list_key, payload, response)
 
-            active_count = None
-            if response:
-                active_count = response.get("recipient_list", {}).get(
-                    "active_member_count"
+    def _sync_inline_batch(
+        self, client, config, list_key, payload, *, reconcile
+    ):
+        try:
+            if reconcile:
+                return client.reconcile_recipient_list_members(
+                    list_key, payload
                 )
-            suffix = (
-                f"; active={active_count}"
-                if active_count is not None
-                else ""
+            return client.bulk_upsert_recipient_list_members(
+                list_key, payload
             )
-            self.stdout.write(
-                f"Synced {list_key}: {len(payload['members'])} member(s){suffix}"
-            )
+        except requests.RequestException as exc:
+            if config.strict:
+                raise
+            raise CommandError(
+                f"Datamailer sync failed for {list_key}: {exc}"
+            ) from exc
+
+    def _write_sync_result(self, list_key, payload, response):
+        active_count = self._active_member_count(response)
+        suffix = (
+            f"; active={active_count}"
+            if active_count is not None
+            else ""
+        )
+        self.stdout.write(
+            f"Synced {list_key}: {len(payload['members'])} member(s){suffix}"
+        )
+
+    def _active_member_count(self, response):
+        if not response:
+            return None
+        return response.get("recipient_list", {}).get(
+            "active_member_count"
+        )
 
     def _create_import_job(
         self,
@@ -487,22 +539,19 @@ class Command(BaseCommand):
         import_poll_interval,
     ):
         try:
-            upload = upload_import_file(kind, config, list_key, payload)
-            response = client.create_recipient_list_import(
+            upload, response = self._create_import_job_response(
+                client,
+                config,
+                kind,
                 list_key,
-                {
-                    "source_url": upload["source_url"],
-                    "idempotency_key": import_idempotency_key(
-                        kind,
-                        list_key,
-                        upload["content_sha256"],
-                        remove_absent=remove_absent,
-                    ),
-                    "list": payload["list"],
-                    "remove_absent": remove_absent,
-                },
+                payload,
+                remove_absent=remove_absent,
             )
-        except (BotoCoreError, ClientError, requests.RequestException) as exc:
+        except (
+            BotoCoreError,
+            ClientError,
+            requests.RequestException,
+        ) as exc:
             if config.strict:
                 raise
             raise CommandError(
@@ -511,24 +560,58 @@ class Command(BaseCommand):
 
         job = (response or {}).get("import_job", {})
         job_id = job.get("id")
-        status = job.get("status", "unknown")
-        self.stdout.write(
-            "Created import job for "
-            f"{list_key}: job_id={job_id}; status={status}; "
-            f"rows={upload['row_count']}; s3_key={upload['s3_key']}"
-        )
+        self._write_import_job_created(list_key, upload, job, job_id)
         if wait_for_import:
-            if not job_id:
-                raise CommandError(
-                    f"Datamailer did not return an import job id for {list_key}."
-                )
-            self._wait_for_import_job(
+            self._wait_for_created_import_job(
                 client,
                 list_key,
                 job_id,
                 timeout=import_timeout,
                 poll_interval=import_poll_interval,
             )
+
+    def _create_import_job_response(
+        self, client, config, kind, list_key, payload, *, remove_absent
+    ):
+        upload = upload_import_file(kind, config, list_key, payload)
+        response = client.create_recipient_list_import(
+            list_key,
+            {
+                "source_url": upload["source_url"],
+                "idempotency_key": import_idempotency_key(
+                    kind,
+                    list_key,
+                    upload["content_sha256"],
+                    remove_absent=remove_absent,
+                ),
+                "list": payload["list"],
+                "remove_absent": remove_absent,
+            },
+        )
+        return upload, response
+
+    def _write_import_job_created(self, list_key, upload, job, job_id):
+        status = job.get("status", "unknown")
+        self.stdout.write(
+            "Created import job for "
+            f"{list_key}: job_id={job_id}; status={status}; "
+            f"rows={upload['row_count']}; s3_key={upload['s3_key']}"
+        )
+
+    def _wait_for_created_import_job(
+        self, client, list_key, job_id, *, timeout, poll_interval
+    ):
+        if not job_id:
+            raise CommandError(
+                f"Datamailer did not return an import job id for {list_key}."
+            )
+        self._wait_for_import_job(
+            client,
+            list_key,
+            job_id,
+            timeout=timeout,
+            poll_interval=poll_interval,
+        )
 
     def _wait_for_import_job(
         self,
