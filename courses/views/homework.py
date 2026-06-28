@@ -194,70 +194,107 @@ def format_selected_answer(
     return ", ".join(selected_options)
 
 
+def homework_url_submission_field(
+    homework: Homework,
+    submission: Submission,
+) -> dict[str, Any] | None:
+    if not homework.homework_url_field:
+        return None
+
+    return {
+        "key": "homework_url",
+        "label": "Homework URL",
+        "value": submission.homework_link or "",
+    }
+
+
+def learning_in_public_submission_field(
+    homework: Homework,
+    submission: Submission,
+) -> dict[str, Any] | None:
+    if homework.learning_in_public_cap <= 0:
+        return None
+
+    links = submission.learning_in_public_links or []
+    return {
+        "key": "learning_in_public_links",
+        "label": "Learning in public links",
+        "value": "\n".join(links),
+        "values": links,
+    }
+
+
+def lecture_time_submission_field(
+    homework: Homework,
+    submission: Submission,
+) -> dict[str, Any] | None:
+    if not homework.time_spent_lectures_field:
+        return None
+
+    return {
+        "key": "time_spent_lectures",
+        "label": "Time spent on lectures",
+        "value": format_hours(submission.time_spent_lectures),
+    }
+
+
+def homework_time_submission_field(
+    homework: Homework,
+    submission: Submission,
+) -> dict[str, Any] | None:
+    if not homework.time_spent_homework_field:
+        return None
+
+    return {
+        "key": "time_spent_homework",
+        "label": "Time spent on homework",
+        "value": format_hours(submission.time_spent_homework),
+    }
+
+
+def problems_comments_submission_field(
+    course: Course,
+    submission: Submission,
+) -> dict[str, Any] | None:
+    if not course.homework_problems_comments_field:
+        return None
+
+    return {
+        "key": "problems_comments",
+        "label": "Problems, comments, or feedback",
+        "value": submission.problems_comments or "",
+    }
+
+
+def faq_contribution_submission_field(
+    homework: Homework,
+    submission: Submission,
+) -> dict[str, Any] | None:
+    if not homework.faq_contribution_field:
+        return None
+
+    return {
+        "key": "faq_contribution_url",
+        "label": "FAQ contribution URL",
+        "value": submission.faq_contribution_url or "",
+    }
+
+
 def homework_submission_fields(
     course: Course,
     homework: Homework,
     submission: Submission,
 ) -> List[dict[str, Any]]:
-    fields = []
+    fields = [
+        homework_url_submission_field(homework, submission),
+        learning_in_public_submission_field(homework, submission),
+        lecture_time_submission_field(homework, submission),
+        homework_time_submission_field(homework, submission),
+        problems_comments_submission_field(course, submission),
+        faq_contribution_submission_field(homework, submission),
+    ]
 
-    if homework.homework_url_field:
-        fields.append(
-            {
-                "key": "homework_url",
-                "label": "Homework URL",
-                "value": submission.homework_link or "",
-            }
-        )
-
-    if homework.learning_in_public_cap > 0:
-        links = submission.learning_in_public_links or []
-        fields.append(
-            {
-                "key": "learning_in_public_links",
-                "label": "Learning in public links",
-                "value": "\n".join(links),
-                "values": links,
-            }
-        )
-
-    if homework.time_spent_lectures_field:
-        fields.append(
-            {
-                "key": "time_spent_lectures",
-                "label": "Time spent on lectures",
-                "value": format_hours(submission.time_spent_lectures),
-            }
-        )
-
-    if homework.time_spent_homework_field:
-        fields.append(
-            {
-                "key": "time_spent_homework",
-                "label": "Time spent on homework",
-                "value": format_hours(submission.time_spent_homework),
-            }
-        )
-
-    if course.homework_problems_comments_field:
-        fields.append(
-            {
-                "key": "problems_comments",
-                "label": "Problems, comments, or feedback",
-                "value": submission.problems_comments or "",
-            }
-        )
-
-    if homework.faq_contribution_field:
-        fields.append(
-            {
-                "key": "faq_contribution_url",
-                "label": "FAQ contribution URL",
-                "value": submission.faq_contribution_url or "",
-            }
-        )
-
-    return fields
+    return [field for field in fields if field is not None]
 
 
 def homework_submitted_answers(
@@ -326,6 +363,79 @@ def format_answer_lines(answers: List[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def homework_submission_summary_text(
+    submitted_fields_text: str,
+    submitted_answers_text: str,
+) -> str:
+    summary_sections = []
+    if submitted_fields_text:
+        summary_sections.append(submitted_fields_text)
+    if submitted_answers_text:
+        summary_sections.append(submitted_answers_text)
+    return "\n\n".join(summary_sections)
+
+
+def homework_confirmation_metadata(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+    update_url: str,
+    profile_url: str,
+) -> dict[str, Any]:
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "homework_slug": homework.slug,
+        "homework_title": homework.title,
+        "homework_due_at": homework.due_date.isoformat(),
+        "submission_id": submission.id,
+        "submitted_at": submission.submitted_at.isoformat(),
+        "update_url": update_url,
+        "profile_url": profile_url,
+        "update_link_text": "Update your submission",
+    }
+
+
+def homework_confirmation_notification_context(
+    profile_url: str,
+) -> dict[str, str]:
+    return {
+        "notification_category": "homework and project submissions",
+        "notification_footer": (
+            "You are receiving this because homework and project "
+            "submission emails are enabled in your profile."
+        ),
+        "notification_footer_text": (
+            "If you don't want to receive these emails, you can turn "
+            "off homework and project submission emails in your "
+            f"profile: {profile_url}"
+        ),
+    }
+
+
+def homework_confirmation_message_context(
+    course: Course,
+    homework: Homework,
+    update_url: str,
+) -> dict[str, str]:
+    return {
+        "email_subject": f"Homework submission saved: {homework.title}",
+        "email_preview": (
+            "Your homework submission was saved. "
+            "Review what you submitted and update it while the "
+            "homework is open."
+        ),
+        "intro_text": (
+            f"Your homework submission for {homework.title} in "
+            f"{course.title} was saved."
+        ),
+        "update_text": (
+            "You can update your submission while the homework "
+            f"is open: {update_url}"
+        ),
+    }
+
+
 def homework_confirmation_context(
     course: Course,
     homework: Homework,
@@ -342,52 +452,28 @@ def homework_confirmation_context(
     submitted_fields_text = format_submission_lines(submission_fields)
     submitted_answers_text = format_answer_lines(submitted_answers)
 
-    summary_sections = []
-    if submitted_fields_text:
-        summary_sections.append(submitted_fields_text)
-    if submitted_answers_text:
-        summary_sections.append(submitted_answers_text)
-
     return {
-        "course_slug": course.slug,
-        "course_title": course.title,
-        "homework_slug": homework.slug,
-        "homework_title": homework.title,
-        "homework_due_at": homework.due_date.isoformat(),
-        "submission_id": submission.id,
-        "submitted_at": submission.submitted_at.isoformat(),
-        "update_url": update_url,
-        "profile_url": profile_url,
-        "update_link_text": "Update your submission",
-        "notification_category": "homework and project submissions",
-        "notification_footer": (
-            "You are receiving this because homework and project "
-            "submission emails are enabled in your profile."
+        **homework_confirmation_metadata(
+            course,
+            homework,
+            submission,
+            update_url,
+            profile_url,
         ),
-        "notification_footer_text": (
-            "If you don't want to receive these emails, you can turn "
-            "off homework and project submission emails in your "
-            f"profile: {profile_url}"
-        ),
-        "email_subject": f"Homework submission saved: {homework.title}",
-        "email_preview": (
-            "Your homework submission was saved. "
-            "Review what you submitted and update it while the "
-            "homework is open."
-        ),
-        "intro_text": (
-            f"Your homework submission for {homework.title} in "
-            f"{course.title} was saved."
-        ),
-        "update_text": (
-            "You can update your submission while the homework "
-            f"is open: {update_url}"
+        **homework_confirmation_notification_context(profile_url),
+        **homework_confirmation_message_context(
+            course,
+            homework,
+            update_url,
         ),
         "submission_fields": submission_fields,
         "submitted_answers": submitted_answers,
         "submitted_fields_text": submitted_fields_text,
         "submitted_answers_text": submitted_answers_text,
-        "submission_summary_text": "\n\n".join(summary_sections),
+        "submission_summary_text": homework_submission_summary_text(
+            submitted_fields_text,
+            submitted_answers_text,
+        ),
     }
 
 
