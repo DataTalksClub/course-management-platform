@@ -270,61 +270,126 @@ def project_submission_from_post(
     request: HttpRequest, project: Project
 ) -> ProjectSubmission:
     user = request.user
+    project_submission = project_submission_for_update(project, user)
 
+    update_user_certificate_name_from_post(request, user)
+    apply_project_submission_post_fields(
+        request,
+        project,
+        project_submission,
+    )
+
+    return project_submission
+
+
+def project_submission_for_update(
+    project: Project,
+    user: User,
+) -> ProjectSubmission:
     project_submission = ProjectSubmission.objects.filter(
         project=project,
-        student=request.user,
+        student=user,
         volunteer_review_only=False,
     ).first()
 
     if project_submission:
-        enrollment = project_submission.enrollment
         project_submission.submitted_at = timezone.now()
-    else:
-        enrollment, _ = Enrollment.objects.get_or_create(
-            student=user,
-            course=project.course,
-        )
-        project_submission = ProjectSubmission(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-        )
+        return project_submission
 
-    # Certificate name is a user-level account setting.
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=user,
+        course=project.course,
+    )
+    return ProjectSubmission(
+        project=project,
+        student=user,
+        enrollment=enrollment,
+    )
+
+
+def update_user_certificate_name_from_post(
+    request: HttpRequest,
+    user: User,
+) -> None:
     certificate_name = request.POST.get("certificate_name", "").strip()
-    if certificate_name:
-        user.certificate_name = certificate_name
-        user.save(update_fields=["certificate_name"])
+    if not certificate_name:
+        return
 
+    user.certificate_name = certificate_name
+    user.save(update_fields=["certificate_name"])
+
+
+def apply_project_submission_post_fields(
+    request: HttpRequest,
+    project: Project,
+    project_submission: ProjectSubmission,
+) -> None:
     project_submission.github_link = request.POST.get("github_link")
     project_submission.commit_id = request.POST.get("commit_id")
+    apply_project_submission_optional_post_fields(
+        request,
+        project,
+        project_submission,
+    )
 
+
+def apply_project_submission_optional_post_fields(
+    request: HttpRequest,
+    project: Project,
+    project_submission: ProjectSubmission,
+) -> None:
     if project.learning_in_public_cap_project > 0:
-        links = request.POST.getlist("learning_in_public_links[]")
-        cleaned_links = clean_learning_in_public_links(
-            links, project.learning_in_public_cap_project
+        apply_project_learning_in_public_links(
+            request,
+            project,
+            project_submission,
         )
-        project_submission.learning_in_public_links = cleaned_links
 
     if project.time_spent_project_field:
-        time_spent = request.POST.get("time_spent")
-        if time_spent is not None and time_spent != "":
-            project_submission.time_spent = tryparsefloat(time_spent)
+        apply_project_time_spent(request, project_submission)
 
     if project.problems_comments_field:
-        problems_comments = request.POST.get("problems_comments", "")
-        project_submission.problems_comments = problems_comments.strip()
+        apply_project_problems_comments(request, project_submission)
 
     if project.faq_contribution_field:
-        faq_contribution_url = request.POST.get(
-            "faq_contribution_url", ""
-        )
-        project_submission.faq_contribution_url = (
-            faq_contribution_url.strip()
-        )
+        apply_project_faq_contribution_url(request, project_submission)
 
-    return project_submission
+
+def apply_project_learning_in_public_links(
+    request: HttpRequest,
+    project: Project,
+    project_submission: ProjectSubmission,
+) -> None:
+    links = request.POST.getlist("learning_in_public_links[]")
+    cleaned_links = clean_learning_in_public_links(
+        links, project.learning_in_public_cap_project
+    )
+    project_submission.learning_in_public_links = cleaned_links
+
+
+def apply_project_time_spent(
+    request: HttpRequest,
+    project_submission: ProjectSubmission,
+) -> None:
+    time_spent = request.POST.get("time_spent")
+    if time_spent is not None and time_spent != "":
+        project_submission.time_spent = tryparsefloat(time_spent)
+
+
+def apply_project_problems_comments(
+    request: HttpRequest,
+    project_submission: ProjectSubmission,
+) -> None:
+    problems_comments = request.POST.get("problems_comments", "")
+    project_submission.problems_comments = problems_comments.strip()
+
+
+def apply_project_faq_contribution_url(
+    request: HttpRequest,
+    project_submission: ProjectSubmission,
+) -> None:
+    faq_contribution_url = request.POST.get("faq_contribution_url", "")
+    project_submission.faq_contribution_url = faq_contribution_url.strip()
 
 
 def project_submit_post(request: HttpRequest, project: Project) -> None:
