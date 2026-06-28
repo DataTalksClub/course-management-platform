@@ -46,7 +46,7 @@ def choose_user(matches, email):
     return None
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--email", default="alexey@datatalks.club")
     parser.add_argument("--password", default=None)
@@ -56,49 +56,66 @@ def main():
         default=None,
         help="Target a specific user id (use when the email is duplicated)",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    password = args.password or generate_password()
 
-    if args.user_id is not None:
-        user = User.objects.get(pk=args.user_id)
-        created = False
-    else:
-        matches = list(User.objects.filter(email=args.email))
-        if len(matches) > 1:
-            user = choose_user(matches, args.email)
-            if user is None:
-                print(f"Multiple users with email {args.email}:")
-                for u in matches:
-                    print(
-                        f"  id={u.pk} username={u.username!r} "
-                        f"superuser={u.is_superuser} staff={u.is_staff} "
-                        f"active={u.is_active}"
-                    )
-                print("\nRe-run with --user-id <id> to pick one.")
-                raise SystemExit(1)
+def print_duplicate_users(email, matches):
+    print(f"Multiple users with email {email}:")
+    for user in matches:
+        print(
+            f"  id={user.pk} username={user.username!r} "
+            f"superuser={user.is_superuser} staff={user.is_staff} "
+            f"active={user.is_active}"
+        )
+    print("\nRe-run with --user-id <id> to pick one.")
 
-            print(
-                f"Multiple users with email {args.email}; selected "
-                f"id={user.pk} username={user.username!r}."
-            )
-            created = False
-        elif len(matches) == 1:
-            user = matches[0]
-            created = False
-        else:
-            user = User(username=args.email, email=args.email)
-            created = True
 
+def selected_duplicate_user(email, matches):
+    user = choose_user(matches, email)
+    if user is None:
+        print_duplicate_users(email, matches)
+        raise SystemExit(1)
+
+    print(
+        f"Multiple users with email {email}; selected "
+        f"id={user.pk} username={user.username!r}."
+    )
+    return user
+
+
+def find_or_create_user(email, user_id=None):
+    if user_id is not None:
+        return User.objects.get(pk=user_id), False
+
+    matches = list(User.objects.filter(email=email))
+    if len(matches) > 1:
+        return selected_duplicate_user(email, matches), False
+    if len(matches) == 1:
+        return matches[0], False
+
+    return User(username=email, email=email), True
+
+
+def save_superuser(user, password):
     user.set_password(password)
     user.is_superuser = True
     user.is_staff = True
     user.is_active = True
     user.save()
 
+
+def print_result(user, password, created):
     action = "created" if created else "password reset"
     print(f"Superuser {action}: id={user.pk} {user.email}")
     print(f"Password: {password}")
+
+
+def main():
+    args = parse_args()
+    password = args.password or generate_password()
+    user, created = find_or_create_user(args.email, args.user_id)
+    save_superuser(user, password)
+    print_result(user, password, created)
 
 
 if __name__ == "__main__":
