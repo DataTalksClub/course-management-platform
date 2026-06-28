@@ -349,6 +349,82 @@ def course_list(request):
     return render(request, "cadmin/course_list.html", context)
 
 
+def course_homeworks_for_admin(course):
+    homeworks = list(
+        Homework.objects.filter(course=course).order_by("due_date")
+    )
+    for homework in homeworks:
+        homework.submissions_count = Submission.objects.filter(
+            homework=homework
+        ).count()
+        homework.can_score = homework.state in [
+            HomeworkState.OPEN.value,
+            HomeworkState.CLOSED.value,
+        ]
+    return homeworks
+
+
+def course_projects_for_admin(course):
+    projects = list(Project.objects.filter(course=course).order_by("id"))
+    for project in projects:
+        project.submissions_count = ProjectSubmission.objects.filter(
+            project=project
+        ).count()
+        project.needs_review_assignment = (
+            project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+        )
+        project.needs_scoring = (
+            project.state == ProjectState.PEER_REVIEWING.value
+        )
+    return projects
+
+
+def course_support_metrics(course):
+    enrollments = Enrollment.objects.filter(course=course)
+    return {
+        "disabled_lip": enrollments.filter(
+            disable_learning_in_public=True
+        ).count(),
+        "zero_score": enrollments.filter(total_score=0).count(),
+        "hidden_leaderboard": enrollments.filter(
+            display_on_leaderboard=False
+        ).count(),
+        "open_complaints": LeaderboardComplaint.objects.filter(
+            enrollment__course=course,
+            resolved=False,
+        ).count(),
+    }
+
+
+def course_registration_metrics(course):
+    campaigns = (
+        RegistrationCampaign.objects.filter(current_course=course)
+        .select_related("current_course")
+        .order_by("title", "slug")
+    )
+    return {
+        "registration_metrics": [
+            registration_campaign_metrics(campaign)
+            for campaign in campaigns
+        ],
+        "primary_campaign": campaigns.first(),
+    }
+
+
+def course_admin_context(course):
+    context = course_registration_metrics(course)
+    context.update(
+        {
+            "course": course,
+            "homeworks": course_homeworks_for_admin(course),
+            "projects": course_projects_for_admin(course),
+            "total_enrollments": course.enrollment_set.count(),
+            "support_metrics": course_support_metrics(course),
+        }
+    )
+    return context
+
+
 def send_audit_totals():
     return DatamailerSendAudit.objects.aggregate(
         total=Count("id"),
@@ -573,70 +649,11 @@ def datamailer_events(request):
 def course_admin(request, course_slug):
     """Admin panel for a specific course"""
     course = get_object_or_404(Course, slug=course_slug)
-
-    homeworks = list(
-        Homework.objects.filter(course=course).order_by("due_date")
+    return render(
+        request,
+        "cadmin/course_admin.html",
+        course_admin_context(course),
     )
-    projects = list(
-        Project.objects.filter(course=course).order_by("id")
-    )
-    total_enrollments = course.enrollment_set.count()
-
-    for hw in homeworks:
-        hw.submissions_count = Submission.objects.filter(
-            homework=hw
-        ).count()
-        hw.can_score = hw.state in [
-            HomeworkState.OPEN.value,
-            HomeworkState.CLOSED.value,
-        ]
-
-    for proj in projects:
-        proj.submissions_count = ProjectSubmission.objects.filter(
-            project=proj
-        ).count()
-        proj.needs_review_assignment = (
-            proj.state == ProjectState.COLLECTING_SUBMISSIONS.value
-        )
-        proj.needs_scoring = (
-            proj.state == ProjectState.PEER_REVIEWING.value
-        )
-
-    enrollments = Enrollment.objects.filter(course=course)
-    support_metrics = {
-        "disabled_lip": enrollments.filter(
-            disable_learning_in_public=True
-        ).count(),
-        "zero_score": enrollments.filter(total_score=0).count(),
-        "hidden_leaderboard": enrollments.filter(
-            display_on_leaderboard=False
-        ).count(),
-        "open_complaints": LeaderboardComplaint.objects.filter(
-            enrollment__course=course,
-            resolved=False,
-        ).count(),
-    }
-    registration_campaigns = (
-        RegistrationCampaign.objects.filter(current_course=course)
-        .select_related("current_course")
-        .order_by("title", "slug")
-    )
-    registration_metrics = [
-        registration_campaign_metrics(campaign)
-        for campaign in registration_campaigns
-    ]
-
-    context = {
-        "course": course,
-        "homeworks": homeworks,
-        "projects": projects,
-        "total_enrollments": total_enrollments,
-        "support_metrics": support_metrics,
-        "registration_metrics": registration_metrics,
-        "primary_campaign": registration_campaigns.first(),
-    }
-
-    return render(request, "cadmin/course_admin.html", context)
 
 
 @staff_required
@@ -1235,11 +1252,8 @@ def enrollments_list(request, course_slug):
     return render(request, "cadmin/enrollments.html", context)
 
 
-@staff_required
-def leaderboard_complaints(request, course_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-
-    enrollments = (
+def complaint_enrollments(course):
+    return (
         Enrollment.objects.filter(course=course)
         .select_related("student")
         .annotate(
@@ -1257,6 +1271,8 @@ def leaderboard_complaints(request, course_slug):
         )
     )
 
+
+def complaints_grouped_by_enrollment(course):
     complaints_by_enrollment = defaultdict(list)
     complaints = (
         LeaderboardComplaint.objects.filter(enrollment__course=course)
@@ -1267,29 +1283,50 @@ def leaderboard_complaints(request, course_slug):
         complaints_by_enrollment[complaint.enrollment_id].append(
             complaint
         )
+    return complaints_by_enrollment
 
-    enrollment_rows = []
-    for enrollment in enrollments:
-        enrollment_rows.append(
-            {
-                "enrollment": enrollment,
-                "complaints": complaints_by_enrollment[enrollment.id],
-            }
-        )
 
-    context = {
-        "course": course,
-        "enrollment_rows": enrollment_rows,
-        "open_complaints_count": LeaderboardComplaint.objects.filter(
-            enrollment__course=course,
+def complaint_enrollment_rows(course):
+    complaints_by_enrollment = complaints_grouped_by_enrollment(course)
+    return [
+        {
+            "enrollment": enrollment,
+            "complaints": complaints_by_enrollment[enrollment.id],
+        }
+        for enrollment in complaint_enrollments(course)
+    ]
+
+
+def leaderboard_complaint_counts(course):
+    complaints = LeaderboardComplaint.objects.filter(
+        enrollment__course=course,
+    )
+    return {
+        "open_complaints_count": complaints.filter(
             resolved=False,
         ).count(),
-        "total_complaints_count": LeaderboardComplaint.objects.filter(
-            enrollment__course=course,
-        ).count(),
+        "total_complaints_count": complaints.count(),
     }
+
+
+def leaderboard_complaints_context(course):
+    context = leaderboard_complaint_counts(course)
+    context.update(
+        {
+            "course": course,
+            "enrollment_rows": complaint_enrollment_rows(course),
+        }
+    )
+    return context
+
+
+@staff_required
+def leaderboard_complaints(request, course_slug):
+    course = get_object_or_404(Course, slug=course_slug)
     return render(
-        request, "cadmin/leaderboard_complaints.html", context
+        request,
+        "cadmin/leaderboard_complaints.html",
+        leaderboard_complaints_context(course),
     )
 
 
@@ -1319,6 +1356,78 @@ def leaderboard_complaint_resolve(request, course_slug, complaint_id):
     )
 
 
+def toggle_learning_in_public_response(
+    request,
+    enrollment,
+    course_slug,
+    enrollment_id,
+):
+    disabled = not enrollment.disable_learning_in_public
+    set_learning_in_public_disabled(enrollment, disabled)
+    enrollment.disable_learning_in_public = disabled
+
+    if enrollment.disable_learning_in_public:
+        messages.success(
+            request,
+            f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out.",
+        )
+    else:
+        messages.success(
+            request,
+            f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects.",
+        )
+
+    return redirect(
+        "cadmin_enrollment_edit",
+        course_slug=course_slug,
+        enrollment_id=enrollment_id,
+    )
+
+
+def enrollment_homework_submissions(enrollment):
+    return (
+        Submission.objects.filter(enrollment=enrollment)
+        .select_related("homework")
+        .order_by("-submitted_at")
+    )
+
+
+def enrollment_project_submissions(enrollment):
+    return (
+        ProjectSubmission.objects.filter(enrollment=enrollment)
+        .select_related("project")
+        .order_by("-submitted_at")
+    )
+
+
+def total_project_lip_score(project_submissions):
+    return sum(
+        submission.project_learning_in_public_score
+        + submission.peer_review_learning_in_public_score
+        for submission in project_submissions
+    )
+
+
+def enrollment_edit_context(course, enrollment):
+    homework_submissions = enrollment_homework_submissions(enrollment)
+    project_submissions = enrollment_project_submissions(enrollment)
+    return {
+        "course": course,
+        "enrollment": enrollment,
+        "homework_submissions": homework_submissions,
+        "homework_submissions_count": homework_submissions.count(),
+        "project_submissions": project_submissions,
+        "project_submissions_count": project_submissions.count(),
+        "total_homework_lip_score": sum(
+            submission.learning_in_public_score
+            for submission in homework_submissions
+        ),
+        "total_project_lip_score": total_project_lip_score(
+            project_submissions
+        ),
+    }
+
+
 @staff_required
 def enrollment_edit(request, course_slug, enrollment_id):
     """Edit an enrollment - mainly to disable learning in public"""
@@ -1328,61 +1437,17 @@ def enrollment_edit(request, course_slug, enrollment_id):
     )
 
     if request.method == "POST":
-        # Handle the disable learning in public toggle
         action = request.POST.get("action")
-
         if action == "toggle_learning_in_public":
-            disabled = not enrollment.disable_learning_in_public
-            set_learning_in_public_disabled(enrollment, disabled)
-            enrollment.disable_learning_in_public = disabled
-
-            if enrollment.disable_learning_in_public:
-                messages.success(
-                    request,
-                    f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out.",
-                )
-            else:
-                messages.success(
-                    request,
-                    f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects.",
-                )
-
-            return redirect(
-                "cadmin_enrollment_edit",
-                course_slug=course_slug,
-                enrollment_id=enrollment_id,
+            return toggle_learning_in_public_response(
+                request,
+                enrollment,
+                course_slug,
+                enrollment_id,
             )
 
-    # Get some stats about this enrollment
-    homework_submissions = (
-        Submission.objects.filter(enrollment=enrollment)
-        .select_related("homework")
-        .order_by("-submitted_at")
+    return render(
+        request,
+        "cadmin/enrollment_edit.html",
+        enrollment_edit_context(course, enrollment),
     )
-    project_submissions = (
-        ProjectSubmission.objects.filter(enrollment=enrollment)
-        .select_related("project")
-        .order_by("-submitted_at")
-    )
-
-    total_homework_lip_score = sum(
-        s.learning_in_public_score for s in homework_submissions
-    )
-    total_project_lip_score = sum(
-        s.project_learning_in_public_score
-        + s.peer_review_learning_in_public_score
-        for s in project_submissions
-    )
-
-    context = {
-        "course": course,
-        "enrollment": enrollment,
-        "homework_submissions": homework_submissions,
-        "homework_submissions_count": homework_submissions.count(),
-        "project_submissions": project_submissions,
-        "project_submissions_count": project_submissions.count(),
-        "total_homework_lip_score": total_homework_lip_score,
-        "total_project_lip_score": total_project_lip_score,
-    }
-
-    return render(request, "cadmin/enrollment_edit.html", context)
