@@ -828,6 +828,87 @@ def peer_review_assignment_notification_members(
         )
     return list_data, members
 
+
+def _peer_review_assignment_urls(course, project) -> dict[str, str]:
+    return {
+        "course_url": public_url(
+            reverse("course", kwargs={"course_slug": course.slug})
+        ),
+        "project_url": public_url(
+            reverse(
+                "project",
+                kwargs={
+                    "course_slug": course.slug,
+                    "project_slug": project.slug,
+                },
+            )
+        ),
+        "evaluations_url": public_url(
+            reverse(
+                "projects_eval",
+                kwargs={
+                    "course_slug": course.slug,
+                    "project_slug": project.slug,
+                },
+            )
+        ),
+        "leaderboard_url": public_url(
+            reverse("leaderboard", kwargs={"course_slug": course.slug})
+        ),
+        "profile_url": public_url(reverse("account_settings")),
+    }
+
+
+def _peer_review_assignment_context(course, project) -> dict[str, Any]:
+    urls = _peer_review_assignment_urls(course, project)
+    deadline = format_deadline_for_email(project.peer_review_due_date)
+    num_peers = project.number_of_peers_to_evaluate
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "project_slug": project.slug,
+        "project_title": project.title,
+        **urls,
+        "number_of_peers_to_evaluate": num_peers,
+        "peer_review_due_at": project.peer_review_due_date.isoformat(),
+        "deadline_weekday": deadline["deadline_weekday"],
+        "deadline_date": deadline["deadline_date"],
+        "deadline_time": deadline["deadline_time"],
+        "deadline_summary": deadline["deadline_summary"],
+        "email_subject": f"Peer review is open: {project.title}",
+        "email_preview": (
+            f"Time to evaluate {num_peers} projects for {project.title}."
+        ),
+        "intro_text": (
+            f"Thanks for submitting {project.title} in {course.title}. "
+            f"Peer review is now open - you have {num_peers} projects to "
+            "evaluate before the deadline."
+        ),
+        "notification_footer": (
+            f"You are receiving this because you submitted {project.title} "
+            f"for {course.title} and homework/project submission emails "
+            "are enabled in your profile."
+        ),
+        "notification_footer_text": (
+            "If you don't want to receive homework/project submission "
+            "and score emails, turn off homework and project submission "
+            f"emails in your profile: {urls['profile_url']}"
+        ),
+    }
+
+
+def _peer_review_assignment_metadata(course, project) -> dict[str, Any]:
+    return {
+        "source": "course-management-platform",
+        "event": "peer_review_assignment",
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+        "project_id": project.pk,
+        "preference_key": "email_submission_confirmations",
+        "cmp_preference_key": "email_submission_confirmations",
+    }
+
+
 def peer_review_assignment_notification_payload(
     project,
 ) -> tuple[str, dict[str, Any]] | None:
@@ -838,33 +919,6 @@ def peer_review_assignment_notification_payload(
     course = project.course
     list_key = project_submitters_list_key(project)
     list_data, members = peer_review_assignment_notification_members(project)
-    course_url = public_url(
-        reverse("course", kwargs={"course_slug": course.slug})
-    )
-    project_url = public_url(
-        reverse(
-            "project",
-            kwargs={
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-            },
-        )
-    )
-    evaluations_url = public_url(
-        reverse(
-            "projects_eval",
-            kwargs={
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-            },
-        )
-    )
-    leaderboard_url = public_url(
-        reverse("leaderboard", kwargs={"course_slug": course.slug})
-    )
-    profile_url = public_url(reverse("account_settings"))
-    deadline = format_deadline_for_email(project.peer_review_due_date)
-    num_peers = project.number_of_peers_to_evaluate
 
     payload = {
         "audience": config.audience,
@@ -874,54 +928,10 @@ def peer_review_assignment_notification_payload(
         "idempotency_key": (
             f"peer-review-assignment:{course.slug}:{project.slug}"
         ),
-        "context": {
-            "course_slug": course.slug,
-            "course_title": course.title,
-            "project_slug": project.slug,
-            "project_title": project.title,
-            "course_url": course_url,
-            "project_url": project_url,
-            "evaluations_url": evaluations_url,
-            "leaderboard_url": leaderboard_url,
-            "profile_url": profile_url,
-            "number_of_peers_to_evaluate": num_peers,
-            "peer_review_due_at": project.peer_review_due_date.isoformat(),
-            "deadline_weekday": deadline["deadline_weekday"],
-            "deadline_date": deadline["deadline_date"],
-            "deadline_time": deadline["deadline_time"],
-            "deadline_summary": deadline["deadline_summary"],
-            "email_subject": f"Peer review is open: {project.title}",
-            "email_preview": (
-                f"Time to evaluate {num_peers} projects for "
-                f"{project.title}."
-            ),
-            "intro_text": (
-                f"Thanks for submitting {project.title} in {course.title}. "
-                f"Peer review is now open - you have {num_peers} projects to "
-                "evaluate before the deadline."
-            ),
-            "notification_footer": (
-                f"You are receiving this because you submitted {project.title} "
-                f"for {course.title} and homework/project submission emails "
-                "are enabled in your profile."
-            ),
-            "notification_footer_text": (
-                "If you don't want to receive homework/project submission "
-                "and score emails, turn off homework and project submission "
-                f"emails in your profile: {profile_url}"
-            ),
-        },
+        "context": _peer_review_assignment_context(course, project),
         "list": list_data,
         "members": members,
-        "metadata": {
-            "source": "course-management-platform",
-            "event": "peer_review_assignment",
-            "course_slug": course.slug,
-            "project_slug": project.slug,
-            "project_id": project.pk,
-            "preference_key": "email_submission_confirmations",
-            "cmp_preference_key": "email_submission_confirmations",
-        },
+        "metadata": _peer_review_assignment_metadata(course, project),
     }
     if config.from_email:
         payload["from_email"] = config.from_email

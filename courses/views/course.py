@@ -529,15 +529,9 @@ def calendar_event(
     ]
 
 
-def course_calendar_view(
-    request: HttpRequest,
-    course_slug: str,
-) -> HttpResponse:
-    course = get_object_or_404(Course, slug=course_slug, visible=True)
-    dtstamp = timezone.now()
-    events = []
-
+def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
     homeworks = Homework.objects.filter(course=course).order_by("due_date")
+    events = []
     for homework in homeworks:
         url = request.build_absolute_uri(
             reverse(
@@ -548,7 +542,7 @@ def course_calendar_view(
                 },
             )
         )
-        events.extend(
+        events.append(
             calendar_event(
                 uid=f"homework-{homework.id}@courses.datatalks.club",
                 summary=f"{course.title}: {homework.title} deadline",
@@ -561,11 +555,15 @@ def course_calendar_view(
                 dtstamp=dtstamp,
             )
         )
+    return events
 
+
+def _project_calendar_events(request, course, dtstamp) -> list[list[str]]:
     projects = Project.objects.filter(course=course).order_by(
         "submission_due_date",
         "peer_review_due_date",
     )
+    events = []
     for project in projects:
         project_url = request.build_absolute_uri(
             reverse(
@@ -576,7 +574,7 @@ def course_calendar_view(
                 },
             )
         )
-        events.extend(
+        events.append(
             calendar_event(
                 uid=f"project-{project.id}-submission@courses.datatalks.club",
                 summary=f"{course.title}: {project.title} submission deadline",
@@ -589,7 +587,7 @@ def course_calendar_view(
                 dtstamp=dtstamp,
             )
         )
-        events.extend(
+        events.append(
             calendar_event(
                 uid=f"project-{project.id}-peer-review@courses.datatalks.club",
                 summary=f"{course.title}: {project.title} peer review deadline",
@@ -602,8 +600,11 @@ def course_calendar_view(
                 dtstamp=dtstamp,
             )
         )
+    return events
 
-    calendar_lines = [
+
+def _course_calendar_lines(course, events):
+    return [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//DataTalks.Club//Course Management Platform//EN",
@@ -613,6 +614,24 @@ def course_calendar_view(
         *events,
         "END:VCALENDAR",
     ]
+
+
+def course_calendar_view(
+    request: HttpRequest,
+    course_slug: str,
+) -> HttpResponse:
+    course = get_object_or_404(Course, slug=course_slug, visible=True)
+    dtstamp = timezone.now()
+    nested_events = [
+        *_homework_calendar_events(request, course, dtstamp),
+        *_project_calendar_events(request, course, dtstamp),
+    ]
+    events = [
+        line
+        for event_lines in nested_events
+        for line in event_lines
+    ]
+    calendar_lines = _course_calendar_lines(course, events)
 
     response = HttpResponse(
         "\r\n".join(calendar_lines) + "\r\n",

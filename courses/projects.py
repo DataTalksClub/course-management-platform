@@ -365,6 +365,72 @@ def _sync_scored_project_submission_to_datamailer(submission):
     sync_project_passed_outcome_to_datamailer(submission)
 
 
+def _peer_reviews_for_project(project):
+    return PeerReview.objects.filter(
+        submission_under_evaluation__project=project,
+    ).select_related("submission_under_evaluation", "reviewer")
+
+
+def _score_project_submissions(
+    project,
+    submissions,
+    reviews_by_submission,
+    reviews_by_reviewer,
+    criteria,
+):
+    submissions_to_update = []
+    all_scores = []
+    passed = 0
+
+    for submission_id, submission in submissions.items():
+        reviews = reviews_by_submission[submission_id]
+        reviewed = reviews_by_reviewer.get(submission_id) or []
+
+        scores = _score_submission(
+            submission, project, reviews, reviewed, criteria
+        )
+        all_scores.extend(scores)
+        submissions_to_update.append(submission)
+
+        if submission.passed:
+            passed += 1
+
+    return submissions_to_update, all_scores, passed
+
+
+def _bulk_update_project_submissions(submissions_to_update):
+    logger.info(f"updating {len(submissions_to_update)} submissions...")
+    ProjectSubmission.objects.bulk_update(
+        submissions_to_update,
+        [
+            "project_score",
+            "project_faq_score",
+            "project_learning_in_public_score",
+            "peer_review_score",
+            "peer_review_learning_in_public_score",
+            "total_score",
+            "reviewed_enough_peers",
+            "passed",
+        ],
+    )
+
+
+def _sync_project_submissions_after_commit(submissions_to_update):
+    for submission in submissions_to_update:
+        transaction.on_commit(
+            lambda submission=submission: (
+                _sync_scored_project_submission_to_datamailer(submission)
+            )
+        )
+
+
+def _replace_project_evaluation_scores(submission_ids, all_scores):
+    ProjectEvaluationScore.objects.filter(
+        submission_id__in=submission_ids
+    ).delete()
+    ProjectEvaluationScore.objects.bulk_create(all_scores)
+
+
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
@@ -373,10 +439,7 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
         if error is not None:
             return (ProjectActionStatus.FAIL, error)
 
-        peer_reviews = PeerReview.objects.filter(
-            submission_under_evaluation__project=project,
-        ).select_related('submission_under_evaluation', 'reviewer')
-
+        peer_reviews = _peer_reviews_for_project(project)
         if peer_reviews.count() == 0:
             return (
                 ProjectActionStatus.FAIL,
@@ -391,57 +454,23 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             course=project.course
         ).all()
 
-        submissions_to_update = []
-        all_scores = []
-        passed = 0
-
-        for submission_id, submission in submissions.items():
-            reviews = reviews_by_submission[submission_id]
-            reviewed = reviews_by_reviewer.get(submission_id) or []
-
-            scores = _score_submission(
-                submission, project, reviews, reviewed, criteria
+        submissions_to_update, all_scores, passed = (
+            _score_project_submissions(
+                project,
+                submissions,
+                reviews_by_submission,
+                reviews_by_reviewer,
+                criteria,
             )
-            all_scores.extend(scores)
-            submissions_to_update.append(submission)
-
-            if submission.passed:
-                passed += 1
-
+        )
         passed_ratio = passed / len(submissions)
 
-        logger.info(
-            f"updating {len(submissions_to_update)} submissions..."
+        _bulk_update_project_submissions(submissions_to_update)
+        _sync_project_submissions_after_commit(submissions_to_update)
+        _replace_project_evaluation_scores(
+            submissions.keys(),
+            all_scores,
         )
-
-        ProjectSubmission.objects.bulk_update(
-            submissions_to_update,
-            [
-                "project_score",
-                "project_faq_score",
-                "project_learning_in_public_score",
-                "peer_review_score",
-                "peer_review_learning_in_public_score",
-                "total_score",
-                "reviewed_enough_peers",
-                "passed",
-            ],
-        )
-        for submission in submissions_to_update:
-            transaction.on_commit(
-                lambda submission=submission: (
-                    _sync_scored_project_submission_to_datamailer(
-                        submission
-                    )
-                )
-            )
-
-        scores_to_delete = ProjectEvaluationScore.objects.filter(
-            submission_id__in=submissions.keys()
-        )
-        scores_to_delete.delete()
-
-        ProjectEvaluationScore.objects.bulk_create(all_scores)
 
         project.state = ProjectState.COMPLETED.value
         project.save()

@@ -794,6 +794,71 @@ def homework_submissions(request, course_slug, homework_slug):
     return render(request, "cadmin/homework_submissions.html", context)
 
 
+def _questions_with_submission_answers(homework, submission):
+    questions = Question.objects.filter(homework=homework).order_by("id")
+    answers = Answer.objects.filter(
+        submission=submission
+    ).select_related("question")
+    answer_map = {answer.question_id: answer for answer in answers}
+    return questions, [
+        {
+            "question": question,
+            "answer": answer_map.get(question.id),
+            "answer_text": (
+                answer_map[question.id].answer_text
+                if question.id in answer_map
+                else ""
+            ),
+        }
+        for question in questions
+    ]
+
+
+def _homework_submission_edit_redirect(course_slug, homework_slug):
+    return redirect(
+        "cadmin_homework_submissions",
+        course_slug=course_slug,
+        homework_slug=homework_slug,
+    )
+
+
+def _handle_homework_submission_edit_post(
+    request,
+    *,
+    submission,
+    questions,
+    course_slug,
+    homework_slug,
+):
+    form = HomeworkSubmissionEditForm(
+        request.POST,
+        submission=submission,
+        questions=questions,
+    )
+
+    if not form.is_valid():
+        messages.error(
+            request,
+            f"Error updating submission: {first_form_error(form)}",
+        )
+        return None
+
+    try:
+        update_homework_submission_from_admin(
+            submission,
+            form.cleaned_data,
+        )
+    except Exception as e:
+        messages.error(request, f"Error updating submission: {e}")
+        return None
+
+    messages.success(
+        request,
+        f"Homework submission for {submission.student.username} updated successfully",
+    )
+    return _homework_submission_edit_redirect(course_slug, homework_slug)
+
+
 @staff_required
 def homework_submission_edit(
     request, course_slug, homework_slug, submission_id
@@ -807,62 +872,25 @@ def homework_submission_edit(
         Submission, id=submission_id, homework=homework
     )
 
-    # Get all questions for this homework
-    questions = Question.objects.filter(homework=homework).order_by(
-        "id"
+    questions, questions_with_answers = _questions_with_submission_answers(
+        homework,
+        submission,
     )
-
-    # Get all answers for this submission
-    answers = Answer.objects.filter(
-        submission=submission
-    ).select_related("question")
-    answer_map = {answer.question_id: answer for answer in answers}
-
-    # Build a list of questions with their current answers
-    questions_with_answers = []
-    for question in questions:
-        answer = answer_map.get(question.id)
-        questions_with_answers.append(
-            {
-                "question": question,
-                "answer": answer,
-                "answer_text": answer.answer_text if answer else "",
-            }
-        )
 
     if request.method == "POST":
         faq_contribution_url = request.POST.get(
             "faq_contribution_url", ""
         ).strip()
         faq_score = request.POST.get("faq_score", submission.faq_score)
-        form = HomeworkSubmissionEditForm(
-            request.POST,
+        response = _handle_homework_submission_edit_post(
+            request,
             submission=submission,
             questions=questions,
+            course_slug=course_slug,
+            homework_slug=homework_slug,
         )
-
-        if form.is_valid():
-            try:
-                update_homework_submission_from_admin(
-                    submission,
-                    form.cleaned_data,
-                )
-                messages.success(
-                    request,
-                    f"Homework submission for {submission.student.username} updated successfully",
-                )
-                return redirect(
-                    "cadmin_homework_submissions",
-                    course_slug=course_slug,
-                    homework_slug=homework_slug,
-                )
-            except Exception as e:
-                messages.error(request, f"Error updating submission: {e}")
-        else:
-            messages.error(
-                request,
-                f"Error updating submission: {first_form_error(form)}",
-            )
+        if response is not None:
+            return response
     else:
         faq_contribution_url = submission.faq_contribution_url or ""
         faq_score = submission.faq_score

@@ -631,6 +631,84 @@ def _wrapped_leaderboard(enrollments):
     ]
 
 
+def _wrapped_total_hours(homework_submissions, project_submissions):
+    homework_hours = sum(
+        min(hw.time_spent_lectures or 0, 100.0)
+        + min(hw.time_spent_homework or 0, 100.0)
+        for hw in homework_submissions
+    )
+    project_hours = sum(
+        min(proj.time_spent or 0, 100.0)
+        for proj in project_submissions
+    )
+    return round(homework_hours + project_hours, 1)
+
+
+def _wrapped_learning_in_public_count(
+    homework_submissions,
+    project_submissions,
+):
+    homework_links = sum(
+        len(hw.learning_in_public_links)
+        if hw.learning_in_public_links
+        else 0
+        for hw in homework_submissions
+    )
+    project_links = sum(
+        len(proj.learning_in_public_links)
+        if proj.learning_in_public_links
+        else 0
+        for proj in project_submissions
+    )
+    return homework_links + project_links
+
+
+def _wrapped_faq_count(homework_submissions, project_submissions):
+    homework_faqs = sum(
+        1
+        for hw in homework_submissions
+        if hw.faq_contribution_url and hw.faq_contribution_url.strip()
+    )
+    project_faqs = sum(
+        1
+        for proj in project_submissions
+        if proj.faq_contribution_url and proj.faq_contribution_url.strip()
+    )
+    return homework_faqs + project_faqs
+
+
+def _wrapped_courses(enrollments):
+    return [
+        {
+            "title": enrollment.course.title,
+            "score": enrollment.total_score,
+            "slug": enrollment.course.slug,
+            "enrollment_id": enrollment.id,
+        }
+        for enrollment in enrollments
+    ]
+
+
+def _wrapped_certificates_count(enrollments):
+    return sum(
+        1
+        for enrollment in enrollments
+        if enrollment.certificate_url
+        and enrollment.certificate_url.strip()
+    )
+
+
+def _wrapped_rank(student, leaderboard_data):
+    return next(
+        (
+            entry["rank"]
+            for entry in leaderboard_data
+            if entry["student_id"] == student.id
+        ),
+        None,
+    )
+
+
 def _build_user_wrapped_stat(
     stats,
     student,
@@ -642,66 +720,7 @@ def _build_user_wrapped_stat(
     leaderboard_data,
 ):
     """Build an (unsaved) UserWrappedStatistics row for one student."""
-    # User hours (max 100h per submission to avoid outliers)
-    user_homework_hours = sum(
-        min(hw.time_spent_lectures or 0, 100.0)
-        + min(hw.time_spent_homework or 0, 100.0)
-        for hw in homework_submissions
-    )
-    user_total_hours = user_homework_hours + sum(
-        min(proj.time_spent or 0, 100.0)
-        for proj in project_submissions
-    )
-
-    learning_in_public_count = sum(
-        len(hw.learning_in_public_links)
-        if hw.learning_in_public_links
-        else 0
-        for hw in homework_submissions
-    ) + sum(
-        len(proj.learning_in_public_links)
-        if proj.learning_in_public_links
-        else 0
-        for proj in project_submissions
-    )
-
-    faq_count = sum(
-        1
-        for hw in homework_submissions
-        if hw.faq_contribution_url and hw.faq_contribution_url.strip()
-    ) + sum(
-        1
-        for proj in project_submissions
-        if proj.faq_contribution_url and proj.faq_contribution_url.strip()
-    )
-
-    courses_list = [
-        {
-            "title": e.course.title,
-            "score": e.total_score,
-            "slug": e.course.slug,
-            "enrollment_id": e.id,
-        }
-        for e in enrollments
-    ]
-
-    certificates_count = sum(
-        1
-        for e in enrollments
-        if e.certificate_url and e.certificate_url.strip()
-    )
-
     total_points = sum(e.total_score or 0 for e in enrollments)
-
-    rank = next(
-        (
-            entry["rank"]
-            for entry in leaderboard_data
-            if entry["student_id"] == student.id
-        ),
-        None,
-    )
-
     display_name = (
         enrollments[0].display_name if enrollments else student.username
     )
@@ -710,15 +729,24 @@ def _build_user_wrapped_stat(
         wrapped=stats,
         user=student,
         total_points=total_points,
-        total_hours=round(user_total_hours, 1),
+        total_hours=_wrapped_total_hours(
+            homework_submissions,
+            project_submissions,
+        ),
         homework_count=len(homework_submissions),
         project_count=len(project_submissions),
         peer_reviews_given=peer_reviews_count,
-        learning_in_public_count=learning_in_public_count,
-        faq_contributions_count=faq_count,
-        certificates_earned=certificates_count,
-        courses=courses_list,
-        rank=rank,
+        learning_in_public_count=_wrapped_learning_in_public_count(
+            homework_submissions,
+            project_submissions,
+        ),
+        faq_contributions_count=_wrapped_faq_count(
+            homework_submissions,
+            project_submissions,
+        ),
+        certificates_earned=_wrapped_certificates_count(enrollments),
+        courses=_wrapped_courses(enrollments),
+        rank=_wrapped_rank(student, leaderboard_data),
         display_name=display_name,
     )
 
