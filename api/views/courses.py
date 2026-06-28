@@ -110,50 +110,69 @@ def _course_summary_to_dict(course):
     return result
 
 
-@token_required
-@csrf_exempt
-@require_methods("GET", "POST")
-def courses_list_view(request):
-    """
-    GET /api/courses/ - List all courses.
-    POST /api/courses/ - Create a course.
-    """
-    if request.method == "GET":
-        courses = Course.objects.all().order_by("id")
-        return JsonResponse({
-            "courses": [_course_summary_to_dict(course) for course in courses],
-        })
+def _course_homework_to_dict(homework):
+    return {
+        "id": homework.id,
+        "slug": homework.slug,
+        "title": homework.title,
+        "instructions_url": homework.instructions_url,
+        "due_date": homework.due_date.isoformat(),
+        "state": homework.state,
+    }
 
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
 
-    data, err = parse_json_body(request)
-    if err:
-        return err
+def _course_project_to_dict(project):
+    return {
+        "id": project.id,
+        "slug": project.slug,
+        "title": project.title,
+        "instructions_url": project.instructions_url,
+        "submission_due_date": project.submission_due_date.isoformat(),
+        "peer_review_due_date": project.peer_review_due_date.isoformat(),
+        "state": project.state,
+    }
 
-    data, err = _normalize_course_data(data)
-    if err:
-        return err
 
-    title = data.get("title")
-    slug = data.get("slug")
-    if not title or not slug:
-        return error_response(
-            "title and slug are required",
-            "missing_required_fields",
-        )
+def _course_detail_to_dict(course):
+    result = _course_to_dict(course)
+    result.update(
+        {
+            "homeworks": [
+                _course_homework_to_dict(homework)
+                for homework in course.homework_set.all().order_by("id")
+            ],
+            "projects": [
+                _course_project_to_dict(project)
+                for project in course.project_set.all().order_by("id")
+            ],
+        }
+    )
+    return result
 
-    if Course.objects.filter(slug=slug).exists():
-        return error_response(
-            f"Course with slug '{slug}' already exists",
-            "course_slug_exists",
-            details={"slug": slug},
-        )
 
-    course = Course(
-        slug=slug,
-        title=title,
+def _courses_list_response():
+    courses = Course.objects.all().order_by("id")
+    return JsonResponse(
+        {
+            "courses": [
+                _course_summary_to_dict(course) for course in courses
+            ],
+        }
+    )
+
+
+def _missing_course_create_fields(data):
+    missing_fields = []
+    for field in ("title", "slug"):
+        if not data.get(field):
+            missing_fields.append(field)
+    return missing_fields
+
+
+def _course_from_create_data(data):
+    return Course(
+        slug=data.get("slug"),
+        title=data.get("title"),
         description=data.get("description", ""),
         start_date=data.get("start_date"),
         end_date=data.get("end_date"),
@@ -169,6 +188,36 @@ def courses_list_view(request):
         finished=data.get("finished", False),
         visible=data.get("visible", True),
     )
+
+
+def _create_course_response(request):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    data, err = _normalize_course_data(data)
+    if err:
+        return err
+
+    if _missing_course_create_fields(data):
+        return error_response(
+            "title and slug are required",
+            "missing_required_fields",
+        )
+
+    slug = data.get("slug")
+    if Course.objects.filter(slug=slug).exists():
+        return error_response(
+            f"Course with slug '{slug}' already exists",
+            "course_slug_exists",
+            details={"slug": slug},
+        )
+
+    course = _course_from_create_data(data)
     try:
         course.full_clean()
     except ValidationError as exc:
@@ -176,6 +225,63 @@ def courses_list_view(request):
 
     course.save()
     return JsonResponse(_course_to_dict(course), status=201)
+
+
+@token_required
+@csrf_exempt
+@require_methods("GET", "POST")
+def courses_list_view(request):
+    """
+    GET /api/courses/ - List all courses.
+    POST /api/courses/ - Create a course.
+    """
+    if request.method == "GET":
+        return _courses_list_response()
+
+    return _create_course_response(request)
+
+
+def _invalid_course_patch_field(data):
+    for field in data:
+        if field not in COURSE_PATCH_FIELDS:
+            return field
+    return None
+
+
+def _apply_course_patch_data(course, data):
+    for field, value in data.items():
+        setattr(course, field, value)
+
+
+def _patch_course_response(request, course):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    invalid_field = _invalid_course_patch_field(data)
+    if invalid_field is not None:
+        return error_response(
+            f"Cannot update field: {invalid_field}",
+            "invalid_field",
+            details={"field": invalid_field},
+        )
+
+    data, err = _normalize_course_data(data)
+    if err:
+        return err
+
+    _apply_course_patch_data(course, data)
+    try:
+        course.full_clean()
+    except ValidationError as exc:
+        return _validation_error_response(exc)
+
+    course.save()
+    return JsonResponse(_course_to_dict(course))
 
 
 @token_required
@@ -189,64 +295,6 @@ def course_detail_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     if request.method == "PATCH":
-        staff_error = require_staff_token(request)
-        if staff_error:
-            return staff_error
+        return _patch_course_response(request, course)
 
-        data, err = parse_json_body(request)
-        if err:
-            return err
-
-        for field, value in data.items():
-            if field not in COURSE_PATCH_FIELDS:
-                return error_response(
-                    f"Cannot update field: {field}",
-                    "invalid_field",
-                    details={"field": field},
-                )
-
-        data, err = _normalize_course_data(data)
-        if err:
-            return err
-
-        for field, value in data.items():
-            setattr(course, field, value)
-
-        try:
-            course.full_clean()
-        except ValidationError as exc:
-            return _validation_error_response(exc)
-
-        course.save()
-        return JsonResponse(_course_to_dict(course))
-
-    homeworks = course.homework_set.all().order_by("id")
-    projects = course.project_set.all().order_by("id")
-
-    result = _course_to_dict(course)
-    result.update({
-        "homeworks": [
-            {
-                "id": hw.id,
-                "slug": hw.slug,
-                "title": hw.title,
-                "instructions_url": hw.instructions_url,
-                "due_date": hw.due_date.isoformat(),
-                "state": hw.state,
-            }
-            for hw in homeworks
-        ],
-        "projects": [
-            {
-                "id": p.id,
-                "slug": p.slug,
-                "title": p.title,
-                "instructions_url": p.instructions_url,
-                "submission_due_date": p.submission_due_date.isoformat(),
-                "peer_review_due_date": p.peer_review_due_date.isoformat(),
-                "state": p.state,
-            }
-            for p in projects
-        ],
-    })
-    return JsonResponse(result)
+    return JsonResponse(_course_detail_to_dict(course))
