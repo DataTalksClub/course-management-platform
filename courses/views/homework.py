@@ -755,7 +755,9 @@ def process_homework_submission(
         homework=homework,
         submission=submission,
     )
-    return _homework_submission_success_response(request, course, homework)
+    return _homework_submission_success_response(
+        request, course, homework
+    )
 
 
 def homework_detail_build_context_not_authenticated(
@@ -763,15 +765,14 @@ def homework_detail_build_context_not_authenticated(
     homework: Homework,
     questions: List[Question],
 ) -> dict:
-    question_answers = []
-    for question in questions:
-        options = process_question_options(homework, question, None)
-        question_answers.append((question, options))
-
     context = {
         "course": course,
         "homework": homework,
-        "question_answers": question_answers,
+        "question_answers": question_answers_for_submission(
+            homework,
+            questions,
+            None,
+        ),
         "is_authenticated": False,
         "disabled": True,
         "accepting_submissions": (
@@ -782,6 +783,46 @@ def homework_detail_build_context_not_authenticated(
     return context
 
 
+def submission_answer_map(
+    submission: Optional[Submission],
+) -> dict[int, Answer]:
+    if not submission:
+        return {}
+
+    answers = Answer.objects.filter(
+        submission=submission
+    ).select_related("question")
+    return {answer.question.id: answer for answer in answers}
+
+
+def question_answers_for_submission(
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+) -> list[tuple[Question, dict]]:
+    question_answers_map = submission_answer_map(submission)
+    question_answers = []
+
+    for question in questions:
+        answer = question_answers_map.get(question.id)
+        processed_answer = process_question_options(
+            homework,
+            question,
+            answer,
+        )
+        question_answers.append((question, processed_answer))
+
+    return question_answers
+
+
+def learning_in_public_disabled(
+    enrollment: Optional["Enrollment"],
+) -> bool:
+    return (
+        enrollment.disable_learning_in_public if enrollment else False
+    )
+
+
 def homework_detail_build_context_authenticated(
     course: Course,
     homework: Homework,
@@ -789,48 +830,21 @@ def homework_detail_build_context_authenticated(
     submission: Optional[Submission],
     enrollment: Optional["Enrollment"] = None,
 ) -> dict:
-    if submission:
-        answers = Answer.objects.filter(
-            submission=submission
-        ).select_related("question")
-
-        question_answers_map = {
-            answer.question.id: answer for answer in answers
-        }
-    else:
-        question_answers_map = {}
-
-    # Pairing questions with their answers
-    question_answers = []
-
-    for question in questions:
-        answer = question_answers_map.get(question.id)
-        processed_answer = process_question_options(
-            homework, question, answer
-        )
-
-        pair = (question, processed_answer)
-        question_answers.append(pair)
-
-    disabled = homework.state != HomeworkState.OPEN.value
-    accepting_submissions = homework.state == HomeworkState.OPEN.value
-
-    # Check if learning in public is disabled for this enrollment
-    disable_learning_in_public = (
-        enrollment.disable_learning_in_public if enrollment else False
-    )
-
     context = {
         "course": course,
         "homework": homework,
-        "question_answers": question_answers,
+        "question_answers": question_answers_for_submission(
+            homework,
+            questions,
+            submission,
+        ),
         "submission": submission,
         "is_authenticated": True,
-        "disabled": disabled,
-        "accepting_submissions": accepting_submissions,
-        "disable_learning_in_public": disable_learning_in_public,
+        "disable_learning_in_public": learning_in_public_disabled(
+            enrollment
+        ),
     }
-
+    context.update(homework_state_context(homework))
     return context
 
 
@@ -844,27 +858,46 @@ def answer_from_post(
     return Answer(question=question, answer_text=answer_text)
 
 
-def homework_detail_build_context_from_post(
+def homework_state_context(homework: Homework) -> dict[str, bool]:
+    accepting_submissions = homework.state == HomeworkState.OPEN.value
+    return {
+        "disabled": not accepting_submissions,
+        "accepting_submissions": accepting_submissions,
+    }
+
+
+def bound_homework_submission_from_post(
     request: HttpRequest,
     course: Course,
     homework: Homework,
-    questions: List[Question],
     submission: Optional[Submission],
     enrollment: Enrollment,
-) -> dict:
+) -> Submission:
     bound_submission = submission or Submission(
         homework=homework,
         student=request.user,
         enrollment=enrollment,
     )
+    apply_homework_post_preview_fields(
+        request,
+        course,
+        homework,
+        bound_submission,
+    )
+    return bound_submission
 
+
+def apply_homework_post_preview_fields(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+) -> None:
     if homework.homework_url_field:
-        bound_submission.homework_link = request.POST.get(
-            "homework_url", ""
-        )
+        submission.homework_link = request.POST.get("homework_url", "")
 
     if homework.learning_in_public_cap > 0:
-        bound_submission.learning_in_public_links = [
+        submission.learning_in_public_links = [
             link.strip()
             for link in request.POST.getlist(
                 "learning_in_public_links[]"
@@ -873,29 +906,35 @@ def homework_detail_build_context_from_post(
         ]
 
     if homework.time_spent_lectures_field:
-        bound_submission.time_spent_lectures = request.POST.get(
+        submission.time_spent_lectures = request.POST.get(
             "time_spent_lectures",
             "",
         )
 
     if homework.time_spent_homework_field:
-        bound_submission.time_spent_homework = request.POST.get(
+        submission.time_spent_homework = request.POST.get(
             "time_spent_homework",
             "",
         )
 
     if course.homework_problems_comments_field:
-        bound_submission.problems_comments = request.POST.get(
+        submission.problems_comments = request.POST.get(
             "problems_comments",
             "",
         )
 
     if homework.faq_contribution_field:
-        bound_submission.faq_contribution_url = request.POST.get(
+        submission.faq_contribution_url = request.POST.get(
             "faq_contribution_url",
             "",
         )
 
+
+def question_answers_from_post(
+    request: HttpRequest,
+    homework: Homework,
+    questions: List[Question],
+) -> list[tuple[Question, dict]]:
     question_answers = []
     for question in questions:
         answer = answer_from_post(request, question)
@@ -905,20 +944,38 @@ def homework_detail_build_context_from_post(
             answer,
         )
         question_answers.append((question, processed_answer))
+    return question_answers
 
-    disabled = homework.state != HomeworkState.OPEN.value
-    accepting_submissions = homework.state == HomeworkState.OPEN.value
 
-    return {
+def homework_detail_build_context_from_post(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+    enrollment: Enrollment,
+) -> dict:
+    bound_submission = bound_homework_submission_from_post(
+        request,
+        course,
+        homework,
+        submission,
+        enrollment,
+    )
+    context = {
         "course": course,
         "homework": homework,
-        "question_answers": question_answers,
+        "question_answers": question_answers_from_post(
+            request,
+            homework,
+            questions,
+        ),
         "submission": bound_submission,
         "is_authenticated": True,
-        "disabled": disabled,
-        "accepting_submissions": accepting_submissions,
         "disable_learning_in_public": enrollment.disable_learning_in_public,
     }
+    context.update(homework_state_context(homework))
+    return context
 
 
 def homework_error_fields(error: ValidationError) -> set[str]:
@@ -941,18 +998,129 @@ def homework_error_fields(error: ValidationError) -> set[str]:
     }
 
 
-def homework_view(
-    request: HttpRequest, course_slug: str, homework_slug: str
-):
-    course = get_object_or_404(Course, slug=course_slug)
+def redirect_to_homework(course: Course, homework: Homework):
+    return redirect(
+        "homework",
+        course_slug=course.slug,
+        homework_slug=homework.slug,
+    )
 
+
+def closed_homework_submission_response(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+):
+    messages.error(
+        request,
+        "This homework is not open for submissions.",
+        extra_tags="homework",
+    )
+    return redirect_to_homework(course, homework)
+
+
+def homework_validation_context(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+    enrollment: Enrollment,
+    error: ValidationError,
+) -> dict:
+    context = homework_detail_build_context_from_post(
+        request=request,
+        course=course,
+        homework=homework,
+        questions=questions,
+        submission=submission,
+        enrollment=enrollment,
+    )
+    context["errors"] = error.messages
+    context["error_fields"] = homework_error_fields(error)
+    return context
+
+
+def handle_homework_post(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+    enrollment: Enrollment,
+):
+    if homework.state != HomeworkState.OPEN.value:
+        return closed_homework_submission_response(
+            request,
+            course,
+            homework,
+        )
+
+    try:
+        with transaction.atomic():
+            return process_homework_submission(
+                request=request,
+                course=course,
+                homework=homework,
+                questions=questions,
+                submission=submission,
+            )
+    except ValidationError as error:
+        return homework_validation_context(
+            request=request,
+            course=course,
+            homework=homework,
+            questions=questions,
+            submission=submission,
+            enrollment=enrollment,
+            error=error,
+        )
+
+
+def homework_detail_objects(course_slug: str, homework_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
+        Homework,
+        course=course,
+        slug=homework_slug,
     )
     questions = Question.objects.filter(homework=homework).order_by(
         "id"
     )
+    return course, homework, questions
 
+
+def authenticated_homework_context(
+    user: User,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+):
+    submission = Submission.objects.filter(
+        homework=homework,
+        student=user,
+    ).first()
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=user,
+        course=course,
+    )
+    context = homework_detail_build_context_authenticated(
+        course=course,
+        homework=homework,
+        questions=questions,
+        submission=submission,
+        enrollment=enrollment,
+    )
+    return context, submission, enrollment
+
+
+def homework_view(
+    request: HttpRequest, course_slug: str, homework_slug: str
+):
+    course, homework, questions = homework_detail_objects(
+        course_slug,
+        homework_slug,
+    )
     user = request.user
 
     if not user.is_authenticated:
@@ -961,58 +1129,25 @@ def homework_view(
         )
         return render(request, "homework/homework.html", context)
 
-    submission = Submission.objects.filter(
-        homework=homework, student=user
-    ).first()
-
-    # Get or create enrollment for the user
-    enrollment, _ = Enrollment.objects.get_or_create(
-        student=user,
-        course=course,
-    )
-
-    context = homework_detail_build_context_authenticated(
+    context, submission, enrollment = authenticated_homework_context(
+        user=user,
         course=course,
         homework=homework,
         questions=questions,
-        submission=submission,
-        enrollment=enrollment,
     )
 
-    # Process the form submission
     if request.method == "POST":
-        if homework.state != HomeworkState.OPEN.value:
-            messages.error(
-                request,
-                "This homework is not open for submissions.",
-                extra_tags="homework",
-            )
-            return redirect(
-                "homework",
-                course_slug=course.slug,
-                homework_slug=homework.slug,
-            )
-
-        try:
-            with transaction.atomic():
-                return process_homework_submission(
-                    request=request,
-                    course=course,
-                    homework=homework,
-                    questions=questions,
-                    submission=submission,
-                )
-        except ValidationError as e:
-            context = homework_detail_build_context_from_post(
-                request=request,
-                course=course,
-                homework=homework,
-                questions=questions,
-                submission=submission,
-                enrollment=enrollment,
-            )
-            context["errors"] = e.messages
-            context["error_fields"] = homework_error_fields(e)
+        post_result = handle_homework_post(
+            request=request,
+            course=course,
+            homework=homework,
+            questions=questions,
+            submission=submission,
+            enrollment=enrollment,
+        )
+        if not isinstance(post_result, dict):
+            return post_result
+        context = post_result
 
     return render(request, "homework/homework.html", context)
 
