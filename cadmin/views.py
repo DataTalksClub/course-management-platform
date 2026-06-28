@@ -32,7 +32,19 @@ from data.models import (
     DatamailerSendAudit,
     DatamailerSendAuditStatus,
 )
-from .forms import RegistrationCampaignForm
+from .forms import (
+    HomeworkSubmissionEditForm,
+    ProjectSubmissionEditForm,
+    RegistrationCampaignForm,
+)
+from .services import (
+    update_homework_submission_from_admin,
+    update_project_submission_from_admin,
+)
+from .view_models import (
+    enrollment_list_data,
+    project_submission_list_data,
+)
 from courses.models import (
     Course,
     Homework,
@@ -43,8 +55,6 @@ from courses.models import (
     ProjectSubmission,
     Question,
     Answer,
-    PeerReview,
-    PeerReviewState,
     ReviewCriteria,
     ProjectEvaluationScore,
     Enrollment,
@@ -58,7 +68,9 @@ from courses.scoring import (
     fill_correct_answers,
     clear_correct_answers,
     update_leaderboard,
-    update_score,
+)
+from courses.services.enrollment_flags import (
+    set_learning_in_public_disabled,
 )
 from courses.projects import (
     assign_peer_reviews_for_project,
@@ -92,6 +104,13 @@ def redirect_after_action(request, default_view_name, **kwargs):
     ):
         return redirect(next_url)
     return redirect(default_view_name, **kwargs)
+
+
+def first_form_error(form):
+    for errors in form.errors.values():
+        if errors:
+            return errors[0]
+    return "Invalid form data"
 
 
 def staff_required(function):
@@ -812,88 +831,38 @@ def homework_submission_edit(
         )
 
     if request.method == "POST":
-        # Store the old score to check if it changed
-        old_total_score = submission.total_score
         faq_contribution_url = request.POST.get(
             "faq_contribution_url", ""
         ).strip()
         faq_score = request.POST.get("faq_score", submission.faq_score)
+        form = HomeworkSubmissionEditForm(
+            request.POST,
+            submission=submission,
+            questions=questions,
+        )
 
-        try:
-            faq_score = int(faq_score)
-            if faq_score < 0:
-                raise ValueError("FAQ score cannot be negative")
-
-            # Update answers
-            for question in questions:
-                answer_text = request.POST.get(
-                    f"answer_{question.id}", ""
+        if form.is_valid():
+            try:
+                update_homework_submission_from_admin(
+                    submission,
+                    form.cleaned_data,
                 )
-
-                # Get or create the answer
-                answer, created = Answer.objects.get_or_create(
-                    submission=submission,
-                    question=question,
-                    defaults={"answer_text": answer_text},
+                messages.success(
+                    request,
+                    f"Homework submission for {submission.student.username} updated successfully",
                 )
-
-                if not created:
-                    answer.answer_text = answer_text
-                    answer.save()
-
-            # Update learning in public links
-            lip_links_str = request.POST.get(
-                "learning_in_public_links", ""
-            )
-            if lip_links_str.strip():
-                links = [
-                    link.strip()
-                    for link in lip_links_str.splitlines()
-                    if link.strip()
-                ]
-                submission.learning_in_public_links = links
-            else:
-                submission.learning_in_public_links = None
-
-            submission.faq_contribution_url = faq_contribution_url
-
-            # Recalculate the score
-            # Get updated answers
-            updated_answers = list(
-                Answer.objects.filter(
-                    submission=submission
-                ).select_related("question")
-            )
-            update_score(submission, updated_answers, save=True)
-            submission.faq_score = faq_score
-            submission.total_score = (
-                submission.questions_score
-                + submission.learning_in_public_score
-                + submission.faq_score
-            )
-            submission.save(
-                update_fields=[
-                    "faq_contribution_url",
-                    "faq_score",
-                    "total_score",
-                ]
-            )
-
-            # If the score changed, update the leaderboard
-            if submission.total_score != old_total_score:
-                update_leaderboard(course)
-
-            messages.success(
+                return redirect(
+                    "cadmin_homework_submissions",
+                    course_slug=course_slug,
+                    homework_slug=homework_slug,
+                )
+            except Exception as e:
+                messages.error(request, f"Error updating submission: {e}")
+        else:
+            messages.error(
                 request,
-                f"Homework submission for {submission.student.username} updated successfully",
+                f"Error updating submission: {first_form_error(form)}",
             )
-            return redirect(
-                "cadmin_homework_submissions",
-                course_slug=course_slug,
-                homework_slug=homework_slug,
-            )
-        except Exception as e:
-            messages.error(request, f"Error updating submission: {e}")
     else:
         faq_contribution_url = submission.faq_contribution_url or ""
         faq_score = submission.faq_score
@@ -976,92 +945,11 @@ def project_submissions(request, course_slug, project_slug):
     )
     search_query = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "all")
-
-    submissions = (
-        ProjectSubmission.objects.filter(project=project)
-        .select_related("student", "enrollment")
-        .order_by("-submitted_at")
+    submissions, project_filter_counts = project_submission_list_data(
+        project,
+        search_query,
+        status_filter,
     )
-
-    if search_query:
-        submissions = submissions.filter(
-            Q(student__email__icontains=search_query)
-            | Q(student__username__icontains=search_query)
-        )
-
-    # Get peer review data for each submission
-    # We need to count how many peer reviews each student has completed
-    # out of the total assigned to them
-    peer_reviews = PeerReview.objects.filter(
-        reviewer__project=project
-    ).select_related("reviewer")
-
-    # Build a dictionary mapping submission_id to review counts
-    # This is more efficient than nested loops
-    review_counts = defaultdict(lambda: {"completed": 0, "total": 0})
-
-    for review in peer_reviews:
-        if not review.optional:
-            review_counts[review.reviewer_id]["total"] += 1
-            if review.state == PeerReviewState.SUBMITTED.value:
-                review_counts[review.reviewer_id]["completed"] += 1
-
-    submissions = list(submissions)
-    for submission in submissions:
-        counts = review_counts[submission.id]
-        submission.peer_reviews_completed = counts["completed"]
-        submission.peer_reviews_total = counts["total"]
-
-    project_filter_counts = {
-        "all": len(submissions),
-        "incomplete_reviews": sum(
-            1
-            for submission in submissions
-            if submission.peer_reviews_completed
-            < submission.peer_reviews_total
-        ),
-        "missing_repository": sum(
-            1
-            for submission in submissions
-            if not submission.github_link
-        ),
-        "unscored": sum(
-            1
-            for submission in submissions
-            if submission.total_score is None
-        ),
-        "not_passed": sum(
-            1
-            for submission in submissions
-            if submission.passed is False
-        ),
-    }
-
-    if status_filter == "incomplete-reviews":
-        submissions = [
-            submission
-            for submission in submissions
-            if submission.peer_reviews_completed
-            < submission.peer_reviews_total
-        ]
-    elif status_filter == "missing-repository":
-        submissions = [
-            submission
-            for submission in submissions
-            if not submission.github_link
-        ]
-    elif status_filter == "unscored":
-        submissions = [
-            submission
-            for submission in submissions
-            if submission.total_score is None
-        ]
-    elif status_filter == "not-passed":
-        submissions = [
-            submission
-            for submission in submissions
-            if submission.passed is False
-        ]
 
     submissions_page = paginate_queryset(
         request,
@@ -1125,69 +1013,15 @@ def project_submission_edit(
         )
 
     if request.method == "POST":
-        # Update the submission fields
-        try:
-            # Update or create evaluation scores for each criteria
-            project_score = 0
-            for criteria in review_criteria:
-                score_value_str = request.POST.get(
-                    f"criteria_score_{criteria.id}", "0"
-                )
-                try:
-                    score_value = int(score_value_str)
-                    if score_value < 0:
-                        raise ValueError(
-                            f"Score for {criteria.description} cannot be negative"
-                        )
-                except (ValueError, TypeError):
-                    raise ValueError(
-                        f"Invalid score for {criteria.description}: {score_value_str}"
-                    )
-
-                project_score += score_value
-
-                # Update or create the evaluation score
-                ProjectEvaluationScore.objects.update_or_create(
-                    submission=submission,
-                    review_criteria=criteria,
-                    defaults={"score": score_value},
-                )
-
-            # Update the aggregate project score
-            submission.project_score = project_score
-
-            # Update other scores
-            submission.project_faq_score = int(
-                request.POST.get("project_faq_score", 0)
+        form = ProjectSubmissionEditForm(
+            request.POST,
+            review_criteria=review_criteria,
+        )
+        if form.is_valid():
+            update_project_submission_from_admin(
+                submission,
+                form.cleaned_data,
             )
-            submission.project_learning_in_public_score = int(
-                request.POST.get("project_learning_in_public_score", 0)
-            )
-            submission.peer_review_score = int(
-                request.POST.get("peer_review_score", 0)
-            )
-            submission.peer_review_learning_in_public_score = int(
-                request.POST.get(
-                    "peer_review_learning_in_public_score", 0
-                )
-            )
-
-            # Calculate total score from all components
-            submission.total_score = (
-                submission.project_score
-                + submission.project_faq_score
-                + submission.project_learning_in_public_score
-                + submission.peer_review_score
-                + submission.peer_review_learning_in_public_score
-            )
-
-            submission.reviewed_enough_peers = (
-                request.POST.get("reviewed_enough_peers") == "on"
-            )
-            submission.passed = request.POST.get("passed") == "on"
-
-            submission.save()
-
             messages.success(
                 request,
                 f"Project submission for {submission.student.username} updated successfully",
@@ -1197,8 +1031,10 @@ def project_submission_edit(
                 course_slug=course_slug,
                 project_slug=project_slug,
             )
-        except ValueError as e:
-            messages.error(request, f"Error updating submission: {e}")
+        messages.error(
+            request,
+            f"Error updating submission: {first_form_error(form)}",
+        )
 
     context = {
         "course": course,
@@ -1218,83 +1054,11 @@ def enrollments_list(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
     search_query = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "all")
-
-    enrollments_queryset = (
-        Enrollment.objects.filter(course=course)
-        .select_related("student")
-        .annotate(
-            homework_count=Count("submission", distinct=True),
-            project_count=Count("projectsubmission", distinct=True),
-        )
-        .order_by("position_on_leaderboard", "id")
+    enrollments, enrollment_filter_counts = enrollment_list_data(
+        course,
+        search_query,
+        status_filter,
     )
-    if search_query:
-        enrollments_queryset = enrollments_queryset.filter(
-            Q(student__email__icontains=search_query)
-            | Q(student__username__icontains=search_query)
-            | Q(display_name__icontains=search_query)
-        )
-
-    enrollments = list(enrollments_queryset)
-    enrollment_filter_counts = {
-        "all": len(enrollments),
-        "lip_disabled": sum(
-            1
-            for enrollment in enrollments
-            if enrollment.disable_learning_in_public
-        ),
-        "zero_score": sum(
-            1
-            for enrollment in enrollments
-            if enrollment.total_score == 0
-        ),
-        "hidden": sum(
-            1
-            for enrollment in enrollments
-            if not enrollment.display_on_leaderboard
-        ),
-        "no_submissions": sum(
-            1
-            for enrollment in enrollments
-            if enrollment.homework_count == 0
-            and enrollment.project_count == 0
-        ),
-    }
-    for enrollment in enrollments:
-        enrollment.has_no_submissions = (
-            enrollment.homework_count == 0
-            and enrollment.project_count == 0
-        )
-        enrollment.has_support_flags = (
-            enrollment.disable_learning_in_public
-            or not enrollment.display_on_leaderboard
-            or enrollment.has_no_submissions
-        )
-
-    if status_filter == "lip-disabled":
-        enrollments = [
-            enrollment
-            for enrollment in enrollments
-            if enrollment.disable_learning_in_public
-        ]
-    elif status_filter == "zero-score":
-        enrollments = [
-            enrollment
-            for enrollment in enrollments
-            if enrollment.total_score == 0
-        ]
-    elif status_filter == "hidden":
-        enrollments = [
-            enrollment
-            for enrollment in enrollments
-            if not enrollment.display_on_leaderboard
-        ]
-    elif status_filter == "no-submissions":
-        enrollments = [
-            enrollment
-            for enrollment in enrollments
-            if enrollment.has_no_submissions
-        ]
 
     enrollments_page = paginate_queryset(request, enrollments)
 
@@ -1409,71 +1173,11 @@ def enrollment_edit(request, course_slug, enrollment_id):
         action = request.POST.get("action")
 
         if action == "toggle_learning_in_public":
-            # Toggle the flag
-            enrollment.disable_learning_in_public = (
-                not enrollment.disable_learning_in_public
-            )
-            enrollment.save()
+            disabled = not enrollment.disable_learning_in_public
+            set_learning_in_public_disabled(enrollment, disabled)
+            enrollment.disable_learning_in_public = disabled
 
-            # If we're disabling, zero out all learning in public scores
             if enrollment.disable_learning_in_public:
-                # Zero out homework learning in public scores
-                homework_submissions = list(
-                    Submission.objects.filter(enrollment=enrollment)
-                )
-                submissions_to_update = []
-                for submission in homework_submissions:
-                    if submission.learning_in_public_score > 0:
-                        submission.learning_in_public_score = 0
-                        # Recalculate total score
-                        submission.total_score = (
-                            submission.questions_score
-                            + submission.faq_score
-                            + submission.learning_in_public_score
-                        )
-                        submissions_to_update.append(submission)
-
-                if submissions_to_update:
-                    Submission.objects.bulk_update(
-                        submissions_to_update,
-                        ["learning_in_public_score", "total_score"],
-                    )
-
-                # Zero out project learning in public scores
-                project_submissions = list(
-                    ProjectSubmission.objects.filter(
-                        enrollment=enrollment
-                    )
-                )
-                project_submissions_to_update = []
-                for submission in project_submissions:
-                    if (
-                        submission.project_learning_in_public_score > 0
-                        or submission.peer_review_learning_in_public_score
-                        > 0
-                    ):
-                        submission.project_learning_in_public_score = 0
-                        submission.peer_review_learning_in_public_score = 0
-                        # Recalculate total score
-                        submission.total_score = (
-                            submission.project_score
-                            + submission.project_faq_score
-                            + submission.project_learning_in_public_score
-                            + submission.peer_review_score
-                            + submission.peer_review_learning_in_public_score
-                        )
-                        project_submissions_to_update.append(submission)
-
-                if project_submissions_to_update:
-                    ProjectSubmission.objects.bulk_update(
-                        project_submissions_to_update,
-                        [
-                            "project_learning_in_public_score",
-                            "peer_review_learning_in_public_score",
-                            "total_score",
-                        ],
-                    )
-
                 messages.success(
                     request,
                     f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out.",
@@ -1483,9 +1187,6 @@ def enrollment_edit(request, course_slug, enrollment_id):
                     request,
                     f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects.",
                 )
-
-            # Recalculate the leaderboard for the course
-            update_leaderboard(course)
 
             return redirect(
                 "cadmin_enrollment_edit",

@@ -3,6 +3,79 @@ from django import forms
 from courses.models import RegistrationCampaign
 
 
+class HomeworkSubmissionEditForm(forms.Form):
+    learning_in_public_links = forms.CharField(required=False)
+    faq_contribution_url = forms.CharField(required=False)
+    faq_score = forms.IntegerField(required=False, min_value=0)
+
+    def __init__(self, *args, submission, questions, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.submission = submission
+        self.questions = list(questions)
+
+        for question in self.questions:
+            self.fields[f"answer_{question.id}"] = forms.CharField(
+                required=False
+            )
+
+    def clean_faq_score(self):
+        score = self.cleaned_data["faq_score"]
+        if score is None:
+            return self.submission.faq_score
+        return score
+
+    def clean(self):
+        cleaned_data = super().clean()
+        cleaned_data["answers_by_question"] = [
+            (
+                question,
+                cleaned_data.get(f"answer_{question.id}", ""),
+            )
+            for question in self.questions
+        ]
+
+        links_text = cleaned_data.get("learning_in_public_links", "")
+        links = [
+            link.strip()
+            for link in links_text.splitlines()
+            if link.strip()
+        ]
+        cleaned_data["learning_in_public_links_list"] = links or None
+        return cleaned_data
+
+
+class ProjectSubmissionEditForm(forms.Form):
+    project_faq_score = forms.IntegerField()
+    project_learning_in_public_score = forms.IntegerField()
+    peer_review_score = forms.IntegerField()
+    peer_review_learning_in_public_score = forms.IntegerField()
+    reviewed_enough_peers = forms.BooleanField(required=False)
+    passed = forms.BooleanField(required=False)
+
+    def __init__(self, *args, review_criteria, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.review_criteria = list(review_criteria)
+
+        for criteria in self.review_criteria:
+            self.fields[f"criteria_score_{criteria.id}"] = (
+                forms.IntegerField(
+                    min_value=0,
+                    label=criteria.description,
+                )
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        cleaned_data["criteria_scores"] = [
+            (
+                criteria,
+                cleaned_data.get(f"criteria_score_{criteria.id}", 0),
+            )
+            for criteria in self.review_criteria
+        ]
+        return cleaned_data
+
+
 class RegistrationCampaignForm(forms.ModelForm):
     class Meta:
         model = RegistrationCampaign

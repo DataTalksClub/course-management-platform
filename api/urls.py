@@ -9,6 +9,47 @@ urlpatterns = [
         openapi_json_view,
         name="api_openapi_json",
     ),
+    # Public/export endpoints
+    path(
+        "health/",
+        views.health_view,
+        name="api_health",
+    ),
+    path(
+        "courses/<slug:course_slug>/course-criteria.yaml",
+        views.course_criteria_yaml_view,
+        name="api_course_criteria_yaml",
+    ),
+    path(
+        "courses/<slug:course_slug>/leaderboard.yaml",
+        views.leaderboard_data_view,
+        name="api_course_leaderboard",
+    ),
+    path(
+        "courses/<slug:course_slug>/homeworks/<slug:homework_slug>/submissions",
+        views.homework_data_view,
+        name="api_homework_submissions_export",
+    ),
+    path(
+        "courses/<slug:course_slug>/projects/<slug:project_slug>/submissions",
+        views.project_data_view,
+        name="api_project_submissions_export",
+    ),
+    path(
+        "courses/<slug:course_slug>/graduates",
+        views.graduates_data_view,
+        name="api_course_graduates",
+    ),
+    path(
+        "courses/<slug:course_slug>/certificates",
+        views.bulk_update_enrollment_certificates_view,
+        name="api_course_certificates",
+    ),
+    path(
+        "datamailer/events",
+        views.datamailer_event_webhook,
+        name="api_datamailer_events",
+    ),
     # Courses
     path(
         "courses/",

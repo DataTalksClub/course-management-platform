@@ -12,9 +12,12 @@ from courses.scoring import (
     score_homework_submissions,
 )
 
+from api.crud import (
+    bulk_create_response,
+    detail_response,
+    get_course_child_or_404,
+)
 from api.safety import (
-    apply_patch_fields,
-    delete_object_or_error,
     error_response,
     require_staff_token,
 )
@@ -180,26 +183,10 @@ def homeworks_view(request, course_slug):
     if err:
         return err
 
-    # Support both single object and list
-    items = data if isinstance(data, list) else [data]
-
-    created = []
-    errors = []
-    for item in items:
-        hw_dict, error = _create_homework(course, item)
-        if error:
-            errors.append(
-                {"name": item.get("name", "unknown"), "error": error}
-            )
-        else:
-            created.append(hw_dict)
-
-    result = {"created": created}
-    if errors:
-        result["errors"] = errors
-
-    status = 201 if created else 400
-    return JsonResponse(result, status=status)
+    return bulk_create_response(
+        data,
+        lambda item: _create_homework(course, item),
+    )
 
 
 HOMEWORK_PATCH_FIELDS = {
@@ -397,48 +384,25 @@ def _homework_detail_response(
     homework_slug=None,
 ):
     course = get_object_or_404(Course, slug=course_slug)
-    if homework_id is not None:
-        homework = get_object_or_404(
-            Homework, course=course, id=homework_id
-        )
-    else:
-        homework = get_object_or_404(
-            Homework, course=course, slug=homework_slug
-        )
-
-    if request.method == "GET":
-        return JsonResponse(_homework_to_dict(homework))
-
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    if request.method == "DELETE":
-        return delete_object_or_error(
-            homework,
-            closed_state=HomeworkState.CLOSED.value,
-            related_queryset=homework.submission_set.all(),
-            related_name="submissions",
-            noun="homework",
-        )
-
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    error = apply_patch_fields(
+    homework = get_course_child_or_404(
+        Homework,
+        course,
+        object_id=homework_id,
+        slug=homework_slug,
+    )
+    return detail_response(
+        request,
         homework,
-        data,
+        to_dict=_homework_to_dict,
         allowed_fields=HOMEWORK_PATCH_FIELDS,
         valid_states=VALID_HOMEWORK_STATES,
         invalid_state_code="invalid_homework_state",
         date_fields={"due_date"},
+        closed_state=HomeworkState.CLOSED.value,
+        related_queryset=homework.submission_set.all(),
+        related_name="submissions",
+        noun="homework",
     )
-    if error:
-        return error
-
-    homework.save()
-    return JsonResponse(_homework_to_dict(homework))
 
 
 @token_required
@@ -491,8 +455,10 @@ def homework_score_view(request, course_slug, homework_id):
         return staff_error
 
     course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(
-        Homework, course=course, id=homework_id
+    homework = get_course_child_or_404(
+        Homework,
+        course,
+        object_id=homework_id,
     )
     return _homework_score_response(homework)
 
@@ -509,7 +475,9 @@ def homework_score_by_slug_view(request, course_slug, homework_slug):
         return staff_error
 
     course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
+    homework = get_course_child_or_404(
+        Homework,
+        course,
+        slug=homework_slug,
     )
     return _homework_score_response(homework)

@@ -235,7 +235,7 @@ class LeaderboardDataViewTestCase(TestCase):
     def test_rendered_yaml_response_is_cached(self):
         self.client.get(self.url)
 
-        with patch("data.views.leaderboard.yaml.dump") as yaml_dump:
+        with patch("api.views.leaderboard_exports.yaml.dump") as yaml_dump:
             response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)

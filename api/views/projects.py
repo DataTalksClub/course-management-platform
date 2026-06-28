@@ -12,9 +12,13 @@ from courses.projects import (
     score_project,
 )
 
+from api.crud import (
+    bulk_create_response,
+    detail_response,
+    get_course_child_or_404,
+)
 from api.safety import (
     apply_patch_fields,
-    delete_object_or_error,
     error_response,
     require_staff_token,
 )
@@ -202,25 +206,10 @@ def projects_view(request, course_slug):
     if err:
         return err
 
-    items = data if isinstance(data, list) else [data]
-
-    created = []
-    errors = []
-    for item in items:
-        proj_dict, error = _create_project(course, item)
-        if error:
-            errors.append(
-                {"name": item.get("name", "unknown"), "error": error}
-            )
-        else:
-            created.append(proj_dict)
-
-    result = {"created": created}
-    if errors:
-        result["errors"] = errors
-
-    status = 201 if created else 400
-    return JsonResponse(result, status=status)
+    return bulk_create_response(
+        data,
+        lambda item: _create_project(course, item),
+    )
 
 
 PROJECT_PATCH_FIELDS = {
@@ -357,48 +346,25 @@ def _project_detail_response(
     project_slug=None,
 ):
     course = get_object_or_404(Course, slug=course_slug)
-    if project_id is not None:
-        project = get_object_or_404(
-            Project, course=course, id=project_id
-        )
-    else:
-        project = get_object_or_404(
-            Project, course=course, slug=project_slug
-        )
-
-    if request.method == "GET":
-        return JsonResponse(_project_to_dict(project))
-
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    if request.method == "DELETE":
-        return delete_object_or_error(
-            project,
-            closed_state=ProjectState.CLOSED.value,
-            related_queryset=project.projectsubmission_set.all(),
-            related_name="submissions",
-            noun="project",
-        )
-
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    error = apply_patch_fields(
+    project = get_course_child_or_404(
+        Project,
+        course,
+        object_id=project_id,
+        slug=project_slug,
+    )
+    return detail_response(
+        request,
         project,
-        data,
+        to_dict=_project_to_dict,
         allowed_fields=PROJECT_PATCH_FIELDS,
         valid_states=VALID_PROJECT_STATES,
         invalid_state_code="invalid_project_state",
         date_fields={"submission_due_date", "peer_review_due_date"},
+        closed_state=ProjectState.CLOSED.value,
+        related_queryset=project.projectsubmission_set.all(),
+        related_name="submissions",
+        noun="project",
     )
-    if error:
-        return error
-
-    project.save()
-    return JsonResponse(_project_to_dict(project))
 
 
 @token_required
@@ -451,7 +417,11 @@ def project_assign_reviews_view(request, course_slug, project_id):
         return staff_error
 
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(Project, course=course, id=project_id)
+    project = get_course_child_or_404(
+        Project,
+        course,
+        object_id=project_id,
+    )
     return _project_assign_reviews_response(project)
 
 
@@ -469,8 +439,10 @@ def project_assign_reviews_by_slug_view(
         return staff_error
 
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
+    project = get_course_child_or_404(
+        Project,
+        course,
+        slug=project_slug,
     )
     return _project_assign_reviews_response(project)
 
@@ -487,7 +459,11 @@ def project_score_view(request, course_slug, project_id):
         return staff_error
 
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(Project, course=course, id=project_id)
+    project = get_course_child_or_404(
+        Project,
+        course,
+        object_id=project_id,
+    )
     return _project_score_response(project)
 
 
@@ -503,7 +479,9 @@ def project_score_by_slug_view(request, course_slug, project_slug):
         return staff_error
 
     course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
+    project = get_course_child_or_404(
+        Project,
+        course,
+        slug=project_slug,
     )
     return _project_score_response(project)

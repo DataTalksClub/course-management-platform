@@ -170,9 +170,8 @@ def operation(
 
 def documented_urlpatterns():
     from api.urls import urlpatterns as api_urlpatterns
-    from data.urls import urlpatterns as data_urlpatterns
 
-    return [*api_urlpatterns, *data_urlpatterns]
+    return api_urlpatterns
 
 
 def _sample_url_value(name, converter, index):

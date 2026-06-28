@@ -18,6 +18,9 @@ from courses.models import (
 from courses.scoring import (
     update_learning_in_public_score,
 )
+from courses.services.enrollment_flags import (
+    set_learning_in_public_disabled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,50 +129,7 @@ class DisableLearningInPublicTestCase(TestCase):
             total_score=13
         )
         
-        # Disable learning in public programmatically
-        self.enrollment1.disable_learning_in_public = True
-        self.enrollment1.save()
-        
-        # Zero out homework learning in public scores
-        homework_submissions = list(Submission.objects.filter(enrollment=self.enrollment1))
-        submissions_to_update = []
-        for submission in homework_submissions:
-            if submission.learning_in_public_score > 0:
-                submission.learning_in_public_score = 0
-                submission.total_score = (
-                    submission.questions_score + 
-                    submission.faq_score + 
-                    submission.learning_in_public_score
-                )
-                submissions_to_update.append(submission)
-        
-        if submissions_to_update:
-            Submission.objects.bulk_update(
-                submissions_to_update,
-                ['learning_in_public_score', 'total_score']
-            )
-        
-        # Zero out project learning in public scores
-        project_submissions = list(ProjectSubmission.objects.filter(enrollment=self.enrollment1))
-        project_submissions_to_update = []
-        for submission in project_submissions:
-            if submission.project_learning_in_public_score > 0 or submission.peer_review_learning_in_public_score > 0:
-                submission.project_learning_in_public_score = 0
-                submission.peer_review_learning_in_public_score = 0
-                submission.total_score = (
-                    submission.project_score +
-                    submission.project_faq_score +
-                    submission.project_learning_in_public_score +
-                    submission.peer_review_score +
-                    submission.peer_review_learning_in_public_score
-                )
-                project_submissions_to_update.append(submission)
-        
-        if project_submissions_to_update:
-            ProjectSubmission.objects.bulk_update(
-                project_submissions_to_update,
-                ['project_learning_in_public_score', 'peer_review_learning_in_public_score', 'total_score']
-            )
+        set_learning_in_public_disabled(self.enrollment1, True)
         
         # Verify scores are zeroed
         submission1.refresh_from_db()
@@ -181,3 +141,23 @@ class DisableLearningInPublicTestCase(TestCase):
         self.assertEqual(project_submission1.peer_review_learning_in_public_score, 0)
         self.assertEqual(project_submission1.total_score, 10)  # Only project score
 
+    def test_reenabling_does_not_recreate_scores(self):
+        submission = Submission.objects.create(
+            homework=self.homework,
+            student=self.student1,
+            enrollment=self.enrollment1,
+            learning_in_public_links=["http://link1.com"],
+            learning_in_public_score=1,
+            questions_score=5,
+            faq_score=1,
+            total_score=7,
+        )
+
+        set_learning_in_public_disabled(self.enrollment1, True)
+        set_learning_in_public_disabled(self.enrollment1, False)
+
+        self.enrollment1.refresh_from_db()
+        submission.refresh_from_db()
+        self.assertFalse(self.enrollment1.disable_learning_in_public)
+        self.assertEqual(submission.learning_in_public_score, 0)
+        self.assertEqual(submission.total_score, 6)

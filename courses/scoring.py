@@ -723,6 +723,156 @@ def _build_user_wrapped_stat(
     )
 
 
+def _wrapped_year_window(year):
+    year_start = timezone.make_aware(datetime(year, 1, 1))
+    year_end = timezone.make_aware(datetime(year, 12, 31, 23, 59, 59))
+    return year_start, year_end
+
+
+def _wrapped_activity_querysets(year_start, year_end):
+    homework_submissions = Submission.objects.filter(
+        submitted_at__gte=year_start, submitted_at__lte=year_end
+    ).select_related(
+        "homework", "homework__course", "enrollment", "student"
+    )
+    project_submissions = ProjectSubmission.objects.filter(
+        submitted_at__gte=year_start, submitted_at__lte=year_end
+    ).select_related(
+        "project", "project__course", "enrollment", "student"
+    )
+    return homework_submissions, project_submissions
+
+
+def _wrapped_active_students_and_enrollments(
+    homework_submissions, project_submissions
+):
+    students_from_homeworks = {hw.student for hw in homework_submissions}
+    students_from_projects = {
+        proj.student for proj in project_submissions
+    }
+    students_with_activity = students_from_homeworks | students_from_projects
+
+    enrollment_ids_from_homeworks = {
+        hw.enrollment_id for hw in homework_submissions if hw.enrollment_id
+    }
+    enrollment_ids_from_projects = {
+        proj.enrollment_id
+        for proj in project_submissions
+        if proj.enrollment_id
+    }
+    enrollment_ids = (
+        enrollment_ids_from_homeworks | enrollment_ids_from_projects
+    )
+
+    enrollments = Enrollment.objects.filter(
+        id__in=enrollment_ids
+    ).select_related("course", "student")
+    courses = {enrollment.course for enrollment in enrollments}
+    return students_with_activity, enrollments, courses
+
+
+def _persist_wrapped_platform_statistics(
+    stats,
+    *,
+    students_with_activity,
+    enrollments,
+    courses,
+    homework_submissions,
+    project_submissions,
+):
+    stats.total_participants = len(students_with_activity)
+    stats.total_enrollments = enrollments.count()
+    stats.total_hours = _wrapped_total_hours(
+        homework_submissions, project_submissions
+    )
+    stats.total_certificates = enrollments.exclude(
+        Q(certificate_url__isnull=True) | Q(certificate_url="")
+    ).count()
+    stats.total_points = (
+        enrollments.aggregate(total_score=Sum("total_score"))[
+            "total_score"
+        ]
+        or 0
+    )
+    stats.course_stats = _wrapped_course_stats(enrollments, courses)
+
+    leaderboard_data = _wrapped_leaderboard(enrollments)
+    stats.leaderboard = leaderboard_data
+    stats.save()
+    return leaderboard_data
+
+
+def _group_wrapped_activity_by_student(
+    homework_submissions, project_submissions, enrollments
+):
+    homework_by_student = defaultdict(list)
+    for homework_submission in homework_submissions:
+        homework_by_student[homework_submission.student].append(
+            homework_submission
+        )
+
+    project_by_student = defaultdict(list)
+    for project_submission in project_submissions:
+        project_by_student[project_submission.student].append(
+            project_submission
+        )
+
+    enrollment_by_student = defaultdict(list)
+    for enrollment in enrollments:
+        enrollment_by_student[enrollment.student].append(enrollment)
+
+    return homework_by_student, project_by_student, enrollment_by_student
+
+
+def _wrapped_peer_review_counts(students_with_activity, year_start, year_end):
+    peer_review_counts = {}
+    peer_reviews = (
+        PeerReview.objects.filter(
+            reviewer__student__in=students_with_activity,
+            submitted_at__gte=year_start,
+            submitted_at__lte=year_end,
+        )
+        .values("reviewer__student")
+        .annotate(count=Count("id"))
+    )
+    for peer_review in peer_reviews:
+        peer_review_counts[peer_review["reviewer__student"]] = peer_review[
+            "count"
+        ]
+    return peer_review_counts
+
+
+def _build_user_wrapped_stats(
+    stats,
+    *,
+    students_with_activity,
+    homework_by_student,
+    project_by_student,
+    enrollment_by_student,
+    peer_review_counts,
+    leaderboard_data,
+):
+    return [
+        _build_user_wrapped_stat(
+            stats,
+            student,
+            homework_submissions=homework_by_student.get(student, []),
+            project_submissions=project_by_student.get(student, []),
+            enrollments=enrollment_by_student.get(student, []),
+            peer_reviews_count=peer_review_counts.get(student.id, 0),
+            leaderboard_data=leaderboard_data,
+        )
+        for student in students_with_activity
+    ]
+
+
+def _replace_user_wrapped_statistics(stats, user_stats_objects):
+    UserWrappedStatistics.objects.filter(wrapped=stats).delete()
+    UserWrappedStatistics.objects.bulk_create(
+        user_stats_objects, batch_size=500
+    )
+
+
 def calculate_wrapped_statistics(year=2025, force=False):
     """
     Calculate and save wrapped statistics for a given year.
@@ -748,144 +898,50 @@ def calculate_wrapped_statistics(year=2025, force=False):
     logger.info(f"Calculating wrapped statistics for {year}...")
     start_time = time()
 
-    # Define year date range
-    year_start = timezone.make_aware(datetime(year, 1, 1))
-    year_end = timezone.make_aware(datetime(year, 12, 31, 23, 59, 59))
-
-    # Get all homework submissions in the year
-    homework_submissions_2025 = Submission.objects.filter(
-        submitted_at__gte=year_start, submitted_at__lte=year_end
-    ).select_related(
-        "homework", "homework__course", "enrollment", "student"
+    year_start, year_end = _wrapped_year_window(year)
+    homework_submissions, project_submissions = (
+        _wrapped_activity_querysets(year_start, year_end)
+    )
+    students_with_activity, enrollments, courses = (
+        _wrapped_active_students_and_enrollments(
+            homework_submissions,
+            project_submissions,
+        )
     )
 
-    # Get all project submissions in the year
-    project_submissions_2025 = ProjectSubmission.objects.filter(
-        submitted_at__gte=year_start, submitted_at__lte=year_end
-    ).select_related(
-        "project", "project__course", "enrollment", "student"
+    leaderboard_data = _persist_wrapped_platform_statistics(
+        stats,
+        students_with_activity=students_with_activity,
+        enrollments=enrollments,
+        courses=courses,
+        homework_submissions=homework_submissions,
+        project_submissions=project_submissions,
     )
-
-    # Get unique students with activity in 2025
-    students_from_homeworks = set(
-        hw.student for hw in homework_submissions_2025
-    )
-    students_from_projects = set(
-        proj.student for proj in project_submissions_2025
-    )
-    students_with_2025_activity = (
-        students_from_homeworks | students_from_projects
-    )
-
-    # Get unique enrollments with activity in 2025
-    enrollment_ids_from_homeworks = {
-        hw.enrollment_id
-        for hw in homework_submissions_2025
-        if hw.enrollment_id
-    }
-    enrollment_ids_from_projects = {
-        proj.enrollment_id
-        for proj in project_submissions_2025
-        if proj.enrollment_id
-    }
-    enrollment_ids_with_2025_activity = (
-        enrollment_ids_from_homeworks | enrollment_ids_from_projects
-    )
-
-    # Get enrollments with 2025 activity (only those with submissions in the year)
-    enrollments_for_active_students = Enrollment.objects.filter(
-        id__in=enrollment_ids_with_2025_activity
-    ).select_related("course", "student")
-
-    # Get courses with activity in 2025 from these enrollments
-    courses_with_2025_activity = {
-        e.course for e in enrollments_for_active_students
-    }
-
-    # Calculate platform-wide statistics
-    stats.total_participants = len(students_with_2025_activity)
-    stats.total_enrollments = enrollments_for_active_students.count()
-
-    # Calculate total hours with safeguards (max 100h per submission to avoid outliers)
-    stats.total_hours = _wrapped_total_hours(
-        homework_submissions_2025, project_submissions_2025
-    )
-
-    # Count certificates
-    stats.total_certificates = enrollments_for_active_students.exclude(
-        Q(certificate_url__isnull=True) | Q(certificate_url="")
-    ).count()
-
-    # Calculate total points
-    stats.total_points = (
-        enrollments_for_active_students.aggregate(
-            total_score=Sum("total_score")
-        )["total_score"]
-        or 0
-    )
-
-    stats.course_stats = _wrapped_course_stats(
-        enrollments_for_active_students, courses_with_2025_activity
-    )
-
-    leaderboard_data = _wrapped_leaderboard(
-        enrollments_for_active_students
-    )
-    stats.leaderboard = leaderboard_data
-    stats.save()
 
     logger.info(
         "Platform statistics calculated. Now calculating individual user statistics..."
     )
 
-    # Calculate individual user statistics
-    # Delete old user statistics for this year
-    UserWrappedStatistics.objects.filter(wrapped=stats).delete()
-
-    # Pre-group submissions by student for efficiency
-    homework_by_student = defaultdict(list)
-    for hw in homework_submissions_2025:
-        homework_by_student[hw.student].append(hw)
-
-    project_by_student = defaultdict(list)
-    for proj in project_submissions_2025:
-        project_by_student[proj.student].append(proj)
-
-    enrollment_by_student = defaultdict(list)
-    for e in enrollments_for_active_students:
-        enrollment_by_student[e.student].append(e)
-
-    # Bulk fetch peer review counts for all students
-    peer_review_counts = {}
-    peer_reviews = (
-        PeerReview.objects.filter(
-            reviewer__student__in=students_with_2025_activity,
-            submitted_at__gte=year_start,
-            submitted_at__lte=year_end,
+    homework_by_student, project_by_student, enrollment_by_student = (
+        _group_wrapped_activity_by_student(
+            homework_submissions,
+            project_submissions,
+            enrollments,
         )
-        .values("reviewer__student")
-        .annotate(count=Count("id"))
     )
-    for pr in peer_reviews:
-        peer_review_counts[pr["reviewer__student"]] = pr["count"]
-
-    user_stats_objects = [
-        _build_user_wrapped_stat(
-            stats,
-            student,
-            homework_submissions=homework_by_student.get(student, []),
-            project_submissions=project_by_student.get(student, []),
-            enrollments=enrollment_by_student.get(student, []),
-            peer_reviews_count=peer_review_counts.get(student.id, 0),
-            leaderboard_data=leaderboard_data,
-        )
-        for student in students_with_2025_activity
-    ]
-
-    # Bulk create all user statistics
-    UserWrappedStatistics.objects.bulk_create(
-        user_stats_objects, batch_size=500
+    peer_review_counts = _wrapped_peer_review_counts(
+        students_with_activity, year_start, year_end
     )
+    user_stats_objects = _build_user_wrapped_stats(
+        stats,
+        students_with_activity=students_with_activity,
+        homework_by_student=homework_by_student,
+        project_by_student=project_by_student,
+        enrollment_by_student=enrollment_by_student,
+        peer_review_counts=peer_review_counts,
+        leaderboard_data=leaderboard_data,
+    )
+    _replace_user_wrapped_statistics(stats, user_stats_objects)
 
     elapsed_time = time() - start_time
     logger.info(

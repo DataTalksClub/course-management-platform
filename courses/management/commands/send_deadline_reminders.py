@@ -41,6 +41,17 @@ class ReminderEvent:
     members: list[dict[str, Any]]
 
 
+@dataclass(frozen=True)
+class ReminderSpec:
+    deadline_kind: str
+    event_kind: str
+    list_kind: str
+    item_type: str
+    route_name: str
+    route_slug_kwarg: str
+    list_name_suffix: str
+
+
 def aware_now(value: str):
     if not value:
         return timezone.now()
@@ -64,6 +75,21 @@ def utc_day_window(now, *, days_ahead):
         tzinfo=datetime_timezone.utc,
     )
     return start, start + timedelta(days=1)
+
+
+def reminder_window(now, reminder_key):
+    days_by_key = {
+        "24h": 1,
+        "7d": 8,
+    }
+    return utc_day_window(now, days_ahead=days_by_key[reminder_key])
+
+
+def matching_reminder_key(deadline, windows):
+    for reminder_key, start, end in windows:
+        if is_within_window(deadline, start, end):
+            return reminder_key
+    return None
 
 
 def is_within_window(value, start, end):
@@ -195,9 +221,122 @@ def base_context(
     }
 
 
+def reminder_metadata(
+    course,
+    *,
+    item_slug_key,
+    item_slug,
+    item_id_key,
+    item_id,
+    reminder_key,
+    deadline_kind,
+):
+    return {
+        "course_slug": course.slug,
+        item_slug_key: item_slug,
+        item_id_key: item_id,
+        "reminder_key": reminder_key,
+        "deadline_kind": deadline_kind,
+    }
+
+
+def deadline_action_url(spec, course, item_slug):
+    return public_url(
+        reverse(
+            spec.route_name,
+            kwargs={
+                "course_slug": course.slug,
+                spec.route_slug_kwarg: item_slug,
+            },
+        )
+    )
+
+
+def deadline_context(
+    course,
+    *,
+    reminder_key,
+    item_type,
+    item_slug,
+    item_title,
+    deadline,
+    action_url,
+    extra_context,
+):
+    context = base_context(
+        course,
+        reminder_key=reminder_key,
+        item_type=item_type,
+        item_slug=item_slug,
+        item_title=item_title,
+        deadline=deadline,
+        action_url=action_url,
+    )
+    context.update(extra_context)
+    return context
+
+
+def build_reminder_event(
+    config,
+    spec,
+    *,
+    course,
+    item_id,
+    item_slug,
+    item_title,
+    reminder_key,
+    deadline,
+    members,
+    metadata,
+    context_extra,
+):
+    action_url = deadline_action_url(spec, course, item_slug)
+    context = deadline_context(
+        course,
+        reminder_key=reminder_key,
+        item_type=spec.item_type,
+        item_slug=item_slug,
+        item_title=item_title,
+        deadline=deadline,
+        action_url=action_url,
+        extra_context=context_extra(action_url),
+    )
+    event_key = (
+        f"deadline-reminder:{spec.event_kind}:{item_id}:{reminder_key}"
+    )
+    return ReminderEvent(
+        key=event_key,
+        list_key=(
+            "deadline-reminders:"
+            f"{spec.list_kind}:{course.slug}:{item_slug}:{reminder_key}"
+        ),
+        list_name=(
+            f"{course.title} {item_title} "
+            f"{reminder_key} {spec.list_name_suffix}"
+        ),
+        list_metadata=metadata,
+        send_payload=deadline_send_payload(
+            config,
+            event_key=event_key,
+            template_context=context,
+            metadata=metadata,
+        ),
+        members=members,
+    )
+
+
 def homework_events(config, now, course_slug):
     events = []
-    reminder_start, reminder_end = utc_day_window(now, days_ahead=1)
+    spec = ReminderSpec(
+        deadline_kind="homework",
+        event_kind="homework",
+        list_kind="homework",
+        item_type="homework",
+        route_name="homework",
+        route_slug_kwarg="homework_slug",
+        list_name_suffix="deadline reminders",
+    )
+    reminder_start, reminder_end = reminder_window(now, "24h")
     queryset = Homework.objects.select_related("course").filter(
         state=HomeworkState.OPEN.value,
         due_date__gte=reminder_start,
@@ -218,13 +357,15 @@ def homework_events(config, now, course_slug):
             .select_related("student", "course")
             .order_by("pk")
         )
-        metadata = {
-            "course_slug": homework.course.slug,
-            "homework_slug": homework.slug,
-            "homework_id": homework.pk,
-            "reminder_key": "24h",
-            "deadline_kind": "homework",
-        }
+        metadata = reminder_metadata(
+            homework.course,
+            item_slug_key="homework_slug",
+            item_slug=homework.slug,
+            item_id_key="homework_id",
+            item_id=homework.pk,
+            reminder_key="24h",
+            deadline_kind=spec.deadline_kind,
+        )
         members = [
             member
             for enrollment in enrollments
@@ -240,62 +381,36 @@ def homework_events(config, now, course_slug):
         if not members:
             continue
 
-        action_url = public_url(
-            reverse(
-                "homework",
-                kwargs={
-                    "course_slug": homework.course.slug,
-                    "homework_slug": homework.slug,
-                },
-            )
-        )
-        context = base_context(
-            homework.course,
-            reminder_key="24h",
-            item_type="homework",
-            item_slug=homework.slug,
-            item_title=homework.title,
-            deadline=homework.due_date,
-            action_url=action_url,
-        )
-        context.update(
-            {
-                "homework_slug": homework.slug,
-                "homework_title": homework.title,
-                "homework_due_at": homework.due_date.isoformat(),
-                "email_subject": (
-                    f"Homework deadline soon: {homework.title}"
-                ),
-                "email_preview": (
-                    "Your homework deadline is within 24 hours."
-                ),
-                "intro_text": (
-                    f"{homework.title} in {homework.course.title} "
-                    "is due within 24 hours."
-                ),
-                "action_text": f"Submit or update homework: {action_url}",
-            }
-        )
-        event_key = f"deadline-reminder:homework:{homework.pk}:24h"
         events.append(
-            ReminderEvent(
-                key=event_key,
-                list_key=(
-                    "deadline-reminders:"
-                    f"homework:{homework.course.slug}:{homework.slug}:24h"
-                ),
-                list_name=(
-                    f"{homework.course.title} {homework.title} "
-                    "24h deadline reminders"
-                ),
-                list_metadata=metadata,
-                send_payload=deadline_send_payload(
-                    config,
-                    event_key=event_key,
-                    template_context=context,
-                    metadata=metadata,
-                ),
+            build_reminder_event(
+                config,
+                spec,
+                course=homework.course,
+                item_id=homework.pk,
+                item_slug=homework.slug,
+                item_title=homework.title,
+                reminder_key="24h",
+                deadline=homework.due_date,
                 members=members,
+                metadata=metadata,
+                context_extra=lambda action_url: {
+                    "homework_slug": homework.slug,
+                    "homework_title": homework.title,
+                    "homework_due_at": homework.due_date.isoformat(),
+                    "email_subject": (
+                        f"Homework deadline soon: {homework.title}"
+                    ),
+                    "email_preview": (
+                        "Your homework deadline is within 24 hours."
+                    ),
+                    "intro_text": (
+                        f"{homework.title} in {homework.course.title} "
+                        "is due within 24 hours."
+                    ),
+                    "action_text": (
+                        f"Submit or update homework: {action_url}"
+                    ),
+                },
             )
         )
     return events
@@ -303,8 +418,21 @@ def homework_events(config, now, course_slug):
 
 def project_submission_events(config, now, course_slug):
     events = []
-    daily_start, daily_end = utc_day_window(now, days_ahead=1)
-    weekly_start, weekly_end = utc_day_window(now, days_ahead=8)
+    spec = ReminderSpec(
+        deadline_kind="project_submission",
+        event_kind="project",
+        list_kind="project-submission",
+        item_type="project",
+        route_name="project",
+        route_slug_kwarg="project_slug",
+        list_name_suffix="submission deadline reminders",
+    )
+    daily_start, daily_end = reminder_window(now, "24h")
+    weekly_start, weekly_end = reminder_window(now, "7d")
+    windows = (
+        ("24h", daily_start, daily_end),
+        ("7d", weekly_start, weekly_end),
+    )
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.COLLECTING_SUBMISSIONS.value,
     ).filter(
@@ -321,14 +449,10 @@ def project_submission_events(config, now, course_slug):
         queryset = queryset.filter(course__slug=course_slug)
 
     for project in queryset.order_by("submission_due_date", "pk"):
-        if is_within_window(
+        reminder_key = matching_reminder_key(
             project.submission_due_date,
-            daily_start,
-            daily_end,
-        ):
-            reminder_key = "24h"
-        else:
-            reminder_key = "7d"
+            windows,
+        )
 
         submitted_student_ids = ProjectSubmission.objects.filter(
             project=project,
@@ -342,13 +466,15 @@ def project_submission_events(config, now, course_slug):
             .select_related("student", "course")
             .order_by("pk")
         )
-        metadata = {
-            "course_slug": project.course.slug,
-            "project_slug": project.slug,
-            "project_id": project.pk,
-            "reminder_key": reminder_key,
-            "deadline_kind": "project_submission",
-        }
+        metadata = reminder_metadata(
+            project.course,
+            item_slug_key="project_slug",
+            item_slug=project.slug,
+            item_id_key="project_id",
+            item_id=project.pk,
+            reminder_key=reminder_key,
+            deadline_kind=spec.deadline_kind,
+        )
         members = [
             member
             for enrollment in enrollments
@@ -364,65 +490,38 @@ def project_submission_events(config, now, course_slug):
         if not members:
             continue
 
-        action_url = public_url(
-            reverse(
-                "project",
-                kwargs={
-                    "course_slug": project.course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        )
-        context = base_context(
-            project.course,
-            reminder_key=reminder_key,
-            item_type="project",
-            item_slug=project.slug,
-            item_title=project.title,
-            deadline=project.submission_due_date,
-            action_url=action_url,
-        )
-        context.update(
-            {
-                "project_slug": project.slug,
-                "project_title": project.title,
-                "project_due_at": project.submission_due_date.isoformat(),
-                "email_subject": (
-                    f"Project deadline soon: {project.title}"
-                ),
-                "email_preview": (
-                    "Your project submission deadline is coming up."
-                ),
-                "intro_text": (
-                    f"{project.title} in {project.course.title} "
-                    "is due soon."
-                ),
-                "action_text": f"Submit or update project: {action_url}",
-            }
-        )
-        event_key = (
-            f"deadline-reminder:project:{project.pk}:{reminder_key}"
-        )
         events.append(
-            ReminderEvent(
-                key=event_key,
-                list_key=(
-                    "deadline-reminders:"
-                    "project-submission:"
-                    f"{project.course.slug}:{project.slug}:{reminder_key}"
-                ),
-                list_name=(
-                    f"{project.course.title} {project.title} "
-                    f"{reminder_key} submission deadline reminders"
-                ),
-                list_metadata=metadata,
-                send_payload=deadline_send_payload(
-                    config,
-                    event_key=event_key,
-                    template_context=context,
-                    metadata=metadata,
-                ),
+            build_reminder_event(
+                config,
+                spec,
+                course=project.course,
+                item_id=project.pk,
+                item_slug=project.slug,
+                item_title=project.title,
+                reminder_key=reminder_key,
+                deadline=project.submission_due_date,
                 members=members,
+                metadata=metadata,
+                context_extra=lambda action_url: {
+                    "project_slug": project.slug,
+                    "project_title": project.title,
+                    "project_due_at": (
+                        project.submission_due_date.isoformat()
+                    ),
+                    "email_subject": (
+                        f"Project deadline soon: {project.title}"
+                    ),
+                    "email_preview": (
+                        "Your project submission deadline is coming up."
+                    ),
+                    "intro_text": (
+                        f"{project.title} in {project.course.title} "
+                        "is due soon."
+                    ),
+                    "action_text": (
+                        f"Submit or update project: {action_url}"
+                    ),
+                },
             )
         )
     return events
@@ -430,7 +529,16 @@ def project_submission_events(config, now, course_slug):
 
 def peer_review_events(config, now, course_slug):
     events = []
-    reminder_start, reminder_end = utc_day_window(now, days_ahead=1)
+    spec = ReminderSpec(
+        deadline_kind="peer_review",
+        event_kind="peer-review",
+        list_kind="peer-review",
+        item_type="peer_review",
+        route_name="projects_eval",
+        route_slug_kwarg="project_slug",
+        list_name_suffix="peer review deadline reminders",
+    )
+    reminder_start, reminder_end = reminder_window(now, "24h")
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.PEER_REVIEWING.value,
         peer_review_due_date__gte=reminder_start,
@@ -454,13 +562,15 @@ def peer_review_events(config, now, course_slug):
             .distinct()
             .order_by("pk")
         )
-        metadata = {
-            "course_slug": project.course.slug,
-            "project_slug": project.slug,
-            "project_id": project.pk,
-            "reminder_key": "24h",
-            "deadline_kind": "peer_review",
-        }
+        metadata = reminder_metadata(
+            project.course,
+            item_slug_key="project_slug",
+            item_slug=project.slug,
+            item_id_key="project_id",
+            item_id=project.pk,
+            reminder_key="24h",
+            deadline_kind=spec.deadline_kind,
+        )
         members = [
             member
             for submission in reviewer_submissions
@@ -476,64 +586,38 @@ def peer_review_events(config, now, course_slug):
         if not members:
             continue
 
-        action_url = public_url(
-            reverse(
-                "projects_eval",
-                kwargs={
-                    "course_slug": project.course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        )
-        context = base_context(
-            project.course,
-            reminder_key="24h",
-            item_type="peer_review",
-            item_slug=project.slug,
-            item_title=project.title,
-            deadline=project.peer_review_due_date,
-            action_url=action_url,
-        )
-        context.update(
-            {
-                "project_slug": project.slug,
-                "project_title": project.title,
-                "peer_review_due_at": (
-                    project.peer_review_due_date.isoformat()
-                ),
-                "email_subject": (
-                    f"Peer review deadline soon: {project.title}"
-                ),
-                "email_preview": (
-                    "Your assigned peer reviews are due within 24 hours."
-                ),
-                "intro_text": (
-                    f"Your assigned peer reviews for {project.title} "
-                    f"in {project.course.title} are due within 24 hours."
-                ),
-                "action_text": f"Complete peer reviews: {action_url}",
-            }
-        )
-        event_key = f"deadline-reminder:peer-review:{project.pk}:24h"
         events.append(
-            ReminderEvent(
-                key=event_key,
-                list_key=(
-                    "deadline-reminders:"
-                    f"peer-review:{project.course.slug}:{project.slug}:24h"
-                ),
-                list_name=(
-                    f"{project.course.title} {project.title} "
-                    "24h peer review deadline reminders"
-                ),
-                list_metadata=metadata,
-                send_payload=deadline_send_payload(
-                    config,
-                    event_key=event_key,
-                    template_context=context,
-                    metadata=metadata,
-                ),
+            build_reminder_event(
+                config,
+                spec,
+                course=project.course,
+                item_id=project.pk,
+                item_slug=project.slug,
+                item_title=project.title,
+                reminder_key="24h",
+                deadline=project.peer_review_due_date,
                 members=members,
+                metadata=metadata,
+                context_extra=lambda action_url: {
+                    "project_slug": project.slug,
+                    "project_title": project.title,
+                    "peer_review_due_at": (
+                        project.peer_review_due_date.isoformat()
+                    ),
+                    "email_subject": (
+                        f"Peer review deadline soon: {project.title}"
+                    ),
+                    "email_preview": (
+                        "Your assigned peer reviews are due within 24 hours."
+                    ),
+                    "intro_text": (
+                        f"Your assigned peer reviews for {project.title} "
+                        f"in {project.course.title} are due within 24 hours."
+                    ),
+                    "action_text": (
+                        f"Complete peer reviews: {action_url}"
+                    ),
+                },
             )
         )
     return events

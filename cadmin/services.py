@@ -1,0 +1,85 @@
+from django.db import transaction
+
+from courses.models import Answer, ProjectEvaluationScore
+from courses.scoring import update_leaderboard, update_score
+
+
+def update_homework_submission_from_admin(submission, cleaned_data):
+    with transaction.atomic():
+        old_total_score = submission.total_score
+
+        for question, answer_text in cleaned_data["answers_by_question"]:
+            Answer.objects.update_or_create(
+                submission=submission,
+                question=question,
+                defaults={"answer_text": answer_text},
+            )
+
+        submission.learning_in_public_links = cleaned_data[
+            "learning_in_public_links_list"
+        ]
+        submission.faq_contribution_url = cleaned_data[
+            "faq_contribution_url"
+        ]
+
+        updated_answers = list(
+            Answer.objects.filter(submission=submission).select_related(
+                "question"
+            )
+        )
+        update_score(submission, updated_answers, save=True)
+
+        submission.faq_score = cleaned_data["faq_score"]
+        submission.total_score = (
+            submission.questions_score
+            + submission.learning_in_public_score
+            + submission.faq_score
+        )
+        submission.save(
+            update_fields=[
+                "learning_in_public_links",
+                "faq_contribution_url",
+                "faq_score",
+                "total_score",
+            ]
+        )
+
+        score_changed = submission.total_score != old_total_score
+        if score_changed:
+            update_leaderboard(submission.homework.course)
+
+        return score_changed
+
+
+def update_project_submission_from_admin(submission, cleaned_data):
+    with transaction.atomic():
+        project_score = 0
+        for criteria, score in cleaned_data["criteria_scores"]:
+            project_score += score
+            ProjectEvaluationScore.objects.update_or_create(
+                submission=submission,
+                review_criteria=criteria,
+                defaults={"score": score},
+            )
+
+        submission.project_score = project_score
+        submission.project_faq_score = cleaned_data["project_faq_score"]
+        submission.project_learning_in_public_score = cleaned_data[
+            "project_learning_in_public_score"
+        ]
+        submission.peer_review_score = cleaned_data["peer_review_score"]
+        submission.peer_review_learning_in_public_score = cleaned_data[
+            "peer_review_learning_in_public_score"
+        ]
+        submission.total_score = (
+            submission.project_score
+            + submission.project_faq_score
+            + submission.project_learning_in_public_score
+            + submission.peer_review_score
+            + submission.peer_review_learning_in_public_score
+        )
+        submission.reviewed_enough_peers = cleaned_data[
+            "reviewed_enough_peers"
+        ]
+        submission.passed = cleaned_data["passed"]
+        submission.save()
