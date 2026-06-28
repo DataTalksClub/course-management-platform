@@ -590,6 +590,65 @@ def project_view(request, course_slug, project_slug):
     return render(request, "projects/project.html", context)
 
 
+def anonymous_project_eval_context(course, project, eval_closed):
+    return {
+        "course": course,
+        "project": project,
+        "is_authenticated": False,
+        "eval_closed": eval_closed,
+    }
+
+
+def student_project_submissions(project, user):
+    return ProjectSubmission.objects.filter(project=project, student=user)
+
+
+def project_eval_reviews(project, student_submissions):
+    return PeerReview.objects.filter(
+        reviewer__in=student_submissions,
+        submission_under_evaluation__project=project,
+    ).order_by("optional")
+
+
+def split_project_eval_reviews(reviews):
+    assigned_reviews = []
+    selected_reviews = []
+    completed_count = 0
+
+    for review in reviews:
+        if review.optional:
+            selected_reviews.append(review)
+            continue
+        assigned_reviews.append(review)
+        if review.state == PeerReviewState.SUBMITTED.value:
+            completed_count += 1
+
+    return assigned_reviews, selected_reviews, completed_count
+
+
+def student_project_eval_context(course, project, user, eval_closed):
+    student_submissions = student_project_submissions(project, user)
+    project_submissions = student_submissions.filter(
+        volunteer_review_only=False,
+    )
+    reviews = project_eval_reviews(project, student_submissions)
+    assigned_reviews, selected_reviews, completed_count = (
+        split_project_eval_reviews(reviews)
+    )
+
+    return {
+        "course": course,
+        "project": project,
+        "reviews": reviews,
+        "assigned_reviews": assigned_reviews,
+        "selected_reviews": selected_reviews,
+        "is_authenticated": True,
+        "number_of_completed_evaluation": completed_count,
+        "has_submission": project_submissions.exists(),
+        "eval_closed": eval_closed,
+    }
+
+
 def projects_eval_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
@@ -601,52 +660,18 @@ def projects_eval_view(request, course_slug, project_slug):
     eval_closed = project.state != ProjectState.PEER_REVIEWING.value
 
     if not is_authenticated:
-        context = {
-            "course": course,
-            "project": project,
-            "is_authenticated": False,
-            "eval_closed": eval_closed,
-        }
-
-        return render(request, "projects/eval.html", context)
-
-    student_submissions = ProjectSubmission.objects.filter(
-        project=project, student=user
-    )
-
-    project_submissions = student_submissions.filter(
-        volunteer_review_only=False,
-    )
-    has_submission = project_submissions.exists()
-
-    reviews = PeerReview.objects.filter(
-        reviewer__in=student_submissions,
-        submission_under_evaluation__project=project,
-    ).order_by("optional")
-    assigned_reviews = []
-    selected_reviews = []
-
-    number_of_completed_evaluation = 0
-
-    for review in reviews:
-        if review.optional:
-            selected_reviews.append(review)
-            continue
-        assigned_reviews.append(review)
-        if review.state == PeerReviewState.SUBMITTED.value:
-            number_of_completed_evaluation += 1
-
-    context = {
-        "course": course,
-        "project": project,
-        "reviews": reviews,
-        "assigned_reviews": assigned_reviews,
-        "selected_reviews": selected_reviews,
-        "is_authenticated": True,
-        "number_of_completed_evaluation": number_of_completed_evaluation,
-        "has_submission": has_submission,
-        "eval_closed": eval_closed,
-    }
+        context = anonymous_project_eval_context(
+            course,
+            project,
+            eval_closed,
+        )
+    else:
+        context = student_project_eval_context(
+            course,
+            project,
+            user,
+            eval_closed,
+        )
 
     return render(request, "projects/eval.html", context)
 
@@ -744,6 +769,33 @@ def project_results(request, course_slug, project_slug):
     return render(request, "projects/results.html", context)
 
 
+def criteria_response_answer_indexes(response):
+    if response is None:
+        return set()
+
+    answers = (response.answer or "").strip().split(",")
+    return {int(answer) for answer in answers if answer}
+
+
+def annotate_criteria_options(criteria, selected_indexes):
+    for index, option in enumerate(criteria.options, start=1):
+        option["index"] = index
+        option["is_selected"] = index in selected_indexes
+
+
+def project_eval_criteria_response_pairs(
+    review_criteria,
+    responses_by_criteria_id,
+):
+    criteria_response_pairs = []
+    for criteria in review_criteria:
+        response = responses_by_criteria_id.get(criteria.id)
+        selected_indexes = criteria_response_answer_indexes(response)
+        annotate_criteria_options(criteria, selected_indexes)
+        criteria_response_pairs.append((criteria, response))
+    return criteria_response_pairs
+
+
 def project_eval_build_context(
     project: Project,
     review: PeerReview,
@@ -758,41 +810,22 @@ def project_eval_build_context(
 
     disabled = not accepting_submissions
 
-    # Check if learning in public is disabled for this enrollment
     disable_learning_in_public = (
         enrollment.disable_learning_in_public if enrollment else False
     )
-
-    review_responses = review.get_criteria_responses()
-
     responses_by_criteria_id = {
-        r.criteria.id: r for r in review_responses
+        response.criteria.id: response
+        for response in review.get_criteria_responses()
     }
-
-    criteria_response_pairs = []
-
-    for criteria in review_criteria:
-        response = responses_by_criteria_id.get(criteria.id)
-
-        if response is None:
-            answer_int = set()
-        else:
-            answers = (response.answer or "").strip().split(",")
-            answer_int = {int(a) for a in answers if a}
-
-        index = 1
-        for option in criteria.options:
-            option["index"] = index
-            option["is_selected"] = index in answer_int
-            index = index + 1
-
-        criteria_response_pairs.append((criteria, response))
 
     context = {
         "project": project,
         "review": review,
         "submission": submission,
-        "criteria_response_pairs": criteria_response_pairs,
+        "criteria_response_pairs": project_eval_criteria_response_pairs(
+            review_criteria,
+            responses_by_criteria_id,
+        ),
         "accepting_submissions": accepting_submissions,
         "disabled": disabled,
         "disable_learning_in_public": disable_learning_in_public,
@@ -801,56 +834,85 @@ def project_eval_build_context(
     return context
 
 
+def project_eval_answers_from_post(post_data):
+    answers = {}
+    for answer_id, answer in post_data.lists():
+        if not answer_id.startswith("answer_"):
+            continue
+        answers[answer_id] = ",".join(
+            value.strip() for value in answer
+        )
+    return answers
+
+
+def save_project_eval_criteria_responses(
+    review,
+    review_criteria,
+    answers_by_field,
+):
+    for criteria in review_criteria:
+        CriteriaResponse.objects.update_or_create(
+            review=review,
+            criteria=criteria,
+            defaults={
+                "answer": answers_by_field.get(f"answer_{criteria.id}")
+            },
+        )
+
+
+def apply_review_learning_in_public_links(request, project, review):
+    if project.learning_in_public_cap_review <= 0:
+        return
+
+    links = request.POST.getlist("learning_in_public_links[]")
+    review.learning_in_public_links = clean_learning_in_public_links(
+        links,
+        project.learning_in_public_cap_review,
+    )
+
+
+def apply_review_time_spent(request, project, review):
+    if not project.time_spent_evaluation_field:
+        return
+
+    time_spent_reviewing = request.POST.get("time_spent_reviewing")
+    if time_spent_reviewing is not None and time_spent_reviewing != "":
+        review.time_spent_reviewing = float(time_spent_reviewing)
+
+
+def apply_review_problems_comments(request, project, review):
+    if project.problems_comments_field:
+        problems_comments = request.POST.get("problems_comments", "")
+        review.problems_comments = problems_comments.strip()
+
+
+def apply_review_note_to_peer(request, review):
+    note_to_peer = request.POST.get("note_to_peer", "")
+    review.note_to_peer = note_to_peer.strip()
+
+
+def submit_project_review(review):
+    review.submitted_at = timezone.now()
+    review.state = PeerReviewState.SUBMITTED.value
+    review.save()
+
+
 def project_eval_post_submission(
     request: HttpRequest,
     project: Project,
     review: PeerReview,
     review_criteria: Iterable[ReviewCriteria],
 ) -> None:
-    answers_dict = {}
-
-    for answer_id, answer in request.POST.lists():
-        if not answer_id.startswith("answer_"):
-            continue
-        answer = [a.strip() for a in answer]
-        answers_dict[answer_id] = ",".join(answer)
-
-    for criteria in review_criteria:
-        answer_text = answers_dict.get(f"answer_{criteria.id}")
-
-        values = {"answer": answer_text}
-
-        CriteriaResponse.objects.update_or_create(
-            review=review,
-            criteria=criteria,
-            defaults=values,
-        )
-
-    if project.learning_in_public_cap_review > 0:
-        links = request.POST.getlist("learning_in_public_links[]")
-        cleaned_links = clean_learning_in_public_links(
-            links, project.learning_in_public_cap_review
-        )
-        review.learning_in_public_links = cleaned_links
-
-    if project.time_spent_evaluation_field:
-        time_spent_reviewing = request.POST.get("time_spent_reviewing")
-        if (
-            time_spent_reviewing is not None
-            and time_spent_reviewing != ""
-        ):
-            review.time_spent_reviewing = float(time_spent_reviewing)
-
-    if project.problems_comments_field:
-        problems_comments = request.POST.get("problems_comments", "")
-        review.problems_comments = problems_comments.strip()
-
-    note_to_peer = request.POST.get("note_to_peer", "")
-    review.note_to_peer = note_to_peer.strip()
-
-    review.submitted_at = timezone.now()
-    review.state = PeerReviewState.SUBMITTED.value
-    review.save()
+    save_project_eval_criteria_responses(
+        review,
+        review_criteria,
+        project_eval_answers_from_post(request.POST),
+    )
+    apply_review_learning_in_public_links(request, project, review)
+    apply_review_time_spent(request, project, review)
+    apply_review_problems_comments(request, project, review)
+    apply_review_note_to_peer(request, review)
+    submit_project_review(review)
 
     messages.success(
         request,
@@ -930,6 +992,63 @@ def _closed_project_eval_response(
     return render(request, "projects/eval_submit.html", context)
 
 
+def _redirect_to_project_list(course, project):
+    return redirect(
+        "project_list",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+
+
+def _project_eval_student_submission(course, project, user):
+    student_submission = ProjectSubmission.objects.filter(
+        project=project,
+        student=user,
+        volunteer_review_only=False,
+    ).first()
+
+    if student_submission is not None:
+        return student_submission
+
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=user,
+        course=course,
+    )
+    student_submission, _ = ProjectSubmission.objects.get_or_create(
+        project=project,
+        student=user,
+        volunteer_review_only=True,
+        defaults={
+            "enrollment": enrollment,
+            "github_link": (
+                "https://github.com/DataTalksClub/"
+                "course-management-platform"
+            ),
+            "commit_id": "volunteer",
+        },
+    )
+    return student_submission
+
+
+def _submission_under_project_evaluation(project, submission_id):
+    return ProjectSubmission.objects.get(
+        id=submission_id,
+        project=project,
+        volunteer_review_only=False,
+    )
+
+
+def _create_optional_peer_review(
+    student_submission,
+    submission_under_evaluation,
+):
+    PeerReview.objects.get_or_create(
+        submission_under_evaluation=submission_under_evaluation,
+        reviewer=student_submission,
+        optional=True,
+    )
+
+
 @login_required
 def projects_eval_submit(request, course_slug, project_slug, review_id):
     review = get_object_or_404(PeerReview, id=review_id)
@@ -991,61 +1110,25 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
 def projects_eval_add(
     request, course_slug, project_slug, submission_id
 ):
-    user = request.user
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
-    student_submission = ProjectSubmission.objects.filter(
-        project=project,
-        student=user,
-        volunteer_review_only=False,
-    ).first()
-
-    if student_submission is None:
-        enrollment, _ = Enrollment.objects.get_or_create(
-            student=user,
-            course=course,
-        )
-        student_submission, _ = ProjectSubmission.objects.get_or_create(
-            project=project,
-            student=user,
-            volunteer_review_only=True,
-            defaults={
-                "enrollment": enrollment,
-                "github_link": (
-                    "https://github.com/DataTalksClub/"
-                    "course-management-platform"
-                ),
-                "commit_id": "volunteer",
-            },
-        )
+    student_submission = _project_eval_student_submission(
+        course,
+        project,
+        request.user,
+    )
 
     if student_submission.id == submission_id:
-        # don't allow self-evaluation
-        return redirect(
-            "project_list",
-            course_slug=course.slug,
-            project_slug=project.slug,
-        )
+        return _redirect_to_project_list(course, project)
 
-    submission_under_evaluation = ProjectSubmission.objects.get(
-        id=submission_id,
-        project=project,
-        volunteer_review_only=False,
+    _create_optional_peer_review(
+        student_submission,
+        _submission_under_project_evaluation(project, submission_id),
     )
 
-    review, created = PeerReview.objects.get_or_create(
-        submission_under_evaluation=submission_under_evaluation,
-        reviewer=student_submission,
-        optional=True,
-    )
-
-    return redirect(
-        "project_list",
-        course_slug=course.slug,
-        project_slug=project.slug,
-    )
+    return _redirect_to_project_list(course, project)
 
 
 @login_required
