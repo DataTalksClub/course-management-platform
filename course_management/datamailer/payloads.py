@@ -91,21 +91,16 @@ def registration_campaign_datamailer_payload(campaign) -> dict[str, Any]:
         }
     return payload
 
-def registration_confirmation_payload(registration) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
 
-    email = (
+def _registration_email(registration) -> str:
+    return (
         (registration.email_normalized or registration.email or "")
         .strip()
         .lower()
     )
-    if not email:
-        return None
 
-    campaign = registration.campaign
-    course = registration.course
+
+def _registration_confirmation_urls(campaign, course) -> dict[str, str]:
     registration_path = reverse(
         "registration_campaign",
         kwargs={"campaign_slug": campaign.slug},
@@ -115,9 +110,15 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
         course_url = public_url(
             reverse("course", kwargs={"course_slug": course.slug})
         )
-    profile_url = public_url(reverse("account_settings"))
+    return {
+        "registration_url": public_url(registration_path),
+        "course_url": course_url,
+        "profile_url": public_url(reverse("account_settings")),
+    }
 
-    metadata = {
+
+def _registration_confirmation_metadata(registration, campaign, course):
+    return {
         "source": "course-management-platform",
         "event": "course_registration",
         "registration_id": registration.pk,
@@ -126,15 +127,19 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
         "preference_key": "email_course_updates",
         "cmp_preference_key": "email_course_updates",
     }
-    context = {
+
+
+def _registration_confirmation_context(registration, campaign, course, urls):
+    profile_url = urls["profile_url"]
+    return {
         "email_subject": f"Registration confirmed: {campaign.title}",
         "campaign_title": campaign.title,
         "campaign_slug": campaign.slug,
         "course_title": course.title if course is not None else "",
         "course_slug": course.slug if course is not None else "",
         "registration_id": registration.pk,
-        "registration_url": public_url(registration_path),
-        "course_url": course_url,
+        "registration_url": urls["registration_url"],
+        "course_url": urls["course_url"],
         "profile_url": profile_url,
         "intro_text": (
             f"Your registration for {campaign.title} is confirmed."
@@ -150,6 +155,20 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
         ),
     }
 
+
+def registration_confirmation_payload(registration) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    email = _registration_email(registration)
+    if not email:
+        return None
+
+    campaign = registration.campaign
+    course = registration.course
+    urls = _registration_confirmation_urls(campaign, course)
+
     return {
         "audience": config.audience,
         "client": config.client,
@@ -159,8 +178,17 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
             "email_course_updates"
         ]["tag"],
         "idempotency_key": f"registration-confirmation:{registration.pk}",
-        "context": context,
-        "metadata": metadata,
+        "context": _registration_confirmation_context(
+            registration,
+            campaign,
+            course,
+            urls,
+        ),
+        "metadata": _registration_confirmation_metadata(
+            registration,
+            campaign,
+            course,
+        ),
     }
 
 def registration_contact_payload(registration) -> dict[str, Any] | None:
@@ -960,6 +988,59 @@ def peer_review_assignment_notification_payload(
         payload["from_email"] = config.from_email
     return list_key, payload
 
+
+def _certificate_availability_urls(enrollment):
+    course = enrollment.course
+    certificate_url = public_url(enrollment.certificate_url.strip())
+    return {
+        "course_url": public_url(
+            reverse("course", kwargs={"course_slug": course.slug})
+        ),
+        "certificate_url": certificate_url,
+        "profile_url": public_url(reverse("account_settings")),
+    }
+
+
+def _certificate_availability_context(enrollment, urls):
+    course = enrollment.course
+    certificate_url = urls["certificate_url"]
+    return {
+        "course_slug": course.slug,
+        "course_title": course.title,
+        "certificate_url": certificate_url,
+        "course_url": urls["course_url"],
+        "profile_url": urls["profile_url"],
+        "email_subject": f"Certificate available: {course.title}",
+        "email_preview": (
+            "Your course certificate is available to download."
+        ),
+        "intro_text": (
+            f"Congratulations - your certificate for {course.title} "
+            "is available."
+        ),
+        "download_text": (
+            f"You can download your certificate here: {certificate_url}"
+        ),
+        "notification_category": "course-related emails",
+        "notification_footer": (
+            "You are receiving this because general course-related "
+            "emails are enabled."
+        ),
+    }
+
+
+def _certificate_availability_metadata(enrollment):
+    return {
+        "source": "course-management-platform",
+        "event": "certificate_availability",
+        "preference_key": "email_course_updates",
+        "cmp_preference_key": "email_course_updates",
+        "course_slug": enrollment.course.slug,
+        "enrollment_id": enrollment.pk,
+        "user_id": enrollment.student_id,
+    }
+
+
 def certificate_availability_notification_payload(
     enrollment,
 ) -> dict[str, Any] | None:
@@ -972,12 +1053,8 @@ def certificate_availability_notification_payload(
     if not email or not certificate_url:
         return None
 
+    urls = _certificate_availability_urls(enrollment)
     course = enrollment.course
-    course_url = public_url(
-        reverse("course", kwargs={"course_slug": course.slug})
-    )
-    certificate_url = public_url(certificate_url)
-    profile_url = public_url(reverse("account_settings"))
 
     payload = {
         "audience": config.audience,
@@ -988,39 +1065,8 @@ def certificate_availability_notification_payload(
         ),
         "category_tag": "course-updates",
         "idempotency_key": f"certificate-available:{enrollment.pk}",
-        "context": {
-            "course_slug": course.slug,
-            "course_title": course.title,
-            "certificate_url": certificate_url,
-            "course_url": course_url,
-            "profile_url": profile_url,
-            "email_subject": f"Certificate available: {course.title}",
-            "email_preview": (
-                "Your course certificate is available to download."
-            ),
-            "intro_text": (
-                f"Congratulations - your certificate for {course.title} "
-                "is available."
-            ),
-            "download_text": (
-                f"You can download your certificate here: "
-                f"{certificate_url}"
-            ),
-            "notification_category": "course-related emails",
-            "notification_footer": (
-                "You are receiving this because general course-related "
-                "emails are enabled."
-            ),
-        },
-        "metadata": {
-            "source": "course-management-platform",
-            "event": "certificate_availability",
-            "preference_key": "email_course_updates",
-            "cmp_preference_key": "email_course_updates",
-            "course_slug": course.slug,
-            "enrollment_id": enrollment.pk,
-            "user_id": enrollment.student_id,
-        },
+        "context": _certificate_availability_context(enrollment, urls),
+        "metadata": _certificate_availability_metadata(enrollment),
     }
     if config.from_email:
         payload["from_email"] = config.from_email
