@@ -268,66 +268,99 @@ def _apply_project_data(project, data):
     )
 
 
-def _upsert_project_by_slug(request, course_slug, project_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    data, err = parse_json_body(request)
-    if err:
-        return err
+PROJECT_UPSERT_REQUIRED_DATES = (
+    "submission_due_date",
+    "peer_review_due_date",
+)
 
-    project = Project.objects.filter(
-        course=course,
-        slug=project_slug,
-    ).first()
-    created = project is None
 
-    title = data.get("title", data.get("name"))
-    required_dates = ("submission_due_date", "peer_review_due_date")
-    if created and (
-        not title or not all(data.get(f) for f in required_dates)
-    ):
-        return error_response(
-            "title/name, submission_due_date, and peer_review_due_date are required",
-            "missing_required_fields",
-        )
+def _project_upsert_title(data):
+    return data.get("title", data.get("name"))
 
-    if "instructions_url" in data:
-        error = instructions_url_error(data.get("instructions_url"))
-        if error:
-            return error_response(
-                error,
-                "invalid_instructions_url",
-                details={"field": "instructions_url"},
-            )
 
-    for field in required_dates:
+def _project_upsert_missing_create_fields(data):
+    title = _project_upsert_title(data)
+    missing_dates = [
+        field
+        for field in PROJECT_UPSERT_REQUIRED_DATES
+        if not data.get(field)
+    ]
+    return not title or bool(missing_dates)
+
+
+def _project_upsert_instructions_error(data):
+    if "instructions_url" not in data:
+        return None
+
+    error = instructions_url_error(data.get("instructions_url"))
+    if not error:
+        return None
+
+    return error_response(
+        error,
+        "invalid_instructions_url",
+        details={"field": "instructions_url"},
+    )
+
+
+def _project_upsert_date_error(data):
+    for field in PROJECT_UPSERT_REQUIRED_DATES:
         if field in data and parse_date(data[field]) is None:
             return error_response(
                 f"Invalid date format for {field}",
                 "invalid_date_format",
                 details={"field": field},
             )
+    return None
 
-    if "state" in data and data["state"] not in VALID_PROJECT_STATES:
+
+def _project_upsert_state_error(data):
+    if "state" not in data or data["state"] in VALID_PROJECT_STATES:
+        return None
+
+    return error_response(
+        f"Invalid state. Must be one of: {sorted(VALID_PROJECT_STATES)}",
+        "invalid_project_state",
+        details={"valid_states": sorted(VALID_PROJECT_STATES)},
+    )
+
+
+def _project_upsert_validation_error(data, created):
+    if created and _project_upsert_missing_create_fields(data):
         return error_response(
-            f"Invalid state. Must be one of: {sorted(VALID_PROJECT_STATES)}",
-            "invalid_project_state",
-            details={"valid_states": sorted(VALID_PROJECT_STATES)},
+            "title/name, submission_due_date, and peer_review_due_date are required",
+            "missing_required_fields",
         )
 
-    if created:
-        project = Project.objects.create(
-            course=course,
-            slug=project_slug,
-            title=title,
-            description=data.get("description", ""),
-            instructions_url=data.get("instructions_url"),
-            submission_due_date=parse_date(data["submission_due_date"]),
-            peer_review_due_date=parse_date(
-                data["peer_review_due_date"]
-            ),
-            state=ProjectState.CLOSED.value,
-        )
+    return (
+        _project_upsert_instructions_error(data)
+        or _project_upsert_date_error(data)
+        or _project_upsert_state_error(data)
+    )
 
+
+def _project_by_slug(course, project_slug):
+    project = Project.objects.filter(
+        course=course,
+        slug=project_slug,
+    ).first()
+    return project, project is None
+
+
+def _create_project_from_upsert(course, project_slug, data):
+    return Project.objects.create(
+        course=course,
+        slug=project_slug,
+        title=_project_upsert_title(data),
+        description=data.get("description", ""),
+        instructions_url=data.get("instructions_url"),
+        submission_due_date=parse_date(data["submission_due_date"]),
+        peer_review_due_date=parse_date(data["peer_review_due_date"]),
+        state=ProjectState.CLOSED.value,
+    )
+
+
+def _save_project_upsert(project, data, created):
     error = _apply_project_data(project, data)
     if error:
         return error
@@ -336,6 +369,25 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
     return JsonResponse(
         _project_to_dict(project), status=201 if created else 200
     )
+
+
+def _upsert_project_by_slug(request, course_slug, project_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    project, created = _project_by_slug(course, project_slug)
+    error = _project_upsert_validation_error(data, created)
+    if error:
+        return error
+
+    if created:
+        project = _create_project_from_upsert(
+            course, project_slug, data
+        )
+
+    return _save_project_upsert(project, data, created)
 
 
 def _project_detail_response(
