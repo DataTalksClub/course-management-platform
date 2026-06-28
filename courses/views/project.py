@@ -723,77 +723,24 @@ def project_eval_post_submission(
     )
 
 
-@login_required
-def projects_eval_submit(request, course_slug, project_slug, review_id):
-    review = get_object_or_404(PeerReview, id=review_id)
-
-    # check if the submission belongs to the student
-    if review.reviewer.student != request.user:
-        messages.error(
-            request,
-            "You are not allowed to evaluate this submission, choose a different one.",
-            extra_tags="homework",
-        )
-        return redirect(
-            "projects_eval",
-            course_slug=course_slug,
-            project_slug=project_slug,
-        )
-
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, slug=project_slug, course=course
+def _redirect_to_projects_eval(course_slug, project_slug):
+    return redirect(
+        "projects_eval",
+        course_slug=course_slug,
+        project_slug=project_slug,
     )
 
-    review_criteria = ReviewCriteria.objects.filter(
-        course=course
-    ).order_by("id")
 
-    # Get the enrollment for the reviewer
+def _project_eval_submit_context(request, course, project, review, criteria):
     enrollment, _ = Enrollment.objects.get_or_create(
         student=request.user,
         course=course,
     )
-
-    if request.method == "POST":
-        if request.POST.get("form_action") == "vote":
-            action = request.POST.get("action", "vote")
-            update_project_vote(
-                request.user,
-                review.submission_under_evaluation,
-                action=action,
-            )
-            return redirect(
-                "projects_eval_submit",
-                course_slug=course_slug,
-                project_slug=project_slug,
-                review_id=review.id,
-            )
-
-        if project.state != ProjectState.PEER_REVIEWING.value:
-            messages.error(
-                request,
-                "Peer review form is closed.",
-                extra_tags="homework",
-            )
-            context = project_eval_build_context(
-                project, review, review_criteria, enrollment
-            )
-            context["course"] = course
-            return render(request, "projects/eval_submit.html", context)
-
-        project_eval_post_submission(
-            request, project, review, review_criteria
-        )
-
-        return redirect(
-            "projects_eval",
-            course_slug=course_slug,
-            project_slug=project_slug,
-        )
-
     context = project_eval_build_context(
-        project, review, review_criteria, enrollment
+        project,
+        review,
+        criteria,
+        enrollment,
     )
     context["course"] = course
     context["voted_submission_ids"] = get_voted_submission_ids(
@@ -807,6 +754,99 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         >= PROJECT_VOTES_PER_PROJECT
     )
     context["project_votes_per_project"] = PROJECT_VOTES_PER_PROJECT
+    return context
+
+
+def _project_eval_vote_response(request, course_slug, project_slug, review):
+    action = request.POST.get("action", "vote")
+    update_project_vote(
+        request.user,
+        review.submission_under_evaluation,
+        action=action,
+    )
+    return redirect(
+        "projects_eval_submit",
+        course_slug=course_slug,
+        project_slug=project_slug,
+        review_id=review.id,
+    )
+
+
+def _closed_project_eval_response(
+    request,
+    course,
+    project,
+    review,
+    review_criteria,
+):
+    messages.error(
+        request,
+        "Peer review form is closed.",
+        extra_tags="homework",
+    )
+    context = _project_eval_submit_context(
+        request,
+        course,
+        project,
+        review,
+        review_criteria,
+    )
+    return render(request, "projects/eval_submit.html", context)
+
+
+@login_required
+def projects_eval_submit(request, course_slug, project_slug, review_id):
+    review = get_object_or_404(PeerReview, id=review_id)
+
+    # check if the submission belongs to the student
+    if review.reviewer.student != request.user:
+        messages.error(
+            request,
+            "You are not allowed to evaluate this submission, choose a different one.",
+            extra_tags="homework",
+        )
+        return _redirect_to_projects_eval(course_slug, project_slug)
+
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, slug=project_slug, course=course
+    )
+
+    review_criteria = ReviewCriteria.objects.filter(
+        course=course
+    ).order_by("id")
+
+    if request.method == "POST":
+        if request.POST.get("form_action") == "vote":
+            return _project_eval_vote_response(
+                request,
+                course_slug,
+                project_slug,
+                review,
+            )
+
+        if project.state != ProjectState.PEER_REVIEWING.value:
+            return _closed_project_eval_response(
+                request,
+                course,
+                project,
+                review,
+                review_criteria,
+            )
+
+        project_eval_post_submission(
+            request, project, review, review_criteria
+        )
+
+        return _redirect_to_projects_eval(course_slug, project_slug)
+
+    context = _project_eval_submit_context(
+        request,
+        course,
+        project,
+        review,
+        review_criteria,
+    )
 
     return render(request, "projects/eval_submit.html", context)
 

@@ -108,77 +108,75 @@ def _leaderboard_project_entry(sub):
     return entry
 
 
-def _build_leaderboard_data(course, page_number):
-    """Build the full leaderboard JSON structure with score breakdowns."""
-    enrollments = (
+def _leaderboard_submission_prefetches():
+    return (
+        Prefetch(
+            "submission_set",
+            queryset=Submission.objects.filter(
+                homework__state=HomeworkState.SCORED.value,
+            )
+            .select_related("homework")
+            .order_by("homework__id"),
+            to_attr="scored_submissions",
+        ),
+        Prefetch(
+            "projectsubmission_set",
+            queryset=ProjectSubmission.objects.filter(
+                project__state=ProjectState.COMPLETED.value,
+                volunteer_review_only=False,
+            )
+            .select_related("project")
+            .order_by("project__id"),
+            to_attr="completed_project_submissions",
+        )
+    )
+
+
+def _leaderboard_enrollments(course):
+    return (
         Enrollment.objects.filter(
             course=course,
             display_on_leaderboard=True,
         )
         .select_related("student")
-        .prefetch_related(
-            Prefetch(
-                "submission_set",
-                queryset=Submission.objects.filter(
-                    homework__state=HomeworkState.SCORED.value,
-                ).select_related("homework").order_by("homework__id"),
-                to_attr="scored_submissions",
-            ),
-            Prefetch(
-                "projectsubmission_set",
-                queryset=ProjectSubmission.objects.filter(
-                    project__state=ProjectState.COMPLETED.value,
-                    volunteer_review_only=False,
-                ).select_related("project").order_by("project__id"),
-                to_attr="completed_project_submissions",
-            ),
-        )
+        .prefetch_related(*_leaderboard_submission_prefetches())
         .order_by(
             Coalesce("position_on_leaderboard", Value(999999)),
             "id",
         )
     )
 
-    paginator = Paginator(enrollments, LEADERBOARD_DATA_PAGE_SIZE)
-    page_obj = paginator.get_page(page_number)
 
-    results = []
-    for enrollment in page_obj.object_list:
-        hw_data = [
-            _leaderboard_homework_entry(sub)
-            for sub in enrollment.scored_submissions
-        ]
-        proj_data = [
-            _leaderboard_project_entry(sub)
-            for sub in enrollment.completed_project_submissions
-        ]
+def _leaderboard_enrollment_entry(enrollment):
+    hw_data = [
+        _leaderboard_homework_entry(sub)
+        for sub in enrollment.scored_submissions
+    ]
+    proj_data = [
+        _leaderboard_project_entry(sub)
+        for sub in enrollment.completed_project_submissions
+    ]
 
-        entry = {
-            "position": enrollment.position_on_leaderboard,
-            "display_name": enrollment.display_name,
-            "total_score": enrollment.total_score,
-        }
-        if hw_data:
-            entry["homeworks"] = hw_data
-        if proj_data:
-            entry["projects"] = proj_data
+    entry = {
+        "position": enrollment.position_on_leaderboard,
+        "display_name": enrollment.display_name,
+        "total_score": enrollment.total_score,
+    }
+    if hw_data:
+        entry["homeworks"] = hw_data
+    if proj_data:
+        entry["projects"] = proj_data
+    return entry
 
-        results.append(entry)
 
+def _leaderboard_page_links(course, page_obj):
     next_page_number = (
         page_obj.next_page_number() if page_obj.has_next() else None
     )
     previous_page_number = (
         page_obj.previous_page_number() if page_obj.has_previous() else None
     )
-
     return {
-        "course": course.slug,
-        "page": page_obj.number,
-        "total_pages": paginator.num_pages,
-        "total_entries": paginator.count,
-        "has_next": page_obj.has_next(),
-        "has_previous": page_obj.has_previous(),
         "next_page": (
             _leaderboard_yaml_page_url(course, next_page_number)
             if next_page_number
@@ -191,6 +189,29 @@ def _build_leaderboard_data(course, page_number):
             else None
         ),
         "previous_page_number": previous_page_number,
+    }
+
+
+def _build_leaderboard_data(course, page_number):
+    """Build the full leaderboard JSON structure with score breakdowns."""
+    paginator = Paginator(
+        _leaderboard_enrollments(course),
+        LEADERBOARD_DATA_PAGE_SIZE,
+    )
+    page_obj = paginator.get_page(page_number)
+    results = [
+        _leaderboard_enrollment_entry(enrollment)
+        for enrollment in page_obj.object_list
+    ]
+
+    return {
+        "course": course.slug,
+        "page": page_obj.number,
+        "total_pages": paginator.num_pages,
+        "total_entries": paginator.count,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+        **_leaderboard_page_links(course, page_obj),
         "leaderboard": results,
     }
 

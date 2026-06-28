@@ -931,6 +931,64 @@ def _replace_user_wrapped_statistics(stats, user_stats_objects):
     )
 
 
+def _wrapped_statistics_to_calculate(year, force):
+    stats, created = WrappedStatistics.objects.get_or_create(year=year)
+    if not force and not created:
+        logger.info(
+            f"Wrapped statistics for {year} already exist. Use force=True to recalculate."
+        )
+        return stats, False
+    return stats, True
+
+
+def _wrapped_activity_context(year):
+    year_start, year_end = _wrapped_year_window(year)
+    homework_submissions, project_submissions = (
+        _wrapped_activity_querysets(year_start, year_end)
+    )
+    students_with_activity, enrollments, courses = (
+        _wrapped_active_students_and_enrollments(
+            homework_submissions,
+            project_submissions,
+        )
+    )
+    return {
+        "year_start": year_start,
+        "year_end": year_end,
+        "homework_submissions": homework_submissions,
+        "project_submissions": project_submissions,
+        "students_with_activity": students_with_activity,
+        "enrollments": enrollments,
+        "courses": courses,
+    }
+
+
+def _persist_wrapped_user_statistics(stats, activity, leaderboard_data):
+    homework_by_student, project_by_student, enrollment_by_student = (
+        _group_wrapped_activity_by_student(
+            activity["homework_submissions"],
+            activity["project_submissions"],
+            activity["enrollments"],
+        )
+    )
+    peer_review_counts = _wrapped_peer_review_counts(
+        activity["students_with_activity"],
+        activity["year_start"],
+        activity["year_end"],
+    )
+    user_stats_objects = _build_user_wrapped_stats(
+        stats,
+        students_with_activity=activity["students_with_activity"],
+        homework_by_student=homework_by_student,
+        project_by_student=project_by_student,
+        enrollment_by_student=enrollment_by_student,
+        peer_review_counts=peer_review_counts,
+        leaderboard_data=leaderboard_data,
+    )
+    _replace_user_wrapped_statistics(stats, user_stats_objects)
+    return user_stats_objects
+
+
 def calculate_wrapped_statistics(year=2025, force=False):
     """
     Calculate and save wrapped statistics for a given year.
@@ -944,62 +1002,31 @@ def calculate_wrapped_statistics(year=2025, force=False):
     Returns:
         WrappedStatistics object
     """
-    # Get or create the wrapped statistics object
-    stats, created = WrappedStatistics.objects.get_or_create(year=year)
-
-    if not force and not created:
-        logger.info(
-            f"Wrapped statistics for {year} already exist. Use force=True to recalculate."
-        )
+    stats, should_calculate = _wrapped_statistics_to_calculate(year, force)
+    if not should_calculate:
         return stats
 
     logger.info(f"Calculating wrapped statistics for {year}...")
     start_time = time()
 
-    year_start, year_end = _wrapped_year_window(year)
-    homework_submissions, project_submissions = (
-        _wrapped_activity_querysets(year_start, year_end)
-    )
-    students_with_activity, enrollments, courses = (
-        _wrapped_active_students_and_enrollments(
-            homework_submissions,
-            project_submissions,
-        )
-    )
-
+    activity = _wrapped_activity_context(year)
     leaderboard_data = _persist_wrapped_platform_statistics(
         stats,
-        students_with_activity=students_with_activity,
-        enrollments=enrollments,
-        courses=courses,
-        homework_submissions=homework_submissions,
-        project_submissions=project_submissions,
+        students_with_activity=activity["students_with_activity"],
+        enrollments=activity["enrollments"],
+        courses=activity["courses"],
+        homework_submissions=activity["homework_submissions"],
+        project_submissions=activity["project_submissions"],
     )
 
     logger.info(
         "Platform statistics calculated. Now calculating individual user statistics..."
     )
-
-    homework_by_student, project_by_student, enrollment_by_student = (
-        _group_wrapped_activity_by_student(
-            homework_submissions,
-            project_submissions,
-            enrollments,
-        )
-    )
-    peer_review_counts = _wrapped_peer_review_counts(
-        students_with_activity, year_start, year_end
-    )
-    user_stats_objects = _build_user_wrapped_stats(
+    user_stats_objects = _persist_wrapped_user_statistics(
         stats,
-        students_with_activity=students_with_activity,
-        homework_by_student=homework_by_student,
-        project_by_student=project_by_student,
-        enrollment_by_student=enrollment_by_student,
-        peer_review_counts=peer_review_counts,
-        leaderboard_data=leaderboard_data,
+        activity,
+        leaderboard_data,
     )
-    _replace_user_wrapped_statistics(stats, user_stats_objects)
 
     elapsed_time = time() - start_time
     logger.info(

@@ -648,52 +648,50 @@ def _apply_homework_submission_fields(
         ).strip()
 
 
-def process_homework_submission(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
-):
-    user = request.user
-
+def _homework_answers_from_post(request):
     answers_dict = {}
     for answer_id, answer in request.POST.lists():
         if not answer_id.startswith("answer_"):
             continue
-        answer = [a.strip() for a in answer]
+        answer = [item.strip() for item in answer]
         answers_dict[answer_id] = ",".join(answer)
+    return answers_dict
 
+
+def _homework_submission_for_user(user, course, homework, submission):
     if submission:
         submission.submitted_at = timezone.now()
-    else:
-        enrollment, _ = Enrollment.objects.get_or_create(
-            student=user,
-            course=course,
-        )
-        submission = Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
-        )
+        return submission
 
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=user,
+        course=course,
+    )
+    return Submission.objects.create(
+        homework=homework,
+        student=user,
+        enrollment=enrollment,
+    )
+
+
+def _save_homework_answers(submission, questions, answers_dict):
     for question in questions:
         answer_text = answers_dict.get(f"answer_{question.id}")
-
-        values = {"answer_text": answer_text}
-
         Answer.objects.update_or_create(
             submission=submission,
             question=question,
-            defaults=values,
+            defaults={"answer_text": answer_text},
         )
 
-    _apply_homework_submission_fields(
-        submission, request, course, homework, user
-    )
 
-    submission.full_clean()
-    submission.save()
+def _register_homework_submission_callbacks(
+    request,
+    *,
+    user,
+    course,
+    homework,
+    submission,
+):
     update_url = build_homework_update_url(request, course, homework)
     transaction.on_commit(
         lambda: send_homework_confirmation_email(
@@ -708,23 +706,56 @@ def process_homework_submission(
         lambda: sync_homework_submission_to_datamailer(submission)
     )
 
+
+def _homework_submission_success_response(request, course, homework):
     success_message = (
         "Thank you for submitting your homework, now your solution "
         + "is saved. You can update it at any point. You will see "
         + "your score after the form is closed."
     )
-
     messages.success(
         request,
         success_message,
         extra_tags="homework",
     )
-
     return redirect(
         "homework",
         course_slug=course.slug,
         homework_slug=homework.slug,
     )
+
+
+def process_homework_submission(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+):
+    user = request.user
+    answers_dict = _homework_answers_from_post(request)
+    submission = _homework_submission_for_user(
+        user,
+        course,
+        homework,
+        submission,
+    )
+    _save_homework_answers(submission, questions, answers_dict)
+
+    _apply_homework_submission_fields(
+        submission, request, course, homework, user
+    )
+
+    submission.full_clean()
+    submission.save()
+    _register_homework_submission_callbacks(
+        request,
+        user=user,
+        course=course,
+        homework=homework,
+        submission=submission,
+    )
+    return _homework_submission_success_response(request, course, homework)
 
 
 def homework_detail_build_context_not_authenticated(
