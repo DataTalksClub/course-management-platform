@@ -85,6 +85,21 @@ def _homework_score_response(homework):
     )
 
 
+def _homework_create_defaults(hw_data, name, due_date, instructions_url):
+    return {
+        "title": name,
+        "description": hw_data.get("description", ""),
+        "instructions_url": instructions_url,
+        "due_date": due_date,
+        "state": HomeworkState.CLOSED.value,
+    }
+
+
+def _create_questions(homework, questions_data):
+    for q_data in questions_data:
+        _create_question(homework, q_data)
+
+
 def _create_homework(course, hw_data):
     """Create a homework. Returns (dict, None) or (None, error_str)."""
     name = hw_data.get("name")
@@ -111,29 +126,12 @@ def _create_homework(course, hw_data):
     homework = Homework.objects.create(
         course=course,
         slug=slug,
-        title=name,
-        description=hw_data.get("description", ""),
-        instructions_url=instructions_url,
-        due_date=due_date,
-        state=HomeworkState.CLOSED.value,
+        **_homework_create_defaults(
+            hw_data, name, due_date, instructions_url
+        ),
     )
 
-    # Create questions if provided
-    questions_data = hw_data.get("questions", [])
-    for q_data in questions_data:
-        Question.objects.create(
-            homework=homework,
-            text=q_data.get("text", ""),
-            question_type=q_data.get("question_type", "FF"),
-            answer_type=q_data.get("answer_type"),
-            possible_answers="\n".join(
-                q_data.get("possible_answers", [])
-            ),
-            correct_answer=q_data.get("correct_answer", ""),
-            scores_for_correct_answer=q_data.get(
-                "scores_for_correct_answer", 1
-            ),
-        )
+    _create_questions(homework, hw_data.get("questions", []))
 
     return _homework_to_dict(homework), None
 

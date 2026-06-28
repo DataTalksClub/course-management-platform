@@ -18,6 +18,54 @@ from courses.models import (
 )
 
 
+def project_export_course_data(course):
+    return model_to_dict(
+        course, exclude=["students", "first_homework_scored"]
+    )
+
+
+def project_export_submission_data(submission):
+    return {
+        "student_id": submission.student_id,
+        "student_email": submission.student.email,
+        "github_link": submission.github_link,
+        "commit_id": submission.commit_id,
+        "learning_in_public_links": submission.learning_in_public_links,
+        "faq_contribution_url": submission.faq_contribution_url,
+        "time_spent": submission.time_spent,
+        "problems_comments": submission.problems_comments,
+        "project_score": submission.project_score,
+        "project_faq_score": submission.project_faq_score,
+        "project_learning_in_public_score": (
+            submission.project_learning_in_public_score
+        ),
+        "peer_review_score": submission.peer_review_score,
+        "peer_review_learning_in_public_score": (
+            submission.peer_review_learning_in_public_score
+        ),
+        "total_score": submission.total_score,
+        "reviewed_enough_peers": submission.reviewed_enough_peers,
+        "passed": submission.passed,
+    }
+
+
+def project_export_project_data(project):
+    project_data = model_to_dict(project)
+    project_data["points_to_pass"] = project.points_to_pass
+    return project_data
+
+
+def project_export_payload(course, project, submissions):
+    return {
+        "course": project_export_course_data(course),
+        "project": project_export_project_data(project),
+        "submissions": [
+            project_export_submission_data(submission)
+            for submission in submissions
+        ],
+    }
+
+
 @require_GET
 @token_required
 def project_data_view(request, course_slug: str, project_slug: str):
@@ -33,41 +81,4 @@ def project_data_view(request, course_slug: str, project_slug: str):
         .all()
     )
 
-    course_data = model_to_dict(
-        course, exclude=["students", "first_homework_scored"]
-    )
-
-    submission_data = []
-    for submission in submissions:
-        submission_dict = {
-            "student_id": submission.student_id,
-            "student_email": submission.student.email,
-            "github_link": submission.github_link,
-            "commit_id": submission.commit_id,
-            "learning_in_public_links": submission.learning_in_public_links,
-            "faq_contribution_url": submission.faq_contribution_url,
-            "time_spent": submission.time_spent,
-            "problems_comments": submission.problems_comments,
-            "project_score": submission.project_score,
-            "project_faq_score": submission.project_faq_score,
-            "project_learning_in_public_score": submission.project_learning_in_public_score,
-            "peer_review_score": submission.peer_review_score,
-            "peer_review_learning_in_public_score": submission.peer_review_learning_in_public_score,
-            "total_score": submission.total_score,
-            "reviewed_enough_peers": submission.reviewed_enough_peers,
-            "passed": submission.passed,
-        }
-        submission_data.append(submission_dict)
-
-    # Get project data and add the points_to_pass property
-    project_data = model_to_dict(project)
-    project_data["points_to_pass"] = project.points_to_pass
-
-    # Compile the result
-    result = {
-        "course": course_data,
-        "project": project_data,
-        "submissions": submission_data,
-    }
-
-    return JsonResponse(result)
+    return JsonResponse(project_export_payload(course, project, submissions))
