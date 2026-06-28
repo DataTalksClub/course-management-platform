@@ -656,36 +656,13 @@ def send_certificate_availability_notification(
         return None
 
     try:
-        if graduate_list_payload is not None:
-            list_key, list_payload = graduate_list_payload
-            if not bulk_upsert_recipient_list_members_before_send(
-                config=config,
-                list_key=list_key,
-                payload=list_payload,
-                idempotency_key=(
-                    f"{payload['idempotency_key']}:graduate-outcome"
-                    if payload is not None
-                    else f"certificate-available:{enrollment.pk}:graduate-outcome"
-                ),
-                ordering_key=list_key,
-            ):
-                if payload is not None:
-                    record_datamailer_send_audit(
-                        send_type=DatamailerSendAuditType.TRANSACTIONAL,
-                        payload=payload,
-                        error="Datamailer graduate-outcome sync was not acknowledged",
-                    )
-                return None
+        if not _sync_graduate_outcome_before_certificate_send(
+            config, enrollment, graduate_list_payload, payload
+        ):
+            return None
         if payload is None:
             return None
-        client = DatamailerClient(config)
-        response = client.send_transactional(payload)
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            payload=payload,
-            response=response,
-        )
-        return response
+        return _send_transactional_and_audit(config, payload)
     except requests.RequestException as exc:
         logger.exception(
             "Datamailer certificate availability notification failed "
@@ -701,6 +678,51 @@ def send_certificate_availability_notification(
         if config.strict:
             raise
         return None
+
+
+def _sync_graduate_outcome_before_certificate_send(
+    config, enrollment, graduate_list_payload, payload
+):
+    if graduate_list_payload is None:
+        return True
+
+    list_key, list_payload = graduate_list_payload
+    synced = bulk_upsert_recipient_list_members_before_send(
+        config=config,
+        list_key=list_key,
+        payload=list_payload,
+        idempotency_key=_certificate_graduate_outcome_idempotency_key(
+            payload, enrollment
+        ),
+        ordering_key=list_key,
+    )
+    if synced:
+        return True
+
+    if payload is not None:
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            payload=payload,
+            error="Datamailer graduate-outcome sync was not acknowledged",
+        )
+    return False
+
+
+def _certificate_graduate_outcome_idempotency_key(payload, enrollment):
+    if payload is not None:
+        return f"{payload['idempotency_key']}:graduate-outcome"
+    return f"certificate-available:{enrollment.pk}:graduate-outcome"
+
+
+def _send_transactional_and_audit(config, payload):
+    client = DatamailerClient(config)
+    response = client.send_transactional(payload)
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.TRANSACTIONAL,
+        payload=payload,
+        response=response,
+    )
+    return response
 
 
 def send_transactional_email(
