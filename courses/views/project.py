@@ -1049,6 +1049,36 @@ def _create_optional_peer_review(
     )
 
 
+def _projects_eval_submit_post_response(
+    request,
+    course,
+    project,
+    review,
+    review_criteria,
+):
+    if request.POST.get("form_action") == "vote":
+        return _project_eval_vote_response(
+            request,
+            course.slug,
+            project.slug,
+            review,
+        )
+
+    if project.state != ProjectState.PEER_REVIEWING.value:
+        return _closed_project_eval_response(
+            request,
+            course,
+            project,
+            review,
+            review_criteria,
+        )
+
+    project_eval_post_submission(
+        request, project, review, review_criteria
+    )
+    return _redirect_to_projects_eval(course.slug, project.slug)
+
+
 @login_required
 def projects_eval_submit(request, course_slug, project_slug, review_id):
     review = get_object_or_404(PeerReview, id=review_id)
@@ -1072,28 +1102,13 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     ).order_by("id")
 
     if request.method == "POST":
-        if request.POST.get("form_action") == "vote":
-            return _project_eval_vote_response(
-                request,
-                course_slug,
-                project_slug,
-                review,
-            )
-
-        if project.state != ProjectState.PEER_REVIEWING.value:
-            return _closed_project_eval_response(
-                request,
-                course,
-                project,
-                review,
-                review_criteria,
-            )
-
-        project_eval_post_submission(
-            request, project, review, review_criteria
+        return _projects_eval_submit_post_response(
+            request,
+            course,
+            project,
+            review,
+            review_criteria,
         )
-
-        return _redirect_to_projects_eval(course_slug, project_slug)
 
     context = _project_eval_submit_context(
         request,

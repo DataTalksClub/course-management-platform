@@ -589,11 +589,15 @@ def datamailer_operations(request):
     )
 
 
-@staff_required
-def datamailer_events(request):
+def datamailer_event_filters(request):
+    return (
+        request.GET.get("event_type", "").strip(),
+        request.GET.get("q", "").strip(),
+    )
+
+
+def filtered_datamailer_events(event_type, search_query):
     events = DatamailerContactEvent.objects.all()
-    event_type = request.GET.get("event_type", "").strip()
-    search_query = request.GET.get("q", "").strip()
 
     if event_type:
         events = events.filter(event_type=event_type)
@@ -606,16 +610,13 @@ def datamailer_events(request):
             | Q(preference_key__icontains=search_query)
         )
 
-    event_types = list(
-        DatamailerContactEvent.objects.order_by("event_type")
-        .values_list("event_type", flat=True)
-        .distinct()
-    )
-    events_page = paginate_queryset(request, events, per_page=50)
-    total_events = DatamailerContactEvent.objects.count()
+    return events
+
+
+def datamailer_events_metrics():
     since = timezone.now() - timedelta(hours=24)
-    metrics = {
-        "total": total_events,
+    return {
+        "total": DatamailerContactEvent.objects.count(),
         "last_24h": DatamailerContactEvent.objects.filter(
             created_at__gte=since
         ).count(),
@@ -628,20 +629,38 @@ def datamailer_events(request):
         ),
     }
 
+
+def datamailer_events_context(request, events, event_type, search_query):
+    events_page = paginate_queryset(request, events, per_page=50)
+    event_types = list(
+        DatamailerContactEvent.objects.order_by("event_type")
+        .values_list("event_type", flat=True)
+        .distinct()
+    )
+    return {
+        "events_page": events_page,
+        "event_types": event_types,
+        "selected_event_type": event_type,
+        "search_query": search_query,
+        "metrics": datamailer_events_metrics(),
+        "page_range": events_page.paginator.get_elided_page_range(
+            events_page.number
+        ),
+        "pagination_querystring": pagination_querystring(request),
+    }
+
+
+@staff_required
+def datamailer_events(request):
+    event_type, search_query = datamailer_event_filters(request)
+    events = filtered_datamailer_events(event_type, search_query)
+
     return render(
         request,
         "cadmin/datamailer_events.html",
-        {
-            "events_page": events_page,
-            "event_types": event_types,
-            "selected_event_type": event_type,
-            "search_query": search_query,
-            "metrics": metrics,
-            "page_range": events_page.paginator.get_elided_page_range(
-                events_page.number
-            ),
-            "pagination_querystring": pagination_querystring(request),
-        },
+        datamailer_events_context(
+            request, events, event_type, search_query
+        ),
     )
 
 
@@ -953,11 +972,9 @@ def _handle_homework_submission_edit_post(
     )
 
 
-@staff_required
-def homework_submission_edit(
-    request, course_slug, homework_slug, submission_id
+def _homework_submission_edit_objects(
+    course_slug, homework_slug, submission_id
 ):
-    """Edit a homework submission"""
     course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
@@ -965,33 +982,30 @@ def homework_submission_edit(
     submission = get_object_or_404(
         Submission, id=submission_id, homework=homework
     )
+    return course, homework, submission
 
-    questions, questions_with_answers = (
-        _questions_with_submission_answers(
-            homework,
-            submission,
-        )
-    )
 
+def _homework_submission_faq_data(request, submission):
     if request.method == "POST":
-        faq_contribution_url = request.POST.get(
-            "faq_contribution_url", ""
-        ).strip()
-        faq_score = request.POST.get("faq_score", submission.faq_score)
-        response = _handle_homework_submission_edit_post(
-            request,
-            submission=submission,
-            questions=questions,
-            course_slug=course_slug,
-            homework_slug=homework_slug,
+        return (
+            request.POST.get("faq_contribution_url", "").strip(),
+            request.POST.get("faq_score", submission.faq_score),
         )
-        if response is not None:
-            return response
-    else:
-        faq_contribution_url = submission.faq_contribution_url or ""
-        faq_score = submission.faq_score
 
-    context = {
+    return submission.faq_contribution_url or "", submission.faq_score
+
+
+def _homework_submission_edit_context(
+    request,
+    course,
+    homework,
+    submission,
+    questions_with_answers,
+):
+    faq_contribution_url, faq_score = _homework_submission_faq_data(
+        request, submission
+    )
+    return {
         "course": course,
         "homework": homework,
         "submission": submission,
@@ -1002,6 +1016,42 @@ def homework_submission_edit(
         "faq_contribution_url": faq_contribution_url,
         "faq_score": faq_score,
     }
+
+
+@staff_required
+def homework_submission_edit(
+    request, course_slug, homework_slug, submission_id
+):
+    """Edit a homework submission"""
+    course, homework, submission = _homework_submission_edit_objects(
+        course_slug, homework_slug, submission_id
+    )
+
+    questions, questions_with_answers = (
+        _questions_with_submission_answers(
+            homework,
+            submission,
+        )
+    )
+
+    if request.method == "POST":
+        response = _handle_homework_submission_edit_post(
+            request,
+            submission=submission,
+            questions=questions,
+            course_slug=course_slug,
+            homework_slug=homework_slug,
+        )
+        if response is not None:
+            return response
+
+    context = _homework_submission_edit_context(
+        request,
+        course,
+        homework,
+        submission,
+        questions_with_answers,
+    )
 
     return render(
         request, "cadmin/homework_submission_edit.html", context
