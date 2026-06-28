@@ -330,8 +330,8 @@ def homework_description(title):
     )
 
 
-def ensure_homework_questions(homework):
-    question_specs = [
+def homework_question_specs(homework):
+    return [
         {
             "text": f"What is the primary goal of {homework.title}?",
             "question_type": QuestionTypes.MULTIPLE_CHOICE.value,
@@ -369,7 +369,9 @@ def ensure_homework_questions(homework):
         },
     ]
 
-    for question_spec in question_specs:
+
+def ensure_homework_questions(homework):
+    for question_spec in homework_question_specs(homework):
         Question.objects.update_or_create(
             homework=homework,
             text=question_spec["text"],
@@ -419,14 +421,16 @@ def hide_legacy_demo_duplicates():
         print(f"hid {updated} legacy demo course duplicates")
 
 
-def ensure_course_materials(spec):
+def course_due_range(spec):
     due_dates = [
         parse_date(due_date)
         for _, due_date in [*spec["homeworks"], *spec["projects"]]
     ]
-    start_date = min(due_dates).date()
-    end_date = max(due_dates).date()
+    return min(due_dates).date(), max(due_dates).date()
 
+
+def ensure_course(spec):
+    start_date, end_date = course_due_range(spec)
     course, _ = Course.objects.update_or_create(
         slug=spec["slug"],
         defaults={
@@ -445,7 +449,10 @@ def ensure_course_materials(spec):
             "first_homework_scored": True,
         },
     )
+    return course
 
+
+def ensure_homeworks(course, spec):
     homeworks = []
     for index, (title, due_date) in enumerate(spec["homeworks"], start=1):
         homework, _ = Homework.objects.update_or_create(
@@ -460,7 +467,10 @@ def ensure_course_materials(spec):
         )
         ensure_homework_questions(homework)
         homeworks.append(homework)
+    return homeworks
 
+
+def ensure_projects(course, spec):
     projects = []
     for index, (title, due_date) in enumerate(spec["projects"], start=1):
         project, _ = Project.objects.update_or_create(
@@ -475,6 +485,13 @@ def ensure_course_materials(spec):
             },
         )
         projects.append(project)
+    return projects
+
+
+def ensure_course_materials(spec):
+    course = ensure_course(spec)
+    homeworks = ensure_homeworks(course, spec)
+    projects = ensure_projects(course, spec)
 
     return course, homeworks, projects
 
@@ -488,10 +505,7 @@ def score_for_student(student_index, count, assignment_index, max_score):
     return max(0, min(max_score, (base * max_score // count) + spread // 4 - completion_penalty))
 
 
-def seed_course(spec, count):
-    course, homeworks, projects = ensure_course_materials(spec)
-    username_prefix = f"{USER_PREFIX}-{course.slug}-"
-
+def create_generated_enrollments(course, spec, count, username_prefix):
     enrollments = []
     created_users = 0
     created_enrollments = 0
@@ -520,11 +534,17 @@ def seed_course(spec, count):
         ["display_name", "display_on_leaderboard"],
     )
 
-    generated_enrollments = Enrollment.objects.filter(
+    return enrollments, created_users, created_enrollments
+
+
+def generated_enrollment_queryset(course, username_prefix):
+    return Enrollment.objects.filter(
         course=course,
         student__username__startswith=username_prefix,
     )
 
+
+def clear_generated_submissions(generated_enrollments, homeworks, projects):
     Submission.objects.filter(
         enrollment__in=generated_enrollments,
         homework__in=homeworks,
@@ -534,108 +554,146 @@ def seed_course(spec, count):
         project__in=projects,
     ).delete()
 
+
+def homework_scores(student_index, count, homework_index):
+    questions_score = score_for_student(student_index, count, homework_index, 100)
+    faq_score = (student_index + homework_index) % 6
+    lip_score = (student_index * homework_index) % 8
+    if student_index % (homework_index + 11) == 0:
+        return 0, 0, 0
+    return questions_score, faq_score, lip_score
+
+
+def homework_faq_url(student_index, homework_index, faq_score):
+    if not faq_score:
+        return ""
+    return (
+        "https://github.com/DataTalksClub/faq/issues/"
+        f"{10000 + student_index * 10 + homework_index}"
+    )
+
+
+def build_homework_submission(course, enrollment, student_index, homework_index, homework, count):
+    questions_score, faq_score, lip_score = homework_scores(
+        student_index, count, homework_index
+    )
+    return Submission(
+        homework=homework,
+        student=enrollment.student,
+        enrollment=enrollment,
+        homework_link=(
+            f"https://example.com/{course.slug}/"
+            f"{student_index:04d}/homework-{homework_index}"
+        ),
+        learning_in_public_links=[
+            (
+                f"https://example.com/{course.slug}/"
+                f"{student_index:04d}/notes/homework-{homework_index}"
+            )
+        ],
+        time_spent_lectures=1.5 + ((student_index + homework_index) % 8),
+        time_spent_homework=2.0 + ((student_index * homework_index) % 10),
+        faq_contribution_url=homework_faq_url(
+            student_index, homework_index, faq_score
+        ),
+        questions_score=questions_score,
+        faq_score=faq_score,
+        learning_in_public_score=lip_score,
+        total_score=questions_score + faq_score + lip_score,
+    )
+
+
+def project_scores(student_index, count, project_index):
+    project_score = score_for_student(student_index, count, project_index, 240)
+    project_faq_score = (student_index + project_index) % 10
+    project_lip_score = (student_index * project_index) % 15
+    peer_review_score = 20 + ((student_index + project_index) % 11)
+    peer_review_lip_score = (student_index + project_index) % 3
+    if student_index % (project_index + 13) == 0:
+        return 0, 0, 0, 0, 0
+    return (
+        project_score,
+        project_faq_score,
+        project_lip_score,
+        peer_review_score,
+        peer_review_lip_score,
+    )
+
+
+def project_faq_url(student_index, project_index, project_faq_score):
+    if not project_faq_score:
+        return ""
+    return (
+        "https://github.com/DataTalksClub/faq/pull/"
+        f"{20000 + student_index * 10 + project_index}"
+    )
+
+
+def build_project_submission(course, enrollment, student_index, project_index, project, count):
+    (
+        project_score,
+        project_faq_score,
+        project_lip_score,
+        peer_review_score,
+        peer_review_lip_score,
+    ) = project_scores(student_index, count, project_index)
+    return ProjectSubmission(
+        project=project,
+        student=enrollment.student,
+        enrollment=enrollment,
+        github_link=(
+            f"https://github.com/example/{course.slug}-"
+            f"{student_index:04d}-project-{project_index}"
+        ),
+        commit_id=f"{student_index:036d}{project_index:04d}"[:40],
+        learning_in_public_links=[
+            (
+                f"https://example.com/{course.slug}/"
+                f"{student_index:04d}/notes/project-{project_index}"
+            )
+        ],
+        faq_contribution_url=project_faq_url(
+            student_index, project_index, project_faq_score
+        ),
+        time_spent=6.0 + ((student_index * project_index) % 24),
+        problems_comments="Generated project submission",
+        project_score=project_score,
+        project_faq_score=project_faq_score,
+        project_learning_in_public_score=project_lip_score,
+        peer_review_score=peer_review_score,
+        peer_review_learning_in_public_score=peer_review_lip_score,
+        total_score=(
+            project_score
+            + project_faq_score
+            + project_lip_score
+            + peer_review_score
+            + peer_review_lip_score
+        ),
+        reviewed_enough_peers=peer_review_score > 0,
+        passed=project_score > 0,
+    )
+
+
+def build_generated_submissions(course, enrollments, homeworks, projects, count):
     homework_submissions = []
     project_submissions = []
-
     for student_index, enrollment in enumerate(enrollments, start=1):
         for homework_index, homework in enumerate(homeworks, start=1):
-            questions_score = score_for_student(student_index, count, homework_index, 100)
-            faq_score = (student_index + homework_index) % 6
-            lip_score = (student_index * homework_index) % 8
-            if student_index % (homework_index + 11) == 0:
-                questions_score = 0
-                faq_score = 0
-                lip_score = 0
-            homework_faq_url = (
-                f"https://github.com/DataTalksClub/faq/issues/"
-                f"{10000 + student_index * 10 + homework_index}"
-                if faq_score
-                else ""
-            )
-
             homework_submissions.append(
-                Submission(
-                    homework=homework,
-                    student=enrollment.student,
-                    enrollment=enrollment,
-                    homework_link=(
-                        f"https://example.com/{course.slug}/"
-                        f"{student_index:04d}/homework-{homework_index}"
-                    ),
-                    learning_in_public_links=[
-                        (
-                            f"https://example.com/{course.slug}/"
-                            f"{student_index:04d}/notes/homework-{homework_index}"
-                        )
-                    ],
-                    time_spent_lectures=1.5 + ((student_index + homework_index) % 8),
-                    time_spent_homework=2.0 + ((student_index * homework_index) % 10),
-                    faq_contribution_url=homework_faq_url,
-                    questions_score=questions_score,
-                    faq_score=faq_score,
-                    learning_in_public_score=lip_score,
-                    total_score=questions_score + faq_score + lip_score,
+                build_homework_submission(
+                    course, enrollment, student_index, homework_index, homework, count
                 )
             )
-
         for project_index, project in enumerate(projects, start=1):
-            project_score = score_for_student(student_index, count, project_index, 240)
-            project_faq_score = (student_index + project_index) % 10
-            project_lip_score = (student_index * project_index) % 15
-            peer_review_score = 20 + ((student_index + project_index) % 11)
-            peer_review_lip_score = (student_index + project_index) % 3
-            if student_index % (project_index + 13) == 0:
-                project_score = 0
-                project_faq_score = 0
-                project_lip_score = 0
-                peer_review_score = 0
-                peer_review_lip_score = 0
-            project_faq_url = (
-                f"https://github.com/DataTalksClub/faq/pull/"
-                f"{20000 + student_index * 10 + project_index}"
-                if project_faq_score
-                else ""
-            )
-
             project_submissions.append(
-                ProjectSubmission(
-                    project=project,
-                    student=enrollment.student,
-                    enrollment=enrollment,
-                    github_link=(
-                        f"https://github.com/example/{course.slug}-"
-                        f"{student_index:04d}-project-{project_index}"
-                    ),
-                    commit_id=f"{student_index:036d}{project_index:04d}"[:40],
-                    learning_in_public_links=[
-                        (
-                            f"https://example.com/{course.slug}/"
-                            f"{student_index:04d}/notes/project-{project_index}"
-                        )
-                    ],
-                    faq_contribution_url=project_faq_url,
-                    time_spent=6.0 + ((student_index * project_index) % 24),
-                    problems_comments="Generated project submission",
-                    project_score=project_score,
-                    project_faq_score=project_faq_score,
-                    project_learning_in_public_score=project_lip_score,
-                    peer_review_score=peer_review_score,
-                    peer_review_learning_in_public_score=peer_review_lip_score,
-                    total_score=(
-                        project_score
-                        + project_faq_score
-                        + project_lip_score
-                        + peer_review_score
-                        + peer_review_lip_score
-                    ),
-                    reviewed_enough_peers=peer_review_score > 0,
-                    passed=project_score > 0,
+                build_project_submission(
+                    course, enrollment, student_index, project_index, project, count
                 )
             )
+    return homework_submissions, project_submissions
 
-    Submission.objects.bulk_create(homework_submissions, batch_size=1000)
-    ProjectSubmission.objects.bulk_create(project_submissions, batch_size=1000)
 
+def recalculate_course_scores(course, homeworks, projects):
     for homework in homeworks:
         calculate_homework_statistics(homework, force=True)
     for project in projects:
@@ -646,18 +704,56 @@ def seed_course(spec, count):
     cache.delete(f"leaderboard_data:{course.id}")
     cache.delete(f"leaderboard_yaml:{course.id}")
 
-    top = (
+
+def top_leaderboard_entry(course):
+    return (
         Enrollment.objects.filter(course=course)
         .order_by("position_on_leaderboard")
         .values_list("display_name", "total_score", "position_on_leaderboard")
         .first()
     )
 
+
+def print_seed_summary(
+    course,
+    created_users,
+    created_enrollments,
+    homework_submissions,
+    project_submissions,
+):
+    top = top_leaderboard_entry(course)
     print(
         f"{course.slug}: {created_users} users created, "
         f"{created_enrollments} enrollments created, "
         f"{len(homework_submissions)} homework submissions, "
         f"{len(project_submissions)} project submissions, top={top}"
+    )
+
+
+def seed_course(spec, count):
+    course, homeworks, projects = ensure_course_materials(spec)
+    username_prefix = f"{USER_PREFIX}-{course.slug}-"
+    enrollments, created_users, created_enrollments = create_generated_enrollments(
+        course, spec, count, username_prefix
+    )
+    clear_generated_submissions(
+        generated_enrollment_queryset(course, username_prefix),
+        homeworks,
+        projects,
+    )
+    homework_submissions, project_submissions = build_generated_submissions(
+        course, enrollments, homeworks, projects, count
+    )
+    Submission.objects.bulk_create(homework_submissions, batch_size=1000)
+    ProjectSubmission.objects.bulk_create(project_submissions, batch_size=1000)
+
+    recalculate_course_scores(course, homeworks, projects)
+    print_seed_summary(
+        course,
+        created_users,
+        created_enrollments,
+        homework_submissions,
+        project_submissions,
     )
 
 
