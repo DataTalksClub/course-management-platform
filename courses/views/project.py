@@ -385,68 +385,101 @@ def project_build_context(
     }
 
 
+def project_redirect(course: Course, project: Project):
+    return redirect(
+        "project",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+
+
+def project_login_required_response(
+    request: HttpRequest, course: Course, project: Project
+):
+    messages.error(
+        request,
+        "You need to be logged in to submit a project",
+        extra_tags="homework",
+    )
+    return project_redirect(course, project)
+
+
+def closed_project_submission_response(
+    request: HttpRequest, course: Course, project: Project
+):
+    messages.error(
+        request,
+        "Project submission form is closed.",
+        extra_tags="homework",
+    )
+    context = project_build_context(request, course, project)
+    return render(request, "projects/project.html", context)
+
+
+def is_delete_project_submission_request(request: HttpRequest) -> bool:
+    return "action" in request.POST and request.POST["action"] == "delete"
+
+
+def project_validation_error_response(
+    request: HttpRequest,
+    course: Course,
+    project: Project,
+    error: ValidationError,
+):
+    for message in error.messages:
+        messages.error(
+            request,
+            f"Failed to submit the project: {message}",
+            extra_tags="alert-danger",
+        )
+    context = project_build_context(request, course, project)
+    context["submission"] = project_submission_from_post(request, project)
+    return render(request, "projects/project.html", context)
+
+
+def handle_project_post(
+    request: HttpRequest,
+    course: Course,
+    project: Project,
+    accepting_submissions: bool,
+):
+    if not request.user.is_authenticated:
+        return project_login_required_response(request, course, project)
+
+    if not accepting_submissions:
+        return closed_project_submission_response(
+            request, course, project
+        )
+
+    if is_delete_project_submission_request(request):
+        project_delete_submission(request, project)
+    else:
+        try:
+            project_submit_post(request, project)
+        except ValidationError as error:
+            return project_validation_error_response(
+                request, course, project, error
+            )
+
+    return project_redirect(course, project)
+
+
 def project_view(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
 
-    user = request.user
-    is_authenticated = user.is_authenticated
-
     accepting_submissions = (
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
     )
 
     if request.method == "POST":
-        if not is_authenticated:
-            messages.error(
-                request,
-                "You need to be logged in to submit a project",
-                extra_tags="homework",
-            )
-            return redirect(
-                "project",
-                course_slug=course.slug,
-                project_slug=project.slug,
-            )
-
-        if not accepting_submissions:
-            messages.error(
-                request,
-                "Project submission form is closed.",
-                extra_tags="homework",
-            )
-            context = project_build_context(request, course, project)
-            return render(request, "projects/project.html", context)
-
-        if (
-            "action" in request.POST
-            and request.POST["action"] == "delete"
-        ):
-            project_delete_submission(request, project)
-        else:
-            try:
-                project_submit_post(request, project)
-            except ValidationError as e:
-                for message in e.messages:
-                    messages.error(
-                        request,
-                        f"Failed to submit the project: {message}",
-                        extra_tags="alert-danger",
-                    )
-                context = project_build_context(
-                    request, course, project
-                )
-                context["submission"] = project_submission_from_post(
-                    request, project
-                )
-                return render(request, "projects/project.html", context)
-
-        return redirect(
-            "project",
-            course_slug=course.slug,
-            project_slug=project.slug,
+        return handle_project_post(
+            request,
+            course,
+            project,
+            accepting_submissions,
         )
 
     context = project_build_context(request, course, project)
