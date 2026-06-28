@@ -34,62 +34,106 @@ def campaign_course_is_open(campaign: RegistrationCampaign) -> bool:
     )
 
 
-def registration_campaign_view(
-    request: HttpRequest,
+def _active_registration_campaign(
     campaign_slug: str,
-) -> HttpResponse:
-    campaign = get_object_or_404(
+) -> RegistrationCampaign:
+    return get_object_or_404(
         RegistrationCampaign,
         slug=campaign_slug,
         is_active=True,
     )
-    course_is_open = campaign_course_is_open(campaign)
-    registration = None
-    existing_registration = None
 
-    if request.user.is_authenticated:
-        existing_registration = CourseRegistration.objects.filter(
-            campaign=campaign,
-            email_normalized=(request.user.email or "").strip().lower(),
-        ).first()
 
+def _existing_user_registration(
+    request: HttpRequest,
+    campaign: RegistrationCampaign,
+) -> CourseRegistration | None:
+    if not request.user.is_authenticated:
+        return None
+
+    return CourseRegistration.objects.filter(
+        campaign=campaign,
+        email_normalized=(request.user.email or "").strip().lower(),
+    ).first()
+
+
+def _registration_form(
+    request: HttpRequest,
+    campaign: RegistrationCampaign,
+) -> CourseRegistrationForm:
     if request.method == "POST":
-        form = CourseRegistrationForm(
+        return CourseRegistrationForm(
             request.POST,
             campaign=campaign,
             user=request.user,
         )
-        if form.is_valid():
-            registration = form.save()
-            transaction.on_commit(
-                lambda: sync_registration_to_datamailer(registration)
-            )
-            transaction.on_commit(
-                lambda: send_registration_confirmation_email(registration)
-            )
-    else:
-        form = CourseRegistrationForm(
-            campaign=campaign, user=request.user
-        )
 
-    start_course_url = ""
-    if campaign.current_course_id:
-        start_course_url = reverse(
-            "course",
-            kwargs={"course_slug": campaign.current_course.slug},
-        )
+    return CourseRegistrationForm(campaign=campaign, user=request.user)
 
-    context = {
+
+def _save_registration_if_valid(
+    form: CourseRegistrationForm,
+) -> CourseRegistration | None:
+    if not form.is_valid():
+        return None
+
+    registration = form.save()
+    transaction.on_commit(
+        lambda: sync_registration_to_datamailer(registration)
+    )
+    transaction.on_commit(
+        lambda: send_registration_confirmation_email(registration)
+    )
+    return registration
+
+
+def _start_course_url(campaign: RegistrationCampaign) -> str:
+    if not campaign.current_course_id:
+        return ""
+
+    return reverse(
+        "course",
+        kwargs={"course_slug": campaign.current_course.slug},
+    )
+
+
+def _registration_context(
+    campaign: RegistrationCampaign,
+    form: CourseRegistrationForm,
+    registration: CourseRegistration | None,
+) -> dict:
+    return {
         "campaign": campaign,
         "course": campaign.current_course,
-        "course_is_open": course_is_open,
+        "course_is_open": campaign_course_is_open(campaign),
         "form": form,
-        "registration": registration or existing_registration,
+        "registration": registration,
         "marketing_html": mark_safe(
             render_markdown(campaign.marketing_markdown)
         ),
         "video_embed_url": youtube_embed_url(campaign.video_url),
-        "start_course_url": start_course_url,
+        "start_course_url": _start_course_url(campaign),
         "country_options": ordered_countries(),
     }
+
+
+def registration_campaign_view(
+    request: HttpRequest,
+    campaign_slug: str,
+) -> HttpResponse:
+    campaign = _active_registration_campaign(campaign_slug)
+    existing_registration = _existing_user_registration(
+        request, campaign
+    )
+    form = _registration_form(request, campaign)
+
+    registration = None
+    if request.method == "POST":
+        registration = _save_registration_if_valid(form)
+
+    context = _registration_context(
+        campaign,
+        form,
+        registration or existing_registration,
+    )
     return render(request, "courses/register.html", context)
