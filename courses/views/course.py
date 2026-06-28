@@ -235,9 +235,8 @@ def mark_enrolled_courses(courses, user) -> None:
         course.is_enrolled = course.id in enrolled_course_ids
 
 
-def course_list(request):
-    now = timezone.now()
-    courses = (
+def _visible_course_list_queryset():
+    return (
         Course.objects.filter(visible=True)
         .annotate(
             homework_count=Count("homework", distinct=True),
@@ -248,6 +247,8 @@ def course_list(request):
         .order_by("-id")
     )
 
+
+def _split_courses_by_status(courses, now):
     active_courses = []
     finished_courses = []
     archive_courses_by_year = defaultdict(list)
@@ -261,23 +262,21 @@ def course_list(request):
         else:
             active_courses.append(course)
 
-    mark_enrolled_courses(courses, request.user)
-    attach_registration_campaigns(courses)
-    mark_registered_courses(courses, request.user)
+    return active_courses, finished_courses, archive_courses_by_year
 
-    featured_course = None
+
+def _featured_course(active_courses):
     for course in active_courses:
         if not course.title.lower().startswith("fake"):
-            featured_course = course
-            break
+            return course
 
-    if featured_course is None and active_courses:
-        featured_course = active_courses[0]
+    if active_courses:
+        return active_courses[0]
 
-    other_active_courses = [
-        course for course in active_courses if course != featured_course
-    ]
+    return None
 
+
+def _course_archive_groups(archive_courses_by_year):
     archive_years = sorted(
         archive_courses_by_year.keys(),
         key=lambda year: (year == "Archive", year),
@@ -287,7 +286,7 @@ def course_list(request):
         archive_years.remove("Archive")
         archive_years.append("Archive")
 
-    archive_groups = [
+    return [
         {
             "year": year,
             "courses": archive_courses_by_year[year],
@@ -295,18 +294,42 @@ def course_list(request):
         for year in archive_years
     ]
 
+
+def _course_home_stats(courses, active_courses, finished_courses):
+    return {
+        "active_courses": len(active_courses),
+        "archive_courses": len(finished_courses),
+        "homeworks": sum(course.homework_count for course in courses),
+        "projects": sum(course.project_count for course in courses),
+    }
+
+
+def course_list(request):
+    courses = list(_visible_course_list_queryset())
+    active_courses, finished_courses, archive_courses_by_year = (
+        _split_courses_by_status(courses, timezone.now())
+    )
+
+    mark_enrolled_courses(courses, request.user)
+    attach_registration_campaigns(courses)
+    mark_registered_courses(courses, request.user)
+
+    featured_course = _featured_course(active_courses)
+    other_active_courses = [
+        course for course in active_courses if course != featured_course
+    ]
+
     context = {
         "active_courses": active_courses,
-        "archive_groups": archive_groups,
+        "archive_groups": _course_archive_groups(archive_courses_by_year),
         "featured_course": featured_course,
         "finished_courses": finished_courses,
         "other_active_courses": other_active_courses,
-        "home_stats": {
-            "active_courses": len(active_courses),
-            "archive_courses": len(finished_courses),
-            "homeworks": sum(course.homework_count for course in courses),
-            "projects": sum(course.project_count for course in courses),
-        },
+        "home_stats": _course_home_stats(
+            courses,
+            active_courses,
+            finished_courses,
+        ),
     }
 
     return render(
@@ -1137,85 +1160,111 @@ def _dashboard_project_stats(course, total_enrollments):
     }
 
 
-def _dashboard_homework_stat(homework, hw_submissions, total_enrollments):
-    """Per-homework statistics row for the dashboard."""
-    hw_time_lecture = [
-        s["time_spent_lectures"]
-        for s in hw_submissions
-        if s["time_spent_lectures"] is not None
-    ]
-    hw_time_homework = [
-        s["time_spent_homework"]
-        for s in hw_submissions
-        if s["time_spent_homework"] is not None
-    ]
-    hw_scores = [
-        s["total_score"]
-        for s in hw_submissions
-        if s["total_score"] is not None
-    ]
-    hw_questions_scores = [
-        s["questions_score"]
-        for s in hw_submissions
-        if s["questions_score"] is not None
-    ]
-    hw_time_total = [
-        s["time_spent_lectures"] + s["time_spent_homework"]
-        for s in hw_submissions
-        if s["time_spent_lectures"] is not None
-        and s["time_spent_homework"] is not None
+def _submission_values(submissions, field_name):
+    return [
+        submission[field_name]
+        for submission in submissions
+        if submission[field_name] is not None
     ]
 
-    lecture_q25, lecture_median, lecture_q75 = _safe_quartiles(
-        hw_time_lecture
-    )
-    homework_q25, homework_median, homework_q75 = _safe_quartiles(
-        hw_time_homework
-    )
-    total_q25, total_median, total_q75 = _safe_quartiles(hw_time_total)
-    score_q25, score_median, score_q75 = _safe_quartiles(hw_scores)
 
-    # Difficulty is judged on the questions score (excluding bonus points such
-    # as FAQ / learning-in-public) normalized by the max achievable questions
-    # score, so homeworks with different question counts are comparable.
-    # Lower ratio == harder.
-    _, questions_score_median, _ = _safe_quartiles(hw_questions_scores)
+def _dashboard_completion_rate(submissions_count, total_enrollments):
+    if total_enrollments <= 0:
+        return 0.0
+    return round(submissions_count / total_enrollments * 100, 1)
+
+
+def _dashboard_total_homework_times(hw_submissions):
+    return [
+        submission["time_spent_lectures"]
+        + submission["time_spent_homework"]
+        for submission in hw_submissions
+        if submission["time_spent_lectures"] is not None
+        and submission["time_spent_homework"] is not None
+    ]
+
+
+def _quartile_fields(prefix, values):
+    q25, median, q75 = _safe_quartiles(values)
+    return {
+        f"{prefix}_q25": q25,
+        f"{prefix}_median": median,
+        f"{prefix}_q75": q75,
+        f"{prefix}_median_formatted": _format_median(median),
+    }
+
+
+def _dashboard_homework_time_stats(hw_submissions):
+    stats = {}
+    stats.update(
+        _quartile_fields(
+            "time_lecture",
+            _submission_values(hw_submissions, "time_spent_lectures"),
+        )
+    )
+    stats.update(
+        _quartile_fields(
+            "time_homework",
+            _submission_values(hw_submissions, "time_spent_homework"),
+        )
+    )
+    stats.update(
+        _quartile_fields(
+            "time_total",
+            _dashboard_total_homework_times(hw_submissions),
+        )
+    )
+    return stats
+
+
+def _dashboard_homework_score_ratio(homework, hw_submissions):
+    questions_scores = _submission_values(hw_submissions, "questions_score")
+    _, questions_score_median, _ = _safe_quartiles(questions_scores)
     max_questions_score = homework.max_questions_score
     score_ratio = (
         questions_score_median / max_questions_score
         if questions_score_median is not None and max_questions_score
         else None
     )
+    return questions_score_median, max_questions_score, score_ratio
 
+
+def _dashboard_homework_score_stats(homework, hw_submissions):
+    score_q25, score_median, score_q75 = _safe_quartiles(
+        _submission_values(hw_submissions, "total_score")
+    )
+    questions_score_median, max_questions_score, score_ratio = (
+        _dashboard_homework_score_ratio(homework, hw_submissions)
+    )
     return {
-        "homework": homework,
-        "submissions_count": len(hw_submissions),
-        "completion_rate": round(
-            len(hw_submissions) / total_enrollments * 100, 1
-        )
-        if total_enrollments > 0
-        else 0.0,
-        "time_lecture_q25": lecture_q25,
-        "time_lecture_median": lecture_median,
-        "time_lecture_q75": lecture_q75,
-        "time_lecture_median_formatted": _format_median(lecture_median),
-        "time_homework_q25": homework_q25,
-        "time_homework_median": homework_median,
-        "time_homework_q75": homework_q75,
-        "time_homework_median_formatted": _format_median(homework_median),
-        "time_total_q25": total_q25,
-        "time_total_median": total_median,
-        "time_total_q75": total_q75,
-        "time_total_median_formatted": _format_median(total_median),
         "score_q25": score_q25,
         "score_median": score_median,
         "score_q75": score_q75,
         "questions_score_median": questions_score_median,
         "max_questions_score": max_questions_score,
         "score_ratio": score_ratio,
-        "score_ratio_pct": round(score_ratio * 100, 1)
-        if score_ratio is not None
-        else None,
+        "score_ratio_pct": (
+            round(score_ratio * 100, 1)
+            if score_ratio is not None
+            else None
+        ),
+    }
+
+
+def _dashboard_homework_stat(homework, hw_submissions, total_enrollments):
+    """Per-homework statistics row for the dashboard."""
+    time_stats = _dashboard_homework_time_stats(hw_submissions)
+    score_stats = _dashboard_homework_score_stats(homework, hw_submissions)
+
+    return {
+        "homework": homework,
+        "submissions_count": len(hw_submissions),
+        "completion_rate": _dashboard_completion_rate(
+            len(hw_submissions),
+            total_enrollments,
+        ),
+        **time_stats,
+        **score_stats,
     }
 
 
@@ -1254,37 +1303,31 @@ def _dashboard_homework_stats(homeworks, all_hw_submissions, total_enrollments):
     return homework_stats, difficulty_stats
 
 
-def dashboard_view(request, course_slug: str):
-    course = get_object_or_404(Course, slug=course_slug)
-    if not course.first_homework_scored:
-        return redirect("course", course_slug=course.slug)
-
-    total_enrollments = Enrollment.objects.filter(course=course).count()
-
-    project_stats = _dashboard_project_stats(course, total_enrollments)
-
-    # Average of stored per-enrollment total scores.
+def _dashboard_avg_total_score(course):
     enrollments_with_scores = Enrollment.objects.filter(
         course=course, total_score__isnull=False
     ).values_list("total_score", flat=True)
-    avg_total_score = (
+    return (
         statistics.mean(enrollments_with_scores)
         if enrollments_with_scores
         else 0
     )
 
-    # The max achievable questions score (sum of points across the homework's
-    # questions) lets us normalize difficulty: a homework with fewer questions
-    # naturally has a lower median score without being harder.
-    homeworks = (
+
+def _dashboard_homeworks(course):
+    return (
         Homework.objects.filter(course=course)
         .order_by("id")
         .annotate(
             max_questions_score=Sum("question__scores_for_correct_answer")
         )
     )
-    all_hw_submissions = (
-        Submission.objects.filter(homework__course=course)
+
+
+def _dashboard_homework_submissions(course):
+    return (
+        Submission.objects
+        .filter(homework__course=course)
         .select_related("homework")
         .values(
             "homework_id",
@@ -1294,28 +1337,46 @@ def dashboard_view(request, course_slug: str):
             "total_score",
         )
     )
-    homework_stats, homework_difficulty_stats = _dashboard_homework_stats(
-        homeworks, all_hw_submissions, total_enrollments
-    )
 
-    # Graduates: enrollments with a (non-empty) certificate.
-    graduates_count = (
-        Enrollment.objects.filter(
+
+def _dashboard_graduates_count(course):
+    return (
+        Enrollment.objects
+        .filter(
             course=course, certificate_url__isnull=False
         )
         .exclude(certificate_url="")
         .count()
     )
 
-    context = {
+
+def _dashboard_context(course):
+    total_enrollments = Enrollment.objects.filter(course=course).count()
+    homework_stats, homework_difficulty_stats = _dashboard_homework_stats(
+        _dashboard_homeworks(course),
+        _dashboard_homework_submissions(course),
+        total_enrollments,
+    )
+
+    return {
         "course": course,
         "total_enrollments": total_enrollments,
-        "avg_total_score": round(avg_total_score, 1),
+        "avg_total_score": round(_dashboard_avg_total_score(course), 1),
         "project_passing_score": course.project_passing_score,
-        "graduates_count": graduates_count,
+        "graduates_count": _dashboard_graduates_count(course),
         "homework_stats": homework_stats,
         "homework_difficulty_stats": homework_difficulty_stats,
-        **project_stats,
+        **_dashboard_project_stats(course, total_enrollments),
     }
 
-    return render(request, "courses/dashboard.html", context)
+
+def dashboard_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+    if not course.first_homework_scored:
+        return redirect("course", course_slug=course.slug)
+
+    return render(
+        request,
+        "courses/dashboard.html",
+        _dashboard_context(course),
+    )
