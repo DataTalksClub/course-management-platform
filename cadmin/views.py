@@ -24,7 +24,9 @@ from course_management.datamailer import (
     send_project_score_notification,
     send_peer_review_assignment_notification,
 )
-from course_management.datamailer_outbox import datamailer_outbox_status_summary
+from course_management.datamailer_outbox import (
+    datamailer_outbox_status_summary,
+)
 from data.models import DatamailerContactEvent
 from data.models import (
     DatamailerOutboxEvent,
@@ -81,6 +83,20 @@ from courses.projects import (
 logger = logging.getLogger(__name__)
 CADMIN_PAGE_SIZE = 25
 CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE = 50
+DATAMAILER_RECIPIENT_LIST_KINDS = [
+    "registrations",
+    "enrollments",
+    "homework",
+    "project",
+    "project-passed",
+    "graduates",
+]
+DATAMAILER_CAMPAIGN_UPSERT_ACTIONS = {
+    "sync",
+    "preview",
+    "test_send",
+    "queue",
+}
 
 
 def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
@@ -223,60 +239,93 @@ def datamailer_campaign_context(campaign):
     }
 
 
-def handle_datamailer_campaign_action(request, campaign):
-    action = request.POST.get("datamailer_action", "").strip()
+def datamailer_campaign_client_or_message(request):
     config = DatamailerConfig.from_settings()
     if config is None:
         messages.error(
             request,
             "Datamailer is not configured for campaign operations.",
         )
+        return None
+    return DatamailerClient(config)
+
+
+def datamailer_campaign_queue_recipient_count(response):
+    response = response or {}
+    recipient_count = response.get("recipient_count")
+    if recipient_count is None:
+        campaign_payload = response.get("campaign") or {}
+        recipient_count = campaign_payload.get("recipient_count", 0)
+    return recipient_count
+
+
+def run_datamailer_campaign_action(
+    request,
+    action,
+    client,
+    external_key,
+):
+    if action == "sync":
+        messages.success(request, "Datamailer campaign draft synced.")
+        return None, True
+
+    if action == "preview":
+        preview = client.preview_campaign(external_key)
+        messages.success(
+            request, "Datamailer campaign preview rendered."
+        )
+        return preview, False
+
+    if action == "test_send":
+        recipients = parse_test_recipients(
+            request.POST.get("test_recipients", "")
+        )
+        client.test_send_campaign(external_key, recipients)
+        messages.success(
+            request,
+            f"Datamailer test send queued for {len(recipients)} recipient(s).",
+        )
+        return None, True
+
+    if action == "queue":
+        response = client.queue_campaign(external_key)
+        recipient_count = datamailer_campaign_queue_recipient_count(
+            response
+        )
+        messages.success(
+            request,
+            f"Datamailer campaign queued for {recipient_count} recipient(s).",
+        )
+        return None, True
+
+    if action == "cancel":
+        client.cancel_campaign(external_key)
+        messages.success(request, "Datamailer campaign cancelled.")
+        return None, True
+
+    messages.error(request, "Unknown Datamailer campaign action.")
+    return None, False
+
+
+def handle_datamailer_campaign_action(request, campaign):
+    action = request.POST.get("datamailer_action", "").strip()
+    client = datamailer_campaign_client_or_message(request)
+    if client is None:
         return None, True
 
     external_key = registration_campaign_external_key(campaign)
-    payload = registration_campaign_datamailer_payload(campaign)
-    client = DatamailerClient(config)
 
     try:
-        if action in {"sync", "preview", "test_send", "queue"}:
+        if action in DATAMAILER_CAMPAIGN_UPSERT_ACTIONS:
+            payload = registration_campaign_datamailer_payload(campaign)
             client.upsert_campaign(external_key, payload)
 
-        if action == "sync":
-            messages.success(request, "Datamailer campaign draft synced.")
-            return None, True
-
-        if action == "preview":
-            preview = client.preview_campaign(external_key)
-            messages.success(request, "Datamailer campaign preview rendered.")
-            return preview, False
-
-        if action == "test_send":
-            recipients = parse_test_recipients(
-                request.POST.get("test_recipients", "")
-            )
-            client.test_send_campaign(external_key, recipients)
-            messages.success(
-                request,
-                f"Datamailer test send queued for {len(recipients)} recipient(s).",
-            )
-            return None, True
-
-        if action == "queue":
-            response = client.queue_campaign(external_key) or {}
-            recipient_count = response.get("recipient_count")
-            if recipient_count is None:
-                campaign_payload = response.get("campaign") or {}
-                recipient_count = campaign_payload.get("recipient_count", 0)
-            messages.success(
-                request,
-                f"Datamailer campaign queued for {recipient_count} recipient(s).",
-            )
-            return None, True
-
-        if action == "cancel":
-            client.cancel_campaign(external_key)
-            messages.success(request, "Datamailer campaign cancelled.")
-            return None, True
+        return run_datamailer_campaign_action(
+            request,
+            action,
+            client,
+            external_key,
+        )
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))
         return None, False
@@ -286,9 +335,6 @@ def handle_datamailer_campaign_action(request, campaign):
             f"Datamailer campaign request failed: {exc}",
         )
         return None, False
-
-    messages.error(request, "Unknown Datamailer campaign action.")
-    return None, False
 
 
 @staff_required
@@ -367,80 +413,103 @@ def datamailer_operator_commands():
     ]
 
 
-@staff_required
-def datamailer_operations(request):
-    if request.method == "POST" and request.POST.get("action") == "requeue":
-        now = timezone.now()
-        requeued = DatamailerOutboxEvent.objects.filter(
-            status__in=[
-                DatamailerOutboxStatus.FAILED,
-                DatamailerOutboxStatus.DEAD,
-            ]
-        ).update(
-            status=DatamailerOutboxStatus.RETRYING,
-            next_attempt_at=now,
-            last_error="",
-            updated_at=now,
-        )
-        messages.success(
-            request,
-            f"Requeued {requeued} Datamailer outbox event(s).",
-        )
-        return redirect("cadmin_datamailer_operations")
+def requeue_datamailer_outbox_events():
+    now = timezone.now()
+    return DatamailerOutboxEvent.objects.filter(
+        status__in=[
+            DatamailerOutboxStatus.FAILED,
+            DatamailerOutboxStatus.DEAD,
+        ]
+    ).update(
+        status=DatamailerOutboxStatus.RETRYING,
+        next_attempt_at=now,
+        last_error="",
+        updated_at=now,
+    )
 
-    outbox_summary = datamailer_outbox_status_summary()
-    send_totals = send_audit_totals()
-    recent_failed_events = DatamailerOutboxEvent.objects.filter(
+
+def handle_datamailer_operations_post(request):
+    if request.POST.get("action") != "requeue":
+        return None
+
+    requeued = requeue_datamailer_outbox_events()
+    messages.success(
+        request,
+        f"Requeued {requeued} Datamailer outbox event(s).",
+    )
+    return redirect("cadmin_datamailer_operations")
+
+
+def recent_failed_datamailer_outbox_events():
+    return DatamailerOutboxEvent.objects.filter(
         status__in=[
             DatamailerOutboxStatus.RETRYING,
             DatamailerOutboxStatus.FAILED,
             DatamailerOutboxStatus.DEAD,
         ]
     ).exclude(last_error="")[:10]
-    recent_failed_sends = DatamailerSendAudit.objects.filter(
+
+
+def recent_failed_datamailer_sends():
+    return DatamailerSendAudit.objects.filter(
         status=DatamailerSendAuditStatus.FAILED,
     )[:10]
+
+
+def normalized_send_totals(send_totals):
+    return {
+        "total": send_totals["total"] or 0,
+        "intended_count": send_totals["intended_count"] or 0,
+        "created_count": send_totals["created_count"] or 0,
+        "enqueued_count": send_totals["enqueued_count"] or 0,
+        "skipped_count": send_totals["skipped_count"] or 0,
+        "idempotent_replay_count": (
+            send_totals["idempotent_replay_count"] or 0
+        ),
+        "failed": DatamailerSendAudit.objects.filter(
+            status=DatamailerSendAuditStatus.FAILED,
+        ).count(),
+    }
+
+
+def datamailer_outbox_status_rows(outbox_summary):
+    return [
+        {
+            "status": status,
+            "count": outbox_summary["event_counts"].get(status, 0),
+        }
+        for status in DatamailerOutboxStatus.values
+    ]
+
+
+def datamailer_operations_context():
+    outbox_summary = datamailer_outbox_status_summary()
+    return {
+        "outbox_summary": outbox_summary,
+        "outbox_statuses": datamailer_outbox_status_rows(
+            outbox_summary
+        ),
+        "recent_failed_events": recent_failed_datamailer_outbox_events(),
+        "send_totals": normalized_send_totals(send_audit_totals()),
+        "send_by_status": send_audit_grouped("status"),
+        "send_by_type": send_audit_grouped("send_type"),
+        "recent_failed_sends": recent_failed_datamailer_sends(),
+        "operator_commands": datamailer_operator_commands(),
+        "recipient_list_kinds": DATAMAILER_RECIPIENT_LIST_KINDS,
+    }
+
+
+@staff_required
+def datamailer_operations(request):
+    if request.method == "POST":
+        response = handle_datamailer_operations_post(request)
+        if response is not None:
+            return response
 
     return render(
         request,
         "cadmin/datamailer_operations.html",
-        {
-            "outbox_summary": outbox_summary,
-            "outbox_statuses": [
-                {
-                    "status": status,
-                    "count": outbox_summary["event_counts"].get(status, 0),
-                }
-                for status in DatamailerOutboxStatus.values
-            ],
-            "recent_failed_events": recent_failed_events,
-            "send_totals": {
-                "total": send_totals["total"] or 0,
-                "intended_count": send_totals["intended_count"] or 0,
-                "created_count": send_totals["created_count"] or 0,
-                "enqueued_count": send_totals["enqueued_count"] or 0,
-                "skipped_count": send_totals["skipped_count"] or 0,
-                "idempotent_replay_count": send_totals[
-                    "idempotent_replay_count"
-                ]
-                or 0,
-                "failed": DatamailerSendAudit.objects.filter(
-                    status=DatamailerSendAuditStatus.FAILED,
-                ).count(),
-            },
-            "send_by_status": send_audit_grouped("status"),
-            "send_by_type": send_audit_grouped("send_type"),
-            "recent_failed_sends": recent_failed_sends,
-            "operator_commands": datamailer_operator_commands(),
-            "recipient_list_kinds": [
-                "registrations",
-                "enrollments",
-                "homework",
-                "project",
-                "project-passed",
-                "graduates",
-            ],
-        },
+        datamailer_operations_context(),
     )
 
 
@@ -478,7 +547,9 @@ def datamailer_events(request):
             total=Sum("duplicate_count")
         )["total"]
         or 0,
-        "by_type": count_by(DatamailerContactEvent.objects.all(), "event_type"),
+        "by_type": count_by(
+            DatamailerContactEvent.objects.all(), "event_type"
+        ),
     }
 
     return render(
@@ -603,7 +674,9 @@ def campaign_edit(request, campaign_slug):
     )
     datamailer_preview = None
 
-    if request.method == "POST" and request.POST.get("datamailer_action"):
+    if request.method == "POST" and request.POST.get(
+        "datamailer_action"
+    ):
         datamailer_preview, should_redirect = (
             handle_datamailer_campaign_action(request, campaign)
         )
@@ -795,7 +868,9 @@ def homework_submissions(request, course_slug, homework_slug):
 
 
 def _questions_with_submission_answers(homework, submission):
-    questions = Question.objects.filter(homework=homework).order_by("id")
+    questions = Question.objects.filter(homework=homework).order_by(
+        "id"
+    )
     answers = Answer.objects.filter(
         submission=submission
     ).select_related("question")
@@ -856,7 +931,9 @@ def _handle_homework_submission_edit_post(
         request,
         f"Homework submission for {submission.student.username} updated successfully",
     )
-    return _homework_submission_edit_redirect(course_slug, homework_slug)
+    return _homework_submission_edit_redirect(
+        course_slug, homework_slug
+    )
 
 
 @staff_required
@@ -872,9 +949,11 @@ def homework_submission_edit(
         Submission, id=submission_id, homework=homework
     )
 
-    questions, questions_with_answers = _questions_with_submission_answers(
-        homework,
-        submission,
+    questions, questions_with_answers = (
+        _questions_with_submission_answers(
+            homework,
+            submission,
+        )
     )
 
     if request.method == "POST":
