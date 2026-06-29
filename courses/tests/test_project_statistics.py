@@ -733,12 +733,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
 
 
 class ProjectStatisticsAdminTestCase(TestCase):
-    def setUp(self):
-        self.site = AdminSite()
-        self.admin = ProjectAdmin(Project, self.site)
-
-        # Create admin user
-        self.admin_user = User.objects.create_user(
+    def create_admin_user(self):
+        return User.objects.create_user(
             username="admin@test.com",
             email="admin@test.com",
             password="admin123",
@@ -746,33 +742,45 @@ class ProjectStatisticsAdminTestCase(TestCase):
             is_superuser=True,
         )
 
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             project_passing_score=10,
         )
 
-        # Create completed project
-        self.completed_project = Project.objects.create(
+    def create_project(self, *, slug, title, state):
+        return Project.objects.create(
             course=self.course,
-            slug="completed-project",
-            title="Completed Project",
+            slug=slug,
+            title=title,
             description="Test",
             submission_due_date=timezone.now() + timedelta(days=1),
             peer_review_due_date=timezone.now() + timedelta(days=2),
+            state=state,
+        )
+
+    def create_completed_project(self):
+        return self.create_project(
+            slug="completed-project",
+            title="Completed Project",
             state=ProjectState.COMPLETED.value,
         )
 
-        # Create incomplete project
-        self.incomplete_project = Project.objects.create(
-            course=self.course,
+    def create_incomplete_project(self):
+        return self.create_project(
             slug="incomplete-project",
             title="Incomplete Project",
-            description="Test",
-            submission_due_date=timezone.now() + timedelta(days=1),
-            peer_review_due_date=timezone.now() + timedelta(days=2),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = ProjectAdmin(Project, self.site)
+        self.admin_user = self.create_admin_user()
+        self.course = self.create_course()
+        self.completed_project = self.create_completed_project()
+        self.incomplete_project = self.create_incomplete_project()
 
     def test_calculate_statistics_admin_action_success(self):
         """Test admin action successfully calculates statistics for completed project"""
