@@ -31,18 +31,25 @@ def generate_password(length=16):
 
 
 def choose_user(matches, email):
-    username_matches = [user for user in matches if user.username == email]
-    if len(username_matches) == 1:
-        return username_matches[0]
+    return unique_username_match(matches, email) or unique_active_admin(matches)
 
-    active_admins = [
+
+def unique_username_match(matches, email):
+    return unique_match(user for user in matches if user.username == email)
+
+
+def unique_active_admin(matches):
+    return unique_match(
         user
         for user in matches
         if user.is_superuser and user.is_staff and user.is_active
-    ]
-    if len(active_admins) == 1:
-        return active_admins[0]
+    )
 
+
+def unique_match(items):
+    matches = list(items)
+    if len(matches) == 1:
+        return matches[0]
     return None
 
 
