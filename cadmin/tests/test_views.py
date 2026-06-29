@@ -158,6 +158,40 @@ class CadminViewTests(TestCase):
             description=description,
         )
 
+    def create_course(self, slug, title, *, finished=False):
+        return Course.objects.create(
+            slug=slug,
+            title=title,
+            description=f"{title} Description",
+            finished=finished,
+        )
+
+    def cadmin_course_list_url(self):
+        return reverse("cadmin_course_list")
+
+    def assert_course_list_order(self, response, active_course, finished_course):
+        courses = list(response.context["courses"])
+        self.assertEqual(courses[:2], [active_course, self.course])
+        self.assertEqual(courses[-1], finished_course)
+
+    def assert_course_list_links(self, response):
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_course",
+                kwargs={"course_slug": self.course.slug},
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse("course", kwargs={"course_slug": self.course.slug}),
+        )
+        self.assertContains(
+            response,
+            f"/admin/courses/course/{self.course.id}/change/",
+        )
+        self.assertContains(response, reverse("cadmin_datamailer_operations"))
+
     def leaderboard_complaints_url(self):
         return reverse(
             "cadmin_leaderboard_complaints",
@@ -505,64 +539,36 @@ class CadminViewTests(TestCase):
 
     def test_course_list_unauthenticated_redirects(self):
         """Test that unauthenticated users are redirected from course list"""
-        url = reverse("cadmin_course_list")
-        response = self.client.get(url)
+        response = self.client.get(self.cadmin_course_list_url())
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response.url)
 
     def test_course_list_non_staff_denied(self):
         """Test that non-staff users cannot access course list"""
         self.client.login(username="test@test.com", password="12345")
-        url = reverse("cadmin_course_list")
-        response = self.client.get(url)
+        response = self.client.get(self.cadmin_course_list_url())
         self.assertEqual(response.status_code, 302)
 
     def test_course_list_staff_allowed(self):
         """Test that staff users can access course list"""
-        finished_course = Course.objects.create(
+        finished_course = self.create_course(
             slug="finished-course",
             title="Finished Course",
-            description="Finished Course Description",
             finished=True,
         )
-        active_course = Course.objects.create(
+        active_course = self.create_course(
             slug="active-course",
             title="Active Course",
-            description="Active Course Description",
-            finished=False,
         )
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse("cadmin_course_list")
-        response = self.client.get(url)
+        self.login_admin()
+        response = self.client.get(self.cadmin_course_list_url())
+
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Course admin")
         self.assertNotContains(response, 'aria-label="Breadcrumb"')
-        self.assertEqual(
-            list(response.context["courses"])[:2],
-            [active_course, self.course],
-        )
-        self.assertEqual(
-            list(response.context["courses"])[-1], finished_course
-        )
-        self.assertContains(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
-        self.assertContains(
-            response,
-            reverse("course", kwargs={"course_slug": self.course.slug}),
-        )
-        self.assertContains(
-            response,
-            f"/admin/courses/course/{self.course.id}/change/",
-        )
-        self.assertContains(response, reverse("cadmin_datamailer_operations"))
+        self.assert_course_list_order(response, active_course, finished_course)
+        self.assert_course_list_links(response)
         self.assertNotContains(response, "> Manage <")
         self.assertNotContains(response, "> View <")
 
