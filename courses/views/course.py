@@ -1101,6 +1101,42 @@ def update_enrollment_toggle(request, course_slug):
     )
 
 
+def _enrollment_context(course, enrollment, form):
+    return {
+        "form": form,
+        "course": course,
+        "enrollment": enrollment,
+    }
+
+
+def _render_enrollment_form(request, course, enrollment, form):
+    return render(
+        request,
+        "courses/enrollment.html",
+        _enrollment_context(course, enrollment, form),
+    )
+
+
+def _save_enrollment_form(form, course, enrollment) -> None:
+    previous_display_on_leaderboard = enrollment.display_on_leaderboard
+    form.save()
+    if previous_display_on_leaderboard != form.instance.display_on_leaderboard:
+        invalidate_leaderboard_cache(course.id)
+
+
+def _handle_enrollment_post(request, course, enrollment, course_slug):
+    form = EnrollmentForm(
+        request.POST,
+        instance=enrollment,
+        user=request.user,
+    )
+    if form.is_valid():
+        _save_enrollment_form(form, course, enrollment)
+        return redirect("course", course_slug=course_slug)
+
+    return _render_enrollment_form(request, course, enrollment, form)
+
+
 @login_required
 def enrollment_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
@@ -1111,39 +1147,12 @@ def enrollment_view(request, course_slug):
     )
 
     if request.method == "POST":
-        form = EnrollmentForm(
-            request.POST,
-            instance=enrollment,
-            user=request.user,
+        return _handle_enrollment_post(
+            request, course, enrollment, course_slug
         )
-        if form.is_valid():
-            previous_display_on_leaderboard = (
-                enrollment.display_on_leaderboard
-            )
-            form.save()
-            if (
-                previous_display_on_leaderboard
-                != form.instance.display_on_leaderboard
-            ):
-                invalidate_leaderboard_cache(course.id)
-            return redirect("course", course_slug=course_slug)
-        else:
-            context = {
-                "form": form,
-                "course": course,
-                "enrollment": enrollment,
-            }
-            return render(request, "courses/enrollment.html", context)
 
     form = EnrollmentForm(instance=enrollment, user=request.user)
-
-    context = {
-        "form": form,
-        "course": course,
-        "enrollment": enrollment,
-    }
-
-    return render(request, "courses/enrollment.html", context)
+    return _render_enrollment_form(request, course, enrollment, form)
 
 
 def list_all_project_submissions_view(request, course_slug: str):
