@@ -250,9 +250,14 @@ def projects_view(request, course_slug):
 
     if request.method == "GET":
         projects = Project.objects.filter(course=course).order_by("id")
+        project_records = []
+        for project in projects:
+            project_record = _project_to_dict(project)
+            project_records.append(project_record)
+
         return JsonResponse(
             {
-                "projects": [_project_to_dict(p) for p in projects],
+                "projects": project_records,
             }
         )
 
@@ -287,7 +292,9 @@ PROJECT_PATCH_FIELDS = {
     "faq_contribution_field",
 }
 
-VALID_PROJECT_STATES = {s.value for s in ProjectState}
+VALID_PROJECT_STATES = set()
+for project_state in ProjectState:
+    VALID_PROJECT_STATES.add(project_state.value)
 
 
 def _apply_project_title(project, data):
@@ -319,11 +326,12 @@ def _apply_project_instructions_url(project, data):
 
 def _project_generic_patch_data(data):
     handled = {"title", "name", "description", "instructions_url"}
-    return {
-        k: v
-        for k, v in data.items()
-        if k in PROJECT_PATCH_FIELDS and k not in handled
-    }
+    patch_data = {}
+    data_items = data.items()
+    for key, value in data_items:
+        if key in PROJECT_PATCH_FIELDS and key not in handled:
+            patch_data[key] = value
+    return patch_data
 
 
 def _apply_project_data(project, data):
@@ -356,11 +364,10 @@ def _project_upsert_title(data):
 
 def _project_upsert_missing_create_fields(data):
     title = _project_upsert_title(data)
-    missing_dates = [
-        field
-        for field in PROJECT_UPSERT_REQUIRED_DATES
-        if not data.get(field)
-    ]
+    missing_dates = []
+    for field in PROJECT_UPSERT_REQUIRED_DATES:
+        if not data.get(field):
+            missing_dates.append(field)
     return not title or bool(missing_dates)
 
 
