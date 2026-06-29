@@ -52,6 +52,44 @@ class DatamailerNotificationErrorData:
     object_id: int
 
 
+@dataclass(frozen=True)
+class ContactMembershipSyncData:
+    config: DatamailerConfig
+    contact_payload: dict[str, Any] | None
+    list_payload: object
+    label: str
+    obj: object
+
+
+@dataclass(frozen=True)
+class RecipientListBulkUpsertData:
+    config: DatamailerConfig
+    list_key: str
+    payload: dict[str, Any]
+    idempotency_key: str
+    ordering_key: str
+
+
+@dataclass(frozen=True)
+class RecipientListMembershipRemoveData:
+    config: DatamailerConfig
+    list_payloads: list
+    label: str
+    obj: object
+
+
+@dataclass(frozen=True)
+class RecipientListSendSyncData:
+    config: DatamailerConfig
+    list_key: str
+    payload: dict[str, Any]
+    idempotency_key: str
+    ordering_key: str
+    error: str
+    audit_payload: dict[str, Any] | None = None
+    audit_list_key: str | None = None
+
+
 def send_registration_confirmation_email(
     registration,
 ) -> dict[str, Any] | None:
@@ -154,32 +192,29 @@ def _enqueue_contact_erase_event(config, *, user_id, email, ordering_key):
     )
 
 
-def _sync_contact_and_membership(
-    config, contact_payload, list_payload, *, label, id_field, obj
-):
+def _sync_contact_and_membership(data):
     """Upsert a contact and its recipient-list membership in one call.
 
-    No-op if either payload is None. On request failure, logs with the
-    given ``label``/``id_field`` context and re-raises when config.strict.
+    No-op if either payload is None.
     """
-    if contact_payload is None or list_payload is None:
+    if data.contact_payload is None or data.list_payload is None:
         return
 
-    list_key, source_object_key, payload = list_payload
+    list_key, source_object_key, payload = data.list_payload
     enqueue_datamailer_outbox_event(
         event_type="recipient_list.member_upsert",
         idempotency_key=(
             f"recipient-list.member-upsert:{list_key}:{source_object_key}:"
-            f"{obj.pk}:{obj.__class__.__name__}"
+            f"{data.obj.pk}:{data.obj.__class__.__name__}"
         ),
-        ordering_key=datamailer_ordering_key(obj),
+        ordering_key=datamailer_ordering_key(data.obj),
         payload={
-            "contact_payload": contact_payload,
+            "contact_payload": data.contact_payload,
             "list_key": list_key,
             "source_object_key": source_object_key,
             "member_payload": payload,
-            "label": label,
-            "object_id": obj.pk,
+            "label": data.label,
+            "object_id": data.obj.pk,
         },
     )
 
@@ -189,14 +224,14 @@ def sync_registration_to_datamailer(registration) -> None:
     if config is None:
         return
 
-    _sync_contact_and_membership(
-        config,
-        registration_contact_payload(registration),
-        registration_recipient_list_payload(registration),
+    sync_data = ContactMembershipSyncData(
+        config=config,
+        contact_payload=registration_contact_payload(registration),
+        list_payload=registration_recipient_list_payload(registration),
         label="registration",
-        id_field="registration_id",
         obj=registration,
     )
+    _sync_contact_and_membership(sync_data)
 
 
 def sync_enrollment_to_datamailer(enrollment) -> None:
@@ -204,16 +239,16 @@ def sync_enrollment_to_datamailer(enrollment) -> None:
     if config is None:
         return
 
-    _sync_contact_and_membership(
-        config,
-        contact_payload_for_user(
+    sync_data = ContactMembershipSyncData(
+        config=config,
+        contact_payload=contact_payload_for_user(
             enrollment.student, course=enrollment.course
         ),
-        enrollment_recipient_list_payload(enrollment),
+        list_payload=enrollment_recipient_list_payload(enrollment),
         label="enrollment",
-        id_field="enrollment_id",
         obj=enrollment,
     )
+    _sync_contact_and_membership(sync_data)
 
 
 def sync_homework_submission_to_datamailer(submission) -> None:
@@ -221,16 +256,16 @@ def sync_homework_submission_to_datamailer(submission) -> None:
     if config is None:
         return
 
-    _sync_contact_and_membership(
-        config,
-        contact_payload_for_user(
+    sync_data = ContactMembershipSyncData(
+        config=config,
+        contact_payload=contact_payload_for_user(
             submission.student, course=submission.homework.course
         ),
-        homework_submission_recipient_list_payload(submission),
+        list_payload=homework_submission_recipient_list_payload(submission),
         label="homework submission",
-        id_field="submission_id",
         obj=submission,
     )
+    _sync_contact_and_membership(sync_data)
 
 
 def sync_project_submission_to_datamailer(submission) -> None:
@@ -238,16 +273,16 @@ def sync_project_submission_to_datamailer(submission) -> None:
     if config is None:
         return
 
-    _sync_contact_and_membership(
-        config,
-        contact_payload_for_user(
+    sync_data = ContactMembershipSyncData(
+        config=config,
+        contact_payload=contact_payload_for_user(
             submission.student, course=submission.project.course
         ),
-        project_submission_recipient_list_payload(submission),
+        list_payload=project_submission_recipient_list_payload(submission),
         label="project submission",
-        id_field="submission_id",
         obj=submission,
     )
+    _sync_contact_and_membership(sync_data)
 
 
 def sync_project_passed_outcome_to_datamailer(submission) -> None:
@@ -259,75 +294,52 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
         submission
     )
     if submission.passed:
-        _sync_contact_and_membership(
-            config,
-            contact_payload_for_user(
+        sync_data = ContactMembershipSyncData(
+            config=config,
+            contact_payload=contact_payload_for_user(
                 submission.student, course=submission.project.course
             ),
-            outcome_payload,
+            list_payload=outcome_payload,
             label="project passed outcome",
-            id_field="submission_id",
             obj=submission,
         )
+        _sync_contact_and_membership(sync_data)
         return
 
-    _remove_recipient_list_memberships(
-        config,
-        [outcome_payload],
+    remove_data = RecipientListMembershipRemoveData(
+        config=config,
+        list_payloads=[outcome_payload],
         label="project passed outcome",
-        id_field="submission_id",
         obj=submission,
     )
+    _remove_recipient_list_memberships(remove_data)
 
 
-def enqueue_recipient_list_bulk_upsert(
-    *,
-    config: DatamailerConfig,
-    list_key: str,
-    payload: dict[str, Any],
-    idempotency_key: str,
-    ordering_key: str,
-):
+def enqueue_recipient_list_bulk_upsert(data):
     return enqueue_datamailer_outbox_event(
         event_type="recipient_list.members_bulk_upsert",
-        idempotency_key=f"recipient-list.members-bulk-upsert:{idempotency_key}",
-        ordering_key=ordering_key,
+        idempotency_key=(
+            "recipient-list.members-bulk-upsert:"
+            f"{data.idempotency_key}"
+        ),
+        ordering_key=data.ordering_key,
         payload={
-            "list_key": list_key,
+            "list_key": data.list_key,
             "member_sync_payload": recipient_list_member_sync_payload(
-                config, payload
+                data.config,
+                data.payload,
             ),
         },
     )
 
 
-def bulk_upsert_recipient_list_members_before_send(
-    *,
-    config: DatamailerConfig,
-    list_key: str,
-    payload: dict[str, Any],
-    idempotency_key: str,
-    ordering_key: str,
-) -> bool:
-    event = enqueue_recipient_list_bulk_upsert(
-        config=config,
-        list_key=list_key,
-        payload=payload,
-        idempotency_key=idempotency_key,
-        ordering_key=ordering_key,
-    )
+def bulk_upsert_recipient_list_members_before_send(data) -> bool:
+    event = enqueue_recipient_list_bulk_upsert(data)
     return event.status == DatamailerOutboxStatus.ACKED
 
 
-def _remove_recipient_list_memberships(
-    config,
-    list_payloads,
-    *,
-    label,
-    id_field,
-    obj,
-) -> None:
-    for list_payload in list_payloads:
+def _remove_recipient_list_memberships(data) -> None:
+    for list_payload in data.list_payloads:
         if list_payload is None:
             continue
         list_key, source_object_key, payload = list_payload
@@ -335,17 +347,17 @@ def _remove_recipient_list_memberships(
             event_type="recipient_list.member_remove",
             idempotency_key=(
                 f"recipient-list.member-remove:{list_key}:{source_object_key}:"
-                f"{obj.pk}:{obj.__class__.__name__}"
+                f"{data.obj.pk}:{data.obj.__class__.__name__}"
             ),
-            ordering_key=datamailer_ordering_key(obj),
+            ordering_key=datamailer_ordering_key(data.obj),
             payload={
                 "list_key": list_key,
                 "source_object_key": source_object_key,
                 "member_payload": removed_recipient_list_member_payload(
                     payload
                 ),
-                "label": label,
-                "object_id": obj.pk,
+                "label": data.label,
+                "object_id": data.obj.pk,
             },
         )
 
@@ -355,13 +367,13 @@ def remove_registration_from_datamailer(registration) -> None:
     if config is None:
         return
 
-    _remove_recipient_list_memberships(
-        config,
-        [registration_recipient_list_payload(registration)],
+    remove_data = RecipientListMembershipRemoveData(
+        config=config,
+        list_payloads=[registration_recipient_list_payload(registration)],
         label="registration",
-        id_field="registration_id",
         obj=registration,
     )
+    _remove_recipient_list_memberships(remove_data)
 
 
 def remove_enrollment_from_datamailer(enrollment) -> None:
@@ -369,16 +381,16 @@ def remove_enrollment_from_datamailer(enrollment) -> None:
     if config is None:
         return
 
-    _remove_recipient_list_memberships(
-        config,
-        [
+    remove_data = RecipientListMembershipRemoveData(
+        config=config,
+        list_payloads=[
             enrollment_recipient_list_payload(enrollment),
             course_graduate_recipient_list_member_payload(enrollment),
         ],
         label="enrollment",
-        id_field="enrollment_id",
         obj=enrollment,
     )
+    _remove_recipient_list_memberships(remove_data)
 
 
 def remove_homework_submission_from_datamailer(submission) -> None:
@@ -386,13 +398,13 @@ def remove_homework_submission_from_datamailer(submission) -> None:
     if config is None:
         return
 
-    _remove_recipient_list_memberships(
-        config,
-        [homework_submission_recipient_list_payload(submission)],
+    remove_data = RecipientListMembershipRemoveData(
+        config=config,
+        list_payloads=[homework_submission_recipient_list_payload(submission)],
         label="homework submission",
-        id_field="submission_id",
         obj=submission,
     )
+    _remove_recipient_list_memberships(remove_data)
 
 
 def remove_project_submission_from_datamailer(submission) -> None:
@@ -408,13 +420,13 @@ def remove_project_submission_from_datamailer(submission) -> None:
             submission
         )
         list_payloads.append(passed_payload)
-    _remove_recipient_list_memberships(
-        config,
-        list_payloads,
+    remove_data = RecipientListMembershipRemoveData(
+        config=config,
+        list_payloads=list_payloads,
         label="project submission",
-        id_field="submission_id",
         obj=submission,
     )
+    _remove_recipient_list_memberships(remove_data)
 
 
 def datamailer_audit_status(error: str) -> str:
@@ -529,14 +541,15 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
 
 
 def _send_homework_score_notification_if_ready(config, list_key, payload):
-    if not _sync_members_before_recipient_list_send_or_audit(
+    sync_data = RecipientListSendSyncData(
         config=config,
         list_key=list_key,
         payload=payload,
         idempotency_key=f"{payload['idempotency_key']}:members",
         ordering_key=list_key,
         error="Datamailer metadata sync was not acknowledged",
-    ):
+    )
+    if not _sync_members_before_recipient_list_send_or_audit(sync_data):
         return None
     return _send_recipient_list_transactional_and_audit(
         config, list_key, payload
@@ -591,14 +604,15 @@ def _send_project_score_notification_if_ready(
     list_key,
     payload,
 ):
-    if not _sync_members_before_recipient_list_send_or_audit(
+    sync_data = RecipientListSendSyncData(
         config=config,
         list_key=list_key,
         payload=payload,
         idempotency_key=f"{payload['idempotency_key']}:members",
         ordering_key=list_key,
         error="Datamailer metadata sync was not acknowledged",
-    ):
+    )
+    if not _sync_members_before_recipient_list_send_or_audit(sync_data):
         return None
     if not _sync_project_passed_outcome_before_score_send(
         config, project, list_key, payload
@@ -609,32 +623,23 @@ def _send_project_score_notification_if_ready(
     )
 
 
-def _sync_members_before_recipient_list_send_or_audit(
-    *,
-    config,
-    list_key,
-    payload,
-    idempotency_key,
-    ordering_key,
-    error,
-    audit_payload=None,
-    audit_list_key=None,
-):
-    synced = bulk_upsert_recipient_list_members_before_send(
-        config=config,
-        list_key=list_key,
-        payload=payload,
-        idempotency_key=idempotency_key,
-        ordering_key=ordering_key,
+def _sync_members_before_recipient_list_send_or_audit(data):
+    bulk_data = RecipientListBulkUpsertData(
+        config=data.config,
+        list_key=data.list_key,
+        payload=data.payload,
+        idempotency_key=data.idempotency_key,
+        ordering_key=data.ordering_key,
     )
+    synced = bulk_upsert_recipient_list_members_before_send(bulk_data)
     if synced:
         return True
 
     record_datamailer_send_audit(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=audit_payload or payload,
-        list_key=audit_list_key or list_key,
-        error=error,
+        payload=data.audit_payload or data.payload,
+        list_key=data.audit_list_key or data.list_key,
+        error=data.error,
     )
     return False
 
@@ -647,7 +652,7 @@ def _sync_project_passed_outcome_before_score_send(
         return True
 
     passed_list_key, passed_payload = passed_list_payload
-    return _sync_members_before_recipient_list_send_or_audit(
+    sync_data = RecipientListSendSyncData(
         config=config,
         list_key=passed_list_key,
         payload=passed_payload,
@@ -657,6 +662,7 @@ def _sync_project_passed_outcome_before_score_send(
         audit_payload=payload,
         audit_list_key=list_key,
     )
+    return _sync_members_before_recipient_list_send_or_audit(sync_data)
 
 
 def _send_recipient_list_transactional_and_audit(
@@ -709,14 +715,15 @@ def send_peer_review_assignment_notification(
 def _send_peer_review_assignment_notification_if_ready(
     config, list_key, payload
 ):
-    if not _sync_members_before_recipient_list_send_or_audit(
+    sync_data = RecipientListSendSyncData(
         config=config,
         list_key=list_key,
         payload=payload,
         idempotency_key=f"{payload['idempotency_key']}:members",
         ordering_key=list_key,
         error="Datamailer metadata sync was not acknowledged",
-    ):
+    )
+    if not _sync_members_before_recipient_list_send_or_audit(sync_data):
         return None
     return _send_recipient_list_transactional_and_audit(
         config, list_key, payload
@@ -805,7 +812,7 @@ def _sync_graduate_outcome_before_certificate_send(
         return True
 
     list_key, list_payload = graduate_list_payload
-    synced = bulk_upsert_recipient_list_members_before_send(
+    bulk_data = RecipientListBulkUpsertData(
         config=config,
         list_key=list_key,
         payload=list_payload,
@@ -814,6 +821,7 @@ def _sync_graduate_outcome_before_certificate_send(
         ),
         ordering_key=list_key,
     )
+    synced = bulk_upsert_recipient_list_members_before_send(bulk_data)
     if synced:
         return True
 
