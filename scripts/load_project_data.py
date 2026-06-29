@@ -71,28 +71,35 @@ class ImportMaps:
     review_id_map: dict = field(default_factory=dict)
 
 
+SINGULAR_IMPORT_FIELDS = {
+    "metadata": "metadata",
+    "course": "course",
+    "project": "project",
+}
+
+LIST_IMPORT_FIELDS = {
+    "user": "users",
+    "enrollment": "enrollments",
+    "review_criteria": "review_criteria",
+    "submission": "submissions",
+    "peer_review": "peer_reviews",
+    "criteria_response": "criteria_responses",
+    "evaluation_score": "evaluation_scores",
+}
+
+
 def append_import_record(data: ProjectImportData, record: dict) -> None:
     record_type = record["type"]
-    if record_type == "metadata":
-        data.metadata = record
-    elif record_type == "course":
-        data.course = record["data"]
-    elif record_type == "project":
-        data.project = record["data"]
-    elif record_type == "user":
-        data.users.append(record["data"])
-    elif record_type == "enrollment":
-        data.enrollments.append(record["data"])
-    elif record_type == "review_criteria":
-        data.review_criteria.append(record["data"])
-    elif record_type == "submission":
-        data.submissions.append(record["data"])
-    elif record_type == "peer_review":
-        data.peer_reviews.append(record["data"])
-    elif record_type == "criteria_response":
-        data.criteria_responses.append(record["data"])
-    elif record_type == "evaluation_score":
-        data.evaluation_scores.append(record["data"])
+    if record_type in SINGULAR_IMPORT_FIELDS:
+        setattr(data, SINGULAR_IMPORT_FIELDS[record_type], record_value(record))
+    elif record_type in LIST_IMPORT_FIELDS:
+        getattr(data, LIST_IMPORT_FIELDS[record_type]).append(record_value(record))
+
+
+def record_value(record):
+    if record["type"] == "metadata":
+        return record
+    return record["data"]
 
 
 def count_lines(input_file):
