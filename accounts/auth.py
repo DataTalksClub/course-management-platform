@@ -28,19 +28,39 @@ def generate_random_password(
     )
 
 
+def response_email(response_data):
+    return response_data.get("email")
+
+
+def verified_social_email(email_addresses):
+    for email_address in email_addresses:
+        if email_address.verified:
+            return email_address.email
+    return None
+
+
+def sociallogin_email(sociallogin):
+    if not sociallogin or not sociallogin.email_addresses:
+        return None
+
+    return (
+        verified_social_email(sociallogin.email_addresses)
+        or sociallogin.email_addresses[0].email
+    )
+
+
+def notification_email(response_data):
+    return response_data.get("notification_email")
+
+
 def extract_email(response_data, sociallogin=None):
-    if response_data.get("email"):
-        return response_data["email"]
-
-    # GitHub-specific (via allauth fetch)
-    if sociallogin and sociallogin.email_addresses:
-        verified = [e for e in sociallogin.email_addresses if e.verified]
-        if verified:
-            return verified[0].email
-        return sociallogin.email_addresses[0].email
-
-    if response_data.get("notification_email"):
-        return response_data["notification_email"]
+    for email in (
+        response_email(response_data),
+        sociallogin_email(sociallogin),
+        notification_email(response_data),
+    ):
+        if email:
+            return email
 
     raise KeyError("Email not found in response data")
 
