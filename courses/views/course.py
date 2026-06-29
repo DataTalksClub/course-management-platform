@@ -381,6 +381,32 @@ def _base_project_badge(state):
     return "Not submitted", "bg-secondary"
 
 
+def _submitted_mandatory_review_count(submission):
+    return PeerReview.objects.filter(
+        reviewer=submission,
+        optional=False,
+        state=PeerReviewState.SUBMITTED.value,
+    ).count()
+
+
+def _peer_review_project_badge(project, submission):
+    completed_reviews_count = _submitted_mandatory_review_count(
+        submission
+    )
+    if completed_reviews_count >= project.number_of_peers_to_evaluate:
+        return "Review completed", "bg-success", None
+
+    return "Review", "bg-danger", None
+
+
+def _completed_project_badge(submission):
+    score = submission.total_score
+    if submission.passed:
+        return f"Passed ({score})", "bg-success", score
+
+    return f"Failed ({score})", "bg-secondary", score
+
+
 def _submitted_project_badge(project, submission):
     """Badge override (name, css, score) once a project has a submission.
 
@@ -389,24 +415,10 @@ def _submitted_project_badge(project, submission):
     state = project.state
     if state == ProjectState.COLLECTING_SUBMISSIONS.value:
         return "Submitted", "bg-info", None
-
     if state == ProjectState.PEER_REVIEWING.value:
-        # Real-time feedback during peer review: count submitted mandatory reviews.
-        completed_reviews_count = PeerReview.objects.filter(
-            reviewer=submission,
-            optional=False,
-            state=PeerReviewState.SUBMITTED.value,
-        ).count()
-        if completed_reviews_count >= project.number_of_peers_to_evaluate:
-            return "Review completed", "bg-success", None
-        return "Review", "bg-danger", None
-
+        return _peer_review_project_badge(project, submission)
     if state == ProjectState.COMPLETED.value:
-        score = submission.total_score
-        if submission.passed:
-            return f"Passed ({score})", "bg-success", score
-        return f"Failed ({score})", "bg-secondary", score
-
+        return _completed_project_badge(submission)
     return None
 
 
