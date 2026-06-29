@@ -43,24 +43,45 @@ class EnrollmentExportsAPITestCase(TestCase):
             certificate_url=certificate_url,
         )
 
-    def test_bulk_update_certificates_updates_enrollment_and_notifies(self):
-        enrollment = self.create_enrollment("student@example.com")
-        payload = {
+    def certificate_item(self, email, path):
+        return {
+            "email": email,
+            "certificate_path": path,
+        }
+
+    def single_certificate_payload(self):
+        return {
             "certificates": [
-                {
-                    "email": "student@example.com",
-                    "certificate_path": "/certificates/student.pdf",
-                }
+                self.certificate_item(
+                    "student@example.com",
+                    "/certificates/student.pdf",
+                )
             ]
         }
 
-        with patch(
-            "api.views.enrollment_exports."
-            "send_certificate_availability_notification"
-        ) as send_notification:
-            with self.captureOnCommitCallbacks(execute=True):
-                response = self.post_certificates(payload)
+    def mixed_certificate_payload(self):
+        return [
+            self.certificate_item(
+                "enrolled@example.com",
+                "/certificates/enrolled.pdf",
+            ),
+            self.certificate_item(
+                "not-enrolled@example.com",
+                "/certificates/not-enrolled.pdf",
+            ),
+            self.certificate_item(
+                "missing-user@example.com",
+                "/certificates/missing.pdf",
+            ),
+            {"email": "missing-path@example.com"},
+            "not an object",
+        ]
 
+    def assert_certificate_url(self, enrollment, expected_url):
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.certificate_url, expected_url)
+
+    def assert_single_certificate_response(self, response, enrollment):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
@@ -79,36 +100,8 @@ class EnrollmentExportsAPITestCase(TestCase):
                 "errors": [],
             },
         )
-        enrollment.refresh_from_db()
-        self.assertEqual(
-            enrollment.certificate_url,
-            "/certificates/student.pdf",
-        )
-        send_notification.assert_called_once_with(enrollment)
 
-    def test_bulk_update_certificates_reports_mixed_item_errors(self):
-        enrolled = self.create_enrollment("enrolled@example.com")
-        self.create_student("not-enrolled@example.com")
-
-        response = self.post_certificates(
-            [
-                {
-                    "email": "enrolled@example.com",
-                    "certificate_path": "/certificates/enrolled.pdf",
-                },
-                {
-                    "email": "not-enrolled@example.com",
-                    "certificate_path": "/certificates/not-enrolled.pdf",
-                },
-                {
-                    "email": "missing-user@example.com",
-                    "certificate_path": "/certificates/missing.pdf",
-                },
-                {"email": "missing-path@example.com"},
-                "not an object",
-            ]
-        )
-
+    def assert_mixed_certificate_response(self, response, enrolled):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertFalse(data["success"])
@@ -125,11 +118,30 @@ class EnrollmentExportsAPITestCase(TestCase):
             ],
         )
 
-        enrolled.refresh_from_db()
-        self.assertEqual(
-            enrolled.certificate_url,
-            "/certificates/enrolled.pdf",
-        )
+    def test_bulk_update_certificates_updates_enrollment_and_notifies(self):
+        enrollment = self.create_enrollment("student@example.com")
+
+        with patch(
+            "api.views.enrollment_exports."
+            "send_certificate_availability_notification"
+        ) as send_notification:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.post_certificates(
+                    self.single_certificate_payload()
+                )
+
+        self.assert_single_certificate_response(response, enrollment)
+        self.assert_certificate_url(enrollment, "/certificates/student.pdf")
+        send_notification.assert_called_once_with(enrollment)
+
+    def test_bulk_update_certificates_reports_mixed_item_errors(self):
+        enrolled = self.create_enrollment("enrolled@example.com")
+        self.create_student("not-enrolled@example.com")
+
+        response = self.post_certificates(self.mixed_certificate_payload())
+
+        self.assert_mixed_certificate_response(response, enrolled)
+        self.assert_certificate_url(enrolled, "/certificates/enrolled.pdf")
 
     def test_bulk_update_certificates_requires_token(self):
         client = Client()
