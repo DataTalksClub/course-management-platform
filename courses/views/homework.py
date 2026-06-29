@@ -1,5 +1,6 @@
 import logging
 
+from dataclasses import dataclass
 from typing import Any, List, Optional
 from urllib.parse import urljoin, urlparse
 
@@ -50,6 +51,24 @@ FREE_FORM_QUESTION_TYPES = {
     QuestionTypes.FREE_FORM.value,
     QuestionTypes.FREE_FORM_LONG.value,
 }
+
+
+@dataclass(frozen=True)
+class HomeworkSubmittedContent:
+    fields: list[dict[str, Any]]
+    answers: list[dict[str, Any]]
+    fields_text: str
+    answers_text: str
+    summary_text: str
+
+    def context(self) -> dict[str, Any]:
+        return {
+            "submission_fields": self.fields,
+            "submitted_answers": self.answers,
+            "submitted_fields_text": self.fields_text,
+            "submitted_answers_text": self.answers_text,
+            "submission_summary_text": self.summary_text,
+        }
 
 
 def process_unscored_free_form_answer(answer: Optional[Answer]):
@@ -525,13 +544,11 @@ def homework_confirmation_message_context(
     }
 
 
-def homework_confirmation_context(
+def homework_submitted_content(
     course: Course,
     homework: Homework,
     submission: Submission,
-    update_url: str,
-    profile_url: str,
-) -> dict[str, Any]:
+) -> HomeworkSubmittedContent:
     submission_fields = homework_submission_fields(
         course,
         homework,
@@ -540,6 +557,32 @@ def homework_confirmation_context(
     submitted_answers = homework_submitted_answers(submission)
     submitted_fields_text = format_submission_lines(submission_fields)
     submitted_answers_text = format_answer_lines(submitted_answers)
+    summary_text = homework_submission_summary_text(
+        submitted_fields_text,
+        submitted_answers_text,
+    )
+
+    return HomeworkSubmittedContent(
+        fields=submission_fields,
+        answers=submitted_answers,
+        fields_text=submitted_fields_text,
+        answers_text=submitted_answers_text,
+        summary_text=summary_text,
+    )
+
+
+def homework_confirmation_context(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+    update_url: str,
+    profile_url: str,
+) -> dict[str, Any]:
+    submitted_content = homework_submitted_content(
+        course,
+        homework,
+        submission,
+    )
 
     return {
         **homework_confirmation_metadata(
@@ -555,14 +598,7 @@ def homework_confirmation_context(
             homework,
             update_url,
         ),
-        "submission_fields": submission_fields,
-        "submitted_answers": submitted_answers,
-        "submitted_fields_text": submitted_fields_text,
-        "submitted_answers_text": submitted_answers_text,
-        "submission_summary_text": homework_submission_summary_text(
-            submitted_fields_text,
-            submitted_answers_text,
-        ),
+        **submitted_content.context(),
     }
 
 
