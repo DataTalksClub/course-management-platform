@@ -431,6 +431,31 @@ class DatamailerClientTest(TestCase):
         )
         return project, passed_submission
 
+    def create_project_submission_removal_fixture(self):
+        project = self.create_project()
+        submission = self.create_project_submission(
+            project,
+            self.create_user("student@example.com"),
+            total_score=98,
+            passed=True,
+        )
+        return project, submission
+
+    def assert_project_submission_members_removed(
+        self,
+        remove_member,
+        project,
+        submission,
+    ):
+        self.assertEqual(remove_member.call_count, 2)
+        list_keys = [call.args[0] for call in remove_member.call_args_list]
+        self.assertEqual(
+            list_keys,
+            [project_submitters_list_key(project), project_passed_list_key(project)],
+        )
+        for call in remove_member.call_args_list:
+            self.assertEqual(call.args[1], f"project-submission:{submission.pk}")
+
     def configure_import_by_reference(self, boto3_client, create_import, job_id):
         s3 = boto3_client.return_value
         s3.generate_presigned_url.return_value = (
@@ -2756,45 +2781,15 @@ class DatamailerClientTest(TestCase):
         self,
         remove_member,
     ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        submission = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/project",
-            total_score=98,
-            passed=True,
-        )
+        project, submission = self.create_project_submission_removal_fixture()
 
         remove_project_submission_from_datamailer(submission)
 
-        self.assertEqual(remove_member.call_count, 2)
-        list_keys = [call.args[0] for call in remove_member.call_args_list]
-        self.assertEqual(
-            list_keys,
-            [project_submitters_list_key(project), project_passed_list_key(project)],
+        self.assert_project_submission_members_removed(
+            remove_member,
+            project,
+            submission,
         )
-        for call in remove_member.call_args_list:
-            self.assertEqual(call.args[1], f"project-submission:{submission.pk}")
 
     @override_settings(
         **DATAMAILER_SETTINGS,
