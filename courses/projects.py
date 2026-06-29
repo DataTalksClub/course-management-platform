@@ -313,13 +313,7 @@ def _validate_project_scoreable(project: Project) -> str | None:
     return None
 
 
-def _group_peer_reviews(peer_reviews):
-    """Group submitted peer reviews by submission and by reviewer.
-
-    Also attaches each submitted review's criteria responses as
-    ``review.responses``. Returns (submissions, reviews_by_submission,
-    reviews_by_reviewer).
-    """
+def _criteria_responses_by_review(peer_reviews):
     criteria_responses = CriteriaResponse.objects.filter(
         review__in=peer_reviews
     ).select_related("criteria")
@@ -327,25 +321,63 @@ def _group_peer_reviews(peer_reviews):
     responses_by_review = defaultdict(list)
     for response in criteria_responses:
         responses_by_review[response.review_id].append(response)
+    return responses_by_review
 
+
+def _ensure_peer_review_groups(
+    review,
+    submissions,
+    reviews_by_submission,
+    reviews_by_reviewer,
+):
+    submission = review.submission_under_evaluation
+    submissions[submission.id] = submission
+    reviews_by_submission.setdefault(submission.id, [])
+    reviews_by_reviewer.setdefault(review.reviewer.id, [])
+    return submission
+
+
+def _attach_submitted_peer_review(
+    review,
+    submission,
+    responses_by_review,
+    reviews_by_submission,
+    reviews_by_reviewer,
+):
+    if review.state != PeerReviewState.SUBMITTED.value:
+        return
+
+    reviews_by_submission[submission.id].append(review)
+    reviews_by_reviewer[review.reviewer.id].append(review)
+    review.responses = responses_by_review[review.id]
+
+
+def _group_peer_reviews(peer_reviews):
+    """Group submitted peer reviews by submission and by reviewer.
+
+    Also attaches each submitted review's criteria responses as
+    ``review.responses``. Returns (submissions, reviews_by_submission,
+    reviews_by_reviewer).
+    """
+    responses_by_review = _criteria_responses_by_review(peer_reviews)
     submissions = {}
     reviews_by_submission = {}
     reviews_by_reviewer = {}
 
     for review in peer_reviews:
-        submission = review.submission_under_evaluation
-        submissions[submission.id] = submission
-
-        if submission.id not in reviews_by_submission:
-            reviews_by_submission[submission.id] = []
-
-        if review.reviewer.id not in reviews_by_reviewer:
-            reviews_by_reviewer[review.reviewer.id] = []
-
-        if review.state == PeerReviewState.SUBMITTED.value:
-            reviews_by_submission[submission.id].append(review)
-            reviews_by_reviewer[review.reviewer.id].append(review)
-            review.responses = responses_by_review[review.id]
+        submission = _ensure_peer_review_groups(
+            review,
+            submissions,
+            reviews_by_submission,
+            reviews_by_reviewer,
+        )
+        _attach_submitted_peer_review(
+            review,
+            submission,
+            responses_by_review,
+            reviews_by_submission,
+            reviews_by_reviewer,
+        )
 
     return submissions, reviews_by_submission, reviews_by_reviewer
 
