@@ -26,31 +26,29 @@ credentials = dict(
 
 
 class ProjectSubmissionsViewTests(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        self.user = User.objects.create_user(**credentials)
-
-        # Create admin user
-        self.admin_user = User.objects.create_user(
+    def create_admin_user(self):
+        return User.objects.create_user(
             username="admin@test.com",
             email="admin@test.com",
             password="admin123",
             is_staff=True,
         )
 
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test Course Description",
         )
 
-        self.enrollment = Enrollment.objects.create(
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.user,
             course=self.course,
         )
 
-        self.project = Project.objects.create(
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -59,8 +57,8 @@ class ProjectSubmissionsViewTests(TestCase):
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
-        # Create a submission
-        self.submission = ProjectSubmission.objects.create(
+    def create_initial_submission(self):
+        return ProjectSubmission.objects.create(
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
@@ -71,6 +69,15 @@ class ProjectSubmissionsViewTests(TestCase):
             project_faq_score=10,
             project_learning_in_public_score=5,
         )
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.admin_user = self.create_admin_user()
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.project = self.create_project()
+        self.submission = self.create_initial_submission()
 
     def project_submissions_url(self, project=None):
         return reverse(
