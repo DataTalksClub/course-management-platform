@@ -3,7 +3,6 @@ from typing import Any
 
 import requests
 
-
 from .client import DatamailerClient, DatamailerConfig
 
 logger = logging.getLogger(__name__)
@@ -53,21 +52,46 @@ def _normalized_user_email(user) -> str:
     return (user.email or "").strip().lower()
 
 
+def _datamailer_user_context(user):
+    email = _normalized_user_email(user)
+    if not email:
+        return None
+
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    return email, config
+
+
+def _response_categories_by_tag(response):
+    return {
+        category.get("tag"): category
+        for category in response.get("categories", [])
+        if isinstance(category, dict)
+    }
+
+
+def _enabled_preference_value(category, by_tag):
+    item = by_tag.get(category["tag"])
+    if item is None or not isinstance(item.get("enabled"), bool):
+        return None
+
+    return item["enabled"]
+
+
 def email_preference_values_from_response(
     response: dict[str, Any] | None,
 ) -> dict[str, bool]:
     if not response:
         return {}
-    by_tag = {
-        category.get("tag"): category
-        for category in response.get("categories", [])
-        if isinstance(category, dict)
-    }
+
+    by_tag = _response_categories_by_tag(response)
     values = {}
     for field, category in EMAIL_PREFERENCE_CATEGORIES.items():
-        item = by_tag.get(category["tag"])
-        if item is not None and isinstance(item.get("enabled"), bool):
-            values[field] = item["enabled"]
+        enabled = _enabled_preference_value(category, by_tag)
+        if enabled is not None:
+            values[field] = enabled
     return values
 
 
@@ -96,17 +120,10 @@ def _email_preference_payloads(
     return payloads
 
 
-def get_email_preferences_for_user(user) -> dict[str, bool] | None:
-    email = _normalized_user_email(user)
-    if not email:
-        return None
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
-
+def _contact_preferences_response(user, email, config):
     client = DatamailerClient(config)
     try:
-        response = client.contact_preferences(
+        return client.contact_preferences(
             email,
             category_tags=email_preference_category_tags(),
         )
@@ -118,32 +135,50 @@ def get_email_preferences_for_user(user) -> dict[str, bool] | None:
         if config.strict:
             raise
         return None
+
+
+def get_email_preferences_for_user(user) -> dict[str, bool] | None:
+    context = _datamailer_user_context(user)
+    if context is None:
+        return None
+
+    email, config = context
+    response = _contact_preferences_response(user, email, config)
+    if response is None:
+        return None
     return email_preference_values_from_response(response)
+
+
+def _log_preference_update_error(user):
+    logger.exception(
+        "Datamailer preference update failed for user_id=%s",
+        user.pk,
+    )
+
+
+def _send_email_preference_update(user, email, config, categories):
+    client = DatamailerClient(config)
+    try:
+        client.update_contact_preferences(email, categories)
+    except requests.RequestException:
+        _log_preference_update_error(user)
+        if config.strict:
+            raise
+        return False
+    return True
+
 
 def update_email_preferences_for_user(
     user,
     values: dict[str, bool],
 ) -> bool:
-    email = _normalized_user_email(user)
-    if not email:
-        return False
-    config = DatamailerConfig.from_settings()
-    if config is None:
+    context = _datamailer_user_context(user)
+    if context is None:
         return False
 
     categories = _email_preference_payloads(values)
     if not categories:
         return False
 
-    client = DatamailerClient(config)
-    try:
-        client.update_contact_preferences(email, categories)
-    except requests.RequestException:
-        logger.exception(
-            "Datamailer preference update failed for user_id=%s",
-            user.pk,
-        )
-        if config.strict:
-            raise
-        return False
-    return True
+    email, config = context
+    return _send_email_preference_update(user, email, config, categories)
