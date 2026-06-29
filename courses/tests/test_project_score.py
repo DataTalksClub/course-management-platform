@@ -257,6 +257,36 @@ class ProjectEvaluationTestCase(TestCase):
         pr.state = PeerReviewState.SUBMITTED.value
         pr.save()
 
+    def submit_peer_reviews(self, peer_reviews, answers):
+        self.assertEqual(len(peer_reviews), len(answers))
+        for pr, answer in zip(peer_reviews, answers):
+            self.submit_peer_review(pr, answer)
+
+    def submit_reverse_peer_reviews(
+        self, peer_reviews, answers, optional=False
+    ):
+        reverse_reviews = self.create_reverse_assignments(
+            peer_reviews,
+            optional=optional,
+        )
+        self.submit_peer_reviews(reverse_reviews, answers)
+        return reverse_reviews
+
+    def assert_passed_with_peer_review_scores(
+        self, expected_project_score, review_count
+    ):
+        self.submission.refresh_from_db()
+        self.assertTrue(self.submission.passed)
+        self.assertEqual(
+            self.submission.peer_review_score,
+            review_count * self.project.points_for_peer_review,
+        )
+        self.assertEqual(
+            self.submission.total_score,
+            expected_project_score
+            + review_count * self.project.points_for_peer_review,
+        )
+
     def test_project_not_enough_projects_evaluated(self):
         other_prs = self.create_reverse_assignments(self.peer_reviews)
 
@@ -547,47 +577,26 @@ class ProjectEvaluationTestCase(TestCase):
         self.assert_option_vote_content(response)
 
     def test_project_passed_with_optional(self):
-        # 3 mandatory peers evaluated
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-
-        self.submit_peer_review(other_prs[0], "4")
-        self.submit_peer_review(other_prs[1], "3")
-        self.submit_peer_review(other_prs[2], "3")
-
-        # two optional evaluations
+        other_prs = self.submit_reverse_peer_reviews(
+            self.peer_reviews,
+            ["4", "3", "3"],
+        )
         optional_reviews = self.create_peer_reviews(2, optional=True)
-        optional_prs = self.create_reverse_assignments(optional_reviews, optional=True)
+        self.submit_reverse_peer_reviews(
+            optional_reviews,
+            ["4", "3"],
+            optional=True,
+        )
 
-        self.submit_peer_review(optional_prs[0], "4")
-        self.submit_peer_review(optional_prs[1], "3")
-
-        # received good score
-        answers = ["4", "4", "1"]
-        scores = [3, 3, 0]
         expected_project_score = 3
-
         self.course.project_passing_score = 3
         self.course.save()
 
-        answers_and_scores = list(zip(answers, scores))
-
-        # also does the scoring
         self.assert_evaluation_score(
-            answers_and_scores, expected_project_score
+            [("4", 3), ("4", 3), ("1", 0)],
+            expected_project_score,
         )
-
-        self.submission.refresh_from_db()
-        self.assertTrue(self.submission.passed)
-
-        # gets scores only for mandatory reviews
-        num_reviews = len(other_prs)
-
-        self.assertEqual(
-            self.submission.peer_review_score,
-            num_reviews * self.project.points_for_peer_review,
-        )
-        self.assertEqual(
-            self.submission.total_score,
-            expected_project_score
-            + num_reviews * self.project.points_for_peer_review,
+        self.assert_passed_with_peer_review_scores(
+            expected_project_score,
+            len(other_prs),
         )
