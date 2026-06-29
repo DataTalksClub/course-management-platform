@@ -30,7 +30,13 @@ class Command(BaseCommand):
             )
             return
 
-        totals = summary["totals"]
+        self._print_totals(summary["totals"])
+        self._print_group("by_status", summary["by_status"])
+        self._print_group("by_type", summary["by_type"])
+        self._print_group("by_category", summary["by_category"])
+        self._print_recent_failures(summary["recent_failures"])
+
+    def _print_totals(self, totals):
         self.stdout.write("Datamailer send status")
         self.stdout.write(f"total_sends: {totals['total']}")
         self.stdout.write(f"succeeded: {totals['succeeded']}")
@@ -43,15 +49,12 @@ class Command(BaseCommand):
             f"idempotent_replays: {totals['idempotent_replay_count']}"
         )
 
-        self._print_group("by_status", summary["by_status"])
-        self._print_group("by_type", summary["by_type"])
-        self._print_group("by_category", summary["by_category"])
-
+    def _print_recent_failures(self, recent_failures):
         self.stdout.write("recent_failures:")
-        if not summary["recent_failures"]:
+        if not recent_failures:
             self.stdout.write("  none")
             return
-        for item in summary["recent_failures"]:
+        for item in recent_failures:
             self.stdout.write(
                 "  "
                 f"{item['occurred_at']} {item['send_type']} "
@@ -73,7 +76,17 @@ class Command(BaseCommand):
 
 
 def datamailer_send_audit_summary(*, limit):
-    aggregate = DatamailerSendAudit.objects.aggregate(
+    return {
+        "totals": send_audit_totals(),
+        "by_status": grouped_counts("status"),
+        "by_type": grouped_counts("send_type"),
+        "by_category": grouped_counts("category_tag"),
+        "recent_failures": recent_failed_sends(limit),
+    }
+
+
+def send_audit_aggregate():
+    return DatamailerSendAudit.objects.aggregate(
         total=Count("id"),
         intended_count=Sum("intended_count"),
         enqueued_count=Sum("enqueued_count"),
@@ -81,36 +94,44 @@ def datamailer_send_audit_summary(*, limit):
         idempotent_replay_count=Sum("idempotent_replay_count"),
         last_send_at=Max("occurred_at"),
     )
-    succeeded = DatamailerSendAudit.objects.filter(status="succeeded").count()
-    failed = DatamailerSendAudit.objects.filter(status="failed").count()
 
+
+def send_status_count(status):
+    return DatamailerSendAudit.objects.filter(status=status).count()
+
+
+def aggregate_count(aggregate, key):
+    return aggregate[key] or 0
+
+
+def send_audit_totals():
+    aggregate = send_audit_aggregate()
     return {
-        "totals": {
-            "total": aggregate["total"] or 0,
-            "succeeded": succeeded,
-            "failed": failed,
-            "last_send_at": aggregate["last_send_at"],
-            "intended_count": aggregate["intended_count"] or 0,
-            "enqueued_count": aggregate["enqueued_count"] or 0,
-            "skipped_count": aggregate["skipped_count"] or 0,
-            "idempotent_replay_count": aggregate["idempotent_replay_count"]
-            or 0,
-        },
-        "by_status": grouped_counts("status"),
-        "by_type": grouped_counts("send_type"),
-        "by_category": grouped_counts("category_tag"),
-        "recent_failures": [
-            {
-                "occurred_at": item.occurred_at,
-                "send_type": item.send_type,
-                "idempotency_key": item.idempotency_key,
-                "error": item.error,
-            }
-            for item in DatamailerSendAudit.objects.filter(status="failed")[
-                :limit
-            ]
-        ],
+        "total": aggregate_count(aggregate, "total"),
+        "succeeded": send_status_count("succeeded"),
+        "failed": send_status_count("failed"),
+        "last_send_at": aggregate["last_send_at"],
+        "intended_count": aggregate_count(aggregate, "intended_count"),
+        "enqueued_count": aggregate_count(aggregate, "enqueued_count"),
+        "skipped_count": aggregate_count(aggregate, "skipped_count"),
+        "idempotent_replay_count": aggregate_count(
+            aggregate, "idempotent_replay_count"
+        ),
     }
+
+
+def recent_failed_sends(limit):
+    return [
+        {
+            "occurred_at": item.occurred_at,
+            "send_type": item.send_type,
+            "idempotency_key": item.idempotency_key,
+            "error": item.error,
+        }
+        for item in DatamailerSendAudit.objects.filter(status="failed")[
+            :limit
+        ]
+    ]
 
 
 def grouped_counts(field):
