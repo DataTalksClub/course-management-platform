@@ -1695,18 +1695,10 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_campaign_upsert_uses_expected_endpoint_and_scope(self):
-        session = Mock()
-        response = Mock(content=b'{"created": true}')
-        response.json.return_value = {"created": True}
-        session.request.return_value = response
-        config = DatamailerConfig(
-            url="https://datamailer.example.com",
-            api_key="secret-token",
-            client="dtc-courses",
-            audience="dtc-courses",
+        session, response = self.datamailer_session(
+            payload={"created": True}
         )
-
-        client = DatamailerClient(config, session=session)
+        client = self.datamailer_client(session)
         result = client.upsert_campaign(
             "course-start-2026",
             {
@@ -1717,23 +1709,19 @@ class DatamailerClientTest(TestCase):
         )
 
         self.assertEqual(result, {"created": True})
-        session.request.assert_called_once_with(
+        self.assert_datamailer_request(
+            response,
+            session,
             "PUT",
-            "https://datamailer.example.com/api/campaigns/course-start-2026",
-            json={
+            "/api/campaigns/course-start-2026",
+            json_payload={
                 "audience": "dtc-courses",
                 "client": "dtc-courses",
                 "subject": "Course starts tomorrow",
                 "html_body": "<p>Hello</p>",
                 "text_body": "Hello",
             },
-            timeout=10,
-            headers={
-                "Authorization": "Bearer secret-token",
-                "Content-Type": "application/json",
-            },
         )
-        response.raise_for_status.assert_called_once()
 
     def test_campaign_read_uses_expected_endpoint_and_scope(self):
         session = Mock()
