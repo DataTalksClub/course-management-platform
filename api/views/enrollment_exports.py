@@ -107,43 +107,51 @@ def _extract_certificate_updates(data):
     return None
 
 
+def _invalid_certificate_update_item_error(index):
+    return {
+        "index": index,
+        "code": "invalid_item",
+        "error": "Each certificate update must be an object",
+    }
+
+
+def _missing_certificate_update_fields_error(index, email):
+    return {
+        "index": index,
+        "email": email,
+        "code": "missing_fields",
+        "error": "Both email and certificate_path are required",
+    }
+
+
+def _validate_certificate_update_item(index, update):
+    if not isinstance(update, dict):
+        return None, _invalid_certificate_update_item_error(index)
+
+    email = update.get("email")
+    certificate_path = update.get("certificate_path")
+
+    if not email or not certificate_path:
+        return None, _missing_certificate_update_fields_error(index, email)
+
+    return {
+        "index": index,
+        "email": email,
+        "certificate_path": certificate_path,
+    }, None
+
+
 def _validate_certificate_update_items(certificate_updates):
     """Split raw items into (valid_updates, errors) by shape + required fields."""
     valid_updates = []
     errors = []
 
     for index, update in enumerate(certificate_updates):
-        if not isinstance(update, dict):
-            errors.append(
-                {
-                    "index": index,
-                    "code": "invalid_item",
-                    "error": "Each certificate update must be an object",
-                }
-            )
+        valid_update, error = _validate_certificate_update_item(index, update)
+        if error:
+            errors.append(error)
             continue
-
-        email = update.get("email")
-        certificate_path = update.get("certificate_path")
-
-        if not email or not certificate_path:
-            errors.append(
-                {
-                    "index": index,
-                    "email": email,
-                    "code": "missing_fields",
-                    "error": "Both email and certificate_path are required",
-                }
-            )
-            continue
-
-        valid_updates.append(
-            {
-                "index": index,
-                "email": email,
-                "certificate_path": certificate_path,
-            }
-        )
+        valid_updates.append(valid_update)
 
     return valid_updates, errors
 
@@ -275,18 +283,22 @@ def _certificate_request_updates(request):
 
 
 def _certificate_update_lookups(course, valid_updates):
-    emails = [update["email"] for update in valid_updates]
-    users_by_email = {
-        user.email: user
-        for user in User.objects.filter(email__in=emails)
-    }
-    enrollments_by_email = {
-        enrollment.student.email: enrollment
-        for enrollment in Enrollment.objects.filter(
-            course=course,
-            student__email__in=emails,
-        ).select_related("student")
-    }
+    emails = []
+    for update in valid_updates:
+        emails.append(update["email"])
+
+    users_by_email = {}
+    for user in User.objects.filter(email__in=emails):
+        users_by_email[user.email] = user
+
+    enrollments_by_email = {}
+    enrollments = Enrollment.objects.filter(
+        course=course,
+        student__email__in=emails,
+    ).select_related("student")
+    for enrollment in enrollments:
+        enrollments_by_email[enrollment.student.email] = enrollment
+
     return users_by_email, enrollments_by_email
 
 
