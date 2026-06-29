@@ -67,6 +67,28 @@ class UserWrappedMetrics:
     display_name: str
 
 
+@dataclass(frozen=True)
+class WrappedActivity:
+    year_start: datetime
+    year_end: datetime
+    homework_submissions: object
+    project_submissions: object
+    students_with_activity: set
+    enrollments: object
+    courses: set
+
+
+@dataclass(frozen=True)
+class UserWrappedStatsBuildData:
+    stats: WrappedStatistics
+    students_with_activity: set
+    homework_by_student: dict
+    project_by_student: dict
+    enrollment_by_student: dict
+    peer_review_counts: dict
+    leaderboard_data: list
+
+
 def is_float_equal(
     value1: str, value2: str, tolerance: float = 0.01
 ) -> bool:
@@ -1000,32 +1022,28 @@ def _wrapped_active_students_and_enrollments(
     return students_with_activity, enrollments, courses
 
 
-def _persist_wrapped_platform_statistics(
-    stats,
-    *,
-    students_with_activity,
-    enrollments,
-    courses,
-    homework_submissions,
-    project_submissions,
-):
-    stats.total_participants = len(students_with_activity)
-    stats.total_enrollments = enrollments.count()
+def _persist_wrapped_platform_statistics(stats, activity):
+    stats.total_participants = len(activity.students_with_activity)
+    stats.total_enrollments = activity.enrollments.count()
     stats.total_hours = _wrapped_total_hours(
-        homework_submissions, project_submissions
+        activity.homework_submissions,
+        activity.project_submissions,
     )
-    stats.total_certificates = enrollments.exclude(
+    stats.total_certificates = activity.enrollments.exclude(
         Q(certificate_url__isnull=True) | Q(certificate_url="")
     ).count()
     stats.total_points = (
-        enrollments.aggregate(total_score=Sum("total_score"))[
+        activity.enrollments.aggregate(total_score=Sum("total_score"))[
             "total_score"
         ]
         or 0
     )
-    stats.course_stats = _wrapped_course_stats(enrollments, courses)
+    stats.course_stats = _wrapped_course_stats(
+        activity.enrollments,
+        activity.courses,
+    )
 
-    leaderboard_data = _wrapped_leaderboard(enrollments)
+    leaderboard_data = _wrapped_leaderboard(activity.enrollments)
     stats.leaderboard = leaderboard_data
     stats.save()
     return leaderboard_data
@@ -1071,26 +1089,17 @@ def _wrapped_peer_review_counts(students_with_activity, year_start, year_end):
     return peer_review_counts
 
 
-def _build_user_wrapped_stats(
-    stats,
-    *,
-    students_with_activity,
-    homework_by_student,
-    project_by_student,
-    enrollment_by_student,
-    peer_review_counts,
-    leaderboard_data,
-):
+def _build_user_wrapped_stats(data):
     user_stats = []
-    for student in students_with_activity:
+    for student in data.students_with_activity:
         stat_data = UserWrappedStatData(
-            stats=stats,
+            stats=data.stats,
             student=student,
-            homework_submissions=homework_by_student.get(student, []),
-            project_submissions=project_by_student.get(student, []),
-            enrollments=enrollment_by_student.get(student, []),
-            peer_reviews_count=peer_review_counts.get(student.id, 0),
-            leaderboard_data=leaderboard_data,
+            homework_submissions=data.homework_by_student.get(student, []),
+            project_submissions=data.project_by_student.get(student, []),
+            enrollments=data.enrollment_by_student.get(student, []),
+            peer_reviews_count=data.peer_review_counts.get(student.id, 0),
+            leaderboard_data=data.leaderboard_data,
         )
         user_stat = _build_user_wrapped_stat(stat_data)
         user_stats.append(user_stat)
@@ -1125,39 +1134,40 @@ def _wrapped_activity_context(year):
             project_submissions,
         )
     )
-    return {
-        "year_start": year_start,
-        "year_end": year_end,
-        "homework_submissions": homework_submissions,
-        "project_submissions": project_submissions,
-        "students_with_activity": students_with_activity,
-        "enrollments": enrollments,
-        "courses": courses,
-    }
+    return WrappedActivity(
+        year_start=year_start,
+        year_end=year_end,
+        homework_submissions=homework_submissions,
+        project_submissions=project_submissions,
+        students_with_activity=students_with_activity,
+        enrollments=enrollments,
+        courses=courses,
+    )
 
 
 def _persist_wrapped_user_statistics(stats, activity, leaderboard_data):
     homework_by_student, project_by_student, enrollment_by_student = (
         _group_wrapped_activity_by_student(
-            activity["homework_submissions"],
-            activity["project_submissions"],
-            activity["enrollments"],
+            activity.homework_submissions,
+            activity.project_submissions,
+            activity.enrollments,
         )
     )
     peer_review_counts = _wrapped_peer_review_counts(
-        activity["students_with_activity"],
-        activity["year_start"],
-        activity["year_end"],
+        activity.students_with_activity,
+        activity.year_start,
+        activity.year_end,
     )
-    user_stats_objects = _build_user_wrapped_stats(
-        stats,
-        students_with_activity=activity["students_with_activity"],
+    build_data = UserWrappedStatsBuildData(
+        stats=stats,
+        students_with_activity=activity.students_with_activity,
         homework_by_student=homework_by_student,
         project_by_student=project_by_student,
         enrollment_by_student=enrollment_by_student,
         peer_review_counts=peer_review_counts,
         leaderboard_data=leaderboard_data,
     )
+    user_stats_objects = _build_user_wrapped_stats(build_data)
     _replace_user_wrapped_statistics(stats, user_stats_objects)
     return user_stats_objects
 
@@ -1169,11 +1179,7 @@ def _calculate_wrapped_statistics(stats, year):
     activity = _wrapped_activity_context(year)
     leaderboard_data = _persist_wrapped_platform_statistics(
         stats,
-        students_with_activity=activity["students_with_activity"],
-        enrollments=activity["enrollments"],
-        courses=activity["courses"],
-        homework_submissions=activity["homework_submissions"],
-        project_submissions=activity["project_submissions"],
+        activity,
     )
 
     logger.info(
