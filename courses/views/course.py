@@ -1468,15 +1468,21 @@ def _dashboard_homework_stat(homework, hw_submissions, total_enrollments):
     }
 
 
-def _dashboard_homework_stats(homeworks, all_hw_submissions, total_enrollments):
-    """Build per-homework stats plus the difficulty-ranked subset."""
+def _dashboard_homework_submissions_by_homework(all_hw_submissions):
     hw_submissions_by_homework = defaultdict(list)
     for submission in all_hw_submissions:
         hw_submissions_by_homework[submission["homework_id"]].append(
             submission
         )
+    return hw_submissions_by_homework
 
-    homework_stats = [
+
+def _dashboard_homework_stat_rows(
+    homeworks,
+    hw_submissions_by_homework,
+    total_enrollments,
+):
+    return [
         _dashboard_homework_stat(
             homework,
             hw_submissions_by_homework.get(homework.id, []),
@@ -1485,6 +1491,8 @@ def _dashboard_homework_stats(homeworks, all_hw_submissions, total_enrollments):
         for homework in homeworks
     ]
 
+
+def _dashboard_homework_difficulty_stats(homework_stats):
     difficulty_stats = [
         hw_stat
         for hw_stat in homework_stats
@@ -1500,6 +1508,20 @@ def _dashboard_homework_stats(homeworks, all_hw_submissions, total_enrollments):
     for rank, hw_stat in enumerate(difficulty_stats, start=1):
         hw_stat["difficulty_rank"] = rank
 
+    return difficulty_stats
+
+
+def _dashboard_homework_stats(homeworks, all_hw_submissions, total_enrollments):
+    """Build per-homework stats plus the difficulty-ranked subset."""
+    hw_submissions_by_homework = _dashboard_homework_submissions_by_homework(
+        all_hw_submissions
+    )
+    homework_stats = _dashboard_homework_stat_rows(
+        homeworks,
+        hw_submissions_by_homework,
+        total_enrollments,
+    )
+    difficulty_stats = _dashboard_homework_difficulty_stats(homework_stats)
     return homework_stats, difficulty_stats
 
 
