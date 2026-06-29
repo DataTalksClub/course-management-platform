@@ -46,14 +46,27 @@ def authenticate_webhook(request):
 
 
 def preference_key_from_payload(payload):
-    metadata = payload.get("metadata") or {}
-    preference_key = (
-        payload.get("preference_key")
-        or metadata.get("preference_key")
-        or metadata.get("cmp_preference_key")
-        or ""
+    return next(
+        (
+            preference_key
+            for preference_key in preference_key_candidates(payload)
+            if preference_key in PREFERENCE_FIELDS
+        ),
+        "",
     )
-    return preference_key if preference_key in PREFERENCE_FIELDS else ""
+
+
+def preference_key_candidates(payload):
+    metadata = payload_metadata(payload)
+    return (
+        payload.get("preference_key"),
+        metadata.get("preference_key"),
+        metadata.get("cmp_preference_key"),
+    )
+
+
+def payload_metadata(payload):
+    return payload.get("metadata") or {}
 
 
 def webhook_error(message, status):
