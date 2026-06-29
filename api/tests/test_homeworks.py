@@ -54,6 +54,49 @@ class HomeworksAPITestCase(TestCase):
             state=state,
         )
 
+    def _non_staff_client(self, username):
+        non_staff = CustomUser.objects.create(
+            username=username,
+            email=f"{username}@example.com",
+            password="password",
+        )
+        token = Token.objects.create(user=non_staff)
+        return Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    def _assert_staff_token_required(self, response):
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "staff_token_required")
+
+    def _non_staff_homework_mutation_responses(self, client, homework):
+        create_response = client.post(
+            f"/api/courses/{self.course.slug}/homeworks/",
+            json.dumps({
+                "name": "Created by nonstaff",
+                "due_date": "2026-04-01T23:59:59Z",
+            }),
+            content_type="application/json",
+        )
+        patch_response = client.patch(
+            f"/api/courses/{self.course.slug}/homeworks/{homework.id}/",
+            json.dumps({"description": "Changed by nonstaff"}),
+            content_type="application/json",
+        )
+        put_response = client.put(
+            (
+                f"/api/courses/{self.course.slug}/homeworks/by-slug/"
+                "nonstaff-put/"
+            ),
+            json.dumps({
+                "name": "Put by nonstaff",
+                "due_date": "2026-04-01T23:59:59Z",
+            }),
+            content_type="application/json",
+        )
+        delete_response = client.delete(
+            f"/api/courses/{self.course.slug}/homeworks/{homework.id}/"
+        )
+        return create_response, patch_response, put_response, delete_response
+
     def test_list_homeworks(self):
         self._create_homework()
         response = self.client.get(
@@ -490,71 +533,23 @@ class HomeworksAPITestCase(TestCase):
 
     def test_score_homework_requires_staff_token(self):
         hw = self._create_homework(state=HomeworkState.OPEN.value)
-        non_staff = CustomUser.objects.create(
-            username="nonstaff",
-            email="nonstaff@example.com",
-            password="password",
-        )
-        token = Token.objects.create(user=non_staff)
-        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+        client = self._non_staff_client("nonstaff")
 
         response = client.post(
             f"/api/courses/{self.course.slug}/homeworks/{hw.id}/score/"
         )
 
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(
-            response.json()["code"], "staff_token_required"
-        )
+        self._assert_staff_token_required(response)
 
     def test_homework_mutations_require_staff_token(self):
         hw = self._create_homework(slug="staff-only-hw")
-        non_staff = CustomUser.objects.create(
-            username="homework-nonstaff",
-            email="homework-nonstaff@example.com",
-            password="password",
-        )
-        token = Token.objects.create(user=non_staff)
-        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
-
-        create_response = client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps({
-                "name": "Created by nonstaff",
-                "due_date": "2026-04-01T23:59:59Z",
-            }),
-            content_type="application/json",
-        )
-        patch_response = client.patch(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/",
-            json.dumps({"description": "Changed by nonstaff"}),
-            content_type="application/json",
-        )
-        put_response = client.put(
-            (
-                f"/api/courses/{self.course.slug}/homeworks/by-slug/"
-                "nonstaff-put/"
-            ),
-            json.dumps({
-                "name": "Put by nonstaff",
-                "due_date": "2026-04-01T23:59:59Z",
-            }),
-            content_type="application/json",
-        )
-        delete_response = client.delete(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        client = self._non_staff_client("homework-nonstaff")
+        responses = self._non_staff_homework_mutation_responses(
+            client, hw
         )
 
-        for response in (
-            create_response,
-            patch_response,
-            put_response,
-            delete_response,
-        ):
-            self.assertEqual(response.status_code, 403)
-            self.assertEqual(
-                response.json()["code"], "staff_token_required"
-            )
+        for response in responses:
+            self._assert_staff_token_required(response)
 
         self.assertFalse(
             Homework.objects.filter(
