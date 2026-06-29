@@ -85,6 +85,51 @@ DATAMAILER_SETTINGS = {
 
 
 class DatamailerClientTest(TestCase):
+    def datamailer_config(self):
+        return DatamailerConfig(
+            url="https://datamailer.example.com",
+            api_key="secret-token",
+            client="dtc-courses",
+            audience="dtc-courses",
+        )
+
+    def datamailer_session(self, payload=None):
+        session = Mock()
+        response = Mock(content=b'{"ok": true}')
+        response.json.return_value = payload or {"ok": True}
+        session.request.return_value = response
+        return session, response
+
+    def datamailer_client(self, session):
+        return DatamailerClient(self.datamailer_config(), session=session)
+
+    def assert_datamailer_request(
+        self,
+        response,
+        session,
+        method,
+        path,
+        *,
+        json_payload=None,
+        params=None,
+    ):
+        kwargs = {
+            "json": json_payload,
+            "timeout": 10,
+            "headers": {
+                "Authorization": "Bearer secret-token",
+                "Content-Type": "application/json",
+            },
+        }
+        if params is not None:
+            kwargs["params"] = params
+        session.request.assert_called_once_with(
+            method,
+            f"https://datamailer.example.com{path}",
+            **kwargs,
+        )
+        response.raise_for_status.assert_called_once()
+
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -733,12 +778,6 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
-        config = DatamailerConfig(
-            url="https://datamailer.example.com",
-            api_key="secret-token",
-            client="dtc-courses",
-            audience="dtc-courses",
-        )
         cases = [
             (
                 "create_recipient_list_import",
@@ -771,31 +810,20 @@ class DatamailerClientTest(TestCase):
 
         for method_name, args, method, path, expected_json, expected_params in cases:
             with self.subTest(method_name=method_name):
-                session = Mock()
-                response = Mock(content=b'{"ok": true}')
-                response.json.return_value = {"ok": True}
-                session.request.return_value = response
-                client = DatamailerClient(config, session=session)
+                session, response = self.datamailer_session()
+                client = self.datamailer_client(session)
 
                 result = getattr(client, method_name)(*args)
 
                 self.assertEqual(result, {"ok": True})
-                request_kwargs = {
-                    "json": expected_json,
-                    "timeout": 10,
-                    "headers": {
-                        "Authorization": "Bearer secret-token",
-                        "Content-Type": "application/json",
-                    },
-                }
-                if expected_params is not None:
-                    request_kwargs["params"] = expected_params
-                session.request.assert_called_once_with(
+                self.assert_datamailer_request(
+                    response,
+                    session,
                     method,
-                    f"https://datamailer.example.com{path}",
-                    **request_kwargs,
+                    path,
+                    json_payload=expected_json,
+                    params=expected_params,
                 )
-                response.raise_for_status.assert_called_once()
 
     def test_recipient_list_transactional_send_uses_expected_endpoint(
         self,
@@ -938,12 +966,6 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_campaign_action_methods_use_expected_endpoints_and_scope(self):
-        config = DatamailerConfig(
-            url="https://datamailer.example.com",
-            api_key="secret-token",
-            client="dtc-courses",
-            audience="dtc-courses",
-        )
         actions = [
             (
                 "queue_campaign",
@@ -977,26 +999,19 @@ class DatamailerClientTest(TestCase):
 
         for method_name, extra_args, path, expected_json in actions:
             with self.subTest(method_name=method_name):
-                session = Mock()
-                response = Mock(content=b'{"ok": true}')
-                response.json.return_value = {"ok": True}
-                session.request.return_value = response
-                client = DatamailerClient(config, session=session)
+                session, response = self.datamailer_session()
+                client = self.datamailer_client(session)
 
                 result = getattr(client, method_name)("course-start-2026", *extra_args)
 
                 self.assertEqual(result, {"ok": True})
-                session.request.assert_called_once_with(
+                self.assert_datamailer_request(
+                    response,
+                    session,
                     "POST",
-                    f"https://datamailer.example.com{path}",
-                    json=expected_json,
-                    timeout=10,
-                    headers={
-                        "Authorization": "Bearer secret-token",
-                        "Content-Type": "application/json",
-                    },
+                    path,
+                    json_payload=expected_json,
                 )
-                response.raise_for_status.assert_called_once()
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("course_management.datamailer.DatamailerClient.queue_campaign")
