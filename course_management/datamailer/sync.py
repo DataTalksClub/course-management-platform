@@ -81,18 +81,38 @@ def erase_contact_from_datamailer(
     if config is None:
         return
 
+    user_id, email = _contact_erase_target(
+        user, user_id=user_id, email=email
+    )
+    if not email:
+        return
+
+    ordering_key = _contact_erase_ordering_key(user_id, email)
+    _enqueue_contact_erase_event(
+        config,
+        user_id=user_id,
+        email=email,
+        ordering_key=ordering_key,
+    )
+
+
+def _contact_erase_target(user, *, user_id, email):
     if email is None and user is not None:
         email = user.email
     if user_id is None and user is not None:
         user_id = user.pk
 
     email = (email or "").strip().lower()
-    if not email:
-        return
+    return user_id, email
 
-    ordering_key = (
-        f"user:{user_id}" if user_id is not None else f"email:{email}"
-    )
+
+def _contact_erase_ordering_key(user_id, email):
+    if user_id is not None:
+        return f"user:{user_id}"
+    return f"email:{email}"
+
+
+def _enqueue_contact_erase_event(config, *, user_id, email, ordering_key):
     enqueue_datamailer_outbox_event(
         event_type="contact.erase",
         idempotency_key=f"contact.erase:{ordering_key}:{email}",

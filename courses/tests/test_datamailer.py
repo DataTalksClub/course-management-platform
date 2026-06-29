@@ -2115,6 +2115,32 @@ class DatamailerClientTest(TestCase):
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.erase_contact")
+    def test_erase_contact_enqueues_outbox_event_for_email(
+        self, erase_contact
+    ):
+        erase_contact_from_datamailer(email=" Student@Example.com ")
+
+        erase_contact.assert_called_once_with("student@example.com")
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(event.event_type, "contact.erase")
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(event.ordering_key, "email:student@example.com")
+        self.assertEqual(
+            event.idempotency_key,
+            "contact.erase:email:student@example.com:student@example.com",
+        )
+        self.assertEqual(
+            event.payload,
+            {
+                "email": "student@example.com",
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+                "user_id": None,
+            },
+        )
+
+    @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
     )
