@@ -12,6 +12,7 @@ from django.utils.dateparse import parse_datetime
 
 from course_management import email_templates
 from course_management.datamailer import (
+    DatamailerSendAuditData,
     DatamailerClient,
     DatamailerConfig,
     public_url,
@@ -762,12 +763,13 @@ def send_reminder_event(client, config, event):
             payload,
         )
     except requests.RequestException as exc:
-        record_datamailer_send_audit(
+        audit_data = DatamailerSendAuditData(
             send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
             payload=payload,
             list_key=event.list_key,
             error=str(exc),
         )
+        record_datamailer_send_audit(audit_data)
         if config.strict:
             raise
         raise CommandError(
@@ -775,12 +777,13 @@ def send_reminder_event(client, config, event):
             f"{event.list_key}: {exc}"
         ) from exc
 
-    record_datamailer_send_audit(
+    audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
         payload=payload,
         list_key=event.list_key,
         response=response,
     )
+    record_datamailer_send_audit(audit_data)
     return response
 
 

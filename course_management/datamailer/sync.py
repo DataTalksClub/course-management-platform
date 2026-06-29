@@ -53,6 +53,25 @@ class DatamailerNotificationErrorData:
 
 
 @dataclass(frozen=True)
+class DatamailerSendAuditData:
+    send_type: str
+    payload: dict[str, Any]
+    list_key: str = ""
+    response: dict[str, Any] | None = None
+    error: str = ""
+
+
+@dataclass(frozen=True)
+class DatamailerSendAuditDefaultsData:
+    send_type: str
+    payload: dict[str, Any]
+    list_key: str
+    response: dict[str, Any]
+    error: str
+    metadata: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class ContactMembershipSyncData:
     config: DatamailerConfig
     contact_payload: dict[str, Any] | None
@@ -447,66 +466,62 @@ def datamailer_audit_category_tag(payload, metadata) -> str:
     return payload.get("category_tag", "") or metadata.get("category_tag", "")
 
 
-def datamailer_send_audit_defaults(
-    *,
-    send_type: str,
-    payload: dict[str, Any],
-    list_key: str,
-    response: dict[str, Any],
-    error: str,
-    metadata: dict[str, Any],
-) -> dict[str, Any]:
-    counts = datamailer_send_counts(send_type, payload, response)
+def datamailer_send_audit_defaults(data) -> dict[str, Any]:
+    counts = datamailer_send_counts(
+        data.send_type,
+        data.payload,
+        data.response,
+    )
     return {
-        "status": datamailer_audit_status(error),
-        "template_key": datamailer_audit_template_key(payload, response),
-        "category_tag": datamailer_audit_category_tag(payload, metadata),
-        "list_key": datamailer_send_list_key(
-            send_type,
-            explicit_list_key=list_key,
-            payload=payload,
-            response=response,
+        "status": datamailer_audit_status(data.error),
+        "template_key": datamailer_audit_template_key(
+            data.payload,
+            data.response,
         ),
-        "source": metadata.get("source", ""),
-        "event": metadata.get("event", ""),
+        "category_tag": datamailer_audit_category_tag(
+            data.payload,
+            data.metadata,
+        ),
+        "list_key": datamailer_send_list_key(
+            data.send_type,
+            explicit_list_key=data.list_key,
+            payload=data.payload,
+            response=data.response,
+        ),
+        "source": data.metadata.get("source", ""),
+        "event": data.metadata.get("event", ""),
         "intended_count": counts["intended_count"],
         "created_count": counts["created_count"],
         "enqueued_count": counts["enqueued_count"],
         "skipped_count": counts["skipped_count"],
         "idempotent_replay_count": counts["idempotent_replay_count"],
-        "error": error,
-        "response_payload": response,
+        "error": data.error,
+        "response_payload": data.response,
     }
 
 
-def record_datamailer_send_audit(
-    *,
-    send_type: str,
-    payload: dict[str, Any],
-    list_key: str = "",
-    response: dict[str, Any] | None = None,
-    error: str = "",
-) -> DatamailerSendAudit | None:
-    idempotency_key = payload.get("idempotency_key", "")
+def record_datamailer_send_audit(data) -> DatamailerSendAudit | None:
+    idempotency_key = data.payload.get("idempotency_key", "")
     if not idempotency_key:
         return None
 
-    response = response or {}
-    metadata = payload.get("metadata")
+    response = data.response or {}
+    metadata = data.payload.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
 
+    defaults_data = DatamailerSendAuditDefaultsData(
+        send_type=data.send_type,
+        payload=data.payload,
+        list_key=data.list_key,
+        response=response,
+        error=data.error,
+        metadata=metadata,
+    )
     audit, _created = DatamailerSendAudit.objects.update_or_create(
-        send_type=send_type,
+        send_type=data.send_type,
         idempotency_key=idempotency_key,
-        defaults=datamailer_send_audit_defaults(
-            send_type=send_type,
-            payload=payload,
-            list_key=list_key,
-            response=response,
-            error=error,
-            metadata=metadata,
-        ),
+        defaults=datamailer_send_audit_defaults(defaults_data),
     )
     return audit
 
@@ -558,12 +573,13 @@ def _send_homework_score_notification_if_ready(config, list_key, payload):
 
 def _handle_recipient_list_notification_error(error_data):
     logger.exception(error_data.log_message, error_data.object_id)
-    record_datamailer_send_audit(
+    audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
         payload=error_data.payload,
         list_key=error_data.list_key,
         error=str(error_data.exc),
     )
+    record_datamailer_send_audit(audit_data)
     if error_data.config.strict:
         raise
     return None
@@ -635,12 +651,13 @@ def _sync_members_before_recipient_list_send_or_audit(data):
     if synced:
         return True
 
-    record_datamailer_send_audit(
+    audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
         payload=data.audit_payload or data.payload,
         list_key=data.audit_list_key or data.list_key,
         error=data.error,
     )
+    record_datamailer_send_audit(audit_data)
     return False
 
 
@@ -672,12 +689,13 @@ def _send_recipient_list_transactional_and_audit(
     response = client.send_recipient_list_transactional(
         list_key, recipient_list_send_payload(payload)
     )
-    record_datamailer_send_audit(
+    audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
         payload=payload,
         list_key=list_key,
         response=response,
     )
+    record_datamailer_send_audit(audit_data)
     return response
 
 
@@ -795,11 +813,12 @@ def _handle_certificate_availability_send_error(
         enrollment.pk,
     )
     if payload is not None:
-        record_datamailer_send_audit(
+        audit_data = DatamailerSendAuditData(
             send_type=DatamailerSendAuditType.TRANSACTIONAL,
             payload=payload,
             error=str(exc),
         )
+        record_datamailer_send_audit(audit_data)
     if config.strict:
         raise
     return None
@@ -826,11 +845,12 @@ def _sync_graduate_outcome_before_certificate_send(
         return True
 
     if payload is not None:
-        record_datamailer_send_audit(
+        audit_data = DatamailerSendAuditData(
             send_type=DatamailerSendAuditType.TRANSACTIONAL,
             payload=payload,
             error="Datamailer graduate-outcome sync was not acknowledged",
         )
+        record_datamailer_send_audit(audit_data)
     return False
 
 
@@ -843,11 +863,12 @@ def _certificate_graduate_outcome_idempotency_key(payload, enrollment):
 def _send_transactional_and_audit(config, payload):
     client = DatamailerClient(config)
     response = client.send_transactional(payload)
-    record_datamailer_send_audit(
+    audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.TRANSACTIONAL,
         payload=payload,
         response=response,
     )
+    record_datamailer_send_audit(audit_data)
     return response
 
 
@@ -877,11 +898,12 @@ def _transactional_payload_with_config_defaults(config, payload):
 
 def _handle_transactional_send_error(config, payload, exc):
     logger.exception("Datamailer transactional email failed")
-    record_datamailer_send_audit(
+    audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.TRANSACTIONAL,
         payload=payload,
         error=str(exc),
     )
+    record_datamailer_send_audit(audit_data)
     if config.strict:
         raise
     return None
