@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -31,6 +33,15 @@ from api.utils import (
     parse_json_body,
     require_methods,
 )
+
+
+@dataclass(frozen=True)
+class HomeworkUpsertData:
+    course: Course
+    homework_slug: str
+    data: dict
+    homework: Homework | None
+    created: bool
 
 
 def _homework_delete_blockers(hw):
@@ -480,15 +491,15 @@ def _homework_by_slug(course, homework_slug):
     ).first()
 
 
-def _create_homework_for_upsert(course, homework_slug, data):
-    title = _homework_title_from_data(data)
+def _create_homework_for_upsert(upsert):
+    title = _homework_title_from_data(upsert.data)
     return Homework.objects.create(
-        course=course,
-        slug=homework_slug,
+        course=upsert.course,
+        slug=upsert.homework_slug,
         title=title,
-        description=data.get("description", ""),
-        instructions_url=data.get("instructions_url"),
-        due_date=parse_date(data["due_date"]),
+        description=upsert.data.get("description", ""),
+        instructions_url=upsert.data.get("instructions_url"),
+        due_date=parse_date(upsert.data["due_date"]),
         state=HomeworkState.CLOSED.value,
     )
 
@@ -499,20 +510,22 @@ def _replace_homework_questions_if_present(homework, data):
     return _replace_homework_questions(homework, data["questions"])
 
 
-def _save_homework_upsert(course, homework_slug, data, homework, created):
+def _save_homework_upsert(upsert):
+    homework = upsert.homework
     with transaction.atomic():
-        if created:
-            homework = _create_homework_for_upsert(
-                course, homework_slug, data
-            )
+        if upsert.created:
+            homework = _create_homework_for_upsert(upsert)
 
-        error = _apply_homework_data(homework, data)
+        error = _apply_homework_data(homework, upsert.data)
         if error:
             return homework, error
 
         homework.save()
 
-        error = _replace_homework_questions_if_present(homework, data)
+        error = _replace_homework_questions_if_present(
+            homework,
+            upsert.data,
+        )
         if error:
             return homework, error
 
@@ -532,9 +545,14 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
     if error:
         return error
 
-    homework, error = _save_homework_upsert(
-        course, homework_slug, data, homework, created
+    upsert = HomeworkUpsertData(
+        course=course,
+        homework_slug=homework_slug,
+        data=data,
+        homework=homework,
+        created=created,
     )
+    homework, error = _save_homework_upsert(upsert)
     if error:
         return error
 
