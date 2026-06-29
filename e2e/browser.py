@@ -280,8 +280,8 @@ class AdminSession:
                 return course_pk
         return None
 
-    def _course_is_absent(self, slug: str, title: str | None) -> bool:
-        return self.find_course_pk(slug, title=title) is None
+    def _course_is_absent(self, slug: str) -> bool:
+        return self.find_course_pk(slug) is None
 
     def _open_course_delete_confirmation(self, course_pk: int) -> None:
         self.page.goto(self.url(f"/admin/courses/course/{course_pk}/delete/"))
@@ -297,7 +297,10 @@ class AdminSession:
         return True
 
     def delete_course_via_admin(
-        self, slug: str, *, course_pk: int | None = None, title: str | None = None
+        self,
+        slug: str,
+        *,
+        course_pk: int | None = None,
     ) -> bool:
         """Delete a Course (and its cascade) through the Django admin UI.
 
@@ -318,19 +321,13 @@ class AdminSession:
         try:
             pk = course_pk
             if pk is None:
-                pk = self.find_course_pk(slug, title=title)
+                pk = self.find_course_pk(slug)
             if pk is None:
-                # Already absent -> nothing to delete; treat as success only
-                # if the changelist truly has no matching row.
-                return self._course_is_absent(slug, title)
+                return self._course_is_absent(slug)
 
             self._open_course_delete_confirmation(pk)
-            if not self._submit_course_delete_confirmation():
-                # Page may have 404'd (already deleted) -- verify and report.
-                return self._course_is_absent(slug, title)
-
-            # Verify: change page should 404 and changelist should not list it.
-            return self._course_is_absent(slug, title)
+            self._submit_course_delete_confirmation()
+            return self._course_is_absent(slug)
         except Exception:
             return False
 
@@ -369,13 +366,9 @@ class AdminSession:
             self.page.fill(selector, str(value))
 
     def _fill_learning_in_public_links(self, links: list[str] | None) -> None:
-        if not links:
-            return
-
         inputs = self.page.locator("[name='learning_in_public_links[]']")
-        for i, link in enumerate(links):
-            if i < inputs.count():
-                inputs.nth(i).fill(link)
+        for index, link in indexed_values(links, inputs.count()):
+            inputs.nth(index).fill(link)
 
     def _homework_submit_selector(self, answers: dict[int, str]) -> str:
         first_answer_selector = f"[name='answer_{next(iter(answers))}']"
@@ -400,6 +393,25 @@ class AdminSession:
         page.goto(self.url(f"/{course_slug}/homework/{homework_slug}"))
         page.wait_for_load_state("networkidle")
 
+        self._fill_homework_form(
+            answers,
+            homework_url=homework_url,
+            learning_in_public_links=learning_in_public_links,
+            time_spent_lectures=time_spent_lectures,
+            time_spent_homework=time_spent_homework,
+        )
+        self.click_first_visible(self._homework_submit_selector(answers))
+        page.wait_for_load_state("networkidle")
+
+    def _fill_homework_form(
+        self,
+        answers: dict[int, str],
+        *,
+        homework_url: str | None,
+        learning_in_public_links: list[str] | None,
+        time_spent_lectures: float | None,
+        time_spent_homework: float | None,
+    ) -> None:
         for question_id, value in answers.items():
             self._fill_homework_answer(question_id, value)
 
@@ -413,9 +425,6 @@ class AdminSession:
             time_spent_homework,
         )
         self._fill_learning_in_public_links(learning_in_public_links)
-
-        self.click_first_visible(self._homework_submit_selector(answers))
-        page.wait_for_load_state("networkidle")
 
     def homework_confirmation_text(self) -> str:
         return self.page.locator("body").inner_text()

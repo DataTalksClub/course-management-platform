@@ -205,13 +205,10 @@ class Provisioner:
         detail: dict,
         admin_session,
     ) -> bool:
-        title = detail.get("title") if isinstance(detail, dict) else None
         course_pk = detail.get("id") if isinstance(detail, dict) else None
 
         try:
-            purged = admin_session.delete_course_via_admin(
-                slug, course_pk=course_pk, title=title
-            )
+            purged = admin_session.delete_course_via_admin(slug, course_pk=course_pk)
         except Exception:
             purged = False
 
@@ -311,12 +308,14 @@ class Provisioner:
 
     def list_active_namespaced_courses(self) -> list[str]:
         """Courses still visible under our namespace (for the clean assert)."""
-        return [
-            c["slug"]
-            for c in self.api.list_courses()
-            if c.get("slug", "").startswith(NAMESPACE_PREFIX)
-            and c.get("visible", True)
-        ]
+        slugs = []
+        for course in self.api.list_courses():
+            if not course.get("slug", "").startswith(NAMESPACE_PREFIX):
+                continue
+            if not course.get("visible", True):
+                continue
+            slugs.append(course["slug"])
+        return slugs
 
 
 def _close_and_delete(close_fn, delete_fn, obj, *, kind, deleted, residual):

@@ -16,6 +16,11 @@ testable service functions.
 - Use `uv run python manage.py test ...` for Django tests.
 - Do not mix UI redesign with backend refactoring unless a step specifically
   touches templates or form behavior.
+- Do not introduce list comprehensions during cleanup. Prefer explicit loops so
+  filtering, appending, and early exits stay easy to inspect.
+- Do not add trivial pass-through functions. Extract helpers only when they
+  name a real concept, isolate non-trivial branching, or make repeated behavior
+  safer.
 
 ## Current Findings
 
