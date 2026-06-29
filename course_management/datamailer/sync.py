@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -39,6 +40,16 @@ from .payloads import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DatamailerNotificationErrorData:
+    config: DatamailerConfig
+    list_key: str
+    payload: dict[str, Any]
+    exc: requests.RequestException
+    log_message: str
+    object_id: int
 
 
 def send_registration_confirmation_email(
@@ -503,9 +514,18 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
             config, list_key, payload
         )
     except requests.RequestException as exc:
-        return _handle_homework_score_notification_error(
-            config, homework, list_key, payload, exc
+        error_data = DatamailerNotificationErrorData(
+            config=config,
+            list_key=list_key,
+            payload=payload,
+            exc=exc,
+            log_message=(
+                "Datamailer homework score notification failed "
+                "for homework_id=%s"
+            ),
+            object_id=homework.pk,
         )
+        return _handle_recipient_list_notification_error(error_data)
 
 
 def _send_homework_score_notification_if_ready(config, list_key, payload):
@@ -523,24 +543,15 @@ def _send_homework_score_notification_if_ready(config, list_key, payload):
     )
 
 
-def _handle_homework_score_notification_error(
-    config,
-    homework,
-    list_key,
-    payload,
-    exc,
-):
-    logger.exception(
-        "Datamailer homework score notification failed for homework_id=%s",
-        homework.pk,
-    )
+def _handle_recipient_list_notification_error(error_data):
+    logger.exception(error_data.log_message, error_data.object_id)
     record_datamailer_send_audit(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=payload,
-        list_key=list_key,
-        error=str(exc),
+        payload=error_data.payload,
+        list_key=error_data.list_key,
+        error=str(error_data.exc),
     )
-    if config.strict:
+    if error_data.config.strict:
         raise
     return None
 
@@ -560,9 +571,18 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
             config, project, list_key, payload
         )
     except requests.RequestException as exc:
-        return _handle_project_score_notification_error(
-            config, project, list_key, payload, exc
+        error_data = DatamailerNotificationErrorData(
+            config=config,
+            list_key=list_key,
+            payload=payload,
+            exc=exc,
+            log_message=(
+                "Datamailer project score notification failed "
+                "for project_id=%s"
+            ),
+            object_id=project.pk,
         )
+        return _handle_recipient_list_notification_error(error_data)
 
 
 def _send_project_score_notification_if_ready(
@@ -587,28 +607,6 @@ def _send_project_score_notification_if_ready(
     return _send_recipient_list_transactional_and_audit(
         config, list_key, payload
     )
-
-
-def _handle_project_score_notification_error(
-    config,
-    project,
-    list_key,
-    payload,
-    exc,
-):
-    logger.exception(
-        "Datamailer project score notification failed for project_id=%s",
-        project.pk,
-    )
-    record_datamailer_send_audit(
-        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=payload,
-        list_key=list_key,
-        error=str(exc),
-    )
-    if config.strict:
-        raise
-    return None
 
 
 def _sync_members_before_recipient_list_send_or_audit(
@@ -694,9 +692,18 @@ def send_peer_review_assignment_notification(
             config, list_key, payload
         )
     except requests.RequestException as exc:
-        return _handle_peer_review_assignment_notification_error(
-            config, project, list_key, payload, exc
+        error_data = DatamailerNotificationErrorData(
+            config=config,
+            list_key=list_key,
+            payload=payload,
+            exc=exc,
+            log_message=(
+                "Datamailer peer review assignment notification failed "
+                "for project_id=%s"
+            ),
+            object_id=project.pk,
         )
+        return _handle_recipient_list_notification_error(error_data)
 
 
 def _send_peer_review_assignment_notification_if_ready(
@@ -714,29 +721,6 @@ def _send_peer_review_assignment_notification_if_ready(
     return _send_recipient_list_transactional_and_audit(
         config, list_key, payload
     )
-
-
-def _handle_peer_review_assignment_notification_error(
-    config,
-    project,
-    list_key,
-    payload,
-    exc,
-):
-    logger.exception(
-        "Datamailer peer review assignment notification failed "
-        "for project_id=%s",
-        project.pk,
-    )
-    record_datamailer_send_audit(
-        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=payload,
-        list_key=list_key,
-        error=str(exc),
-    )
-    if config.strict:
-        raise
-    return None
 
 
 def send_certificate_availability_notification(
