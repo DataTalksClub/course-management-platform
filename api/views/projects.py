@@ -134,46 +134,105 @@ def _project_score_response(project):
     )
 
 
-def _create_project(course, proj_data):
-    """Create a single project. Returns (dict, None) or (None, error_str)."""
+def _project_required_fields(proj_data):
     name = proj_data.get("name")
     submission_due_str = proj_data.get("submission_due_date")
     peer_review_due_str = proj_data.get("peer_review_due_date")
+    return name, submission_due_str, peer_review_due_str
 
-    if not name or not submission_due_str or not peer_review_due_str:
-        return (
-            None,
-            "name, submission_due_date, and peer_review_due_date are required",
-        )
 
+def _missing_project_required_fields(
+    name,
+    submission_due_str,
+    peer_review_due_str,
+):
+    if name and submission_due_str and peer_review_due_str:
+        return None
+    return (
+        "name, submission_due_date, and peer_review_due_date are required"
+    )
+
+
+def _project_instructions_url_error(proj_data):
     instructions_url = proj_data.get("instructions_url")
-    if instructions_url and (
-        error := instructions_url_error(instructions_url)
-    ):
-        return None, error
+    if instructions_url:
+        return instructions_url_error(instructions_url)
+    return None
 
+
+def _parse_project_due_dates(submission_due_str, peer_review_due_str):
     submission_due_date = parse_date(submission_due_str)
     if submission_due_date is None:
-        return None, f"Invalid date format: {submission_due_str}"
+        return None, None, f"Invalid date format: {submission_due_str}"
 
     peer_review_due_date = parse_date(peer_review_due_str)
     if peer_review_due_date is None:
-        return None, f"Invalid date format: {peer_review_due_str}"
+        return None, None, f"Invalid date format: {peer_review_due_str}"
 
-    slug = proj_data.get("slug") or slugify(name)
+    return submission_due_date, peer_review_due_date, None
 
+
+def _project_slug(proj_data, name):
+    return proj_data.get("slug") or slugify(name)
+
+
+def _project_duplicate_error(course, slug):
     if Project.objects.filter(course=course, slug=slug).exists():
-        return None, f"Project with slug '{slug}' already exists"
+        return f"Project with slug '{slug}' already exists"
+    return None
+
+
+def _project_create_defaults(
+    proj_data,
+    name,
+    instructions_url,
+    submission_due_date,
+    peer_review_due_date,
+):
+    return {
+        "title": name,
+        "description": proj_data.get("description", ""),
+        "instructions_url": instructions_url,
+        "submission_due_date": submission_due_date,
+        "peer_review_due_date": peer_review_due_date,
+        "state": ProjectState.CLOSED.value,
+    }
+
+
+def _create_project(course, proj_data):
+    """Create a single project. Returns (dict, None) or (None, error_str)."""
+    name, submission_due_str, peer_review_due_str = _project_required_fields(
+        proj_data
+    )
+    if error := _missing_project_required_fields(
+        name, submission_due_str, peer_review_due_str
+    ):
+        return None, error
+
+    instructions_url = proj_data.get("instructions_url")
+    if error := _project_instructions_url_error(proj_data):
+        return None, error
+
+    submission_due_date, peer_review_due_date, error = (
+        _parse_project_due_dates(submission_due_str, peer_review_due_str)
+    )
+    if error:
+        return None, error
+
+    slug = _project_slug(proj_data, name)
+    if error := _project_duplicate_error(course, slug):
+        return None, error
 
     project = Project.objects.create(
         course=course,
         slug=slug,
-        title=name,
-        description=proj_data.get("description", ""),
-        instructions_url=instructions_url,
-        submission_due_date=submission_due_date,
-        peer_review_due_date=peer_review_due_date,
-        state=ProjectState.CLOSED.value,
+        **_project_create_defaults(
+            proj_data,
+            name,
+            instructions_url,
+            submission_due_date,
+            peer_review_due_date,
+        ),
     )
 
     return _project_to_dict(project), None
