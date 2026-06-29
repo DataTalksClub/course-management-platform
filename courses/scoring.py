@@ -281,6 +281,14 @@ def _mark_homework_scored(homework):
     calculate_homework_statistics(homework, force=True)
 
 
+def _homework_scoring_success(homework_id, started_at):
+    logger.info(f"Scored homework in {(time() - started_at):.2f} seconds")
+    return (
+        HomeworkScoringStatus.OK,
+        f"Homework {homework_id} is scored",
+    )
+
+
 def score_homework_submissions(
     homework_id: str,
 ) -> tuple[HomeworkScoringStatus, str]:
@@ -315,12 +323,7 @@ def score_homework_submissions(
         )
         _mark_homework_scored(homework)
 
-        t1 = time()
-        logger.info(f"Scored homework in {(t1 - t0):.2f} seconds")
-        return (
-            HomeworkScoringStatus.OK,
-            f"Homework {homework_id} is scored",
-        )
+        return _homework_scoring_success(homework_id, t0)
 
 
 def _homework_scores_by_enrollment(course):
@@ -741,6 +744,14 @@ def _wrapped_rank(student, leaderboard_data):
     )
 
 
+def _wrapped_total_points(enrollments):
+    return sum(e.total_score or 0 for e in enrollments)
+
+
+def _wrapped_display_name(student, enrollments):
+    return enrollments[0].display_name if enrollments else student.username
+
+
 def _build_user_wrapped_stat(
     stats,
     student,
@@ -752,15 +763,10 @@ def _build_user_wrapped_stat(
     leaderboard_data,
 ):
     """Build an (unsaved) UserWrappedStatistics row for one student."""
-    total_points = sum(e.total_score or 0 for e in enrollments)
-    display_name = (
-        enrollments[0].display_name if enrollments else student.username
-    )
-
     return UserWrappedStatistics(
         wrapped=stats,
         user=student,
-        total_points=total_points,
+        total_points=_wrapped_total_points(enrollments),
         total_hours=_wrapped_total_hours(
             homework_submissions,
             project_submissions,
@@ -779,7 +785,7 @@ def _build_user_wrapped_stat(
         certificates_earned=_wrapped_certificates_count(enrollments),
         courses=_wrapped_courses(enrollments),
         rank=_wrapped_rank(student, leaderboard_data),
-        display_name=display_name,
+        display_name=_wrapped_display_name(student, enrollments),
     )
 
 
