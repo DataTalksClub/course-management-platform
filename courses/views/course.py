@@ -196,27 +196,42 @@ def attach_registration_campaigns(courses) -> None:
         course.registration_campaign = campaign_by_course_id.get(course.id)
 
 
-def mark_registered_courses(courses, user) -> None:
-    if not user.is_authenticated:
-        return
-
-    campaign_ids = [
+def _registration_campaign_ids(courses):
+    return [
         course.registration_campaign.id
         for course in courses
         if getattr(course, "registration_campaign", None)
     ]
-    registered_campaign_ids = set(
+
+
+def _normalized_user_email(user) -> str:
+    return (user.email or "").strip().lower()
+
+
+def _registered_campaign_ids(campaign_ids, user):
+    return set(
         CourseRegistration.objects.filter(
             campaign_id__in=campaign_ids,
-            email_normalized=(user.email or "").strip().lower(),
+            email_normalized=_normalized_user_email(user),
         ).values_list("campaign_id", flat=True)
     )
 
+
+def _mark_registered_course(course, registered_campaign_ids) -> None:
+    campaign = getattr(course, "registration_campaign", None)
+    course.is_registered = (
+        campaign is not None and campaign.id in registered_campaign_ids
+    )
+
+
+def mark_registered_courses(courses, user) -> None:
+    if not user.is_authenticated:
+        return
+
+    campaign_ids = _registration_campaign_ids(courses)
+    registered_campaign_ids = _registered_campaign_ids(campaign_ids, user)
     for course in courses:
-        campaign = getattr(course, "registration_campaign", None)
-        course.is_registered = (
-            campaign is not None and campaign.id in registered_campaign_ids
-        )
+        _mark_registered_course(course, registered_campaign_ids)
 
 
 def mark_enrolled_courses(courses, user) -> None:
