@@ -219,6 +219,36 @@ class InboxBackend:
             f"body~={body_contains!r} within {timeout}s. Seen: {seen}.{hint}"
         )
 
+    def _poll_for_message_match(
+        self,
+        address: str,
+        *,
+        template_key: str | None,
+        subject: str | None,
+        body_contains: str | None,
+        load_detail: bool,
+        poll_interval: float,
+    ) -> tuple[InboxMessage | None, list[InboxMessage] | None, Exception | None]:
+        try:
+            messages = self.list_messages(address)
+        except (requests.RequestException, InboxDisabled) as exc:
+            # Transient network hiccup or a not-yet-ready deployment: keep
+            # polling until the deadline rather than failing immediately.
+            time.sleep(poll_interval)
+            return None, None, exc
+
+        matched = self._matched_message(
+            address,
+            messages,
+            template_key=template_key,
+            subject=subject,
+            body_contains=body_contains,
+            load_detail=load_detail,
+        )
+        if matched is None:
+            time.sleep(poll_interval)
+        return matched, messages, None
+
     def wait_for_message(
         self,
         address: str,
@@ -236,27 +266,18 @@ class InboxBackend:
         last_error: Exception | None = None
 
         while time.monotonic() < deadline:
-            try:
-                last_seen = self.list_messages(address)
-            except (requests.RequestException, InboxDisabled) as exc:
-                # Transient network hiccup or a not-yet-ready deployment: keep
-                # polling until the deadline rather than failing immediately.
-                last_error = exc
-                time.sleep(poll_interval)
-                continue
-
-            matched = self._matched_message(
+            matched, seen, error = self._poll_for_message_match(
                 address,
-                last_seen,
                 template_key=template_key,
                 subject=subject,
                 body_contains=body_contains,
                 load_detail=load_detail,
+                poll_interval=poll_interval,
             )
             if matched is not None:
                 return matched
-
-            time.sleep(poll_interval)
+            last_seen = seen if seen is not None else last_seen
+            last_error = error if error is not None else last_error
 
         raise self._timeout_error(
             address,
