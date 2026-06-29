@@ -81,8 +81,7 @@ class CourseDetailViewTests(TestCase):
     def create_questions_for_homeworks(self):
         homeworks = self.homeworks
         for homework in homeworks:
-            question_numbers = range(1, 4)
-            for i in question_numbers:
+            for i in range(1, 4):
                 Question.objects.create(
                     homework=homework,
                     text=f"Question {i} of {homework.title}",
@@ -1266,8 +1265,7 @@ class CourseDetailViewTests(TestCase):
 
     def test_list_all_submissions_view_is_paginated(self):
         """Test the list all submissions view limits results per page."""
-        student_indexes = range(30)
-        for index in student_indexes:
+        for index in range(30):
             user = User.objects.create_user(
                 username=f"student-{index}",
                 email=f"student-{index}@example.com",

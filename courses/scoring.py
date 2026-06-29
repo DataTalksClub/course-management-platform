@@ -410,8 +410,7 @@ def _rank_enrollments(enrollments):
         enrollments,
         key=lambda x: (-(x.total_score or 0), x.id),
     )
-    ranked_enrollments = enumerate(enrollments, 1)
-    for rank, enrollment in ranked_enrollments:
+    for rank, enrollment in enumerate(enrollments, 1):
         enrollment.position_on_leaderboard = rank
     return enrollments
 
@@ -729,8 +728,7 @@ def _wrapped_leaderboard(enrollments):
     )[:100]
 
     leaderboard = []
-    indexed_users = enumerate(sorted_users, start=1)
-    for idx, user_data in indexed_users:
+    for idx, user_data in enumerate(sorted_users, start=1):
         leaderboard_entry = {
             "rank": idx,
             "display_name": user_data["display_name"],

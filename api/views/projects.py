@@ -327,8 +327,7 @@ def _apply_project_instructions_url(project, data):
 def _project_generic_patch_data(data):
     handled = {"title", "name", "description", "instructions_url"}
     patch_data = {}
-    data_items = data.items()
-    for key, value in data_items:
+    for key, value in data.items():
         if key in PROJECT_PATCH_FIELDS and key not in handled:
             patch_data[key] = value
     return patch_data

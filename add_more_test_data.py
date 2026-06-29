@@ -1,6 +1,7 @@
 import os
 
 import random
+from dataclasses import dataclass
 from datetime import timedelta
 
 import django
@@ -38,6 +39,22 @@ from courses.projects import (  # noqa: E402
     assign_peer_reviews_for_project,
     score_project,
 )
+
+
+@dataclass(frozen=True)
+class UpcomingHomeworkFixture:
+    slug: str
+    title: str
+    due_delta: timedelta
+    state: str
+
+
+@dataclass(frozen=True)
+class UpcomingProjectFixture:
+    slug: str
+    title: str
+    submission_delta: timedelta
+    peer_review_delta: timedelta
 
 
 User = get_user_model()
@@ -109,8 +126,7 @@ def create_random_question(homework: Homework):
 def create_questions_for_homework(homework: Homework):
     num_questions = random.randint(3, 6)
 
-    question_numbers = range(num_questions)
-    for _question_number in question_numbers:
+    for _question_number in range(num_questions):
         create_random_question(homework)
 
 
@@ -155,8 +171,7 @@ def create_answers_for_student(submission):
         generate_answer(question, submission)
 
 
-homework_numbers = range(1, 6)
-for hw in homework_numbers:
+for hw in range(1, 6):
     print(f"Creating homework {hw}")
     homework, created = Homework.objects.get_or_create(
         course=course,
@@ -172,8 +187,7 @@ for hw in homework_numbers:
 
 
 # Create 20 users and their submissions
-student_numbers = range(1, 21)
-for u in student_numbers:
+for u in range(1, 21):
     username = f"student{u}"
     print(f"Creating student {username} and their submissions")
 
@@ -280,8 +294,7 @@ for p in projects_for_review:
                 == ReviewCriteriaTypes.CHECKBOXES.value
             ):
                 answers = []
-                option_indexes = range(len(options))
-                for i in option_indexes:
+                for i in range(len(options)):
                     if random.uniform(0, 1) < 0.3:
                         answer = str(i + 1)
                         answers.append(answer)
@@ -304,21 +317,41 @@ score_project(p1)
 
 # Create homeworks with varied upcoming deadlines to test "time left" display
 upcoming_hw_data = [
-    ("upcoming-hw-urgent", "Time-sensitive homework: Urgent", timedelta(hours=6), HomeworkState.OPEN.value),
-    ("upcoming-hw-soon", "Time-sensitive homework: Soon", timedelta(days=2, hours=12), HomeworkState.OPEN.value),
-    ("upcoming-hw-normal", "Time-sensitive homework: Normal", timedelta(days=7), HomeworkState.OPEN.value),
-    ("upcoming-hw-later", "Time-sensitive homework: Later", timedelta(days=14), HomeworkState.OPEN.value),
+    UpcomingHomeworkFixture(
+        slug="upcoming-hw-urgent",
+        title="Time-sensitive homework: Urgent",
+        due_delta=timedelta(hours=6),
+        state=HomeworkState.OPEN.value,
+    ),
+    UpcomingHomeworkFixture(
+        slug="upcoming-hw-soon",
+        title="Time-sensitive homework: Soon",
+        due_delta=timedelta(days=2, hours=12),
+        state=HomeworkState.OPEN.value,
+    ),
+    UpcomingHomeworkFixture(
+        slug="upcoming-hw-normal",
+        title="Time-sensitive homework: Normal",
+        due_delta=timedelta(days=7),
+        state=HomeworkState.OPEN.value,
+    ),
+    UpcomingHomeworkFixture(
+        slug="upcoming-hw-later",
+        title="Time-sensitive homework: Later",
+        due_delta=timedelta(days=14),
+        state=HomeworkState.OPEN.value,
+    ),
 ]
 
-for slug, title, delta, state in upcoming_hw_data:
+for fixture in upcoming_hw_data:
     hw, created = Homework.objects.get_or_create(
         course=course,
-        slug=slug,
+        slug=fixture.slug,
         defaults={
-            "title": title,
+            "title": fixture.title,
             "description": "Test homework to verify time-left display.",
-            "due_date": timezone.now() + delta,
-            "state": state,
+            "due_date": timezone.now() + fixture.due_delta,
+            "state": fixture.state,
         },
     )
     if created:
@@ -329,24 +362,34 @@ for slug, title, delta, state in upcoming_hw_data:
             answer_type=AnswerTypes.ANY.value,
             correct_answer="answer",
         )
-    print(f"Created homework: {title}")
+    print(f"Created homework: {fixture.title}")
 
 # Create projects with upcoming deadlines
 upcoming_proj_data = [
-    ("upcoming-proj-urgent", "Time-sensitive project: Urgent", timedelta(hours=2), timedelta(days=5)),
-    ("upcoming-proj-normal", "Time-sensitive project: Normal", timedelta(days=10), timedelta(days=17)),
+    UpcomingProjectFixture(
+        slug="upcoming-proj-urgent",
+        title="Time-sensitive project: Urgent",
+        submission_delta=timedelta(hours=2),
+        peer_review_delta=timedelta(days=5),
+    ),
+    UpcomingProjectFixture(
+        slug="upcoming-proj-normal",
+        title="Time-sensitive project: Normal",
+        submission_delta=timedelta(days=10),
+        peer_review_delta=timedelta(days=17),
+    ),
 ]
 
-for slug, title, sub_delta, pr_delta in upcoming_proj_data:
+for fixture in upcoming_proj_data:
     proj, _ = Project.objects.get_or_create(
         course=course,
-        slug=slug,
+        slug=fixture.slug,
         defaults={
-            "title": title,
+            "title": fixture.title,
             "description": "Test project to verify time-left display.",
-            "submission_due_date": timezone.now() + sub_delta,
-            "peer_review_due_date": timezone.now() + pr_delta,
+            "submission_due_date": timezone.now() + fixture.submission_delta,
+            "peer_review_due_date": timezone.now() + fixture.peer_review_delta,
             "state": ProjectState.COLLECTING_SUBMISSIONS.value,
         },
     )
-    print(f"Created project: {title}")
+    print(f"Created project: {fixture.title}")

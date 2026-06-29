@@ -225,8 +225,7 @@ COUNTRIES_BY_REGION = {
 
 def _build_country_region_map():
     country_region = {}
-    region_entries = COUNTRIES_BY_REGION.items()
-    for region, countries in region_entries:
+    for region, countries in COUNTRIES_BY_REGION.items():
         for country in countries:
             country_region[country] = region
     return country_region

@@ -92,8 +92,7 @@ def email_preference_values_from_response(
 
     by_tag = _response_categories_by_tag(response)
     values = {}
-    categories = EMAIL_PREFERENCE_CATEGORIES.items()
-    for field, category in categories:
+    for field, category in EMAIL_PREFERENCE_CATEGORIES.items():
         enabled = _enabled_preference_value(category, by_tag)
         if enabled is not None:
             values[field] = enabled
@@ -118,8 +117,7 @@ def _email_preference_payloads(
     values: dict[str, bool],
 ) -> list[dict[str, Any]]:
     payloads = []
-    value_items = values.items()
-    for field, enabled in value_items:
+    for field, enabled in values.items():
         payload = _email_preference_payload(field, enabled)
         if payload is not None:
             payloads.append(payload)

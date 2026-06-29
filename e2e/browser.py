@@ -38,8 +38,7 @@ def indexed_values(values, limit):
     pairs = []
     if not values:
         return pairs
-    indexed_items = enumerate(values)
-    for index, value in indexed_items:
+    for index, value in enumerate(values):
         if index >= limit:
             break
         pairs.append((index, value))
@@ -69,8 +68,7 @@ class AdminSession:
         plain ``locator.click()`` acts on the first match even if it is hidden.
         """
         candidates = self.page.locator(selector)
-        indexes = range(candidates.count())
-        for index in indexes:
+        for index in range(candidates.count()):
             candidate = candidates.nth(index)
             if candidate.is_visible():
                 candidate.click()
@@ -193,8 +191,7 @@ class AdminSession:
         ).filter(has_text="")
         import re
 
-        indexes = range(link.count())
-        for i in indexes:
+        for i in range(link.count()):
             href = link.nth(i).get_attribute("href") or ""
             m = re.search(r"/admin/accounts/customuser/(\d+)/change/", href)
             if m:
@@ -270,8 +267,7 @@ class AdminSession:
         # Each result row's first cell is an <a> to the change form. Find the
         # row whose visible text contains our slug/title and read its pk.
         rows = self.page.locator("#result_list tbody tr")
-        indexes = range(rows.count())
-        for i in indexes:
+        for i in range(rows.count()):
             row = rows.nth(i)
             try:
                 row_text = row.inner_text()
@@ -418,8 +414,7 @@ class AdminSession:
         time_spent_lectures: float | None,
         time_spent_homework: float | None,
     ) -> None:
-        answer_items = answers.items()
-        for question_id, value in answer_items:
+        for question_id, value in answers.items():
             self._fill_homework_answer(question_id, value)
 
         self._fill_optional_homework_field("[name='homework_url']", homework_url)

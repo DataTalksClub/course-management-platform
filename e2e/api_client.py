@@ -52,8 +52,7 @@ class CmpApiClient:
     ) -> requests.Response:
         url = self._url(path)
         last_exc: Exception | None = None
-        attempts = range(retries + 1)
-        for attempt in attempts:
+        for attempt in range(retries + 1):
             try:
                 resp = self._send_request(method, url, json_body)
             except requests.RequestException as exc:  # network blip

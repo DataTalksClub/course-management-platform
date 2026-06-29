@@ -66,8 +66,7 @@ class ProjectStatisticsTestCase(TestCase):
         # Create some test users and enrollments
         self.users = []
         self.enrollments = []
-        user_indexes = range(5)
-        for i in user_indexes:
+        for i in range(5):
             user = User.objects.create_user(
                 username=f"student{i}@test.com",
                 email=f"student{i}@test.com",
@@ -104,8 +103,7 @@ class ProjectStatisticsTestCase(TestCase):
     def create_bulk_submissions(self, submissions_data):
         """Bulk create submissions for better performance"""
         submissions = []
-        indexed_submission_data = enumerate(submissions_data)
-        for i, scores in indexed_submission_data:
+        for i, scores in enumerate(submissions_data):
             submission = ProjectSubmission(
                 project=self.project,
                 student=self.users[i],
@@ -118,8 +116,7 @@ class ProjectStatisticsTestCase(TestCase):
         return ProjectSubmission.objects.bulk_create(submissions)
 
     def create_model_method_submissions(self):
-        submission_indexes = range(3)
-        for i in submission_indexes:
+        for i in range(3):
             scores = {
                 "project_score": 10 + i,
                 "total_score": 20 + i,
@@ -202,8 +199,7 @@ class ProjectStatisticsTestCase(TestCase):
     def test_calculate_raw_project_statistics_insufficient_data(self):
         """Test statistics calculation with insufficient data (< 3 submissions)"""
         # Create only 2 submissions
-        submission_indexes = range(2)
-        for i in submission_indexes:
+        for i in range(2):
             self.create_project_submission(
                 self.users[i], self.enrollments[i]
             )
@@ -241,8 +237,7 @@ class ProjectStatisticsTestCase(TestCase):
             {"project_score": 9, "total_score": 16, "time_spent": 8.0},
         ]
 
-        indexed_submissions = enumerate(submissions_data)
-        for i, scores in indexed_submissions:
+        for i, scores in enumerate(submissions_data):
             self.create_project_submission(
                 self.users[i], self.enrollments[i], scores
             )
@@ -261,8 +256,7 @@ class ProjectStatisticsTestCase(TestCase):
     def test_calculate_project_statistics_model_creation(self):
         """Test that calculate_project_statistics creates a ProjectStatistics object"""
         # Create some submissions
-        submission_indexes = range(3)
-        for i in submission_indexes:
+        for i in range(3):
             scores = {
                 "project_score": 10 + i,
                 "total_score": 20 + i,
@@ -555,8 +549,7 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
     @classmethod
     def create_bulk_users(cls):
         users = []
-        user_indexes = range(10)
-        for i in user_indexes:
+        for i in range(10):
             user = User(
                 username=f"student{i}@test.com",
                 email=f"student{i}@test.com",
@@ -629,8 +622,7 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         ProjectSubmission.objects.filter(project=self.project).delete()
         submissions = []
         submission_data = self.workflow_submission_data()
-        indexed_submission_data = enumerate(submission_data)
-        for index, scores in indexed_submission_data:
+        for index, scores in enumerate(submission_data):
             submission = ProjectSubmission(
                 project=self.project,
                 student=self.users[index],

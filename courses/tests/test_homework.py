@@ -1,5 +1,6 @@
 import logging
 
+from dataclasses import dataclass
 from datetime import datetime
 from unittest import mock
 
@@ -32,6 +33,15 @@ logger = logging.getLogger(__name__)
 credentials = dict(
     username="test@test.com", email="test@test.com", password="12345"
 )
+
+
+@dataclass(frozen=True)
+class ScoredOptionExpectation:
+    index: int
+    value: str
+    is_selected: bool
+    is_correct: bool
+    selected_class: str
 
 
 class HomeworkDetailViewTests(TestCase):
@@ -163,35 +173,41 @@ class HomeworkDetailViewTests(TestCase):
             "index": index,
         }
 
-    def scored_option(
-        self, value, index, is_selected, is_correct, selected_class
-    ):
-        option = self.option(value, index, is_selected)
+    def scored_option(self, expectation):
+        option = self.option(
+            expectation.value,
+            expectation.index,
+            expectation.is_selected,
+        )
         option.update(
             {
-                "is_correct": is_correct,
-                "correctly_selected_class": selected_class,
+                "is_correct": expectation.is_correct,
+                "correctly_selected_class": expectation.selected_class,
             }
         )
         return option
 
     def unselected_options(self, values):
-        return [
-            self.option(value, index)
-            for index, value in enumerate(values, start=1)
-        ]
+        options = []
+        for index, value in enumerate(values, start=1):
+            option = self.option(value, index)
+            options.append(option)
+        return options
 
     def selected_options(self, values, selected_indexes):
-        return [
-            self.option(value, index, index in selected_indexes)
-            for index, value in enumerate(values, start=1)
-        ]
+        options = []
+        for index, value in enumerate(values, start=1):
+            is_selected = index in selected_indexes
+            option = self.option(value, index, is_selected)
+            options.append(option)
+        return options
 
     def scored_options(self, rows):
-        return [
-            self.scored_option(value, index, selected, correct, css_class)
-            for index, value, selected, correct, css_class in rows
-        ]
+        options = []
+        for row in rows:
+            option = self.scored_option(row)
+            options.append(option)
+        return options
 
     def create_enrollment(self):
         self.enrollment = Enrollment.objects.create(
@@ -542,9 +558,27 @@ class HomeworkDetailViewTests(TestCase):
             answer["options"],
             self.scored_options(
                 [
-                    (1, "Paris", False, True, "option-answer-correct"),
-                    (2, "London", False, False, "option-answer-none"),
-                    (3, "Berlin", True, False, "option-answer-incorrect"),
+                    ScoredOptionExpectation(
+                        index=1,
+                        value="Paris",
+                        is_selected=False,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
+                    ScoredOptionExpectation(
+                        index=2,
+                        value="London",
+                        is_selected=False,
+                        is_correct=False,
+                        selected_class="option-answer-none",
+                    ),
+                    ScoredOptionExpectation(
+                        index=3,
+                        value="Berlin",
+                        is_selected=True,
+                        is_correct=False,
+                        selected_class="option-answer-incorrect",
+                    ),
                 ]
             ),
         )
@@ -556,10 +590,34 @@ class HomeworkDetailViewTests(TestCase):
             answer["options"],
             self.scored_options(
                 [
-                    (1, "2", True, True, "option-answer-correct"),
-                    (2, "3", True, True, "option-answer-correct"),
-                    (3, "4", True, False, "option-answer-incorrect"),
-                    (4, "5", False, True, "option-answer-correct"),
+                    ScoredOptionExpectation(
+                        index=1,
+                        value="2",
+                        is_selected=True,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
+                    ScoredOptionExpectation(
+                        index=2,
+                        value="3",
+                        is_selected=True,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
+                    ScoredOptionExpectation(
+                        index=3,
+                        value="4",
+                        is_selected=True,
+                        is_correct=False,
+                        selected_class="option-answer-incorrect",
+                    ),
+                    ScoredOptionExpectation(
+                        index=4,
+                        value="5",
+                        is_selected=False,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
                 ]
             ),
         )
@@ -571,9 +629,27 @@ class HomeworkDetailViewTests(TestCase):
             answer["options"],
             self.scored_options(
                 [
-                    (1, "5", True, False, "option-answer-incorrect"),
-                    (2, "6", False, False, "option-answer-none"),
-                    (3, "7", False, True, "option-answer-correct"),
+                    ScoredOptionExpectation(
+                        index=1,
+                        value="5",
+                        is_selected=True,
+                        is_correct=False,
+                        selected_class="option-answer-incorrect",
+                    ),
+                    ScoredOptionExpectation(
+                        index=2,
+                        value="6",
+                        is_selected=False,
+                        is_correct=False,
+                        selected_class="option-answer-none",
+                    ),
+                    ScoredOptionExpectation(
+                        index=3,
+                        value="7",
+                        is_selected=False,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
                 ]
             ),
         )
@@ -585,10 +661,34 @@ class HomeworkDetailViewTests(TestCase):
             answer["options"],
             self.scored_options(
                 [
-                    (1, "Blue", True, True, "option-answer-correct"),
-                    (2, "White", True, True, "option-answer-correct"),
-                    (3, "Red", True, True, "option-answer-correct"),
-                    (4, "Green", False, False, "option-answer-none"),
+                    ScoredOptionExpectation(
+                        index=1,
+                        value="Blue",
+                        is_selected=True,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
+                    ScoredOptionExpectation(
+                        index=2,
+                        value="White",
+                        is_selected=True,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
+                    ScoredOptionExpectation(
+                        index=3,
+                        value="Red",
+                        is_selected=True,
+                        is_correct=True,
+                        selected_class="option-answer-correct",
+                    ),
+                    ScoredOptionExpectation(
+                        index=4,
+                        value="Green",
+                        is_selected=False,
+                        is_correct=False,
+                        selected_class="option-answer-none",
+                    ),
                 ]
             ),
         )

@@ -59,8 +59,7 @@ def get_passed_enrollments(passed_project_submissions, min_projects):
 
     passed_enrollments = []
 
-    passed_counts = counter_passed.items()
-    for eid, count in passed_counts:
+    for eid, count in counter_passed.items():
         if count >= min_projects:
             passed_enrollments.append(ids_mapping[eid])
 
@@ -146,8 +145,7 @@ def _validate_certificate_update_items(certificate_updates):
     valid_updates = []
     errors = []
 
-    indexed_updates = enumerate(certificate_updates)
-    for index, update in indexed_updates:
+    for index, update in enumerate(certificate_updates):
         valid_update, error = _validate_certificate_update_item(index, update)
         if error:
             errors.append(error)

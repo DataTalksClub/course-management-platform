@@ -324,8 +324,7 @@ def _course_patch_data_from_request(request):
 
 
 def _apply_course_patch_data(course, data):
-    patch_items = data.items()
-    for field, value in patch_items:
+    for field, value in data.items():
         setattr(course, field, value)
 
 

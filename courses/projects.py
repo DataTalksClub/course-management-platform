@@ -60,8 +60,7 @@ def select_random_assignment(
     )
 
     all_assignments = []
-    indexed_submissions = enumerate(submissions_list)
-    for reviewer_idx, reviewer_submission in indexed_submissions:
+    for reviewer_idx, reviewer_submission in enumerate(submissions_list):
         assignments = _select_reviewer_assignments(
             reviewer_idx,
             reviewer_submission,
@@ -91,8 +90,7 @@ def _review_slot_project_pools(
     num_projects_to_review: int,
 ) -> list[list[int]]:
     project_pools = []
-    review_slots = range(num_projects_to_review)
-    for _ in review_slots:
+    for _ in range(num_projects_to_review):
         project_pool = list(range(num_submissions))
         project_pools.append(project_pool)
     return project_pools
@@ -151,8 +149,7 @@ def _fallback_review_projects(
     num_submissions: int,
 ) -> list[int]:
     fallback_projects = []
-    projects = range(num_submissions)
-    for project in projects:
+    for project in range(num_submissions):
         if project not in selected:
             fallback_projects.append(project)
     return fallback_projects
@@ -510,8 +507,7 @@ def _score_project_submissions(
     all_scores = []
     passed = 0
 
-    submission_items = submissions.items()
-    for submission_id, submission in submission_items:
+    for submission_id, submission in submissions.items():
         reviews = reviews_by_submission[submission_id]
         reviewed = reviews_by_reviewer.get(submission_id) or []
 

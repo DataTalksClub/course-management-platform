@@ -491,8 +491,7 @@ class Command(BaseCommand):
         )
 
     def write_dry_run(self, batches, options):
-        batch_items = batches.items()
-        for list_key, payload in batch_items:
+        for list_key, payload in batches.items():
             self.stdout.write(
                 f"{list_key}: {len(payload['members'])} member(s)"
             )
@@ -528,8 +527,7 @@ class Command(BaseCommand):
         import_timeout,
         import_poll_interval,
     ):
-        batch_items = batches.items()
-        for list_key, payload in batch_items:
+        for list_key, payload in batches.items():
             if import_by_reference:
                 import_options = ImportJobOptions(
                     remove_absent=reconcile,

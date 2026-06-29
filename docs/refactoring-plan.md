@@ -16,8 +16,8 @@ testable service functions.
 - Use `uv run python manage.py test ...` for Django tests.
 - Do not mix UI redesign with backend refactoring unless a step specifically
   touches templates or form behavior.
-- Do not introduce list comprehensions during cleanup. Prefer explicit loops so
-  filtering, appending, and early exits stay easy to inspect.
+- Do not introduce list/dict/set comprehensions during cleanup. Prefer explicit
+  loops so filtering, appending, and early exits stay easy to inspect.
 - Do not add trivial pass-through functions. Extract helpers only when they
   name a real concept, isolate non-trivial branching, or make repeated behavior
   safer.
@@ -26,10 +26,18 @@ testable service functions.
 - Avoid compact `sum(...)`/`next(...)` generator expressions when they include
   filtering, branching, or non-trivial construction. Use an explicit loop with a
   named counter/result instead.
-- In general, avoid hiding work inside inline expressions during cleanup. Prefer
-  named intermediate variables for querysets, function-call results, records,
-  counters, and other non-trivial values before looping, appending, returning,
-  or passing them to another call.
+- Use direct `range(...)`, `zip(...)`, `enumerate(...)`, and `.items()` in `for`
+  loops when they are the clearest Python expression. Do not create one-off
+  aliases such as `indexes = range(...)` or `pairs = zip(...)` just to satisfy
+  a cleanup rule.
+- Tuple unpacking with one or two values is fine. When a loop unpacks three or
+  more positional values, prefer a named structure such as a dataclass, named
+  tuple, small object, or explicit dictionary keys so field meaning is visible
+  at the use site.
+- In general, avoid hiding non-trivial work inside inline expressions during
+  cleanup. Prefer named intermediate variables for constructed records,
+  counters, querysets with filtering/annotations, and other values whose purpose
+  is not obvious from the immediate expression.
 
 ## Current Findings
 

@@ -834,8 +834,7 @@ def _campaign_registration_filters(request):
 
 
 def _apply_campaign_registration_filters(registrations, filters):
-    filter_items = filters.items()
-    for field, value in filter_items:
+    for field, value in filters.items():
         if value:
             registrations = registrations.filter(**{field: value})
     return registrations

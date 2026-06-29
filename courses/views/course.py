@@ -2,6 +2,7 @@ import logging
 import statistics
 
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import timedelta, timezone as datetime_timezone
 from typing import List
 
@@ -44,6 +45,14 @@ logger = logging.getLogger(__name__)
 LEADERBOARD_PAGE_SIZE = 100
 PROJECT_SUBMISSIONS_PAGE_SIZE = 25
 
+
+@dataclass(frozen=True)
+class ProjectDeadlineEventSpec:
+    uid_suffix: str
+    event_type: str
+    deadline: object
+
+
 ASSIGNMENT_TYPE_ORDER = {
     "homework": 1,
     "project": 2,
@@ -77,8 +86,7 @@ def get_course_outcome(course: Course) -> str:
     if course.description:
         return course.description
 
-    course_outcomes = COURSE_OUTCOMES.items()
-    for slug_prefix, presentation in course_outcomes:
+    for slug_prefix, presentation in COURSE_OUTCOMES.items():
         if course.slug.startswith(slug_prefix):
             return presentation["outcome"]
 
@@ -737,17 +745,25 @@ def _project_deadline_calendar_events(
     course, project, url, dtstamp
 ) -> list[list[str]]:
     deadlines = (
-        ("submission", "submission", project.submission_due_date),
-        ("peer-review", "peer review", project.peer_review_due_date),
+        ProjectDeadlineEventSpec(
+            uid_suffix="submission",
+            event_type="submission",
+            deadline=project.submission_due_date,
+        ),
+        ProjectDeadlineEventSpec(
+            uid_suffix="peer-review",
+            event_type="peer review",
+            deadline=project.peer_review_due_date,
+        ),
     )
     events = []
-    for uid_suffix, event_type, deadline in deadlines:
+    for deadline in deadlines:
         event = _project_deadline_calendar_event(
             course=course,
             project=project,
-            uid_suffix=uid_suffix,
-            event_type=event_type,
-            deadline=deadline,
+            uid_suffix=deadline.uid_suffix,
+            event_type=deadline.event_type,
+            deadline=deadline.deadline,
             url=url,
             dtstamp=dtstamp,
         )
@@ -885,8 +901,7 @@ def _completed_project_submissions_prefetch():
 def _serialize_leaderboard_enrollment(enrollment):
     passed_projects = []
     completed_submissions = enrollment.completed_project_submissions
-    indexed_submissions = enumerate(completed_submissions, 1)
-    for index, submission in indexed_submissions:
+    for index, submission in enumerate(completed_submissions, 1):
         if not submission.passed:
             continue
         passed_project = {
@@ -978,8 +993,7 @@ def _current_student_page_number(
     ):
         return None
 
-    indexed_enrollments = enumerate(enrollments_data)
-    for index, enrollment in indexed_enrollments:
+    for index, enrollment in enumerate(enrollments_data):
         if enrollment["id"] == current_student_enrollment_id:
             return (index // LEADERBOARD_PAGE_SIZE) + 1
 
@@ -1533,8 +1547,7 @@ def _dashboard_homework_difficulty_stats(homework_stats):
             hw_stat["homework"].title,
         )
     )
-    ranked_homeworks = enumerate(difficulty_stats, start=1)
-    for rank, hw_stat in ranked_homeworks:
+    for rank, hw_stat in enumerate(difficulty_stats, start=1):
         hw_stat["difficulty_rank"] = rank
 
     return difficulty_stats

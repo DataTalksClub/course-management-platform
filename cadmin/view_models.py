@@ -177,8 +177,7 @@ def _filter_enrollments(enrollments, status_filter):
 
 def _status_filter_counts(items, count_predicates):
     counts = {"all": len(items)}
-    predicates = count_predicates.items()
-    for key, predicate in predicates:
+    for key, predicate in count_predicates.items():
         count = 0
         for item in items:
             if predicate(item):

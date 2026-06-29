@@ -834,8 +834,7 @@ def _option_votes_by_criteria(responses):
 
 def _score_option_vote_counts(score, option_votes):
     vote_counts = []
-    indexed_options = enumerate(score.review_criteria.options)
-    for index, option in indexed_options:
+    for index, option in enumerate(score.review_criteria.options):
         option_vote_count = option.copy()
         option_vote_count["votes"] = option_votes[index]
         vote_counts.append(option_vote_count)
@@ -931,8 +930,7 @@ def criteria_response_answer_indexes(response):
 
 
 def annotate_criteria_options(criteria, selected_indexes):
-    indexed_options = enumerate(criteria.options, start=1)
-    for index, option in indexed_options:
+    for index, option in enumerate(criteria.options, start=1):
         option["index"] = index
         option["is_selected"] = index in selected_indexes
 
@@ -1411,8 +1409,7 @@ def _decorate_project_submissions(
         and project.state == ProjectState.PEER_REVIEWING.value
     )
 
-    ordered_submissions = enumerate(submissions_list)
-    for order, submission in ordered_submissions:
+    for order, submission in enumerate(submissions_list):
         submission.list_order = order
         _decorate_submission_review_state(submission, review_ids)
         _decorate_submission_viewer_state(

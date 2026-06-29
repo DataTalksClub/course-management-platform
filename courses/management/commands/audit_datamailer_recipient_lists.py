@@ -102,8 +102,7 @@ class Command(BaseCommand):
         options,
     ):
         drift_count = 0
-        batch_items = batches.items()
-        for list_key, payload in batch_items:
+        for list_key, payload in batches.items():
             drift = self._audit_list(
                 client,
                 config,

@@ -1267,8 +1267,7 @@ def recipient_list_send_payload(
         "remove_absent_members",
     }
     send_payload = {}
-    payload_items = payload.items()
-    for key, value in payload_items:
+    for key, value in payload.items():
         if key not in excluded_keys:
             send_payload[key] = value
     return send_payload

@@ -154,8 +154,7 @@ def _question_invalid_field_response(field):
 
 
 def _apply_question_patch(question, data):
-    patch_items = data.items()
-    for field, value in patch_items:
+    for field, value in data.items():
         if field not in QUESTION_PATCH_FIELDS:
             return _question_invalid_field_response(field)
 

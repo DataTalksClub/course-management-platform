@@ -77,8 +77,7 @@ def apply_patch_fields(
     parses ``date_fields``. Returns an error response on the first invalid
     field, else None (mutating ``instance`` in place).
     """
-    data_items = data.items()
-    for field, value in data_items:
+    for field, value in data.items():
         error = validate_patch_field(
             field,
             value,

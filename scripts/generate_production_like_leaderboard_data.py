@@ -73,8 +73,7 @@ def configure_sqlite_busy_timeout():
 
 
 def run_with_lock_retries(action, attempts=3):
-    attempt_numbers = range(1, attempts + 1)
-    for attempt in attempt_numbers:
+    for attempt in range(1, attempts + 1):
         try:
             return action()
         except OperationalError as exc:
@@ -464,8 +463,7 @@ def ensure_course(spec):
 
 def ensure_homeworks(course, spec):
     homeworks = []
-    homework_specs = enumerate(spec["homeworks"], start=1)
-    for index, (title, due_date) in homework_specs:
+    for index, (title, due_date) in enumerate(spec["homeworks"], start=1):
         homework, _ = Homework.objects.update_or_create(
             course=course,
             slug=stable_slug("homework", title, index),
@@ -483,8 +481,7 @@ def ensure_homeworks(course, spec):
 
 def ensure_projects(course, spec):
     projects = []
-    project_specs = enumerate(spec["projects"], start=1)
-    for index, (title, due_date) in project_specs:
+    for index, (title, due_date) in enumerate(spec["projects"], start=1):
         project, _ = Project.objects.update_or_create(
             course=course,
             slug=stable_slug("project", title, index),
@@ -524,8 +521,7 @@ def create_generated_enrollments(course, spec, count, username_prefix):
     created_users = 0
     created_enrollments = 0
 
-    student_indexes = range(1, count + 1)
-    for student_index in student_indexes:
+    for student_index in range(1, count + 1):
         username = f"{username_prefix}{student_index:04d}"
         user, user_created = User.objects.get_or_create(
             username=username,
@@ -687,10 +683,8 @@ def build_project_submission(course, enrollment, student_index, project_index, p
 def build_generated_submissions(course, enrollments, homeworks, projects, count):
     homework_submissions = []
     project_submissions = []
-    student_enrollments = enumerate(enrollments, start=1)
-    for student_index, enrollment in student_enrollments:
-        indexed_homeworks = enumerate(homeworks, start=1)
-        for homework_index, homework in indexed_homeworks:
+    for student_index, enrollment in enumerate(enrollments, start=1):
+        for homework_index, homework in enumerate(homeworks, start=1):
             homework_submission = build_homework_submission(
                 course,
                 enrollment,
@@ -700,8 +694,7 @@ def build_generated_submissions(course, enrollments, homeworks, projects, count)
                 count,
             )
             homework_submissions.append(homework_submission)
-        indexed_projects = enumerate(projects, start=1)
-        for project_index, project in indexed_projects:
+        for project_index, project in enumerate(projects, start=1):
             project_submission = build_project_submission(
                 course,
                 enrollment,

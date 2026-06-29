@@ -31,8 +31,7 @@ def contact_payloads(*, active_only=False):
 
 
 def batches(items, batch_size):
-    indexes = range(0, len(items), batch_size)
-    for index in indexes:
+    for index in range(0, len(items), batch_size):
         yield items[index : index + batch_size]
 
 
@@ -103,14 +102,12 @@ class Command(BaseCommand):
         )
 
     def write_dry_run(self, contact_batches):
-        indexed_batches = enumerate(contact_batches, start=1)
-        for index, batch in indexed_batches:
+        for index, batch in enumerate(contact_batches, start=1):
             self.stdout.write(f"batch {index}: {len(batch)} contact(s)")
 
     def sync_contact_batches(self, config, contact_batches):
         client = DatamailerClient(config)
-        indexed_batches = enumerate(contact_batches, start=1)
-        for index, batch in indexed_batches:
+        for index, batch in enumerate(contact_batches, start=1):
             response = self.sync_contact_batch(config, client, index, batch)
             self.write_sync_result(index, batch, response)
 

@@ -190,8 +190,7 @@ def _sample_url_value(name, converter, index):
 def _reverse_kwargs(pattern):
     kwargs = {}
     converters = pattern.pattern.converters.items()
-    indexed_converters = enumerate(converters, start=1)
-    for index, converter_item in indexed_converters:
+    for index, converter_item in enumerate(converters, start=1):
         name, converter = converter_item
         kwargs[name] = _sample_url_value(name, converter, index)
     return kwargs
@@ -210,8 +209,7 @@ def openapi_path_for_url_name(url_name):
     kwargs = _reverse_kwargs(pattern)
     path = reverse(url_name, kwargs=kwargs)
 
-    kwarg_items = kwargs.items()
-    for name, value in kwarg_items:
+    for name, value in kwargs.items():
         path = path.replace(str(value), f"{{{name}}}", 1)
 
     return path
@@ -238,8 +236,7 @@ def parameter_schema_for_converter(converter):
 def path_parameters_for_url_name(url_name):
     pattern = pattern_for_url_name(url_name)
     parameters = []
-    converters = pattern.pattern.converters.items()
-    for name, converter in converters:
+    for name, converter in pattern.pattern.converters.items():
         parameter = {
             "name": name,
             "in": "path",
@@ -313,12 +310,10 @@ def route_coverage(paths):
 
 def build_openapi_paths():
     paths = {}
-    path_items = PATHS_BY_URL_NAME.items()
-    for url_name, methods in path_items:
+    for url_name, methods in PATHS_BY_URL_NAME.items():
         openapi_path = openapi_path_for_url_name(url_name)
         method_operations = {}
-        method_items = methods.items()
-        for method, operation in method_items:
+        for method, operation in methods.items():
             inspected_operation = apply_inspected_operation_metadata(
                 url_name,
                 operation,

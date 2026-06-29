@@ -215,8 +215,7 @@ def process_submissions(submissions, reviews_by_submission, reviews_by_reviewer)
     warnings = []
 
     submission_items = submissions.items()
-    indexed_submissions = enumerate(submission_items)
-    for i, (submission_id, submission) in indexed_submissions:
+    for i, (submission_id, submission) in enumerate(submission_items):
         try:
             process_submission(
                 submission_id,

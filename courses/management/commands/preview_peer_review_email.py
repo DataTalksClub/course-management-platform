@@ -140,8 +140,7 @@ def submission_preview_lines(submission):
     ]
     links = _assigned_review_links(submission)
     lines.append(f"    you were assigned {len(links)} projects to review:")
-    indexed_links = enumerate(links, start=1)
-    for i, link in indexed_links:
+    for i, link in enumerate(links, start=1):
         lines.append(f"      {i}. {link['eval_url']}")
         if link["submission_github_link"]:
             lines.append(f"         (project: {link['submission_github_link']})")

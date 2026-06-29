@@ -301,8 +301,7 @@ def valid_model_kwargs(model, values):
         attnames.add(field.attname)
     valid_names = field_names | attnames
     valid_values = {}
-    value_items = values.items()
-    for name, value in value_items:
+    for name, value in values.items():
         if name in valid_names:
             valid_values[name] = value
     return valid_values
@@ -387,8 +386,7 @@ def bulk_create_mapped(model, pending, target_map):
     for _old_id, obj in pending:
         objects.append(obj)
     created = model.objects.bulk_create(objects)
-    created_items = zip(pending, created)
-    for (old_id, _), created_obj in created_items:
+    for (old_id, _), created_obj in zip(pending, created):
         target_map[old_id] = created_obj.id
     return []
 

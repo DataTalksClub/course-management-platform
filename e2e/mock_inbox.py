@@ -143,8 +143,7 @@ class InboxBackend:
         self._require_configured()
         kwargs.setdefault("headers", self._headers())
         kwargs.setdefault("timeout", self.timeout)
-        attempts = range(1, self.max_retries + 1)
-        for attempt in attempts:
+        for attempt in range(1, self.max_retries + 1):
             try:
                 resp = self._session.request(method, url, **kwargs)
             except requests.RequestException as exc:

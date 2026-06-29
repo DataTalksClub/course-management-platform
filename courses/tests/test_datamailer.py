@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import timedelta
 import json
 from unittest.mock import Mock, patch
@@ -85,6 +86,14 @@ DATAMAILER_SETTINGS = {
     "DATAMAILER_CLIENT": "dtc-courses",
     "DATAMAILER_AUDIENCE": "dtc-courses",
 }
+
+
+@dataclass(frozen=True)
+class CampaignActionCase:
+    method_name: str
+    extra_args: tuple
+    path: str
+    expected_json: dict
 
 
 class DatamailerClientTest(TestCase):
@@ -1268,8 +1277,7 @@ class DatamailerClientTest(TestCase):
             peer_review_due_date="2026-07-02T22:00:00Z",
         )
         submissions = []
-        submission_indexes = range(4)
-        for i in submission_indexes:
+        for i in range(4):
             user = self.create_user(f"learner-{i}@example.com")
             if i == 0:
                 user.preferred_timezone = "Europe/Berlin"
@@ -1816,41 +1824,50 @@ class DatamailerClientTest(TestCase):
 
     def test_campaign_action_methods_use_expected_endpoints_and_scope(self):
         cases = self.campaign_action_cases()
-        for method_name, extra_args, path, expected_json in cases:
-            with self.subTest(method_name=method_name):
+        for case in cases:
+            with self.subTest(method_name=case.method_name):
                 self.assert_datamailer_method_case(
-                    method_name,
-                    ("course-start-2026", *extra_args),
+                    case.method_name,
+                    ("course-start-2026", *case.extra_args),
                     "POST",
-                    path,
-                    json_payload=expected_json,
+                    case.path,
+                    json_payload=case.expected_json,
                 )
 
     def campaign_action_cases(self):
         return [
-            (
-                "queue_campaign",
-                (),
-                "/api/campaigns/course-start-2026/queue",
-                {"audience": "dtc-courses", "client": "dtc-courses"},
+            CampaignActionCase(
+                method_name="queue_campaign",
+                extra_args=(),
+                path="/api/campaigns/course-start-2026/queue",
+                expected_json={
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                },
             ),
-            (
-                "cancel_campaign",
-                (),
-                "/api/campaigns/course-start-2026/cancel",
-                {"audience": "dtc-courses", "client": "dtc-courses"},
+            CampaignActionCase(
+                method_name="cancel_campaign",
+                extra_args=(),
+                path="/api/campaigns/course-start-2026/cancel",
+                expected_json={
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                },
             ),
-            (
-                "preview_campaign",
-                (),
-                "/api/campaigns/course-start-2026/preview",
-                {"audience": "dtc-courses", "client": "dtc-courses"},
+            CampaignActionCase(
+                method_name="preview_campaign",
+                extra_args=(),
+                path="/api/campaigns/course-start-2026/preview",
+                expected_json={
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                },
             ),
-            (
-                "test_send_campaign",
-                (["test@example.com"],),
-                "/api/campaigns/course-start-2026/test-send",
-                {
+            CampaignActionCase(
+                method_name="test_send_campaign",
+                extra_args=(["test@example.com"],),
+                path="/api/campaigns/course-start-2026/test-send",
+                expected_json={
                     "audience": "dtc-courses",
                     "client": "dtc-courses",
                     "emails": ["test@example.com"],

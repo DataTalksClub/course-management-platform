@@ -184,8 +184,7 @@ def _campaign_patch_response(request, campaign):
     if err:
         return err
 
-    data_items = data.items()
-    for field, value in data_items:
+    for field, value in data.items():
         setattr(campaign, field, value)
 
     err = _save_campaign(campaign)

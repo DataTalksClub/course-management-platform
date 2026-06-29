@@ -116,8 +116,7 @@ def process_question_options_multiple_choice_or_checkboxes(
     )
 
     options = []
-    indexed_possible_answers = enumerate(possible_answers, start=1)
-    for index, option in indexed_possible_answers:
+    for index, option in enumerate(possible_answers, start=1):
         processed_option = process_choice_option(
             homework,
             option,
