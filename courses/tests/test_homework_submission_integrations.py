@@ -21,23 +21,40 @@ from courses.views.homework import find_duplicate_learning_in_public_links
 
 class HomeworkSubmissionIntegrationTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = self.create_student()
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.enable_homework_comments()
+        self.homework = self.create_homework()
+        self.create_questions()
+        self.client.force_login(self.user)
+
+    def create_student(self):
+        return User.objects.create_user(
             username="student",
             email="student@example.com",
             password="password",
         )
-        self.course = Course.objects.create(
+
+    def create_course(self):
+        return Course.objects.create(
             slug="course",
             title="Course",
             description="Course description",
         )
-        self.enrollment = Enrollment.objects.create(
+
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.user,
             course=self.course,
         )
+
+    def enable_homework_comments(self):
         self.course.homework_problems_comments_field = True
         self.course.save()
-        self.homework = Homework.objects.create(
+
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             slug="hw1",
             title="Homework 1",
@@ -48,6 +65,8 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             faq_contribution_field=True,
             learning_in_public_cap=2,
         )
+
+    def create_questions(self):
         self.multiple_choice_question = Question.objects.create(
             homework=self.homework,
             text="Pick one option",
@@ -65,7 +84,6 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             question_type=QuestionTypes.CHECKBOXES.value,
             possible_answers="Alpha\nBeta\nGamma",
         )
-        self.client.force_login(self.user)
 
     def homework_url(self):
         return reverse(
