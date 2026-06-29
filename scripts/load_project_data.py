@@ -93,7 +93,9 @@ def append_import_record(data: ProjectImportData, record: dict) -> None:
     if record_type in SINGULAR_IMPORT_FIELDS:
         setattr(data, SINGULAR_IMPORT_FIELDS[record_type], record_value(record))
     elif record_type in LIST_IMPORT_FIELDS:
-        getattr(data, LIST_IMPORT_FIELDS[record_type]).append(record_value(record))
+        records = getattr(data, LIST_IMPORT_FIELDS[record_type])
+        value = record_value(record)
+        records.append(value)
 
 
 def record_value(record):
@@ -104,7 +106,10 @@ def record_value(record):
 
 def count_lines(input_file):
     with open(input_file, 'r', encoding='utf-8') as f:
-        return sum(1 for _ in f)
+        line_count = 0
+        for _line in f:
+            line_count += 1
+        return line_count
 
 
 def read_project_import_data(input_file):
@@ -114,7 +119,8 @@ def read_project_import_data(input_file):
     total_lines = count_lines(input_file)
 
     with open(input_file, 'r', encoding='utf-8') as f:
-        for line in tqdm(f, total=total_lines, desc="Reading data", unit="records"):
+        lines = tqdm(f, total=total_lines, desc="Reading data", unit="records")
+        for line in lines:
             append_import_record(data, json.loads(line))
 
     return data
@@ -217,7 +223,11 @@ def existing_users_by_username(users_data):
     usernames = []
     for user_data in users_data:
         usernames.append(user_data["username"])
-    return {u.username: u for u in User.objects.filter(username__in=usernames)}
+    users = User.objects.filter(username__in=usernames)
+    users_by_username = {}
+    for user in users:
+        users_by_username[user.username] = user
+    return users_by_username
 
 
 def build_user(user_data):
@@ -231,7 +241,8 @@ def build_user(user_data):
 
 def pending_user_imports(users_data, existing_users, maps: ImportMaps):
     users_to_create = []
-    for user_data in tqdm(users_data, desc="Processing users", unit="users"):
+    user_records = tqdm(users_data, desc="Processing users", unit="users")
+    for user_data in user_records:
         old_id = user_data["id"]
         username = user_data["username"]
         if username in existing_users:
@@ -281,23 +292,32 @@ def build_enrollment(enroll_data, course, student_id):
 
 
 def valid_model_kwargs(model, values):
-    field_names = {field.name for field in model._meta.fields}
-    attnames = {field.attname for field in model._meta.fields}
+    field_names = set()
+    model_fields = model._meta.fields
+    for field in model_fields:
+        field_names.add(field.name)
+    attnames = set()
+    for field in model_fields:
+        attnames.add(field.attname)
     valid_names = field_names | attnames
-    return {
-        name: value
-        for name, value in values.items()
-        if name in valid_names
-    }
+    valid_values = {}
+    value_items = values.items()
+    for name, value in value_items:
+        if name in valid_names:
+            valid_values[name] = value
+    return valid_values
 
 
 def existing_enrollments_by_student(course, maps: ImportMaps):
-    return {
-        e.student_id: e for e in Enrollment.objects.filter(
-            course=course,
-            student_id__in=list(maps.user_id_map.values()),
-        )
-    }
+    user_ids = list(maps.user_id_map.values())
+    enrollments = Enrollment.objects.filter(
+        course=course,
+        student_id__in=user_ids,
+    )
+    enrollments_by_student = {}
+    for enrollment in enrollments:
+        enrollments_by_student[enrollment.student_id] = enrollment
+    return enrollments_by_student
 
 
 def pending_enrollment_imports(
@@ -307,9 +327,12 @@ def pending_enrollment_imports(
     maps: ImportMaps,
 ):
     enrollments_to_create = []
-    for enroll_data in tqdm(
-        enrollments_data, desc="Processing enrollments", unit="enrollments"
-    ):
+    enrollment_records = tqdm(
+        enrollments_data,
+        desc="Processing enrollments",
+        unit="enrollments",
+    )
+    for enroll_data in enrollment_records:
         old_id = enroll_data["id"]
         new_student_id = maps.user_id_map[enroll_data["student_id"]]
         if new_student_id in existing_enrollments:
@@ -364,7 +387,8 @@ def bulk_create_mapped(model, pending, target_map):
     for _old_id, obj in pending:
         objects.append(obj)
     created = model.objects.bulk_create(objects)
-    for (old_id, _), created_obj in zip(pending, created):
+    created_items = zip(pending, created)
+    for (old_id, _), created_obj in created_items:
         target_map[old_id] = created_obj.id
     return []
 
@@ -405,9 +429,12 @@ def create_project_submissions(submissions_data, project, maps: ImportMaps) -> N
     pending = []
     batch_size = 100
 
-    for sub_data in tqdm(
-        submissions_data, desc="Creating submissions", unit="submissions"
-    ):
+    submission_records = tqdm(
+        submissions_data,
+        desc="Creating submissions",
+        unit="submissions",
+    )
+    for sub_data in submission_records:
         submission = build_project_submission(sub_data, project, maps)
         pending.append((sub_data["id"], submission))
         if len(pending) >= batch_size:
@@ -440,10 +467,14 @@ def create_peer_reviews(peer_reviews_data, maps: ImportMaps) -> None:
     pending = []
     batch_size = 100
 
-    for review_data in tqdm(
-        peer_reviews_data, desc="Creating peer reviews", unit="reviews"
-    ):
-        pending.append((review_data["id"], build_peer_review(review_data, maps)))
+    peer_review_records = tqdm(
+        peer_reviews_data,
+        desc="Creating peer reviews",
+        unit="reviews",
+    )
+    for review_data in peer_review_records:
+        peer_review = build_peer_review(review_data, maps)
+        pending.append((review_data["id"], peer_review))
         if len(pending) >= batch_size:
             pending = flush_mapped_batch(PeerReview, pending, maps.review_id_map)
 
@@ -472,12 +503,15 @@ def build_criteria_response(response_data, maps: ImportMaps):
 
 def create_criteria_responses(responses_data, maps: ImportMaps) -> None:
     print(f"Creating {len(responses_data)} criteria responses...")
-    records = (
-        build_criteria_response(response_data, maps)
-        for response_data in tqdm(
-            responses_data, desc="Creating responses", unit="responses"
-        )
+    records = []
+    response_records = tqdm(
+        responses_data,
+        desc="Creating responses",
+        unit="responses",
     )
+    for response_data in response_records:
+        record = build_criteria_response(response_data, maps)
+        records.append(record)
     bulk_create_in_batches(CriteriaResponse, records)
     print("✓ Criteria responses created")
 
@@ -492,10 +526,15 @@ def build_evaluation_score(score_data, maps: ImportMaps):
 
 def create_evaluation_scores(scores_data, maps: ImportMaps) -> None:
     print(f"Creating {len(scores_data)} evaluation scores...")
-    records = (
-        build_evaluation_score(score_data, maps)
-        for score_data in tqdm(scores_data, desc="Creating scores", unit="scores")
+    records = []
+    score_records = tqdm(
+        scores_data,
+        desc="Creating scores",
+        unit="scores",
     )
+    for score_data in score_records:
+        record = build_evaluation_score(score_data, maps)
+        records.append(record)
     bulk_create_in_batches(ProjectEvaluationScore, records)
     print("✓ Evaluation scores created")
 
