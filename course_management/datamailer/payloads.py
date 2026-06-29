@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from django.urls import reverse
@@ -19,6 +20,15 @@ from .keys import (
     registration_list_key,
 )
 from .preferences import EMAIL_PREFERENCE_CATEGORIES
+
+
+@dataclass(frozen=True)
+class RecipientListMemberPayloadData:
+    list_type: str
+    list_name: str
+    email: str
+    source_object_key: str
+    metadata: dict[str, Any]
 
 
 def contact_base_custom_fields(user) -> dict[str, str]:
@@ -239,14 +249,7 @@ def registration_contact_payload(registration) -> dict[str, Any] | None:
     }
 
 
-def recipient_list_member_payload(
-    *,
-    list_type: str,
-    list_name: str,
-    email: str,
-    source_object_key: str,
-    metadata: dict[str, Any],
-) -> dict[str, Any] | None:
+def recipient_list_member_payload(data) -> dict[str, Any] | None:
     config = DatamailerConfig.from_settings()
     if config is None:
         return None
@@ -255,15 +258,15 @@ def recipient_list_member_payload(
         "audience": config.audience,
         "client": config.client,
         "list": {
-            "type": list_type,
-            "name": list_name,
-            "metadata": metadata,
+            "type": data.list_type,
+            "name": data.list_name,
+            "metadata": data.metadata,
         },
         "member": {
-            "email": email.strip().lower(),
+            "email": data.email.strip().lower(),
             "status": "active",
-            "metadata": metadata
-            | {"source_object_key": source_object_key},
+            "metadata": data.metadata
+            | {"source_object_key": data.source_object_key},
         },
     }
 
@@ -287,13 +290,14 @@ def registration_recipient_list_payload(
 
     list_key = registration_list_key(registration)
     source_object_key = f"registration:{registration.pk}"
-    payload = recipient_list_member_payload(
+    payload_data = RecipientListMemberPayloadData(
         list_type="registrants",
         list_name=registration_recipient_list_name(registration),
         email=email,
         source_object_key=source_object_key,
         metadata=registration_recipient_metadata(registration),
     )
+    payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
     return list_key, source_object_key, payload
@@ -337,13 +341,14 @@ def enrollment_recipient_list_payload(
         "course_slug": course.slug,
         "display_name": enrollment.display_name,
     }
-    payload = recipient_list_member_payload(
+    payload_data = RecipientListMemberPayloadData(
         list_type="custom",
         list_name=f"{course.title} enrolled learners",
         email=email,
         source_object_key=source_object_key,
         metadata=metadata,
     )
+    payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
     return list_key, source_object_key, payload
@@ -359,13 +364,14 @@ def homework_submission_recipient_list_payload(
     course = homework.course
     list_key = homework_submitters_list_key(homework)
     source_object_key = f"homework-submission:{submission.pk}"
-    payload = recipient_list_member_payload(
+    payload_data = RecipientListMemberPayloadData(
         list_type="homework_submitters",
         list_name=f"{course.title} {homework.title} submitters",
         email=email,
         source_object_key=source_object_key,
         metadata=homework_submission_metadata(submission),
     )
+    payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
     return list_key, source_object_key, payload
@@ -479,13 +485,14 @@ def project_submission_recipient_list_payload(
     course = project.course
     list_key = project_submitters_list_key(project)
     source_object_key = f"project-submission:{submission.pk}"
-    payload = recipient_list_member_payload(
+    payload_data = RecipientListMemberPayloadData(
         list_type="project_submitters",
         list_name=f"{course.title} {project.title} submitters",
         email=email,
         source_object_key=source_object_key,
         metadata=project_submission_metadata(submission),
     )
+    payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
     return list_key, source_object_key, payload
@@ -979,13 +986,14 @@ def peer_review_assignment_recipient_list_payload(
     course = project.course
     list_key = project_submitters_list_key(project)
     source_object_key = f"project-submission:{submission.pk}"
-    payload = recipient_list_member_payload(
+    payload_data = RecipientListMemberPayloadData(
         list_type="project_submitters",
         list_name=f"{course.title} {project.title} submitters",
         email=email,
         source_object_key=source_object_key,
         metadata=peer_review_assignment_metadata(submission),
     )
+    payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
     return list_key, source_object_key, payload
@@ -1309,13 +1317,14 @@ def _course_graduate_member_data(enrollment):
         return None
 
     source_object_key = _course_graduate_source_object_key(enrollment)
-    member_payload = recipient_list_member_payload(
+    payload_data = RecipientListMemberPayloadData(
         list_type="custom",
         list_name=f"{enrollment.course.title} graduates",
         email=email,
         source_object_key=source_object_key,
         metadata=_course_graduate_metadata(enrollment, certificate_url),
     )
+    member_payload = recipient_list_member_payload(payload_data)
     if member_payload is None:
         return None
     return source_object_key, member_payload
