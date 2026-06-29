@@ -14,6 +14,8 @@ import sys
 import argparse
 import traceback
 
+from dataclasses import dataclass
+
 # Add parent directory to path so Django can find course_management module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -30,6 +32,16 @@ from courses.models import (
     CriteriaResponse,
     ReviewCriteria,
 )
+
+
+@dataclass(frozen=True)
+class SubmissionDebugData:
+    submission_id: int
+    submission: object
+    reviews_by_submission: dict
+    reviews_by_reviewer: dict
+    errors: list[str]
+    warnings: list[str]
 
 
 def print_debug_header(course_slug, project_slug):
@@ -195,18 +207,18 @@ def check_review_responses(review, errors, warnings):
 
 
 def process_submission(
-    submission_id,
-    submission,
-    reviews_by_submission,
-    reviews_by_reviewer,
-    errors,
-    warnings,
+    data: SubmissionDebugData,
 ):
-    reviews = reviews_by_submission.get(submission_id, [])
-    check_bug_lookup(submission_id, submission, reviews_by_reviewer, warnings)
+    reviews = data.reviews_by_submission.get(data.submission_id, [])
+    check_bug_lookup(
+        data.submission_id,
+        data.submission,
+        data.reviews_by_reviewer,
+        data.warnings,
+    )
 
     for review in reviews:
-        check_review_responses(review, errors, warnings)
+        check_review_responses(review, data.errors, data.warnings)
 
 
 def process_submissions(submissions, reviews_by_submission, reviews_by_reviewer):
@@ -217,14 +229,15 @@ def process_submissions(submissions, reviews_by_submission, reviews_by_reviewer)
     submission_items = submissions.items()
     for i, (submission_id, submission) in enumerate(submission_items):
         try:
-            process_submission(
-                submission_id,
-                submission,
-                reviews_by_submission,
-                reviews_by_reviewer,
-                errors,
-                warnings,
+            submission_data = SubmissionDebugData(
+                submission_id=submission_id,
+                submission=submission,
+                reviews_by_submission=reviews_by_submission,
+                reviews_by_reviewer=reviews_by_reviewer,
+                errors=errors,
+                warnings=warnings,
             )
+            process_submission(submission_data)
             # Progress indicator
             if (i + 1) % 50 == 0:
                 print(f"  Processed {i + 1}/{len(submissions)} submissions...")
