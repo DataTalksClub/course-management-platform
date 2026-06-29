@@ -29,59 +29,61 @@ credentials = dict(
 
 
 class CourseDetailViewTests(TestCase):
-    def setUp(self):
-        # Clear cache before each test to ensure fresh state
-        cache.clear()
-
-        self.client = Client()
-
-        self.user = User.objects.create_user(**credentials)
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             title="Test Course", slug="test-course-2"
         )
-        self.enrollment = Enrollment.objects.create(
-            student=self.user, course=self.course
-        )
 
-        # Create homeworks
-        self.homework1 = Homework.objects.create(
-            slug="scored-homework",
+    def create_enrollment(self, user=None):
+        return Enrollment.objects.create(
+            student=user or self.user,
             course=self.course,
-            title="Scored Homework",
-            description="This homework is already scored.",
-            due_date=timezone.now() - timezone.timedelta(days=1),
-            state=HomeworkState.SCORED.value,
         )
 
-        self.homework2 = Homework.objects.create(
-            slug="submitted-homework",
+    def create_homework(self, slug, title, description, days_due, state):
+        return Homework.objects.create(
+            slug=slug,
             course=self.course,
-            title="Submitted Homework",
-            description="Homework with submitted answers.",
-            due_date=timezone.now() + timezone.timedelta(days=7),
-            state=HomeworkState.OPEN.value,
+            title=title,
+            description=description,
+            due_date=timezone.now() + timezone.timedelta(days=days_due),
+            state=state,
         )
 
-        self.homework3 = Homework.objects.create(
-            slug="unscored-homework",
-            course=self.course,
-            title="Homework Without Submissions",
-            description="Homework without any submissions yet.",
-            due_date=timezone.now() + timezone.timedelta(days=14),
-            state=HomeworkState.OPEN.value,
+    def create_homeworks(self):
+        self.homework1 = self.create_homework(
+            "scored-homework",
+            "Scored Homework",
+            "This homework is already scored.",
+            -1,
+            HomeworkState.SCORED.value,
         )
-
+        self.homework2 = self.create_homework(
+            "submitted-homework",
+            "Submitted Homework",
+            "Homework with submitted answers.",
+            7,
+            HomeworkState.OPEN.value,
+        )
+        self.homework3 = self.create_homework(
+            "unscored-homework",
+            "Homework Without Submissions",
+            "Homework without any submissions yet.",
+            14,
+            HomeworkState.OPEN.value,
+        )
         self.homeworks = [
             self.homework1,
             self.homework2,
             self.homework3,
         ]
 
-        for hw in self.homeworks:
+    def create_questions_for_homeworks(self):
+        for homework in self.homeworks:
             for i in range(1, 4):
                 Question.objects.create(
-                    homework=hw,
-                    text=f"Question {i} of {hw.title}",
+                    homework=homework,
+                    text=f"Question {i} of {homework.title}",
                     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
                     possible_answers=join_possible_answers(
                         ["A", "B", "C", "D"]
@@ -89,45 +91,47 @@ class CourseDetailViewTests(TestCase):
                     correct_answer="1",
                 )
 
-        # Create submissions for the first two homeworks
+    def create_homework_submissions(self):
         self.submission1 = Submission.objects.create(
             homework=self.homework1,
             enrollment=self.enrollment,
             student=self.user,
-            total_score=80,  # Assuming this is a scored submission
+            total_score=80,
         )
-
         self.submission2 = Submission.objects.create(
             homework=self.homework2,
             enrollment=self.enrollment,
             student=self.user,
-            total_score=0,  # Assuming this is an unscored submission
+            total_score=0,
         )
 
-        # Create projects
-        self.open_project = Project.objects.create(
+    def create_project(self, title, slug, state, submission_days):
+        return Project.objects.create(
             course=self.course,
-            title="Open Project",
-            slug="open-project",
-            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+            title=title,
+            slug=slug,
+            state=state,
             submission_due_date=timezone.now()
-            + timezone.timedelta(days=7),
+            + timezone.timedelta(days=submission_days),
             peer_review_due_date=timezone.now()
             + timezone.timedelta(days=14),
         )
 
-        self.completed_project = Project.objects.create(
-            course=self.course,
-            title="Completed Project",
-            slug="completed-project",
-            state=ProjectState.COMPLETED.value,
-            submission_due_date=timezone.now()
-            - timezone.timedelta(days=7),
-            peer_review_due_date=timezone.now()
-            + timezone.timedelta(days=14),
+    def create_projects(self):
+        self.open_project = self.create_project(
+            "Open Project",
+            "open-project",
+            ProjectState.COLLECTING_SUBMISSIONS.value,
+            7,
+        )
+        self.completed_project = self.create_project(
+            "Completed Project",
+            "completed-project",
+            ProjectState.COMPLETED.value,
+            -7,
         )
 
-        # Create project submissions
+    def create_project_submissions(self):
         self.completed_submission = ProjectSubmission.objects.create(
             project=self.completed_project,
             student=self.user,
@@ -142,6 +146,380 @@ class CourseDetailViewTests(TestCase):
             enrollment=self.enrollment,
             github_link="https://github.com/test/repo2",
         )
+
+    def setUp(self):
+        cache.clear()
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.create_homeworks()
+        self.create_questions_for_homeworks()
+        self.create_homework_submissions()
+        self.create_projects()
+        self.create_project_submissions()
+
+    def course_url(self):
+        return reverse("course", kwargs={"course_slug": self.course.slug})
+
+    def get_course_response(self, login=False):
+        if login:
+            self.client.login(**credentials)
+        return self.client.get(self.course_url())
+
+    def homeworks_by_slug(self, response):
+        return {h.slug: h for h in response.context["homeworks"]}
+
+    def assert_course_context(self, context, authenticated):
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(len(context["homeworks"]), 3)
+        self.assertEqual(context["is_authenticated"], authenticated)
+
+    def assert_scored_homework(
+        self, homework, submitted, score, with_submitted_at=False
+    ):
+        self.assertEqual(homework.submitted, submitted)
+        self.assertEqual(homework.is_scored(), True)
+        self.assertEqual(homework.state, HomeworkState.SCORED.value)
+        self.assertEqual(homework.score, score)
+        self.assertEqual(homework.days_until_due, 0)
+        if not with_submitted_at:
+            self.assertFalse(hasattr(homework, "submitted_at"))
+
+    def assert_open_homework(
+        self, homework, submitted, score, days_until_due
+    ):
+        self.assertEqual(homework.submitted, submitted)
+        self.assertEqual(homework.state, HomeworkState.OPEN.value)
+        self.assertEqual(homework.is_scored(), False)
+        self.assertEqual(homework.score, score)
+        self.assertEqual(homework.days_until_due, days_until_due)
+
+    def assert_unsubmitted_open_homework(self, homework):
+        self.assertFalse(homework.submitted)
+        self.assertFalse(hasattr(homework, "submitted_at"))
+        self.assertEqual(homework.is_scored(), False)
+        self.assertEqual(homework.score, None)
+        self.assertEqual(homework.days_until_due, 14)
+        self.assertEqual(homework.submissions, [])
+
+    def assert_enrollment_profile_links(self, response):
+        self.assertContains(response, "account timezone")
+        self.assertContains(
+            response,
+            f'{reverse("account_settings")}#display-preferences-section',
+        )
+        self.assertContains(response, "Edit course profile")
+        self.assertContains(
+            response,
+            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
+        )
+
+    def assert_no_enrollment_profile_links(self, response):
+        self.assertContains(response, "Total score")
+        self.assertContains(response, "N/A")
+        self.assertNotContains(response, "None")
+        self.assertNotContains(response, "Edit course profile")
+        self.assertNotContains(
+            response,
+            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
+        )
+
+    def set_homework_score_breakdown_fixture(self):
+        self.submission1.questions_score = 7
+        self.submission1.faq_score = 2
+        self.submission1.learning_in_public_score = 1
+        self.submission1.total_score = 10
+        self.submission1.learning_in_public_links = [
+            "https://example.com/homework-post",
+        ]
+        self.submission1.faq_contribution_url = (
+            "https://github.com/DataTalksClub/faq/pull/266"
+        )
+        self.submission1.save()
+
+    def set_project_score_breakdown_fixture(self):
+        self.completed_submission.project_score = 20
+        self.completed_submission.peer_review_score = 5
+        self.completed_submission.project_learning_in_public_score = 3
+        self.completed_submission.peer_review_learning_in_public_score = 2
+        self.completed_submission.project_faq_score = 1
+        self.completed_submission.total_score = 31
+        self.completed_submission.learning_in_public_links = [
+            "https://example.com/project-post",
+        ]
+        self.completed_submission.faq_contribution_url = (
+            "https://github.com/DataTalksClub/faq/issues/266"
+        )
+        self.completed_submission.save()
+
+    def leaderboard_score_breakdown_url(self, enrollment=None):
+        return reverse(
+            "leaderboard_score_breakdown",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": (enrollment or self.enrollment).id,
+            },
+        )
+
+    def assert_score_equations(self, response):
+        content = " ".join(strip_tags(response.content.decode()).split())
+        self.assertIn(
+            "Score: 10 = 7 (questions) + 2 (FAQ) + 1 "
+            "(learning in public)",
+            content,
+        )
+        self.assertIn(
+            "Score: 31 = 20 (project) + 5 (peer review) + 3 "
+            "(learning in public / project) + 2 "
+            "(learning in public / peer review) + 1 (FAQ)",
+            content,
+        )
+
+    def assert_score_breakdown_links(self, response):
+        self.assertContains(response, "<details", count=2)
+        self.assertContains(response, "<summary", count=2)
+        self.assertContains(response, "<strong>FAQ URL:</strong>", count=2)
+        self.assertContains(response, "View submission", count=2)
+        self.assertContains(response, "https://example.com/homework-post")
+        self.assertContains(response, "https://example.com/project-post")
+        self.assertContains(
+            response, "https://github.com/DataTalksClub/faq/pull/266"
+        )
+        self.assertContains(
+            response, "https://github.com/DataTalksClub/faq/issues/266"
+        )
+
+    def create_due_homework(self, slug, title, days_due):
+        homework = self.create_homework(
+            slug,
+            title,
+            f"{title} description",
+            days_due,
+            HomeworkState.OPEN.value,
+        )
+        Question.objects.create(
+            homework=homework,
+            text=f"Question for {homework.title}",
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            possible_answers=join_possible_answers(["A", "B", "C"]),
+            correct_answer="1",
+        )
+        return homework
+
+    def create_sorted_homework_fixture(self):
+        self.create_due_homework("homework-late", "Late Homework", 30)
+        self.create_due_homework("homework-early", "Early Homework", 5)
+        self.create_due_homework("homework-middle", "Middle Homework", 15)
+
+    def assert_homeworks_in_due_order(self, response):
+        homeworks = response.context["homeworks"]
+        self.assertEqual(len(homeworks), 6)
+        homework_slugs = [homework.slug for homework in homeworks]
+        early_pos = homework_slugs.index("homework-early")
+        middle_pos = homework_slugs.index("homework-middle")
+        late_pos = homework_slugs.index("homework-late")
+        self.assertLess(early_pos, middle_pos)
+        self.assertLess(middle_pos, late_pos)
+
+    def create_peer_review_project(self):
+        return Project.objects.create(
+            course=self.course,
+            title="Peer Review Project",
+            slug="pr-project",
+            state=ProjectState.PEER_REVIEWING.value,
+            submission_due_date=timezone.now() - timezone.timedelta(days=1),
+            peer_review_due_date=timezone.now() + timezone.timedelta(days=7),
+        )
+
+    def create_project_submitter(self, project):
+        user = User.objects.create_user(
+            username="submitted@test.com",
+            email="submitted@test.com",
+            password="12345",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=self.course,
+        )
+        ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/test/pr-repo",
+        )
+        return user
+
+    def assert_course_page_contains_deadline(self, deadline):
+        response = self.client.get(self.course_url())
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn(deadline.strftime("%Y-%m-%d"), content)
+
+    def create_code_quality_criteria(self):
+        return ReviewCriteria.objects.create(
+            course=self.course,
+            description="Code Quality",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 1},
+                {"criteria": "Excellent", "score": 2},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        )
+
+    def create_features_criteria(self):
+        return ReviewCriteria.objects.create(
+            course=self.course,
+            description="Features Implemented",
+            options=[
+                {"criteria": "Basic Features", "score": 1},
+                {"criteria": "Advanced Features", "score": 2},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
+        )
+
+    def create_admin_client(self):
+        User.objects.create_superuser(
+            username="admin@test.com",
+            email="admin@test.com",
+            password="admin12345",
+        )
+        admin_client = Client()
+        admin_client.login(
+            username="admin@test.com", password="admin12345"
+        )
+        return admin_client
+
+    def prepare_course_for_duplication(self, year):
+        self.course.title = f"Test Course {year - 1}"
+        self.course.slug = f"test-course-{year - 1}"
+        self.course.social_media_hashtag = "#testcourse2023"
+        self.course.faq_document_url = "https://example.com/faq"
+        self.course.project_passing_score = 75
+        self.course.save()
+
+    def duplicate_course(self, admin_client):
+        url = reverse("admin:courses_course_changelist")
+        data = {
+            "action": "duplicate_course",
+            "_selected_action": [str(self.course.pk)],
+        }
+        return admin_client.post(url, data, follow=True)
+
+    def assert_duplicated_course_fields(self, new_course, year):
+        self.assertEqual(new_course.title, f"Test Course {year}")
+        self.assertEqual(new_course.description, self.course.description)
+        self.assertEqual(
+            new_course.social_media_hashtag,
+            self.course.social_media_hashtag,
+        )
+        self.assertEqual(
+            new_course.faq_document_url, self.course.faq_document_url
+        )
+        self.assertEqual(
+            new_course.project_passing_score,
+            self.course.project_passing_score,
+        )
+        self.assertFalse(new_course.first_homework_scored)
+        self.assertFalse(new_course.finished)
+
+    def assert_duplicated_criteria(
+        self, new_course, review_criteria1, review_criteria2
+    ):
+        new_criteria = new_course.reviewcriteria_set.all()
+        self.assertEqual(new_criteria.count(), 2)
+        criteria1 = new_criteria.get(description="Code Quality")
+        self.assertEqual(criteria1.options, review_criteria1.options)
+        self.assertEqual(
+            criteria1.review_criteria_type,
+            ReviewCriteriaTypes.RADIO_BUTTONS.value,
+        )
+        criteria2 = new_criteria.get(description="Features Implemented")
+        self.assertEqual(criteria2.options, review_criteria2.options)
+        self.assertEqual(
+            criteria2.review_criteria_type,
+            ReviewCriteriaTypes.CHECKBOXES.value,
+        )
+
+    def create_archived_course_fixture(self):
+        archive_course = Course.objects.create(
+            title="Archived Course 2024",
+            slug="archived-course-2024",
+            description="Past course summary.",
+            finished=True,
+        )
+        Homework.objects.create(
+            slug="archived-homework",
+            course=archive_course,
+            title="Archived Homework",
+            due_date=timezone.now(),
+            state=HomeworkState.SCORED.value,
+        )
+        Project.objects.create(
+            course=archive_course,
+            title="Archived Project",
+            slug="archived-project",
+            state=ProjectState.COMPLETED.value,
+            submission_due_date=timezone.now(),
+            peer_review_due_date=timezone.now(),
+        )
+        return archive_course
+
+    def configure_active_course_metadata(self):
+        self.course.start_date = timezone.datetime(2026, 1, 15).date()
+        self.course.end_date = timezone.datetime(2026, 4, 15).date()
+        self.course.description = "Database-provided course summary."
+        self.course.registration_url = (
+            "https://courses.datatalks.club/test-course/register"
+        )
+        self.course.github_repo_url = (
+            "https://github.com/DataTalksClub/test-course"
+        )
+        self.course.save()
+
+    def active_course_from_response(self, response):
+        return next(
+            course for course in response.context["active_courses"]
+            if course.slug == self.course.slug
+        )
+
+    def course_card_html(self, content, course):
+        course_url = reverse("course", kwargs={"course_slug": course.slug})
+        link_position = content.index(f'href="{course_url}"')
+        card_start = content.rfind("<article", 0, link_position)
+        card_end = content.index("</article>", link_position)
+        return content[card_start:card_end]
+
+    def course_archive_row_html(self, content, course):
+        archive_url = reverse("course", kwargs={"course_slug": course.slug})
+        link_position = content.index(f'href="{archive_url}"')
+        row_end = content.index("</a>", link_position)
+        return content[link_position:row_end]
+
+    def assert_active_course_metadata(self, response):
+        course = self.active_course_from_response(response)
+        self.assertEqual(course.home_duration_label, "13 weeks")
+        self.assertEqual(
+            course.home_current_assignment_label,
+            "Next assignment",
+        )
+        self.assertEqual(
+            course.home_current_assignment["title"],
+            "Submitted Homework",
+        )
+
+    def assert_active_course_card(self, response):
+        content = response.content.decode()
+        course_card = self.course_card_html(content, self.course)
+        self.assertNotIn(">Homework</dt>", course_card)
+        self.assertNotIn(">Projects</dt>", course_card)
+
+    def assert_archive_course_row(self, response, archive_course):
+        content = response.content.decode()
+        archive_row = self.course_archive_row_html(content, archive_course)
+        self.assertNotIn("homework</span>", archive_row)
+        self.assertNotIn("projects</span>", archive_row)
 
     def test_course_detail_unauthenticated_user(self):
         # Test the view for an unauthenticated user
@@ -285,66 +663,40 @@ class CourseDetailViewTests(TestCase):
         self.enrollment.total_score = total_score
         self.enrollment.save()
 
-        self.client.login(**credentials)
-
-        url = reverse(
-            "course", kwargs={"course_slug": self.course.slug}
-        )
-        response = self.client.get(url)
+        response = self.get_course_response(login=True)
 
         self.assertEqual(response.status_code, 200)
 
         context = response.context
 
-        self.assertTrue(context["is_authenticated"])
-        self.assertEqual(context["course"], self.course)
-        self.assertEqual(len(context["homeworks"]), 3)
-
-        homeworks = {h.slug: h for h in response.context["homeworks"]}
+        self.assert_course_context(context, authenticated=True)
+        homeworks = self.homeworks_by_slug(response)
 
         scored_homework = homeworks["scored-homework"]
-        self.assertTrue(scored_homework.submitted)
-        self.assertFalse(hasattr(scored_homework, "submitted_at"))
-        self.assertEqual(scored_homework.is_scored(), True)
-        self.assertEqual(
-            scored_homework.state, HomeworkState.SCORED.value
+        self.assert_scored_homework(
+            scored_homework,
+            submitted=True,
+            score=80,
         )
-        self.assertEqual(scored_homework.score, 80)
-        self.assertEqual(scored_homework.days_until_due, 0)
 
         submitted_homework = homeworks["submitted-homework"]
-        self.assertTrue(submitted_homework.submitted)
-        self.assertEqual(
-            submitted_homework.state, HomeworkState.OPEN.value
+        self.assert_open_homework(
+            submitted_homework,
+            submitted=True,
+            score=None,
+            days_until_due=7,
         )
         self.assertEqual(
             submitted_homework.submitted_at,
             self.submission2.submitted_at,
         )
-        self.assertEqual(submitted_homework.is_scored(), False)
-        self.assertEqual(submitted_homework.score, None)
-        self.assertEqual(submitted_homework.days_until_due, 7)
 
         unscored_homework = homeworks["unscored-homework"]
-        self.assertFalse(unscored_homework.submitted)
-        self.assertFalse(hasattr(unscored_homework, "submitted_at"))
-        self.assertEqual(unscored_homework.is_scored(), False)
-        self.assertEqual(unscored_homework.score, None)
-        self.assertEqual(unscored_homework.days_until_due, 14)
-        self.assertEqual(unscored_homework.submissions, [])
+        self.assert_unsubmitted_open_homework(unscored_homework)
 
         self.assertEqual(context["total_score"], total_score)
         self.assertTrue(context["has_enrollment"])
-        self.assertContains(response, "account timezone")
-        self.assertContains(
-            response,
-            f'{reverse("account_settings")}#display-preferences-section',
-        )
-        self.assertContains(response, "Edit course profile")
-        self.assertContains(
-            response,
-            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
-        )
+        self.assert_enrollment_profile_links(response)
 
     def test_course_detail_authenticated_user_not_enrolled(self):
         # Test the view for an authenticated user
@@ -353,59 +705,36 @@ class CourseDetailViewTests(TestCase):
         self.course.first_homework_scored = True
         self.course.save(update_fields=["first_homework_scored"])
 
-        self.client.login(**credentials)
-
-        url = reverse(
-            "course", kwargs={"course_slug": self.course.slug}
-        )
-        response = self.client.get(url)
+        response = self.get_course_response(login=True)
 
         self.assertEqual(response.status_code, 200)
 
         context = response.context
 
-        self.assertTrue(context["is_authenticated"])
-        self.assertEqual(context["course"], self.course)
-        self.assertEqual(len(context["homeworks"]), 3)
-
-        homeworks = {h.slug: h for h in response.context["homeworks"]}
+        self.assert_course_context(context, authenticated=True)
+        homeworks = self.homeworks_by_slug(response)
 
         scored_homework = homeworks["scored-homework"]
-        self.assertFalse(scored_homework.submitted)
-        self.assertEqual(scored_homework.is_scored(), True)
-        self.assertEqual(
-            scored_homework.state, HomeworkState.SCORED.value
+        self.assert_scored_homework(
+            scored_homework,
+            submitted=False,
+            score=None,
         )
-        self.assertEqual(scored_homework.score, None)
-        self.assertEqual(scored_homework.days_until_due, 0)
 
         submitted_homework = homeworks["submitted-homework"]
-        self.assertFalse(submitted_homework.submitted)
-        self.assertEqual(
-            submitted_homework.state, HomeworkState.OPEN.value
+        self.assert_open_homework(
+            submitted_homework,
+            submitted=False,
+            score=None,
+            days_until_due=7,
         )
-        self.assertEqual(submitted_homework.is_scored(), False)
-        self.assertEqual(submitted_homework.score, None)
-        self.assertEqual(submitted_homework.days_until_due, 7)
 
         unscored_homework = homeworks["unscored-homework"]
-        self.assertFalse(unscored_homework.submitted)
-        self.assertFalse(hasattr(unscored_homework, "submitted_at"))
-        self.assertEqual(unscored_homework.is_scored(), False)
-        self.assertEqual(unscored_homework.score, None)
-        self.assertEqual(unscored_homework.days_until_due, 14)
-        self.assertEqual(unscored_homework.submissions, [])
+        self.assert_unsubmitted_open_homework(unscored_homework)
 
         self.assertIsNone(context["total_score"])
         self.assertFalse(context["has_enrollment"])
-        self.assertContains(response, "Total score")
-        self.assertContains(response, "N/A")
-        self.assertNotContains(response, "None")
-        self.assertNotContains(response, "Edit course profile")
-        self.assertNotContains(
-            response,
-            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
-        )
+        self.assert_no_enrollment_profile_links(response)
 
     def test_course_detail_hides_dashboard_until_first_homework_scored(self):
         url = reverse("course", kwargs={"course_slug": self.course.slug})
@@ -433,7 +762,7 @@ class CourseDetailViewTests(TestCase):
             reverse("dashboard", kwargs={"course_slug": self.course.slug}),
         )
 
-    def create_enrollment(
+    def create_leaderboard_enrollment(
         self, name, total_score, position_on_leaderboard=None
     ):
         student = User.objects.create_user(username=name)
@@ -447,11 +776,11 @@ class CourseDetailViewTests(TestCase):
         return enrollment
 
     def test_leaderboard_order(self):
-        e1 = self.create_enrollment("e1", 100, 1)
-        e2 = self.create_enrollment("e2", 90, 2)
-        e3 = self.create_enrollment("e3", 80, 3)
-        e4 = self.create_enrollment("e4", 70, 4)
-        e5 = self.create_enrollment("e5", 60, 5)
+        e1 = self.create_leaderboard_enrollment("e1", 100, 1)
+        e2 = self.create_leaderboard_enrollment("e2", 90, 2)
+        e3 = self.create_leaderboard_enrollment("e3", 80, 3)
+        e4 = self.create_leaderboard_enrollment("e4", 70, 4)
+        e5 = self.create_leaderboard_enrollment("e5", 60, 5)
 
         self.enrollment.total_score = 50
         self.enrollment.position_on_leaderboard = 6
@@ -482,11 +811,11 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(actual_order, expected_order)
 
     def test_new_enrollment_at_the_end_of_leaderboard(self):
-        e1 = self.create_enrollment("e1", 0, None)
-        e2 = self.create_enrollment("e2", 90, 1)
-        e3 = self.create_enrollment("e3", 80, 2)
-        e4 = self.create_enrollment("e4", 70, 3)
-        e5 = self.create_enrollment("e5", 0, None)
+        e1 = self.create_leaderboard_enrollment("e1", 0, None)
+        e2 = self.create_leaderboard_enrollment("e2", 90, 1)
+        e3 = self.create_leaderboard_enrollment("e3", 80, 2)
+        e4 = self.create_leaderboard_enrollment("e4", 70, 3)
+        e5 = self.create_leaderboard_enrollment("e5", 0, None)
 
         self.enrollment.total_score = 50
         self.enrollment.position_on_leaderboard = 4
@@ -525,11 +854,11 @@ class CourseDetailViewTests(TestCase):
 
     def test_not_enrolled_yet_but_leaderboard_displays(self):
         """Test that the leaderboard displays even when user is not enrolled"""
-        self.create_enrollment("e1", 100, 1)
-        self.create_enrollment("e2", 90, 2)
-        self.create_enrollment("e3", 80, 3)
-        self.create_enrollment("e4", 70, 4)
-        self.create_enrollment("e5", 60, 5)
+        self.create_leaderboard_enrollment("e1", 100, 1)
+        self.create_leaderboard_enrollment("e2", 90, 2)
+        self.create_leaderboard_enrollment("e3", 80, 3)
+        self.create_leaderboard_enrollment("e4", 70, 4)
+        self.create_leaderboard_enrollment("e5", 60, 5)
 
         self.enrollment.delete()
 
@@ -549,7 +878,7 @@ class CourseDetailViewTests(TestCase):
         self.assertIsNone(current_enrollment)
 
     def test_leaderboard_links_to_score_breakdown_without_flag_button(self):
-        self.create_enrollment("e1", 100, 1)
+        self.create_leaderboard_enrollment("e1", 100, 1)
 
         url = reverse(
             "leaderboard", kwargs={"course_slug": self.course.slug}
@@ -561,7 +890,7 @@ class CourseDetailViewTests(TestCase):
         self.assertNotContains(response, "Flag this record")
 
     def test_score_breakdown_has_flag_button(self):
-        target = self.create_enrollment("e1", 100, 1)
+        target = self.create_leaderboard_enrollment("e1", 100, 1)
 
         url = reverse(
             "leaderboard_score_breakdown",
@@ -595,7 +924,7 @@ class CourseDetailViewTests(TestCase):
         )
 
     def test_score_breakdown_does_not_prompt_for_other_record(self):
-        target = self.create_enrollment("e1", 100, 1)
+        target = self.create_leaderboard_enrollment("e1", 100, 1)
         self.client.force_login(self.user)
 
         url = reverse(
@@ -628,68 +957,16 @@ class CourseDetailViewTests(TestCase):
         self.assertNotContains(response, "Show public profile")
 
     def test_score_breakdown_shows_score_equations(self):
-        self.submission1.questions_score = 7
-        self.submission1.faq_score = 2
-        self.submission1.learning_in_public_score = 1
-        self.submission1.total_score = 10
-        self.submission1.learning_in_public_links = [
-            "https://example.com/homework-post",
-        ]
-        self.submission1.faq_contribution_url = (
-            "https://github.com/DataTalksClub/faq/pull/266"
-        )
-        self.submission1.save()
+        self.set_homework_score_breakdown_fixture()
+        self.set_project_score_breakdown_fixture()
 
-        self.completed_submission.project_score = 20
-        self.completed_submission.peer_review_score = 5
-        self.completed_submission.project_learning_in_public_score = 3
-        self.completed_submission.peer_review_learning_in_public_score = 2
-        self.completed_submission.project_faq_score = 1
-        self.completed_submission.total_score = 31
-        self.completed_submission.learning_in_public_links = [
-            "https://example.com/project-post",
-        ]
-        self.completed_submission.faq_contribution_url = (
-            "https://github.com/DataTalksClub/faq/issues/266"
-        )
-        self.completed_submission.save()
+        response = self.client.get(self.leaderboard_score_breakdown_url())
 
-        url = reverse(
-            "leaderboard_score_breakdown",
-            kwargs={
-                "course_slug": self.course.slug,
-                "enrollment_id": self.enrollment.id,
-            },
-        )
-        response = self.client.get(url)
-
-        content = " ".join(strip_tags(response.content.decode()).split())
-        self.assertIn(
-            "Score: 10 = 7 (questions) + 2 (FAQ) + 1 "
-            "(learning in public)",
-            content,
-        )
-        self.assertIn(
-            "Score: 31 = 20 (project) + 5 (peer review) + 3 "
-            "(learning in public / project) + 2 "
-            "(learning in public / peer review) + 1 (FAQ)",
-            content,
-        )
-        self.assertContains(response, "<details", count=2)
-        self.assertContains(response, "<summary", count=2)
-        self.assertContains(response, "<strong>FAQ URL:</strong>", count=2)
-        self.assertContains(response, "View submission", count=2)
-        self.assertContains(response, "https://example.com/homework-post")
-        self.assertContains(response, "https://example.com/project-post")
-        self.assertContains(
-            response, "https://github.com/DataTalksClub/faq/pull/266"
-        )
-        self.assertContains(
-            response, "https://github.com/DataTalksClub/faq/issues/266"
-        )
+        self.assert_score_equations(response)
+        self.assert_score_breakdown_links(response)
 
     def test_authenticated_user_can_report_leaderboard_record(self):
-        target = self.create_enrollment("e1", 100, 1)
+        target = self.create_leaderboard_enrollment("e1", 100, 1)
         self.client.login(**credentials)
 
         url = reverse(
@@ -725,7 +1002,7 @@ class CourseDetailViewTests(TestCase):
         )
 
     def test_anonymous_user_is_redirected_when_reporting(self):
-        target = self.create_enrollment("e1", 100, 1)
+        target = self.create_leaderboard_enrollment("e1", 100, 1)
 
         url = reverse(
             "leaderboard_complaint",
@@ -757,107 +1034,22 @@ class CourseDetailViewTests(TestCase):
 
     def test_duplicate_course(self):
         """Test that course duplication works correctly"""
-        # Create some review criteria for the original course
-        review_criteria1 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Code Quality",
-            options=[
-                {"criteria": "Poor", "score": 0},
-                {"criteria": "Good", "score": 1},
-                {"criteria": "Excellent", "score": 2},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
-
-        review_criteria2 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Features Implemented",
-            options=[
-                {"criteria": "Basic Features", "score": 1},
-                {"criteria": "Advanced Features", "score": 2},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
-        )
-
-        # Create admin user and client
-        User.objects.create_superuser(
-            username="admin@test.com",
-            email="admin@test.com",
-            password="admin12345",
-        )
-        admin_client = Client()
-        admin_client.login(
-            username="admin@test.com", password="admin12345"
-        )
-
-        # Get current year
+        review_criteria1 = self.create_code_quality_criteria()
+        review_criteria2 = self.create_features_criteria()
+        admin_client = self.create_admin_client()
         current_year = timezone.now().year
+        self.prepare_course_for_duplication(current_year)
 
-        # Set up the course with previous year in title and slug
-        self.course.title = f"Test Course {current_year - 1}"
-        self.course.slug = f"test-course-{current_year - 1}"
-        self.course.social_media_hashtag = "#testcourse2023"
-        self.course.faq_document_url = "https://example.com/faq"
-        self.course.project_passing_score = 75
-        self.course.save()
+        response = self.duplicate_course(admin_client)
 
-        # Execute the duplicate action
-        url = reverse("admin:courses_course_changelist")
-        data = {
-            "action": "duplicate_course",
-            "_selected_action": [str(self.course.pk)],
-        }
-        response = admin_client.post(url, data, follow=True)
-
-        # Check if the duplication was successful
         self.assertEqual(response.status_code, 200)
-
-        # Get the duplicated course
         new_course = Course.objects.get(
             slug=f"test-course-{current_year}"
         )
-
-        # Test course fields
-        self.assertEqual(
-            new_course.title, f"Test Course {current_year}"
+        self.assert_duplicated_course_fields(new_course, current_year)
+        self.assert_duplicated_criteria(
+            new_course, review_criteria1, review_criteria2
         )
-        self.assertEqual(
-            new_course.description, self.course.description
-        )
-        self.assertEqual(
-            new_course.social_media_hashtag,
-            self.course.social_media_hashtag,
-        )
-        self.assertEqual(
-            new_course.faq_document_url, self.course.faq_document_url
-        )
-        self.assertEqual(
-            new_course.project_passing_score, self.course.project_passing_score
-        )
-        self.assertFalse(new_course.first_homework_scored)
-        self.assertFalse(new_course.finished)
-
-        # Test review criteria
-        new_criteria = new_course.reviewcriteria_set.all()
-        self.assertEqual(new_criteria.count(), 2)
-
-        # Check first criteria
-        criteria1 = new_criteria.get(description="Code Quality")
-        self.assertEqual(criteria1.options, review_criteria1.options)
-        self.assertEqual(
-            criteria1.review_criteria_type,
-            ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
-
-        # Check second criteria
-        criteria2 = new_criteria.get(description="Features Implemented")
-        self.assertEqual(criteria2.options, review_criteria2.options)
-        self.assertEqual(
-            criteria2.review_criteria_type,
-            ReviewCriteriaTypes.CHECKBOXES.value,
-        )
-
-        # Verify that enrollments were not copied
         self.assertEqual(new_course.students.count(), 0)
 
     def test_course_view_with_completed_projects(self):
@@ -1083,85 +1275,18 @@ class CourseDetailViewTests(TestCase):
 
     def test_homeworks_sorted_by_due_date(self):
         """Test that homeworks are displayed in order of due date."""
-        # Create homeworks with different due dates in non-chronological order
-        homework_late = Homework.objects.create(
-            slug="homework-late",
-            course=self.course,
-            title="Late Homework",
-            description="Homework due later",
-            due_date=timezone.now() + timezone.timedelta(days=30),
-            state=HomeworkState.OPEN.value,
-        )
-        
-        homework_early = Homework.objects.create(
-            slug="homework-early", 
-            course=self.course,
-            title="Early Homework",
-            description="Homework due earlier",
-            due_date=timezone.now() + timezone.timedelta(days=5),
-            state=HomeworkState.OPEN.value,
-        )
-        
-        homework_middle = Homework.objects.create(
-            slug="homework-middle",
-            course=self.course, 
-            title="Middle Homework",
-            description="Homework due in the middle",
-            due_date=timezone.now() + timezone.timedelta(days=15),
-            state=HomeworkState.OPEN.value,
-        )
-        
-        # Add questions to each homework
-        for hw in [homework_late, homework_early, homework_middle]:
-            Question.objects.create(
-                homework=hw,
-                text=f"Question for {hw.title}",
-                question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-                possible_answers=join_possible_answers(["A", "B", "C"]),
-                correct_answer="1",
-            )
-        
-        # Test as unauthenticated user
-        url = reverse("course", kwargs={"course_slug": self.course.slug})
-        response = self.client.get(url)
-        
+        self.create_sorted_homework_fixture()
+
+        response = self.client.get(self.course_url())
+
         self.assertEqual(response.status_code, 200)
-        
-        # Get homeworks from context
-        homeworks = response.context["homeworks"]
-        
-        # Verify we have all homeworks (original 3 + new 3)
-        self.assertEqual(len(homeworks), 6)
-        
-        # Check that homeworks are sorted by due_date
-        # The first homework should be the one with the earliest due date
-        # among the new homeworks we created
-        homework_slugs = [hw.slug for hw in homeworks]
-        
-        # Find the positions of our new homeworks in the sorted list
-        early_pos = homework_slugs.index("homework-early")
-        middle_pos = homework_slugs.index("homework-middle") 
-        late_pos = homework_slugs.index("homework-late")
-        
-        # Verify they are in chronological order (early < middle < late)
-        self.assertLess(early_pos, middle_pos)
-        self.assertLess(middle_pos, late_pos)
-        
-        # Test as authenticated user
+        self.assert_homeworks_in_due_order(response)
+
         self.client.login(**credentials)
-        response = self.client.get(url)
-        
+        response = self.client.get(self.course_url())
+
         self.assertEqual(response.status_code, 200)
-        homeworks = response.context["homeworks"]
-        
-        # Verify the same ordering for authenticated users
-        homework_slugs = [hw.slug for hw in homeworks]
-        early_pos = homework_slugs.index("homework-early")
-        middle_pos = homework_slugs.index("homework-middle")
-        late_pos = homework_slugs.index("homework-late")
-        
-        self.assertLess(early_pos, middle_pos)
-        self.assertLess(middle_pos, late_pos)
+        self.assert_homeworks_in_due_order(response)
 
     def test_course_visibility_in_list(self):
         """Test that non-visible courses don't appear in the course list"""
@@ -1195,81 +1320,21 @@ class CourseDetailViewTests(TestCase):
         self.assertNotIn("hidden-course", course_slugs)
 
     def test_course_list_shows_active_course_metadata(self):
-        archive_course = Course.objects.create(
-            title="Archived Course 2024",
-            slug="archived-course-2024",
-            description="Past course summary.",
-            finished=True,
-        )
-        Homework.objects.create(
-            slug="archived-homework",
-            course=archive_course,
-            title="Archived Homework",
-            due_date=timezone.now(),
-            state=HomeworkState.SCORED.value,
-        )
-        Project.objects.create(
-            course=archive_course,
-            title="Archived Project",
-            slug="archived-project",
-            state=ProjectState.COMPLETED.value,
-            submission_due_date=timezone.now(),
-            peer_review_due_date=timezone.now(),
-        )
-        self.course.start_date = timezone.datetime(2026, 1, 15).date()
-        self.course.end_date = timezone.datetime(2026, 4, 15).date()
-        self.course.description = "Database-provided course summary."
-        self.course.registration_url = (
-            "https://courses.datatalks.club/test-course/register"
-        )
-        self.course.github_repo_url = (
-            "https://github.com/DataTalksClub/test-course"
-        )
-        self.course.save()
+        archive_course = self.create_archived_course_fixture()
+        self.configure_active_course_metadata()
 
         url = reverse("course_list")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-
-        course = next(
-            course for course in response.context["active_courses"]
-            if course.slug == self.course.slug
-        )
-
-        self.assertEqual(course.home_duration_label, "13 weeks")
-        self.assertEqual(
-            course.home_current_assignment_label,
-            "Next assignment",
-        )
-        self.assertEqual(
-            course.home_current_assignment["title"],
-            "Submitted Homework",
-        )
-
+        self.assert_active_course_metadata(response)
         self.assertContains(response, "Jan 15, 2026")
         self.assertContains(response, "Apr 15, 2026")
         self.assertContains(response, "13 weeks")
         self.assertContains(response, "Database-provided course summary.")
         self.assertContains(response, "Submitted Homework")
-        content = response.content.decode()
-        course_url = reverse(
-            "course", kwargs={"course_slug": self.course.slug}
-        )
-        course_link_position = content.index(f'href="{course_url}"')
-        card_start = content.rfind("<article", 0, course_link_position)
-        card_end = content.index("</article>", course_link_position)
-        course_card = content[card_start:card_end]
-        self.assertNotIn(">Homework</dt>", course_card)
-        self.assertNotIn(">Projects</dt>", course_card)
-        archive_url = reverse(
-            "course", kwargs={"course_slug": archive_course.slug}
-        )
-        archive_link_position = content.index(f'href="{archive_url}"')
-        archive_row_end = content.index("</a>", archive_link_position)
-        archive_row = content[archive_link_position:archive_row_end]
-        self.assertNotIn("homework</span>", archive_row)
-        self.assertNotIn("projects</span>", archive_row)
+        self.assert_active_course_card(response)
+        self.assert_archive_course_row(response, archive_course)
         self.assertNotContains(
             response,
             "https://courses.datatalks.club/test-course/register",
@@ -1387,65 +1452,21 @@ class CourseDetailViewTests(TestCase):
 
     def test_project_deadline_display_for_peer_review_state(self):
         """Test that the correct deadline is shown based on submission status when project is in PR state"""
-        # Create a project in peer review state
-        pr_project = Project.objects.create(
-            course=self.course,
-            title="Peer Review Project",
-            slug="pr-project",
-            state=ProjectState.PEER_REVIEWING.value,
-            submission_due_date=timezone.now() - timezone.timedelta(days=1),
-            peer_review_due_date=timezone.now() + timezone.timedelta(days=7),
-        )
+        pr_project = self.create_peer_review_project()
+        self.create_project_submitter(pr_project)
 
-        # Create another user who submitted the project
-        user_with_submission = User.objects.create_user(
-            username="submitted@test.com",
-            email="submitted@test.com",
-            password="12345"
+        self.assert_course_page_contains_deadline(
+            pr_project.submission_due_date
         )
-        enrollment_with_submission = Enrollment.objects.create(
-            student=user_with_submission,
-            course=self.course
+        self.client.login(**credentials)
+        self.assert_course_page_contains_deadline(
+            pr_project.submission_due_date
         )
-        ProjectSubmission.objects.create(
-            project=pr_project,
-            student=user_with_submission,
-            enrollment=enrollment_with_submission,
-            github_link="https://github.com/test/pr-repo",
-        )
-
-        # Test 1: Unauthenticated user should see submission deadline
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-        # Should show submission deadline date
-        submission_deadline_str = pr_project.submission_due_date.strftime('%Y-%m-%d')
-        self.assertIn(submission_deadline_str, content)
-
-        # Test 2: Authenticated user WITHOUT submission should see submission deadline
-        self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-        # Should show submission deadline for the PR project
-        submission_deadline_str = pr_project.submission_due_date.strftime('%Y-%m-%d')
-        self.assertIn(submission_deadline_str, content)
-
-        # Test 3: Authenticated user WITH submission should see peer review deadline
         self.client.logout()
         self.client.login(username="submitted@test.com", password="12345")
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
+        self.assert_course_page_contains_deadline(
+            pr_project.peer_review_due_date
         )
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode('utf-8')
-        # Should show peer review deadline
-        peer_review_deadline_str = pr_project.peer_review_due_date.strftime('%Y-%m-%d')
-        self.assertIn(peer_review_deadline_str, content)
 
     def test_course_view_does_not_auto_enroll(self):
         """Test that visiting the course page does not auto-enroll a user"""
@@ -1477,8 +1498,8 @@ class CourseDetailViewTests(TestCase):
     def test_leaderboard_view_does_not_auto_enroll(self):
         """Test that visiting the leaderboard page does not auto-enroll a user"""
         # Create some other users' enrollments
-        self.create_enrollment("e1", 100, 1)
-        self.create_enrollment("e2", 90, 2)
+        self.create_leaderboard_enrollment("e1", 100, 1)
+        self.create_leaderboard_enrollment("e2", 90, 2)
 
         # Delete the existing enrollment
         self.enrollment.delete()
@@ -1513,9 +1534,9 @@ class CourseDetailViewTests(TestCase):
     def test_leaderboard_unauthenticated_user(self):
         """Test leaderboard for unauthenticated users"""
         # Create some enrollments for the leaderboard
-        self.create_enrollment("Alice", 100, 1)
-        self.create_enrollment("Bob", 90, 2)
-        self.create_enrollment("Charlie", 80, 3)
+        self.create_leaderboard_enrollment("Alice", 100, 1)
+        self.create_leaderboard_enrollment("Bob", 90, 2)
+        self.create_leaderboard_enrollment("Charlie", 80, 3)
 
         # Logout and visit leaderboard without authentication
         self.client.logout()
@@ -1548,9 +1569,9 @@ class CourseDetailViewTests(TestCase):
     def test_leaderboard_authenticated_without_enrollment(self):
         """Test leaderboard for authenticated users who are not enrolled"""
         # Create some enrollments for the leaderboard
-        self.create_enrollment("Alice", 100, 1)
-        self.create_enrollment("Bob", 90, 2)
-        self.create_enrollment("Charlie", 80, 3)
+        self.create_leaderboard_enrollment("Alice", 100, 1)
+        self.create_leaderboard_enrollment("Bob", 90, 2)
+        self.create_leaderboard_enrollment("Charlie", 80, 3)
 
         # Delete the test user's enrollment
         self.enrollment.delete()
@@ -1586,9 +1607,9 @@ class CourseDetailViewTests(TestCase):
     def test_leaderboard_authenticated_with_enrollment(self):
         """Test leaderboard for authenticated users who are enrolled"""
         # Create some other enrollments
-        self.create_enrollment("Alice", 100, 1)
-        self.create_enrollment("Bob", 90, 2)
-        self.create_enrollment("Charlie", 80, 3)
+        self.create_leaderboard_enrollment("Alice", 100, 1)
+        self.create_leaderboard_enrollment("Bob", 90, 2)
+        self.create_leaderboard_enrollment("Charlie", 80, 3)
 
         # Set up test user's enrollment
         self.enrollment.display_name = "TestUser"
