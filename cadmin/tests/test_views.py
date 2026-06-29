@@ -346,6 +346,54 @@ class CadminViewTests(TestCase):
         self.assertEqual(answer.answer_text, answer_text)
         self.assertTrue(answer.is_correct)
 
+    def create_homework_submission_edit_fixture(self):
+        enrollment = self.create_enrollment()
+        question1 = self.create_free_form_question()
+        question2 = self.create_multiple_choice_question()
+        submission = self.create_homework_submission(
+            enrollment=enrollment,
+            learning_in_public_links=["https://example.com/post1"],
+            learning_in_public_score=1,
+            total_score=1,
+        )
+        self.create_answer(submission, question1, "5", False)
+        self.create_answer(submission, question2, "1", False)
+        return submission, question1, question2
+
+    def post_homework_submission_answer_edit(
+        self, submission, question1, question2
+    ):
+        self.login_admin()
+        return self.client.post(
+            self.homework_submission_edit_url(submission),
+            {
+                f"answer_{question1.id}": "4",
+                f"answer_{question2.id}": "2",
+                "learning_in_public_links": (
+                    "https://example.com/post1\n"
+                    "https://example.com/post2"
+                ),
+            },
+        )
+
+    def assert_homework_submission_scores(
+        self, submission, questions_score, learning_in_public_score, total_score
+    ):
+        self.assertEqual(submission.questions_score, questions_score)
+        self.assertEqual(
+            submission.learning_in_public_score,
+            learning_in_public_score,
+        )
+        self.assertEqual(submission.total_score, total_score)
+
+    def assert_learning_in_public_links(self, submission, expected_links):
+        self.assertEqual(
+            len(submission.learning_in_public_links),
+            len(expected_links),
+        )
+        for expected_link in expected_links:
+            self.assertIn(expected_link, submission.learning_in_public_links)
+
     def cadmin_homework_submissions_url(self):
         return reverse(
             "cadmin_homework_submissions",
@@ -2023,46 +2071,27 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_post_updates_answers(self):
         """Test that editing homework answers updates the submission correctly"""
-        enrollment = self.create_enrollment()
-        question1 = self.create_free_form_question()
-        question2 = self.create_multiple_choice_question()
-        submission = self.create_homework_submission(
-            enrollment=enrollment,
-            learning_in_public_links=["https://example.com/post1"],
-            learning_in_public_score=1,
-            total_score=1,
+        submission, question1, question2 = (
+            self.create_homework_submission_edit_fixture()
         )
-        self.create_answer(submission, question1, "5", False)
-        self.create_answer(submission, question2, "1", False)
 
-        self.login_admin()
-        response = self.client.post(
-            self.homework_submission_edit_url(submission),
-            {
-                f"answer_{question1.id}": "4",
-                f"answer_{question2.id}": "2",
-                "learning_in_public_links": (
-                    "https://example.com/post1\n"
-                    "https://example.com/post2"
-                ),
-            },
+        response = self.post_homework_submission_answer_edit(
+            submission,
+            question1,
+            question2,
         )
 
         self.assertEqual(response.status_code, 302)
         submission.refresh_from_db()
-        self.assertEqual(submission.questions_score, 2)
-        self.assertEqual(submission.learning_in_public_score, 2)
-        self.assertEqual(submission.total_score, 4)
+        self.assert_homework_submission_scores(submission, 2, 2, 4)
         self.assert_answer_updated(submission, question1, "4")
         self.assert_answer_updated(submission, question2, "2")
-        self.assertEqual(len(submission.learning_in_public_links), 2)
-        self.assertIn(
-            "https://example.com/post1",
-            submission.learning_in_public_links,
-        )
-        self.assertIn(
-            "https://example.com/post2",
-            submission.learning_in_public_links,
+        self.assert_learning_in_public_links(
+            submission,
+            [
+                "https://example.com/post1",
+                "https://example.com/post2",
+            ],
         )
 
     def test_homework_submission_edit_updates_faq_entry_and_score(self):
