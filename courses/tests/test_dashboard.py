@@ -29,9 +29,11 @@ credentials = dict(
 
 class DashboardViewTestCase(TestCase):
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def create_dashboard_user(cls):
         cls.user = User.objects.create_user(**credentials)
+
+    @classmethod
+    def create_dashboard_course(cls):
         cls.course = Course.objects.create(
             slug="test-course",
             title="Test Course",
@@ -40,7 +42,8 @@ class DashboardViewTestCase(TestCase):
             first_homework_scored=True,
         )
 
-        # Create additional users for statistics using bulk operations
+    @classmethod
+    def create_statistic_users(cls):
         user_data = []
         for i in range(5):
             user_data.append(
@@ -53,7 +56,8 @@ class DashboardViewTestCase(TestCase):
 
         cls.users = User.objects.bulk_create(user_data)
 
-        # Create enrollments in bulk
+    @classmethod
+    def create_statistic_enrollments(cls):
         enrollment_data = []
         for i, user in enumerate(cls.users):
             enrollment_data.append(
@@ -68,10 +72,20 @@ class DashboardViewTestCase(TestCase):
             enrollment_data
         )
 
-        # Create main enrollment
+    @classmethod
+    def create_primary_enrollment(cls):
         cls.enrollment = Enrollment.objects.create(
             student=cls.user, course=cls.course, total_score=150
         )
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.create_dashboard_user()
+        cls.create_dashboard_course()
+        cls.create_statistic_users()
+        cls.create_statistic_enrollments()
+        cls.create_primary_enrollment()
 
     def setUp(self):
         self.client = Client()
