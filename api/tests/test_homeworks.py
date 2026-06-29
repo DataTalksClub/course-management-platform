@@ -67,6 +67,51 @@ class HomeworksAPITestCase(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["code"], "staff_token_required")
 
+    def _create_scoreable_homework(self):
+        homework = self._create_homework(state=HomeworkState.OPEN.value)
+        homework.due_date = timezone.now() - timedelta(hours=1)
+        homework.save()
+        return homework
+
+    def _create_scored_question(self, homework):
+        return Question.objects.create(
+            homework=homework,
+            text="What is 2+2?",
+            question_type="FF",
+            answer_type="EXS",
+            correct_answer="4",
+            scores_for_correct_answer=2,
+        )
+
+    def _create_answered_submission(self, homework, question):
+        enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission = Submission.objects.create(
+            homework=homework,
+            student=self.user,
+            enrollment=enrollment,
+        )
+        Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text="4",
+        )
+        return submission
+
+    def _homework_score_url(self, homework):
+        return f"/api/courses/{self.course.slug}/homeworks/{homework.id}/score/"
+
+    def _assert_homework_score_response(self, response):
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "OK")
+        self.assertEqual(data["homework_slug"], "hw1")
+        self.assertEqual(data["state"], HomeworkState.SCORED.value)
+        self.assertEqual(data["submissions_count"], 1)
+        self.assertEqual(data["rescored_submissions_count"], 1)
+
     def _non_staff_homework_mutation_responses(self, client, homework):
         create_response = client.post(
             f"/api/courses/{self.course.slug}/homeworks/",
@@ -469,43 +514,13 @@ class HomeworksAPITestCase(TestCase):
         self.assertFalse(Homework.objects.filter(id=hw.id).exists())
 
     def test_score_homework(self):
-        hw = self._create_homework(state=HomeworkState.OPEN.value)
-        hw.due_date = timezone.now() - timedelta(hours=1)
-        hw.save()
-        question = Question.objects.create(
-            homework=hw,
-            text="What is 2+2?",
-            question_type="FF",
-            answer_type="EXS",
-            correct_answer="4",
-            scores_for_correct_answer=2,
-        )
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        submission = Submission.objects.create(
-            homework=hw,
-            student=self.user,
-            enrollment=enrollment,
-        )
-        Answer.objects.create(
-            submission=submission,
-            question=question,
-            answer_text="4",
-        )
+        hw = self._create_scoreable_homework()
+        question = self._create_scored_question(hw)
+        submission = self._create_answered_submission(hw, question)
 
-        response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/score/"
-        )
+        response = self.client.post(self._homework_score_url(hw))
 
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["status"], "OK")
-        self.assertEqual(data["homework_slug"], "hw1")
-        self.assertEqual(data["state"], HomeworkState.SCORED.value)
-        self.assertEqual(data["submissions_count"], 1)
-        self.assertEqual(data["rescored_submissions_count"], 1)
+        self._assert_homework_score_response(response)
         submission.refresh_from_db()
         self.assertEqual(submission.total_score, 2)
 
