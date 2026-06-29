@@ -56,13 +56,15 @@ def project_export_project_data(project):
 
 
 def project_export_payload(course, project, submissions):
+    submission_records = []
+    for submission in submissions:
+        submission_record = project_export_submission_data(submission)
+        submission_records.append(submission_record)
+
     return {
         "course": project_export_course_data(course),
         "project": project_export_project_data(project),
-        "submissions": [
-            project_export_submission_data(submission)
-            for submission in submissions
-        ],
+        "submissions": submission_records,
     }
 
 

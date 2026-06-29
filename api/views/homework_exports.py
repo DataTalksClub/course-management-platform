@@ -58,13 +58,15 @@ def homework_export_submissions(homework):
 
 
 def homework_export_payload(course, homework, submissions):
+    submission_records = []
+    for submission in submissions:
+        submission_record = homework_export_submission_data(submission)
+        submission_records.append(submission_record)
+
     return {
         "course": homework_export_course_data(course),
         "homework": model_to_dict(homework),
-        "submissions": [
-            homework_export_submission_data(submission)
-            for submission in submissions
-        ],
+        "submissions": submission_records,
     }
 
 

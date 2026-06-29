@@ -34,16 +34,19 @@ def _review_criteria_export_data(criteria):
 
 
 def _course_criteria_export_data(course):
+    review_criteria = []
+    criteria_records = _course_review_criteria(course)
+    for criteria in criteria_records:
+        criteria_record = _review_criteria_export_data(criteria)
+        review_criteria.append(criteria_record)
+
     return {
         'course': {
             'slug': course.slug,
             'title': course.title,
             'description': course.description,
         },
-        'review_criteria': [
-            _review_criteria_export_data(criteria)
-            for criteria in _course_review_criteria(course)
-        ]
+        'review_criteria': review_criteria,
     }
 
 
