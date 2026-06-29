@@ -67,47 +67,65 @@ class HomeworkDetailViewTests(TestCase):
             answer_type=answer_type,
         )
 
-    def create_questions(self):
-        self.question1 = self.create_question(
-            "What is the capital of France?",
+    def create_multiple_choice_question(self, text, answers, correct_answer):
+        return self.create_question(
+            text,
             QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers=join_possible_answers(
-                ["Paris", "London", "Berlin"]
-            ),
-            correct_answer="1",
-        )
-        self.question2 = self.create_question(
-            "Explain the theory of relativity.",
-            QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.ANY.value,
-        )
-        self.question3 = self.create_question(
-            "Select prime numbers.",
-            QuestionTypes.CHECKBOXES.value,
-            possible_answers=join_possible_answers(["2", "3", "4", "5"]),
-            correct_answer="1,2,4",
-        )
-        self.question4 = self.create_question(
-            "How many continents are there on Earth?",
-            QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers=join_possible_answers(["5", "6", "7"]),
-            correct_answer="3",
-        )
-        self.question5 = self.create_question(
-            "What is the value of Pi (up to 2 decimal places)?",
-            QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.FLOAT.value,
-            correct_answer="3.14",
-        )
-        self.question6 = self.create_question(
-            "Select the colors in the French flag.",
-            QuestionTypes.CHECKBOXES.value,
-            possible_answers=join_possible_answers(
-                ["Blue", "White", "Red", "Green"]
-            ),
-            correct_answer="1,2,3",
+            possible_answers=join_possible_answers(answers),
+            correct_answer=correct_answer,
         )
 
+    def create_checkboxes_question(self, text, answers, correct_answer):
+        return self.create_question(
+            text,
+            QuestionTypes.CHECKBOXES.value,
+            possible_answers=join_possible_answers(answers),
+            correct_answer=correct_answer,
+        )
+
+    def create_free_form_question(
+        self,
+        text,
+        answer_type,
+        correct_answer=None,
+    ):
+        return self.create_question(
+            text,
+            QuestionTypes.FREE_FORM.value,
+            answer_type=answer_type,
+            correct_answer=correct_answer,
+        )
+
+    def create_questions(self):
+        self.question1 = self.create_multiple_choice_question(
+            "What is the capital of France?",
+            ["Paris", "London", "Berlin"],
+            "1",
+        )
+        self.question2 = self.create_free_form_question(
+            "Explain the theory of relativity.",
+            AnswerTypes.ANY.value,
+        )
+        self.question3 = self.create_checkboxes_question(
+            "Select prime numbers.",
+            ["2", "3", "4", "5"],
+            "1,2,4",
+        )
+        self.question4 = self.create_multiple_choice_question(
+            "How many continents are there on Earth?",
+            ["5", "6", "7"],
+            "3",
+        )
+        self.question5 = self.create_free_form_question(
+            "What is the value of Pi (up to 2 decimal places)?",
+            AnswerTypes.FLOAT.value,
+            "3.14",
+        )
+        self.question6 = self.create_checkboxes_question(
+            "Select the colors in the French flag.",
+            ["Blue", "White", "Red", "Green"],
+            "1,2,3",
+        )
         self.quesions = [
             self.question1,
             self.question2,
