@@ -864,15 +864,15 @@ def _wrapped_activity_querysets(year_start, year_end):
     return homework_submissions, project_submissions
 
 
-def _wrapped_active_students_and_enrollments(
-    homework_submissions, project_submissions
-):
+def _wrapped_students_with_activity(homework_submissions, project_submissions):
     students_from_homeworks = {hw.student for hw in homework_submissions}
     students_from_projects = {
         proj.student for proj in project_submissions
     }
-    students_with_activity = students_from_homeworks | students_from_projects
+    return students_from_homeworks | students_from_projects
 
+
+def _wrapped_enrollment_ids(homework_submissions, project_submissions):
     enrollment_ids_from_homeworks = {
         hw.enrollment_id for hw in homework_submissions if hw.enrollment_id
     }
@@ -881,13 +881,28 @@ def _wrapped_active_students_and_enrollments(
         for proj in project_submissions
         if proj.enrollment_id
     }
-    enrollment_ids = (
-        enrollment_ids_from_homeworks | enrollment_ids_from_projects
+    return enrollment_ids_from_homeworks | enrollment_ids_from_projects
+
+
+def _wrapped_enrollments(enrollment_ids):
+    return Enrollment.objects.filter(id__in=enrollment_ids).select_related(
+        "course",
+        "student",
     )
 
-    enrollments = Enrollment.objects.filter(
-        id__in=enrollment_ids
-    ).select_related("course", "student")
+
+def _wrapped_active_students_and_enrollments(
+    homework_submissions, project_submissions
+):
+    students_with_activity = _wrapped_students_with_activity(
+        homework_submissions,
+        project_submissions,
+    )
+    enrollment_ids = _wrapped_enrollment_ids(
+        homework_submissions,
+        project_submissions,
+    )
+    enrollments = _wrapped_enrollments(enrollment_ids)
     courses = {enrollment.course for enrollment in enrollments}
     return students_with_activity, enrollments, courses
 
