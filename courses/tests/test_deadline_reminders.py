@@ -98,7 +98,12 @@ class DeadlineReminderCommandTest(TestCase):
         call_command(*args, stdout=stdout)
 
     def members_by_email(self, payload):
-        return {member["email"]: member for member in payload["members"]}
+        members_by_email = {}
+        members = payload["members"]
+        for member in members:
+            email = member["email"]
+            members_by_email[email] = member
+        return members_by_email
 
     def create_homework_reminder_fixture(self, now):
         course = self.create_course()
@@ -235,11 +240,17 @@ class DeadlineReminderCommandTest(TestCase):
 
     def assert_project_reminder_payloads(self, send_transient):
         self.assertEqual(send_transient.call_count, 2)
-        send_payloads = [
-            call.args[0] for call in send_transient.call_args_list
-        ]
+        send_payloads = []
+        send_calls = send_transient.call_args_list
+        for call in send_calls:
+            payload = call.args[0]
+            send_payloads.append(payload)
+        list_keys = []
+        for payload in send_payloads:
+            list_key = payload["list"]["key"]
+            list_keys.append(list_key)
         self.assertEqual(
-            [payload["list"]["key"] for payload in send_payloads],
+            list_keys,
             [
                 "deadline-reminders:project-submission:"
                 "ml-zoomcamp-2026:project-day:24h",
@@ -247,16 +258,22 @@ class DeadlineReminderCommandTest(TestCase):
                 "ml-zoomcamp-2026:project-week:7d",
             ],
         )
+        reminder_keys = []
+        for payload in send_payloads:
+            reminder_key = payload["context"]["reminder_key"]
+            reminder_keys.append(reminder_key)
         self.assertEqual(
-            [
-                payload["context"]["reminder_key"]
-                for payload in send_payloads
-            ],
+            reminder_keys,
             ["24h", "7d"],
         )
         for payload in send_payloads:
+            member_emails = set()
+            members = payload["members"]
+            for member in members:
+                email = member["email"]
+                member_emails.add(email)
             self.assertEqual(
-                {member["email"] for member in payload["members"]},
+                member_emails,
                 {"student@example.com", "opted-out@example.com"},
             )
 
