@@ -129,40 +129,55 @@ def _finish_dispatch_run_if_present(run, counts, *, status, last_error):
 
 def datamailer_outbox_status_summary() -> dict[str, Any]:
     now = timezone.now()
+    due_events = _due_outbox_events(now)
+    dispatch_runs = _outbox_dispatch_runs()
+    return {
+        "event_counts": _outbox_event_counts(),
+        "due_count": due_events.count(),
+        "oldest_due": _oldest_due_outbox_event(due_events),
+        "last_successful_run": dispatch_runs["last_successful_run"],
+        "last_run": dispatch_runs["last_run"],
+        "last_error_event": _last_error_outbox_event(),
+    }
+
+
+def _outbox_event_counts():
     event_counts = {}
     outbox_statuses = DatamailerOutboxStatus.values
     for status in outbox_statuses:
         count = DatamailerOutboxEvent.objects.filter(status=status).count()
         event_counts[status] = count
-    due_count = DatamailerOutboxEvent.objects.filter(
+    return event_counts
+
+
+def _due_outbox_events(now):
+    return DatamailerOutboxEvent.objects.filter(
         status__in=RETRYABLE_STATUSES,
         next_attempt_at__lte=now,
-    ).count()
-    oldest_due = (
-        DatamailerOutboxEvent.objects.filter(
-            status__in=RETRYABLE_STATUSES,
-            next_attempt_at__lte=now,
-        )
-        .order_by("next_attempt_at", "created_at", "id")
-        .first()
     )
+
+
+def _oldest_due_outbox_event(due_events):
+    return due_events.order_by("next_attempt_at", "created_at", "id").first()
+
+
+def _outbox_dispatch_runs():
     last_successful_run = DatamailerOutboxDispatchRun.objects.filter(
         status=DatamailerOutboxDispatchRunStatus.SUCCESS,
     ).first()
     last_run = DatamailerOutboxDispatchRun.objects.first()
-    last_error_event = (
+    return {
+        "last_successful_run": last_successful_run,
+        "last_run": last_run,
+    }
+
+
+def _last_error_outbox_event():
+    return (
         DatamailerOutboxEvent.objects.exclude(last_error="")
         .order_by("-last_attempt_at", "-updated_at", "-id")
         .first()
     )
-    return {
-        "event_counts": event_counts,
-        "due_count": due_count,
-        "oldest_due": oldest_due,
-        "last_successful_run": last_successful_run,
-        "last_run": last_run,
-        "last_error_event": last_error_event,
-    }
 
 
 def _finish_dispatch_run(run, counts, *, status, last_error):
