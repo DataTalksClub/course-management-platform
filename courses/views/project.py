@@ -1447,49 +1447,83 @@ def _project_submissions_queryset(project):
 
 def _project_viewer_state(project, course, user):
     is_authenticated = user.is_authenticated
+    state = _base_project_viewer_state(
+        is_authenticated,
+        _project_viewer_vote_state(project, course, user),
+    )
+
+    if not is_authenticated:
+        return state
+
+    student_submissions, own_submissions = (
+        _project_viewer_student_submissions(project, user)
+    )
+    review_ids, has_assigned_reviews = _project_viewer_reviews(
+        project,
+        student_submissions,
+    )
+
+    state.update(
+        {
+            "review_ids": review_ids,
+            "own_submissions": own_submissions,
+            "has_submission": len(own_submissions) > 0,
+            "has_assigned_reviews": has_assigned_reviews,
+        }
+    )
+    return state
+
+
+def _project_viewer_vote_state(project, course, user):
     voted_submission_ids = get_voted_submission_ids(user, course)
     project_vote_counts = get_project_vote_counts(user, course)
     project_vote_count = project_vote_counts.get(project.id, 0)
-
-    state = {
-        "is_authenticated": is_authenticated,
-        "review_ids": {},
-        "own_submissions": set(),
-        "has_submission": False,
+    return {
         "voted_submission_ids": voted_submission_ids,
         "project_vote_counts": project_vote_counts,
         "project_votes_left": max(
             PROJECT_VOTES_PER_PROJECT - project_vote_count,
             0,
         ),
+    }
+
+
+def _base_project_viewer_state(is_authenticated, vote_state):
+    return {
+        "is_authenticated": is_authenticated,
+        "review_ids": {},
+        "own_submissions": set(),
+        "has_submission": False,
+        **vote_state,
         "has_assigned_reviews": False,
     }
 
-    if not is_authenticated:
-        return state
 
+def _project_viewer_student_submissions(project, user):
     student_submissions = ProjectSubmission.objects.filter(
         project=project, student=user
     )
     project_submissions = student_submissions.filter(
         volunteer_review_only=False,
     )
-    state["own_submissions"] = set(
-        project_submissions.values_list("id", flat=True)
-    )
-    state["has_submission"] = len(state["own_submissions"]) > 0
+    own_submissions = set(project_submissions.values_list("id", flat=True))
+    return student_submissions, own_submissions
 
+
+def _project_viewer_reviews(project, student_submissions):
+    review_ids = {}
+    has_assigned_reviews = False
     reviews = PeerReview.objects.filter(
         reviewer__in=student_submissions,
         submission_under_evaluation__project=project,
     )
     for review in reviews:
         eval_id = review.submission_under_evaluation_id
-        state["review_ids"][eval_id] = review
+        review_ids[eval_id] = review
         if not review.optional:
-            state["has_assigned_reviews"] = True
+            has_assigned_reviews = True
 
-    return state
+    return review_ids, has_assigned_reviews
 
 
 def _sort_project_submissions_for_view(
