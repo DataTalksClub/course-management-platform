@@ -3,6 +3,7 @@ import statistics
 
 from time import time
 from enum import Enum
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -41,6 +42,29 @@ logger = logging.getLogger(__name__)
 class HomeworkScoringStatus(Enum):
     OK = "OK"
     FAIL = "Warning"
+
+
+@dataclass(frozen=True)
+class UserWrappedStatData:
+    stats: WrappedStatistics
+    student: object
+    homework_submissions: list
+    project_submissions: list
+    enrollments: list
+    peer_reviews_count: int
+    leaderboard_data: list
+
+
+@dataclass(frozen=True)
+class UserWrappedMetrics:
+    total_points: int
+    total_hours: float
+    learning_in_public_count: int
+    faq_contributions_count: int
+    certificates_earned: int
+    courses: list
+    rank: int | None
+    display_name: str
 
 
 def is_float_equal(
@@ -850,40 +874,55 @@ def _wrapped_display_name(student, enrollments):
     return enrollments[0].display_name if enrollments else student.username
 
 
-def _build_user_wrapped_stat(
-    stats,
-    student,
-    *,
-    homework_submissions,
-    project_submissions,
-    enrollments,
-    peer_reviews_count,
-    leaderboard_data,
-):
+def _user_wrapped_metrics(data):
+    total_points = _wrapped_total_points(data.enrollments)
+    total_hours = _wrapped_total_hours(
+        data.homework_submissions,
+        data.project_submissions,
+    )
+    learning_in_public_count = _wrapped_learning_in_public_count(
+        data.homework_submissions,
+        data.project_submissions,
+    )
+    faq_contributions_count = _wrapped_faq_count(
+        data.homework_submissions,
+        data.project_submissions,
+    )
+    certificates_earned = _wrapped_certificates_count(data.enrollments)
+    courses = _wrapped_courses(data.enrollments)
+    rank = _wrapped_rank(data.student, data.leaderboard_data)
+    display_name = _wrapped_display_name(data.student, data.enrollments)
+
+    return UserWrappedMetrics(
+        total_points=total_points,
+        total_hours=total_hours,
+        learning_in_public_count=learning_in_public_count,
+        faq_contributions_count=faq_contributions_count,
+        certificates_earned=certificates_earned,
+        courses=courses,
+        rank=rank,
+        display_name=display_name,
+    )
+
+
+def _build_user_wrapped_stat(data):
     """Build an (unsaved) UserWrappedStatistics row for one student."""
+    metrics = _user_wrapped_metrics(data)
+
     return UserWrappedStatistics(
-        wrapped=stats,
-        user=student,
-        total_points=_wrapped_total_points(enrollments),
-        total_hours=_wrapped_total_hours(
-            homework_submissions,
-            project_submissions,
-        ),
-        homework_count=len(homework_submissions),
-        project_count=len(project_submissions),
-        peer_reviews_given=peer_reviews_count,
-        learning_in_public_count=_wrapped_learning_in_public_count(
-            homework_submissions,
-            project_submissions,
-        ),
-        faq_contributions_count=_wrapped_faq_count(
-            homework_submissions,
-            project_submissions,
-        ),
-        certificates_earned=_wrapped_certificates_count(enrollments),
-        courses=_wrapped_courses(enrollments),
-        rank=_wrapped_rank(student, leaderboard_data),
-        display_name=_wrapped_display_name(student, enrollments),
+        wrapped=data.stats,
+        user=data.student,
+        total_points=metrics.total_points,
+        total_hours=metrics.total_hours,
+        homework_count=len(data.homework_submissions),
+        project_count=len(data.project_submissions),
+        peer_reviews_given=data.peer_reviews_count,
+        learning_in_public_count=metrics.learning_in_public_count,
+        faq_contributions_count=metrics.faq_contributions_count,
+        certificates_earned=metrics.certificates_earned,
+        courses=metrics.courses,
+        rank=metrics.rank,
+        display_name=metrics.display_name,
     )
 
 
@@ -1044,15 +1083,16 @@ def _build_user_wrapped_stats(
 ):
     user_stats = []
     for student in students_with_activity:
-        user_stat = _build_user_wrapped_stat(
-            stats,
-            student,
+        stat_data = UserWrappedStatData(
+            stats=stats,
+            student=student,
             homework_submissions=homework_by_student.get(student, []),
             project_submissions=project_by_student.get(student, []),
             enrollments=enrollment_by_student.get(student, []),
             peer_reviews_count=peer_review_counts.get(student.id, 0),
             leaderboard_data=leaderboard_data,
         )
+        user_stat = _build_user_wrapped_stat(stat_data)
         user_stats.append(user_stat)
     return user_stats
 
