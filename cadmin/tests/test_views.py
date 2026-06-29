@@ -600,6 +600,51 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.context["send_totals"]["skipped_count"], 1)
         self.assertEqual(response.context["send_totals"]["failed"], 1)
 
+    def create_datamailer_outbox_event(self, event_id, status, last_error):
+        return DatamailerOutboxEvent.objects.create(
+            event_id=event_id,
+            event_type="recipient_list.member_upsert",
+            idempotency_key=f"idem-{event_id}",
+            status=status,
+            last_error=last_error,
+        )
+
+    def create_requeue_outbox_events(self):
+        return {
+            "failed": self.create_datamailer_outbox_event(
+                "evt-failed",
+                DatamailerOutboxStatus.FAILED,
+                "network error",
+            ),
+            "dead": self.create_datamailer_outbox_event(
+                "evt-dead",
+                DatamailerOutboxStatus.DEAD,
+                "permanent error",
+            ),
+            "acked": self.create_datamailer_outbox_event(
+                "evt-acked",
+                DatamailerOutboxStatus.ACKED,
+                "old error",
+            ),
+        }
+
+    def post_datamailer_requeue(self):
+        self.login_admin()
+        return self.client.post(
+            self.datamailer_operations_url(),
+            {"action": "requeue"},
+        )
+
+    def assert_outbox_event_requeued(self, event):
+        event.refresh_from_db()
+        self.assertEqual(event.status, DatamailerOutboxStatus.RETRYING)
+        self.assertEqual(event.last_error, "")
+
+    def assert_outbox_event_unchanged(self, event, status, last_error):
+        event.refresh_from_db()
+        self.assertEqual(event.status, status)
+        self.assertEqual(event.last_error, last_error)
+
     def create_project_submission(self, enrollment=None, **overrides):
         defaults = {
             "project": self.project,
@@ -759,46 +804,18 @@ class CadminViewTests(TestCase):
         self.assert_datamailer_send_totals(response)
 
     def test_datamailer_operations_requeues_failed_and_dead_outbox_events(self):
-        failed = DatamailerOutboxEvent.objects.create(
-            event_id="evt-failed",
-            event_type="recipient_list.member_upsert",
-            idempotency_key="idem-failed",
-            status=DatamailerOutboxStatus.FAILED,
-            last_error="network error",
-        )
-        dead = DatamailerOutboxEvent.objects.create(
-            event_id="evt-dead",
-            event_type="recipient_list.member_upsert",
-            idempotency_key="idem-dead",
-            status=DatamailerOutboxStatus.DEAD,
-            last_error="permanent error",
-        )
-        acked = DatamailerOutboxEvent.objects.create(
-            event_id="evt-acked",
-            event_type="recipient_list.member_upsert",
-            idempotency_key="idem-acked",
-            status=DatamailerOutboxStatus.ACKED,
-            last_error="old error",
-        )
+        events = self.create_requeue_outbox_events()
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        response = self.client.post(
-            reverse("cadmin_datamailer_operations"),
-            {"action": "requeue"},
-        )
+        response = self.post_datamailer_requeue()
 
         self.assertRedirects(response, reverse("cadmin_datamailer_operations"))
-        failed.refresh_from_db()
-        dead.refresh_from_db()
-        acked.refresh_from_db()
-        self.assertEqual(failed.status, DatamailerOutboxStatus.RETRYING)
-        self.assertEqual(dead.status, DatamailerOutboxStatus.RETRYING)
-        self.assertEqual(failed.last_error, "")
-        self.assertEqual(dead.last_error, "")
-        self.assertEqual(acked.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(acked.last_error, "old error")
+        self.assert_outbox_event_requeued(events["failed"])
+        self.assert_outbox_event_requeued(events["dead"])
+        self.assert_outbox_event_unchanged(
+            events["acked"],
+            DatamailerOutboxStatus.ACKED,
+            "old error",
+        )
 
     def test_datamailer_events_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")
