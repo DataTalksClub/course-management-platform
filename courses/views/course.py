@@ -1114,8 +1114,19 @@ def enrollment_view(request, course_slug):
 
 def list_all_project_submissions_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
+    submissions_page = _all_project_submissions_page(course, request)
+    context = _all_project_submissions_context(
+        course,
+        _projects_with_submission_counts(course),
+        submissions_page,
+        request.user,
+    )
 
-    projects = (
+    return render(request, "projects/list_all.html", context)
+
+
+def _projects_with_submission_counts(course):
+    return (
         Project.objects.filter(course=course)
         .annotate(
             submissions_count=Count(
@@ -1126,7 +1137,9 @@ def list_all_project_submissions_view(request, course_slug: str):
         .order_by("id")
     )
 
-    submissions = (
+
+def _all_project_submissions(course):
+    return (
         ProjectSubmission.objects.filter(
             project__course=course,
             volunteer_review_only=False,
@@ -1134,23 +1147,36 @@ def list_all_project_submissions_view(request, course_slug: str):
         .select_related("project", "enrollment")
         .annotate(
             vote_count=Count("votes"),
-            display_score=Case(
-                When(
-                    project__state=ProjectState.COMPLETED.value,
-                    then="project_score",
-                ),
-                default=Value(-1),
-                output_field=IntegerField(),
-            )
+            display_score=_project_submission_display_score(),
         )
         .order_by("-vote_count", "-display_score", "project__id", "submitted_at")
     )
 
-    submissions_page = Paginator(
-        submissions, PROJECT_SUBMISSIONS_PAGE_SIZE
+
+def _project_submission_display_score():
+    return Case(
+        When(
+            project__state=ProjectState.COMPLETED.value,
+            then="project_score",
+        ),
+        default=Value(-1),
+        output_field=IntegerField(),
+    )
+
+
+def _all_project_submissions_page(course, request):
+    return Paginator(
+        _all_project_submissions(course), PROJECT_SUBMISSIONS_PAGE_SIZE
     ).get_page(request.GET.get("page"))
 
-    context = {
+
+def _all_project_submissions_context(
+    course,
+    projects,
+    submissions_page,
+    user,
+):
+    return {
         "course": course,
         "projects": projects,
         "submissions": submissions_page.object_list,
@@ -1158,10 +1184,8 @@ def list_all_project_submissions_view(request, course_slug: str):
         "page_range": submissions_page.paginator.get_elided_page_range(
             submissions_page.number
         ),
-        "is_authenticated": request.user.is_authenticated,
+        "is_authenticated": user.is_authenticated,
     }
-
-    return render(request, "projects/list_all.html", context)
 
 
 def _safe_quartiles(data):
