@@ -195,6 +195,20 @@ def _leaderboard_page_links(course, page_obj):
     }
 
 
+def _leaderboard_yaml_cache_key(course, cache_version, page):
+    return (
+        f"leaderboard_yaml:{course.id}:v{cache_version}:"
+        f"page:{page}"
+    )
+
+
+def _leaderboard_data_cache_key(course, cache_version, page):
+    return (
+        f"leaderboard_data:{course.id}:v{cache_version}:"
+        f"page:{page}"
+    )
+
+
 def _build_leaderboard_data(course, page_number):
     """Build the full leaderboard JSON structure with score breakdowns."""
     paginator = Paginator(
@@ -220,42 +234,58 @@ def _build_leaderboard_data(course, page_number):
     }
 
 
-@require_GET
-def leaderboard_data_view(request, course_slug: str):
-    """Public endpoint returning the full leaderboard with score breakdowns."""
-    course = get_object_or_404(Course, slug=course_slug)
-    page = _get_positive_int(request.GET.get("page"), 1)
-    cache_version = _get_cache_version(course)
-
-    yaml_cache_key = (
-        f"leaderboard_yaml:{course.id}:v{cache_version}:"
-        f"page:{page}"
-    )
-    yaml_content = cache.get(yaml_cache_key)
-    if yaml_content is not None:
-        logger.info("Cache hit for leaderboard YAML of course %s", course.slug)
-        return HttpResponse(yaml_content, content_type="text/plain; charset=utf-8")
-
-    data_cache_key = (
-        f"leaderboard_data:{course.id}:v{cache_version}:"
-        f"page:{page}"
+def _cached_leaderboard_data(course, page, cache_version):
+    data_cache_key = _leaderboard_data_cache_key(
+        course,
+        cache_version,
+        page,
     )
     data = cache.get(data_cache_key)
-
-    if data is None:
-        logger.info("Cache miss for leaderboard data of course %s", course.slug)
-        data = _build_leaderboard_data(course, page)
-        cache.set(data_cache_key, data, LEADERBOARD_DATA_CACHE_TTL)
-    else:
+    if data is not None:
         logger.info("Cache hit for leaderboard data of course %s", course.slug)
+        return data
 
-    yaml_content = yaml.dump(
+    logger.info("Cache miss for leaderboard data of course %s", course.slug)
+    data = _build_leaderboard_data(course, page)
+    cache.set(data_cache_key, data, LEADERBOARD_DATA_CACHE_TTL)
+    return data
+
+
+def _leaderboard_yaml_content(data):
+    return yaml.dump(
         data,
         Dumper=YamlDumper,
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False,
     )
-    cache.set(yaml_cache_key, yaml_content, LEADERBOARD_YAML_CACHE_TTL)
 
-    return HttpResponse(yaml_content, content_type="text/plain; charset=utf-8")
+
+def _cached_leaderboard_yaml(course, page, cache_version):
+    yaml_cache_key = _leaderboard_yaml_cache_key(
+        course,
+        cache_version,
+        page,
+    )
+    yaml_content = cache.get(yaml_cache_key)
+    if yaml_content is not None:
+        logger.info("Cache hit for leaderboard YAML of course %s", course.slug)
+        return yaml_content
+
+    data = _cached_leaderboard_data(course, page, cache_version)
+    yaml_content = _leaderboard_yaml_content(data)
+    cache.set(yaml_cache_key, yaml_content, LEADERBOARD_YAML_CACHE_TTL)
+    return yaml_content
+
+
+@require_GET
+def leaderboard_data_view(request, course_slug: str):
+    """Public endpoint returning the full leaderboard with score breakdowns."""
+    course = get_object_or_404(Course, slug=course_slug)
+    page = _get_positive_int(request.GET.get("page"), 1)
+    cache_version = _get_cache_version(course)
+    yaml_content = _cached_leaderboard_yaml(course, page, cache_version)
+    return HttpResponse(
+        yaml_content,
+        content_type="text/plain; charset=utf-8",
+    )
