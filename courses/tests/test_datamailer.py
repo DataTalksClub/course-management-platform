@@ -52,6 +52,7 @@ from course_management.datamailer import (
     remove_registration_from_datamailer,
     send_certificate_availability_notification,
     send_homework_score_notification,
+    send_peer_review_assignment_notification,
     send_project_score_notification,
     send_registration_confirmation_email,
     send_transactional_email,
@@ -2997,6 +2998,48 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(list_key, project_submitters_list_key(project))
         self.assert_peer_review_assignment_payload(payload, project)
         self.assert_berlin_reviewer_assignments(payload)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+    )
+    def test_send_peer_review_assignment_notification_uses_list_send(
+        self,
+        bulk_upsert,
+        send_list,
+    ):
+        bulk_upsert.return_value = {"updated_count": 0}
+        send_list.return_value = {
+            "recipient_list": {"active_member_count": 4},
+            "enqueued_count": 4,
+        }
+        project = self.create_peer_review_assignment_fixture()
+
+        result = send_peer_review_assignment_notification(project)
+
+        self.assertEqual(result["enqueued_count"], 4)
+        bulk_upsert.assert_called_once()
+        send_list.assert_called_once()
+        self.assertEqual(
+            bulk_upsert.call_args.args[0],
+            project_submitters_list_key(project),
+        )
+        self.assertEqual(len(bulk_upsert.call_args.args[1]["members"]), 4)
+        self.assertEqual(
+            send_list.call_args.args[0],
+            project_submitters_list_key(project),
+        )
+        self.assertNotIn("members", send_list.call_args.args[1])
+        self.assertNotIn("list", send_list.call_args.args[1])
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.event, "peer_review_assignment")
+        self.assertEqual(audit.intended_count, 4)
+        self.assertEqual(audit.enqueued_count, 4)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_project_score_notification_includes_submitters(self):
