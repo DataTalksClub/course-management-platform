@@ -280,9 +280,42 @@ def _invalid_course_patch_field(data):
     return None
 
 
+def _invalid_course_patch_field_response(data):
+    invalid_field = _invalid_course_patch_field(data)
+    if invalid_field is None:
+        return None
+
+    return error_response(
+        f"Cannot update field: {invalid_field}",
+        "invalid_field",
+        details={"field": invalid_field},
+    )
+
+
+def _course_patch_data_from_request(request):
+    data, err = parse_json_body(request)
+    if err:
+        return None, err
+
+    err = _invalid_course_patch_field_response(data)
+    if err:
+        return None, err
+
+    return _normalize_course_data(data)
+
+
 def _apply_course_patch_data(course, data):
     for field, value in data.items():
         setattr(course, field, value)
+
+
+def _course_patch_validation_error(course):
+    try:
+        course.full_clean()
+    except ValidationError as exc:
+        return _validation_error_response(exc)
+
+    return None
 
 
 def _patch_course_response(request, course):
@@ -290,27 +323,14 @@ def _patch_course_response(request, course):
     if staff_error:
         return staff_error
 
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    invalid_field = _invalid_course_patch_field(data)
-    if invalid_field is not None:
-        return error_response(
-            f"Cannot update field: {invalid_field}",
-            "invalid_field",
-            details={"field": invalid_field},
-        )
-
-    data, err = _normalize_course_data(data)
+    data, err = _course_patch_data_from_request(request)
     if err:
         return err
 
     _apply_course_patch_data(course, data)
-    try:
-        course.full_clean()
-    except ValidationError as exc:
-        return _validation_error_response(exc)
+    err = _course_patch_validation_error(course)
+    if err:
+        return err
 
     course.save()
     return JsonResponse(_course_to_dict(course))
