@@ -96,6 +96,99 @@ class CampaignActionCase:
     expected_json: dict
 
 
+@dataclass(frozen=True)
+class DatamailerRequestExpectation:
+    response: Mock
+    session: Mock
+    method: str
+    path: str
+    json_payload: dict | None = None
+    params: dict | None = None
+
+
+@dataclass(frozen=True)
+class DatamailerMethodCase:
+    method_name: str
+    args: tuple
+    method: str
+    path: str
+    json_payload: dict | None = None
+    params: dict | None = None
+
+
+@dataclass(frozen=True)
+class CampaignCommandMocks:
+    upsert_campaign: Mock
+    preview_campaign: Mock
+    test_send_campaign: Mock
+    queue_campaign: Mock
+
+
+@dataclass(frozen=True)
+class CampaignActionRunExpectation:
+    mocks: CampaignCommandMocks
+    out: StringIO
+
+
+@dataclass(frozen=True)
+class UpsertedRecipientMemberExpectation:
+    upsert_member: Mock
+    list_key: str
+    source_object_key: str
+    list_type: str
+
+
+@dataclass(frozen=True)
+class ScorePayloadExpectation:
+    payload: dict
+    template_key: str
+    idempotency_key: str
+    footer_text: str
+    list_type: str
+
+
+@dataclass(frozen=True)
+class BulkUpsertMemberExpectation:
+    bulk_upsert: Mock
+    list_key: str
+    source_object_key: str
+    list_type: str | None = None
+    outcome: str | None = None
+
+
+@dataclass(frozen=True)
+class RecipientListAuditRepairExpectation:
+    reconcile: Mock
+    list_key: str
+    source_object_key: str
+    output: str
+
+
+@dataclass(frozen=True)
+class ImportWaitExpectation:
+    recipient_list_import: Mock
+    course: Course
+    job_id: int
+    out: StringIO
+
+
+@dataclass(frozen=True)
+class ProjectScoreListSendExpectation:
+    result: dict
+    bulk_upsert: Mock
+    send_list: Mock
+    project: Project
+    submission: ProjectSubmission
+
+
+@dataclass(frozen=True)
+class HomeworkScoreListSendExpectation:
+    result: dict
+    bulk_upsert: Mock
+    send_list: Mock
+    homework: Homework
+
+
 class DatamailerClientTest(TestCase):
     def datamailer_config(self):
         return DatamailerConfig(
@@ -146,74 +239,51 @@ class DatamailerClientTest(TestCase):
             DatamailerOutboxStatus.FAILED,
         )
 
-    def assert_datamailer_request(
-        self,
-        response,
-        session,
-        method,
-        path,
-        *,
-        json_payload=None,
-        params=None,
-    ):
+    def assert_datamailer_request(self, expectation):
         kwargs = {
-            "json": json_payload,
+            "json": expectation.json_payload,
             "timeout": 10,
             "headers": {
                 "Authorization": "Bearer secret-token",
                 "Content-Type": "application/json",
             },
         }
-        if params is not None:
-            kwargs["params"] = params
-        session.request.assert_called_once_with(
-            method,
-            f"https://datamailer.example.com{path}",
+        if expectation.params is not None:
+            kwargs["params"] = expectation.params
+        expectation.session.request.assert_called_once_with(
+            expectation.method,
+            f"https://datamailer.example.com{expectation.path}",
             **kwargs,
         )
-        response.raise_for_status.assert_called_once()
+        expectation.response.raise_for_status.assert_called_once()
 
-    def assert_datamailer_method_case(
-        self,
-        method_name,
-        args,
-        method,
-        path,
-        *,
-        json_payload=None,
-        params=None,
-    ):
+    def assert_datamailer_method_case(self, method_case):
         session, response = self.datamailer_session()
         client = self.datamailer_client(session)
 
-        result = getattr(client, method_name)(*args)
+        result = getattr(client, method_case.method_name)(*method_case.args)
 
         self.assertEqual(result, {"ok": True})
-        self.assert_datamailer_request(
-            response,
-            session,
-            method,
-            path,
-            json_payload=json_payload,
-            params=params,
+        expectation = DatamailerRequestExpectation(
+            response=response,
+            session=session,
+            method=method_case.method,
+            path=method_case.path,
+            json_payload=method_case.json_payload,
+            params=method_case.params,
         )
+        self.assert_datamailer_request(expectation)
 
-    def configure_campaign_command_mocks(
-        self,
-        upsert_campaign,
-        preview_campaign,
-        test_send_campaign,
-        queue_campaign,
-    ):
-        upsert_campaign.return_value = {
+    def configure_campaign_command_mocks(self, mocks):
+        mocks.upsert_campaign.return_value = {
             "campaign": {
                 "external_key": "course-start-2026",
                 "status": "draft",
             },
         }
-        preview_campaign.return_value = {"subject": "Course starts"}
-        test_send_campaign.return_value = {"queued_count": 1}
-        queue_campaign.return_value = {"campaign": {"status": "queued"}}
+        mocks.preview_campaign.return_value = {"subject": "Course starts"}
+        mocks.test_send_campaign.return_value = {"queued_count": 1}
+        mocks.queue_campaign.return_value = {"campaign": {"status": "queued"}}
 
     def run_campaign_command(self):
         out = StringIO()
@@ -256,24 +326,22 @@ class DatamailerClientTest(TestCase):
             {"course_slug": "ml-zoomcamp-2026"},
         )
 
-    def assert_campaign_actions_ran(
-        self,
-        preview_campaign,
-        test_send_campaign,
-        queue_campaign,
-        out,
-    ):
-        preview_campaign.assert_called_once_with("course-start-2026")
-        test_send_campaign.assert_called_once_with(
+    def assert_campaign_actions_ran(self, expectation):
+        expectation.mocks.preview_campaign.assert_called_once_with(
+            "course-start-2026"
+        )
+        expectation.mocks.test_send_campaign.assert_called_once_with(
             "course-start-2026",
             ["ops@example.com"],
         )
-        queue_campaign.assert_called_once_with("course-start-2026")
+        expectation.mocks.queue_campaign.assert_called_once_with(
+            "course-start-2026"
+        )
         self.assertIn(
             "Upserted course-start-2026: status=draft",
-            out.getvalue(),
+            expectation.out.getvalue(),
         )
-        self.assertIn("queue: ok", out.getvalue())
+        self.assertIn("queue: ok", expectation.out.getvalue())
 
     def create_ml_course(self):
         return Course.objects.create(
@@ -397,20 +465,19 @@ class DatamailerClientTest(TestCase):
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
-    def assert_upserted_recipient_member(
-        self,
-        upsert_member,
-        *,
-        list_key,
-        source_object_key,
-        list_type,
-    ):
-        upsert_member.assert_called_once()
-        self.assertEqual(upsert_member.call_args.args[0], list_key)
-        self.assertEqual(upsert_member.call_args.args[1], source_object_key)
+    def assert_upserted_recipient_member(self, expectation):
+        expectation.upsert_member.assert_called_once()
         self.assertEqual(
-            upsert_member.call_args.args[2]["list"]["type"],
-            list_type,
+            expectation.upsert_member.call_args.args[0],
+            expectation.list_key,
+        )
+        self.assertEqual(
+            expectation.upsert_member.call_args.args[1],
+            expectation.source_object_key,
+        )
+        self.assertEqual(
+            expectation.upsert_member.call_args.args[2]["list"]["type"],
+            expectation.list_type,
         )
 
     def assert_project_passed_member_upserted(self, upsert_member, project):
@@ -468,23 +535,22 @@ class DatamailerClientTest(TestCase):
             f"homework-submission:{submission.pk}",
         )
 
-    def assert_score_payload_common(
-        self,
-        payload,
-        *,
-        template_key,
-        idempotency_key,
-        footer_text,
-        list_type,
-    ):
-        self.assertEqual(payload["template_key"], template_key)
-        self.assertEqual(payload["idempotency_key"], idempotency_key)
+    def assert_score_payload_common(self, expectation):
+        payload = expectation.payload
+        self.assertEqual(payload["template_key"], expectation.template_key)
+        self.assertEqual(
+            payload["idempotency_key"],
+            expectation.idempotency_key,
+        )
         self.assertEqual(payload["from_email"], "courses")
         self.assertEqual(
             payload["context"]["profile_url"],
             "https://courses.example.com/accounts/settings/",
         )
-        self.assertIn(footer_text, payload["context"]["notification_footer"])
+        self.assertIn(
+            expectation.footer_text,
+            payload["context"]["notification_footer"],
+        )
         self.assertEqual(
             payload["metadata"]["preference_key"],
             "email_submission_confirmations",
@@ -492,7 +558,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["category_tag"], "submission-results")
         self.assertNotIn("member_sync", payload)
         self.assertNotIn("remove_absent_members", payload)
-        self.assertEqual(payload["list"]["type"], list_type)
+        self.assertEqual(payload["list"]["type"], expectation.list_type)
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
@@ -701,26 +767,24 @@ class DatamailerClientTest(TestCase):
             "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
         )
 
-    def assert_bulk_upsert_member(
-        self,
-        bulk_upsert,
-        *,
-        list_key,
-        source_object_key,
-        list_type=None,
-        outcome=None,
-    ):
-        bulk_upsert.assert_called_once()
-        self.assertEqual(bulk_upsert.call_args.args[0], list_key)
-        payload = bulk_upsert.call_args.args[1]
-        if list_type is not None:
-            self.assertEqual(payload["list"]["type"], list_type)
-        if outcome is not None:
-            self.assertEqual(payload["list"]["metadata"]["outcome"], outcome)
+    def assert_bulk_upsert_member(self, expectation):
+        expectation.bulk_upsert.assert_called_once()
+        self.assertEqual(
+            expectation.bulk_upsert.call_args.args[0],
+            expectation.list_key,
+        )
+        payload = expectation.bulk_upsert.call_args.args[1]
+        if expectation.list_type is not None:
+            self.assertEqual(payload["list"]["type"], expectation.list_type)
+        if expectation.outcome is not None:
+            self.assertEqual(
+                payload["list"]["metadata"]["outcome"],
+                expectation.outcome,
+            )
         self.assertEqual(len(payload["members"]), 1)
         self.assertEqual(
             payload["members"][0]["source_object_key"],
-            source_object_key,
+            expectation.source_object_key,
         )
 
     def assert_registration_contact_synced(self, upsert_contact):
@@ -895,41 +959,39 @@ class DatamailerClientTest(TestCase):
             ],
         }
 
-    def assert_recipient_list_audit_repaired(
-        self,
-        reconcile,
-        list_key,
-        source_object_key,
-        output,
-    ):
-        reconcile.assert_called_once()
-        self.assertEqual(reconcile.call_args.args[0], list_key)
-        repaired_payload = reconcile.call_args.args[1]
+    def assert_recipient_list_audit_repaired(self, expectation):
+        expectation.reconcile.assert_called_once()
+        self.assertEqual(
+            expectation.reconcile.call_args.args[0],
+            expectation.list_key,
+        )
+        repaired_payload = expectation.reconcile.call_args.args[1]
         self.assertEqual(
             repaired_payload["members"][0]["source_object_key"],
-            source_object_key,
-        )
-        self.assertIn(f"missing: {source_object_key}", output)
-        self.assertIn("unexpected: user:999", output)
-        self.assertIn(f"Repaired {list_key}: upserted=1 removed=1", output)
-        self.assertIn("drifted=1", output)
-
-    def assert_import_waited_for_success(
-        self,
-        recipient_list_import,
-        course,
-        job_id,
-        out,
-    ):
-        self.assertEqual(recipient_list_import.call_count, 2)
-        recipient_list_import.assert_called_with(
-            course_enrolled_list_key(course),
-            job_id,
+            expectation.source_object_key,
         )
         self.assertIn(
-            f"Import job succeeded for {course_enrolled_list_key(course)}: "
-            f"job_id={job_id}",
-            out.getvalue(),
+            f"missing: {expectation.source_object_key}",
+            expectation.output,
+        )
+        self.assertIn("unexpected: user:999", expectation.output)
+        self.assertIn(
+            f"Repaired {expectation.list_key}: upserted=1 removed=1",
+            expectation.output,
+        )
+        self.assertIn("drifted=1", expectation.output)
+
+    def assert_import_waited_for_success(self, expectation):
+        self.assertEqual(expectation.recipient_list_import.call_count, 2)
+        expectation.recipient_list_import.assert_called_with(
+            course_enrolled_list_key(expectation.course),
+            expectation.job_id,
+        )
+        self.assertIn(
+            f"Import job succeeded for "
+            f"{course_enrolled_list_key(expectation.course)}: "
+            f"job_id={expectation.job_id}",
+            expectation.out.getvalue(),
         )
 
     def assert_homework_score_member(self, member, submission):
@@ -1149,17 +1211,10 @@ class DatamailerClientTest(TestCase):
         )
         self.assertEqual(member["metadata"]["total_score"], 90)
 
-    def assert_project_score_list_send(
-        self,
-        result,
-        bulk_upsert,
-        send_list,
-        project,
-        submission,
-    ):
-        self.assertEqual(result, {"enqueued_count": 1})
-        self.assertEqual(bulk_upsert.call_count, 2)
-        send_list.assert_called_once()
+    def assert_project_score_list_send(self, expectation):
+        self.assertEqual(expectation.result, {"enqueued_count": 1})
+        self.assertEqual(expectation.bulk_upsert.call_count, 2)
+        expectation.send_list.assert_called_once()
         self.assertEqual(
             DatamailerOutboxEvent.objects.filter(
                 event_type="recipient_list.members_bulk_upsert",
@@ -1168,45 +1223,42 @@ class DatamailerClientTest(TestCase):
             2,
         )
         self.assertEqual(
-            send_list.call_args.args[0],
-            project_submitters_list_key(project),
+            expectation.send_list.call_args.args[0],
+            project_submitters_list_key(expectation.project),
         )
-        self.assertNotIn("members", send_list.call_args.args[1])
-        self.assertNotIn("list", send_list.call_args.args[1])
+        self.assertNotIn("members", expectation.send_list.call_args.args[1])
+        self.assertNotIn("list", expectation.send_list.call_args.args[1])
         self.assertEqual(
-            bulk_upsert.call_args_list[1].args[0],
-            project_passed_list_key(project),
+            expectation.bulk_upsert.call_args_list[1].args[0],
+            project_passed_list_key(expectation.project),
         )
-        passed_payload = bulk_upsert.call_args_list[1].args[1]
+        passed_payload = expectation.bulk_upsert.call_args_list[1].args[1]
         self.assertEqual(
             passed_payload["members"][0]["source_object_key"],
-            f"project-submission:{submission.pk}",
+            f"project-submission:{expectation.submission.pk}",
         )
         self.assertEqual(
             passed_payload["members"][0]["metadata"]["outcome"],
             "project_passed",
         )
 
-    def assert_homework_score_list_send(
-        self,
-        result,
-        bulk_upsert,
-        send_list,
-        homework,
-    ):
-        self.assertEqual(result["enqueued_count"], 1)
-        bulk_upsert.assert_called_once()
-        send_list.assert_called_once()
+    def assert_homework_score_list_send(self, expectation):
+        self.assertEqual(expectation.result["enqueued_count"], 1)
+        expectation.bulk_upsert.assert_called_once()
+        expectation.send_list.assert_called_once()
         self.assertEqual(
-            send_list.call_args.args[0],
-            homework_submitters_list_key(homework),
+            expectation.send_list.call_args.args[0],
+            homework_submitters_list_key(expectation.homework),
         )
-        self.assertNotIn("members", send_list.call_args.args[1])
-        self.assertNotIn("list", send_list.call_args.args[1])
+        self.assertNotIn("members", expectation.send_list.call_args.args[1])
+        self.assertNotIn("list", expectation.send_list.call_args.args[1])
         audit = DatamailerSendAudit.objects.get()
         self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
         self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.list_key, homework_submitters_list_key(homework))
+        self.assertEqual(
+            audit.list_key,
+            homework_submitters_list_key(expectation.homework),
+        )
         self.assertEqual(audit.template_key, "homework-score-notification")
         self.assertEqual(audit.category_tag, "submission-results")
         self.assertEqual(audit.event, "homework_score_publication")
@@ -1220,7 +1272,7 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
         self.assertEqual(
             event.payload["list_key"],
-            homework_submitters_list_key(homework),
+            homework_submitters_list_key(expectation.homework),
         )
 
     def transactional_email_payload(self):
@@ -1652,45 +1704,35 @@ class DatamailerClientTest(TestCase):
     def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
         cases = self.recipient_list_import_method_cases()
         for case in cases:
-            method_name, args, method, path, expected_json, expected_params = case
-            with self.subTest(method_name=method_name):
-                self.assert_datamailer_method_case(
-                    method_name,
-                    args,
-                    method,
-                    path,
-                    json_payload=expected_json,
-                    params=expected_params,
-                )
+            with self.subTest(method_name=case.method_name):
+                self.assert_datamailer_method_case(case)
 
     def recipient_list_import_method_cases(self):
         return [
-            (
-                "create_recipient_list_import",
-                (
+            DatamailerMethodCase(
+                method_name="create_recipient_list_import",
+                args=(
                     "ml-zoomcamp-2026:@e",
                     {
                         "source_url": "https://storage.example.com/import.jsonl",
                         "idempotency_key": "cmp-import-1",
                     },
                 ),
-                "POST",
-                "/api/recipient-lists/ml-zoomcamp-2026:@e/imports",
-                {
+                method="POST",
+                path="/api/recipient-lists/ml-zoomcamp-2026:@e/imports",
+                json_payload={
                     "audience": "dtc-courses",
                     "client": "dtc-courses",
                     "source_url": "https://storage.example.com/import.jsonl",
                     "idempotency_key": "cmp-import-1",
                 },
-                None,
             ),
-            (
-                "recipient_list_import",
-                ("ml-zoomcamp-2026:@e", 42),
-                "GET",
-                "/api/recipient-lists/ml-zoomcamp-2026:@e/imports/42",
-                None,
-                {"audience": "dtc-courses", "client": "dtc-courses"},
+            DatamailerMethodCase(
+                method_name="recipient_list_import",
+                args=("ml-zoomcamp-2026:@e", 42),
+                method="GET",
+                path="/api/recipient-lists/ml-zoomcamp-2026:@e/imports/42",
+                params={"audience": "dtc-courses", "client": "dtc-courses"},
             ),
         ]
 
@@ -1776,11 +1818,11 @@ class DatamailerClientTest(TestCase):
         )
 
         self.assertEqual(result, {"created": True})
-        self.assert_datamailer_request(
-            response,
-            session,
-            "PUT",
-            "/api/campaigns/course-start-2026",
+        expectation = DatamailerRequestExpectation(
+            response=response,
+            session=session,
+            method="PUT",
+            path="/api/campaigns/course-start-2026",
             json_payload={
                 "audience": "dtc-courses",
                 "client": "dtc-courses",
@@ -1789,6 +1831,7 @@ class DatamailerClientTest(TestCase):
                 "text_body": "Hello",
             },
         )
+        self.assert_datamailer_request(expectation)
 
     def test_campaign_read_uses_expected_endpoint_and_scope(self):
         session = Mock()
@@ -1826,13 +1869,14 @@ class DatamailerClientTest(TestCase):
         cases = self.campaign_action_cases()
         for case in cases:
             with self.subTest(method_name=case.method_name):
-                self.assert_datamailer_method_case(
-                    case.method_name,
-                    ("course-start-2026", *case.extra_args),
-                    "POST",
-                    case.path,
+                method_case = DatamailerMethodCase(
+                    method_name=case.method_name,
+                    args=("course-start-2026", *case.extra_args),
+                    method="POST",
+                    path=case.path,
                     json_payload=case.expected_json,
                 )
+                self.assert_datamailer_method_case(method_case)
 
     def campaign_action_cases(self):
         return [
@@ -1876,33 +1920,37 @@ class DatamailerClientTest(TestCase):
         ]
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.queue_campaign")
-    @patch("course_management.datamailer.DatamailerClient.test_send_campaign")
-    @patch("course_management.datamailer.DatamailerClient.preview_campaign")
-    @patch("course_management.datamailer.DatamailerClient.upsert_campaign")
-    def test_datamailer_campaign_command_upserts_and_runs_actions(
-        self,
-        upsert_campaign,
-        preview_campaign,
-        test_send_campaign,
-        queue_campaign,
-    ):
-        self.configure_campaign_command_mocks(
-            upsert_campaign,
-            preview_campaign,
-            test_send_campaign,
-            queue_campaign,
-        )
+    def test_datamailer_campaign_command_upserts_and_runs_actions(self):
+        with (
+            patch(
+                "course_management.datamailer.DatamailerClient.upsert_campaign"
+            ) as upsert_campaign,
+            patch(
+                "course_management.datamailer.DatamailerClient.preview_campaign"
+            ) as preview_campaign,
+            patch(
+                "course_management.datamailer.DatamailerClient.test_send_campaign"
+            ) as test_send_campaign,
+            patch(
+                "course_management.datamailer.DatamailerClient.queue_campaign"
+            ) as queue_campaign,
+        ):
+            mocks = CampaignCommandMocks(
+                upsert_campaign=upsert_campaign,
+                preview_campaign=preview_campaign,
+                test_send_campaign=test_send_campaign,
+                queue_campaign=queue_campaign,
+            )
+            self.configure_campaign_command_mocks(mocks)
 
-        out = self.run_campaign_command()
+            out = self.run_campaign_command()
 
         self.assert_campaign_upsert_payload(upsert_campaign)
-        self.assert_campaign_actions_ran(
-            preview_campaign,
-            test_send_campaign,
-            queue_campaign,
-            out,
+        expectation = CampaignActionRunExpectation(
+            mocks=mocks,
+            out=out,
         )
+        self.assert_campaign_actions_ran(expectation)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_datamailer_campaign_command_requires_body(self):
@@ -2746,12 +2794,13 @@ class DatamailerClientTest(TestCase):
         sync_homework_submission_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
-        self.assert_upserted_recipient_member(
-            upsert_member,
+        expectation = UpsertedRecipientMemberExpectation(
+            upsert_member=upsert_member,
             list_key=homework_submitters_list_key(homework),
             source_object_key=f"homework-submission:{submission.pk}",
             list_type="homework_submitters",
         )
+        self.assert_upserted_recipient_member(expectation)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -2776,12 +2825,13 @@ class DatamailerClientTest(TestCase):
         sync_project_submission_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
-        self.assert_upserted_recipient_member(
-            upsert_member,
+        expectation = UpsertedRecipientMemberExpectation(
+            upsert_member=upsert_member,
             list_key=project_submitters_list_key(project),
             source_object_key=f"project-submission:{submission.pk}",
             list_type="project_submitters",
         )
+        self.assert_upserted_recipient_member(expectation)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -2910,13 +2960,14 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(
             list_key, homework_submitters_list_key(homework)
         )
-        member = self.assert_score_payload_common(
-            payload,
+        expectation = ScorePayloadExpectation(
+            payload=payload,
             template_key="homework-score-notification",
             idempotency_key="homework-score:ml-zoomcamp-2026:homework-1",
             footer_text="you submitted Homework 1",
             list_type="homework_submitters",
         )
+        member = self.assert_score_payload_common(expectation)
         self.assertEqual(
             payload["context"]["scores_url"],
             "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
@@ -2984,12 +3035,13 @@ class DatamailerClientTest(TestCase):
 
         result = send_homework_score_notification(homework)
 
-        self.assert_homework_score_list_send(
-            result,
-            bulk_upsert,
-            send_list,
-            homework,
+        expectation = HomeworkScoreListSendExpectation(
+            result=result,
+            bulk_upsert=bulk_upsert,
+            send_list=send_list,
+            homework=homework,
         )
+        self.assert_homework_score_list_send(expectation)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -3043,13 +3095,14 @@ class DatamailerClientTest(TestCase):
         list_key, payload = project_score_notification_payload(project)
 
         self.assertEqual(list_key, project_submitters_list_key(project))
-        member = self.assert_score_payload_common(
-            payload,
+        expectation = ScorePayloadExpectation(
+            payload=payload,
             template_key="project-score-notification",
             idempotency_key="project-score:ml-zoomcamp-2026:project-1",
             footer_text="you submitted Project 1",
             list_type="project_submitters",
         )
+        member = self.assert_score_payload_common(expectation)
         self.assert_project_score_context(payload)
         self.assert_project_score_member(member, submission)
 
@@ -3235,13 +3288,14 @@ class DatamailerClientTest(TestCase):
 
         result = send_project_score_notification(project)
 
-        self.assert_project_score_list_send(
-            result,
-            bulk_upsert,
-            send_list,
-            project,
-            submission,
+        expectation = ProjectScoreListSendExpectation(
+            result=result,
+            bulk_upsert=bulk_upsert,
+            send_list=send_list,
+            project=project,
+            submission=submission,
         )
+        self.assert_project_score_list_send(expectation)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -3492,12 +3546,13 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        self.assert_bulk_upsert_member(
-            bulk_upsert,
+        expectation = BulkUpsertMemberExpectation(
+            bulk_upsert=bulk_upsert,
             list_key=registration_list_key(registration),
             source_object_key=f"registration:{registration.pk}",
             list_type="registrants",
         )
+        self.assert_bulk_upsert_member(expectation)
         self.assert_prepared_one_member(out)
 
     @override_settings(**DATAMAILER_SETTINGS)
@@ -3521,12 +3576,13 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        self.assert_bulk_upsert_member(
-            bulk_upsert,
+        expectation = BulkUpsertMemberExpectation(
+            bulk_upsert=bulk_upsert,
             list_key=course_enrolled_list_key(course),
             source_object_key=f"user:{enrollment.student_id}",
             list_type="custom",
         )
+        self.assert_bulk_upsert_member(expectation)
         self.assert_prepared_one_member(out)
 
     @override_settings(**DATAMAILER_SETTINGS)
@@ -3586,12 +3642,13 @@ class DatamailerClientTest(TestCase):
             repair=True,
         )
 
-        self.assert_recipient_list_audit_repaired(
-            reconcile,
-            list_key,
-            source_object_key,
-            output,
+        expectation = RecipientListAuditRepairExpectation(
+            reconcile=reconcile,
+            list_key=list_key,
+            source_object_key=source_object_key,
+            output=output,
         )
+        self.assert_recipient_list_audit_repaired(expectation)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -3727,12 +3784,13 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        self.assert_bulk_upsert_member(
-            bulk_upsert,
+        expectation = BulkUpsertMemberExpectation(
+            bulk_upsert=bulk_upsert,
             list_key=course_graduates_list_key(course),
             source_object_key=f"enrollment:{enrollment.pk}",
             outcome="course_graduated",
         )
+        self.assert_bulk_upsert_member(expectation)
         self.assert_prepared_one_member(out)
 
     @override_settings(**DATAMAILER_SETTINGS)
@@ -3889,12 +3947,13 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        self.assert_import_waited_for_success(
-            recipient_list_import,
-            enrollment.course,
+        expectation = ImportWaitExpectation(
+            recipient_list_import=recipient_list_import,
+            course=enrollment.course,
             job_id=18,
             out=out,
         )
+        self.assert_import_waited_for_success(expectation)
 
     @override_settings(
         **DATAMAILER_SETTINGS,

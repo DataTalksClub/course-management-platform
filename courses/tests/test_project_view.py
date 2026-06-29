@@ -488,21 +488,23 @@ class ProjectViewTestCase(TestCase):
         )
 
     @override_settings(PUBLIC_BASE_URL="")
-    @mock.patch("courses.views.project.send_transactional_email")
-    @mock.patch(
-        "courses.views.project.sync_project_submission_to_datamailer"
-    )
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_sends_confirmation_email(
-        self, mock_get, mock_head, sync_submission, send_email
-    ):
-        self.mock_url_check_status(mock_get, mock_head, 200)
+    def test_project_submission_sends_confirmation_email(self):
+        with (
+            mock.patch("requests.get") as mock_get,
+            mock.patch("requests.head") as mock_head,
+            mock.patch(
+                "courses.views.project.sync_project_submission_to_datamailer"
+            ) as sync_submission,
+            mock.patch(
+                "courses.views.project.send_transactional_email"
+            ) as send_email,
+        ):
+            self.mock_url_check_status(mock_get, mock_head, 200)
 
-        response = self.post_project(
-            self.project_confirmation_data(),
-            execute_callbacks=True,
-        )
+            response = self.post_project(
+                self.project_confirmation_data(),
+                execute_callbacks=True,
+            )
         self.assertEqual(response.status_code, 302)
 
         submission = self.get_project_submission()
@@ -518,33 +520,32 @@ class ProjectViewTestCase(TestCase):
             payload["context"]["submission_summary_text"],
         )
 
-    @mock.patch("courses.views.project.send_transactional_email")
-    @mock.patch(
-        "courses.views.project.sync_project_submission_to_datamailer"
-    )
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_uses_datamailer_without_local_preference(
-        self, mock_get, mock_head, sync_submission, send_email
-    ):
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
+    def test_project_submission_uses_datamailer_without_local_preference(self):
+        with (
+            mock.patch("requests.get") as mock_get,
+            mock.patch("requests.head") as mock_head,
+            mock.patch(
+                "courses.views.project.sync_project_submission_to_datamailer"
+            ) as sync_submission,
+            mock.patch(
+                "courses.views.project.send_transactional_email"
+            ) as send_email,
+        ):
+            self.mock_url_check_status(mock_get, mock_head, 200)
 
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                url,
-                {
-                    "github_link": "https://github.com/test/project",
-                    "commit_id": "1234567",
-                },
-                HTTP_HOST="localhost",
+            self.client.login(**credentials)
+            url = reverse(
+                "project", args=[self.course.slug, self.project.slug]
             )
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    url,
+                    {
+                        "github_link": "https://github.com/test/project",
+                        "commit_id": "1234567",
+                    },
+                    HTTP_HOST="localhost",
+                )
 
         self.assertEqual(response.status_code, 302)
         submission = ProjectSubmission.objects.get(
