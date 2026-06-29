@@ -483,33 +483,29 @@ def pending_peer_review_submissions(project):
 
 
 def reminder_members_from_enrollments(enrollments, metadata, deadline):
-    return [
-        member
-        for enrollment in enrollments
-        if (
-            member := member_from_enrollment(
-                enrollment,
-                metadata,
-                deadline=deadline,
-            )
+    members = []
+    for enrollment in enrollments:
+        member = member_from_enrollment(
+            enrollment,
+            metadata,
+            deadline=deadline,
         )
-        is not None
-    ]
+        if member is not None:
+            members.append(member)
+    return members
 
 
 def reminder_members_from_submissions(submissions, metadata, deadline):
-    return [
-        member
-        for submission in submissions
-        if (
-            member := member_from_project_submission(
-                submission,
-                metadata,
-                deadline=deadline,
-            )
+    members = []
+    for submission in submissions:
+        member = member_from_project_submission(
+            submission,
+            metadata,
+            deadline=deadline,
         )
-        is not None
-    ]
+        if member is not None:
+            members.append(member)
+    return members
 
 
 def homework_deadline_context(homework):
@@ -655,7 +651,8 @@ def peer_review_reminder_event(config, spec, project):
 def homework_events(config, now, course_slug):
     spec = homework_reminder_spec()
     events = []
-    for homework in homework_reminder_queryset(now, course_slug):
+    homeworks = homework_reminder_queryset(now, course_slug)
+    for homework in homeworks:
         event = homework_reminder_event(config, spec, homework)
         if event is not None:
             events.append(event)
@@ -666,9 +663,8 @@ def project_submission_events(config, now, course_slug):
     events = []
     spec = project_submission_reminder_spec()
     windows = project_submission_reminder_windows(now)
-    for project in project_submission_reminder_queryset(
-        windows, course_slug
-    ):
+    projects = project_submission_reminder_queryset(windows, course_slug)
+    for project in projects:
         reminder_key = matching_reminder_key(
             project.submission_due_date,
             windows,
@@ -684,7 +680,8 @@ def project_submission_events(config, now, course_slug):
 def peer_review_events(config, now, course_slug):
     events = []
     spec = peer_review_reminder_spec()
-    for project in peer_review_reminder_queryset(now, course_slug):
+    projects = peer_review_reminder_queryset(now, course_slug)
+    for project in projects:
         event = peer_review_reminder_event(config, spec, project)
         if event is not None:
             events.append(event)
@@ -693,13 +690,35 @@ def peer_review_events(config, now, course_slug):
 
 def build_reminder_events(config, now, course_slug=""):
     events = OrderedDict()
-    for event in (
-        homework_events(config, now, course_slug)
-        + project_submission_events(config, now, course_slug)
-        + peer_review_events(config, now, course_slug)
-    ):
+    reminder_events = []
+    homework_reminder_events = homework_events(config, now, course_slug)
+    for event in homework_reminder_events:
+        reminder_events.append(event)
+    project_reminder_events = project_submission_events(
+        config,
+        now,
+        course_slug,
+    )
+    for event in project_reminder_events:
+        reminder_events.append(event)
+    peer_review_reminder_events = peer_review_events(
+        config,
+        now,
+        course_slug,
+    )
+    for event in peer_review_reminder_events:
+        reminder_events.append(event)
+
+    for event in reminder_events:
         events[event.list_key] = event
     return list(events.values())
+
+
+def reminder_event_member_count(events):
+    total_members = 0
+    for event in events:
+        total_members += len(event.members)
+    return total_members
 
 
 def require_datamailer_config():
@@ -778,7 +797,7 @@ class Command(BaseCommand):
             now,
             course_slug=options["course_slug"],
         )
-        total_members = sum(len(event.members) for event in events)
+        total_members = reminder_event_member_count(events)
         self.stdout.write(
             f"Prepared {len(events)} reminder event(s), "
             f"{total_members} member(s)."
