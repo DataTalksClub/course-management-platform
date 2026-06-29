@@ -8,47 +8,61 @@ def update_homework_submission_from_admin(submission, cleaned_data):
     with transaction.atomic():
         old_total_score = submission.total_score
 
-        for question, answer_text in cleaned_data["answers_by_question"]:
-            Answer.objects.update_or_create(
-                submission=submission,
-                question=question,
-                defaults={"answer_text": answer_text},
-            )
-
-        submission.learning_in_public_links = cleaned_data[
-            "learning_in_public_links_list"
-        ]
-        submission.faq_contribution_url = cleaned_data[
-            "faq_contribution_url"
-        ]
-
-        updated_answers = list(
-            Answer.objects.filter(submission=submission).select_related(
-                "question"
-            )
+        update_homework_answers_from_admin(
+            submission,
+            cleaned_data["answers_by_question"],
         )
-        update_score(submission, updated_answers, save=True)
-
-        submission.faq_score = cleaned_data["faq_score"]
-        submission.total_score = (
-            submission.questions_score
-            + submission.learning_in_public_score
-            + submission.faq_score
-        )
-        submission.save(
-            update_fields=[
-                "learning_in_public_links",
-                "faq_contribution_url",
-                "faq_score",
-                "total_score",
-            ]
-        )
+        apply_homework_submission_admin_fields(submission, cleaned_data)
+        rescore_homework_submission(submission)
+        apply_homework_admin_score_overrides(submission, cleaned_data)
 
         score_changed = submission.total_score != old_total_score
         if score_changed:
             update_leaderboard(submission.homework.course)
 
         return score_changed
+
+
+def update_homework_answers_from_admin(submission, answers_by_question):
+    for question, answer_text in answers_by_question:
+        Answer.objects.update_or_create(
+            submission=submission,
+            question=question,
+            defaults={"answer_text": answer_text},
+        )
+
+
+def apply_homework_submission_admin_fields(submission, cleaned_data):
+    submission.learning_in_public_links = cleaned_data[
+        "learning_in_public_links_list"
+    ]
+    submission.faq_contribution_url = cleaned_data["faq_contribution_url"]
+
+
+def rescore_homework_submission(submission):
+    updated_answers = list(
+        Answer.objects.filter(submission=submission).select_related(
+            "question"
+        )
+    )
+    update_score(submission, updated_answers, save=True)
+
+
+def apply_homework_admin_score_overrides(submission, cleaned_data):
+    submission.faq_score = cleaned_data["faq_score"]
+    submission.total_score = (
+        submission.questions_score
+        + submission.learning_in_public_score
+        + submission.faq_score
+    )
+    submission.save(
+        update_fields=[
+            "learning_in_public_links",
+            "faq_contribution_url",
+            "faq_score",
+            "total_score",
+        ]
+    )
 
 
 def update_project_submission_from_admin(submission, cleaned_data):
