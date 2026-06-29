@@ -5,7 +5,7 @@ import json
 import pytest
 import requests
 
-from e2e.api_client import ApiError, CmpApiClient
+from e2e.api_client import ApiError, ApiRequestData, CmpApiClient
 
 
 class FakeResponse:
@@ -52,7 +52,8 @@ def test_request_retries_network_errors(monkeypatch):
         ]
     )
 
-    response = client._request("GET", "/api/health/")
+    request_data = ApiRequestData(method="GET", path="/api/health/")
+    response = client._request(request_data)
 
     assert response.json() == {"ok": True}
     assert len(client.session.calls) == 2
@@ -69,7 +70,8 @@ def test_request_retries_transient_server_errors(monkeypatch):
         ]
     )
 
-    response = client._request("GET", "/api/health/")
+    request_data = ApiRequestData(method="GET", path="/api/health/")
+    response = client._request(request_data)
 
     assert response.json() == {"status": "ok"}
     assert len(client.session.calls) == 2
@@ -80,7 +82,12 @@ def test_request_raises_api_error_for_unexpected_status():
     client = client_with([FakeResponse(400, {"error": "bad"})])
 
     with pytest.raises(ApiError) as exc:
-        client._request("POST", "/api/courses/", json_body={"slug": ""})
+        request_data = ApiRequestData(
+            method="POST",
+            path="/api/courses/",
+            json_body={"slug": ""},
+        )
+        client._request(request_data)
 
     assert exc.value.status == 400
     assert exc.value.body == {"error": "bad"}
@@ -90,12 +97,13 @@ def test_request_raises_api_error_for_unexpected_status():
 def test_request_serializes_json_payload():
     client = client_with([FakeResponse(201, {"id": 1})])
 
-    client._request(
-        "POST",
-        "/api/courses/",
+    request_data = ApiRequestData(
+        method="POST",
+        path="/api/courses/",
         json_body={"slug": "ml-zoomcamp"},
         expected=(201,),
     )
+    client._request(request_data)
 
     _method, _url, kwargs = client.session.calls[0]
     assert kwargs["data"] == '{"slug": "ml-zoomcamp"}'

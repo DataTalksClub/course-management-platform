@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 
+from e2e.api_client import ApiRequestData
 from e2e.mock_inbox import InboxDisabled
 
 pytestmark = pytest.mark.homework
@@ -29,11 +30,12 @@ def hw_answers():
 
 
 def _questions_via_api(api, run_state, hw_id) -> dict[str, int]:
-    resp = api._request(  # internal helper reuse, read-only GET
-        "GET",
-        f"/api/courses/{run_state.course.slug}/homeworks/{hw_id}/questions/",
+    request_data = ApiRequestData(
+        method="GET",
+        path=f"/api/courses/{run_state.course.slug}/homeworks/{hw_id}/questions/",
         expected=(200,),
     )
+    resp = api._request(request_data)  # internal helper reuse, read-only GET
     questions = resp.json().get("questions", [])
     mapping: dict[str, int] = {}
     for q in questions:
