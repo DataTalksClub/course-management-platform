@@ -2,6 +2,7 @@ import logging
 
 from typing import Iterable, Optional
 from collections import defaultdict
+from dataclasses import dataclass
 
 from django.http import HttpRequest, JsonResponse
 
@@ -55,6 +56,14 @@ from .homework import (
 
 logger = logging.getLogger(__name__)
 PROJECT_SUBMISSIONS_PAGE_SIZE = 25
+
+
+@dataclass(frozen=True)
+class ProjectEvalSubmitPage:
+    course: Course
+    project: Project
+    review: PeerReview
+    review_criteria: Iterable[ReviewCriteria]
 
 
 def paginate_project_submissions(request, submissions):
@@ -1084,23 +1093,23 @@ def _redirect_to_projects_eval(course_slug, project_slug):
     )
 
 
-def _project_eval_submit_context(request, course, project, review, criteria):
+def _project_eval_submit_context(request, page: ProjectEvalSubmitPage):
     enrollment, _ = Enrollment.objects.get_or_create(
         student=request.user,
-        course=course,
+        course=page.course,
     )
     context = project_eval_build_context(
-        project,
-        review,
-        criteria,
+        page.project,
+        page.review,
+        page.review_criteria,
         enrollment,
     )
-    context["course"] = course
+    context["course"] = page.course
     context["voted_submission_ids"] = get_voted_submission_ids(
         request.user,
-        course,
+        page.course,
     )
-    project_vote_counts = get_project_vote_counts(request.user, course)
+    project_vote_counts = get_project_vote_counts(request.user, page.course)
     context["vote_limit_reached"] = (
         context["submission"].id not in context["voted_submission_ids"]
         and project_vote_counts.get(context["submission"].project_id, 0)
@@ -1127,23 +1136,14 @@ def _project_eval_vote_response(request, course_slug, project_slug, review):
 
 def _closed_project_eval_response(
     request,
-    course,
-    project,
-    review,
-    review_criteria,
+    page: ProjectEvalSubmitPage,
 ):
     messages.error(
         request,
         "Peer review form is closed.",
         extra_tags="homework",
     )
-    context = _project_eval_submit_context(
-        request,
-        course,
-        project,
-        review,
-        review_criteria,
-    )
+    context = _project_eval_submit_context(request, page)
     return render(request, "projects/eval_submit.html", context)
 
 
@@ -1206,32 +1206,49 @@ def _create_optional_peer_review(
 
 def _projects_eval_submit_post_response(
     request,
-    course,
-    project,
-    review,
-    review_criteria,
+    page: ProjectEvalSubmitPage,
 ):
     if request.POST.get("form_action") == "vote":
         return _project_eval_vote_response(
             request,
-            course.slug,
-            project.slug,
-            review,
+            page.course.slug,
+            page.project.slug,
+            page.review,
         )
 
-    if project.state != ProjectState.PEER_REVIEWING.value:
+    if page.project.state != ProjectState.PEER_REVIEWING.value:
         return _closed_project_eval_response(
             request,
-            course,
-            project,
-            review,
-            review_criteria,
+            page,
         )
 
     project_eval_post_submission(
-        request, project, review, review_criteria
+        request,
+        page.project,
+        page.review,
+        page.review_criteria,
     )
-    return _redirect_to_projects_eval(course.slug, project.slug)
+    return _redirect_to_projects_eval(page.course.slug, page.project.slug)
+
+
+def _project_eval_submit_page(
+    course_slug,
+    project_slug,
+    review,
+) -> ProjectEvalSubmitPage:
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, slug=project_slug, course=course
+    )
+    review_criteria = ReviewCriteria.objects.filter(
+        course=course
+    ).order_by("id")
+    return ProjectEvalSubmitPage(
+        course=course,
+        project=project,
+        review=review,
+        review_criteria=review_criteria,
+    )
 
 
 @login_required
@@ -1247,30 +1264,17 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         )
         return _redirect_to_projects_eval(course_slug, project_slug)
 
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, slug=project_slug, course=course
-    )
-
-    review_criteria = ReviewCriteria.objects.filter(
-        course=course
-    ).order_by("id")
+    page = _project_eval_submit_page(course_slug, project_slug, review)
 
     if request.method == "POST":
         return _projects_eval_submit_post_response(
             request,
-            course,
-            project,
-            review,
-            review_criteria,
+            page,
         )
 
     context = _project_eval_submit_context(
         request,
-        course,
-        project,
-        review,
-        review_criteria,
+        page,
     )
 
     return render(request, "projects/eval_submit.html", context)
