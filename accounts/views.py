@@ -160,44 +160,63 @@ def account_email_preferences(request):
     )
 
 
-@login_required
-@require_POST
-def update_timezone_preference(request):
+def _parse_timezone_request(request):
     try:
-        data = json.loads(request.body)
+        return json.loads(request.body), None
     except (json.JSONDecodeError, ValueError):
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        return None, "Invalid JSON"
 
+
+def _validated_timezone_name(data):
     timezone_name = data.get("timezone")
     if timezone_name is None:
-        return JsonResponse({"error": "timezone field is required"}, status=400)
+        return None, "timezone field is required"
     if not isinstance(timezone_name, str):
-        return JsonResponse({"error": "timezone must be a string"}, status=400)
+        return None, "timezone must be a string"
 
     timezone_name = timezone_name.strip()
     if timezone_name and not is_valid_timezone(timezone_name):
-        return JsonResponse({"error": "Invalid timezone"}, status=400)
+        return None, "Invalid timezone"
 
-    user = request.user
-    if data.get("passive") and user.preferred_timezone:
-        return JsonResponse(
-            {
-                "status": "ok",
-                "timezone": user.preferred_timezone,
-                "label": get_timezone_label(user.preferred_timezone),
-            }
-        )
+    return timezone_name, None
 
-    user.preferred_timezone = timezone_name
-    user.save(update_fields=["preferred_timezone"])
 
+def _timezone_preference_response(timezone_name):
     return JsonResponse(
         {
             "status": "ok",
-            "timezone": user.preferred_timezone,
-            "label": get_timezone_label(user.preferred_timezone),
+            "timezone": timezone_name,
+            "label": get_timezone_label(timezone_name),
         }
     )
+
+
+def _should_keep_saved_timezone(data, user):
+    return data.get("passive") and user.preferred_timezone
+
+
+def _save_timezone_preference(user, timezone_name):
+    user.preferred_timezone = timezone_name
+    user.save(update_fields=["preferred_timezone"])
+
+
+@login_required
+@require_POST
+def update_timezone_preference(request):
+    data, error = _parse_timezone_request(request)
+    if error:
+        return JsonResponse({"error": error}, status=400)
+
+    timezone_name, error = _validated_timezone_name(data)
+    if error:
+        return JsonResponse({"error": error}, status=400)
+
+    user = request.user
+    if _should_keep_saved_timezone(data, user):
+        return _timezone_preference_response(user.preferred_timezone)
+
+    _save_timezone_preference(user, timezone_name)
+    return _timezone_preference_response(user.preferred_timezone)
 
 
 @login_required
