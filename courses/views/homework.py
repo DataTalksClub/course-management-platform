@@ -115,16 +115,17 @@ def process_question_options_multiple_choice_or_checkboxes(
         else []
     )
 
-    options = [
-        process_choice_option(
+    options = []
+    indexed_possible_answers = enumerate(possible_answers, start=1)
+    for index, option in indexed_possible_answers:
+        processed_option = process_choice_option(
             homework,
             option,
             index,
             selected_options,
             correct_indices,
         )
-        for index, option in enumerate(possible_answers, start=1)
-    ]
+        options.append(processed_option)
 
     result = {"options": options}
     if no_choice_answer_submitted(homework, selected_options):
@@ -187,7 +188,8 @@ def _selected_option_index(option: str) -> Optional[int]:
 
 
 def _selected_option_indexes(answer_text: Optional[str]):
-    for option in (answer_text or "").strip().split(","):
+    options = (answer_text or "").strip().split(",")
+    for option in options:
         index = _selected_option_index(option)
         if index is not None:
             yield index
@@ -196,7 +198,11 @@ def _selected_option_indexes(answer_text: Optional[str]):
 def extract_selected_option_indexes(
     answer_text: Optional[str],
 ) -> List[int]:
-    return list(_selected_option_indexes(answer_text))
+    indexes = []
+    selected_option_indexes = _selected_option_indexes(answer_text)
+    for index in selected_option_indexes:
+        indexes.append(index)
+    return indexes
 
 
 def format_hours(value: Optional[float]) -> str:
@@ -216,10 +222,10 @@ def format_selected_answer(
 ) -> str:
     selected_indexes = extract_selected_option_indexes(answer_text)
     possible_answers = question.get_possible_answers()
-    selected_options = [
-        selected_option_label(possible_answers, index)
-        for index in selected_indexes
-    ]
+    selected_options = []
+    for index in selected_indexes:
+        option = selected_option_label(possible_answers, index)
+        selected_options.append(option)
     return ", ".join(selected_options)
 
 
@@ -333,25 +339,45 @@ def homework_submission_fields(
     homework: Homework,
     submission: Submission,
 ) -> List[dict[str, Any]]:
-    fields = [
-        homework_url_submission_field(homework, submission),
-        learning_in_public_submission_field(homework, submission),
-        lecture_time_submission_field(homework, submission),
-        homework_time_submission_field(homework, submission),
-        problems_comments_submission_field(course, submission),
-        faq_contribution_submission_field(homework, submission),
-    ]
+    fields = []
+    homework_url_field = homework_url_submission_field(homework, submission)
+    fields.append(homework_url_field)
+    learning_in_public_field = learning_in_public_submission_field(
+        homework,
+        submission,
+    )
+    fields.append(learning_in_public_field)
+    lecture_time_field = lecture_time_submission_field(homework, submission)
+    fields.append(lecture_time_field)
+    homework_time_field = homework_time_submission_field(homework, submission)
+    fields.append(homework_time_field)
+    problems_comments_field = problems_comments_submission_field(
+        course,
+        submission,
+    )
+    fields.append(problems_comments_field)
+    faq_contribution_field = faq_contribution_submission_field(
+        homework,
+        submission,
+    )
+    fields.append(faq_contribution_field)
 
-    return [field for field in fields if field is not None]
+    visible_fields = []
+    for field in fields:
+        if field is not None:
+            visible_fields.append(field)
+    return visible_fields
 
 
 def homework_submitted_answers(
     submission: Submission,
 ) -> List[dict[str, Any]]:
-    return [
-        submitted_answer_payload(answer)
-        for answer in submitted_homework_answers(submission)
-    ]
+    answer_payloads = []
+    answers = submitted_homework_answers(submission)
+    for answer in answers:
+        payload = submitted_answer_payload(answer)
+        answer_payloads.append(payload)
+    return answer_payloads
 
 
 def submitted_homework_answers(submission: Submission):
@@ -397,13 +423,15 @@ def submitted_selected_options(
     raw_answer: str,
 ) -> List[dict[str, Any]]:
     possible_answers = question.get_possible_answers()
-    return [
-        {
+    selected_options = []
+    selected_indexes = extract_selected_option_indexes(raw_answer)
+    for index in selected_indexes:
+        option = {
             "index": index,
             "value": selected_option_value(possible_answers, index),
         }
-        for index in extract_selected_option_indexes(raw_answer)
-    ]
+        selected_options.append(option)
+    return selected_options
 
 
 def format_submission_lines(items: List[dict[str, Any]]) -> str:
@@ -717,11 +745,12 @@ def _duplicate_learning_links_from_submissions(submissions, candidate_links):
 
 
 def _matching_learning_links(submission, candidate_links):
-    return {
-        link
-        for link in (submission.learning_in_public_links or [])
-        if link in candidate_links
-    }
+    matching_links = set()
+    learning_links = submission.learning_in_public_links or []
+    for link in learning_links:
+        if link in candidate_links:
+            matching_links.add(link)
+    return matching_links
 
 
 def send_homework_confirmation_email(
@@ -901,11 +930,15 @@ def _apply_faq_contribution_field(submission, request, homework):
 
 def _homework_answers_from_post(request):
     answers_dict = {}
-    for answer_id, answer in request.POST.lists():
+    posted_answers = request.POST.lists()
+    for answer_id, answer in posted_answers:
         if not answer_id.startswith("answer_"):
             continue
-        answer = [item.strip() for item in answer]
-        answers_dict[answer_id] = ",".join(answer)
+        cleaned_answer_items = []
+        for answer_item in answer:
+            cleaned_answer_item = answer_item.strip()
+            cleaned_answer_items.append(cleaned_answer_item)
+        answers_dict[answer_id] = ",".join(cleaned_answer_items)
     return answers_dict
 
 
@@ -1043,7 +1076,10 @@ def submission_answer_map(
     answers = Answer.objects.filter(
         submission=submission
     ).select_related("question")
-    return {answer.question.id: answer for answer in answers}
+    answer_map = {}
+    for answer in answers:
+        answer_map[answer.question.id] = answer
+    return answer_map
 
 
 def question_answers_for_submission(
@@ -1143,11 +1179,13 @@ def _post_preview_value(request: HttpRequest, key: str) -> str:
 
 
 def _post_preview_learning_links(request: HttpRequest) -> list[str]:
-    return [
-        link.strip()
-        for link in request.POST.getlist("learning_in_public_links[]")
-        if link.strip()
-    ]
+    links = []
+    raw_links = request.POST.getlist("learning_in_public_links[]")
+    for raw_link in raw_links:
+        link = raw_link.strip()
+        if link:
+            links.append(link)
+    return links
 
 
 def _apply_post_preview_homework_url(
@@ -1289,11 +1327,13 @@ def homework_error_fields(error: ValidationError) -> set[str]:
     if not hasattr(error, "message_dict"):
         return set()
 
-    return {
-        field_map[field_name]
-        for field_name in error.message_dict
-        if field_name in field_map
-    }
+    fields = set()
+    error_field_names = error.message_dict
+    for field_name in error_field_names:
+        if field_name in field_map:
+            field = field_map[field_name]
+            fields.add(field)
+    return fields
 
 
 def redirect_to_homework(course: Course, homework: Homework):
