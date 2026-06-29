@@ -16,44 +16,51 @@ from courses.models import (
 )
 
 
-@require_GET
-def course_criteria_yaml_view(request, course_slug: str):
-    """Return project criteria for a course in YAML format (public endpoint, no auth required)."""
-    course = get_object_or_404(Course, slug=course_slug)
-
-    # Get all review criteria for the course
-    review_criteria = ReviewCriteria.objects.filter(
+def _course_review_criteria(course):
+    return ReviewCriteria.objects.filter(
         course=course
     ).order_by('id')
 
-    # Convert criteria to a structured format for YAML export
-    criteria_data = {
+
+def _review_criteria_export_data(criteria):
+    return {
+        'description': criteria.description,
+        'type': dict(criteria.REVIEW_CRITERIA_TYPES)[
+            criteria.review_criteria_type
+        ],
+        'review_criteria_type': criteria.review_criteria_type,
+        'options': criteria.options
+    }
+
+
+def _course_criteria_export_data(course):
+    return {
         'course': {
             'slug': course.slug,
             'title': course.title,
             'description': course.description,
         },
-        'review_criteria': []
+        'review_criteria': [
+            _review_criteria_export_data(criteria)
+            for criteria in _course_review_criteria(course)
+        ]
     }
 
-    for criteria in review_criteria:
-        criteria_dict = {
-            'description': criteria.description,
-            'type': dict(criteria.REVIEW_CRITERIA_TYPES)[criteria.review_criteria_type],
-            'review_criteria_type': criteria.review_criteria_type,
-            'options': criteria.options
-        }
-        criteria_data['review_criteria'].append(criteria_dict)
 
-    # Convert to YAML
-    yaml_content = yaml.dump(
-        criteria_data,
+def _course_criteria_yaml(course):
+    return yaml.dump(
+        _course_criteria_export_data(course),
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False
     )
 
-    # Return as HTTP response with content type that displays in browser
-    response = HttpResponse(yaml_content, content_type='text/plain; charset=utf-8')
 
-    return response
+@require_GET
+def course_criteria_yaml_view(request, course_slug: str):
+    """Return project criteria for a course in YAML format."""
+    course = get_object_or_404(Course, slug=course_slug)
+    return HttpResponse(
+        _course_criteria_yaml(course),
+        content_type='text/plain; charset=utf-8',
+    )
