@@ -99,13 +99,14 @@ def _course_to_dict(course):
 
 def _course_summary_to_dict(course):
     result = _course_to_dict(course)
-    for field in (
+    hidden_fields = (
         "social_media_hashtag",
         "faq_document_url",
         "min_projects_to_pass",
         "homework_problems_comments_field",
         "project_passing_score",
-    ):
+    )
+    for field in hidden_fields:
         result.pop(field)
     return result
 
@@ -135,16 +136,22 @@ def _course_project_to_dict(project):
 
 def _course_detail_to_dict(course):
     result = _course_to_dict(course)
+    homeworks = course.homework_set.all().order_by("id")
+    homework_records = []
+    for homework in homeworks:
+        homework_record = _course_homework_to_dict(homework)
+        homework_records.append(homework_record)
+
+    projects = course.project_set.all().order_by("id")
+    project_records = []
+    for project in projects:
+        project_record = _course_project_to_dict(project)
+        project_records.append(project_record)
+
     result.update(
         {
-            "homeworks": [
-                _course_homework_to_dict(homework)
-                for homework in course.homework_set.all().order_by("id")
-            ],
-            "projects": [
-                _course_project_to_dict(project)
-                for project in course.project_set.all().order_by("id")
-            ],
+            "homeworks": homework_records,
+            "projects": project_records,
         }
     )
     return result
@@ -152,18 +159,22 @@ def _course_detail_to_dict(course):
 
 def _courses_list_response():
     courses = Course.objects.all().order_by("id")
+    course_records = []
+    for course in courses:
+        course_record = _course_summary_to_dict(course)
+        course_records.append(course_record)
+
     return JsonResponse(
         {
-            "courses": [
-                _course_summary_to_dict(course) for course in courses
-            ],
+            "courses": course_records,
         }
     )
 
 
 def _missing_course_create_fields(data):
     missing_fields = []
-    for field in ("title", "slug"):
+    required_fields = ("title", "slug")
+    for field in required_fields:
         if not data.get(field):
             missing_fields.append(field)
     return missing_fields
@@ -313,7 +324,8 @@ def _course_patch_data_from_request(request):
 
 
 def _apply_course_patch_data(course, data):
-    for field, value in data.items():
+    patch_items = data.items()
+    for field, value in patch_items:
         setattr(course, field, value)
 
 
