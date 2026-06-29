@@ -89,7 +89,7 @@ class HomeworkScoringTestCase(TestCase):
             scores_for_correct_answer=score,
         )
 
-    def create_questions(self):
+    def create_free_form_questions(self):
         return [
             self.create_free_form_question(
                 "What is the capital of France?",
@@ -109,6 +109,10 @@ class HomeworkScoringTestCase(TestCase):
                 "nitrogen",
                 100,
             ),
+        ]
+
+    def create_choice_questions(self):
+        return [
             self.create_choice_question(
                 "Is the Earth flat? (yes/no)",
                 ["yes", "no"],
@@ -131,6 +135,9 @@ class HomeworkScoringTestCase(TestCase):
                 100000,
             ),
         ]
+
+    def create_questions(self):
+        return self.create_free_form_questions() + self.create_choice_questions()
 
     def create_students(self):
         (
