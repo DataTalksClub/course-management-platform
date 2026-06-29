@@ -93,6 +93,25 @@ class SeedSummaryData:
     project_submissions: list[ProjectSubmission]
 
 
+@dataclass(frozen=True)
+class GeneratedProjectScores:
+    project_score: int
+    project_faq_score: int
+    project_lip_score: int
+    peer_review_score: int
+    peer_review_lip_score: int
+
+    @property
+    def total_score(self) -> int:
+        return (
+            self.project_score
+            + self.project_faq_score
+            + self.project_lip_score
+            + self.peer_review_score
+            + self.peer_review_lip_score
+        )
+
+
 def configure_sqlite_busy_timeout():
     if connection.vendor != "sqlite":
         return
@@ -658,13 +677,19 @@ def project_scores(student_index, count, project_index):
     peer_review_score = 20 + ((student_index + project_index) % 11)
     peer_review_lip_score = (student_index + project_index) % 3
     if student_index % (project_index + 13) == 0:
-        return 0, 0, 0, 0, 0
-    return (
-        project_score,
-        project_faq_score,
-        project_lip_score,
-        peer_review_score,
-        peer_review_lip_score,
+        return GeneratedProjectScores(
+            project_score=0,
+            project_faq_score=0,
+            project_lip_score=0,
+            peer_review_score=0,
+            peer_review_lip_score=0,
+        )
+    return GeneratedProjectScores(
+        project_score=project_score,
+        project_faq_score=project_faq_score,
+        project_lip_score=project_lip_score,
+        peer_review_score=peer_review_score,
+        peer_review_lip_score=peer_review_lip_score,
     )
 
 
@@ -677,51 +702,54 @@ def project_faq_url(student_index, project_index, project_faq_score):
     )
 
 
+def project_github_link(data):
+    return (
+        f"https://github.com/example/{data.course.slug}-"
+        f"{data.student_index:04d}-project-{data.item_index}"
+    )
+
+
+def project_commit_id(data):
+    return f"{data.student_index:036d}{data.item_index:04d}"[:40]
+
+
+def project_learning_links(data):
+    return [
+        (
+            f"https://example.com/{data.course.slug}/"
+            f"{data.student_index:04d}/notes/project-{data.item_index}"
+        )
+    ]
+
+
 def build_project_submission(data):
     scores = project_scores(
         data.student_index,
         data.count,
         data.item_index,
     )
-    (
-        project_score,
-        project_faq_score,
-        project_lip_score,
-        peer_review_score,
-        peer_review_lip_score,
-    ) = scores
     return ProjectSubmission(
         project=data.item,
         student=data.enrollment.student,
         enrollment=data.enrollment,
-        github_link=(
-            f"https://github.com/example/{data.course.slug}-"
-            f"{data.student_index:04d}-project-{data.item_index}"
-        ),
-        commit_id=f"{data.student_index:036d}{data.item_index:04d}"[
-            :40
-        ],
-        learning_in_public_links=[
-            (
-                f"https://example.com/{data.course.slug}/"
-                f"{data.student_index:04d}/notes/project-{data.item_index}"
-            )
-        ],
+        github_link=project_github_link(data),
+        commit_id=project_commit_id(data),
+        learning_in_public_links=project_learning_links(data),
         faq_contribution_url=project_faq_url(
             data.student_index,
             data.item_index,
-            project_faq_score,
+            scores.project_faq_score,
         ),
         time_spent=6.0 + ((data.student_index * data.item_index) % 24),
         problems_comments="Generated project submission",
-        project_score=project_score,
-        project_faq_score=project_faq_score,
-        project_learning_in_public_score=project_lip_score,
-        peer_review_score=peer_review_score,
-        peer_review_learning_in_public_score=peer_review_lip_score,
-        total_score=sum(scores),
-        reviewed_enough_peers=peer_review_score > 0,
-        passed=project_score > 0,
+        project_score=scores.project_score,
+        project_faq_score=scores.project_faq_score,
+        project_learning_in_public_score=scores.project_lip_score,
+        peer_review_score=scores.peer_review_score,
+        peer_review_learning_in_public_score=scores.peer_review_lip_score,
+        total_score=scores.total_score,
+        reviewed_enough_peers=scores.peer_review_score > 0,
+        passed=scores.project_score > 0,
     )
 
 
