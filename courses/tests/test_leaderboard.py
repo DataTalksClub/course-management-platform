@@ -58,49 +58,26 @@ class LeaderboardTestCase(TestCase):
             total_score=score,
         )
 
-    def setUp(self):
-        # Clear cache before each test to ensure fresh state
-        cache.clear()
-        
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
+    def create_homeworks(self, count):
+        return [self.create_homework(index) for index in range(1, count + 1)]
 
-    def test_leaderboard(self):
-        homework1 = self.create_homework(1)
-        homework2 = self.create_homework(2)
-        homework3 = self.create_homework(3)
-        homework4 = self.create_homework(4)
+    def create_projects(self, count):
+        return [self.create_project(index) for index in range(1, count + 1)]
 
-        homeworks = [homework1, homework2, homework3, homework4]
-
-        project1 = self.create_project(1)
-        project2 = self.create_project(2)
-
-        projects = [project1, project2]
-
-        enrollment1 = self.create_student("s1")
-        enrollment2 = self.create_student("s2")
-        enrollment3 = self.create_student("s3")
-        enrollment4 = self.create_student("s4")
-        enrollment5 = self.create_student("s5")
-
-        enrollments = [
-            enrollment1,
-            enrollment2,
-            enrollment3,
-            enrollment4,
-            enrollment5,
+    def create_students(self, count):
+        return [
+            self.create_student(f"s{index}")
+            for index in range(1, count + 1)
         ]
 
+    def create_homework_submissions(self, homeworks, enrollments):
         for homework in homeworks:
             score = 10
             for enrollment in enrollments:
                 self.submit_homework(homework, enrollment, score=score)
                 score = score + 10
 
+    def create_project_submissions(self, projects, enrollments):
         for project in projects:
             score = 100
             for enrollment in enrollments:
@@ -112,8 +89,15 @@ class LeaderboardTestCase(TestCase):
                 )
                 score = score - 10
 
-        update_leaderboard(self.course)
+    def create_leaderboard_fixture(self):
+        homeworks = self.create_homeworks(4)
+        projects = self.create_projects(2)
+        enrollments = self.create_students(5)
+        self.create_homework_submissions(homeworks, enrollments)
+        self.create_project_submissions(projects, enrollments)
+        return enrollments
 
+    def assert_leaderboard_scores(self, enrollments):
         expected_scores = [
             (5, 240),
             (4, 260),
@@ -121,14 +105,27 @@ class LeaderboardTestCase(TestCase):
             (2, 300),
             (1, 320),
         ]
-
-        for (rank, score), enrollment in zip(
-            expected_scores, enrollments
-        ):
+        for (rank, score), enrollment in zip(expected_scores, enrollments):
             enrollment.refresh_from_db()
             self.assertEqual(enrollment.position_on_leaderboard, rank)
-
             self.assertEqual(enrollment.total_score, score)
+
+    def setUp(self):
+        # Clear cache before each test to ensure fresh state
+        cache.clear()
+
+        self.course = Course.objects.create(
+            slug="test-course",
+            title="Test Course",
+            description="Test Course Description",
+        )
+
+    def test_leaderboard(self):
+        enrollments = self.create_leaderboard_fixture()
+
+        update_leaderboard(self.course)
+
+        self.assert_leaderboard_scores(enrollments)
 
     def test_leaderboard_cache_invalidation(self):
         """Test that leaderboard cache is invalidated when update_leaderboard is called"""
