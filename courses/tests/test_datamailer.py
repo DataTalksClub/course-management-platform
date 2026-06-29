@@ -130,6 +130,83 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def configure_campaign_command_mocks(
+        self,
+        upsert_campaign,
+        preview_campaign,
+        test_send_campaign,
+        queue_campaign,
+    ):
+        upsert_campaign.return_value = {
+            "campaign": {
+                "external_key": "course-start-2026",
+                "status": "draft",
+            },
+        }
+        preview_campaign.return_value = {"subject": "Course starts"}
+        test_send_campaign.return_value = {"queued_count": 1}
+        queue_campaign.return_value = {"campaign": {"status": "queued"}}
+
+    def run_campaign_command(self):
+        out = StringIO()
+        call_command(
+            "datamailer_campaign",
+            "course-start-2026",
+            "--subject",
+            "Course starts",
+            "--text",
+            "Hello learners",
+            "--include-tag",
+            "course-ml-zoomcamp",
+            "--exclude-tag",
+            "course-ml-zoomcamp-alumni",
+            "--recipient-list-key",
+            "ml-zoomcamp-2026:@e",
+            "--metadata",
+            "course_slug=ml-zoomcamp-2026",
+            "--preview",
+            "--test-send",
+            "ops@example.com",
+            "--queue",
+            stdout=out,
+        )
+        return out
+
+    def assert_campaign_upsert_payload(self, upsert_campaign):
+        upsert_campaign.assert_called_once()
+        self.assertEqual(upsert_campaign.call_args.args[0], "course-start-2026")
+        payload = upsert_campaign.call_args.args[1]
+        self.assertEqual(payload["subject"], "Course starts")
+        self.assertEqual(payload["text_body"], "Hello learners")
+        self.assertEqual(payload["html_body"], "")
+        self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(payload["recipient_list_key"], "ml-zoomcamp-2026:@e")
+        self.assertEqual(payload["include_tags"], ["course-ml-zoomcamp"])
+        self.assertEqual(payload["exclude_tags"], ["course-ml-zoomcamp-alumni"])
+        self.assertEqual(
+            payload["metadata"],
+            {"course_slug": "ml-zoomcamp-2026"},
+        )
+
+    def assert_campaign_actions_ran(
+        self,
+        preview_campaign,
+        test_send_campaign,
+        queue_campaign,
+        out,
+    ):
+        preview_campaign.assert_called_once_with("course-start-2026")
+        test_send_campaign.assert_called_once_with(
+            "course-start-2026",
+            ["ops@example.com"],
+        )
+        queue_campaign.assert_called_once_with("course-start-2026")
+        self.assertIn(
+            "Upserted course-start-2026: status=draft",
+            out.getvalue(),
+        )
+        self.assertIn("queue: ok", out.getvalue())
+
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -1025,64 +1102,22 @@ class DatamailerClientTest(TestCase):
         test_send_campaign,
         queue_campaign,
     ):
-        upsert_campaign.return_value = {
-            "campaign": {
-                "external_key": "course-start-2026",
-                "status": "draft",
-            },
-        }
-        preview_campaign.return_value = {"subject": "Course starts"}
-        test_send_campaign.return_value = {"queued_count": 1}
-        queue_campaign.return_value = {"campaign": {"status": "queued"}}
-
-        out = StringIO()
-        call_command(
-            "datamailer_campaign",
-            "course-start-2026",
-            "--subject",
-            "Course starts",
-            "--text",
-            "Hello learners",
-            "--include-tag",
-            "course-ml-zoomcamp",
-            "--exclude-tag",
-            "course-ml-zoomcamp-alumni",
-            "--recipient-list-key",
-            "ml-zoomcamp-2026:@e",
-            "--metadata",
-            "course_slug=ml-zoomcamp-2026",
-            "--preview",
-            "--test-send",
-            "ops@example.com",
-            "--queue",
-            stdout=out,
+        self.configure_campaign_command_mocks(
+            upsert_campaign,
+            preview_campaign,
+            test_send_campaign,
+            queue_campaign,
         )
 
-        upsert_campaign.assert_called_once()
-        self.assertEqual(upsert_campaign.call_args.args[0], "course-start-2026")
-        payload = upsert_campaign.call_args.args[1]
-        self.assertEqual(payload["subject"], "Course starts")
-        self.assertEqual(payload["text_body"], "Hello learners")
-        self.assertEqual(payload["html_body"], "")
-        self.assertEqual(payload["category_tag"], "course-updates")
-        self.assertEqual(payload["recipient_list_key"], "ml-zoomcamp-2026:@e")
-        self.assertEqual(payload["include_tags"], ["course-ml-zoomcamp"])
-        self.assertEqual(payload["exclude_tags"], ["course-ml-zoomcamp-alumni"])
-        self.assertEqual(
-            payload["metadata"],
-            {"course_slug": "ml-zoomcamp-2026"},
+        out = self.run_campaign_command()
+
+        self.assert_campaign_upsert_payload(upsert_campaign)
+        self.assert_campaign_actions_ran(
+            preview_campaign,
+            test_send_campaign,
+            queue_campaign,
+            out,
         )
-        preview_campaign.assert_called_once_with("course-start-2026")
-        test_send_campaign.assert_called_once_with(
-            "course-start-2026",
-            ["ops@example.com"],
-        )
-        queue_campaign.assert_called_once_with("course-start-2026")
-        self.assertIn(
-            "Upserted course-start-2026: status=draft",
-            out.getvalue(),
-        )
-        self.assertIn("queue: ok", out.getvalue())
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_datamailer_campaign_command_requires_body(self):
