@@ -17,30 +17,38 @@ from courses.scoring import update_score
 
 
 class SubmissionTimestampTest(TestCase):
-    def test_scoring_does_not_update_submission_timestamp(self):
-        user = CustomUser.objects.create(email="student@example.com")
-        course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="course",
             title="Course",
             description="Course description",
         )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        homework = Homework.objects.create(
+
+    def create_homework(self, course):
+        return Homework.objects.create(
             course=course,
             slug="hw1",
             title="Homework 1",
             due_date=timezone.now(),
         )
-        question = Question.objects.create(
+
+    def create_question(self, homework):
+        return Question.objects.create(
             homework=homework,
             text="Question",
             question_type=QuestionTypes.FREE_FORM.value,
             answer_type="ANY",
         )
-        submitted_at = timezone.now() - timedelta(days=3)
+
+    def create_submission_fixture(self, submitted_at):
+        user = CustomUser.objects.create(email="student@example.com")
+        course = self.create_course()
+        enrollment = Enrollment.objects.create(
+            student=user,
+            course=course,
+        )
+        homework = self.create_homework(course)
+        question = self.create_question(homework)
         submission = Submission.objects.create(
             homework=homework,
             student=user,
@@ -52,7 +60,11 @@ class SubmissionTimestampTest(TestCase):
             question=question,
             answer_text="answer",
         )
+        return submission, answer
 
+    def test_scoring_does_not_update_submission_timestamp(self):
+        submitted_at = timezone.now() - timedelta(days=3)
+        submission, answer = self.create_submission_fixture(submitted_at)
         update_score(submission, [answer], save=True)
 
         submission.refresh_from_db()
