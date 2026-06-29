@@ -464,6 +464,44 @@ class DatamailerClientTest(TestCase):
             source_object_key,
         )
 
+    def assert_registration_contact_synced(self, upsert_contact):
+        upsert_contact.assert_called_once()
+        self.assertEqual(
+            upsert_contact.call_args.args[0]["tags"],
+            ["course-ml-zoomcamp", "course-cohort-ml-zoomcamp-2026"],
+        )
+
+    def assert_registration_member_synced(self, upsert_member, registration):
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            registration_list_key(registration),
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[1],
+            f"registration:{registration.pk}",
+        )
+        self.assertEqual(
+            upsert_member.call_args.args[2]["member"]["email"],
+            "student@example.com",
+        )
+
+    def assert_registration_outbox_event(self, registration):
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.member_upsert",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(event.ordering_key, "email:student@example.com")
+        self.assertEqual(
+            event.payload["list_key"], registration_list_key(registration)
+        )
+        self.assertEqual(
+            event.payload["source_object_key"],
+            f"registration:{registration.pk}",
+        )
+
     def assert_import_waited_for_success(
         self,
         recipient_list_import,
@@ -1765,59 +1803,13 @@ class DatamailerClientTest(TestCase):
         upsert_contact,
         upsert_member,
     ):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            current_course=course,
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
-            email="Student@Example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
+        registration = self.create_registration()
 
         sync_registration_to_datamailer(registration)
 
-        upsert_contact.assert_called_once()
-        self.assertEqual(
-            upsert_contact.call_args.args[0]["tags"],
-            ["course-ml-zoomcamp", "course-cohort-ml-zoomcamp-2026"],
-        )
-        upsert_member.assert_called_once()
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            registration_list_key(registration),
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[1],
-            f"registration:{registration.pk}",
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[2]["member"]["email"],
-            "student@example.com",
-        )
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(
-            event.event_type,
-            "recipient_list.member_upsert",
-        )
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(event.ordering_key, "email:student@example.com")
-        self.assertEqual(event.payload["list_key"], registration_list_key(registration))
-        self.assertEqual(
-            event.payload["source_object_key"],
-            f"registration:{registration.pk}",
-        )
+        self.assert_registration_contact_synced(upsert_contact)
+        self.assert_registration_member_synced(upsert_member, registration)
+        self.assert_registration_outbox_event(registration)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
