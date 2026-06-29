@@ -31,6 +31,13 @@ class RecipientListMemberPayloadData:
     metadata: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class RecipientListMemberPayload:
+    list_key: str
+    source_object_key: str
+    payload: dict[str, Any]
+
+
 def contact_base_custom_fields(user) -> dict[str, str]:
     return {
         "course_platform_user_id": str(user.pk),
@@ -283,7 +290,7 @@ def removed_recipient_list_member_payload(
 
 def registration_recipient_list_payload(
     registration,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     email = _registration_email(registration)
     if not email:
         return None
@@ -300,7 +307,11 @@ def registration_recipient_list_payload(
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
-    return list_key, source_object_key, payload
+    return RecipientListMemberPayload(
+        list_key=list_key,
+        source_object_key=source_object_key,
+        payload=payload,
+    )
 
 
 def registration_recipient_list_name(registration) -> str:
@@ -327,7 +338,7 @@ def registration_recipient_metadata(registration) -> dict[str, Any]:
 
 def enrollment_recipient_list_payload(
     enrollment,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     email = (enrollment.student.email or "").strip().lower()
     if not email:
         return None
@@ -351,11 +362,15 @@ def enrollment_recipient_list_payload(
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
-    return list_key, source_object_key, payload
+    return RecipientListMemberPayload(
+        list_key=list_key,
+        source_object_key=source_object_key,
+        payload=payload,
+    )
 
 def homework_submission_recipient_list_payload(
     submission,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     email = (submission.student.email or "").strip().lower()
     if not email:
         return None
@@ -374,7 +389,11 @@ def homework_submission_recipient_list_payload(
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
-    return list_key, source_object_key, payload
+    return RecipientListMemberPayload(
+        list_key=list_key,
+        source_object_key=source_object_key,
+        payload=payload,
+    )
 
 
 def homework_submission_metadata(submission) -> dict[str, Any]:
@@ -476,7 +495,7 @@ def project_public_url(project):
 
 def project_submission_recipient_list_payload(
     submission,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     email = (submission.student.email or "").strip().lower()
     if not email:
         return None
@@ -495,7 +514,11 @@ def project_submission_recipient_list_payload(
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
-    return list_key, source_object_key, payload
+    return RecipientListMemberPayload(
+        list_key=list_key,
+        source_object_key=source_object_key,
+        payload=payload,
+    )
 
 def recipient_list_send_member_payload(
     source_object_key: str,
@@ -523,10 +546,10 @@ def homework_score_notification_members(
         if item is None:
             continue
         seen_students.add(submission.student_id)
-        _, source_object_key, member_payload = item
-        list_data = member_payload["list"]
+        member_payload = item.payload
+        list_data = item.payload["list"]
         member = recipient_list_send_member_payload(
-            source_object_key, member_payload
+            item.source_object_key, member_payload
         )
         members.append(member)
     return list_data, members
@@ -563,10 +586,10 @@ def project_score_notification_members(
         if item is None:
             continue
         seen_students.add(submission.student_id)
-        _, source_object_key, member_payload = item
-        list_data = member_payload["list"]
+        member_payload = item.payload
+        list_data = item.payload["list"]
         member = recipient_list_send_member_payload(
-            source_object_key, member_payload
+            item.source_object_key, member_payload
         )
         members.append(member)
     return list_data, members
@@ -647,9 +670,9 @@ def _project_passed_member(submission) -> dict[str, Any] | None:
     if item is None:
         return None
 
-    _, source_object_key, member_payload = item
+    member_payload = item.payload
     member = recipient_list_send_member_payload(
-        source_object_key, member_payload
+        item.source_object_key, member_payload
     )
     member["metadata"] = member["metadata"] | {
         "outcome": "project_passed",
@@ -668,15 +691,15 @@ def _bulk_recipient_list_payload(config, list_data, members):
 
 def project_passed_recipient_list_member_payload(
     submission,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     item = project_submission_recipient_list_payload(submission)
     if item is None:
         return None
 
     project = submission.project
     course = project.course
-    _, source_object_key, payload = item
-    return project_passed_list_key(project), source_object_key, {
+    payload = item.payload
+    member_payload = {
         **payload,
         "list": {
             "type": "custom",
@@ -696,6 +719,11 @@ def project_passed_recipient_list_member_payload(
             },
         },
     }
+    return RecipientListMemberPayload(
+        list_key=project_passed_list_key(project),
+        source_object_key=item.source_object_key,
+        payload=member_payload,
+    )
 
 
 def _score_notification_urls(course, assignment, route_name, slug_kwarg):
@@ -977,7 +1005,7 @@ def peer_review_assignment_deadline_metadata(
 
 def peer_review_assignment_recipient_list_payload(
     submission,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     email = (submission.student.email or "").strip().lower()
     if not email:
         return None
@@ -996,7 +1024,11 @@ def peer_review_assignment_recipient_list_payload(
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
         return None
-    return list_key, source_object_key, payload
+    return RecipientListMemberPayload(
+        list_key=list_key,
+        source_object_key=source_object_key,
+        payload=payload,
+    )
 
 def peer_review_assignment_notification_members(
     project,
@@ -1012,10 +1044,10 @@ def peer_review_assignment_notification_members(
         if item is None:
             continue
         seen_students.add(submission.student_id)
-        _, source_object_key, member_payload = item
-        list_data = member_payload["list"]
+        member_payload = item.payload
+        list_data = item.payload["list"]
         member = recipient_list_send_member_payload(
-            source_object_key, member_payload
+            item.source_object_key, member_payload
         )
         members.append(member)
     return list_data, members
@@ -1345,14 +1377,14 @@ def _course_graduate_metadata(enrollment, certificate_url):
 
 def course_graduate_recipient_list_member_payload(
     enrollment,
-) -> tuple[str, str, dict[str, Any]] | None:
+) -> RecipientListMemberPayload | None:
     list_payload = course_graduate_recipient_list_payload(enrollment)
     if list_payload is None:
         return None
 
     list_key, payload = list_payload
     member = payload["members"][0]
-    return list_key, member["source_object_key"], {
+    member_payload = {
         "audience": payload["audience"],
         "client": payload["client"],
         "list": payload["list"],
@@ -1362,6 +1394,11 @@ def course_graduate_recipient_list_member_payload(
             "metadata": member["metadata"],
         },
     }
+    return RecipientListMemberPayload(
+        list_key=list_key,
+        source_object_key=member["source_object_key"],
+        payload=member_payload,
+    )
 
 def recipient_list_member_sync_payload(
     config: DatamailerConfig,

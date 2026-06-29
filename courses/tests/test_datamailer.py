@@ -45,6 +45,7 @@ from course_management.datamailer import (
     project_passed_recipient_list_payload,
     project_score_notification_payload,
     project_submitters_list_key,
+    RecipientListMemberPayload,
     registration_confirmation_payload,
     registration_list_key,
     remove_enrollment_from_datamailer,
@@ -162,6 +163,12 @@ class RecipientListAuditRepairExpectation:
     list_key: str
     source_object_key: str
     output: str
+
+
+@dataclass(frozen=True)
+class RecipientListAuditTarget:
+    enrollment: Enrollment
+    member_payload: RecipientListMemberPayload
 
 
 @dataclass(frozen=True)
@@ -902,10 +909,11 @@ class DatamailerClientTest(TestCase):
 
     def create_recipient_list_audit_target(self):
         enrollment = self.create_enrolled_student()
-        list_key, source_object_key, payload = (
-            enrollment_recipient_list_payload(enrollment)
+        member_payload = enrollment_recipient_list_payload(enrollment)
+        return RecipientListAuditTarget(
+            enrollment=enrollment,
+            member_payload=member_payload,
         )
-        return enrollment, list_key, source_object_key, payload
 
     def audit_enrollment_recipient_list(
         self,
@@ -2714,12 +2722,14 @@ class DatamailerClientTest(TestCase):
             course=course,
         )
 
-        list_key, source_object_key, payload = (
-            enrollment_recipient_list_payload(enrollment)
-        )
+        member_payload = enrollment_recipient_list_payload(enrollment)
 
-        self.assertEqual(list_key, course_enrolled_list_key(course))
-        self.assertEqual(source_object_key, f"user:{user.pk}")
+        self.assertEqual(
+            member_payload.list_key,
+            course_enrolled_list_key(course),
+        )
+        self.assertEqual(member_payload.source_object_key, f"user:{user.pk}")
+        payload = member_payload.payload
         self.assertEqual(payload["list"]["type"], "custom")
         self.assertEqual(
             payload["list"]["name"],
@@ -3597,19 +3607,18 @@ class DatamailerClientTest(TestCase):
         recipient_list_members,
         reconcile,
     ):
-        enrollment, list_key, source_object_key, payload = (
-            self.create_recipient_list_audit_target()
-        )
+        target = self.create_recipient_list_audit_target()
+        member_payload = target.member_payload
         self.configure_matching_recipient_list_member(
             recipient_list_members,
-            source_object_key,
-            payload,
+            member_payload.source_object_key,
+            member_payload.payload,
         )
 
-        output = self.audit_enrollment_recipient_list(enrollment.course)
+        output = self.audit_enrollment_recipient_list(target.enrollment.course)
 
         recipient_list_members.assert_called_once_with(
-            list_key,
+            member_payload.list_key,
             include_removed=False,
             limit=10000,
         )
@@ -3633,19 +3642,18 @@ class DatamailerClientTest(TestCase):
         self.configure_unexpected_recipient_list_member(
             recipient_list_members
         )
-        enrollment, list_key, source_object_key, _payload = (
-            self.create_recipient_list_audit_target()
-        )
+        target = self.create_recipient_list_audit_target()
+        member_payload = target.member_payload
 
         output = self.audit_enrollment_recipient_list(
-            enrollment.course,
+            target.enrollment.course,
             repair=True,
         )
 
         expectation = RecipientListAuditRepairExpectation(
             reconcile=reconcile,
-            list_key=list_key,
-            source_object_key=source_object_key,
+            list_key=member_payload.list_key,
+            source_object_key=member_payload.source_object_key,
             output=output,
         )
         self.assert_recipient_list_audit_repaired(expectation)
@@ -3659,16 +3667,16 @@ class DatamailerClientTest(TestCase):
         recipient_list_members,
     ):
         recipient_list_members.return_value = {"has_more": True, "members": []}
-        enrollment, list_key, _source_object_key, _payload = (
-            self.create_recipient_list_audit_target()
-        )
+        target = self.create_recipient_list_audit_target()
+        member_payload = target.member_payload
 
         with self.assertRaisesMessage(
             CommandError,
-            f"Datamailer returned more than 2 active members for {list_key}",
+            "Datamailer returned more than 2 active members for "
+            f"{member_payload.list_key}",
         ):
             self.audit_enrollment_recipient_list(
-                enrollment.course,
+                target.enrollment.course,
                 extra_args=["--limit", "2"],
             )
 
@@ -3683,15 +3691,15 @@ class DatamailerClientTest(TestCase):
         recipient_list_members.side_effect = requests.RequestException(
             "network error"
         )
-        enrollment, list_key, _source_object_key, _payload = (
-            self.create_recipient_list_audit_target()
-        )
+        target = self.create_recipient_list_audit_target()
+        member_payload = target.member_payload
 
         with self.assertRaisesMessage(
             CommandError,
-            f"Datamailer member listing failed for {list_key}: network error",
+            "Datamailer member listing failed for "
+            f"{member_payload.list_key}: network error",
         ):
-            self.audit_enrollment_recipient_list(enrollment.course)
+            self.audit_enrollment_recipient_list(target.enrollment.course)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_audit_rejects_invalid_options(self):

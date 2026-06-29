@@ -14,6 +14,7 @@ from django.core.management.base import BaseCommand, CommandError
 from course_management.datamailer import (
     DatamailerClient,
     DatamailerConfig,
+    RecipientListMemberPayload,
     course_graduate_recipient_list_payload,
     enrollment_recipient_list_payload,
     homework_submission_recipient_list_payload,
@@ -113,11 +114,10 @@ class RecipientListSyncData:
     import_options: ImportJobOptions
 
 
-def add_member_to_batches(
-    batches, list_key, source_object_key, payload
-):
+def add_member_to_batches(batches, item):
+    payload = item.payload
     batch = batches.setdefault(
-        list_key,
+        item.list_key,
         {
             "audience": payload["audience"],
             "client": payload["client"],
@@ -126,7 +126,7 @@ def add_member_to_batches(
         },
     )
     member = {
-        "source_object_key": source_object_key,
+        "source_object_key": item.source_object_key,
         "email": payload["member"]["email"],
         "status": payload["member"]["status"],
         "metadata": payload["member"]["metadata"],
@@ -268,14 +268,11 @@ def build_batches(
         item = payload_for(obj)
         if item is None:
             continue
-        if len(item) == 2:
-            list_key, payload = item
-            add_payload_members_to_batches(batches, list_key, payload)
-        else:
-            list_key, source_object_key, payload = item
-            add_member_to_batches(
-                batches, list_key, source_object_key, payload
-            )
+        if isinstance(item, RecipientListMemberPayload):
+            add_member_to_batches(batches, item)
+            continue
+        list_key, payload = item
+        add_payload_members_to_batches(batches, list_key, payload)
     return batches
 
 

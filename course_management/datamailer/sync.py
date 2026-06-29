@@ -221,19 +221,20 @@ def _sync_contact_and_membership(data):
     if data.contact_payload is None or data.list_payload is None:
         return
 
-    list_key, source_object_key, payload = data.list_payload
     event_data = DatamailerOutboxEventData(
         event_type="recipient_list.member_upsert",
         idempotency_key=(
-            f"recipient-list.member-upsert:{list_key}:{source_object_key}:"
+            "recipient-list.member-upsert:"
+            f"{data.list_payload.list_key}:"
+            f"{data.list_payload.source_object_key}:"
             f"{data.obj.pk}:{data.obj.__class__.__name__}"
         ),
         ordering_key=datamailer_ordering_key(data.obj),
         payload={
             "contact_payload": data.contact_payload,
-            "list_key": list_key,
-            "source_object_key": source_object_key,
-            "member_payload": payload,
+            "list_key": data.list_payload.list_key,
+            "source_object_key": data.list_payload.source_object_key,
+            "member_payload": data.list_payload.payload,
             "label": data.label,
             "object_id": data.obj.pk,
         },
@@ -365,19 +366,20 @@ def _remove_recipient_list_memberships(data) -> None:
     for list_payload in data.list_payloads:
         if list_payload is None:
             continue
-        list_key, source_object_key, payload = list_payload
         event_data = DatamailerOutboxEventData(
             event_type="recipient_list.member_remove",
             idempotency_key=(
-                f"recipient-list.member-remove:{list_key}:{source_object_key}:"
+                "recipient-list.member-remove:"
+                f"{list_payload.list_key}:"
+                f"{list_payload.source_object_key}:"
                 f"{data.obj.pk}:{data.obj.__class__.__name__}"
             ),
             ordering_key=datamailer_ordering_key(data.obj),
             payload={
-                "list_key": list_key,
-                "source_object_key": source_object_key,
+                "list_key": list_payload.list_key,
+                "source_object_key": list_payload.source_object_key,
                 "member_payload": removed_recipient_list_member_payload(
-                    payload
+                    list_payload.payload
                 ),
                 "label": data.label,
                 "object_id": data.obj.pk,
