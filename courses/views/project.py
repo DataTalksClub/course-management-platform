@@ -1239,29 +1239,65 @@ def _decorate_project_submissions(
 
     for order, submission in enumerate(submissions_list):
         submission.list_order = order
-        if submission.id in review_ids:
-            submission.to_evaluate = True
-            submission.review = review_ids[submission.id]
-        else:
-            submission.to_evaluate = False
-
-        submission.own = submission.id in own_submissions
-        submission.vote_limit_reached = (
-            submission.id not in voted_submission_ids
-            and project_vote_counts.get(project.id, 0)
-            >= PROJECT_VOTES_PER_PROJECT
+        _decorate_submission_review_state(submission, review_ids)
+        _decorate_submission_viewer_state(
+            submission,
+            project=project,
+            own_submissions=own_submissions,
+            voted_submission_ids=voted_submission_ids,
+            project_vote_counts=project_vote_counts,
         )
-        submission.group_order = 1
-        submission.group_label = None
+        _decorate_submission_review_group(
+            submission,
+            in_peer_review=in_peer_review,
+            has_assigned_reviews=has_assigned_reviews,
+        )
 
-        if in_peer_review:
-            if submission.to_evaluate and not submission.review.optional:
-                submission.group_order = 0
-                submission.group_label = "Assigned reviews"
-            else:
-                submission.group_order = 1
-                if has_assigned_reviews:
-                    submission.group_label = "Other submissions"
+
+def _decorate_submission_review_state(submission, review_ids):
+    if submission.id in review_ids:
+        submission.to_evaluate = True
+        submission.review = review_ids[submission.id]
+        return
+
+    submission.to_evaluate = False
+
+
+def _decorate_submission_viewer_state(
+    submission,
+    *,
+    project,
+    own_submissions,
+    voted_submission_ids,
+    project_vote_counts,
+):
+    submission.own = submission.id in own_submissions
+    submission.vote_limit_reached = (
+        submission.id not in voted_submission_ids
+        and project_vote_counts.get(project.id, 0)
+        >= PROJECT_VOTES_PER_PROJECT
+    )
+
+
+def _decorate_submission_review_group(
+    submission,
+    *,
+    in_peer_review,
+    has_assigned_reviews,
+):
+    submission.group_order = 1
+    submission.group_label = None
+
+    if not in_peer_review:
+        return
+
+    if submission.to_evaluate and not submission.review.optional:
+        submission.group_order = 0
+        submission.group_label = "Assigned reviews"
+        return
+
+    if has_assigned_reviews:
+        submission.group_label = "Other submissions"
 
 
 def _project_submissions_queryset(project):
