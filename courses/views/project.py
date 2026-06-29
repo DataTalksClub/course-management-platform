@@ -11,7 +11,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 from django.db import transaction
 from django.urls import reverse
 
@@ -790,33 +790,47 @@ def answer_option_indexes(answer: str) -> list[int]:
     return indexes
 
 
-def annotate_scores_with_option_votes(
+def _criteria_responses_for_scores(
     submission: ProjectSubmission,
     scores: list[ProjectEvaluationScore],
-) -> None:
+) -> QuerySet[CriteriaResponse]:
     criteria_ids = [score.review_criteria_id for score in scores]
-    responses = CriteriaResponse.objects.filter(
+    return CriteriaResponse.objects.filter(
         review__submission_under_evaluation=submission,
         review__state=PeerReviewState.SUBMITTED.value,
         criteria_id__in=criteria_ids,
     )
 
+
+def _option_votes_by_criteria(responses):
     votes_by_criteria = defaultdict(lambda: defaultdict(int))
     for response in responses:
         for option_index in answer_option_indexes(response.answer):
             votes_by_criteria[response.criteria_id][option_index] += 1
+    return votes_by_criteria
 
+
+def _score_option_vote_counts(score, option_votes):
+    return [
+        {
+            **option,
+            "votes": option_votes[index],
+        }
+        for index, option in enumerate(score.review_criteria.options)
+    ]
+
+
+def annotate_scores_with_option_votes(
+    submission: ProjectSubmission,
+    scores: list[ProjectEvaluationScore],
+) -> None:
+    responses = _criteria_responses_for_scores(submission, scores)
+    votes_by_criteria = _option_votes_by_criteria(responses)
     for score in scores:
-        option_votes = votes_by_criteria[score.review_criteria_id]
-        score.option_vote_counts = [
-            {
-                **option,
-                "votes": option_votes[index],
-            }
-            for index, option in enumerate(
-                score.review_criteria.options
-            )
-        ]
+        score.option_vote_counts = _score_option_vote_counts(
+            score,
+            votes_by_criteria[score.review_criteria_id],
+        )
 
 
 def project_results(request, course_slug, project_slug):
