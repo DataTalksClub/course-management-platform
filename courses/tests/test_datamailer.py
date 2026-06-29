@@ -698,6 +698,27 @@ class DatamailerClientTest(TestCase):
             f"registration:{registration.pk}",
         )
 
+    def assert_registration_member_removed(self, remove_member, registration):
+        remove_member.assert_called_once()
+        self.assertEqual(
+            remove_member.call_args.args[0],
+            registration_list_key(registration),
+        )
+        self.assertEqual(
+            remove_member.call_args.args[1],
+            f"registration:{registration.pk}",
+        )
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.member_remove",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(
+            event.payload["member_payload"]["member"]["status"],
+            "removed",
+        )
+
     def mark_outbox_event_due(self):
         event = DatamailerOutboxEvent.objects.get()
         event.next_attempt_at = timezone.now() - timedelta(seconds=1)
@@ -2673,44 +2694,11 @@ class DatamailerClientTest(TestCase):
         self,
         remove_member,
     ):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            current_course=course,
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
-            email="Student@Example.com",
-            name="Student One",
-        )
+        registration = self.create_registration()
 
         remove_registration_from_datamailer(registration)
 
-        remove_member.assert_called_once()
-        self.assertEqual(
-            remove_member.call_args.args[0],
-            registration_list_key(registration),
-        )
-        self.assertEqual(
-            remove_member.call_args.args[1],
-            f"registration:{registration.pk}",
-        )
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(
-            event.event_type,
-            "recipient_list.member_remove",
-        )
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(
-            event.payload["member_payload"]["member"]["status"],
-            "removed",
-        )
+        self.assert_registration_member_removed(remove_member, registration)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
