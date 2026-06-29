@@ -291,28 +291,19 @@ def build_reminder_event(
     context_extra,
 ):
     action_url = deadline_action_url(spec, course, item_slug)
-    context = deadline_context(
-        course,
-        reminder_key=reminder_key,
-        item_type=spec.item_type,
-        item_slug=item_slug,
-        item_title=item_title,
-        deadline=deadline,
-        action_url=action_url,
-        extra_context=context_extra(action_url),
-    )
-    event_key = (
-        f"deadline-reminder:{spec.event_kind}:{item_id}:{reminder_key}"
+    event_key = reminder_event_key(spec, item_id, reminder_key)
+    context = reminder_template_context(
+        spec, course, item_slug, item_title,
+        reminder_key, deadline, action_url, context_extra,
     )
     return ReminderEvent(
         key=event_key,
-        list_key=(
-            "deadline-reminders:"
-            f"{spec.list_kind}:{course.slug}:{item_slug}:{reminder_key}"
-        ),
-        list_name=(
-            f"{course.title} {item_title} "
-            f"{reminder_key} {spec.list_name_suffix}"
+        list_key=reminder_list_key(spec, course, item_slug, reminder_key),
+        list_name=reminder_list_name(
+            spec,
+            course,
+            item_title,
+            reminder_key,
         ),
         list_metadata=metadata,
         send_payload=deadline_send_payload(
@@ -323,6 +314,43 @@ def build_reminder_event(
         ),
         members=members,
     )
+
+
+def reminder_template_context(
+    spec,
+    course,
+    item_slug,
+    item_title,
+    reminder_key,
+    deadline,
+    action_url,
+    context_extra,
+):
+    return deadline_context(
+        course,
+        reminder_key=reminder_key,
+        item_type=spec.item_type,
+        item_slug=item_slug,
+        item_title=item_title,
+        deadline=deadline,
+        action_url=action_url,
+        extra_context=context_extra(action_url),
+    )
+
+
+def reminder_event_key(spec, item_id, reminder_key):
+    return f"deadline-reminder:{spec.event_kind}:{item_id}:{reminder_key}"
+
+
+def reminder_list_key(spec, course, item_slug, reminder_key):
+    return (
+        "deadline-reminders:"
+        f"{spec.list_kind}:{course.slug}:{item_slug}:{reminder_key}"
+    )
+
+
+def reminder_list_name(spec, course, item_title, reminder_key):
+    return f"{course.title} {item_title} {reminder_key} {spec.list_name_suffix}"
 
 
 def homework_reminder_spec():
