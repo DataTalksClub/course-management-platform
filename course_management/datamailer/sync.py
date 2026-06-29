@@ -50,6 +50,21 @@ def send_registration_confirmation_email(
     return send_transactional_email(payload)
 
 
+def payload_with_configured_from_email(payload, config):
+    if config.from_email and "from_email" not in payload:
+        return payload | {"from_email": config.from_email}
+    return payload
+
+
+def handle_contact_sync_error(config, user):
+    logger.exception(
+        "Datamailer contact sync failed for user_id=%s",
+        user.pk,
+    )
+    if config.strict:
+        raise
+
+
 def sync_contact(user, course=None) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -60,18 +75,12 @@ def sync_contact(user, course=None) -> None:
         return
 
     client = DatamailerClient(config)
-    if config.from_email and "from_email" not in payload:
-        payload = payload | {"from_email": config.from_email}
+    payload = payload_with_configured_from_email(payload, config)
 
     try:
         client.upsert_contact(payload)
     except requests.RequestException:
-        logger.exception(
-            "Datamailer contact sync failed for user_id=%s",
-            user.pk,
-        )
-        if config.strict:
-            raise
+        handle_contact_sync_error(config, user)
 
 
 def erase_contact_from_datamailer(
