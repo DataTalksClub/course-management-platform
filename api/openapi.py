@@ -55,7 +55,9 @@ def request_body(schema, required=True):
 
 
 def enum_schema(enum_class, *, nullable=False, description=None):
-    values = [item.value for item in enum_class]
+    values = []
+    for item in enum_class:
+        values.append(item.value)
     schema_type = "string"
     if nullable:
         values.append(None)
@@ -71,7 +73,9 @@ def enum_schema(enum_class, *, nullable=False, description=None):
 
 
 def choices_schema(choices, *, nullable=False):
-    values = [value for value, _label in choices]
+    values = []
+    for value, _label in choices:
+        values.append(value)
     schema_type = "string"
     if nullable:
         values.append(None)
@@ -109,12 +113,11 @@ def model_field_schema(field):
 
 
 def model_properties(model, fields):
-    return {
-        field_name: model_field_schema(
-            model._meta.get_field(field_name)
-        )
-        for field_name in fields
-    }
+    properties = {}
+    for field_name in fields:
+        field = model._meta.get_field(field_name)
+        properties[field_name] = model_field_schema(field)
+    return properties
 
 
 def model_object_schema(
@@ -185,36 +188,41 @@ def _sample_url_value(name, converter, index):
 
 
 def _reverse_kwargs(pattern):
-    return {
-        name: _sample_url_value(name, converter, index)
-        for index, (name, converter) in enumerate(
-            pattern.pattern.converters.items(),
-            start=1,
-        )
-    }
+    kwargs = {}
+    converters = pattern.pattern.converters.items()
+    indexed_converters = enumerate(converters, start=1)
+    for index, converter_item in indexed_converters:
+        name, converter = converter_item
+        kwargs[name] = _sample_url_value(name, converter, index)
+    return kwargs
 
 
 def openapi_path_for_url_name(url_name):
-    pattern = next(
-        pattern
-        for pattern in documented_urlpatterns()
-        if pattern.name == url_name
-    )
+    pattern = None
+    urlpatterns = documented_urlpatterns()
+    for candidate_pattern in urlpatterns:
+        if candidate_pattern.name == url_name:
+            pattern = candidate_pattern
+            break
+    if pattern is None:
+        raise LookupError(f"No documented URL pattern named {url_name}")
+
     kwargs = _reverse_kwargs(pattern)
     path = reverse(url_name, kwargs=kwargs)
 
-    for name, value in kwargs.items():
+    kwarg_items = kwargs.items()
+    for name, value in kwarg_items:
         path = path.replace(str(value), f"{{{name}}}", 1)
 
     return path
 
 
 def pattern_for_url_name(url_name):
-    return next(
-        pattern
-        for pattern in documented_urlpatterns()
-        if pattern.name == url_name
-    )
+    urlpatterns = documented_urlpatterns()
+    for pattern in urlpatterns:
+        if pattern.name == url_name:
+            return pattern
+    raise LookupError(f"No documented URL pattern named {url_name}")
 
 
 def view_for_url_name(url_name):
@@ -229,24 +237,26 @@ def parameter_schema_for_converter(converter):
 
 def path_parameters_for_url_name(url_name):
     pattern = pattern_for_url_name(url_name)
-    return [
-        {
+    parameters = []
+    converters = pattern.pattern.converters.items()
+    for name, converter in converters:
+        parameter = {
             "name": name,
             "in": "path",
             "required": True,
             "schema": parameter_schema_for_converter(converter),
         }
-        for name, converter in pattern.pattern.converters.items()
-    ]
+        parameters.append(parameter)
+    return parameters
 
 
 def operation_with_inspected_parameters(url_name, operation):
     generated_parameters = path_parameters_for_url_name(url_name)
-    explicit_parameters = [
-        parameter
-        for parameter in operation.get("parameters", [])
-        if parameter.get("in") != "path"
-    ]
+    explicit_parameters = []
+    operation_parameters = operation.get("parameters", [])
+    for parameter in operation_parameters:
+        if parameter.get("in") != "path":
+            explicit_parameters.append(parameter)
     if not generated_parameters and not explicit_parameters:
         return operation
 
@@ -270,19 +280,23 @@ def apply_inspected_operation_metadata(url_name, operation):
 
 
 def routed_paths():
-    return {
-        openapi_path_for_url_name(pattern.name)
-        for pattern in documented_urlpatterns()
-        if pattern.name != "api_openapi_json"
-    }
+    paths = set()
+    urlpatterns = documented_urlpatterns()
+    for pattern in urlpatterns:
+        if pattern.name == "api_openapi_json":
+            continue
+        path = openapi_path_for_url_name(pattern.name)
+        paths.add(path)
+    return paths
 
 
 def routed_url_names():
-    return {
-        pattern.name
-        for pattern in documented_urlpatterns()
-        if pattern.name != "api_openapi_json"
-    }
+    url_names = set()
+    urlpatterns = documented_urlpatterns()
+    for pattern in urlpatterns:
+        if pattern.name != "api_openapi_json":
+            url_names.add(pattern.name)
+    return url_names
 
 
 def route_coverage(paths):
@@ -298,15 +312,20 @@ def route_coverage(paths):
 
 
 def build_openapi_paths():
-    return {
-        openapi_path_for_url_name(url_name): {
-            method: apply_inspected_operation_metadata(
-                url_name, operation
+    paths = {}
+    path_items = PATHS_BY_URL_NAME.items()
+    for url_name, methods in path_items:
+        openapi_path = openapi_path_for_url_name(url_name)
+        method_operations = {}
+        method_items = methods.items()
+        for method, operation in method_items:
+            inspected_operation = apply_inspected_operation_metadata(
+                url_name,
+                operation,
             )
-            for method, operation in methods.items()
-        }
-        for url_name, methods in PATHS_BY_URL_NAME.items()
-    }
+            method_operations[method] = inspected_operation
+        paths[openapi_path] = method_operations
+    return paths
 
 
 SCHEMAS = {
