@@ -291,6 +291,18 @@ class Provisioner:
     ) -> dict:
         return {"deleted": deleted, "residual": residual, "course": slug}
 
+    def _teardown_existing_course(self, data: AdminDeleteResultData) -> None:
+        # Best-effort API pre-pass on individually-deletable objects. This is
+        # informative for the report; the admin delete below supersedes it by
+        # cascading everything away regardless.
+        self._delete_child_objects(data.slug, data.deleted, data.residual)
+
+        if self._record_admin_delete_result(data):
+            return
+
+        # Fallback: park the course hidden so dev stays clean.
+        self._park_course_hidden(data.slug)
+
     def teardown_course(self, slug: str, admin_session=None) -> dict:
         """Best-effort teardown of a single namespaced course.
 
@@ -310,12 +322,6 @@ class Provisioner:
         if detail is None:
             return self._teardown_report(slug, deleted, residual)
 
-        # Best-effort API pre-pass on individually-deletable objects. This is
-        # informative for the report; the admin delete below supersedes it by
-        # cascading everything away regardless.
-        self._delete_child_objects(slug, deleted, residual)
-
-        # Primary path: delete the course (and its cascade) via the admin UI.
         admin_delete_data = AdminDeleteResultData(
             slug=slug,
             admin_session=admin_session,
@@ -323,11 +329,7 @@ class Provisioner:
             deleted=deleted,
             residual=residual,
         )
-        if self._record_admin_delete_result(admin_delete_data):
-            return self._teardown_report(slug, deleted, residual)
-
-        # Fallback: park the course hidden so dev stays clean.
-        self._park_course_hidden(slug)
+        self._teardown_existing_course(admin_delete_data)
 
         return self._teardown_report(slug, deleted, residual)
 
