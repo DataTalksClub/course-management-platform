@@ -41,13 +41,56 @@ class RegistrationCampaignPublicTests(TestCase):
             "accepted_newsletter": "on",
         }
 
-    def test_registration_page_renders_campaign_content(self):
-        response = self.client.get(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            )
+    def campaign_url(self):
+        return reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": self.campaign.slug},
         )
+
+    def create_signed_user(self):
+        return CustomUser.objects.create_user(
+            username="signed",
+            email="signed@example.com",
+            password="test",
+            certificate_name="Signed Student",
+            country="Canada",
+            region="North America",
+            registration_role=CourseRegistration.Role.DATA_SCIENTIST,
+        )
+
+    def updated_account_payload(self):
+        return {
+            **self.registration_payload(email="other@example.com"),
+            "name": "Updated Certificate Name",
+            "country": "Germany",
+            "role": CourseRegistration.Role.DATA_ENGINEER,
+        }
+
+    def assert_signed_profile_form(self, response):
+        self.assertContains(response, 'value="Signed Student"')
+        self.assertContains(response, 'value="Canada"')
+        self.assertContains(
+            response,
+            '<option value="data_scientist" selected>Data Scientist</option>',
+            html=True,
+        )
+
+    def assert_logged_in_registration(self, registration, user):
+        self.assertEqual(registration.email_normalized, "signed@example.com")
+        self.assertEqual(registration.user, user)
+
+    def assert_signed_profile_updated(self, user):
+        user.refresh_from_db()
+        self.assertEqual(user.certificate_name, "Updated Certificate Name")
+        self.assertEqual(user.country, "Germany")
+        self.assertEqual(user.region, "Europe")
+        self.assertEqual(
+            user.registration_role,
+            CourseRegistration.Role.DATA_ENGINEER,
+        )
+
+    def test_registration_page_renders_campaign_content(self):
+        response = self.client.get(self.campaign_url())
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "LLM Zoomcamp")
@@ -65,10 +108,7 @@ class RegistrationCampaignPublicTests(TestCase):
     ):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                reverse(
-                    "registration_campaign",
-                    kwargs={"campaign_slug": self.campaign.slug},
-                ),
+                self.campaign_url(),
                 self.registration_payload(),
             )
 
@@ -94,10 +134,7 @@ class RegistrationCampaignPublicTests(TestCase):
         )
 
         response = self.client.post(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            ),
+            self.campaign_url(),
             self.registration_payload(email="student@example.com"),
         )
 
@@ -116,10 +153,7 @@ class RegistrationCampaignPublicTests(TestCase):
     )
     def test_registration_requires_only_email_and_newsletter_consent(self):
         response = self.client.post(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            ),
+            self.campaign_url(),
             {
                 "email": "email-only@example.com",
                 "accepted_newsletter": "on",
@@ -139,10 +173,7 @@ class RegistrationCampaignPublicTests(TestCase):
 
     def test_registration_requires_newsletter_consent(self):
         response = self.client.post(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            ),
+            self.campaign_url(),
             {"email": "email-only@example.com"},
         )
 
@@ -154,61 +185,22 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(CourseRegistration.objects.count(), 0)
 
     def test_logged_in_user_registration_uses_account_email(self):
-        user = CustomUser.objects.create_user(
-            username="signed",
-            email="signed@example.com",
-            password="test",
-            certificate_name="Signed Student",
-            country="Canada",
-            region="North America",
-            registration_role=CourseRegistration.Role.DATA_SCIENTIST,
-        )
+        user = self.create_signed_user()
         self.client.force_login(user)
 
-        response = self.client.get(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            )
-        )
+        response = self.client.get(self.campaign_url())
 
-        self.assertContains(response, 'value="Signed Student"')
-        self.assertContains(response, 'value="Canada"')
-        self.assertContains(
-            response,
-            '<option value="data_scientist" selected>Data Scientist</option>',
-            html=True,
-        )
+        self.assert_signed_profile_form(response)
 
         response = self.client.post(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            ),
-            {
-                **self.registration_payload(email="other@example.com"),
-                "name": "Updated Certificate Name",
-                "country": "Germany",
-                "role": CourseRegistration.Role.DATA_ENGINEER,
-            },
+            self.campaign_url(),
+            self.updated_account_payload(),
         )
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
-        self.assertEqual(
-            registration.email_normalized, "signed@example.com"
-        )
-        self.assertEqual(registration.user, user)
-        user.refresh_from_db()
-        self.assertEqual(
-            user.certificate_name, "Updated Certificate Name"
-        )
-        self.assertEqual(user.country, "Germany")
-        self.assertEqual(user.region, "Europe")
-        self.assertEqual(
-            user.registration_role,
-            CourseRegistration.Role.DATA_ENGINEER,
-        )
+        self.assert_logged_in_registration(registration, user)
+        self.assert_signed_profile_updated(user)
 
     @override_settings(
         DATAMAILER_URL="",
