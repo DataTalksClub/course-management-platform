@@ -125,6 +125,5 @@ def validate_url_200(
 
 class Status200UrlValidator(URLValidator):
     def __call__(self, value):
-        print(f"validating {value}")
         super().__call__(value)
         validate_url_200(value, code=self.code, params={"value": value})
