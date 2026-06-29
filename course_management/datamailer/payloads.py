@@ -1107,22 +1107,22 @@ def _certificate_availability_metadata(enrollment):
     }
 
 
-def certificate_availability_notification_payload(
-    enrollment,
-) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
-
+def _certificate_availability_recipient(enrollment) -> str | None:
     email = (enrollment.student.email or "").strip().lower()
     certificate_url = (enrollment.certificate_url or "").strip()
     if not email or not certificate_url:
         return None
 
-    urls = _certificate_availability_urls(enrollment)
-    course = enrollment.course
+    return email
 
-    payload = {
+
+def _certificate_availability_base_payload(
+    config: DatamailerConfig,
+    enrollment,
+    email: str,
+) -> dict[str, Any]:
+    urls = _certificate_availability_urls(enrollment)
+    return {
         "audience": config.audience,
         "client": config.client,
         "email": email,
@@ -1134,9 +1134,29 @@ def certificate_availability_notification_payload(
         "context": _certificate_availability_context(enrollment, urls),
         "metadata": _certificate_availability_metadata(enrollment),
     }
+
+
+def _add_from_email_if_configured(payload, config):
     if config.from_email:
         payload["from_email"] = config.from_email
     return payload
+
+
+def certificate_availability_notification_payload(
+    enrollment,
+) -> dict[str, Any] | None:
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return None
+
+    email = _certificate_availability_recipient(enrollment)
+    if email is None:
+        return None
+
+    payload = _certificate_availability_base_payload(
+        config, enrollment, email
+    )
+    return _add_from_email_if_configured(payload, config)
 
 
 def course_graduate_recipient_list_payload(
