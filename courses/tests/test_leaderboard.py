@@ -59,16 +59,28 @@ class LeaderboardTestCase(TestCase):
         )
 
     def create_homeworks(self, count):
-        return [self.create_homework(index) for index in range(1, count + 1)]
+        homeworks = []
+        homework_indexes = range(1, count + 1)
+        for index in homework_indexes:
+            homework = self.create_homework(index)
+            homeworks.append(homework)
+        return homeworks
 
     def create_projects(self, count):
-        return [self.create_project(index) for index in range(1, count + 1)]
+        projects = []
+        project_indexes = range(1, count + 1)
+        for index in project_indexes:
+            project = self.create_project(index)
+            projects.append(project)
+        return projects
 
     def create_students(self, count):
-        return [
-            self.create_student(f"s{index}")
-            for index in range(1, count + 1)
-        ]
+        students = []
+        student_indexes = range(1, count + 1)
+        for index in student_indexes:
+            student = self.create_student(f"s{index}")
+            students.append(student)
+        return students
 
     def create_homework_submissions(self, homeworks, enrollments):
         for homework in homeworks:
@@ -105,7 +117,8 @@ class LeaderboardTestCase(TestCase):
             (2, 300),
             (1, 320),
         ]
-        for (rank, score), enrollment in zip(expected_scores, enrollments):
+        expected_enrollments = zip(expected_scores, enrollments)
+        for (rank, score), enrollment in expected_enrollments:
             enrollment.refresh_from_db()
             self.assertEqual(enrollment.position_on_leaderboard, rank)
             self.assertEqual(enrollment.total_score, score)
@@ -154,7 +167,8 @@ class LeaderboardTestCase(TestCase):
         self.assertIsNone(cache.get(cache_key))
 
     def test_leaderboard_is_paginated_by_100(self):
-        for i in range(1, 106):
+        student_indexes = range(1, 106)
+        for i in student_indexes:
             student = User.objects.create_user(username=f"student-{i:03d}")
             Enrollment.objects.create(
                 course=self.course,
@@ -191,7 +205,8 @@ class LeaderboardTestCase(TestCase):
         target_user = None
         target_enrollment = None
 
-        for i in range(1, 106):
+        student_indexes = range(1, 106)
+        for i in student_indexes:
             student = User.objects.create_user(username=f"student-{i:03d}")
             enrollment = Enrollment.objects.create(
                 course=self.course,
@@ -216,7 +231,8 @@ class LeaderboardTestCase(TestCase):
         )
 
     def test_leaderboard_refreshes_stale_cache_for_current_student(self):
-        for i in range(1, 102):
+        student_indexes = range(1, 102)
+        for i in student_indexes:
             student = User.objects.create_user(username=f"student-{i:03d}")
             Enrollment.objects.create(
                 course=self.course,
