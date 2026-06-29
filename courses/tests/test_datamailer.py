@@ -477,6 +477,42 @@ class DatamailerClientTest(TestCase):
             "project_passed",
         )
 
+    def assert_homework_score_list_send(
+        self,
+        result,
+        bulk_upsert,
+        send_list,
+        homework,
+    ):
+        self.assertEqual(result["enqueued_count"], 1)
+        bulk_upsert.assert_called_once()
+        send_list.assert_called_once()
+        self.assertEqual(
+            send_list.call_args.args[0],
+            homework_submitters_list_key(homework),
+        )
+        self.assertNotIn("members", send_list.call_args.args[1])
+        self.assertNotIn("list", send_list.call_args.args[1])
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.list_key, homework_submitters_list_key(homework))
+        self.assertEqual(audit.template_key, "homework-score-notification")
+        self.assertEqual(audit.category_tag, "submission-results")
+        self.assertEqual(audit.event, "homework_score_publication")
+        self.assertEqual(audit.intended_count, 1)
+        self.assertEqual(audit.enqueued_count, 1)
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(
+            event.event_type,
+            "recipient_list.members_bulk_upsert",
+        )
+        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        self.assertEqual(
+            event.payload["list_key"],
+            homework_submitters_list_key(homework),
+        )
+
     def create_peer_review_assignment_fixture(self):
         project = self.create_project(
             state=ProjectState.PEER_REVIEWING.value,
@@ -2388,47 +2424,15 @@ class DatamailerClientTest(TestCase):
             "skipped_count": 0,
             "idempotent_replay_count": 0,
         }
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        homework = Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date="2026-01-01T00:00:00Z",
-        )
+        homework = self.create_homework()
 
         result = send_homework_score_notification(homework)
 
-        self.assertEqual(result["enqueued_count"], 1)
-        bulk_upsert.assert_called_once()
-        send_list.assert_called_once()
-        self.assertEqual(
-            send_list.call_args.args[0],
-            homework_submitters_list_key(homework),
-        )
-        self.assertNotIn("members", send_list.call_args.args[1])
-        self.assertNotIn("list", send_list.call_args.args[1])
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.list_key, homework_submitters_list_key(homework))
-        self.assertEqual(audit.template_key, "homework-score-notification")
-        self.assertEqual(audit.category_tag, "submission-results")
-        self.assertEqual(audit.event, "homework_score_publication")
-        self.assertEqual(audit.intended_count, 1)
-        self.assertEqual(audit.enqueued_count, 1)
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(
-            event.event_type,
-            "recipient_list.members_bulk_upsert",
-        )
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(
-            event.payload["list_key"],
-            homework_submitters_list_key(homework),
+        self.assert_homework_score_list_send(
+            result,
+            bulk_upsert,
+            send_list,
+            homework,
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
