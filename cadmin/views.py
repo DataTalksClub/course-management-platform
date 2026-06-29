@@ -553,19 +553,34 @@ def recent_failed_datamailer_sends():
     )[:10]
 
 
+def _send_total_count(send_totals, key):
+    return send_totals[key] or 0
+
+
+def failed_datamailer_send_count():
+    return DatamailerSendAudit.objects.filter(
+        status=DatamailerSendAuditStatus.FAILED,
+    ).count()
+
+
 def normalized_send_totals(send_totals):
     return {
-        "total": send_totals["total"] or 0,
-        "intended_count": send_totals["intended_count"] or 0,
-        "created_count": send_totals["created_count"] or 0,
-        "enqueued_count": send_totals["enqueued_count"] or 0,
-        "skipped_count": send_totals["skipped_count"] or 0,
-        "idempotent_replay_count": (
-            send_totals["idempotent_replay_count"] or 0
+        "total": _send_total_count(send_totals, "total"),
+        "intended_count": _send_total_count(
+            send_totals,
+            "intended_count",
         ),
-        "failed": DatamailerSendAudit.objects.filter(
-            status=DatamailerSendAuditStatus.FAILED,
-        ).count(),
+        "created_count": _send_total_count(send_totals, "created_count"),
+        "enqueued_count": _send_total_count(
+            send_totals,
+            "enqueued_count",
+        ),
+        "skipped_count": _send_total_count(send_totals, "skipped_count"),
+        "idempotent_replay_count": _send_total_count(
+            send_totals,
+            "idempotent_replay_count",
+        ),
+        "failed": failed_datamailer_send_count(),
     }
 
 
