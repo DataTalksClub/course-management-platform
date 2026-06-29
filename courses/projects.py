@@ -130,17 +130,28 @@ def _select_project_for_review(
     selected: set[int],
     num_submissions: int,
 ) -> int:
-    available = [
-        project for project in projects if project not in selected
-    ]
+    available = _available_review_projects(projects, selected)
     if not available:
-        available = [
-            project
-            for project in range(num_submissions)
-            if project not in selected
-        ]
-
+        available = _fallback_review_projects(selected, num_submissions)
     return random.choice(available)
+
+
+def _available_review_projects(
+    projects: list[int],
+    selected: set[int],
+) -> list[int]:
+    return [project for project in projects if project not in selected]
+
+
+def _fallback_review_projects(
+    selected: set[int],
+    num_submissions: int,
+) -> list[int]:
+    return [
+        project
+        for project in range(num_submissions)
+        if project not in selected
+    ]
 
 
 def _remove_project_from_slot_pool(
