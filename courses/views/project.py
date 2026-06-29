@@ -84,6 +84,27 @@ class ProjectConfirmationData:
     profile_url: str
 
 
+@dataclass(frozen=True)
+class ProjectSubmissionsDecorationData:
+    submissions_list: list
+    project: Project
+    is_authenticated: bool
+    review_ids: dict
+    own_submissions: set
+    voted_submission_ids: set
+    project_vote_counts: dict
+    has_assigned_reviews: bool
+
+
+@dataclass(frozen=True)
+class SubmissionViewerStateData:
+    submission: ProjectSubmission
+    project: Project
+    own_submissions: set
+    voted_submission_ids: set
+    project_vote_counts: dict
+
+
 def paginate_project_submissions(request, submissions):
     paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
     return paginator.get_page(request.GET.get("page"))
@@ -1411,37 +1432,28 @@ def _project_vote_payload(user, course, project, submission):
     }
 
 
-def _decorate_project_submissions(
-    submissions_list,
-    *,
-    project,
-    is_authenticated,
-    review_ids,
-    own_submissions,
-    voted_submission_ids,
-    project_vote_counts,
-    has_assigned_reviews,
-):
+def _decorate_project_submissions(data):
     """Attach per-submission display flags (ordering, ownership, review group)."""
     in_peer_review = (
-        is_authenticated
-        and project.state == ProjectState.PEER_REVIEWING.value
+        data.is_authenticated
+        and data.project.state == ProjectState.PEER_REVIEWING.value
     )
 
-    for order, submission in enumerate(submissions_list):
+    for order, submission in enumerate(data.submissions_list):
         submission.list_order = order
-        _decorate_submission_review_state(submission, review_ids)
-        _decorate_submission_viewer_state(
-            submission,
-            project=project,
-            own_submissions=own_submissions,
-            voted_submission_ids=voted_submission_ids,
-            project_vote_counts=project_vote_counts,
+        _decorate_submission_review_state(submission, data.review_ids)
+        viewer_data = SubmissionViewerStateData(
+            submission=submission,
+            project=data.project,
+            own_submissions=data.own_submissions,
+            voted_submission_ids=data.voted_submission_ids,
+            project_vote_counts=data.project_vote_counts,
         )
+        _decorate_submission_viewer_state(viewer_data)
         _decorate_submission_review_group(
             submission,
             in_peer_review=in_peer_review,
-            has_assigned_reviews=has_assigned_reviews,
+            has_assigned_reviews=data.has_assigned_reviews,
         )
 
 
@@ -1454,18 +1466,11 @@ def _decorate_submission_review_state(submission, review_ids):
     submission.to_evaluate = False
 
 
-def _decorate_submission_viewer_state(
-    submission,
-    *,
-    project,
-    own_submissions,
-    voted_submission_ids,
-    project_vote_counts,
-):
-    submission.own = submission.id in own_submissions
-    submission.vote_limit_reached = (
-        submission.id not in voted_submission_ids
-        and project_vote_counts.get(project.id, 0)
+def _decorate_submission_viewer_state(data):
+    data.submission.own = data.submission.id in data.own_submissions
+    data.submission.vote_limit_reached = (
+        data.submission.id not in data.voted_submission_ids
+        and data.project_vote_counts.get(data.project.id, 0)
         >= PROJECT_VOTES_PER_PROJECT
     )
 
@@ -1642,8 +1647,8 @@ def projects_list_view(request, course_slug, project_slug):
 
 def _project_submissions_page(request, project, viewer_state):
     submissions_list = list(_project_submissions_queryset(project))
-    _decorate_project_submissions(
-        submissions_list,
+    decoration_data = ProjectSubmissionsDecorationData(
+        submissions_list=submissions_list,
         project=project,
         is_authenticated=viewer_state["is_authenticated"],
         review_ids=viewer_state["review_ids"],
@@ -1652,6 +1657,7 @@ def _project_submissions_page(request, project, viewer_state):
         project_vote_counts=viewer_state["project_vote_counts"],
         has_assigned_reviews=viewer_state["has_assigned_reviews"],
     )
+    _decorate_project_submissions(decoration_data)
     _sort_project_submissions_for_view(
         submissions_list,
         project=project,

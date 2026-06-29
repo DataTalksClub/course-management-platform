@@ -117,6 +117,25 @@ class HomeworkSubmissionFieldData:
     user: User
 
 
+@dataclass(frozen=True)
+class HomeworkTimeSpentFieldData:
+    submission: Submission
+    request: HttpRequest
+    enabled: bool
+    post_key: str
+    model_field: str
+    field_label: str
+
+
+@dataclass(frozen=True)
+class HomeworkDetailContextData:
+    course: Course
+    homework: Homework
+    questions: List[Question]
+    submission: Optional[Submission]
+    enrollment: Optional[Enrollment]
+
+
 def process_unscored_free_form_answer(answer: Optional[Answer]):
     if not answer:
         return {"text": ""}
@@ -937,36 +956,37 @@ def _apply_learning_in_public_links(field_data):
 
 
 def _apply_time_spent_fields(field_data):
-    _apply_time_spent_field(
-        field_data.submission,
-        field_data.request,
+    lectures_field_data = HomeworkTimeSpentFieldData(
+        submission=field_data.submission,
+        request=field_data.request,
         enabled=field_data.homework.time_spent_lectures_field,
         post_key="time_spent_lectures",
         model_field="time_spent_lectures",
         field_label="time spent on lectures",
     )
-    _apply_time_spent_field(
-        field_data.submission,
-        field_data.request,
+    _apply_time_spent_field(lectures_field_data)
+
+    homework_field_data = HomeworkTimeSpentFieldData(
+        submission=field_data.submission,
+        request=field_data.request,
         enabled=field_data.homework.time_spent_homework_field,
         post_key="time_spent_homework",
         model_field="time_spent_homework",
         field_label="time spent on homework",
     )
+    _apply_time_spent_field(homework_field_data)
 
 
-def _apply_time_spent_field(
-    submission, request, *, enabled, post_key, model_field, field_label
-):
-    if not enabled:
+def _apply_time_spent_field(data):
+    if not data.enabled:
         return
 
     time_spent = parse_time_spent_hours(
-        request.POST.get(post_key),
-        field_label,
+        data.request.POST.get(data.post_key),
+        data.field_label,
     )
     if time_spent is not None:
-        setattr(submission, model_field, time_spent)
+        setattr(data.submission, data.model_field, time_spent)
 
 
 def _apply_problems_comments_field(field_data):
@@ -1167,28 +1187,22 @@ def learning_in_public_disabled(
     )
 
 
-def homework_detail_build_context_authenticated(
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
-    enrollment: Optional["Enrollment"] = None,
-) -> dict:
+def homework_detail_build_context_authenticated(data) -> dict:
     context = {
-        "course": course,
-        "homework": homework,
+        "course": data.course,
+        "homework": data.homework,
         "question_answers": question_answers_for_submission(
-            homework,
-            questions,
-            submission,
+            data.homework,
+            data.questions,
+            data.submission,
         ),
-        "submission": submission,
+        "submission": data.submission,
         "is_authenticated": True,
         "disable_learning_in_public": learning_in_public_disabled(
-            enrollment
+            data.enrollment
         ),
     }
-    context.update(homework_state_context(homework))
+    context.update(homework_state_context(data.homework))
     return context
 
 
@@ -1462,13 +1476,14 @@ def authenticated_homework_context(
         student=user,
         course=course,
     )
-    context = homework_detail_build_context_authenticated(
+    context_data = HomeworkDetailContextData(
         course=course,
         homework=homework,
         questions=questions,
         submission=submission,
         enrollment=enrollment,
     )
+    context = homework_detail_build_context_authenticated(context_data)
     return context, submission, enrollment
 
 
