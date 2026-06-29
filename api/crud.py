@@ -1,12 +1,37 @@
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
 from api.safety import (
+    PatchFieldRules,
     apply_patch_fields,
     delete_object_or_error,
     require_staff_token,
 )
 from api.utils import parse_json_body
+
+
+@dataclass(frozen=True)
+class PatchResponseConfig:
+    to_dict: Callable[[Any], dict[str, Any]]
+    rules: PatchFieldRules
+
+
+@dataclass(frozen=True)
+class DeleteResponseConfig:
+    closed_state: str
+    related_queryset: Any
+    related_name: str
+    noun: str
+
+
+@dataclass(frozen=True)
+class DetailResponseConfig:
+    patch: PatchResponseConfig
+    delete: DeleteResponseConfig
 
 
 def single_or_list(data):
@@ -44,44 +69,23 @@ def get_course_child_or_404(model, course, *, object_id=None, slug=None):
 def patch_instance_response(
     instance,
     data,
-    *,
-    to_dict,
-    allowed_fields,
-    valid_states,
-    invalid_state_code,
-    date_fields,
+    config,
 ):
-    error = apply_patch_fields(
-        instance,
-        data,
-        allowed_fields=allowed_fields,
-        valid_states=valid_states,
-        invalid_state_code=invalid_state_code,
-        date_fields=date_fields,
-    )
+    error = apply_patch_fields(instance, data, config.rules)
     if error:
         return error
 
     instance.save()
-    return JsonResponse(to_dict(instance))
+    return JsonResponse(config.to_dict(instance))
 
 
 def detail_response(
     request,
     instance,
-    *,
-    to_dict,
-    allowed_fields,
-    valid_states,
-    invalid_state_code,
-    date_fields,
-    closed_state,
-    related_queryset,
-    related_name,
-    noun,
+    config,
 ):
     if request.method == "GET":
-        return detail_get_response(instance, to_dict=to_dict)
+        return detail_get_response(instance, config.patch)
 
     staff_error = require_staff_token(request)
     if staff_error:
@@ -90,53 +94,37 @@ def detail_response(
     if request.method == "DELETE":
         return detail_delete_response(
             instance,
-            closed_state=closed_state,
-            related_queryset=related_queryset,
-            related_name=related_name,
-            noun=noun,
+            config.delete,
         )
 
     return detail_patch_response(
         request,
         instance,
-        to_dict=to_dict,
-        allowed_fields=allowed_fields,
-        valid_states=valid_states,
-        invalid_state_code=invalid_state_code,
-        date_fields=date_fields,
+        config.patch,
     )
 
 
-def detail_get_response(instance, *, to_dict):
-    return JsonResponse(to_dict(instance))
+def detail_get_response(instance, config):
+    return JsonResponse(config.to_dict(instance))
 
 
 def detail_delete_response(
     instance,
-    *,
-    closed_state,
-    related_queryset,
-    related_name,
-    noun,
+    config,
 ):
     return delete_object_or_error(
         instance,
-        closed_state=closed_state,
-        related_queryset=related_queryset,
-        related_name=related_name,
-        noun=noun,
+        closed_state=config.closed_state,
+        related_queryset=config.related_queryset,
+        related_name=config.related_name,
+        noun=config.noun,
     )
 
 
 def detail_patch_response(
     request,
     instance,
-    *,
-    to_dict,
-    allowed_fields,
-    valid_states,
-    invalid_state_code,
-    date_fields,
+    config,
 ):
     data, err = parse_json_body(request)
     if err:
@@ -145,9 +133,5 @@ def detail_patch_response(
     return patch_instance_response(
         instance,
         data,
-        to_dict=to_dict,
-        allowed_fields=allowed_fields,
-        valid_states=valid_states,
-        invalid_state_code=invalid_state_code,
-        date_fields=date_fields,
+        config,
     )

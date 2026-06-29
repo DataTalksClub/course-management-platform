@@ -13,11 +13,15 @@ from courses.scoring import (
 )
 
 from api.crud import (
+    DeleteResponseConfig,
+    DetailResponseConfig,
+    PatchResponseConfig,
     bulk_create_response,
     detail_response,
     get_course_child_or_404,
 )
 from api.safety import (
+    PatchFieldRules,
     error_response,
     require_staff_token,
 )
@@ -251,6 +255,13 @@ HOMEWORK_PATCH_FIELDS = {
 VALID_HOMEWORK_STATES = set()
 for homework_state in HomeworkState:
     VALID_HOMEWORK_STATES.add(homework_state.value)
+
+HOMEWORK_PATCH_RULES = PatchFieldRules(
+    HOMEWORK_PATCH_FIELDS,
+    VALID_HOMEWORK_STATES,
+    "invalid_homework_state",
+    {"due_date"},
+)
 
 
 HOMEWORK_DIRECT_UPDATE_FIELDS = (
@@ -532,6 +543,21 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
     )
 
 
+def _homework_detail_config(homework):
+    return DetailResponseConfig(
+        patch=PatchResponseConfig(
+            to_dict=_homework_to_dict,
+            rules=HOMEWORK_PATCH_RULES,
+        ),
+        delete=DeleteResponseConfig(
+            closed_state=HomeworkState.CLOSED.value,
+            related_queryset=homework.submission_set.all(),
+            related_name="submissions",
+            noun="homework",
+        ),
+    )
+
+
 def _homework_detail_response(
     request,
     course_slug,
@@ -546,18 +572,11 @@ def _homework_detail_response(
         object_id=homework_id,
         slug=homework_slug,
     )
+    config = _homework_detail_config(homework)
     return detail_response(
         request,
         homework,
-        to_dict=_homework_to_dict,
-        allowed_fields=HOMEWORK_PATCH_FIELDS,
-        valid_states=VALID_HOMEWORK_STATES,
-        invalid_state_code="invalid_homework_state",
-        date_fields={"due_date"},
-        closed_state=HomeworkState.CLOSED.value,
-        related_queryset=homework.submission_set.all(),
-        related_name="submissions",
-        noun="homework",
+        config,
     )
 
 

@@ -15,11 +15,15 @@ from courses.projects import (
 )
 
 from api.crud import (
+    DeleteResponseConfig,
+    DetailResponseConfig,
+    PatchResponseConfig,
     bulk_create_response,
     detail_response,
     get_course_child_or_404,
 )
 from api.safety import (
+    PatchFieldRules,
     apply_patch_fields,
     error_response,
     require_staff_token,
@@ -380,6 +384,13 @@ VALID_PROJECT_STATES = set()
 for project_state in ProjectState:
     VALID_PROJECT_STATES.add(project_state.value)
 
+PROJECT_PATCH_RULES = PatchFieldRules(
+    PROJECT_PATCH_FIELDS,
+    VALID_PROJECT_STATES,
+    "invalid_project_state",
+    {"submission_due_date", "peer_review_due_date"},
+)
+
 
 def _apply_project_title(project, data):
     title = data.get("title", data.get("name"))
@@ -428,10 +439,7 @@ def _apply_project_data(project, data):
     return apply_patch_fields(
         project,
         _project_generic_patch_data(data),
-        allowed_fields=PROJECT_PATCH_FIELDS,
-        valid_states=VALID_PROJECT_STATES,
-        invalid_state_code="invalid_project_state",
-        date_fields={"submission_due_date", "peer_review_due_date"},
+        PROJECT_PATCH_RULES,
     )
 
 
@@ -556,6 +564,21 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
     return _save_project_upsert(project, data, created)
 
 
+def _project_detail_config(project):
+    return DetailResponseConfig(
+        patch=PatchResponseConfig(
+            to_dict=_project_to_dict,
+            rules=PROJECT_PATCH_RULES,
+        ),
+        delete=DeleteResponseConfig(
+            closed_state=ProjectState.CLOSED.value,
+            related_queryset=project.projectsubmission_set.all(),
+            related_name="submissions",
+            noun="project",
+        ),
+    )
+
+
 def _project_detail_response(
     request,
     course_slug,
@@ -570,18 +593,11 @@ def _project_detail_response(
         object_id=project_id,
         slug=project_slug,
     )
+    config = _project_detail_config(project)
     return detail_response(
         request,
         project,
-        to_dict=_project_to_dict,
-        allowed_fields=PROJECT_PATCH_FIELDS,
-        valid_states=VALID_PROJECT_STATES,
-        invalid_state_code="invalid_project_state",
-        date_fields={"submission_due_date", "peer_review_due_date"},
-        closed_state=ProjectState.CLOSED.value,
-        related_queryset=project.projectsubmission_set.all(),
-        related_name="submissions",
-        noun="project",
+        config,
     )
 
 

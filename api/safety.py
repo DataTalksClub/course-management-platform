@@ -1,6 +1,16 @@
+from dataclasses import dataclass
+
 from django.http import JsonResponse
 
 from api.utils import parse_date
+
+
+@dataclass(frozen=True)
+class PatchFieldRules:
+    allowed_fields: set[str]
+    valid_states: set[str]
+    invalid_state_code: str
+    date_fields: set[str]
 
 
 def error_response(message, code, status=400, details=None):
@@ -65,11 +75,7 @@ def delete_object_or_error(
 def apply_patch_fields(
     instance,
     data,
-    *,
-    allowed_fields,
-    valid_states,
-    invalid_state_code,
-    date_fields,
+    rules,
 ):
     """Apply a PATCH payload field-by-field with validation.
 
@@ -78,56 +84,51 @@ def apply_patch_fields(
     field, else None (mutating ``instance`` in place).
     """
     for field, value in data.items():
-        error = validate_patch_field(
-            field,
-            value,
-            allowed_fields=allowed_fields,
-            valid_states=valid_states,
-            invalid_state_code=invalid_state_code,
-        )
+        error = apply_patch_field(instance, field, value, rules)
         if error:
             return error
 
-        value, error = parse_patch_field_value(
-            field,
-            value,
-            date_fields=date_fields,
-        )
-        if error:
-            return error
+    return None
 
-        setattr(instance, field, value)
 
+def apply_patch_field(instance, field, value, rules):
+    error = validate_patch_field(field, value, rules)
+    if error:
+        return error
+
+    parsed_value, error = parse_patch_field_value(field, value, rules)
+    if error:
+        return error
+
+    setattr(instance, field, parsed_value)
     return None
 
 
 def validate_patch_field(
     field,
     value,
-    *,
-    allowed_fields,
-    valid_states,
-    invalid_state_code,
+    rules,
 ):
-    if field not in allowed_fields:
+    if field not in rules.allowed_fields:
         return error_response(
             f"Cannot update field: {field}",
             "invalid_field",
             details={"field": field},
         )
 
-    if field == "state" and value not in valid_states:
+    if field == "state" and value not in rules.valid_states:
+        valid_states = sorted(rules.valid_states)
         return error_response(
-            f"Invalid state. Must be one of: {sorted(valid_states)}",
-            invalid_state_code,
-            details={"valid_states": sorted(valid_states)},
+            f"Invalid state. Must be one of: {valid_states}",
+            rules.invalid_state_code,
+            details={"valid_states": valid_states},
         )
 
     return None
 
 
-def parse_patch_field_value(field, value, *, date_fields):
-    if field not in date_fields:
+def parse_patch_field_value(field, value, rules):
+    if field not in rules.date_fields:
         return value, None
 
     parsed_value = parse_date(value)
