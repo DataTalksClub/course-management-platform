@@ -61,6 +61,15 @@ class CourseListCourses:
     archive_courses_by_year: dict
 
 
+@dataclass(frozen=True)
+class CoursePageData:
+    course: Course
+    user: object
+    homeworks: list
+    projects: list
+    registration_campaign: object
+
+
 ASSIGNMENT_TYPE_ORDER = {
     "homework": 1,
     "project": 2,
@@ -619,60 +628,66 @@ def course_user_context(
     )
 
 
-def course_page_context(
-    *,
-    course: Course,
-    user,
-    homeworks,
-    projects,
-    registration_campaign: RegistrationCampaign | None,
-) -> dict:
+def course_page_context(data: CoursePageData) -> dict:
     context = {
-        "course": course,
-        "homeworks": homeworks,
-        "projects": projects,
-        "has_completed_projects": has_completed_projects(projects),
-        "is_authenticated": user.is_authenticated,
-        "registration_campaign": registration_campaign,
+        "course": data.course,
+        "homeworks": data.homeworks,
+        "projects": data.projects,
+        "has_completed_projects": has_completed_projects(data.projects),
+        "is_authenticated": data.user.is_authenticated,
+        "registration_campaign": data.registration_campaign,
     }
     context.update(
-        course_user_context(user, course, registration_campaign)
+        course_user_context(
+            data.user,
+            data.course,
+            data.registration_campaign,
+        )
     )
     return context
 
 
-def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
+def course_page_data(course_slug: str, user) -> CoursePageData:
     course = get_object_or_404(Course, slug=course_slug)
     add_course_homepage_info(course, timezone.now())
-
-    user = request.user
     homeworks = get_homeworks_for_course(course, user)
     projects = get_projects_for_course(course, user)
     registration_campaign = active_registration_campaign_for_course(
         course
     )
+    return CoursePageData(
+        course,
+        user,
+        homeworks,
+        projects,
+        registration_campaign,
+    )
 
+
+def course_registration_redirect_response(data: CoursePageData):
     if should_redirect_to_registration_campaign(
-        registration_campaign=registration_campaign,
-        homeworks=homeworks,
-        projects=projects,
-        user=user,
+        registration_campaign=data.registration_campaign,
+        homeworks=data.homeworks,
+        projects=data.projects,
+        user=data.user,
     ):
         return redirect(
             "registration_campaign",
-            campaign_slug=registration_campaign.slug,
+            campaign_slug=data.registration_campaign.slug,
         )
+    return None
+
+
+def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
+    data = course_page_data(course_slug, request.user)
+    redirect_response = course_registration_redirect_response(data)
+    if redirect_response is not None:
+        return redirect_response
 
     return render(
         request,
         "courses/course.html",
-        course_page_context(
-            course=course,
-            user=user,
-            homeworks=homeworks,
-            projects=projects,
-            registration_campaign=registration_campaign,
-        ),
+        course_page_context(data),
     )
 
 
