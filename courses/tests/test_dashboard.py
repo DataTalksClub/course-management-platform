@@ -45,28 +45,28 @@ class DashboardViewTestCase(TestCase):
     @classmethod
     def create_statistic_users(cls):
         user_data = []
-        for i in range(5):
-            user_data.append(
-                User(
-                    username=f"user{i}@test.com",
-                    email=f"user{i}@test.com",
-                    password="12345",
-                )
+        user_indexes = range(5)
+        for i in user_indexes:
+            user = User(
+                username=f"user{i}@test.com",
+                email=f"user{i}@test.com",
+                password="12345",
             )
+            user_data.append(user)
 
         cls.users = User.objects.bulk_create(user_data)
 
     @classmethod
     def create_statistic_enrollments(cls):
         enrollment_data = []
-        for i, user in enumerate(cls.users):
-            enrollment_data.append(
-                Enrollment(
-                    student=user,
-                    course=cls.course,
-                    total_score=100 + i * 20,
-                )
+        indexed_users = enumerate(cls.users)
+        for i, user in indexed_users:
+            enrollment = Enrollment(
+                student=user,
+                course=cls.course,
+                total_score=100 + i * 20,
             )
+            enrollment_data.append(enrollment)
 
         cls.enrollments = Enrollment.objects.bulk_create(
             enrollment_data
@@ -163,7 +163,8 @@ class DashboardHomeworkStatsTestCase(TestCase):
         # Create multiple users and submissions for statistics
         self.users = []
         self.enrollments = []
-        for i in range(5):
+        user_indexes = range(5)
+        for i in user_indexes:
             user_creds = {
                 "username": f"user{i}@test.com",
                 "email": f"user{i}@test.com",
@@ -222,7 +223,9 @@ class DashboardHomeworkStatsTestCase(TestCase):
         ]
 
     def create_homework_stat_submissions(self):
-        for index, data in enumerate(self.homework_submission_stats_data()):
+        submission_stats = self.homework_submission_stats_data()
+        indexed_stats = enumerate(submission_stats)
+        for index, data in indexed_stats:
             self.create_homework_submission(
                 self.users[index],
                 self.enrollments[index],
@@ -254,7 +257,9 @@ class DashboardHomeworkStatsTestCase(TestCase):
         ]
 
     def create_null_time_submissions(self):
-        for index, data in enumerate(self.null_time_submission_stats_data()):
+        submission_stats = self.null_time_submission_stats_data()
+        indexed_stats = enumerate(submission_stats)
+        for index, data in indexed_stats:
             self.create_homework_submission(
                 self.users[index],
                 self.enrollments[index],
@@ -290,7 +295,8 @@ class DashboardHomeworkStatsTestCase(TestCase):
     def test_homework_statistics_with_insufficient_data(self):
         """Test homework statistics with insufficient data for quartiles"""
         # Create only 2 submissions (less than 3 required for quartiles)
-        for i in range(2):
+        submission_indexes = range(2)
+        for i in submission_indexes:
             self.create_homework_submission(
                 self.users[i], self.enrollments[i]
             )
@@ -309,17 +315,17 @@ class DashboardHomeworkStatsTestCase(TestCase):
 
     def _add_questions(self, homework, count):
         """Create `count` 1-point questions for a homework."""
-        Question.objects.bulk_create(
-            [
-                Question(
-                    homework=homework,
-                    text=f"Q{i}",
-                    question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-                    scores_for_correct_answer=1,
-                )
-                for i in range(count)
-            ]
-        )
+        questions = []
+        question_indexes = range(count)
+        for i in question_indexes:
+            question = Question(
+                homework=homework,
+                text=f"Q{i}",
+                question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+                scores_for_correct_answer=1,
+            )
+            questions.append(question)
+        Question.objects.bulk_create(questions)
 
     def create_homework_for_difficulty(self, slug, title, days_until_due):
         homework = Homework.objects.create(
@@ -332,7 +338,8 @@ class DashboardHomeworkStatsTestCase(TestCase):
         return homework
 
     def create_difficulty_submissions(self, harder_homework):
-        for user, enrollment in zip(self.users, self.enrollments):
+        user_enrollments = zip(self.users, self.enrollments)
+        for user, enrollment in user_enrollments:
             Submission.objects.create(
                 homework=self.homework,
                 student=user,
@@ -410,7 +417,8 @@ class DashboardHomeworkStatsTestCase(TestCase):
         )
 
         # Create more submissions for quartile calculation
-        for i in range(1, 4):
+        submission_indexes = range(1, 4)
+        for i in submission_indexes:
             self.create_homework_submission(
                 self.users[i],
                 self.enrollments[i],
@@ -461,24 +469,24 @@ class DashboardProjectStatsTestCase(TestCase):
     @classmethod
     def create_project_users(cls):
         user_data = []
-        for i in range(6):
-            user_data.append(
-                User(
-                    username=f"user{i}@test.com",
-                    email=f"user{i}@test.com",
-                    password="12345",
-                )
+        user_indexes = range(6)
+        for i in user_indexes:
+            user = User(
+                username=f"user{i}@test.com",
+                email=f"user{i}@test.com",
+                password="12345",
             )
+            user_data.append(user)
 
         cls.users = User.objects.bulk_create(user_data)
 
     @classmethod
     def create_project_enrollments(cls):
         enrollment_data = []
-        for user in cls.users:
-            enrollment_data.append(
-                Enrollment(student=user, course=cls.course)
-            )
+        users = cls.users
+        for user in users:
+            enrollment = Enrollment(student=user, course=cls.course)
+            enrollment_data.append(enrollment)
 
         cls.enrollments = Enrollment.objects.bulk_create(
             enrollment_data
@@ -515,7 +523,8 @@ class DashboardProjectStatsTestCase(TestCase):
     def create_bulk_project_submissions(self, submission_data):
         """Helper method to create project submissions in bulk"""
         submissions = []
-        for i, data in enumerate(submission_data):
+        indexed_submission_data = enumerate(submission_data)
+        for i, data in indexed_submission_data:
             passed = data.pop("passed", True)
             submission = ProjectSubmission(
                 project=self.project,
@@ -575,11 +584,13 @@ class DashboardProjectStatsTestCase(TestCase):
 
         # 3 distinct students submit project 1; 2 of them also submit project 2,
         # for 5 submissions total across 2 projects.
-        for i in range(3):
+        project_one_indexes = range(3)
+        for i in project_one_indexes:
             self.create_project_submission(
                 self.users[i], self.enrollments[i]
             )
-        for i in range(2):
+        project_two_indexes = range(2)
+        for i in project_two_indexes:
             ProjectSubmission.objects.create(
                 project=project2,
                 student=self.users[i],
@@ -619,7 +630,8 @@ class DashboardProjectStatsTestCase(TestCase):
     def test_avg_total_score_calculation(self):
         """Test average total score calculation from enrollments"""
         # Set specific total scores for enrollments
-        for i, enrollment in enumerate(self.enrollments):
+        indexed_enrollments = enumerate(self.enrollments)
+        for i, enrollment in indexed_enrollments:
             enrollment.total_score = 100 + i * 10
             enrollment.save()
 
@@ -660,7 +672,9 @@ class DashboardProjectStatsTestCase(TestCase):
     def test_graduates_count(self):
         """Test that graduates_count is calculated correctly"""
         # Add certificate URLs to some enrollments
-        for i, enrollment in enumerate(self.enrollments[:3]):
+        first_enrollments = self.enrollments[:3]
+        indexed_enrollments = enumerate(first_enrollments)
+        for i, enrollment in indexed_enrollments:
             enrollment.certificate_url = f"https://example.com/cert{i}.pdf"
             enrollment.save()
 
@@ -730,7 +744,8 @@ class DashboardIntegrationTestCase(TestCase):
     def create_student_enrollments(self):
         users = []
         enrollments = []
-        for index in range(4):
+        student_indexes = range(4)
+        for index in student_indexes:
             user = User.objects.create_user(
                 username=f"student{index}@test.com",
                 email=f"student{index}@test.com",
@@ -746,7 +761,9 @@ class DashboardIntegrationTestCase(TestCase):
         return users, enrollments
 
     def create_homework_submissions(self, users, enrollments):
-        for index, (user, enrollment) in enumerate(zip(users, enrollments)):
+        user_enrollments = zip(users, enrollments)
+        indexed_user_enrollments = enumerate(user_enrollments)
+        for index, (user, enrollment) in indexed_user_enrollments:
             Submission.objects.create(
                 homework=self.homework1,
                 student=user,
@@ -766,9 +783,11 @@ class DashboardIntegrationTestCase(TestCase):
                 )
 
     def create_project_submissions(self, users, enrollments):
-        for index, (user, enrollment) in enumerate(
-            zip(users[:3], enrollments[:3])
-        ):
+        first_users = users[:3]
+        first_enrollments = enrollments[:3]
+        user_enrollments = zip(first_users, first_enrollments)
+        indexed_user_enrollments = enumerate(user_enrollments)
+        for index, (user, enrollment) in indexed_user_enrollments:
             total_score = 70 + index * 10
             ProjectSubmission.objects.create(
                 project=self.project,
@@ -786,10 +805,12 @@ class DashboardIntegrationTestCase(TestCase):
         self.create_project_submissions(users, enrollments)
 
     def homework_stats_by_homework(self, response):
-        return {
-            stat["homework"]: stat
-            for stat in response.context["homework_stats"]
-        }
+        stats_by_homework = {}
+        homework_stats = response.context["homework_stats"]
+        for stat in homework_stats:
+            homework = stat["homework"]
+            stats_by_homework[homework] = stat
+        return stats_by_homework
 
     def assert_complete_dashboard_counts(self, response):
         self.assertEqual(response.context["total_enrollments"], 4)
