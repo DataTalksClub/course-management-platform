@@ -128,17 +128,8 @@ class Command(BaseCommand):
             )
 
     def _validate_options(self, options):
-        kind = options["kind"]
-        if kind != "homework" and options["homework_slug"]:
-            raise CommandError(
-                "--homework-slug can only be used with kind=homework."
-            )
-        if kind not in {"project", "project-passed"} and options["project_slug"]:
-            raise CommandError(
-                "--project-slug can only be used with kind=project or kind=project-passed."
-            )
-        if options["limit"] <= 0 or options["limit"] > 10000:
-            raise CommandError("--limit must be between 1 and 10000.")
+        for error in option_validation_errors(options):
+            raise CommandError(error)
 
     def _audit_list(self, client, config, list_key, payload, *, limit, repair):
         response = self._list_members(client, config, list_key, limit)
@@ -233,6 +224,37 @@ def actual_members(response):
         for member in response.get("members", [])
         if member.get("status", "active") != "removed"
     }
+
+
+def option_validation_errors(options):
+    kind = options["kind"]
+    checks = (
+        invalid_homework_filter(kind, options),
+        invalid_project_filter(kind, options),
+        invalid_limit(options),
+    )
+    return (error for error in checks if error)
+
+
+def invalid_homework_filter(kind, options):
+    if kind == "homework" or not options["homework_slug"]:
+        return ""
+    return "--homework-slug can only be used with kind=homework."
+
+
+def invalid_project_filter(kind, options):
+    if kind in {"project", "project-passed"} or not options["project_slug"]:
+        return ""
+    return (
+        "--project-slug can only be used with kind=project or "
+        "kind=project-passed."
+    )
+
+
+def invalid_limit(options):
+    if 1 <= options["limit"] <= 10000:
+        return ""
+    return "--limit must be between 1 and 10000."
 
 
 def compare_members(expected, actual):

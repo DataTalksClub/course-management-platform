@@ -3602,6 +3602,28 @@ class DatamailerClientTest(TestCase):
         ):
             self.audit_enrollment_recipient_list(enrollment.course)
 
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_recipient_list_audit_rejects_invalid_options(self):
+        cases = [
+            (
+                ("registrations", "--homework-slug", "homework-1"),
+                "--homework-slug can only be used with kind=homework.",
+            ),
+            (
+                ("enrollments", "--project-slug", "project-1"),
+                "--project-slug can only be used with kind=project or kind=project-passed.",
+            ),
+            (
+                ("registrations", "--limit", "0"),
+                "--limit must be between 1 and 10000.",
+            ),
+        ]
+
+        for args, message in cases:
+            with self.subTest(args=args):
+                with self.assertRaisesMessage(CommandError, message):
+                    call_command("audit_datamailer_recipient_lists", *args)
+
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
