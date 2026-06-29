@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 from functools import wraps
 
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
@@ -17,6 +18,14 @@ from .models import Token
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SocialLoginConnection:
+    request: object
+    sociallogin: object
+    email: str
+    existing_emails: object
 
 
 def generate_random_password(
@@ -101,18 +110,20 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         logger.info(
             f"Found {num_existing_emails} existing users for email {email}"
         )
+        connection = SocialLoginConnection(
+            request=request,
+            sociallogin=sociallogin,
+            email=email,
+            existing_emails=existing_emails,
+        )
 
         if num_existing_emails == 0:
             user = self._create_user_for_email(email)
             sociallogin.connect(request, user)
         elif num_existing_emails == 1:
-            self._connect_single_existing_user(
-                request, sociallogin, email, existing_emails
-            )
+            self._connect_single_existing_user(connection)
         else:
-            self._connect_most_recent_user(
-                request, sociallogin, email, existing_emails
-            )
+            self._connect_most_recent_user(connection)
 
     def _create_user_for_email(self, email):
         logger.info(
@@ -134,26 +145,28 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         email_address.save()
         return user
 
-    def _connect_single_existing_user(
-        self, request, sociallogin, email, existing_emails
-    ):
-        user = existing_emails.first().user
-        logger.info(f"Found existing user with email {email}, connecting to it")
-        sociallogin.connect(request, user)
-
-    def _connect_most_recent_user(
-        self, request, sociallogin, email, existing_emails
-    ):
-        logger.warning(
-            f"Multiple users found with email {email} - attempting to link "
-            "to the most recently active account."
+    def _connect_single_existing_user(self, connection):
+        user = connection.existing_emails.first().user
+        logger.info(
+            f"Found existing user with email {connection.email}, connecting to it"
         )
-        most_recent_user = self.select_most_recent_user(existing_emails)
+        connection.sociallogin.connect(connection.request, user)
+
+    def _connect_most_recent_user(self, connection):
+        logger.warning(
+            f"Multiple users found with email {connection.email} - "
+            "attempting to link to the most recently active account."
+        )
+        most_recent_user = self.select_most_recent_user(
+            connection.existing_emails
+        )
         if most_recent_user:
             logger.info(
-                f"Found existing user with email {email}, connecting to it"
+                f"Found existing user with email {connection.email}, connecting to it"
             )
-            sociallogin.connect(request, most_recent_user)
+            connection.sociallogin.connect(
+                connection.request, most_recent_user
+            )
 
     @staticmethod
     def select_most_recent_user(email_addresses):
