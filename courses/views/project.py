@@ -144,18 +144,34 @@ def project_submission_fields(
     project: Project,
     submission: ProjectSubmission,
 ) -> list[dict]:
-    fields = [
-        project_repository_submission_field(submission),
-        project_commit_submission_field(submission),
-        project_learning_in_public_submission_field(
-            project, submission
-        ),
-        project_time_submission_field(project, submission),
-        project_problems_comments_submission_field(project, submission),
-        project_faq_contribution_submission_field(project, submission),
-    ]
+    fields = []
+    repository_field = project_repository_submission_field(submission)
+    fields.append(repository_field)
+    commit_field = project_commit_submission_field(submission)
+    fields.append(commit_field)
+    learning_in_public_field = project_learning_in_public_submission_field(
+        project,
+        submission,
+    )
+    fields.append(learning_in_public_field)
+    time_field = project_time_submission_field(project, submission)
+    fields.append(time_field)
+    problems_comments_field = project_problems_comments_submission_field(
+        project,
+        submission,
+    )
+    fields.append(problems_comments_field)
+    faq_contribution_field = project_faq_contribution_submission_field(
+        project,
+        submission,
+    )
+    fields.append(faq_contribution_field)
 
-    return [field for field in fields if field is not None]
+    visible_fields = []
+    for field in fields:
+        if field is not None:
+            visible_fields.append(field)
+    return visible_fields
 
 
 def project_confirmation_metadata(
@@ -631,7 +647,8 @@ def project_validation_error_response(
     project: Project,
     error: ValidationError,
 ):
-    for message in error.messages:
+    error_messages = error.messages
+    for message in error_messages:
         messages.error(
             request,
             f"Failed to submit the project: {message}",
@@ -783,7 +800,8 @@ def answer_option_indexes(answer: str) -> list[int]:
         return []
 
     indexes = []
-    for value in answer.split(","):
+    values = answer.split(",")
+    for value in values:
         value = value.strip()
         if value:
             indexes.append(int(value) - 1)
@@ -794,7 +812,10 @@ def _criteria_responses_for_scores(
     submission: ProjectSubmission,
     scores: list[ProjectEvaluationScore],
 ) -> QuerySet[CriteriaResponse]:
-    criteria_ids = [score.review_criteria_id for score in scores]
+    criteria_ids = []
+    for score in scores:
+        criteria_id = score.review_criteria_id
+        criteria_ids.append(criteria_id)
     return CriteriaResponse.objects.filter(
         review__submission_under_evaluation=submission,
         review__state=PeerReviewState.SUBMITTED.value,
@@ -805,19 +826,20 @@ def _criteria_responses_for_scores(
 def _option_votes_by_criteria(responses):
     votes_by_criteria = defaultdict(lambda: defaultdict(int))
     for response in responses:
-        for option_index in answer_option_indexes(response.answer):
+        option_indexes = answer_option_indexes(response.answer)
+        for option_index in option_indexes:
             votes_by_criteria[response.criteria_id][option_index] += 1
     return votes_by_criteria
 
 
 def _score_option_vote_counts(score, option_votes):
-    return [
-        {
-            **option,
-            "votes": option_votes[index],
-        }
-        for index, option in enumerate(score.review_criteria.options)
-    ]
+    vote_counts = []
+    indexed_options = enumerate(score.review_criteria.options)
+    for index, option in indexed_options:
+        option_vote_count = option.copy()
+        option_vote_count["votes"] = option_votes[index]
+        vote_counts.append(option_vote_count)
+    return vote_counts
 
 
 def annotate_scores_with_option_votes(
@@ -900,11 +922,17 @@ def criteria_response_answer_indexes(response):
         return set()
 
     answers = (response.answer or "").strip().split(",")
-    return {int(answer) for answer in answers if answer}
+    answer_indexes = set()
+    for answer in answers:
+        if answer:
+            answer_index = int(answer)
+            answer_indexes.add(answer_index)
+    return answer_indexes
 
 
 def annotate_criteria_options(criteria, selected_indexes):
-    for index, option in enumerate(criteria.options, start=1):
+    indexed_options = enumerate(criteria.options, start=1)
+    for index, option in indexed_options:
         option["index"] = index
         option["is_selected"] = index in selected_indexes
 
@@ -939,10 +967,10 @@ def project_eval_build_context(
     disable_learning_in_public = (
         enrollment.disable_learning_in_public if enrollment else False
     )
-    responses_by_criteria_id = {
-        response.criteria.id: response
-        for response in review.get_criteria_responses()
-    }
+    responses_by_criteria_id = {}
+    criteria_responses = review.get_criteria_responses()
+    for response in criteria_responses:
+        responses_by_criteria_id[response.criteria.id] = response
 
     context = {
         "project": project,
@@ -962,12 +990,15 @@ def project_eval_build_context(
 
 def project_eval_answers_from_post(post_data):
     answers = {}
-    for answer_id, answer in post_data.lists():
+    posted_answers = post_data.lists()
+    for answer_id, answer in posted_answers:
         if not answer_id.startswith("answer_"):
             continue
-        answers[answer_id] = ",".join(
-            value.strip() for value in answer
-        )
+        cleaned_answer_items = []
+        for value in answer:
+            cleaned_value = value.strip()
+            cleaned_answer_items.append(cleaned_value)
+        answers[answer_id] = ",".join(cleaned_answer_items)
     return answers
 
 
@@ -1380,7 +1411,8 @@ def _decorate_project_submissions(
         and project.state == ProjectState.PEER_REVIEWING.value
     )
 
-    for order, submission in enumerate(submissions_list):
+    ordered_submissions = enumerate(submissions_list)
+    for order, submission in ordered_submissions:
         submission.list_order = order
         _decorate_submission_review_state(submission, review_ids)
         _decorate_submission_viewer_state(
@@ -1560,7 +1592,8 @@ def _sort_project_submissions_for_view(
 
 def _apply_project_group_headings(submissions_page):
     previous_group_label = None
-    for submission in submissions_page.object_list:
+    submissions = submissions_page.object_list
+    for submission in submissions:
         submission.group_heading = None
         if (
             submission.group_label
