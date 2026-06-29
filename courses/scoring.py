@@ -532,11 +532,8 @@ PROJECT_STAT_FIELDS = [
 ]
 
 
-def _calculate_field_distributions(submissions_data, fields):
-    """Compute min/max/avg/quantiles per field from prefetched submission rows."""
-    stats = {"total_submissions": len(submissions_data)}
-
-    nones = {
+def _empty_field_distribution():
+    return {
         "min": None,
         "max": None,
         "avg": None,
@@ -545,30 +542,38 @@ def _calculate_field_distributions(submissions_data, fields):
         "q3": None,
     }
 
+
+def _field_values(submissions_data, field):
+    return [
+        submission[field]
+        for submission in submissions_data
+        if submission[field] is not None
+    ]
+
+
+def _field_distribution(values):
+    if len(values) < 3:
+        return _empty_field_distribution()
+
+    quantiles = statistics.quantiles(values, n=4, method="inclusive")
+    return {
+        "min": min(values),
+        "max": max(values),
+        "avg": statistics.mean(values),
+        "q1": quantiles[0],
+        "median": quantiles[1],
+        "q3": quantiles[2],
+    }
+
+
+def _calculate_field_distributions(submissions_data, fields):
+    """Compute min/max/avg/quantiles per field from prefetched submission rows."""
+    stats = {"total_submissions": len(submissions_data)}
+
     for field in fields:
-        # Extract non-null values for this field from already fetched data
-        values = [
-            submission[field]
-            for submission in submissions_data
-            if submission[field] is not None
-        ]
-
-        if not values or len(values) < 3:
-            stats[field] = nones
-            continue
-
-        quantiles = statistics.quantiles(
-            values, n=4, method="inclusive"
+        stats[field] = _field_distribution(
+            _field_values(submissions_data, field)
         )
-
-        stats[field] = {
-            "min": min(values),
-            "max": max(values),
-            "avg": statistics.mean(values),
-            "q1": quantiles[0],
-            "median": quantiles[1],
-            "q3": quantiles[2],
-        }
 
     return stats
 
