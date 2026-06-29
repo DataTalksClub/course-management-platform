@@ -721,15 +721,28 @@ def _wrapped_leaderboard(enrollments):
     ]
 
 
+def _capped_hours(value):
+    return min(value or 0, 100.0)
+
+
+def _wrapped_homework_hours(submission):
+    return _capped_hours(submission.time_spent_lectures) + _capped_hours(
+        submission.time_spent_homework
+    )
+
+
+def _wrapped_project_hours(submission):
+    return _capped_hours(submission.time_spent)
+
+
 def _wrapped_total_hours(homework_submissions, project_submissions):
     homework_hours = sum(
-        min(hw.time_spent_lectures or 0, 100.0)
-        + min(hw.time_spent_homework or 0, 100.0)
-        for hw in homework_submissions
+        _wrapped_homework_hours(submission)
+        for submission in homework_submissions
     )
     project_hours = sum(
-        min(proj.time_spent or 0, 100.0)
-        for proj in project_submissions
+        _wrapped_project_hours(submission)
+        for submission in project_submissions
     )
     return round(homework_hours + project_hours, 1)
 
