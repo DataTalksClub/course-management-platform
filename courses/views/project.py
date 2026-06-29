@@ -158,16 +158,13 @@ def project_submission_fields(
     return [field for field in fields if field is not None]
 
 
-def project_confirmation_context(
+def project_confirmation_metadata(
     course: Course,
     project: Project,
     submission: ProjectSubmission,
     update_url: str,
     profile_url: str,
 ) -> dict:
-    submission_fields = project_submission_fields(project, submission)
-    submitted_fields_text = format_submission_lines(submission_fields)
-
     return {
         "course_slug": course.slug,
         "course_title": course.title,
@@ -179,6 +176,11 @@ def project_confirmation_context(
         "update_url": update_url,
         "profile_url": profile_url,
         "update_link_text": "Update your submission",
+    }
+
+
+def project_confirmation_notification_context(profile_url: str) -> dict:
+    return {
         "notification_category": "homework and project submissions",
         "notification_footer": (
             "You are receiving this because homework and project "
@@ -189,6 +191,15 @@ def project_confirmation_context(
             "off homework and project submission emails in your "
             f"profile: {profile_url}"
         ),
+    }
+
+
+def project_confirmation_message_context(
+    course: Course,
+    project: Project,
+    update_url: str,
+) -> dict:
+    return {
         "email_subject": f"Project submission saved: {project.title}",
         "email_preview": (
             "Your project submission was saved. Review what you "
@@ -201,6 +212,33 @@ def project_confirmation_context(
         "update_text": (
             "You can update your submission while the project "
             f"is open: {update_url}"
+        ),
+    }
+
+
+def project_confirmation_context(
+    course: Course,
+    project: Project,
+    submission: ProjectSubmission,
+    update_url: str,
+    profile_url: str,
+) -> dict:
+    submission_fields = project_submission_fields(project, submission)
+    submitted_fields_text = format_submission_lines(submission_fields)
+
+    return {
+        **project_confirmation_metadata(
+            course,
+            project,
+            submission,
+            update_url,
+            profile_url,
+        ),
+        **project_confirmation_notification_context(profile_url),
+        **project_confirmation_message_context(
+            course,
+            project,
+            update_url,
         ),
         "submission_fields": submission_fields,
         "submitted_fields_text": submitted_fields_text,
