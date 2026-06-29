@@ -53,6 +53,14 @@ class ProjectDeadlineEventSpec:
     deadline: object
 
 
+@dataclass(frozen=True)
+class CourseListCourses:
+    courses: list
+    active_courses: list
+    finished_courses: list
+    archive_courses_by_year: dict
+
+
 ASSIGNMENT_TYPE_ORDER = {
     "homework": 1,
     "project": 2,
@@ -306,7 +314,12 @@ def _split_courses_by_status(courses, now):
         else:
             active_courses.append(course)
 
-    return active_courses, finished_courses, archive_courses_by_year
+    return CourseListCourses(
+        courses,
+        active_courses,
+        finished_courses,
+        archive_courses_by_year,
+    )
 
 
 def _featured_course(active_courses):
@@ -355,35 +368,50 @@ def _course_home_stats(courses, active_courses, finished_courses):
     }
 
 
-def course_list(request):
-    courses = list(_visible_course_list_queryset())
-    active_courses, finished_courses, archive_courses_by_year = (
-        _split_courses_by_status(courses, timezone.now())
-    )
-
-    mark_enrolled_courses(courses, request.user)
-    attach_registration_campaigns(courses)
-    mark_registered_courses(courses, request.user)
-
-    featured_course = _featured_course(active_courses)
+def _other_active_courses(active_courses, featured_course):
     other_active_courses = []
     for course in active_courses:
         if course != featured_course:
             other_active_courses.append(course)
+    return other_active_courses
 
-    context = {
-        "active_courses": active_courses,
-        "archive_groups": _course_archive_groups(archive_courses_by_year),
+
+def _prepare_course_list_courses(user):
+    courses = list(_visible_course_list_queryset())
+    course_groups = _split_courses_by_status(courses, timezone.now())
+
+    mark_enrolled_courses(course_groups.courses, user)
+    attach_registration_campaigns(course_groups.courses)
+    mark_registered_courses(course_groups.courses, user)
+
+    return course_groups
+
+
+def _course_list_context(user):
+    course_groups = _prepare_course_list_courses(user)
+    featured_course = _featured_course(course_groups.active_courses)
+
+    return {
+        "active_courses": course_groups.active_courses,
+        "archive_groups": _course_archive_groups(
+            course_groups.archive_courses_by_year
+        ),
         "featured_course": featured_course,
-        "finished_courses": finished_courses,
-        "other_active_courses": other_active_courses,
+        "finished_courses": course_groups.finished_courses,
+        "other_active_courses": _other_active_courses(
+            course_groups.active_courses,
+            featured_course,
+        ),
         "home_stats": _course_home_stats(
-            courses,
-            active_courses,
-            finished_courses,
+            course_groups.courses,
+            course_groups.active_courses,
+            course_groups.finished_courses,
         ),
     }
 
+
+def course_list(request):
+    context = _course_list_context(request.user)
     return render(
         request,
         "courses/course_list.html",
