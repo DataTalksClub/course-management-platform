@@ -17,6 +17,7 @@ import argparse
 import os
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -62,6 +63,34 @@ DEFAULT_SELECTED_COURSES = {
     "mlops-zoomcamp-2025": 650,
     "sma-zoomcamp-2025": 450,
 }
+
+
+@dataclass(frozen=True)
+class GeneratedSubmissionData:
+    course: Course
+    enrollment: Enrollment
+    student_index: int
+    item_index: int
+    item: object
+    count: int
+
+
+@dataclass(frozen=True)
+class GeneratedSubmissionsData:
+    course: Course
+    enrollments: list[Enrollment]
+    homeworks: list[Homework]
+    projects: list[Project]
+    count: int
+
+
+@dataclass(frozen=True)
+class SeedSummaryData:
+    course: Course
+    created_users: int
+    created_enrollments: int
+    homework_submissions: list[Submission]
+    project_submissions: list[ProjectSubmission]
 
 
 def configure_sqlite_busy_timeout():
@@ -584,28 +613,36 @@ def homework_faq_url(student_index, homework_index, faq_score):
     )
 
 
-def build_homework_submission(course, enrollment, student_index, homework_index, homework, count):
+def build_homework_submission(data):
     questions_score, faq_score, lip_score = homework_scores(
-        student_index, count, homework_index
+        data.student_index,
+        data.count,
+        data.item_index,
     )
     return Submission(
-        homework=homework,
-        student=enrollment.student,
-        enrollment=enrollment,
+        homework=data.item,
+        student=data.enrollment.student,
+        enrollment=data.enrollment,
         homework_link=(
-            f"https://example.com/{course.slug}/"
-            f"{student_index:04d}/homework-{homework_index}"
+            f"https://example.com/{data.course.slug}/"
+            f"{data.student_index:04d}/homework-{data.item_index}"
         ),
         learning_in_public_links=[
             (
-                f"https://example.com/{course.slug}/"
-                f"{student_index:04d}/notes/homework-{homework_index}"
+                f"https://example.com/{data.course.slug}/"
+                f"{data.student_index:04d}/notes/homework-{data.item_index}"
             )
         ],
-        time_spent_lectures=1.5 + ((student_index + homework_index) % 8),
-        time_spent_homework=2.0 + ((student_index * homework_index) % 10),
+        time_spent_lectures=(
+            1.5 + ((data.student_index + data.item_index) % 8)
+        ),
+        time_spent_homework=(
+            2.0 + ((data.student_index * data.item_index) % 10)
+        ),
         faq_contribution_url=homework_faq_url(
-            student_index, homework_index, faq_score
+            data.student_index,
+            data.item_index,
+            faq_score,
         ),
         questions_score=questions_score,
         faq_score=faq_score,
@@ -640,8 +677,12 @@ def project_faq_url(student_index, project_index, project_faq_score):
     )
 
 
-def build_project_submission(course, enrollment, student_index, project_index, project, count):
-    scores = project_scores(student_index, count, project_index)
+def build_project_submission(data):
+    scores = project_scores(
+        data.student_index,
+        data.count,
+        data.item_index,
+    )
     (
         project_score,
         project_faq_score,
@@ -650,24 +691,28 @@ def build_project_submission(course, enrollment, student_index, project_index, p
         peer_review_lip_score,
     ) = scores
     return ProjectSubmission(
-        project=project,
-        student=enrollment.student,
-        enrollment=enrollment,
+        project=data.item,
+        student=data.enrollment.student,
+        enrollment=data.enrollment,
         github_link=(
-            f"https://github.com/example/{course.slug}-"
-            f"{student_index:04d}-project-{project_index}"
+            f"https://github.com/example/{data.course.slug}-"
+            f"{data.student_index:04d}-project-{data.item_index}"
         ),
-        commit_id=f"{student_index:036d}{project_index:04d}"[:40],
+        commit_id=f"{data.student_index:036d}{data.item_index:04d}"[
+            :40
+        ],
         learning_in_public_links=[
             (
-                f"https://example.com/{course.slug}/"
-                f"{student_index:04d}/notes/project-{project_index}"
+                f"https://example.com/{data.course.slug}/"
+                f"{data.student_index:04d}/notes/project-{data.item_index}"
             )
         ],
         faq_contribution_url=project_faq_url(
-            student_index, project_index, project_faq_score
+            data.student_index,
+            data.item_index,
+            project_faq_score,
         ),
-        time_spent=6.0 + ((student_index * project_index) % 24),
+        time_spent=6.0 + ((data.student_index * data.item_index) % 24),
         problems_comments="Generated project submission",
         project_score=project_score,
         project_faq_score=project_faq_score,
@@ -680,29 +725,31 @@ def build_project_submission(course, enrollment, student_index, project_index, p
     )
 
 
-def build_generated_submissions(course, enrollments, homeworks, projects, count):
+def build_generated_submissions(data):
     homework_submissions = []
     project_submissions = []
-    for student_index, enrollment in enumerate(enrollments, start=1):
-        for homework_index, homework in enumerate(homeworks, start=1):
-            homework_submission = build_homework_submission(
-                course,
-                enrollment,
-                student_index,
-                homework_index,
-                homework,
-                count,
+    for student_index, enrollment in enumerate(data.enrollments, start=1):
+        for homework_index, homework in enumerate(data.homeworks, start=1):
+            submission_data = GeneratedSubmissionData(
+                course=data.course,
+                enrollment=enrollment,
+                student_index=student_index,
+                item_index=homework_index,
+                item=homework,
+                count=data.count,
             )
+            homework_submission = build_homework_submission(submission_data)
             homework_submissions.append(homework_submission)
-        for project_index, project in enumerate(projects, start=1):
-            project_submission = build_project_submission(
-                course,
-                enrollment,
-                student_index,
-                project_index,
-                project,
-                count,
+        for project_index, project in enumerate(data.projects, start=1):
+            submission_data = GeneratedSubmissionData(
+                course=data.course,
+                enrollment=enrollment,
+                student_index=student_index,
+                item_index=project_index,
+                item=project,
+                count=data.count,
             )
+            project_submission = build_project_submission(submission_data)
             project_submissions.append(project_submission)
     return homework_submissions, project_submissions
 
@@ -728,19 +775,13 @@ def top_leaderboard_entry(course):
     )
 
 
-def print_seed_summary(
-    course,
-    created_users,
-    created_enrollments,
-    homework_submissions,
-    project_submissions,
-):
-    top = top_leaderboard_entry(course)
+def print_seed_summary(data):
+    top = top_leaderboard_entry(data.course)
     print(
-        f"{course.slug}: {created_users} users created, "
-        f"{created_enrollments} enrollments created, "
-        f"{len(homework_submissions)} homework submissions, "
-        f"{len(project_submissions)} project submissions, top={top}"
+        f"{data.course.slug}: {data.created_users} users created, "
+        f"{data.created_enrollments} enrollments created, "
+        f"{len(data.homework_submissions)} homework submissions, "
+        f"{len(data.project_submissions)} project submissions, top={top}"
     )
 
 
@@ -755,20 +796,28 @@ def seed_course(spec, count):
         homeworks,
         projects,
     )
-    homework_submissions, project_submissions = build_generated_submissions(
-        course, enrollments, homeworks, projects, count
+    generated_data = GeneratedSubmissionsData(
+        course=course,
+        enrollments=enrollments,
+        homeworks=homeworks,
+        projects=projects,
+        count=count,
+    )
+    homework_submissions, project_submissions = (
+        build_generated_submissions(generated_data)
     )
     Submission.objects.bulk_create(homework_submissions, batch_size=1000)
     ProjectSubmission.objects.bulk_create(project_submissions, batch_size=1000)
 
     recalculate_course_scores(course, homeworks, projects)
-    print_seed_summary(
-        course,
-        created_users,
-        created_enrollments,
-        homework_submissions,
-        project_submissions,
+    summary_data = SeedSummaryData(
+        course=course,
+        created_users=created_users,
+        created_enrollments=created_enrollments,
+        homework_submissions=homework_submissions,
+        project_submissions=project_submissions,
     )
+    print_seed_summary(summary_data)
 
 
 def parse_args():
