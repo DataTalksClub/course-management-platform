@@ -233,48 +233,51 @@ class ProjectEvaluationTestCase(TestCase):
         self, pairs, criteria_responses
     ):
         self.assertEqual(len(pairs), 3)
-        self.assert_submitted_criteria_pair(
-            pairs[0],
-            self.criteria1,
-            criteria_responses[self.criteria1],
-            self.selected_options(
-                [
-                    ("Poor", 0),
-                    ("Satisfactory", 1),
-                    ("Good", 2),
-                    ("Excellent", 3),
-                ],
-                {1},
-            ),
+        expected_rows = [
+            (pairs[0], self.criteria1, self.code_quality_options()),
+            (pairs[1], self.criteria2, self.documentation_options()),
+            (pairs[2], self.criteria3, self.best_practices_options()),
+        ]
+        for pair, criteria, expected_options in expected_rows:
+            self.assert_submitted_criteria_pair(
+                pair,
+                criteria,
+                criteria_responses[criteria],
+                expected_options,
+            )
+
+    def code_quality_options(self):
+        return self.selected_options(
+            [
+                ("Poor", 0),
+                ("Satisfactory", 1),
+                ("Good", 2),
+                ("Excellent", 3),
+            ],
+            {1},
         )
-        self.assert_submitted_criteria_pair(
-            pairs[1],
-            self.criteria2,
-            criteria_responses[self.criteria2],
-            self.selected_options(
-                [
-                    ("None", 0),
-                    ("Basic", 1),
-                    ("Complete", 2),
-                    ("In-depth", 3),
-                ],
-                {2},
-            ),
+
+    def documentation_options(self):
+        return self.selected_options(
+            [
+                ("None", 0),
+                ("Basic", 1),
+                ("Complete", 2),
+                ("In-depth", 3),
+            ],
+            {2},
         )
-        self.assert_submitted_criteria_pair(
-            pairs[2],
-            self.criteria3,
-            criteria_responses[self.criteria3],
-            self.selected_options(
-                [
-                    ("Coding standards", 1),
-                    ("Tests", 1),
-                    ("Logging", 1),
-                    ("Version control", 1),
-                    ("CI/CD", 1),
-                ],
-                {1, 3},
-            ),
+
+    def best_practices_options(self):
+        return self.selected_options(
+            [
+                ("Coding standards", 1),
+                ("Tests", 1),
+                ("Logging", 1),
+                ("Version control", 1),
+                ("CI/CD", 1),
+            ],
+            {1, 3},
         )
 
     def assert_submitted_criteria_pair(
@@ -293,9 +296,9 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(
             self.peer_review.state, PeerReviewState.SUBMITTED.value
         )
+        self.assertIsNotNone(self.peer_review.submitted_at)
         self.assertEqual(self.peer_review.note_to_peer, "Well done!")
         self.assertEqual(self.peer_review.time_spent_reviewing, 3.0)
-
         criteria_responses = self.criteria_responses()
         self.assertEqual(criteria_responses.count(), len(expected_answers))
         for criteria, expected_answer in expected_answers.items():
