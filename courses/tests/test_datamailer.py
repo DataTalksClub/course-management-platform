@@ -3073,6 +3073,29 @@ class DatamailerClientTest(TestCase):
         self.assert_peer_review_assignment_payload(payload, project)
         self.assert_berlin_reviewer_assignments(payload)
 
+    @override_settings(PUBLIC_BASE_URL="https://courses.example.com")
+    def test_preview_peer_review_email_prints_submission_previews(self):
+        project = self.create_peer_review_assignment_fixture()
+
+        out = StringIO()
+        call_command(
+            "preview_peer_review_email",
+            project.course.slug,
+            project.slug,
+            stdout=out,
+        )
+
+        output = out.getvalue()
+        self.assertIn("Project:  Project 1 (project-1)", output)
+        self.assertIn("- learner-0@example.com", output)
+        self.assertIn("you were assigned 3 projects to review", output)
+        self.assertIn(
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1/eval/",
+            output,
+        )
+        self.assertIn("(project: https://github.com/example/p1)", output)
+        self.assertIn("4 recipient(s) would be emailed.", output)
+
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"

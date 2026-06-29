@@ -15,6 +15,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from courses.models import Course, Project
 from course_management import datamailer
+from course_management.datamailer.payloads import _assigned_review_links
 from course_management.deadlines import format_deadline_for_email
 
 
@@ -77,34 +78,12 @@ class Command(BaseCommand):
         out.write("")
 
     def write_submission_previews(self, project):
-        submissions = (
-            project.projectsubmission_set.select_related("student")
-            .order_by("student_id", "-submitted_at", "-id")
-        )
-        seen = set()
+        out = self.stdout
         recipients = 0
-        for submission in submissions:
-            student = submission.student
-            if submission.student_id in seen:
-                continue
-            seen.add(submission.student_id)
+        for submission in latest_student_submissions(project):
             recipients += 1
-
-            links = datamailer._assigned_review_links(submission)
-            submitted = (
-                submission.submitted_at.isoformat()
-                if submission.submitted_at
-                else "(no date)"
-            )
-            out.write(f"- {student.email}")
-            out.write(f"    submitted: {submitted}")
-            out.write(f"    you were assigned {len(links)} projects to review:")
-            for i, link in enumerate(links, start=1):
-                out.write(f"      {i}. {link['eval_url']}")
-                if link["submission_github_link"]:
-                    out.write(
-                        f"         (project: {link['submission_github_link']})"
-                    )
+            for line in submission_preview_lines(submission):
+                out.write(line)
 
         return recipients
 
@@ -132,3 +111,40 @@ class Command(BaseCommand):
         list_key, payload = list_payload
         out.write(f"list_key: {list_key}")
         out.write(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def ordered_project_submissions(project):
+    return project.projectsubmission_set.select_related("student").order_by(
+        "student_id",
+        "-submitted_at",
+        "-id",
+    )
+
+
+def latest_student_submissions(project):
+    seen = set()
+    for submission in ordered_project_submissions(project):
+        if submission.student_id in seen:
+            continue
+        seen.add(submission.student_id)
+        yield submission
+
+
+def submission_preview_lines(submission):
+    lines = [
+        f"- {submission.student.email}",
+        f"    submitted: {submission_submitted_at(submission)}",
+    ]
+    links = _assigned_review_links(submission)
+    lines.append(f"    you were assigned {len(links)} projects to review:")
+    for i, link in enumerate(links, start=1):
+        lines.append(f"      {i}. {link['eval_url']}")
+        if link["submission_github_link"]:
+            lines.append(f"         (project: {link['submission_github_link']})")
+    return lines
+
+
+def submission_submitted_at(submission):
+    if submission.submitted_at:
+        return submission.submitted_at.isoformat()
+    return "(no date)"
