@@ -259,6 +259,15 @@ def _persist_scored_homework_submissions(homework_id, submissions, answers):
     Answer.objects.bulk_update(answers, ["is_correct"])
 
 
+def _homework_scoring_batch(homework_id):
+    submissions = Submission.objects.filter(homework__id=homework_id)
+    answers = Answer.objects.filter(
+        submission__in=submissions
+    ).select_related("question", "submission")
+    answers_by_submission_id = _answers_by_submission(answers)
+    return submissions, answers, answers_by_submission_id
+
+
 def _mark_homework_scored(homework):
     homework.state = HomeworkState.SCORED.value
     homework.save()
@@ -284,15 +293,8 @@ def score_homework_submissions(
         if error := _homework_scoring_error(homework, homework_id):
             return (HomeworkScoringStatus.FAIL, error)
 
-        submissions = Submission.objects.filter(
-            homework__id=homework_id
-        )
-        answers = Answer.objects.filter(
-            submission__in=submissions
-        ).select_related("question", "submission")
-
-        answers_by_submission_id = _answers_by_submission(
-            answers,
+        submissions, answers, answers_by_submission_id = (
+            _homework_scoring_batch(homework_id)
         )
         logger.info(
             f"Scoring {len(answers_by_submission_id)} submissions for homework {homework_id}"
