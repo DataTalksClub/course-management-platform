@@ -1698,17 +1698,18 @@ def _dashboard_homeworks(course):
 
 
 def _dashboard_homework_submissions(course):
+    submission_fields = (
+        "homework_id",
+        "time_spent_lectures",
+        "time_spent_homework",
+        "questions_score",
+        "total_score",
+    )
     return (
         Submission.objects
         .filter(homework__course=course)
         .select_related("homework")
-        .values(
-            "homework_id",
-            "time_spent_lectures",
-            "time_spent_homework",
-            "questions_score",
-            "total_score",
-        )
+        .values(*submission_fields)
     )
 
 

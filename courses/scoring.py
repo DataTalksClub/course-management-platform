@@ -3,7 +3,7 @@ import statistics
 
 from time import time
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 from django.utils import timezone
@@ -885,7 +885,10 @@ def _build_user_wrapped_stat(
 
 def _wrapped_year_window(year):
     year_start = timezone.make_aware(datetime(year, 1, 1))
-    year_end = timezone.make_aware(datetime(year, 12, 31, 23, 59, 59))
+    next_year_start = datetime(year + 1, 1, 1)
+    year_end = timezone.make_aware(
+        next_year_start - timedelta(seconds=1)
+    )
     return year_start, year_end
 
 
