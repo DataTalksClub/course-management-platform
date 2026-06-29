@@ -1,9 +1,13 @@
+import sqlite3
+
 from django.test import SimpleTestCase
 
 from courses.models import Course
 from scripts.load_rds_export import (
     TableCopyPlan,
+    django_field_default,
     missing_required_columns,
+    refresh_sqlite_sequences,
 )
 
 
@@ -48,3 +52,38 @@ class LoadRdsExportScriptTest(SimpleTestCase):
         self.assertEqual(plan.insert_columns, ["slug", "title", "visible"])
         self.assertEqual(plan.default_values, {"visible": True})
         self.assertEqual(defaults_used, {("courses_course", "visible", True)})
+
+    def test_django_field_default_uses_model_defaults_and_nullable_fields(self):
+        self.assertEqual(django_field_default(Course, "visible"), (True, True))
+        self.assertEqual(
+            django_field_default(Course, "start_date"),
+            (True, None),
+        )
+        self.assertEqual(django_field_default(Course, "missing"), (False, None))
+        self.assertEqual(django_field_default(None, "visible"), (False, None))
+
+    def test_refresh_sqlite_sequences_updates_id_primary_key_tables(self):
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute(
+            "CREATE TABLE imported (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+        )
+        cursor.execute("CREATE TABLE keyed (slug TEXT PRIMARY KEY)")
+        cursor.executemany(
+            "INSERT INTO imported(id, name) VALUES (?, ?)",
+            [(3, "three"), (7, "seven")],
+        )
+        cursor.execute(
+            "UPDATE sqlite_sequence SET seq=1 WHERE name='imported'"
+        )
+
+        refresh_sqlite_sequences(
+            cursor,
+            [("imported", 2, 2), ("keyed", 0, 1)],
+        )
+
+        sequence = cursor.execute(
+            "SELECT seq FROM sqlite_sequence WHERE name='imported'"
+        ).fetchone()[0]
+        self.assertEqual(sequence, 7)

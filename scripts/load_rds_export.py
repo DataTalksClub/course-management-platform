@@ -210,27 +210,24 @@ def setup_django() -> dict[str, Any]:
 def django_field_default(model: Any, column: str) -> tuple[bool, Any]:
     from django.db.models import NOT_PROVIDED
 
-    if model is None:
+    field = django_field_for_column(model, column)
+    if field is None:
         return False, None
-
-    for field in model._meta.fields:
-        if field.column != column:
-            continue
-
-        if field.default is not NOT_PROVIDED:
-            default = (
-                field.default()
-                if callable(field.default)
-                else field.default
-            )
-            return True, default
-
-        if field.null:
-            return True, None
-
-        return False, None
-
+    if field.default is not NOT_PROVIDED:
+        default = field.default() if callable(field.default) else field.default
+        return True, default
+    if field.null:
+        return True, None
     return False, None
+
+
+def django_field_for_column(model: Any, column: str):
+    if model is None:
+        return None
+    for field in model._meta.fields:
+        if field.column == column:
+            return field
+    return None
 
 
 def table_names(cursor: sqlite3.Cursor) -> set[str]:
@@ -499,32 +496,43 @@ def copy_rows(source_db: Path, target_db: Path) -> None:
 def refresh_sqlite_sequences(
     cursor: sqlite3.Cursor, imported: list[tuple[str, int, int]]
 ) -> None:
+    if not sqlite_sequence_exists(cursor):
+        return
+
+    for table, _rows, _columns in imported:
+        if table_has_single_id_primary_key(cursor, table):
+            upsert_sqlite_sequence(cursor, table, table_max_id(cursor, table))
+
+
+def sqlite_sequence_exists(cursor: sqlite3.Cursor) -> bool:
     cursor.execute(
         "SELECT name FROM sqlite_master "
         "WHERE type='table' AND name='sqlite_sequence'"
     )
-    if cursor.fetchone() is None:
-        return
+    return cursor.fetchone() is not None
 
-    for table, _rows, _columns in imported:
-        table_info = pragma_table_info(cursor, table)
-        primary_keys = [
-            row["name"] for row in table_info if row["pk"] == 1
-        ]
-        if primary_keys != ["id"]:
-            continue
 
-        cursor.execute(f'SELECT COALESCE(MAX(id), 0) FROM "{table}"')
-        max_id = cursor.fetchone()[0]
+def table_has_single_id_primary_key(cursor: sqlite3.Cursor, table: str) -> bool:
+    table_info = pragma_table_info(cursor, table)
+    primary_keys = [row["name"] for row in table_info if row["pk"] == 1]
+    return primary_keys == ["id"]
+
+
+def table_max_id(cursor: sqlite3.Cursor, table: str) -> int:
+    cursor.execute(f'SELECT COALESCE(MAX(id), 0) FROM "{table}"')
+    return cursor.fetchone()[0]
+
+
+def upsert_sqlite_sequence(cursor: sqlite3.Cursor, table: str, max_id: int) -> None:
+    cursor.execute(
+        "UPDATE sqlite_sequence SET seq=? WHERE name=?",
+        (max_id, table),
+    )
+    if cursor.rowcount == 0:
         cursor.execute(
-            "UPDATE sqlite_sequence SET seq=? WHERE name=?",
-            (max_id, table),
+            "INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)",
+            (table, max_id),
         )
-        if cursor.rowcount == 0:
-            cursor.execute(
-                "INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)",
-                (table, max_id),
-            )
 
 
 def validate_rebuilt_db(db_path: Path) -> None:
