@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from django.test import TestCase, Client
 from django.utils import timezone
 from django.urls import reverse
@@ -38,6 +39,15 @@ credentials = dict(
     email="test@test.com",
     password="12345",
 )
+
+
+@dataclass(frozen=True)
+class RawStatExpectation:
+    stats: dict
+    field: str
+    minimum: float
+    maximum: float
+    average: float
 
 
 class ProjectStatisticsTestCase(TestCase):
@@ -162,10 +172,10 @@ class ProjectStatisticsTestCase(TestCase):
             ]
         )
 
-    def assert_raw_stat(self, stats, field, *, minimum, maximum, average):
-        self.assertEqual(stats[field]["min"], minimum)
-        self.assertEqual(stats[field]["max"], maximum)
-        self.assertEqual(stats[field]["avg"], average)
+    def assert_raw_stat(self, data: RawStatExpectation):
+        self.assertEqual(data.stats[data.field]["min"], data.minimum)
+        self.assertEqual(data.stats[data.field]["max"], data.maximum)
+        self.assertEqual(data.stats[data.field]["avg"], data.average)
 
     def test_calculate_raw_project_statistics_basic(self):
         """Test basic raw statistics calculation"""
@@ -174,27 +184,30 @@ class ProjectStatisticsTestCase(TestCase):
         stats = calculate_raw_project_statistics(self.project)
 
         self.assertEqual(stats["total_submissions"], 3)
-        self.assert_raw_stat(
-            stats,
-            "project_score",
+        project_score_expectation = RawStatExpectation(
+            stats=stats,
+            field="project_score",
             minimum=8,
             maximum=12,
             average=10.0,
         )
-        self.assert_raw_stat(
-            stats,
-            "total_score",
+        self.assert_raw_stat(project_score_expectation)
+        total_score_expectation = RawStatExpectation(
+            stats=stats,
+            field="total_score",
             minimum=15,
             maximum=20,
             average=17.666666666666668,
         )
-        self.assert_raw_stat(
-            stats,
-            "time_spent",
+        self.assert_raw_stat(total_score_expectation)
+        time_spent_expectation = RawStatExpectation(
+            stats=stats,
+            field="time_spent",
             minimum=8.0,
             maximum=12.0,
             average=10.0,
         )
+        self.assert_raw_stat(time_spent_expectation)
 
     def test_calculate_raw_project_statistics_insufficient_data(self):
         """Test statistics calculation with insufficient data (< 3 submissions)"""

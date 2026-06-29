@@ -1,4 +1,5 @@
 from datetime import timedelta
+from dataclasses import dataclass, field
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -25,6 +26,14 @@ credentials = dict(
     email="test@test.com",
     password="12345",
 )
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionFixtureData:
+    user: User
+    enrollment: Enrollment
+    scores: dict = field(default_factory=dict)
+    passed: bool = True
 
 
 class DashboardViewTestCase(TestCase):
@@ -494,19 +503,18 @@ class DashboardProjectStatsTestCase(TestCase):
     def setUp(self):
         self.client = Client()
 
-    def create_project_submission(
-        self, user, enrollment, scores=None, passed=True
-    ):
+    def create_project_submission(self, data: ProjectSubmissionFixtureData):
         """Helper method to create project submissions"""
-        if scores is None:
+        scores = data.scores
+        if not scores:
             scores = {"total_score": 80, "time_spent": 10.0}
 
         return ProjectSubmission.objects.create(
             project=self.project,
-            student=user,
-            enrollment=enrollment,
+            student=data.user,
+            enrollment=data.enrollment,
             github_link="https://github.com/test/repo",
-            passed=passed,
+            passed=data.passed,
             **scores,
         )
 
@@ -574,9 +582,11 @@ class DashboardProjectStatsTestCase(TestCase):
         # 3 distinct students submit project 1; 2 of them also submit project 2,
         # for 5 submissions total across 2 projects.
         for i in range(3):
-            self.create_project_submission(
-                self.users[i], self.enrollments[i]
+            submission_data = ProjectSubmissionFixtureData(
+                user=self.users[i],
+                enrollment=self.enrollments[i],
             )
+            self.create_project_submission(submission_data)
         for i in range(2):
             ProjectSubmission.objects.create(
                 project=project2,

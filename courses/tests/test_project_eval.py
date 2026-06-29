@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 class ExpectedCriteriaResponse:
     pair: tuple
     criteria: ReviewCriteria
+    response: CriteriaResponse
     options: list[dict]
 
 
@@ -242,30 +243,31 @@ class ProjectEvaluationTestCase(TestCase):
         self, pairs, criteria_responses
     ):
         self.assertEqual(len(pairs), 3)
+        code_quality_expected = ExpectedCriteriaResponse(
+            pair=pairs[0],
+            criteria=self.criteria1,
+            response=criteria_responses[self.criteria1],
+            options=self.code_quality_options(),
+        )
+        documentation_expected = ExpectedCriteriaResponse(
+            pair=pairs[1],
+            criteria=self.criteria2,
+            response=criteria_responses[self.criteria2],
+            options=self.documentation_options(),
+        )
+        best_practices_expected = ExpectedCriteriaResponse(
+            pair=pairs[2],
+            criteria=self.criteria3,
+            response=criteria_responses[self.criteria3],
+            options=self.best_practices_options(),
+        )
         expected_rows = [
-            ExpectedCriteriaResponse(
-                pairs[0],
-                self.criteria1,
-                self.code_quality_options(),
-            ),
-            ExpectedCriteriaResponse(
-                pairs[1],
-                self.criteria2,
-                self.documentation_options(),
-            ),
-            ExpectedCriteriaResponse(
-                pairs[2],
-                self.criteria3,
-                self.best_practices_options(),
-            ),
+            code_quality_expected,
+            documentation_expected,
+            best_practices_expected,
         ]
         for expected_row in expected_rows:
-            self.assert_submitted_criteria_pair(
-                expected_row.pair,
-                expected_row.criteria,
-                criteria_responses[expected_row.criteria],
-                expected_row.options,
-            )
+            self.assert_submitted_criteria_pair(expected_row)
 
     def code_quality_options(self):
         return self.selected_options(
@@ -302,12 +304,13 @@ class ProjectEvaluationTestCase(TestCase):
         )
 
     def assert_submitted_criteria_pair(
-        self, pair, criteria, response, expected_options
+        self,
+        data: ExpectedCriteriaResponse,
     ):
-        actual_criteria, actual_response = pair
-        self.assertEqual(actual_criteria, criteria)
-        self.assertEqual(actual_response, response)
-        self.assertEqual(actual_criteria.options, expected_options)
+        actual_criteria, actual_response = data.pair
+        self.assertEqual(actual_criteria, data.criteria)
+        self.assertEqual(actual_response, data.response)
+        self.assertEqual(actual_criteria.options, data.options)
 
     def criteria_responses(self):
         return CriteriaResponse.objects.filter(review=self.peer_review)

@@ -6,6 +6,7 @@ Tests for enrollment-related data views and helpers.
 
 import json
 import random
+from dataclasses import dataclass, field
 from unittest.mock import patch
 
 from django.test import TestCase, Client
@@ -22,6 +23,30 @@ from courses.models import (
 from accounts.models import CustomUser, Token
 
 from api.views.enrollment_exports import get_passed_enrollments
+
+
+@dataclass(frozen=True)
+class PassedProjectSubmissionData:
+    project: Project
+    student: CustomUser
+    enrollment: Enrollment
+    commit_id: str
+
+
+@dataclass(frozen=True)
+class PassedEnrollmentExpectation:
+    passed_submissions: list[ProjectSubmission]
+    min_projects: int
+    expected_enrollments: list[Enrollment]
+    missing_enrollments: list[Enrollment] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CertificateUpdateExpectation:
+    result: dict
+    success: bool
+    updated_count: int
+    error_count: int | None = None
 
 
 class EnrollmentDataAPITestCase(TestCase):
@@ -79,14 +104,15 @@ class EnrollmentDataAPITestCase(TestCase):
         )
 
     def create_passed_project_submission(
-        self, project, student, enrollment, commit_id
+        self,
+        data: PassedProjectSubmissionData,
     ):
         ProjectSubmission.objects.create(
-            project=project,
-            student=student,
-            enrollment=enrollment,
+            project=data.project,
+            student=data.student,
+            enrollment=data.enrollment,
             github_link="https://httpbin.org/status/200",
-            commit_id=commit_id,
+            commit_id=data.commit_id,
             passed=True,
         )
 
@@ -104,15 +130,27 @@ class EnrollmentDataAPITestCase(TestCase):
         )
         project1 = self.create_saved_project("project1", "Project 1")
         project2 = self.create_saved_project("project2", "Project 2")
-        self.create_passed_project_submission(
-            project1, self.user, self.enrollment, "1111"
+        first_submission_data = PassedProjectSubmissionData(
+            project=project1,
+            student=self.user,
+            enrollment=self.enrollment,
+            commit_id="1111",
         )
-        self.create_passed_project_submission(
-            project2, self.user, self.enrollment, "2222"
+        self.create_passed_project_submission(first_submission_data)
+        second_submission_data = PassedProjectSubmissionData(
+            project=project2,
+            student=self.user,
+            enrollment=self.enrollment,
+            commit_id="2222",
         )
-        self.create_passed_project_submission(
-            project1, other_user, other_enrollment, "3333"
+        self.create_passed_project_submission(second_submission_data)
+        other_submission_data = PassedProjectSubmissionData(
+            project=project1,
+            student=other_user,
+            enrollment=other_enrollment,
+            commit_id="3333",
         )
+        self.create_passed_project_submission(other_submission_data)
 
     def graduates_url(self):
         return reverse(
@@ -208,16 +246,16 @@ class EnrollmentDataAPITestCase(TestCase):
 
     def assert_enrollments_for_min_projects(
         self,
-        passed_submissions,
-        min_projects,
-        expected_enrollments,
-        missing_enrollments=(),
+        data: PassedEnrollmentExpectation,
     ):
-        result = get_passed_enrollments(passed_submissions, min_projects)
-        self.assertEqual(len(result), len(expected_enrollments))
-        for enrollment in expected_enrollments:
+        result = get_passed_enrollments(
+            data.passed_submissions,
+            data.min_projects,
+        )
+        self.assertEqual(len(result), len(data.expected_enrollments))
+        for enrollment in data.expected_enrollments:
             self.assertIn(enrollment, result)
-        for enrollment in missing_enrollments:
+        for enrollment in data.missing_enrollments:
             self.assertNotIn(enrollment, result)
         return result
 
@@ -227,22 +265,31 @@ class EnrollmentDataAPITestCase(TestCase):
             self.get_passed_enrollment_scenario()
         )
 
-        self.assert_enrollments_for_min_projects(
-            passed_submissions,
-            2,
-            [self.enrollment, enrollment3],
-            [enrollment2, enrollment4],
+        two_project_expectation = PassedEnrollmentExpectation(
+            passed_submissions=passed_submissions,
+            min_projects=2,
+            expected_enrollments=[self.enrollment, enrollment3],
+            missing_enrollments=[enrollment2, enrollment4],
         )
-        self.assert_enrollments_for_min_projects(
-            passed_submissions,
-            1,
-            [self.enrollment, enrollment2, enrollment3],
-            [enrollment4],
+        self.assert_enrollments_for_min_projects(two_project_expectation)
+        one_project_expectation = PassedEnrollmentExpectation(
+            passed_submissions=passed_submissions,
+            min_projects=1,
+            expected_enrollments=[
+                self.enrollment,
+                enrollment2,
+                enrollment3,
+            ],
+            missing_enrollments=[enrollment4],
+        )
+        self.assert_enrollments_for_min_projects(one_project_expectation)
+        three_project_expectation = PassedEnrollmentExpectation(
+            passed_submissions=passed_submissions,
+            min_projects=3,
+            expected_enrollments=[enrollment3],
         )
         result = self.assert_enrollments_for_min_projects(
-            passed_submissions,
-            3,
-            [enrollment3],
+            three_project_expectation
         )
         self.assertEqual(result[0], enrollment3)
         self.assertEqual(len(get_passed_enrollments(passed_submissions, 4)), 0)
@@ -304,15 +351,12 @@ class EnrollmentDataAPITestCase(TestCase):
 
     def assert_certificate_update_result(
         self,
-        result,
-        success,
-        updated_count,
-        error_count=None,
+        data: CertificateUpdateExpectation,
     ):
-        self.assertEqual(result["success"], success)
-        self.assertEqual(result["updated_count"], updated_count)
-        if error_count is not None:
-            self.assertEqual(result["error_count"], error_count)
+        self.assertEqual(data.result["success"], data.success)
+        self.assertEqual(data.result["updated_count"], data.updated_count)
+        if data.error_count is not None:
+            self.assertEqual(data.result["error_count"], data.error_count)
 
     def assert_certificate_url(self, enrollment, certificate_url):
         enrollment.refresh_from_db()
@@ -334,7 +378,13 @@ class EnrollmentDataAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assert_certificate_update_result(result, False, 2, 3)
+        expectation = CertificateUpdateExpectation(
+            result=result,
+            success=False,
+            updated_count=2,
+            error_count=3,
+        )
+        self.assert_certificate_update_result(expectation)
         error_codes = set()
         for error in result["errors"]:
             error_codes.add(error["code"])
@@ -367,7 +417,13 @@ class EnrollmentDataAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assert_certificate_update_result(result, True, 1, 0)
+        expectation = CertificateUpdateExpectation(
+            result=result,
+            success=True,
+            updated_count=1,
+            error_count=0,
+        )
+        self.assert_certificate_update_result(expectation)
         self.assert_certificate_url(
             self.enrollment, "/certificates/array.pdf"
         )
@@ -403,7 +459,12 @@ class EnrollmentDataAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assert_certificate_update_result(result, True, 2)
+        expectation = CertificateUpdateExpectation(
+            result=result,
+            success=True,
+            updated_count=2,
+        )
+        self.assert_certificate_update_result(expectation)
         self.assert_certificate_url(
             self.enrollment, "/certificates/first.pdf"
         )
