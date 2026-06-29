@@ -1114,47 +1114,94 @@ def bound_homework_submission_from_post(
     return bound_submission
 
 
+def _post_preview_value(request: HttpRequest, key: str) -> str:
+    return request.POST.get(key, "")
+
+
+def _post_preview_learning_links(request: HttpRequest) -> list[str]:
+    return [
+        link.strip()
+        for link in request.POST.getlist("learning_in_public_links[]")
+        if link.strip()
+    ]
+
+
+def _apply_post_preview_homework_url(
+    request: HttpRequest,
+    homework: Homework,
+    submission: Submission,
+) -> None:
+    if homework.homework_url_field:
+        submission.homework_link = _post_preview_value(
+            request,
+            "homework_url",
+        )
+
+
+def _apply_post_preview_learning_links(
+    request: HttpRequest,
+    homework: Homework,
+    submission: Submission,
+) -> None:
+    if homework.learning_in_public_cap > 0:
+        submission.learning_in_public_links = (
+            _post_preview_learning_links(request)
+        )
+
+
+def _apply_post_preview_time_spent(
+    request: HttpRequest,
+    homework: Homework,
+    submission: Submission,
+) -> None:
+    if homework.time_spent_lectures_field:
+        submission.time_spent_lectures = _post_preview_value(
+            request,
+            "time_spent_lectures",
+        )
+
+    if homework.time_spent_homework_field:
+        submission.time_spent_homework = _post_preview_value(
+            request,
+            "time_spent_homework",
+        )
+
+
+def _apply_post_preview_comments(
+    request: HttpRequest,
+    course: Course,
+    submission: Submission,
+) -> None:
+    if course.homework_problems_comments_field:
+        submission.problems_comments = _post_preview_value(
+            request,
+            "problems_comments",
+        )
+
+
+def _apply_post_preview_faq_contribution(
+    request: HttpRequest,
+    homework: Homework,
+    submission: Submission,
+) -> None:
+    if homework.faq_contribution_field:
+        submission.faq_contribution_url = _post_preview_value(
+            request,
+            "faq_contribution_url",
+        )
+
+
 def apply_homework_post_preview_fields(
     request: HttpRequest,
     course: Course,
     homework: Homework,
     submission: Submission,
 ) -> None:
-    if homework.homework_url_field:
-        submission.homework_link = request.POST.get("homework_url", "")
-
-    if homework.learning_in_public_cap > 0:
-        submission.learning_in_public_links = [
-            link.strip()
-            for link in request.POST.getlist(
-                "learning_in_public_links[]"
-            )
-            if link.strip()
-        ]
-
-    if homework.time_spent_lectures_field:
-        submission.time_spent_lectures = request.POST.get(
-            "time_spent_lectures",
-            "",
-        )
-
-    if homework.time_spent_homework_field:
-        submission.time_spent_homework = request.POST.get(
-            "time_spent_homework",
-            "",
-        )
-
-    if course.homework_problems_comments_field:
-        submission.problems_comments = request.POST.get(
-            "problems_comments",
-            "",
-        )
-
-    if homework.faq_contribution_field:
-        submission.faq_contribution_url = request.POST.get(
-            "faq_contribution_url",
-            "",
-        )
+    _apply_post_preview_homework_url(request, homework, submission)
+    _apply_post_preview_learning_links(request, homework, submission)
+    _apply_post_preview_time_spent(request, homework, submission)
+    _apply_post_preview_comments(request, course, submission)
+    _apply_post_preview_faq_contribution(request, homework, submission)
 
 
 def question_answers_from_post(
