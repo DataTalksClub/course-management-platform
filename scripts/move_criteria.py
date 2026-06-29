@@ -48,6 +48,16 @@ class CriteriaCopyData:
 
 
 @dataclass(frozen=True)
+class CriteriaCopyBatchData:
+    source_criteria: list[ReviewCriteria]
+    dest_course: Course
+    existing_keys: set[tuple[str, str]]
+    dry_run: bool
+    delete_from_source: bool
+    to_delete: list[ReviewCriteria]
+
+
+@dataclass(frozen=True)
 class MigrationSummaryData:
     created: list[ReviewCriteria]
     deleted: list[ReviewCriteria]
@@ -137,6 +147,23 @@ def delete_source_criteria(
         criteria.delete()
 
 
+def copy_source_criteria(data: CriteriaCopyBatchData) -> list[ReviewCriteria]:
+    created = []
+    for criteria in data.source_criteria:
+        copy_data = CriteriaCopyData(
+            criteria=criteria,
+            dest_course=data.dest_course,
+            existing_keys=data.existing_keys,
+            dry_run=data.dry_run,
+            delete_from_source=data.delete_from_source,
+            to_delete=data.to_delete,
+        )
+        copied = copy_single_criteria(copy_data)
+        if copied is not None:
+            created.append(copied)
+    return created
+
+
 def copy_criteria(
     source_course: Course,
     dest_course: Course,
@@ -154,21 +181,16 @@ def copy_criteria(
     dest_existing = list_criteria(dest_course)
     existing_keys = existing_criteria_keys(dest_existing)
 
-    created = []
     to_delete = []
-
-    for criteria in source_criteria:
-        copy_data = CriteriaCopyData(
-            criteria=criteria,
-            dest_course=dest_course,
-            existing_keys=existing_keys,
-            dry_run=dry_run,
-            delete_from_source=delete_from_source,
-            to_delete=to_delete,
-        )
-        copied = copy_single_criteria(copy_data)
-        if copied is not None:
-            created.append(copied)
+    batch_data = CriteriaCopyBatchData(
+        source_criteria=source_criteria,
+        dest_course=dest_course,
+        existing_keys=existing_keys,
+        dry_run=dry_run,
+        delete_from_source=delete_from_source,
+        to_delete=to_delete,
+    )
+    created = copy_source_criteria(batch_data)
 
     if delete_from_source:
         delete_source_criteria(to_delete, dry_run)
