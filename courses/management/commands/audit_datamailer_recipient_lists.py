@@ -16,6 +16,43 @@ RECIPIENT_LIST_KINDS = [
 ]
 
 
+def add_recipient_list_filter_arguments(parser):
+    parser.add_argument(
+        "--course-slug",
+        default="",
+        help="Limit the audit to one course cohort slug.",
+    )
+    parser.add_argument(
+        "--homework-slug",
+        default="",
+        help="Limit homework audit to one homework slug.",
+    )
+    parser.add_argument(
+        "--project-slug",
+        default="",
+        help="Limit project audit to one project slug.",
+    )
+
+
+def add_audit_behavior_arguments(parser):
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=10000,
+        help="Maximum Datamailer members to fetch per list.",
+    )
+    parser.add_argument(
+        "--repair",
+        action="store_true",
+        help="Repair drift by reconciling Datamailer to the CMP snapshot.",
+    )
+    parser.add_argument(
+        "--fail-on-drift",
+        action="store_true",
+        help="Exit with an error if any drift is detected.",
+    )
+
+
 class Command(BaseCommand):
     help = "Compare CMP recipient-list source data with Datamailer active members."
 
@@ -25,37 +62,8 @@ class Command(BaseCommand):
             choices=RECIPIENT_LIST_KINDS,
             help="CMP source to audit against Datamailer recipient lists.",
         )
-        parser.add_argument(
-            "--course-slug",
-            default="",
-            help="Limit the audit to one course cohort slug.",
-        )
-        parser.add_argument(
-            "--homework-slug",
-            default="",
-            help="Limit homework audit to one homework slug.",
-        )
-        parser.add_argument(
-            "--project-slug",
-            default="",
-            help="Limit project audit to one project slug.",
-        )
-        parser.add_argument(
-            "--limit",
-            type=int,
-            default=10000,
-            help="Maximum Datamailer members to fetch per list.",
-        )
-        parser.add_argument(
-            "--repair",
-            action="store_true",
-            help="Repair drift by reconciling Datamailer to the CMP snapshot.",
-        )
-        parser.add_argument(
-            "--fail-on-drift",
-            action="store_true",
-            help="Exit with an error if any drift is detected.",
-        )
+        add_recipient_list_filter_arguments(parser)
+        add_audit_behavior_arguments(parser)
 
     def handle(self, *args, **options):
         config = self._datamailer_config()
