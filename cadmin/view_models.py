@@ -190,4 +190,9 @@ def _filter_by_status(items, status_filter, predicates):
     predicate = predicates.get(status_filter)
     if predicate is None:
         return items
-    return [item for item in items if predicate(item)]
+
+    filtered_items = []
+    for item in items:
+        if predicate(item):
+            filtered_items.append(item)
+    return filtered_items
