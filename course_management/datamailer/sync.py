@@ -828,32 +828,33 @@ def send_transactional_email(
     if config is None:
         return None
 
-    client = DatamailerClient(config)
+    payload = _transactional_payload_with_config_defaults(config, payload)
+    try:
+        return _send_transactional_and_audit(config, payload)
+    except requests.RequestException as exc:
+        return _handle_transactional_send_error(config, payload, exc)
+
+
+def _transactional_payload_with_config_defaults(config, payload):
     if "audience" not in payload:
         payload = payload | {"audience": config.audience}
     if "client" not in payload:
         payload = payload | {"client": config.client}
     if config.from_email and "from_email" not in payload:
         payload = payload | {"from_email": config.from_email}
+    return payload
 
-    try:
-        response = client.send_transactional(payload)
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            payload=payload,
-            response=response,
-        )
-        return response
-    except requests.RequestException as exc:
-        logger.exception("Datamailer transactional email failed")
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            payload=payload,
-            error=str(exc),
-        )
-        if config.strict:
-            raise
-        return None
+
+def _handle_transactional_send_error(config, payload, exc):
+    logger.exception("Datamailer transactional email failed")
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.TRANSACTIONAL,
+        payload=payload,
+        error=str(exc),
+    )
+    if config.strict:
+        raise
+    return None
 
 
 def get_contact_status(email: str) -> dict[str, Any] | None:

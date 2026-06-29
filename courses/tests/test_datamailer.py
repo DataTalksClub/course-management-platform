@@ -1625,6 +1625,23 @@ class DatamailerClientTest(TestCase):
         self.assert_transactional_send_called(send)
         self.assert_transactional_send_audit()
 
+    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
+    @patch(
+        "course_management.datamailer.DatamailerClient.send_transactional"
+    )
+    def test_send_transactional_email_audits_api_failure(self, send):
+        send.side_effect = requests.RequestException("network error")
+
+        result = send_transactional_email(self.transactional_email_payload())
+
+        self.assertIsNone(result)
+        self.assert_transactional_send_called(send)
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.FAILED)
+        self.assertEqual(audit.idempotency_key, "welcome:student")
+        self.assertEqual(audit.error, "network error")
+
     def test_datamailer_send_counts_marks_transactional_replay(self):
         counts = datamailer_send_counts(
             DatamailerSendAuditType.TRANSACTIONAL,
