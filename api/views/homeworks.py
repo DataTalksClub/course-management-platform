@@ -100,35 +100,75 @@ def _create_questions(homework, questions_data):
         _create_question(homework, q_data)
 
 
-def _create_homework(course, hw_data):
-    """Create a homework. Returns (dict, None) or (None, error_str)."""
+def _homework_create_required_values(hw_data):
     name = hw_data.get("name")
     due_date_str = hw_data.get("due_date")
 
     if not name or not due_date_str:
-        return None, "name and due_date are required"
+        return None, None, "name and due_date are required"
 
+    return name, due_date_str, None
+
+
+def _homework_create_instructions_url(hw_data):
     instructions_url = hw_data.get("instructions_url")
     if instructions_url and (
         error := instructions_url_error(instructions_url)
     ):
         return None, error
 
+    return instructions_url, None
+
+
+def _homework_create_due_date(due_date_str):
     due_date = parse_date(due_date_str)
     if due_date is None:
         return None, f"Invalid date format: {due_date_str}"
 
-    slug = hw_data.get("slug") or slugify(name)
+    return due_date, None
 
+
+def _homework_create_slug(course, hw_data, name):
+    slug = hw_data.get("slug") or slugify(name)
     if Homework.objects.filter(course=course, slug=slug).exists():
         return None, f"Homework with slug '{slug}' already exists"
 
+    return slug, None
+
+
+def _homework_create_attrs(course, hw_data):
+    name, due_date_str, error = _homework_create_required_values(hw_data)
+    if error:
+        return None, error
+
+    instructions_url, error = _homework_create_instructions_url(hw_data)
+    if error:
+        return None, error
+
+    due_date, error = _homework_create_due_date(due_date_str)
+    if error:
+        return None, error
+
+    slug, error = _homework_create_slug(course, hw_data, name)
+    if error:
+        return None, error
+
+    attrs = _homework_create_defaults(
+        hw_data, name, due_date, instructions_url
+    )
+    attrs["slug"] = slug
+    return attrs, None
+
+
+def _create_homework(course, hw_data):
+    """Create a homework. Returns (dict, None) or (None, error_str)."""
+    attrs, error = _homework_create_attrs(course, hw_data)
+    if error:
+        return None, error
+
     homework = Homework.objects.create(
         course=course,
-        slug=slug,
-        **_homework_create_defaults(
-            hw_data, name, due_date, instructions_url
-        ),
+        **attrs,
     )
 
     _create_questions(homework, hw_data.get("questions", []))
