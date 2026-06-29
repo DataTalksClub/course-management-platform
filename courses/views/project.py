@@ -1414,6 +1414,17 @@ def projects_list_view(request, course_slug, project_slug):
 
     user = request.user
     viewer_state = _project_viewer_state(project, course, user)
+    submissions_page = _project_submissions_page(
+        request, project, viewer_state
+    )
+    context = _projects_list_context(
+        course, project, submissions_page, viewer_state
+    )
+
+    return render(request, "projects/list.html", context)
+
+
+def _project_submissions_page(request, project, viewer_state):
     submissions_list = list(_project_submissions_queryset(project))
     _decorate_project_submissions(
         submissions_list,
@@ -1435,8 +1446,11 @@ def projects_list_view(request, course_slug, project_slug):
         request, submissions_list
     )
     _apply_project_group_headings(submissions_page)
+    return submissions_page
 
-    context = {
+
+def _projects_list_context(course, project, submissions_page, viewer_state):
+    return {
         "course": course,
         "project": project,
         "submissions": submissions_page.object_list,
@@ -1450,8 +1464,6 @@ def projects_list_view(request, course_slug, project_slug):
         "project_votes_per_project": PROJECT_VOTES_PER_PROJECT,
         "project_votes_left": viewer_state["project_votes_left"],
     }
-
-    return render(request, "projects/list.html", context)
 
 
 def project_statistics(request, course_slug, project_slug):
