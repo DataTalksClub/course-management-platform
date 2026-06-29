@@ -94,35 +94,66 @@ def is_checkbox_answer_correct(
     return selected_options == correct_answer
 
 
+def normalized_free_form_answer(answer_text: str | None) -> str:
+    return (answer_text or "").strip()
+
+
+def is_any_free_form_answer_correct(
+    user_answer: str,
+    correct_answer: str,
+) -> bool:
+    return len(user_answer) > 0
+
+
+def is_exact_string_answer_correct(
+    user_answer: str,
+    correct_answer: str,
+) -> bool:
+    return user_answer.lower() == correct_answer.lower()
+
+
+def is_contains_string_answer_correct(
+    user_answer: str,
+    correct_answer: str,
+) -> bool:
+    return correct_answer.lower() in user_answer.lower()
+
+
+def is_float_answer_correct(
+    user_answer: str,
+    correct_answer: str,
+) -> bool:
+    return is_float_equal(user_answer, correct_answer, tolerance=0.01)
+
+
+def is_integer_answer_correct(
+    user_answer: str,
+    correct_answer: str,
+) -> bool:
+    return is_integer_equal(user_answer, correct_answer)
+
+
+FREE_FORM_ANSWER_CHECKS = {
+    AnswerTypes.ANY.value: is_any_free_form_answer_correct,
+    AnswerTypes.EXACT_STRING.value: is_exact_string_answer_correct,
+    AnswerTypes.CONTAINS_STRING.value: is_contains_string_answer_correct,
+    AnswerTypes.FLOAT.value: is_float_answer_correct,
+    AnswerTypes.INTEGER.value: is_integer_answer_correct,
+}
+
+
 def is_free_form_answer_correct(
     question: Question, answer: Answer
 ) -> bool:
-    answer_type = question.answer_type
+    answer_check = FREE_FORM_ANSWER_CHECKS.get(question.answer_type)
+    if answer_check is None:
+        return False
 
-    user_answer = answer.answer_text
-    user_answer = (user_answer or "").strip()
-
-    if answer_type == AnswerTypes.ANY.value:
-        # For "ANY" type, require non-empty answer
-        return len(user_answer) > 0
-
-    user_answer_lower = user_answer.lower()
-
-    correct_answer = question.get_correct_answer()
-    correct_answer = (correct_answer or "").strip().lower()
-
-    if answer_type == AnswerTypes.EXACT_STRING.value:
-        return user_answer_lower == correct_answer
-    elif answer_type == AnswerTypes.CONTAINS_STRING.value:
-        return correct_answer in user_answer_lower
-    elif answer_type == AnswerTypes.FLOAT.value:
-        return is_float_equal(
-            user_answer, correct_answer, tolerance=0.01
-        )
-    elif answer_type == AnswerTypes.INTEGER.value:
-        return is_integer_equal(user_answer, correct_answer)
-
-    return False
+    user_answer = normalized_free_form_answer(answer.answer_text)
+    correct_answer = normalized_free_form_answer(
+        question.get_correct_answer()
+    )
+    return answer_check(user_answer, correct_answer)
 
 
 def is_answer_correct(question: Question, answer: Answer) -> bool:
