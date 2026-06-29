@@ -1,10 +1,11 @@
+from dataclasses import dataclass
+from datetime import timedelta
 import logging
 from unittest.mock import patch
 
-from django.test import TestCase, Client, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
-from datetime import timedelta
 
 from data.models import (
     DatamailerContactEvent,
@@ -48,6 +49,45 @@ DATAMAILER_SETTINGS = {
     "DATAMAILER_CLIENT": "dtc-courses",
     "DATAMAILER_AUDIENCE": "dtc-courses",
 }
+
+
+@dataclass(frozen=True)
+class LeaderboardEnrollmentData:
+    username: str
+    display_name: str
+    total_score: int
+    position: int
+
+
+@dataclass(frozen=True)
+class LeaderboardComplaintData:
+    enrollment: Enrollment
+    reporter: User
+    issue_type: str
+    description: str
+
+
+@dataclass(frozen=True)
+class AnswerData:
+    submission: Submission
+    question: Question
+    answer_text: str
+    is_correct: bool
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionEditFixture:
+    submission: Submission
+    question1: Question
+    question2: Question
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionScoreExpectation:
+    submission: Submission
+    questions_score: int
+    learning_in_public_score: int
+    total_score: int
 
 
 credentials = dict(
@@ -129,33 +169,21 @@ class CadminViewTests(TestCase):
             course=self.course,
         )
 
-    def create_leaderboard_enrollment(
-        self,
-        username,
-        display_name,
-        total_score,
-        position,
-    ):
+    def create_leaderboard_enrollment(self, data):
         return Enrollment.objects.create(
-            student=User.objects.create_user(username=username),
+            student=User.objects.create_user(username=data.username),
             course=self.course,
-            display_name=display_name,
-            total_score=total_score,
-            position_on_leaderboard=position,
+            display_name=data.display_name,
+            total_score=data.total_score,
+            position_on_leaderboard=data.position,
         )
 
-    def create_leaderboard_complaint(
-        self,
-        enrollment,
-        reporter,
-        issue_type,
-        description,
-    ):
+    def create_leaderboard_complaint(self, data):
         return LeaderboardComplaint.objects.create(
-            enrollment=enrollment,
-            reporter=reporter,
-            issue_type=issue_type,
-            description=description,
+            enrollment=data.enrollment,
+            reporter=data.reporter,
+            issue_type=data.issue_type,
+            description=data.description,
         )
 
     def create_complaint_reporter(self):
@@ -166,36 +194,41 @@ class CadminViewTests(TestCase):
         )
 
     def create_complaint_sorting_target(self, reporter):
-        first = self.create_leaderboard_enrollment(
-            "first@test.com",
-            "First Student",
-            10,
-            2,
+        first_enrollment = LeaderboardEnrollmentData(
+            username="first@test.com",
+            display_name="First Student",
+            total_score=10,
+            position=2,
         )
-        second = self.create_leaderboard_enrollment(
-            "second@test.com",
-            "Second Student",
-            20,
-            1,
+        first = self.create_leaderboard_enrollment(first_enrollment)
+        second_enrollment = LeaderboardEnrollmentData(
+            username="second@test.com",
+            display_name="Second Student",
+            total_score=20,
+            position=1,
         )
-        self.create_leaderboard_complaint(
-            first,
-            reporter,
-            LeaderboardComplaint.IssueType.HOMEWORK,
-            "Incorrect homework.",
+        second = self.create_leaderboard_enrollment(second_enrollment)
+        first_complaint = LeaderboardComplaintData(
+            enrollment=first,
+            reporter=reporter,
+            issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
+            description="Incorrect homework.",
         )
-        self.create_leaderboard_complaint(
-            second,
-            reporter,
-            LeaderboardComplaint.IssueType.PROJECT,
-            "Incorrect project.",
+        self.create_leaderboard_complaint(first_complaint)
+        second_project_complaint = LeaderboardComplaintData(
+            enrollment=second,
+            reporter=reporter,
+            issue_type=LeaderboardComplaint.IssueType.PROJECT,
+            description="Incorrect project.",
         )
-        self.create_leaderboard_complaint(
-            second,
-            reporter,
-            LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
-            "Incorrect learning links.",
+        self.create_leaderboard_complaint(second_project_complaint)
+        second_learning_complaint = LeaderboardComplaintData(
+            enrollment=second,
+            reporter=reporter,
+            issue_type=LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
+            description="Incorrect learning links.",
         )
+        self.create_leaderboard_complaint(second_learning_complaint)
         return second
 
     def assert_most_complained_enrollment_first(self, response, enrollment):
@@ -309,12 +342,12 @@ class CadminViewTests(TestCase):
                 index,
             )
 
-    def create_answer(self, submission, question, answer_text, is_correct):
+    def create_answer(self, data):
         return Answer.objects.create(
-            submission=submission,
-            question=question,
-            answer_text=answer_text,
-            is_correct=is_correct,
+            submission=data.submission,
+            question=data.question,
+            answer_text=data.answer_text,
+            is_correct=data.is_correct,
         )
 
     def create_submission_with_answer_preview(self, answer_text):
@@ -356,19 +389,33 @@ class CadminViewTests(TestCase):
             learning_in_public_score=1,
             total_score=1,
         )
-        self.create_answer(submission, question1, "5", False)
-        self.create_answer(submission, question2, "1", False)
-        return submission, question1, question2
+        first_answer = AnswerData(
+            submission=submission,
+            question=question1,
+            answer_text="5",
+            is_correct=False,
+        )
+        self.create_answer(first_answer)
+        second_answer = AnswerData(
+            submission=submission,
+            question=question2,
+            answer_text="1",
+            is_correct=False,
+        )
+        self.create_answer(second_answer)
+        return HomeworkSubmissionEditFixture(
+            submission=submission,
+            question1=question1,
+            question2=question2,
+        )
 
-    def post_homework_submission_answer_edit(
-        self, submission, question1, question2
-    ):
+    def post_homework_submission_answer_edit(self, fixture):
         self.login_admin()
         return self.client.post(
-            self.homework_submission_edit_url(submission),
+            self.homework_submission_edit_url(fixture.submission),
             {
-                f"answer_{question1.id}": "4",
-                f"answer_{question2.id}": "2",
+                f"answer_{fixture.question1.id}": "4",
+                f"answer_{fixture.question2.id}": "2",
                 "learning_in_public_links": (
                     "https://example.com/post1\n"
                     "https://example.com/post2"
@@ -376,15 +423,19 @@ class CadminViewTests(TestCase):
             },
         )
 
-    def assert_homework_submission_scores(
-        self, submission, questions_score, learning_in_public_score, total_score
-    ):
-        self.assertEqual(submission.questions_score, questions_score)
+    def assert_homework_submission_scores(self, expectation):
         self.assertEqual(
-            submission.learning_in_public_score,
-            learning_in_public_score,
+            expectation.submission.questions_score,
+            expectation.questions_score,
         )
-        self.assertEqual(submission.total_score, total_score)
+        self.assertEqual(
+            expectation.submission.learning_in_public_score,
+            expectation.learning_in_public_score,
+        )
+        self.assertEqual(
+            expectation.submission.total_score,
+            expectation.total_score,
+        )
 
     def assert_learning_in_public_links(self, submission, expected_links):
         self.assertEqual(
@@ -2055,8 +2106,20 @@ class CadminViewTests(TestCase):
             learning_in_public_score=1,
             total_score=3,
         )
-        self.create_answer(submission, question1, "4", True)
-        self.create_answer(submission, question2, "2", True)
+        first_answer = AnswerData(
+            submission=submission,
+            question=question1,
+            answer_text="4",
+            is_correct=True,
+        )
+        self.create_answer(first_answer)
+        second_answer = AnswerData(
+            submission=submission,
+            question=question2,
+            answer_text="2",
+            is_correct=True,
+        )
+        self.create_answer(second_answer)
 
         self.login_admin()
         url = self.homework_submission_edit_url(submission)
@@ -2081,23 +2144,23 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_post_updates_answers(self):
         """Test that editing homework answers updates the submission correctly"""
-        submission, question1, question2 = (
-            self.create_homework_submission_edit_fixture()
-        )
+        fixture = self.create_homework_submission_edit_fixture()
 
-        response = self.post_homework_submission_answer_edit(
-            submission,
-            question1,
-            question2,
-        )
+        response = self.post_homework_submission_answer_edit(fixture)
 
         self.assertEqual(response.status_code, 302)
-        submission.refresh_from_db()
-        self.assert_homework_submission_scores(submission, 2, 2, 4)
-        self.assert_answer_updated(submission, question1, "4")
-        self.assert_answer_updated(submission, question2, "2")
+        fixture.submission.refresh_from_db()
+        expected_scores = HomeworkSubmissionScoreExpectation(
+            submission=fixture.submission,
+            questions_score=2,
+            learning_in_public_score=2,
+            total_score=4,
+        )
+        self.assert_homework_submission_scores(expected_scores)
+        self.assert_answer_updated(fixture.submission, fixture.question1, "4")
+        self.assert_answer_updated(fixture.submission, fixture.question2, "2")
         self.assert_learning_in_public_links(
-            submission,
+            fixture.submission,
             [
                 "https://example.com/post1",
                 "https://example.com/post2",
@@ -2108,7 +2171,13 @@ class CadminViewTests(TestCase):
         """Test that staff can edit FAQ contribution fields."""
         question = self.create_free_form_question(score=10)
         submission = self.create_homework_submission()
-        self.create_answer(submission, question, "5", False)
+        answer = AnswerData(
+            submission=submission,
+            question=question,
+            answer_text="5",
+            is_correct=False,
+        )
+        self.create_answer(answer)
 
         self.login_admin()
         faq_entry = "https://gist.github.com/example/not-validated-here"
@@ -2136,7 +2205,13 @@ class CadminViewTests(TestCase):
         submission = self.create_homework_submission(
             enrollment=enrollment,
         )
-        self.create_answer(submission, question, "5", False)
+        answer = AnswerData(
+            submission=submission,
+            question=question,
+            answer_text="5",
+            is_correct=False,
+        )
+        self.create_answer(answer)
 
         enrollment.total_score = 0
         enrollment.position_on_leaderboard = 999

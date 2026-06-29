@@ -1,20 +1,21 @@
+from dataclasses import dataclass
+from datetime import timedelta
 import logging
 
 from django.test import TestCase
 from django.utils import timezone
-from datetime import timedelta
 
 from courses.models import (
+    Answer,
+    AnswerTypes,
     Course,
+    Enrollment,
     Homework,
     HomeworkState,
     Question,
-    Submission,
-    Answer,
-    User,
     QuestionTypes,
-    AnswerTypes,
-    Enrollment,
+    Submission,
+    User,
 )
 
 from courses.scoring import (
@@ -27,6 +28,32 @@ from courses.scoring import (
 from .util import join_possible_answers
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class FreeFormQuestionData:
+    text: str
+    answer_type: str
+    answer: str
+    score: int
+
+
+@dataclass(frozen=True)
+class ChoiceQuestionData:
+    text: str
+    choices: list[str]
+    question_type: str
+    answer: str
+    score: int
+
+
+@dataclass(frozen=True)
+class LeaderboardRowData:
+    student: User
+    enrollment: Enrollment
+    answers: list[str]
+    score: int
+    position: int
 
 
 def fetch_fresh(obj):
@@ -66,75 +93,85 @@ class HomeworkScoringTestCase(TestCase):
             state=HomeworkState.OPEN.value,
         )
 
-    def create_free_form_question(self, text, answer_type, answer, score):
+    def create_free_form_question(self, data):
         return Question.objects.create(
             homework=self.homework,
-            text=text,
-            correct_answer=answer,
+            text=data.text,
+            correct_answer=data.answer,
             question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=answer_type,
-            scores_for_correct_answer=score,
+            answer_type=data.answer_type,
+            scores_for_correct_answer=data.score,
         )
 
-    def create_choice_question(
-        self, text, choices, question_type, answer, score
-    ):
+    def create_choice_question(self, data):
         return Question.objects.create(
             homework=self.homework,
-            text=text,
-            possible_answers=join_possible_answers(choices),
-            correct_answer=answer,
-            question_type=question_type,
+            text=data.text,
+            possible_answers=join_possible_answers(data.choices),
+            correct_answer=data.answer,
+            question_type=data.question_type,
             answer_type=AnswerTypes.EXACT_STRING.value,
-            scores_for_correct_answer=score,
+            scores_for_correct_answer=data.score,
         )
 
     def create_free_form_questions(self):
-        return [
-            self.create_free_form_question(
-                "What is the capital of France?",
-                AnswerTypes.EXACT_STRING.value,
-                "paris",
-                1,
-            ),
-            self.create_free_form_question(
-                "What is 5 multiplied by 3?",
-                AnswerTypes.INTEGER.value,
-                "15",
-                10,
-            ),
-            self.create_free_form_question(
-                "Which gas is most abundant in Earth's atmosphere?",
-                AnswerTypes.EXACT_STRING.value,
-                "nitrogen",
-                100,
-            ),
-        ]
+        questions = []
+        capital_question = FreeFormQuestionData(
+            text="What is the capital of France?",
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            answer="paris",
+            score=1,
+        )
+        question = self.create_free_form_question(capital_question)
+        questions.append(question)
+        multiplication_question = FreeFormQuestionData(
+            text="What is 5 multiplied by 3?",
+            answer_type=AnswerTypes.INTEGER.value,
+            answer="15",
+            score=10,
+        )
+        question = self.create_free_form_question(multiplication_question)
+        questions.append(question)
+        gas_question = FreeFormQuestionData(
+            text="Which gas is most abundant in Earth's atmosphere?",
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            answer="nitrogen",
+            score=100,
+        )
+        question = self.create_free_form_question(gas_question)
+        questions.append(question)
+        return questions
 
     def create_choice_questions(self):
-        return [
-            self.create_choice_question(
-                "Is the Earth flat? (yes/no)",
-                ["yes", "no"],
-                QuestionTypes.MULTIPLE_CHOICE.value,
-                "2",
-                1000,
-            ),
-            self.create_choice_question(
-                "Water boils at 100 degrees Celsius. (true/false)",
-                ["true", "false"],
-                QuestionTypes.MULTIPLE_CHOICE.value,
-                "1",
-                10000,
-            ),
-            self.create_choice_question(
-                "Select the prime numbers: 2, 4, 5, 7, 8",
-                ["2", "4", "5", "7", "8"],
-                QuestionTypes.CHECKBOXES.value,
-                "1,3,4",
-                100000,
-            ),
-        ]
+        questions = []
+        flat_earth_question = ChoiceQuestionData(
+            text="Is the Earth flat? (yes/no)",
+            choices=["yes", "no"],
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            answer="2",
+            score=1000,
+        )
+        question = self.create_choice_question(flat_earth_question)
+        questions.append(question)
+        boiling_question = ChoiceQuestionData(
+            text="Water boils at 100 degrees Celsius. (true/false)",
+            choices=["true", "false"],
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            answer="1",
+            score=10000,
+        )
+        question = self.create_choice_question(boiling_question)
+        questions.append(question)
+        prime_numbers_question = ChoiceQuestionData(
+            text="Select the prime numbers: 2, 4, 5, 7, 8",
+            choices=["2", "4", "5", "7", "8"],
+            question_type=QuestionTypes.CHECKBOXES.value,
+            answer="1,3,4",
+            score=100000,
+        )
+        question = self.create_choice_question(prime_numbers_question)
+        questions.append(question)
+        return questions
 
     def create_questions(self):
         return self.create_free_form_questions() + self.create_choice_questions()
@@ -251,15 +288,6 @@ class HomeworkScoringTestCase(TestCase):
     def leaderboard_expected_scores(self):
         return [111111, 110100, 1011, 10, 0]
 
-    def leaderboard_row(self, student, enrollment, answers, score, position):
-        return {
-            "student": student,
-            "enrollment": enrollment,
-            "answers": answers,
-            "score": score,
-            "leaderboard_position": position,
-        }
-
     def leaderboard_test_data(self):
         data = []
         rows = zip(
@@ -271,23 +299,23 @@ class HomeworkScoringTestCase(TestCase):
             student, enrollment = row[0]
             answers = row[1]
             score = row[2]
-            leaderboard_row = self.leaderboard_row(
-                student,
-                enrollment,
-                answers,
-                score,
-                position,
+            row_data = LeaderboardRowData(
+                student=student,
+                enrollment=enrollment,
+                answers=answers,
+                score=score,
+                position=position,
             )
-            data.append(leaderboard_row)
+            data.append(row_data)
         return data
 
     def assert_leaderboard_rows(self, data):
         for row in data:
-            enrollment = fetch_fresh(row["enrollment"])
-            self.assertEqual(enrollment.total_score, row["score"])
+            enrollment = fetch_fresh(row.enrollment)
+            self.assertEqual(enrollment.total_score, row.score)
             self.assertEqual(
                 enrollment.position_on_leaderboard,
-                row["leaderboard_position"],
+                row.position,
             )
 
     def create_student(self, name):
@@ -387,7 +415,7 @@ class HomeworkScoringTestCase(TestCase):
 
         for row in data:
             self.create_answers_for_enrollemnt(
-                row["enrollment"], row["answers"]
+                row.enrollment, row.answers
             )
 
         score_homework_submissions(self.homework.id)
