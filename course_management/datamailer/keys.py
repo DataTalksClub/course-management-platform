@@ -37,7 +37,8 @@ def course_graduates_list_key(course) -> str:
 def registration_campaign_external_key(campaign) -> str:
     return f"cmp-registration-{slugify(campaign.slug)}"
 
-def datamailer_ordering_key(obj) -> str:
+
+def _object_user_ordering_key(obj) -> str:
     student_id = getattr(obj, "student_id", None)
     if student_id:
         return f"user:{student_id}"
@@ -46,6 +47,10 @@ def datamailer_ordering_key(obj) -> str:
     if user_id:
         return f"user:{user_id}"
 
+    return ""
+
+
+def _object_email_ordering_key(obj) -> str:
     email = (
         getattr(obj, "email_normalized", "")
         or getattr(obj, "email", "")
@@ -53,5 +58,17 @@ def datamailer_ordering_key(obj) -> str:
     ).strip().lower()
     if email:
         return f"email:{email}"
+
+    return ""
+
+
+def datamailer_ordering_key(obj) -> str:
+    user_key = _object_user_ordering_key(obj)
+    if user_key:
+        return user_key
+
+    email_key = _object_email_ordering_key(obj)
+    if email_key:
+        return email_key
 
     return f"{obj.__class__.__name__}:{obj.pk}"
