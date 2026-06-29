@@ -86,58 +86,106 @@ class ProjectActionsTestCase(TestCase):
             submissions.append(submission)
         return submissions
 
-    def test_select_random_assignment(self):
-        num_submissions = 10
-        self.generate_submissions(num_submissions)
+    def create_my_submission(self):
+        return ProjectSubmission.objects.create(
+            student=self.user,
+            project=self.project,
+            enrollment=self.enrollment,
+            github_link=f"https://github.com/{self.user.username}/project",
+        )
 
+    def assign_peer_reviews(self):
+        return assign_peer_reviews_for_project(self.project)
+
+    def project_peer_reviews(self):
+        return list(
+            PeerReview.objects.filter(
+                submission_under_evaluation__project=self.project
+            )
+        )
+
+    def assert_no_peer_reviews(self):
         peer_reviews = PeerReview.objects.filter(
             submission_under_evaluation__project=self.project
         )
         self.assertEqual(peer_reviews.count(), 0)
 
-        self.assertEqual(
-            self.project.state,
-            ProjectState.COLLECTING_SUBMISSIONS.value,
-        )
-
-        status, _ = assign_peer_reviews_for_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
+    def assert_assignment_created(self, num_submissions):
         self.project = fetch_fresh(self.project)
         self.assertEqual(
             self.project.state,
             ProjectState.PEER_REVIEWING.value,
         )
-
-        peer_reviews = PeerReview.objects.filter(
-            submission_under_evaluation__project=self.project
-        )
-        peer_reviews = list(peer_reviews)
-
+        peer_reviews = self.project_peer_reviews()
         expected_num_assignments = (
             num_submissions * self.project.number_of_peers_to_evaluate
         )
         self.assertEqual(len(peer_reviews), expected_num_assignments)
+        self.assert_peer_reviews_distributed(peer_reviews, num_submissions)
 
+    def assert_peer_reviews_distributed(self, peer_reviews, num_submissions):
         peer_reviews_by_submission = defaultdict(set)
+        for peer_review in peer_reviews:
+            self.assertEqual(
+                peer_review.state,
+                PeerReviewState.TO_REVIEW.value,
+            )
+            self.assertEqual(peer_review.optional, False)
+            self.assertIsNone(peer_review.submitted_at)
+            submission_id = peer_review.submission_under_evaluation.id
+            peer_reviews_by_submission[submission_id].add(peer_review)
 
-        for pr in peer_reviews:
-            self.assertEqual(pr.state, PeerReviewState.TO_REVIEW.value)
-            self.assertEqual(pr.optional, False)
-            self.assertIsNone(pr.submitted_at)
-
-            id = pr.submission_under_evaluation.id
-            peer_reviews_by_submission[id].add(pr)
-
-        self.assertEqual(
-            len(peer_reviews_by_submission), num_submissions
-        )
-
-        for _, reviews in peer_reviews_by_submission.items():
+        self.assertEqual(len(peer_reviews_by_submission), num_submissions)
+        for reviews in peer_reviews_by_submission.values():
             self.assertEqual(
                 len(reviews),
                 self.project.number_of_peers_to_evaluate,
             )
+
+    def project_list_url(self):
+        return reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
+        )
+
+    def add_eval_url(self, submission_id):
+        return reverse(
+            "projects_eval_add",
+            args=[
+                self.course.slug,
+                self.project.slug,
+                submission_id,
+            ],
+        )
+
+    def find_optional_eval_candidate_id(self):
+        list_response = self.client.get(self.project_list_url())
+        self.assertEqual(list_response.status_code, 200)
+        for submission in list_response.context["submissions"]:
+            if not submission.to_evaluate and not submission.own:
+                return submission.id
+        self.fail("No submission to evaluate found.")
+
+    def get_peer_review(self, reviewer, submission):
+        return PeerReview.objects.get(
+            reviewer=reviewer,
+            submission_under_evaluation=submission,
+        )
+
+    def test_select_random_assignment(self):
+        num_submissions = 10
+        self.generate_submissions(num_submissions)
+
+        self.assert_no_peer_reviews()
+        self.assertEqual(
+            self.project.state,
+            ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
+        status, _ = self.assign_peer_reviews()
+        self.assertEqual(status, ProjectActionStatus.OK)
+
+        self.assert_assignment_created(num_submissions)
 
     def test_assign_sets_peer_review_deadline_to_seven_days_next_hour(self):
         # A clearly-wrong existing deadline must be overwritten on assign.
@@ -200,56 +248,23 @@ class ProjectActionsTestCase(TestCase):
         num_submissions = 10
         self.generate_submissions(num_submissions)
 
-        my_submission = ProjectSubmission.objects.create(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-            github_link=f"https://github.com/{self.user.username}/project",
-        )
+        my_submission = self.create_my_submission()
 
         self.project.number_of_peers_to_evaluate = 3
         self.project.save()
 
-        status, message = assign_peer_reviews_for_project(self.project)
+        status, message = self.assign_peer_reviews()
         self.assertEqual(status, ProjectActionStatus.OK)
 
         self.client.login(**credentials)
+        other_submission_id = self.find_optional_eval_candidate_id()
 
-        project_list_url = reverse(
-            "project_list",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        list_response = self.client.get(project_list_url)
-        self.assertEqual(list_response.status_code, 200)
-
-        list_context = list_response.context
-        submissions = list_context["submissions"]
-
-        for submission in submissions:
-            if not submission.to_evaluate and not submission.own:
-                other_submission_id = submission.id
-                break
-        else:
-            self.assertTrue(False, "No submission to evaluate found.")
-
-        eval_url = reverse(
-            "projects_eval_add",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                other_submission_id,
-            ],
-        )
-        self.client.get(eval_url)
+        self.client.get(self.add_eval_url(other_submission_id))
 
         other_submission = ProjectSubmission.objects.get(
             id=other_submission_id
         )
-        peer_review = PeerReview.objects.get(
-            reviewer=my_submission,
-            submission_under_evaluation=other_submission,
-        )
+        peer_review = self.get_peer_review(my_submission, other_submission)
 
         self.assertEqual(peer_review.optional, True)
         self.assertEqual(
