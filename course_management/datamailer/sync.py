@@ -459,47 +459,52 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
     if list_payload is None:
         return None
 
+    list_key, payload = list_payload
     try:
-        list_key, payload = list_payload
-        if not bulk_upsert_recipient_list_members_before_send(
-            config=config,
-            list_key=list_key,
-            payload=payload,
-            idempotency_key=f"{payload['idempotency_key']}:members",
-            ordering_key=list_key,
-        ):
-            record_datamailer_send_audit(
-                send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-                payload=payload,
-                list_key=list_key,
-                error="Datamailer metadata sync was not acknowledged",
-            )
-            return None
-        client = DatamailerClient(config)
-        response = client.send_recipient_list_transactional(
-            list_key, recipient_list_send_payload(payload)
+        return _send_homework_score_notification_if_ready(
+            config, list_key, payload
         )
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-            payload=payload,
-            list_key=list_key,
-            response=response,
-        )
-        return response
     except requests.RequestException as exc:
-        logger.exception(
-            "Datamailer homework score notification failed for homework_id=%s",
-            homework.pk,
+        return _handle_homework_score_notification_error(
+            config, homework, list_key, payload, exc
         )
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-            payload=payload,
-            list_key=list_key if "list_key" in locals() else "",
-            error=str(exc),
-        )
-        if config.strict:
-            raise
+
+
+def _send_homework_score_notification_if_ready(config, list_key, payload):
+    if not _sync_members_before_recipient_list_send_or_audit(
+        config=config,
+        list_key=list_key,
+        payload=payload,
+        idempotency_key=f"{payload['idempotency_key']}:members",
+        ordering_key=list_key,
+        error="Datamailer metadata sync was not acknowledged",
+    ):
         return None
+    return _send_recipient_list_transactional_and_audit(
+        config, list_key, payload
+    )
+
+
+def _handle_homework_score_notification_error(
+    config,
+    homework,
+    list_key,
+    payload,
+    exc,
+):
+    logger.exception(
+        "Datamailer homework score notification failed for homework_id=%s",
+        homework.pk,
+    )
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+        payload=payload,
+        list_key=list_key,
+        error=str(exc),
+    )
+    if config.strict:
+        raise
+    return None
 
 
 def send_project_score_notification(project) -> dict[str, Any] | None:
