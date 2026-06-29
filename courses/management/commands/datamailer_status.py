@@ -39,20 +39,31 @@ class Command(BaseCommand):
             )
 
         if options["message_id"]:
-            result = get_transactional_message_status(options["message_id"])
-            if result is None:
-                raise CommandError("Datamailer message status lookup failed.")
-            self.print_message_status(result, raw_json=options["json"])
+            self.print_message_status(
+                self.message_status_result(options["message_id"]),
+                raw_json=options["json"],
+            )
             return
 
         if not options["email"]:
             raise CommandError("Provide an email or --message-id.")
 
+        self.print_email_status(
+            self.email_status_result(options),
+            raw_json=options["json"],
+        )
+
+    def message_status_result(self, message_id):
+        result = get_transactional_message_status(message_id)
+        if result is None:
+            raise CommandError("Datamailer message status lookup failed.")
+        return result
+
+    def email_status_result(self, options):
         result = get_email_status(options["email"], limit=options["limit"])
         if result is None:
             raise CommandError("Datamailer status lookup failed.")
-
-        self.print_email_status(result, raw_json=options["json"])
+        return result
 
     def write_raw_json(self, result):
         self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
@@ -132,19 +143,25 @@ class Command(BaseCommand):
         self.write_message_status(message)
         self.write_message_events(result.get("events", []))
 
-    def write_message_status(self, message):
-        fields = [
+    def display_value(self, value):
+        return value or "-"
+
+    def message_status_fields(self, message):
+        return [
             ("Message ID", message["id"]),
             ("Email", message["email"]),
             ("Template", message["template_key"]),
             ("Status", message["status"]),
             ("Queued/created", message["created_at"]),
-            ("Sent", message["sent_at"] or "-"),
-            ("Delivered", message["delivered_at"] or "-"),
-            ("Opened", message["first_opened_at"] or "-"),
-            ("Clicked", message["first_clicked_at"] or "-"),
-            ("Last error", message["last_error"] or "-"),
+            ("Sent", self.display_value(message["sent_at"])),
+            ("Delivered", self.display_value(message["delivered_at"])),
+            ("Opened", self.display_value(message["first_opened_at"])),
+            ("Clicked", self.display_value(message["first_clicked_at"])),
+            ("Last error", self.display_value(message["last_error"])),
         ]
+
+    def write_message_status(self, message):
+        fields = self.message_status_fields(message)
         for label, value in fields:
             self.stdout.write(f"{label}: {value}")
 
