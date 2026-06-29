@@ -43,47 +43,74 @@ def disabled(request):
 @login_required
 def account_settings(request):
     user = request.user
+    form = _account_settings_form(request, user)
 
-    if request.method == "POST":
-        data = request.POST.copy()
-        if "preferred_timezone" not in data:
-            data["preferred_timezone"] = user.preferred_timezone
-        for field in LOCAL_ACCOUNT_TOGGLE_FIELDS:
-            if getattr(user, field):
-                data[field] = "on"
-            else:
-                data.pop(field, None)
-        form = AccountSettingsForm(data, instance=user)
-        if form.is_valid():
-            form.save()
-            return redirect("account_settings")
-    else:
-        form = AccountSettingsForm(instance=user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("account_settings")
 
+    return render(
+        request,
+        "accounts/account_settings.html",
+        _account_settings_context(request, user, form),
+    )
+
+
+def _account_settings_form(request, user):
+    if request.method != "POST":
+        return AccountSettingsForm(instance=user)
+
+    return AccountSettingsForm(
+        _account_settings_post_data(request, user),
+        instance=user,
+    )
+
+
+def _account_settings_post_data(request, user):
+    data = request.POST.copy()
+    if "preferred_timezone" not in data:
+        data["preferred_timezone"] = user.preferred_timezone
+    _preserve_local_account_toggles(data, user)
+    return data
+
+
+def _preserve_local_account_toggles(data, user):
+    for field in LOCAL_ACCOUNT_TOGGLE_FIELDS:
+        if getattr(user, field):
+            data[field] = "on"
+        else:
+            data.pop(field, None)
+
+
+def _account_settings_context(request, user, form):
+    return {
+        "form": form,
+        "enrollments": _account_settings_enrollments(user),
+        "preferred_timezone_label": get_timezone_label(
+            user.preferred_timezone
+        ),
+        "browser_timezone_label": _browser_timezone_label(request, user),
+        "email_preference_categories": EMAIL_PREFERENCE_CATEGORIES,
+    }
+
+
+def _account_settings_enrollments(user):
     enrollments = (
         Enrollment.objects.filter(student=user)
         .select_related("course")
         .order_by("course__title")
     )
+    return enrollments
+
+
+def _browser_timezone_label(request, user):
+    if user.preferred_timezone:
+        return ""
 
     browser_timezone = unquote(request.COOKIES.get("browser_timezone", ""))
-    browser_timezone_label = ""
-    if not user.preferred_timezone and is_valid_timezone(browser_timezone):
-        browser_timezone_label = get_timezone_label(browser_timezone)
-
-    return render(
-        request,
-        "accounts/account_settings.html",
-        {
-            "form": form,
-            "enrollments": enrollments,
-            "preferred_timezone_label": get_timezone_label(
-                user.preferred_timezone
-            ),
-            "browser_timezone_label": browser_timezone_label,
-            "email_preference_categories": EMAIL_PREFERENCE_CATEGORIES,
-        },
-    )
+    if not is_valid_timezone(browser_timezone):
+        return ""
+    return get_timezone_label(browser_timezone)
 
 
 @login_required
