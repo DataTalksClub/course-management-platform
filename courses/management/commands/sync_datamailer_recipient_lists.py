@@ -68,6 +68,17 @@ class ImportJobData:
     options: ImportJobOptions
 
 
+@dataclass(frozen=True)
+class RecipientListSyncData:
+    client: DatamailerClient
+    config: DatamailerConfig
+    kind: str
+    batches: dict
+    reconcile: bool
+    import_by_reference: bool
+    import_options: ImportJobOptions
+
+
 def add_member_to_batches(
     batches, list_key, source_object_key, payload
 ):
@@ -528,54 +539,52 @@ class Command(BaseCommand):
 
     def sync_batches(self, config, kind, batches, options):
         client = DatamailerClient(config)
-        self._sync_batches(
-            client,
-            batches,
-            config,
+        import_options = ImportJobOptions(
+            remove_absent=options["reconcile"],
+            wait_for_import=options["wait_for_import"],
+            timeout=options["import_timeout"],
+            poll_interval=options["import_poll_interval"],
+        )
+        sync_data = RecipientListSyncData(
+            client=client,
+            config=config,
             kind=kind,
+            batches=batches,
             reconcile=options["reconcile"],
             import_by_reference=options["import_by_reference"],
-            wait_for_import=options["wait_for_import"],
-            import_timeout=options["import_timeout"],
-            import_poll_interval=options["import_poll_interval"],
+            import_options=import_options,
         )
+        self._sync_batches(sync_data)
 
-    def _sync_batches(
-        self,
-        client,
-        batches,
-        config,
-        *,
-        kind,
-        reconcile,
-        import_by_reference,
-        wait_for_import,
-        import_timeout,
-        import_poll_interval,
-    ):
-        for list_key, payload in batches.items():
-            if import_by_reference:
-                import_options = ImportJobOptions(
-                    remove_absent=reconcile,
-                    wait_for_import=wait_for_import,
-                    timeout=import_timeout,
-                    poll_interval=import_poll_interval,
-                )
-                import_data = ImportJobData(
-                    client=client,
-                    config=config,
-                    kind=kind,
-                    list_key=list_key,
-                    payload=payload,
-                    options=import_options,
+    def _sync_batches(self, data):
+        for list_key, payload in data.batches.items():
+            if data.import_by_reference:
+                import_data = self._import_job_data(
+                    data,
+                    list_key,
+                    payload,
                 )
                 self._create_import_job(import_data)
                 continue
 
             response = self._sync_inline_batch(
-                client, config, list_key, payload, reconcile=reconcile
+                data.client,
+                data.config,
+                list_key,
+                payload,
+                reconcile=data.reconcile,
             )
             self._write_sync_result(list_key, payload, response)
+
+    def _import_job_data(self, data, list_key, payload):
+        return ImportJobData(
+            client=data.client,
+            config=data.config,
+            kind=data.kind,
+            list_key=list_key,
+            payload=payload,
+            options=data.import_options,
+        )
 
     def _sync_inline_batch(
         self, client, config, list_key, payload, *, reconcile
