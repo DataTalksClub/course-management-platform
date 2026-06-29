@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone as datetime_timezone
-from typing import Any
+from typing import Any, Callable
 
 import requests
 from django.core.management.base import BaseCommand, CommandError
@@ -20,6 +20,7 @@ from course_management.datamailer import (
 from data.models import DatamailerSendAuditType
 from course_management.deadlines import format_deadline_for_email
 from courses.models import (
+    Course,
     Enrollment,
     Homework,
     HomeworkState,
@@ -57,6 +58,18 @@ class ReminderWindow:
     key: str
     start: datetime
     end: datetime
+
+
+@dataclass(frozen=True)
+class ReminderTemplateContextData:
+    spec: ReminderSpec
+    course: Course
+    item_slug: str
+    item_title: str
+    reminder_key: str
+    deadline: datetime
+    action_url: str
+    context_extra: Callable[[str], dict[str, Any]]
 
 
 def aware_now(value: str):
@@ -299,10 +312,17 @@ def build_reminder_event(
 ):
     action_url = deadline_action_url(spec, course, item_slug)
     event_key = reminder_event_key(spec, item_id, reminder_key)
-    context = reminder_template_context(
-        spec, course, item_slug, item_title,
-        reminder_key, deadline, action_url, context_extra,
+    context_data = ReminderTemplateContextData(
+        spec=spec,
+        course=course,
+        item_slug=item_slug,
+        item_title=item_title,
+        reminder_key=reminder_key,
+        deadline=deadline,
+        action_url=action_url,
+        context_extra=context_extra,
     )
+    context = reminder_template_context(context_data)
     return ReminderEvent(
         key=event_key,
         list_key=reminder_list_key(spec, course, item_slug, reminder_key),
@@ -323,25 +343,16 @@ def build_reminder_event(
     )
 
 
-def reminder_template_context(
-    spec,
-    course,
-    item_slug,
-    item_title,
-    reminder_key,
-    deadline,
-    action_url,
-    context_extra,
-):
+def reminder_template_context(data):
     return deadline_context(
-        course,
-        reminder_key=reminder_key,
-        item_type=spec.item_type,
-        item_slug=item_slug,
-        item_title=item_title,
-        deadline=deadline,
-        action_url=action_url,
-        extra_context=context_extra(action_url),
+        data.course,
+        reminder_key=data.reminder_key,
+        item_type=data.spec.item_type,
+        item_slug=data.item_slug,
+        item_title=data.item_title,
+        deadline=data.deadline,
+        action_url=data.action_url,
+        extra_context=data.context_extra(data.action_url),
     )
 
 
