@@ -58,12 +58,29 @@ class RegistrationCampaignPublicTests(TestCase):
             registration_role=CourseRegistration.Role.DATA_SCIENTIST,
         )
 
+    def create_signed_blank_user(self):
+        return CustomUser.objects.create_user(
+            username="signed-blank",
+            email="signed-blank@example.com",
+            password="test",
+            certificate_name="Existing Name",
+            country="Canada",
+            region="North America",
+            registration_role=CourseRegistration.Role.DATA_SCIENTIST,
+        )
+
     def updated_account_payload(self):
         return {
             **self.registration_payload(email="other@example.com"),
             "name": "Updated Certificate Name",
             "country": "Germany",
             "role": CourseRegistration.Role.DATA_ENGINEER,
+        }
+
+    def blank_optional_logged_in_payload(self):
+        return {
+            "email": "ignored@example.com",
+            "accepted_newsletter": "on",
         }
 
     def assert_signed_profile_form(self, response):
@@ -87,6 +104,26 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertEqual(
             user.registration_role,
             CourseRegistration.Role.DATA_ENGINEER,
+        )
+
+    def assert_blank_logged_in_registration(self, registration, user):
+        self.assertEqual(
+            registration.email_normalized, "signed-blank@example.com"
+        )
+        self.assertEqual(registration.name, "")
+        self.assertEqual(registration.country, "")
+        self.assertEqual(registration.region, "")
+        self.assertEqual(registration.role, "")
+        self.assertEqual(registration.user, user)
+
+    def assert_signed_blank_profile_unchanged(self, user):
+        user.refresh_from_db()
+        self.assertEqual(user.certificate_name, "Existing Name")
+        self.assertEqual(user.country, "Canada")
+        self.assertEqual(user.region, "North America")
+        self.assertEqual(
+            user.registration_role,
+            CourseRegistration.Role.DATA_SCIENTIST,
         )
 
     def test_registration_page_renders_campaign_content(self):
@@ -209,45 +246,18 @@ class RegistrationCampaignPublicTests(TestCase):
         DATAMAILER_AUDIENCE="",
     )
     def test_logged_in_registration_blank_optional_fields_keeps_profile(self):
-        user = CustomUser.objects.create_user(
-            username="signed-blank",
-            email="signed-blank@example.com",
-            password="test",
-            certificate_name="Existing Name",
-            country="Canada",
-            region="North America",
-            registration_role=CourseRegistration.Role.DATA_SCIENTIST,
-        )
+        user = self.create_signed_blank_user()
         self.client.force_login(user)
 
         response = self.client.post(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            ),
-            {
-                "email": "ignored@example.com",
-                "accepted_newsletter": "on",
-            },
+            self.campaign_url(),
+            self.blank_optional_logged_in_payload(),
         )
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
-        self.assertEqual(
-            registration.email_normalized, "signed-blank@example.com"
-        )
-        self.assertEqual(registration.name, "")
-        self.assertEqual(registration.country, "")
-        self.assertEqual(registration.region, "")
-        self.assertEqual(registration.role, "")
-        user.refresh_from_db()
-        self.assertEqual(user.certificate_name, "Existing Name")
-        self.assertEqual(user.country, "Canada")
-        self.assertEqual(user.region, "North America")
-        self.assertEqual(
-            user.registration_role,
-            CourseRegistration.Role.DATA_SCIENTIST,
-        )
+        self.assert_blank_logged_in_registration(registration, user)
+        self.assert_signed_blank_profile_unchanged(user)
 
     def test_empty_course_redirects_non_staff_to_campaign(self):
         response = self.client.get(
