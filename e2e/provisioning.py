@@ -69,40 +69,60 @@ def make_namespace(timestamp: int | None = None) -> str:
 # long free-form, so the homework form renders text inputs, checkboxes and
 # radios for the browser flow.
 def default_questions() -> list[dict]:
+    free_form_question = capital_free_form_question()
+    checkbox_question = even_numbers_checkbox_question()
+    multiple_choice_question = arithmetic_multiple_choice_question()
+    long_free_form_question = learned_long_free_form_question()
     return [
-        {
-            "text": "What is the capital of France? (free form)",
-            "question_type": "FF",
-            "answer_type": "EXS",
-            "correct_answer": "Paris",
-            "scores_for_correct_answer": 1,
-        },
-        {
-            "text": "Pick the even numbers (checkboxes)",
-            "question_type": "CB",
-            "answer_type": "ANY",
-            "possible_answers": ["1", "2", "3", "4"],
-            # 1-based indices of the correct options (2 and 4).
-            "correct_answer": "2,4",
-            "scores_for_correct_answer": 1,
-        },
-        {
-            "text": "What is 2 + 2? (multiple choice)",
-            "question_type": "MC",
-            "answer_type": "INT",
-            "possible_answers": ["3", "4", "5"],
-            # 1-based index of the correct option ("4").
-            "correct_answer": "2",
-            "scores_for_correct_answer": 1,
-        },
-        {
-            "text": "Describe what you learned (long free form)",
-            "question_type": "FL",
-            "answer_type": "ANY",
-            "correct_answer": "",
-            "scores_for_correct_answer": 0,
-        },
+        free_form_question,
+        checkbox_question,
+        multiple_choice_question,
+        long_free_form_question,
     ]
+
+
+def capital_free_form_question() -> dict:
+    return {
+        "text": "What is the capital of France? (free form)",
+        "question_type": "FF",
+        "answer_type": "EXS",
+        "correct_answer": "Paris",
+        "scores_for_correct_answer": 1,
+    }
+
+
+def even_numbers_checkbox_question() -> dict:
+    return {
+        "text": "Pick the even numbers (checkboxes)",
+        "question_type": "CB",
+        "answer_type": "ANY",
+        "possible_answers": ["1", "2", "3", "4"],
+        # 1-based indices of the correct options (2 and 4).
+        "correct_answer": "2,4",
+        "scores_for_correct_answer": 1,
+    }
+
+
+def arithmetic_multiple_choice_question() -> dict:
+    return {
+        "text": "What is 2 + 2? (multiple choice)",
+        "question_type": "MC",
+        "answer_type": "INT",
+        "possible_answers": ["3", "4", "5"],
+        # 1-based index of the correct option ("4").
+        "correct_answer": "2",
+        "scores_for_correct_answer": 1,
+    }
+
+
+def learned_long_free_form_question() -> dict:
+    return {
+        "text": "Describe what you learned (long free form)",
+        "question_type": "FL",
+        "answer_type": "ANY",
+        "correct_answer": "",
+        "scores_for_correct_answer": 0,
+    }
 
 
 class Provisioner:
