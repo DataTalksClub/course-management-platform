@@ -302,10 +302,13 @@ class DatamailerClientTest(TestCase):
         )
 
     def create_homework_submission(self, homework, user, **overrides):
+        enrollment = overrides.pop("enrollment", None)
+        if enrollment is None:
+            enrollment = self.create_enrollment(user, homework.course)
         defaults = {
             "homework": homework,
             "student": user,
-            "enrollment": self.create_enrollment(user, homework.course),
+            "enrollment": enrollment,
         }
         defaults.update(overrides)
         return Submission.objects.create(**defaults)
@@ -713,6 +716,30 @@ class DatamailerClientTest(TestCase):
             member["metadata"]["homework_url"],
             "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
         )
+
+    def single_homework_score_member(self, payload):
+        self.assertEqual(len(payload["members"]), 1)
+        return payload["members"][0]
+
+    def create_duplicate_homework_submissions(self):
+        homework = self.create_homework()
+        user = self.create_user("learner@example.com")
+        enrollment = self.create_enrollment(user, homework.course)
+        self.create_homework_submission(
+            homework,
+            user,
+            enrollment=enrollment,
+            submitted_at=timezone.now() - timedelta(days=1),
+            total_score=4,
+        )
+        latest_submission = self.create_homework_submission(
+            homework,
+            user,
+            enrollment=enrollment,
+            submitted_at=timezone.now(),
+            total_score=9,
+        )
+        return homework, latest_submission
 
     def assert_project_score_member(self, member, submission):
         self.assertEqual(
@@ -2746,47 +2773,11 @@ class DatamailerClientTest(TestCase):
     def test_homework_score_notification_payload_dedupes_student_submissions(
         self,
     ):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        homework = Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date="2026-01-01T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="learner@example.com",
-            email="learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        older = timezone.now() - timedelta(days=1)
-        newer = timezone.now()
-        Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
-            submitted_at=older,
-            total_score=4,
-        )
-        latest_submission = Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
-            submitted_at=newer,
-            total_score=9,
-        )
+        homework, latest_submission = self.create_duplicate_homework_submissions()
 
         _, payload = homework_score_notification_payload(homework)
 
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
+        member = self.single_homework_score_member(payload)
         self.assertEqual(
             member["source_object_key"],
             f"homework-submission:{latest_submission.pk}",
@@ -2796,37 +2787,13 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_homework_score_notification_includes_submitters(self):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        homework = Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date="2026-01-01T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="learner@example.com",
-            email="learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
-            total_score=9,
-        )
+        homework = self.create_homework()
+        user = self.create_user("learner@example.com")
+        self.create_homework_submission(homework, user, total_score=9)
 
         _, payload = homework_score_notification_payload(homework)
 
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
+        member = self.single_homework_score_member(payload)
         self.assertEqual(member["email"], "learner@example.com")
         self.assertEqual(member["metadata"]["total_score"], 9)
 
