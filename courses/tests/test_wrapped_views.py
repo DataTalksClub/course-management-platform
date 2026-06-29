@@ -9,13 +9,15 @@ from courses.models import (
 
 
 class WrappedViewTests(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
+    def create_user(self):
+        return User.objects.create_user(
             username="alice@example.com",
             email="alice@example.com",
             password="test",
         )
-        self.wrapped = WrappedStatistics.objects.create(
+
+    def create_wrapped_statistics(self):
+        return WrappedStatistics.objects.create(
             year=2025,
             is_visible=True,
             total_participants=10,
@@ -39,7 +41,9 @@ class WrappedViewTests(TestCase):
                 }
             ],
         )
-        self.user_wrapped = UserWrappedStatistics.objects.create(
+
+    def create_user_wrapped_statistics(self):
+        return UserWrappedStatistics.objects.create(
             wrapped=self.wrapped,
             user=self.user,
             total_points=100,
@@ -61,6 +65,11 @@ class WrappedViewTests(TestCase):
             rank=1,
             display_name="Alice",
         )
+
+    def setUp(self):
+        self.user = self.create_user()
+        self.wrapped = self.create_wrapped_statistics()
+        self.user_wrapped = self.create_user_wrapped_statistics()
 
     def test_wrapped_view_shows_no_data_when_missing(self):
         response = self.client.get(reverse("wrapped", args=[2024]))
