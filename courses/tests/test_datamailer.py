@@ -392,6 +392,46 @@ class DatamailerClientTest(TestCase):
         )
         self.assertNotIn("members", payload)
 
+    def configure_successful_import_polling(
+        self, recipient_list_import, job_id
+    ):
+        recipient_list_import.side_effect = [
+            {"import_job": {"id": job_id, "status": "processing"}},
+            {
+                "import_job": {
+                    "id": job_id,
+                    "status": "succeeded",
+                    "row_count": 1,
+                    "created_count": 1,
+                    "updated_count": 0,
+                    "removed_count": 0,
+                }
+            },
+        ]
+
+    def create_enrolled_student(self, course=None):
+        course = course or self.create_ml_course()
+        user = self.create_user("student@example.com")
+        return self.create_enrollment(user, course)
+
+    def assert_import_waited_for_success(
+        self,
+        recipient_list_import,
+        course,
+        job_id,
+        out,
+    ):
+        self.assertEqual(recipient_list_import.call_count, 2)
+        recipient_list_import.assert_called_with(
+            course_enrolled_list_key(course),
+            job_id,
+        )
+        self.assertIn(
+            f"Import job succeeded for {course_enrolled_list_key(course)}: "
+            f"job_id={job_id}",
+            out.getvalue(),
+        )
+
     def assert_homework_score_member(self, member, submission):
         self.assertEqual(
             member["source_object_key"],
@@ -3521,43 +3561,20 @@ class DatamailerClientTest(TestCase):
         create_import,
         recipient_list_import,
     ):
-        s3 = boto3_client.return_value
-        s3.generate_presigned_url.return_value = (
-            "https://storage.example.com/import.jsonl?signature=abc"
+        self.configure_import_by_reference(
+            boto3_client, create_import, job_id=18
         )
-        create_import.return_value = {
-            "import_job": {"id": 18, "status": "pending"}
-        }
-        recipient_list_import.side_effect = [
-            {"import_job": {"id": 18, "status": "processing"}},
-            {
-                "import_job": {
-                    "id": 18,
-                    "status": "succeeded",
-                    "row_count": 1,
-                    "created_count": 1,
-                    "updated_count": 0,
-                    "removed_count": 0,
-                }
-            },
-        ]
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
+        self.configure_successful_import_polling(
+            recipient_list_import, job_id=18
         )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        Enrollment.objects.create(student=user, course=course)
+        enrollment = self.create_enrolled_student()
 
         out = StringIO()
         call_command(
             "sync_datamailer_recipient_lists",
             "enrollments",
             "--course-slug",
-            course.slug,
+            enrollment.course.slug,
             "--import-by-reference",
             "--wait-for-import",
             "--import-poll-interval",
@@ -3565,14 +3582,11 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        self.assertEqual(recipient_list_import.call_count, 2)
-        recipient_list_import.assert_called_with(
-            course_enrolled_list_key(course),
-            18,
-        )
-        self.assertIn(
-            "Import job succeeded for ml-zoomcamp-2026:@e: job_id=18",
-            out.getvalue(),
+        self.assert_import_waited_for_success(
+            recipient_list_import,
+            enrollment.course,
+            job_id=18,
+            out=out,
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
