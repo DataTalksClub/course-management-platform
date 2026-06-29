@@ -158,6 +158,51 @@ class CadminViewTests(TestCase):
             description=description,
         )
 
+    def create_complaint_reporter(self):
+        return User.objects.create_user(
+            username="reporter@test.com",
+            email="reporter@test.com",
+            password="12345",
+        )
+
+    def create_complaint_sorting_target(self, reporter):
+        first = self.create_leaderboard_enrollment(
+            "first@test.com",
+            "First Student",
+            10,
+            2,
+        )
+        second = self.create_leaderboard_enrollment(
+            "second@test.com",
+            "Second Student",
+            20,
+            1,
+        )
+        self.create_leaderboard_complaint(
+            first,
+            reporter,
+            LeaderboardComplaint.IssueType.HOMEWORK,
+            "Incorrect homework.",
+        )
+        self.create_leaderboard_complaint(
+            second,
+            reporter,
+            LeaderboardComplaint.IssueType.PROJECT,
+            "Incorrect project.",
+        )
+        self.create_leaderboard_complaint(
+            second,
+            reporter,
+            LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
+            "Incorrect learning links.",
+        )
+        return second
+
+    def assert_most_complained_enrollment_first(self, response, enrollment):
+        rows = response.context["enrollment_rows"]
+        self.assertEqual(rows[0]["enrollment"], enrollment)
+        self.assertEqual(rows[0]["enrollment"].open_complaints, 2)
+
     def create_course(self, slug, title, *, finished=False):
         return Course.objects.create(
             slug=slug,
@@ -1055,48 +1100,14 @@ class CadminViewTests(TestCase):
 
     def test_leaderboard_complaints_sorted_by_open_count(self):
         self.login_admin()
-        reporter = User.objects.create_user(
-            username="reporter@test.com",
-            email="reporter@test.com",
-            password="12345",
-        )
-        first = self.create_leaderboard_enrollment(
-            "first@test.com",
-            "First Student",
-            10,
-            2,
-        )
-        second = self.create_leaderboard_enrollment(
-            "second@test.com",
-            "Second Student",
-            20,
-            1,
-        )
-        self.create_leaderboard_complaint(
-            first,
-            reporter,
-            LeaderboardComplaint.IssueType.HOMEWORK,
-            "Incorrect homework.",
-        )
-        self.create_leaderboard_complaint(
-            second,
-            reporter,
-            LeaderboardComplaint.IssueType.PROJECT,
-            "Incorrect project.",
-        )
-        self.create_leaderboard_complaint(
-            second,
-            reporter,
-            LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
-            "Incorrect learning links.",
+        second = self.create_complaint_sorting_target(
+            self.create_complaint_reporter()
         )
 
         response = self.client.get(self.leaderboard_complaints_url())
 
         self.assertEqual(response.status_code, 200)
-        rows = response.context["enrollment_rows"]
-        self.assertEqual(rows[0]["enrollment"], second)
-        self.assertEqual(rows[0]["enrollment"].open_complaints, 2)
+        self.assert_most_complained_enrollment_first(response, second)
         self.assertContains(response, "Second Student")
 
     def test_staff_can_resolve_leaderboard_complaint(self):
