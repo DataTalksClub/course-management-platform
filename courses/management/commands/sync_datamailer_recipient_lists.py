@@ -69,6 +69,40 @@ class ImportJobData:
 
 
 @dataclass(frozen=True)
+class ImportJobCreatedData:
+    list_key: str
+    upload: dict
+    job: dict
+    job_id: str | None
+
+
+@dataclass(frozen=True)
+class ImportJobWaitData:
+    client: DatamailerClient
+    list_key: str
+    job_id: str | None
+    timeout: int
+    poll_interval: float
+
+
+@dataclass(frozen=True)
+class InlineSyncData:
+    client: DatamailerClient
+    config: DatamailerConfig
+    list_key: str
+    payload: dict
+    reconcile: bool
+
+
+@dataclass(frozen=True)
+class RecipientListSyncRequest:
+    config: DatamailerConfig
+    kind: str
+    batches: dict
+    options: dict
+
+
+@dataclass(frozen=True)
 class RecipientListSyncData:
     client: DatamailerClient
     config: DatamailerConfig
@@ -496,7 +530,13 @@ class Command(BaseCommand):
             self.write_dry_run(batches, options)
             return
 
-        self.sync_batches(config, kind, batches, options)
+        sync_request = RecipientListSyncRequest(
+            config=config,
+            kind=kind,
+            batches=batches,
+            options=options,
+        )
+        self.sync_batches(sync_request)
 
     def get_datamailer_config(self):
         config = DatamailerConfig.from_settings()
@@ -537,21 +577,21 @@ class Command(BaseCommand):
                     f"{list_key}: would create import job"
                 )
 
-    def sync_batches(self, config, kind, batches, options):
-        client = DatamailerClient(config)
+    def sync_batches(self, request):
+        client = DatamailerClient(request.config)
         import_options = ImportJobOptions(
-            remove_absent=options["reconcile"],
-            wait_for_import=options["wait_for_import"],
-            timeout=options["import_timeout"],
-            poll_interval=options["import_poll_interval"],
+            remove_absent=request.options["reconcile"],
+            wait_for_import=request.options["wait_for_import"],
+            timeout=request.options["import_timeout"],
+            poll_interval=request.options["import_poll_interval"],
         )
         sync_data = RecipientListSyncData(
             client=client,
-            config=config,
-            kind=kind,
-            batches=batches,
-            reconcile=options["reconcile"],
-            import_by_reference=options["import_by_reference"],
+            config=request.config,
+            kind=request.kind,
+            batches=request.batches,
+            reconcile=request.options["reconcile"],
+            import_by_reference=request.options["import_by_reference"],
             import_options=import_options,
         )
         self._sync_batches(sync_data)
@@ -567,13 +607,14 @@ class Command(BaseCommand):
                 self._create_import_job(import_data)
                 continue
 
-            response = self._sync_inline_batch(
-                data.client,
-                data.config,
-                list_key,
-                payload,
+            inline_data = InlineSyncData(
+                client=data.client,
+                config=data.config,
+                list_key=list_key,
+                payload=payload,
                 reconcile=data.reconcile,
             )
+            response = self._sync_inline_batch(inline_data)
             self._write_sync_result(list_key, payload, response)
 
     def _import_job_data(self, data, list_key, payload):
@@ -586,22 +627,20 @@ class Command(BaseCommand):
             options=data.import_options,
         )
 
-    def _sync_inline_batch(
-        self, client, config, list_key, payload, *, reconcile
-    ):
+    def _sync_inline_batch(self, data):
         try:
-            if reconcile:
-                return client.reconcile_recipient_list_members(
-                    list_key, payload
+            if data.reconcile:
+                return data.client.reconcile_recipient_list_members(
+                    data.list_key, data.payload
                 )
-            return client.bulk_upsert_recipient_list_members(
-                list_key, payload
+            return data.client.bulk_upsert_recipient_list_members(
+                data.list_key, data.payload
             )
         except requests.RequestException as exc:
-            if config.strict:
+            if data.config.strict:
                 raise
             raise CommandError(
-                f"Datamailer sync failed for {list_key}: {exc}"
+                f"Datamailer sync failed for {data.list_key}: {exc}"
             ) from exc
 
     def _write_sync_result(self, list_key, payload, response):
@@ -628,20 +667,22 @@ class Command(BaseCommand):
         )
         job = (response or {}).get("import_job", {})
         job_id = job.get("id")
-        self._write_import_job_created(
-            import_data.list_key,
-            upload,
-            job,
-            job_id,
+        created_data = ImportJobCreatedData(
+            list_key=import_data.list_key,
+            upload=upload,
+            job=job,
+            job_id=job_id,
         )
+        self._write_import_job_created(created_data)
         if import_data.options.wait_for_import:
-            self._wait_for_created_import_job(
-                import_data.client,
-                import_data.list_key,
-                job_id,
+            wait_data = ImportJobWaitData(
+                client=import_data.client,
+                list_key=import_data.list_key,
+                job_id=job_id,
                 timeout=import_data.options.timeout,
                 poll_interval=import_data.options.poll_interval,
             )
+            self._wait_for_created_import_job(wait_data)
 
     def _safe_create_import_job_response(self, import_data):
         try:
@@ -681,49 +722,39 @@ class Command(BaseCommand):
         )
         return upload, response
 
-    def _write_import_job_created(self, list_key, upload, job, job_id):
-        status = job.get("status", "unknown")
+    def _write_import_job_created(self, data):
+        status = data.job.get("status", "unknown")
         self.stdout.write(
             "Created import job for "
-            f"{list_key}: job_id={job_id}; status={status}; "
-            f"rows={upload['row_count']}; s3_key={upload['s3_key']}"
+            f"{data.list_key}: job_id={data.job_id}; status={status}; "
+            f"rows={data.upload['row_count']}; s3_key={data.upload['s3_key']}"
         )
 
-    def _wait_for_created_import_job(
-        self, client, list_key, job_id, *, timeout, poll_interval
-    ):
-        if not job_id:
+    def _wait_for_created_import_job(self, data):
+        if not data.job_id:
             raise CommandError(
-                f"Datamailer did not return an import job id for {list_key}."
+                "Datamailer did not return an import job id for "
+                f"{data.list_key}."
             )
-        self._wait_for_import_job(
-            client,
-            list_key,
-            job_id,
-            timeout=timeout,
-            poll_interval=poll_interval,
-        )
+        self._wait_for_import_job(data)
 
-    def _wait_for_import_job(
-        self,
-        client,
-        list_key,
-        job_id,
-        *,
-        timeout,
-        poll_interval,
-    ):
-        deadline = time.monotonic() + timeout
+    def _wait_for_import_job(self, data):
+        deadline = time.monotonic() + data.timeout
         while True:
-            job = self._import_job(client, list_key, job_id)
-            if self._handle_import_job_status(list_key, job_id, job):
+            job = self._import_job(data.client, data.list_key, data.job_id)
+            if self._handle_import_job_status(
+                data.list_key,
+                data.job_id,
+                job,
+            ):
                 return
             if time.monotonic() >= deadline:
                 raise CommandError(
                     "Timed out waiting for Datamailer import job "
-                    f"{job_id} for {list_key}; last status={job.get('status')}"
+                    f"{data.job_id} for {data.list_key}; "
+                    f"last status={job.get('status')}"
                 )
-            time.sleep(poll_interval)
+            time.sleep(data.poll_interval)
 
     def _import_job(self, client, list_key, job_id):
         response = client.recipient_list_import(list_key, job_id)
