@@ -842,30 +842,14 @@ class HomeworkDetailViewTests(TestCase):
         self.homework.faq_contribution_field = True
         self.homework.save()
 
-        self.client.login(**credentials)
-
-        post_data = {
-            f"answer_{self.question1.id}": ["1"],
-            f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["1", "2", "4"],
-            f"answer_{self.question4.id}": ["3"],
-            f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["1", "2"],
-            "faq_contribution_url": (
+        post_data = self.updated_answer_post_data(
+            faq_contribution_url=(
                 "https://gist.github.com/Sanjomwa/"
                 "2dcb7a95baa01c07c10048fbac1a8461"
             ),
-        }
-
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
         )
 
-        response = self.client.post(url, post_data)
+        response = self.post_homework(post_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -1063,40 +1047,20 @@ class HomeworkDetailViewTests(TestCase):
         self.homework.learning_in_public_cap = 7
         self.homework.save()
 
-        self.client.login(**credentials)
-
-        # the submission data
-        post_data = {
-            f"answer_{self.question1.id}": ["1"],
-            f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["1", "2", "4"],
-            f"answer_{self.question4.id}": ["3"],
-            f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["1", "2"],
-            "learning_in_public_links[]": [
-                "https://test.org/totally-existing-url/1",
-                "https://test.org/totally-existing-url/1",
-                "https://test.org/totally-existing-url/2",
-                "https://test.org/totally-existing-url/3",
-            ],
-        }
-
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
+        post_data = self.updated_answer_post_data(
+            **{
+                "learning_in_public_links[]": [
+                    "https://test.org/totally-existing-url/1",
+                    "https://test.org/totally-existing-url/1",
+                    "https://test.org/totally-existing-url/2",
+                    "https://test.org/totally-existing-url/3",
+                ],
+            }
         )
 
-        self.client.login(**credentials)
+        self.post_homework(post_data)
 
-        self.client.post(url, post_data)
-
-        # Retrieve the updated submission object
-        submission = Submission.objects.get(
-            homework=self.homework, student=self.user
-        )
+        submission = self.get_saved_submission()
 
         expected_learning_in_public_links = [
             "https://test.org/totally-existing-url/1",
