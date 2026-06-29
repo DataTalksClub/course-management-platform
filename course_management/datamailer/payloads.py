@@ -208,23 +208,23 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
         ),
     }
 
+
+def _registration_contact_tags(registration) -> list[str]:
+    course = registration.course
+    if course is None:
+        return []
+
+    return contact_tags_for_course(course)
+
+
 def registration_contact_payload(registration) -> dict[str, Any] | None:
-    email = (
-        (registration.email_normalized or registration.email or "")
-        .strip()
-        .lower()
-    )
+    email = _registration_email(registration)
     if not email:
         return None
 
     config = DatamailerConfig.from_settings()
     if config is None:
         return None
-
-    tags = []
-    course = registration.course
-    if course is not None:
-        tags = contact_tags_for_course(course)
 
     return {
         "email": email,
@@ -235,8 +235,9 @@ def registration_contact_payload(registration) -> dict[str, Any] | None:
         "email_validation": {
             "status": "externally_validated",
         },
-        "tags": tags,
+        "tags": _registration_contact_tags(registration),
     }
+
 
 def recipient_list_member_payload(
     *,
