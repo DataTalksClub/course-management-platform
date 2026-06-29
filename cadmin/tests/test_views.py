@@ -617,6 +617,38 @@ class CadminViewTests(TestCase):
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
+    def create_project_page_submission(self, index):
+        user = User.objects.create_user(
+            username=f"project-page-student-{index:02d}",
+            email=f"project-page-student-{index:02d}@example.com",
+            password="test",
+        )
+        enrollment = self.create_enrollment(student=user)
+        return ProjectSubmission.objects.create(
+            project=self.project,
+            student=user,
+            enrollment=enrollment,
+            total_score=index,
+        )
+
+    def create_project_page_submissions(self, count):
+        for index in range(count):
+            self.create_project_page_submission(index)
+
+    def assert_first_project_submissions_page(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["submissions"]), 50)
+        self.assertContains(response, 'href="?page=2"')
+        self.assertContains(response, 'aria-label="Next page"')
+        self.assertNotContains(response, "First")
+        self.assertNotContains(response, "Last")
+
+    def assert_second_project_submissions_page(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["submissions"]), 5)
+        self.assertContains(response, 'href="?page=1"')
+        self.assertContains(response, 'aria-label="Previous page"')
+
     def create_project_evaluation_scores(self, submission):
         ProjectEvaluationScore.objects.create(
             submission=submission,
@@ -1537,47 +1569,15 @@ class CadminViewTests(TestCase):
         )
 
     def test_project_submissions_paginated_by_50(self):
-        for index in range(55):
-            user = User.objects.create_user(
-                username=f"project-page-student-{index:02d}",
-                email=f"project-page-student-{index:02d}@example.com",
-                password="test",
-            )
-            enrollment = Enrollment.objects.create(
-                student=user, course=self.course
-            )
-            ProjectSubmission.objects.create(
-                project=self.project,
-                student=user,
-                enrollment=enrollment,
-                total_score=index,
-            )
+        self.create_project_page_submissions(55)
+        self.login_admin()
+        url = self.cadmin_project_submissions_url()
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_project_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
         response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["submissions"]), 50)
-        self.assertContains(response, 'href="?page=2"')
-        self.assertContains(response, 'aria-label="Next page"')
-        self.assertNotContains(response, "First")
-        self.assertNotContains(response, "Last")
+        self.assert_first_project_submissions_page(response)
 
         response = self.client.get(url, {"page": 2})
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["submissions"]), 5)
-        self.assertContains(response, 'href="?page=1"')
-        self.assertContains(response, 'aria-label="Previous page"')
+        self.assert_second_project_submissions_page(response)
 
     def test_project_submission_edit_get(self):
         """Test that staff users can access the project submission edit page"""
