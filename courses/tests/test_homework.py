@@ -240,6 +240,16 @@ class HomeworkDetailViewTests(TestCase):
             **extra_fields,
         )
 
+    def artifact_post_data(self, question1_answer="1\r\n"):
+        return {
+            f"answer_{self.question1.id}": [question1_answer],
+            f"answer_{self.question2.id}": ["Some text"],
+            f"answer_{self.question3.id}": ["1\r\n", "2"],
+            f"answer_{self.question4.id}": ["1"],
+            f"answer_{self.question5.id}": ["3.141516"],
+            f"answer_{self.question6.id}": ["1\r\n", "2\r\n", "3"],
+        }
+
     def post_homework(self, post_data):
         self.client.login(**credentials)
         return self.client.post(self.homework_url(), post_data)
@@ -1150,132 +1160,27 @@ class HomeworkDetailViewTests(TestCase):
         )
 
     def test_submit_homework_submission_artifacts(self):
-        post_data = {
-            f"answer_{self.question1.id}": ["1\r\n"],
-            f"answer_{self.question2.id}": ["Some text"],
-            f"answer_{self.question3.id}": ["1\r\n", "2"],
-            f"answer_{self.question4.id}": ["1"],
-            f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["1\r\n", "2\r\n", "3"],
-        }
+        self.post_homework(self.artifact_post_data())
 
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
+        self.assert_submission_answers(
+            self.get_saved_submission(),
+            {
+                self.question1: "1",
+                self.question2: "Some text",
+                self.question3: "1,2",
+                self.question4: "1",
+                self.question5: "3.141516",
+                self.question6: "1,2,3",
             },
         )
-
-        self.client.login(**credentials)
-
-        self.client.post(
-            url,
-            post_data,
-        )
-
-        submission = Submission.objects.filter(
-            student=self.user, homework=self.homework
-        ).first()
-
-        answers = Answer.objects.filter(submission=submission)
-
-        self.assertEqual(len(answers), 6)
-
-        answer1 = answers.get(question=self.question1)
-        self.assertEqual(answer1.answer_text, "1")
-
-        answer2 = answers.get(question=self.question2)
-        self.assertEqual(answer2.answer_text, "Some text")
-
-        answer3 = answers.get(question=self.question3)
-        self.assertEqual(answer3.answer_text, "1,2")
-
-        answer4 = answers.get(question=self.question4)
-        self.assertEqual(answer4.answer_text, "1")
-
-        answer5 = answers.get(question=self.question5)
-        self.assertEqual(answer5.answer_text, "3.141516")
-
-        answer6 = answers.get(question=self.question6)
-        self.assertEqual(answer6.answer_text, "1,2,3")
 
     def test_submit_homework_submission_artifacts_dispayed_correctly(
         self,
     ):
-        self.client.login(**credentials)
+        self.post_homework(self.artifact_post_data(question1_answer="3\r\n"))
 
-        post_data = {
-            f"answer_{self.question1.id}": ["3\r\n"],
-            f"answer_{self.question2.id}": ["Some text"],
-            f"answer_{self.question3.id}": ["1\r\n", "2"],
-            f"answer_{self.question4.id}": ["1"],
-            f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["1\r\n", "2\r\n", "3"],
-        }
-
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-
-        self.client.post(url, post_data)
-
-        # now the results are saved, let's get them
-        response = self.client.get(url)
-        context = response.context
-
-        question_answers = context["question_answers"]
-        self.assertEqual(len(question_answers), 6)
-
-        question1, answer1 = question_answers[0]
-        self.assertEqual(question1, self.question1)
-        expected_options1 = [
-            {"value": "Paris", "is_selected": False, "index": 1},
-            {"value": "London", "is_selected": False, "index": 2},
-            {"value": "Berlin", "is_selected": True, "index": 3},
-        ]
-        self.assertEqual(answer1["options"], expected_options1)
-
-        question2, answer2 = question_answers[1]
-        self.assertEqual(question2, self.question2)
-        self.assertEqual(answer2["text"], "Some text")
-
-        question3, answer3 = question_answers[2]
-        self.assertEqual(question3, self.question3)
-        expected_options3 = [
-            {"value": "2", "is_selected": True, "index": 1},
-            {"value": "3", "is_selected": True, "index": 2},
-            {"value": "4", "is_selected": False, "index": 3},
-            {"value": "5", "is_selected": False, "index": 4},
-        ]
-        self.assertEqual(answer3["options"], expected_options3)
-
-        question4, answer4 = question_answers[3]
-        self.assertEqual(question4, self.question4)
-        expected_options4 = [
-            {"value": "5", "is_selected": True, "index": 1},
-            {"value": "6", "is_selected": False, "index": 2},
-            {"value": "7", "is_selected": False, "index": 3},
-        ]
-        self.assertEqual(answer4["options"], expected_options4)
-
-        question5, answer5 = question_answers[4]
-        self.assertEqual(question5, self.question5)
-        self.assertEqual(answer5["text"], "3.141516")
-
-        question6, answer6 = question_answers[5]
-        self.assertEqual(question6, self.question6)
-        expected_options6 = [
-            {"value": "Blue", "is_selected": True, "index": 1},
-            {"value": "White", "is_selected": True, "index": 2},
-            {"value": "Red", "is_selected": True, "index": 3},
-            {"value": "Green", "is_selected": False, "index": 4},
-        ]
-        self.assertEqual(answer6["options"], expected_options6)
+        response = self.client.get(self.homework_url())
+        self.assert_saved_question_answers(response.context["question_answers"])
 
     def test_submit_homework_submission_artifacts_in_possible_answers(
         self,
@@ -1447,6 +1352,53 @@ class HomeworkSubmissionsViewTests(TestCase):
             total_score=15,
         )
 
+    def login_admin(self):
+        self.client.login(username="admin@test.com", password="admin123")
+
+    def submissions_url(self):
+        return reverse(
+            "homework_submissions",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+    def cadmin_submission_edit_url(self):
+        return reverse(
+            "cadmin_homework_submission_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+                "submission_id": self.submission.id,
+            },
+        )
+
+    def create_answered_free_form_question(
+        self, text, answer_type, correct_answer, answer_text
+    ):
+        question = Question.objects.create(
+            homework=self.homework,
+            text=text,
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=answer_type,
+            correct_answer=correct_answer,
+        )
+        Answer.objects.create(
+            submission=self.submission,
+            question=question,
+            answer_text=answer_text,
+        )
+        return question
+
+    def assert_compact_submission_context(self, response):
+        self.assertNotIn("questions", response.context)
+        submissions_data = response.context["submissions_data"]
+        self.assertEqual(len(submissions_data), 1)
+        item = submissions_data[0]
+        self.assertEqual(item["submission"], self.submission)
+        self.assertNotIn("answers", item)
+
     def test_submissions_view_unauthenticated_redirects(self):
         """Test that unauthenticated users are redirected"""
         url = reverse(
@@ -1605,72 +1557,30 @@ class HomeworkSubmissionsViewTests(TestCase):
 
     def test_submissions_view_hides_answers_and_links_to_edit_page(self):
         """Test that submissions view keeps answers out of the compact list."""
-        # Create some questions for the homework
-        q1 = Question.objects.create(
-            homework=self.homework,
+        self.create_answered_free_form_question(
             text="What is 2+2?",
-            question_type=QuestionTypes.FREE_FORM.value,
             answer_type=AnswerTypes.INTEGER.value,
             correct_answer="4",
-        )
-        q2 = Question.objects.create(
-            homework=self.homework,
-            text="What is the capital of France?",
-            question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.EXACT_STRING.value,
-            correct_answer="Paris",
-        )
-        
-        # Create answers for the submission
-        Answer.objects.create(
-            submission=self.submission,
-            question=q1,
             answer_text="4",
         )
-        Answer.objects.create(
-            submission=self.submission,
-            question=q2,
+        self.create_answered_free_form_question(
+            text="What is the capital of France?",
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            correct_answer="Paris",
             answer_text="Paris",
         )
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "homework_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.get(url, follow=True)
+        self.login_admin()
+        response = self.client.get(self.submissions_url(), follow=True)
 
         self.assertEqual(response.status_code, 200)
-
-        self.assertNotIn("questions", response.context)
-
-        submissions_data = response.context["submissions_data"]
-        self.assertEqual(len(submissions_data), 1)
-
-        item = submissions_data[0]
-        self.assertEqual(item["submission"], self.submission)
-        self.assertNotIn("answers", item)
+        self.assert_compact_submission_context(response)
 
         content = response.content.decode("utf-8")
         self.assertIn(self.user.email, content)
         self.assertIn("Score", content)
         self.assertIn("Open", content)
-        self.assertIn(
-            reverse(
-                "cadmin_homework_submission_edit",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                    "submission_id": self.submission.id,
-                },
-            ),
-            content,
-        )
+        self.assertIn(self.cadmin_submission_edit_url(), content)
         self.assertNotIn("What is 2+2?", content)
         self.assertNotIn("What is the capital of France?", content)
         self.assertNotIn("Paris", content)
