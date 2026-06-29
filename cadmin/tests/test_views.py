@@ -129,6 +129,41 @@ class CadminViewTests(TestCase):
             course=self.course,
         )
 
+    def create_leaderboard_enrollment(
+        self,
+        username,
+        display_name,
+        total_score,
+        position,
+    ):
+        return Enrollment.objects.create(
+            student=User.objects.create_user(username=username),
+            course=self.course,
+            display_name=display_name,
+            total_score=total_score,
+            position_on_leaderboard=position,
+        )
+
+    def create_leaderboard_complaint(
+        self,
+        enrollment,
+        reporter,
+        issue_type,
+        description,
+    ):
+        return LeaderboardComplaint.objects.create(
+            enrollment=enrollment,
+            reporter=reporter,
+            issue_type=issue_type,
+            description=description,
+        )
+
+    def leaderboard_complaints_url(self):
+        return reverse(
+            "cadmin_leaderboard_complaints",
+            kwargs={"course_slug": self.course.slug},
+        )
+
     def create_homework_submission(self, enrollment=None, **overrides):
         defaults = {
             "homework": self.homework,
@@ -152,15 +187,48 @@ class CadminViewTests(TestCase):
             scores_for_correct_answer=score,
         )
 
-    def create_multiple_choice_question(self):
-        return Question.objects.create(
-            homework=self.homework,
-            text="What is the capital of France?",
-            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers="London\nParis\nBerlin",
-            correct_answer="2",
-            scores_for_correct_answer=1,
+    def create_multiple_choice_question(self, **overrides):
+        defaults = {
+            "homework": self.homework,
+            "text": "What is the capital of France?",
+            "question_type": QuestionTypes.MULTIPLE_CHOICE.value,
+            "possible_answers": "London\nParis\nBerlin",
+            "correct_answer": "2",
+            "scores_for_correct_answer": 1,
+        }
+        defaults.update(overrides)
+        return Question.objects.create(**defaults)
+
+    def create_homework_answer_submission(
+        self,
+        question,
+        answer_text,
+        student_index,
+    ):
+        user = User.objects.create_user(
+            username=f"student{student_index}@test.com",
+            email=f"student{student_index}@test.com",
+            password="12345",
         )
+        enrollment = self.create_enrollment(student=user)
+        submission = Submission.objects.create(
+            homework=self.homework,
+            student=user,
+            enrollment=enrollment,
+        )
+        return Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text=answer_text,
+        )
+
+    def create_homework_answer_frequency(self, question, answer_texts):
+        for index, answer_text in enumerate(answer_texts, start=1):
+            self.create_homework_answer_submission(
+                question,
+                answer_text,
+                index,
+            )
 
     def create_answer(self, submission, question, answer_text, is_correct):
         return Answer.objects.create(
@@ -210,6 +278,12 @@ class CadminViewTests(TestCase):
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
             },
+        )
+
+    def cadmin_course_url(self):
+        return reverse(
+            "cadmin_course",
+            kwargs={"course_slug": self.course.slug},
         )
 
     def project_action_url(self, name):
@@ -960,55 +1034,44 @@ class CadminViewTests(TestCase):
         )
 
     def test_leaderboard_complaints_sorted_by_open_count(self):
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
+        self.login_admin()
         reporter = User.objects.create_user(
             username="reporter@test.com",
             email="reporter@test.com",
             password="12345",
         )
-        first = Enrollment.objects.create(
-            student=User.objects.create_user(username="first@test.com"),
-            course=self.course,
-            display_name="First Student",
-            total_score=10,
-            position_on_leaderboard=2,
+        first = self.create_leaderboard_enrollment(
+            "first@test.com",
+            "First Student",
+            10,
+            2,
         )
-        second = Enrollment.objects.create(
-            student=User.objects.create_user(
-                username="second@test.com"
-            ),
-            course=self.course,
-            display_name="Second Student",
-            total_score=20,
-            position_on_leaderboard=1,
+        second = self.create_leaderboard_enrollment(
+            "second@test.com",
+            "Second Student",
+            20,
+            1,
         )
-        LeaderboardComplaint.objects.create(
-            enrollment=first,
-            reporter=reporter,
-            issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
-            description="Incorrect homework.",
+        self.create_leaderboard_complaint(
+            first,
+            reporter,
+            LeaderboardComplaint.IssueType.HOMEWORK,
+            "Incorrect homework.",
         )
-        LeaderboardComplaint.objects.create(
-            enrollment=second,
-            reporter=reporter,
-            issue_type=LeaderboardComplaint.IssueType.PROJECT,
-            description="Incorrect project.",
+        self.create_leaderboard_complaint(
+            second,
+            reporter,
+            LeaderboardComplaint.IssueType.PROJECT,
+            "Incorrect project.",
         )
-        LeaderboardComplaint.objects.create(
-            enrollment=second,
-            reporter=reporter,
-            issue_type=LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
-            description="Incorrect learning links.",
+        self.create_leaderboard_complaint(
+            second,
+            reporter,
+            LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
+            "Incorrect learning links.",
         )
 
-        response = self.client.get(
-            reverse(
-                "cadmin_leaderboard_complaints",
-                kwargs={"course_slug": self.course.slug},
-            )
-        )
+        response = self.client.get(self.leaderboard_complaints_url())
 
         self.assertEqual(response.status_code, 200)
         rows = response.context["enrollment_rows"]
@@ -1596,54 +1659,22 @@ class CadminViewTests(TestCase):
     def test_homework_set_correct_answers_uses_most_frequent_answer(
         self,
     ):
-        question = Question.objects.create(
-            homework=self.homework,
+        question = self.create_multiple_choice_question(
             text="Pick one",
-            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             possible_answers="A\nB\nC",
             correct_answer="",
         )
+        self.create_homework_answer_frequency(question, ["2", "2", "1"])
 
-        for index, answer_text in enumerate(["2", "2", "1"], start=1):
-            user = User.objects.create_user(
-                username=f"student{index}@test.com",
-                email=f"student{index}@test.com",
-                password="12345",
-            )
-            enrollment = Enrollment.objects.create(
-                student=user,
-                course=self.course,
-            )
-            submission = Submission.objects.create(
-                homework=self.homework,
-                student=user,
-                enrollment=enrollment,
-            )
-            Answer.objects.create(
-                submission=submission,
-                question=question,
-                answer_text=answer_text,
-            )
-
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_set_correct_answers",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.post(url, follow=True)
-
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
+        self.login_admin()
+        response = self.client.post(
+            self.homework_action_url(
+                "cadmin_homework_set_correct_answers"
             ),
+            follow=True,
         )
+
+        self.assertRedirects(response, self.cadmin_course_url())
         question.refresh_from_db()
         self.assertEqual(question.correct_answer, "2")
         messages = list(response.context["messages"])
@@ -1652,10 +1683,8 @@ class CadminViewTests(TestCase):
     def test_homework_clear_correct_answers_removes_all_correct_answers(
         self,
     ):
-        first_question = Question.objects.create(
-            homework=self.homework,
+        first_question = self.create_multiple_choice_question(
             text="Pick one",
-            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             possible_answers="A\nB\nC",
             correct_answer="2",
         )
@@ -1666,25 +1695,15 @@ class CadminViewTests(TestCase):
             correct_answer="expected answer",
         )
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_clear_correct_answers",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.post(url, follow=True)
-
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
+        self.login_admin()
+        response = self.client.post(
+            self.homework_action_url(
+                "cadmin_homework_clear_correct_answers"
             ),
+            follow=True,
         )
+
+        self.assertRedirects(response, self.cadmin_course_url())
         first_question.refresh_from_db()
         second_question.refresh_from_db()
         self.assertEqual(first_question.correct_answer, "")
