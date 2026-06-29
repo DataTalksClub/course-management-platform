@@ -340,7 +340,22 @@ def homework_submission_recipient_list_payload(
     course = homework.course
     list_key = homework_submitters_list_key(homework)
     source_object_key = f"homework-submission:{submission.pk}"
-    metadata = {
+    payload = recipient_list_member_payload(
+        list_type="homework_submitters",
+        list_name=f"{course.title} {homework.title} submitters",
+        email=email,
+        source_object_key=source_object_key,
+        metadata=homework_submission_metadata(submission),
+    )
+    if payload is None:
+        return None
+    return list_key, source_object_key, payload
+
+
+def homework_submission_metadata(submission) -> dict[str, Any]:
+    homework = submission.homework
+    course = homework.course
+    return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
         "course_slug": course.slug,
@@ -352,26 +367,20 @@ def homework_submission_recipient_list_payload(
         "learning_in_public_score": submission.learning_in_public_score,
         "faq_score": submission.faq_score,
         "total_score": submission.total_score,
-        "homework_url": public_url(
-            reverse(
-                "homework",
-                kwargs={
-                    "course_slug": course.slug,
-                    "homework_slug": homework.slug,
-                },
-            )
-        ),
+        "homework_url": homework_public_url(homework),
     }
-    payload = recipient_list_member_payload(
-        list_type="homework_submitters",
-        list_name=f"{course.title} {homework.title} submitters",
-        email=email,
-        source_object_key=source_object_key,
-        metadata=metadata,
+
+
+def homework_public_url(homework):
+    return public_url(
+        reverse(
+            "homework",
+            kwargs={
+                "course_slug": homework.course.slug,
+                "homework_slug": homework.slug,
+            },
+        )
     )
-    if payload is None:
-        return None
-    return list_key, source_object_key, payload
 
 
 def project_submission_metadata(submission) -> dict[str, Any]:
