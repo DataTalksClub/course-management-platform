@@ -26,39 +26,38 @@ logger = logging.getLogger(__name__)
 
 
 class DisableLearningInPublicTestCase(TestCase):
-    def setUp(self):
-        # Create test course
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test Course Description",
         )
 
-        # Create test students
-        self.student1 = User.objects.create_user(
+    def create_student(self):
+        return User.objects.create_user(
             username="student1",
             email="student1@test.com",
-            password="testpass123"
+            password="testpass123",
         )
 
-        # Create enrollments
-        self.enrollment1 = Enrollment.objects.create(
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.student1,
-            course=self.course
+            course=self.course,
         )
 
-        # Create homework
-        self.homework = Homework.objects.create(
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             slug="test-homework",
             title="Test Homework",
             due_date=timezone.now() + timedelta(days=7),
             state=HomeworkState.OPEN.value,
-            learning_in_public_cap=3
+            learning_in_public_cap=3,
         )
 
-        # Create project
-        self.project = Project.objects.create(
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -67,8 +66,15 @@ class DisableLearningInPublicTestCase(TestCase):
             peer_review_due_date=timezone.now() + timedelta(days=21),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
             learning_in_public_cap_project=14,
-            learning_in_public_cap_review=2
+            learning_in_public_cap_review=2,
         )
+
+    def setUp(self):
+        self.course = self.create_course()
+        self.student1 = self.create_student()
+        self.enrollment1 = self.create_enrollment()
+        self.homework = self.create_homework()
+        self.project = self.create_project()
 
     def test_enrollment_has_disable_field(self):
         """Test that enrollment has disable_learning_in_public field"""
