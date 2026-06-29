@@ -1481,6 +1481,44 @@ class DatamailerClientTest(TestCase):
             )
 
     @override_settings(**DATAMAILER_SETTINGS)
+    def test_datamailer_campaign_command_rejects_queue_and_cancel(self):
+        with self.assertRaisesMessage(
+            CommandError,
+            "--queue and --cancel cannot be used together.",
+        ):
+            call_command(
+                "datamailer_campaign",
+                "course-start-2026",
+                "--subject",
+                "Course starts",
+                "--text",
+                "Hello learners",
+                "--queue",
+                "--cancel",
+            )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("course_management.datamailer.DatamailerClient.upsert_campaign")
+    def test_datamailer_campaign_command_wraps_request_errors(
+        self,
+        upsert_campaign,
+    ):
+        upsert_campaign.side_effect = requests.RequestException("network error")
+
+        with self.assertRaisesMessage(
+            CommandError,
+            "Datamailer campaign request failed: network error",
+        ):
+            call_command(
+                "datamailer_campaign",
+                "course-start-2026",
+                "--subject",
+                "Course starts",
+                "--text",
+                "Hello learners",
+            )
+
+    @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
         user = CustomUser.objects.create(
             email="Student@Example.com",

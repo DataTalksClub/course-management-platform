@@ -167,46 +167,81 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        self.validate_requested_actions(options)
+        config = self.datamailer_config()
+        client = DatamailerClient(config)
+        external_key = options["external_key"]
+
+        try:
+            responses = self.run_campaign_requests(
+                client,
+                external_key,
+                options,
+            )
+        except requests.RequestException as exc:
+            if config.strict:
+                raise
+            self.raise_campaign_request_error(exc)
+
+        self.write_responses(
+            external_key,
+            responses,
+            raw_json=options["json"],
+        )
+
+    def validate_requested_actions(self, options):
         if options["queue"] and options["cancel"]:
             raise CommandError("--queue and --cancel cannot be used together.")
 
+    def datamailer_config(self):
         config = DatamailerConfig.from_settings()
         if config is None:
             raise CommandError(
                 "Datamailer is not configured. Set DATAMAILER_URL, "
                 "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
             )
+        return config
 
-        client = DatamailerClient(config)
-        responses = {}
-        external_key = options["external_key"]
-        try:
-            responses["upsert"] = client.upsert_campaign(
+    def run_campaign_requests(self, client, external_key, options):
+        responses = {
+            "upsert": client.upsert_campaign(
                 external_key,
                 campaign_payload(options),
             )
-            if options["preview"]:
-                responses["preview"] = client.preview_campaign(external_key)
-            if options["test_send"]:
-                responses["test_send"] = client.test_send_campaign(
-                    external_key,
-                    options["test_send"],
-                )
-            if options["queue"]:
-                responses["queue"] = client.queue_campaign(external_key)
-            if options["cancel"]:
-                responses["cancel"] = client.cancel_campaign(external_key)
-        except requests.RequestException as exc:
-            if config.strict:
-                raise
-            raise CommandError(
-                f"Datamailer campaign request failed: {exc}"
-            ) from exc
+        }
+        responses.update(
+            self.run_campaign_actions(client, external_key, options)
+        )
+        return responses
 
-        if options["json"]:
+    def run_campaign_actions(self, client, external_key, options):
+        responses = {}
+        if options["preview"]:
+            responses["preview"] = client.preview_campaign(external_key)
+        if options["test_send"]:
+            responses["test_send"] = client.test_send_campaign(
+                external_key,
+                options["test_send"],
+            )
+        if options["queue"]:
+            responses["queue"] = client.queue_campaign(external_key)
+        if options["cancel"]:
+            responses["cancel"] = client.cancel_campaign(external_key)
+        return responses
+
+    def raise_campaign_request_error(self, exc):
+        raise CommandError(
+            f"Datamailer campaign request failed: {exc}"
+        ) from exc
+
+    def write_responses(self, external_key, responses, *, raw_json):
+        if raw_json:
             self.stdout.write(json.dumps(responses, indent=2, sort_keys=True))
             return
 
+        self.write_summary(external_key, responses)
+
+    def write_summary(self, external_key, responses):
         campaign = (responses["upsert"] or {}).get("campaign", {})
         status = campaign.get("status", "unknown")
         self.stdout.write(f"Upserted {external_key}: status={status}")
