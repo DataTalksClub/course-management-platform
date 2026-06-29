@@ -27,15 +27,15 @@ class PeerReviewBadgeTests(TestCase):
         self.user = User.objects.create_user(
             username="test@test.com",
             email="test@test.com",
-            password="12345"
+            password="12345",
         )
         self.course = Course.objects.create(
             title="Test Course",
-            slug="test-course"
+            slug="test-course",
         )
         self.enrollment = Enrollment.objects.create(
             student=self.user,
-            course=self.course
+            course=self.course,
         )
 
         # Create a project in peer review state
@@ -48,126 +48,78 @@ class PeerReviewBadgeTests(TestCase):
             peer_review_due_date=timezone.now() + timezone.timedelta(days=7),
         )
 
-    def test_peer_review_badge_red_when_not_completed(self):
-        """Test that the badge is red when peer reviews are not completed"""
-        # Create a submission
-        submission = ProjectSubmission.objects.create(
+    def create_submission(self, user, enrollment, repo="test"):
+        return ProjectSubmission.objects.create(
             project=self.pr_project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/test/repo",
+            student=user,
+            enrollment=enrollment,
+            github_link=f"https://github.com/{repo}/repo",
         )
-        
-        # Create only 1 peer review (less than number_of_peers_to_evaluate=3)
+
+    def create_peer_submission(self, index=0):
         other_user = User.objects.create_user(
-            username="peer@test.com",
-            email="peer@test.com",
-            password="12345"
+            username=f"peer{index}@test.com",
+            email=f"peer{index}@test.com",
+            password="12345",
         )
         other_enrollment = Enrollment.objects.create(
             student=other_user,
-            course=self.course
+            course=self.course,
         )
-        other_submission = ProjectSubmission.objects.create(
-            project=self.pr_project,
-            student=other_user,
-            enrollment=other_enrollment,
-            github_link="https://github.com/peer/repo",
-        )
-        # Create a submitted peer review (only 1 out of required 3)
-        PeerReview.objects.create(
-            submission_under_evaluation=other_submission,
-            reviewer=submission,
-            optional=False,
-            state=PeerReviewState.SUBMITTED.value,
-            submitted_at=timezone.now()
+        return self.create_submission(
+            other_user,
+            other_enrollment,
+            repo=f"peer{index}",
         )
 
+    def create_submitted_reviews(self, reviewer_submission, count):
+        for index in range(count):
+            PeerReview.objects.create(
+                submission_under_evaluation=self.create_peer_submission(index),
+                reviewer=reviewer_submission,
+                optional=False,
+                state=PeerReviewState.SUBMITTED.value,
+                submitted_at=timezone.now(),
+            )
+
+    def course_project(self):
         self.client.login(username="test@test.com", password="12345")
         response = self.client.get(
             reverse("course", kwargs={"course_slug": self.course.slug})
         )
-
         self.assertEqual(response.status_code, 200)
-
-        # Get the project from the context
         projects = response.context["projects"]
         self.assertEqual(len(projects), 1)
-        project = projects[0]
+        return projects[0]
 
-        # Badge should be red (bg-danger) and state should be "Review"
-        self.assertEqual(project.badge_css_class, "bg-danger")
-        self.assertEqual(project.badge_state_name, "Review")
+    def assert_project_badge(self, expected_class, expected_name):
+        project = self.course_project()
+        self.assertEqual(project.badge_css_class, expected_class)
+        self.assertEqual(project.badge_state_name, expected_name)
+
+    def test_peer_review_badge_red_when_not_completed(self):
+        """Test that the badge is red when peer reviews are not completed"""
+        submission = self.create_submission(
+            self.user,
+            self.enrollment,
+        )
+        self.create_submitted_reviews(submission, 1)
+
+        self.assert_project_badge("bg-danger", "Review")
 
     def test_peer_review_badge_green_when_completed(self):
         """Test that the badge is green when peer reviews are completed"""
-        # Create a submission
-        submission = ProjectSubmission.objects.create(
-            project=self.pr_project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/test/repo",
+        submission = self.create_submission(
+            self.user,
+            self.enrollment,
         )
-        
-        # Create 3 peer reviews (matching number_of_peers_to_evaluate default=3)
-        for i in range(3):
-            other_user = User.objects.create_user(
-                username=f"peer{i}@test.com",
-                email=f"peer{i}@test.com",
-                password="12345"
-            )
-            other_enrollment = Enrollment.objects.create(
-                student=other_user,
-                course=self.course
-            )
-            other_submission = ProjectSubmission.objects.create(
-                project=self.pr_project,
-                student=other_user,
-                enrollment=other_enrollment,
-                github_link=f"https://github.com/peer{i}/repo",
-            )
-            # Create a submitted peer review (main user reviewing others)
-            PeerReview.objects.create(
-                submission_under_evaluation=other_submission,
-                reviewer=submission,
-                optional=False,
-                state=PeerReviewState.SUBMITTED.value,
-                submitted_at=timezone.now()
-            )
+        self.create_submitted_reviews(submission, 3)
 
-        self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        # Get the project from the context
-        projects = response.context["projects"]
-        self.assertEqual(len(projects), 1)
-        project = projects[0]
-
-        # Badge should be green (bg-success) and state should be "Review completed"
-        self.assertEqual(project.badge_css_class, "bg-success")
-        self.assertEqual(project.badge_state_name, "Review completed")
+        self.assert_project_badge("bg-success", "Review completed")
 
     def test_peer_review_badge_secondary_when_not_submitted(self):
         """Test that the badge is secondary (gray) when project is not submitted"""
-        self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        # Get the project from the context
-        projects = response.context["projects"]
-        self.assertEqual(len(projects), 1)
-        project = projects[0]
-
-        # Badge should be secondary (bg-secondary) when not submitted
-        self.assertEqual(project.badge_css_class, "bg-secondary")
-        self.assertEqual(project.badge_state_name, "Not submitted")
+        self.assert_project_badge("bg-secondary", "Not submitted")
 
 
 class PeerReviewBadgeEndToEndTests(TestCase):
@@ -175,29 +127,35 @@ class PeerReviewBadgeEndToEndTests(TestCase):
 
     def setUp(self):
         self.client = Client()
-        
-        # Create main user
-        self.user = User.objects.create_user(
+        self.user = self.create_main_user()
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment(self.user)
+        self.project = self.create_project()
+        self.main_submission = self.create_main_submission()
+        self.other_submissions = []
+        self.peer_reviews = []
+        self.create_peer_review_assignments()
+        self.criteria = self.create_review_criteria()
+
+    def create_main_user(self):
+        return User.objects.create_user(
             username="main@test.com",
             email="main@test.com",
-            password="12345"
+            password="12345",
         )
-        
-        # Create course
-        self.course = Course.objects.create(
+
+    def create_course(self):
+        return Course.objects.create(
             title="Test Course",
             slug="test-course",
-            project_passing_score=10,  # Set a passing score for project scoring
+            project_passing_score=10,
         )
-        
-        # Create enrollment for main user
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course
-        )
-        
-        # Create a project in peer review state with 3 required reviews
-        self.project = Project.objects.create(
+
+    def create_enrollment(self, user):
+        return Enrollment.objects.create(student=user, course=self.course)
+
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             title="Peer Review Project",
             slug="pr-project",
@@ -207,62 +165,62 @@ class PeerReviewBadgeEndToEndTests(TestCase):
             number_of_peers_to_evaluate=3,  # Require 3 reviews
             points_for_peer_review=1,
         )
-        
-        # Create main user's submission
-        self.main_submission = ProjectSubmission.objects.create(
+
+    def create_main_submission(self):
+        return ProjectSubmission.objects.create(
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
             github_link="https://github.com/main/repo",
             commit_id="main123",
         )
-        
-        # Create 3 other students and their submissions for the main user to review
-        self.other_submissions = []
-        self.peer_reviews = []
-        
-        for i in range(3):
-            other_user = User.objects.create_user(
-                username=f"student{i}@test.com",
-                email=f"student{i}@test.com",
-                password="12345"
-            )
-            
-            other_enrollment = Enrollment.objects.create(
-                student=other_user,
-                course=self.course
-            )
-            
-            other_submission = ProjectSubmission.objects.create(
-                project=self.project,
-                student=other_user,
-                enrollment=other_enrollment,
-                github_link=f"https://github.com/student{i}/repo",
-                commit_id=f"commit{i}",
-            )
+
+    def create_other_user(self, index):
+        return User.objects.create_user(
+            username=f"student{index}@test.com",
+            email=f"student{index}@test.com",
+            password="12345",
+        )
+
+    def create_other_submission(self, index):
+        other_user = self.create_other_user(index)
+        other_enrollment = self.create_enrollment(other_user)
+        return ProjectSubmission.objects.create(
+            project=self.project,
+            student=other_user,
+            enrollment=other_enrollment,
+            github_link=f"https://github.com/student{index}/repo",
+            commit_id=f"commit{index}",
+        )
+
+    def create_peer_review_assignments(self):
+        for index in range(3):
+            other_submission = self.create_other_submission(index)
             self.other_submissions.append(other_submission)
-            
-            # Create peer review assignment (main user reviews other students)
-            peer_review = PeerReview.objects.create(
-                submission_under_evaluation=other_submission,
-                reviewer=self.main_submission,
-                optional=False,
-                state=PeerReviewState.TO_REVIEW.value,
+            self.peer_reviews.append(
+                self.create_assigned_review(other_submission)
             )
-            self.peer_reviews.append(peer_review)
-            
-            # Create reverse review (other student reviews main user)
-            # This ensures main_submission is also in the submissions dict during scoring
-            PeerReview.objects.create(
-                submission_under_evaluation=self.main_submission,
-                reviewer=other_submission,
-                optional=False,
-                state=PeerReviewState.SUBMITTED.value,
-                submitted_at=timezone.now()
-            )
-        
-        # Create review criteria
-        self.criteria = ReviewCriteria.objects.create(
+            self.create_submitted_reverse_review(other_submission)
+
+    def create_assigned_review(self, other_submission):
+        return PeerReview.objects.create(
+            submission_under_evaluation=other_submission,
+            reviewer=self.main_submission,
+            optional=False,
+            state=PeerReviewState.TO_REVIEW.value,
+        )
+
+    def create_submitted_reverse_review(self, other_submission):
+        return PeerReview.objects.create(
+            submission_under_evaluation=self.main_submission,
+            reviewer=other_submission,
+            optional=False,
+            state=PeerReviewState.SUBMITTED.value,
+            submitted_at=timezone.now(),
+        )
+
+    def create_review_criteria(self):
+        return ReviewCriteria.objects.create(
             course=self.course,
             description="Code Quality",
             review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
@@ -271,9 +229,9 @@ class PeerReviewBadgeEndToEndTests(TestCase):
                 {"criteria": "Fair", "score": 1},
                 {"criteria": "Good", "score": 2},
                 {"criteria": "Excellent", "score": 3},
-            ]
+            ],
         )
-    
+
     def submit_review(self, peer_review, score="3"):
         """Helper to submit a peer review"""
         CriteriaResponse.objects.create(
@@ -284,7 +242,7 @@ class PeerReviewBadgeEndToEndTests(TestCase):
         peer_review.state = PeerReviewState.SUBMITTED.value
         peer_review.submitted_at = timezone.now()
         peer_review.save()
-    
+
     def get_badge_state(self):
         """Helper to get current badge state from course view"""
         self.client.login(username="main@test.com", password="12345")
@@ -292,67 +250,79 @@ class PeerReviewBadgeEndToEndTests(TestCase):
             reverse("course", kwargs={"course_slug": self.course.slug})
         )
         self.assertEqual(response.status_code, 200)
-        
+
         projects = response.context["projects"]
         self.assertEqual(len(projects), 1)
         project = projects[0]
-        
+
         return project.badge_css_class, project.badge_state_name
-    
+
+    def assert_badge_state(self, expected_class, expected_name, message):
+        badge_class, badge_name = self.get_badge_state()
+        self.assertEqual(badge_class, expected_class, message)
+        self.assertEqual(badge_name, expected_name)
+
+    def assert_review_badge_is_red(self, message):
+        self.assert_badge_state("bg-danger", "Review", message)
+
+    def assert_review_badge_is_green(self, message):
+        self.assert_badge_state(
+            "bg-success",
+            "Review completed",
+            message,
+        )
+
+    def move_peer_review_deadline_to_past(self):
+        self.project.peer_review_due_date = (
+            timezone.now() - timezone.timedelta(hours=1)
+        )
+        self.project.save()
+
+    def score_project_and_assert_completion(self):
+        status, message = score_project(self.project)
+        self.assertEqual(
+            status,
+            ProjectActionStatus.OK,
+            f"Scoring should succeed. Got: {message}",
+        )
+        self.main_submission.refresh_from_db()
+        self.assertTrue(
+            self.main_submission.reviewed_enough_peers,
+            "reviewed_enough_peers should be True after scoring",
+        )
+        self.project.refresh_from_db()
+        self.assertEqual(
+            self.project.state,
+            ProjectState.COMPLETED.value,
+            "Project should be in COMPLETED state after scoring",
+        )
+
     def test_badge_progression_no_reviews_to_all_reviews(self):
         """
-        Test badge progression: 
+        Test badge progression:
         0 reviews -> red
         1 review  -> red
         2 reviews -> red
         3 reviews -> green (after scoring)
         """
-        # Initial state: 0 reviews submitted, should be red
-        badge_class, badge_name = self.get_badge_state()
-        self.assertEqual(badge_class, "bg-danger", 
-            "Badge should be red when no reviews are submitted")
-        self.assertEqual(badge_name, "Review")
-        
-        # Submit first review, still need 2 more
-        self.submit_review(self.peer_reviews[0], "3")
-        
-        badge_class, badge_name = self.get_badge_state()
-        self.assertEqual(badge_class, "bg-danger",
-            "Badge should be red after 1 review (need 3 total)")
-        self.assertEqual(badge_name, "Review")
-        
-        # Submit second review, still need 1 more
-        self.submit_review(self.peer_reviews[1], "2")
-        
-        badge_class, badge_name = self.get_badge_state()
-        self.assertEqual(badge_class, "bg-danger",
-            "Badge should be red after 2 reviews (need 3 total)")
-        self.assertEqual(badge_name, "Review")
-        
-        # Submit third review - all reviews complete
-        self.submit_review(self.peer_reviews[2], "3")
-        
-        # Now badge should be green immediately (calculated on-the-fly)
-        badge_class, badge_name = self.get_badge_state()
-        self.assertEqual(badge_class, "bg-success",
-            "Badge should be green immediately after all 3 reviews are submitted")
-        self.assertEqual(badge_name, "Review completed")
-        
-        # Move peer review due date to the past to allow scoring
-        self.project.peer_review_due_date = timezone.now() - timezone.timedelta(hours=1)
-        self.project.save()
-        
-        # Run scoring to update reviewed_enough_peers field in database
-        status, message = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK, f"Scoring should succeed. Got: {message}")
-        
-        # Refresh submission to get updated reviewed_enough_peers
-        self.main_submission.refresh_from_db()
-        self.assertTrue(self.main_submission.reviewed_enough_peers,
-            "reviewed_enough_peers should be True after scoring")
-        
-        # After scoring, project state becomes COMPLETED
-        self.project.refresh_from_db()
-        self.assertEqual(self.project.state, ProjectState.COMPLETED.value,
-            "Project should be in COMPLETED state after scoring")
+        self.assert_review_badge_is_red(
+            "Badge should be red when no reviews are submitted"
+        )
 
+        self.submit_review(self.peer_reviews[0], "3")
+        self.assert_review_badge_is_red(
+            "Badge should be red after 1 review (need 3 total)"
+        )
+
+        self.submit_review(self.peer_reviews[1], "2")
+        self.assert_review_badge_is_red(
+            "Badge should be red after 2 reviews (need 3 total)"
+        )
+
+        self.submit_review(self.peer_reviews[2], "3")
+        self.assert_review_badge_is_green(
+            "Badge should be green immediately after all 3 reviews are submitted"
+        )
+
+        self.move_peer_review_deadline_to_past()
+        self.score_project_and_assert_completion()
