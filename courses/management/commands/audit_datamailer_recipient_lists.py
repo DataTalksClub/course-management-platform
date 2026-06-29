@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import requests
 from django.core.management.base import BaseCommand, CommandError
 
@@ -14,6 +16,33 @@ RECIPIENT_LIST_KINDS = [
     "project-passed",
     "graduates",
 ]
+
+
+@dataclass(frozen=True)
+class AuditRunData:
+    client: DatamailerClient
+    config: DatamailerConfig
+    batches: dict
+    limit: int
+    repair: bool
+
+
+@dataclass(frozen=True)
+class AuditListData:
+    client: DatamailerClient
+    config: DatamailerConfig
+    list_key: str
+    payload: dict
+    limit: int
+    repair: bool
+
+
+@dataclass(frozen=True)
+class DriftReportData:
+    list_key: str
+    expected: dict
+    actual: dict
+    drift: dict
 
 
 def add_recipient_list_filter_arguments(parser):
@@ -76,12 +105,14 @@ class Command(BaseCommand):
             return
 
         client = DatamailerClient(config)
-        drift_count = self._audit_batches_against_datamailer(
-            client,
-            config,
-            batches,
-            options,
+        audit_data = AuditRunData(
+            client=client,
+            config=config,
+            batches=batches,
+            limit=options["limit"],
+            repair=options["repair"],
         )
+        drift_count = self._audit_batches_against_datamailer(audit_data)
         self._write_audit_summary(batches, drift_count)
         self._fail_on_drift_if_requested(drift_count, options)
 
@@ -102,23 +133,18 @@ class Command(BaseCommand):
             project_slug=options["project_slug"],
         )
 
-    def _audit_batches_against_datamailer(
-        self,
-        client,
-        config,
-        batches,
-        options,
-    ):
+    def _audit_batches_against_datamailer(self, data):
         drift_count = 0
-        for list_key, payload in batches.items():
-            drift = self._audit_list(
-                client,
-                config,
-                list_key,
-                payload,
-                limit=options["limit"],
-                repair=options["repair"],
+        for list_key, payload in data.batches.items():
+            list_data = AuditListData(
+                client=data.client,
+                config=data.config,
+                list_key=list_key,
+                payload=payload,
+                limit=data.limit,
+                repair=data.repair,
             )
+            drift = self._audit_list(list_data)
             if drift["has_drift"]:
                 drift_count += 1
         return drift_count
@@ -140,28 +166,34 @@ class Command(BaseCommand):
         for error in errors:
             raise CommandError(error)
 
-    def _audit_list(self, client, config, list_key, payload, *, limit, repair):
-        response = self._list_members(client, config, list_key, limit)
-        self._ensure_complete_response(response, list_key, limit)
-        expected, actual, drift = self._member_drift(payload, response)
-        self._print_drift(list_key, expected, actual, drift)
+    def _audit_list(self, data):
+        response = self._list_members(data)
+        self._ensure_complete_response(response, data.list_key, data.limit)
+        expected, actual, drift = self._member_drift(data.payload, response)
+        report_data = DriftReportData(
+            list_key=data.list_key,
+            expected=expected,
+            actual=actual,
+            drift=drift,
+        )
+        self._print_drift(report_data)
 
-        if repair and drift["has_drift"]:
-            self._repair_list(client, config, list_key, payload)
+        if data.repair and drift["has_drift"]:
+            self._repair_list(data)
         return drift
 
-    def _list_members(self, client, config, list_key, limit):
+    def _list_members(self, data):
         try:
-            return client.recipient_list_members(
-                list_key,
+            return data.client.recipient_list_members(
+                data.list_key,
                 include_removed=False,
-                limit=limit,
+                limit=data.limit,
             )
         except requests.RequestException as exc:
-            if config.strict:
+            if data.config.strict:
                 raise
             raise CommandError(
-                f"Datamailer member listing failed for {list_key}: {exc}"
+                f"Datamailer member listing failed for {data.list_key}: {exc}"
             ) from exc
 
     def _ensure_complete_response(self, response, list_key, limit):
@@ -177,31 +209,31 @@ class Command(BaseCommand):
         drift = compare_members(expected, actual)
         return expected, actual, drift
 
-    def _repair_list(self, client, config, list_key, payload):
+    def _repair_list(self, data):
         try:
-            repair_response = client.reconcile_recipient_list_members(
-                list_key,
-                payload,
+            repair_response = data.client.reconcile_recipient_list_members(
+                data.list_key,
+                data.payload,
             )
         except requests.RequestException as exc:
-            if config.strict:
+            if data.config.strict:
                 raise
             raise CommandError(
-                f"Datamailer repair failed for {list_key}: {exc}"
+                f"Datamailer repair failed for {data.list_key}: {exc}"
             ) from exc
         self.stdout.write(
             "Repaired "
-            f"{list_key}: upserted={repair_response.get('upsert_count', 0)} "
+            f"{data.list_key}: upserted={repair_response.get('upsert_count', 0)} "
             f"removed={repair_response.get('removed_count', 0)}"
         )
 
-    def _print_drift(self, list_key, expected, actual, drift):
+    def _print_drift(self, data):
         self.stdout.write(
-            f"Audited {list_key}: expected={len(expected)} "
-            f"actual={len(actual)} missing={len(drift['missing'])} "
-            f"unexpected={len(drift['unexpected'])} "
-            f"email_mismatches={len(drift['email_mismatches'])} "
-            f"metadata_mismatches={len(drift['metadata_mismatches'])}"
+            f"Audited {data.list_key}: expected={len(data.expected)} "
+            f"actual={len(data.actual)} missing={len(data.drift['missing'])} "
+            f"unexpected={len(data.drift['unexpected'])} "
+            f"email_mismatches={len(data.drift['email_mismatches'])} "
+            f"metadata_mismatches={len(data.drift['metadata_mismatches'])}"
         )
         drift_labels = (
             "missing",
@@ -210,8 +242,8 @@ class Command(BaseCommand):
             "metadata_mismatches",
         )
         for label in drift_labels:
-            if drift[label]:
-                self.stdout.write(f"{label}: {', '.join(drift[label])}")
+            if data.drift[label]:
+                self.stdout.write(f"{label}: {', '.join(data.drift[label])}")
 
 
 def expected_members(payload):
