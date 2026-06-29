@@ -411,6 +411,22 @@ class DatamailerClientTest(TestCase):
             f"project-submission:{submission.pk}",
         )
 
+    def assert_homework_submission_member_removed(
+        self,
+        remove_member,
+        homework,
+        submission,
+    ):
+        remove_member.assert_called_once()
+        self.assertEqual(
+            remove_member.call_args.args[0],
+            homework_submitters_list_key(homework),
+        )
+        self.assertEqual(
+            remove_member.call_args.args[1],
+            f"homework-submission:{submission.pk}",
+        )
+
     def assert_score_payload_common(
         self,
         payload,
@@ -2770,41 +2786,18 @@ class DatamailerClientTest(TestCase):
         self,
         remove_member,
     ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        homework = Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date="2026-01-01T00:00:00Z",
-        )
-        submission = Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
+        homework = self.create_homework()
+        submission = self.create_homework_submission(
+            homework,
+            self.create_user("student@example.com"),
         )
 
         remove_homework_submission_from_datamailer(submission)
 
-        remove_member.assert_called_once()
-        self.assertEqual(
-            remove_member.call_args.args[0],
-            homework_submitters_list_key(homework),
-        )
-        self.assertEqual(
-            remove_member.call_args.args[1],
-            f"homework-submission:{submission.pk}",
+        self.assert_homework_submission_member_removed(
+            remove_member,
+            homework,
+            submission,
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
