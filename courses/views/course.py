@@ -599,10 +599,10 @@ def should_redirect_to_registration_campaign(
 
 
 def has_completed_projects(projects) -> bool:
-    return any(
-        project.state == ProjectState.COMPLETED.value
-        for project in projects
-    )
+    for project in projects:
+        if project.state == ProjectState.COMPLETED.value:
+            return True
+    return False
 
 
 def _authenticated_course_progress(

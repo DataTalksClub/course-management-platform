@@ -248,7 +248,9 @@ def pending_user_imports(users_data, existing_users, maps: ImportMaps):
         if username in existing_users:
             maps.user_id_map[old_id] = existing_users[username].id
             continue
-        users_to_create.append((old_id, build_user(user_data)))
+        user = build_user(user_data)
+        user_record = (old_id, user)
+        users_to_create.append(user_record)
     return users_to_create
 
 
@@ -294,11 +296,11 @@ def build_enrollment(enroll_data, course, student_id):
 def valid_model_kwargs(model, values):
     field_names = set()
     model_fields = model._meta.fields
-    for field in model_fields:
-        field_names.add(field.name)
+    for model_field in model_fields:
+        field_names.add(model_field.name)
     attnames = set()
-    for field in model_fields:
-        attnames.add(field.attname)
+    for model_field in model_fields:
+        attnames.add(model_field.attname)
     valid_names = field_names | attnames
     valid_values = {}
     for name, value in values.items():
@@ -338,7 +340,8 @@ def pending_enrollment_imports(
             maps.enrollment_id_map[old_id] = existing_enrollments[new_student_id].id
             continue
         enrollment = build_enrollment(enroll_data, course, new_student_id)
-        enrollments_to_create.append((old_id, enrollment))
+        enrollment_record = (old_id, enrollment)
+        enrollments_to_create.append(enrollment_record)
     return enrollments_to_create
 
 
@@ -434,7 +437,8 @@ def create_project_submissions(submissions_data, project, maps: ImportMaps) -> N
     )
     for sub_data in submission_records:
         submission = build_project_submission(sub_data, project, maps)
-        pending.append((sub_data["id"], submission))
+        submission_record = (sub_data["id"], submission)
+        pending.append(submission_record)
         if len(pending) >= batch_size:
             pending = flush_mapped_batch(
                 ProjectSubmission, pending, maps.submission_id_map
@@ -472,7 +476,8 @@ def create_peer_reviews(peer_reviews_data, maps: ImportMaps) -> None:
     )
     for review_data in peer_review_records:
         peer_review = build_peer_review(review_data, maps)
-        pending.append((review_data["id"], peer_review))
+        peer_review_record = (review_data["id"], peer_review)
+        pending.append(peer_review_record)
         if len(pending) >= batch_size:
             pending = flush_mapped_batch(PeerReview, pending, maps.review_id_map)
 

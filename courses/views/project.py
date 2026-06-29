@@ -980,7 +980,8 @@ def project_eval_criteria_response_pairs(
         response = responses_by_criteria_id.get(criteria.id)
         selected_indexes = criteria_response_answer_indexes(response)
         annotate_criteria_options(criteria, selected_indexes)
-        criteria_response_pairs.append((criteria, response))
+        criteria_response_pair = (criteria, response)
+        criteria_response_pairs.append(criteria_response_pair)
     return criteria_response_pairs
 
 

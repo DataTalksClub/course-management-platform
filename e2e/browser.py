@@ -64,7 +64,8 @@ def indexed_values(values, limit):
     for index, value in enumerate(values):
         if index >= limit:
             break
-        pairs.append((index, value))
+        pair = (index, value)
+        pairs.append(pair)
     return pairs
 
 

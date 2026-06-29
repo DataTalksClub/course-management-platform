@@ -545,7 +545,10 @@ def _correct_answer_indices(question: Question) -> list[int] | None:
 
 def _has_out_of_range_answer_index(indices, possible_answers) -> bool:
     max_index = len(possible_answers)
-    return any(index < 1 or index > max_index for index in indices)
+    for index in indices:
+        if index < 1 or index > max_index:
+            return True
+    return False
 
 
 def has_invalid_correct_answer_indices(question: Question) -> bool:

@@ -1174,7 +1174,8 @@ def question_answers_for_submission(
             question,
             answer,
         )
-        question_answers.append((question, processed_answer))
+        question_answer = (question, processed_answer)
+        question_answers.append(question_answer)
 
     return question_answers
 
@@ -1346,7 +1347,8 @@ def question_answers_from_post(
             question,
             answer,
         )
-        question_answers.append((question, processed_answer))
+        question_answer = (question, processed_answer)
+        question_answers.append(question_answer)
     return question_answers
 
 

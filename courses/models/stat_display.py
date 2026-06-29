@@ -50,5 +50,6 @@ def build_stat_fields(stats, sections):
             )
             row = (value, stat_row.label, stat_row.icon)
             rows.append(row)
-        results.append((section.label, rows, section.icon))
+        section_record = (section.label, rows, section.icon)
+        results.append(section_record)
     return results

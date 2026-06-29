@@ -339,7 +339,8 @@ class InboxBackend:
     def _timeout_error(self, data: MessageWaitData) -> MockInboxTimeout:
         seen = []
         for message in data.state.last_seen:
-            seen.append((message.template_key, message.subject))
+            seen_record = (message.template_key, message.subject)
+            seen.append(seen_record)
         hint = ""
         if data.state.last_error:
             hint = f" Last error: {data.state.last_error!r}."
