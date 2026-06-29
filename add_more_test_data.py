@@ -109,7 +109,8 @@ def create_random_question(homework: Homework):
 def create_questions_for_homework(homework: Homework):
     num_questions = random.randint(3, 6)
 
-    for i in range(num_questions):
+    question_numbers = range(num_questions)
+    for _question_number in question_numbers:
         create_random_question(homework)
 
 
@@ -149,11 +150,13 @@ def generate_answer(
 
 
 def create_answers_for_student(submission):
-    for question in submission.homework.question_set.all():
+    questions = submission.homework.question_set.all()
+    for question in questions:
         generate_answer(question, submission)
 
 
-for hw in range(1, 6):
+homework_numbers = range(1, 6)
+for hw in homework_numbers:
     print(f"Creating homework {hw}")
     homework, created = Homework.objects.get_or_create(
         course=course,
@@ -169,7 +172,8 @@ for hw in range(1, 6):
 
 
 # Create 20 users and their submissions
-for u in range(1, 21):
+student_numbers = range(1, 21)
+for u in student_numbers:
     username = f"student{u}"
     print(f"Creating student {username} and their submissions")
 
@@ -198,7 +202,8 @@ for user in all_users:
             create_answers_for_student(submission)
 
 
-for i in [1, 2, 3]:
+project_numbers = [1, 2, 3]
+for i in project_numbers:
     project, created = Project.objects.get_or_create(
         course=course,
         slug=f"project-{i}",
@@ -247,7 +252,8 @@ p2 = Project.objects.get(
 criteria = ReviewCriteria.objects.filter(course=course)
 enrollments = Enrollment.objects.filter(course=course)
 
-for p in [p1, p2]:
+projects_for_review = [p1, p2]
+for p in projects_for_review:
     assign_peer_reviews_for_project(p)
 
     submissions = ProjectSubmission.objects.filter(
@@ -274,9 +280,11 @@ for p in [p1, p2]:
                 == ReviewCriteriaTypes.CHECKBOXES.value
             ):
                 answers = []
-                for i in range(len(options)):
+                option_indexes = range(len(options))
+                for i in option_indexes:
                     if random.uniform(0, 1) < 0.3:
-                        answers.append(str(i + 1))
+                        answer = str(i + 1)
+                        answers.append(answer)
                 answer = ",".join(answers)
 
             CriteriaResponse.objects.create(

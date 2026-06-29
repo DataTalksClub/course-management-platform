@@ -129,10 +129,11 @@ def _finish_dispatch_run_if_present(run, counts, *, status, last_error):
 
 def datamailer_outbox_status_summary() -> dict[str, Any]:
     now = timezone.now()
-    event_counts = {
-        status: DatamailerOutboxEvent.objects.filter(status=status).count()
-        for status in DatamailerOutboxStatus.values
-    }
+    event_counts = {}
+    outbox_statuses = DatamailerOutboxStatus.values
+    for status in outbox_statuses:
+        count = DatamailerOutboxEvent.objects.filter(status=status).count()
+        event_counts[status] = count
     due_count = DatamailerOutboxEvent.objects.filter(
         status__in=RETRYABLE_STATUSES,
         next_attempt_at__lte=now,

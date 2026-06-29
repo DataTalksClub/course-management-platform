@@ -9,7 +9,8 @@ class Command(BaseCommand):
     help = "Show Datamailer outbox health and recent dispatcher state."
 
     def write_event_counts(self, counts):
-        for status in DatamailerOutboxStatus.values:
+        statuses = DatamailerOutboxStatus.values
+        for status in statuses:
             self.stdout.write(f"{status}: {counts.get(status, 0)}")
 
     def write_due_status(self, summary):

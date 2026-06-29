@@ -54,11 +54,12 @@ def notification_email(response_data):
 
 
 def extract_email(response_data, sociallogin=None):
-    for email in (
+    email_candidates = (
         response_email(response_data),
         sociallogin_email(sociallogin),
         notification_email(response_data),
-    ):
+    )
+    for email in email_candidates:
         if email:
             return email
 
@@ -157,9 +158,11 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
     @staticmethod
     def select_most_recent_user(email_addresses):
         # Assuming 'last_login' can be used to determine the most recently active user
-        users = [
-            email.user for email in email_addresses if email.user
-        ]
+        users = []
+        for email in email_addresses:
+            user = email.user
+            if user:
+                users.append(user)
         return max(
             users,
             key=lambda user: (user.last_login or user.date_joined),
