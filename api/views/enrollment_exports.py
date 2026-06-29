@@ -319,30 +319,7 @@ def _certificate_update_response(updated, errors):
     )
 
 
-@csrf_exempt
-@require_POST
-@token_required
-def bulk_update_enrollment_certificates_view(request, course_slug: str):
-    """
-    Update enrollment certificate URLs for many users in a course.
-
-    Expected JSON payload:
-    {
-        "certificates": [
-            {
-                "email": "user@example.com",
-                "certificate_path": "/path/to/certificate.pdf"
-            }
-        ]
-    }
-
-    A bare JSON array with the same objects is also accepted.
-    """
-    certificate_updates, error_response = _certificate_request_updates(request)
-    if error_response:
-        return error_response
-
-    course = get_object_or_404(Course, slug=course_slug)
+def _process_certificate_updates(course, course_slug, certificate_updates):
     valid_updates, errors = _validate_certificate_update_items(
         certificate_updates
     )
@@ -363,5 +340,24 @@ def bulk_update_enrollment_certificates_view(request, course_slug: str):
 
     _persist_certificate_updates(enrollments_to_update)
     _queue_certificate_notifications(enrollments_to_notify)
+
+    return updated, errors
+
+
+@csrf_exempt
+@require_POST
+@token_required
+def bulk_update_enrollment_certificates_view(request, course_slug: str):
+    """Update enrollment certificate URLs for many users in a course."""
+    certificate_updates, error_response = _certificate_request_updates(request)
+    if error_response:
+        return error_response
+
+    course = get_object_or_404(Course, slug=course_slug)
+    updated, errors = _process_certificate_updates(
+        course,
+        course_slug,
+        certificate_updates,
+    )
 
     return _certificate_update_response(updated, errors)
