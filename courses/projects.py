@@ -606,32 +606,43 @@ def _project_score_success_message(project, passed, passed_ratio):
     )
 
 
+def _project_scoreable_peer_reviews(project):
+    error = _validate_project_scoreable(project)
+    if error is not None:
+        return None, error
+
+    peer_reviews = _peer_reviews_for_project(project)
+    if peer_reviews.count() == 0:
+        return None, "No peer reviews found for the project."
+
+    return peer_reviews, None
+
+
+def _score_project_with_reviews(project, peer_reviews):
+    submissions, submissions_to_update, all_scores, passed = (
+        _calculate_project_scoring(project, peer_reviews)
+    )
+    passed_ratio = passed / len(submissions)
+
+    _complete_scored_project(
+        project,
+        submissions,
+        submissions_to_update,
+        all_scores,
+    )
+
+    return _project_score_success_message(project, passed, passed_ratio)
+
+
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
 
-        error = _validate_project_scoreable(project)
+        peer_reviews, error = _project_scoreable_peer_reviews(project)
         if error is not None:
             return (ProjectActionStatus.FAIL, error)
 
-        peer_reviews = _peer_reviews_for_project(project)
-        if peer_reviews.count() == 0:
-            return (
-                ProjectActionStatus.FAIL,
-                "No peer reviews found for the project.",
-            )
-
-        submissions, submissions_to_update, all_scores, passed = (
-            _calculate_project_scoring(project, peer_reviews)
-        )
-        passed_ratio = passed / len(submissions)
-
-        _complete_scored_project(
-            project,
-            submissions,
-            submissions_to_update,
-            all_scores,
-        )
+        success_message = _score_project_with_reviews(project, peer_reviews)
 
         t_end = time()
 
@@ -639,7 +650,4 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             f"Project {project.id} scored in {t_end - t0:.2f} seconds."
         )
 
-    return (
-        ProjectActionStatus.OK,
-        _project_score_success_message(project, passed, passed_ratio),
-    )
+    return (ProjectActionStatus.OK, success_message)
