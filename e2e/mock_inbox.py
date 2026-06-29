@@ -90,7 +90,10 @@ class InboxMessage:
         """
         haystacks = [self.html_body or "", self.text_body or ""]
         haystacks.extend(self._context_strings())
-        return any(needle in h for h in haystacks)
+        for haystack in haystacks:
+            if needle in haystack:
+                return True
+        return False
 
     def _context_strings(self) -> list[str]:
         strings = []
@@ -102,10 +105,18 @@ class InboxMessage:
 
 @dataclass(frozen=True)
 class MessageMatchCriteria:
-    template_key: str | None
-    subject: str | None
-    body_contains: str | None
-    load_detail: bool
+    template_key: str | None = None
+    subject: str | None = None
+    body_contains: str | None = None
+    load_detail: bool = True
+
+
+@dataclass(frozen=True)
+class MessageWaitRequest:
+    address: str
+    criteria: MessageMatchCriteria = field(default_factory=MessageMatchCriteria)
+    timeout: float = 90.0
+    poll_interval: float = 3.0
 
 
 @dataclass
@@ -116,11 +127,52 @@ class MessageWaitState:
 
 @dataclass(frozen=True)
 class MessageWaitData:
-    address: str
-    criteria: MessageMatchCriteria
-    timeout: float
-    poll_interval: float
+    request: MessageWaitRequest
     state: MessageWaitState
+
+
+@dataclass(frozen=True)
+class MessageBatchMatchData:
+    address: str
+    messages: list[InboxMessage]
+    criteria: MessageMatchCriteria
+
+
+@dataclass(frozen=True)
+class MessageCandidateMatchData:
+    address: str
+    message: InboxMessage
+    criteria: MessageMatchCriteria
+
+
+@dataclass
+class MessagePollResult:
+    matched: InboxMessage | None = None
+    seen: list[InboxMessage] | None = None
+    error: Exception | None = None
+
+
+@dataclass(frozen=True)
+class InboxRetryConfig:
+    timeout: float = 15.0
+    max_retries: int = 3
+    retry_backoff: float = 0.5
+
+
+@dataclass(frozen=True)
+class InboxClientConfig:
+    base_url: str | None
+    api_key: str | None = None
+    retry: InboxRetryConfig = field(default_factory=InboxRetryConfig)
+
+
+@dataclass(frozen=True)
+class InboxRequestData:
+    method: str
+    url: str
+    backend_name: str
+    disabled_message: str
+    request_kwargs: dict = field(default_factory=dict)
 
 
 def context_value_strings(value) -> list[str]:
@@ -153,33 +205,38 @@ class InboxBackend:
     def clear(self, address: str | None = None) -> int:
         raise NotImplementedError
 
-    def _request_with_retries(
-        self,
-        method: str,
-        url: str,
-        *,
-        backend_name: str,
-        disabled_message: str,
-        **kwargs,
-    ) -> requests.Response:
+    def _set_http_client_config(self, config: InboxClientConfig) -> None:
+        self.base_url = config.base_url.rstrip("/") if config.base_url else None
+        self.api_key = config.api_key
+        self.timeout = config.retry.timeout
+        self.max_retries = config.retry.max_retries
+        self.retry_backoff = config.retry.retry_backoff
+        self._session = requests.Session()
+
+    def _request_with_retries(self, data: InboxRequestData) -> requests.Response:
         """Issue a request with retries on transient transport/5xx errors."""
         self._require_configured()
-        kwargs.setdefault("headers", self._headers())
-        kwargs.setdefault("timeout", self.timeout)
+        request_kwargs = data.request_kwargs.copy()
+        request_kwargs.setdefault("headers", self._headers())
+        request_kwargs.setdefault("timeout", self.timeout)
         for attempt in range(1, self.max_retries + 1):
             try:
-                resp = self._session.request(method, url, **kwargs)
+                resp = self._session.request(
+                    data.method,
+                    data.url,
+                    **request_kwargs,
+                )
             except requests.RequestException as exc:
                 self._handle_request_exception(exc, attempt)
                 continue
 
-            self._raise_if_disabled(resp, disabled_message)
+            self._raise_if_disabled(resp, data.disabled_message)
             if self._should_retry_response(resp, attempt):
                 self._sleep_before_retry(attempt)
                 continue
             return resp
 
-        raise RuntimeError(f"{backend_name} request failed")
+        raise RuntimeError(f"{data.backend_name} request failed")
 
     def _handle_request_exception(
         self,
@@ -219,13 +276,11 @@ class InboxBackend:
     def _summary_matches(
         self,
         message: InboxMessage,
-        *,
-        template_key: str | None,
-        subject: str | None,
+        criteria: MessageMatchCriteria,
     ) -> bool:
-        if template_key and message.template_key != template_key:
+        if criteria.template_key and message.template_key != criteria.template_key:
             return False
-        if subject and subject not in message.subject:
+        if criteria.subject and criteria.subject not in message.subject:
             return False
         return True
 
@@ -239,41 +294,14 @@ class InboxBackend:
             return self._fetch_detail(address, message)
         return message
 
-    def _message_matches_body(
-        self,
-        address: str,
-        message: InboxMessage,
-        *,
-        body_contains: str | None,
-        load_detail: bool,
-    ) -> InboxMessage | None:
-        if not body_contains:
-            return message
-
-        candidate = self._message_with_detail(address, message, load_detail)
-        if candidate.body_contains(body_contains):
-            return candidate if load_detail else message
-        return None
-
-    def _matched_message(
-        self,
-        address: str,
-        messages: list[InboxMessage],
-        *,
-        template_key: str | None,
-        subject: str | None,
-        body_contains: str | None,
-        load_detail: bool,
-    ) -> InboxMessage | None:
-        for message in messages:
-            matched = self._matched_candidate(
-                address,
-                message,
-                template_key=template_key,
-                subject=subject,
-                body_contains=body_contains,
-                load_detail=load_detail,
+    def _matched_message(self, data: MessageBatchMatchData) -> InboxMessage | None:
+        for message in data.messages:
+            candidate_data = MessageCandidateMatchData(
+                address=data.address,
+                message=message,
+                criteria=data.criteria,
             )
+            matched = self._matched_candidate(candidate_data)
             if matched is not None:
                 return matched
 
@@ -281,152 +309,91 @@ class InboxBackend:
 
     def _matched_candidate(
         self,
-        address: str,
-        message: InboxMessage,
-        *,
-        template_key: str | None,
-        subject: str | None,
-        body_contains: str | None,
-        load_detail: bool,
+        data: MessageCandidateMatchData,
     ) -> InboxMessage | None:
-        if not self._summary_matches(
-            message,
-            template_key=template_key,
-            subject=subject,
-        ):
+        if not self._summary_matches(data.message, data.criteria):
             return None
 
-        matched = self._message_matches_body(
-            address,
-            message,
-            body_contains=body_contains,
-            load_detail=load_detail,
-        )
-        if matched is None:
-            return None
-        return self._matched_with_optional_detail(
-            address,
-            message,
-            matched,
-            body_contains=body_contains,
-            load_detail=load_detail,
-        )
+        if not data.criteria.body_contains:
+            return self._matched_without_body_filter(data)
 
-    def _matched_with_optional_detail(
+        candidate = self._message_with_detail(
+            data.address,
+            data.message,
+            data.criteria.load_detail,
+        )
+        if not candidate.body_contains(data.criteria.body_contains):
+            return None
+        if data.criteria.load_detail:
+            return candidate
+        return data.message
+
+    def _matched_without_body_filter(
         self,
-        address: str,
-        message: InboxMessage,
-        matched: InboxMessage,
-        *,
-        body_contains: str | None,
-        load_detail: bool,
+        data: MessageCandidateMatchData,
     ) -> InboxMessage:
-        if load_detail and not body_contains and message.id is not None:
-            return self._fetch_detail(address, message)
-        return matched
+        if data.criteria.load_detail and data.message.id is not None:
+            return self._fetch_detail(data.address, data.message)
+        return data.message
 
-    def _timeout_error(
-        self,
-        address: str,
-        *,
-        template_key: str | None,
-        subject: str | None,
-        body_contains: str | None,
-        timeout: float,
-        last_seen: list[InboxMessage],
-        last_error: Exception | None,
-    ) -> MockInboxTimeout:
+    def _timeout_error(self, data: MessageWaitData) -> MockInboxTimeout:
         seen = []
-        for message in last_seen:
+        for message in data.state.last_seen:
             seen.append((message.template_key, message.subject))
-        hint = f" Last error: {last_error!r}." if last_error else ""
+        hint = ""
+        if data.state.last_error:
+            hint = f" Last error: {data.state.last_error!r}."
         return MockInboxTimeout(
-            f"[{self.name}] No email to {address} matching "
-            f"template_key={template_key!r} / subject={subject!r} / "
-            f"body~={body_contains!r} within {timeout}s. Seen: {seen}.{hint}"
+            f"[{self.name}] No email to {data.request.address} matching "
+            f"template_key={data.request.criteria.template_key!r} / "
+            f"subject={data.request.criteria.subject!r} / "
+            f"body~={data.request.criteria.body_contains!r} within "
+            f"{data.request.timeout}s. Seen: {seen}.{hint}"
         )
 
     def _poll_for_message_match(
         self,
-        address: str,
-        *,
-        criteria: MessageMatchCriteria,
-        poll_interval: float,
-    ) -> tuple[InboxMessage | None, list[InboxMessage] | None, Exception | None]:
+        data: MessageWaitData,
+    ) -> MessagePollResult:
         try:
-            messages = self.list_messages(address)
+            messages = self.list_messages(data.request.address)
         except (requests.RequestException, InboxDisabled) as exc:
             # Transient network hiccup or a not-yet-ready deployment: keep
             # polling until the deadline rather than failing immediately.
-            time.sleep(poll_interval)
-            return None, None, exc
+            time.sleep(data.request.poll_interval)
+            return MessagePollResult(error=exc)
 
-        matched = self._matched_message(
-            address,
-            messages,
-            template_key=criteria.template_key,
-            subject=criteria.subject,
-            body_contains=criteria.body_contains,
-            load_detail=criteria.load_detail,
+        batch_data = MessageBatchMatchData(
+            address=data.request.address,
+            messages=messages,
+            criteria=data.request.criteria,
         )
+        matched = self._matched_message(batch_data)
         if matched is None:
-            time.sleep(poll_interval)
-        return matched, messages, None
+            time.sleep(data.request.poll_interval)
+        return MessagePollResult(matched=matched, seen=messages)
 
-    def wait_for_message(
-        self,
-        address: str,
-        *,
-        template_key: str | None = None,
-        subject: str | None = None,
-        body_contains: str | None = None,
-        timeout: float = 90.0,
-        poll_interval: float = 3.0,
-        load_detail: bool = True,
-    ) -> InboxMessage:
+    def wait_for_message(self, request: MessageWaitRequest) -> InboxMessage:
         """Poll until a matching message arrives or ``timeout`` elapses."""
-        criteria = MessageMatchCriteria(
-            template_key=template_key,
-            subject=subject,
-            body_contains=body_contains,
-            load_detail=load_detail,
-        )
         state = MessageWaitState()
         wait_data = MessageWaitData(
-            address=address,
-            criteria=criteria,
-            timeout=timeout,
-            poll_interval=poll_interval,
+            request=request,
             state=state,
         )
         return self._wait_for_message_or_timeout(wait_data)
 
-    def _wait_for_message_or_timeout(self, data):
-        deadline = time.monotonic() + data.timeout
+    def _wait_for_message_or_timeout(self, data: MessageWaitData) -> InboxMessage:
+        deadline = time.monotonic() + data.request.timeout
         while time.monotonic() < deadline:
-            matched, seen, error = self._poll_for_message_match(
-                data.address,
-                criteria=data.criteria,
-                poll_interval=data.poll_interval,
-            )
-            if matched is not None:
-                return matched
-            data.state.last_seen = (
-                seen if seen is not None else data.state.last_seen
-            )
-            data.state.last_error = (
-                error if error is not None else data.state.last_error
-            )
+            result = self._poll_for_message_match(data)
+            if result.matched is not None:
+                return result.matched
+            if result.seen is not None:
+                data.state.last_seen = result.seen
+            if result.error is not None:
+                data.state.last_error = result.error
 
-        raise self._timeout_error(
-            data.address,
-            template_key=data.criteria.template_key,
-            subject=data.criteria.subject,
-            body_contains=data.criteria.body_contains,
-            timeout=data.timeout,
-            last_seen=data.state.last_seen,
-            last_error=data.state.last_error,
-        )
+        raise self._timeout_error(data)
 
 
 class MockInboxClient(InboxBackend):
@@ -434,21 +401,8 @@ class MockInboxClient(InboxBackend):
 
     name = "mock"
 
-    def __init__(
-        self,
-        base_url: str | None,
-        api_key: str | None = None,
-        *,
-        timeout: float = 15.0,
-        max_retries: int = 3,
-        retry_backoff: float = 0.5,
-    ):
-        self.base_url = base_url.rstrip("/") if base_url else None
-        self.api_key = api_key
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.retry_backoff = retry_backoff
-        self._session = requests.Session()
+    def __init__(self, config: InboxClientConfig):
+        self._set_http_client_config(config)
 
     @property
     def configured(self) -> bool:
@@ -473,16 +427,17 @@ class MockInboxClient(InboxBackend):
             )
 
     def _request(self, method: str, url: str, **kwargs) -> requests.Response:
-        return self._request_with_retries(
-            method,
-            url,
+        request_data = InboxRequestData(
+            method=method,
+            url=url,
             backend_name="mock inbox",
             disabled_message=(
                 "Mock inbox is disabled on this deployment "
                 "(MOCK_INBOX_ENABLED is off). 404 mock_inbox_disabled."
             ),
-            **kwargs,
+            request_kwargs=kwargs,
         )
+        return self._request_with_retries(request_data)
 
     @staticmethod
     def _looks_disabled(resp: requests.Response) -> bool:
@@ -590,21 +545,8 @@ class RealInboxClient(InboxBackend):
 
     name = "real"
 
-    def __init__(
-        self,
-        base_url: str | None,
-        api_key: str | None = None,
-        *,
-        timeout: float = 15.0,
-        max_retries: int = 3,
-        retry_backoff: float = 0.5,
-    ):
-        self.base_url = base_url.rstrip("/") if base_url else None
-        self.api_key = api_key
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.retry_backoff = retry_backoff
-        self._session = requests.Session()
+    def __init__(self, config: InboxClientConfig):
+        self._set_http_client_config(config)
 
     @property
     def configured(self) -> bool:
@@ -629,16 +571,17 @@ class RealInboxClient(InboxBackend):
             )
 
     def _request(self, method: str, url: str, **kwargs) -> requests.Response:
-        return self._request_with_retries(
-            method,
-            url,
+        request_data = InboxRequestData(
+            method=method,
+            url=url,
             backend_name="real inbox",
             disabled_message=(
                 "Real inbox is disabled on this deployment "
                 "(REAL_INBOX_ENABLED is off). 404 real_inbox_disabled."
             ),
-            **kwargs,
+            request_kwargs=kwargs,
         )
+        return self._request_with_retries(request_data)
 
     @staticmethod
     def _looks_disabled(resp: requests.Response) -> bool:

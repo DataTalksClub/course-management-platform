@@ -17,8 +17,11 @@ import requests
 
 from e2e.config import Settings, _load_dotenv, load_settings
 from e2e.mock_inbox import (
+    InboxClientConfig,
     InboxDisabled,
     InboxNotConfigured,
+    MessageMatchCriteria,
+    MessageWaitRequest,
     MockInboxClient,
     MockInboxTimeout,
     RealInboxClient,
@@ -59,7 +62,11 @@ class FakeSession:
 
 
 def _client(responses):
-    client = MockInboxClient("https://datamailer.example", "k-secret")
+    config = InboxClientConfig(
+        base_url="https://datamailer.example",
+        api_key="k-secret",
+    )
+    client = MockInboxClient(config)
     client._session = FakeSession(responses)
     client.retry_backoff = 0  # no real sleeping between retries
     return client
@@ -84,20 +91,28 @@ def _summary(**over):
 
 
 def test_unconfigured_client_raises():
-    client = MockInboxClient(None, None)
+    config = InboxClientConfig(base_url=None, api_key=None)
+    client = MockInboxClient(config)
     assert client.configured is False
     with pytest.raises(InboxNotConfigured):
         client.list_messages("e2e+x@mailbox.test")
 
 
 def test_configured_requires_both_url_and_key():
-    assert MockInboxClient("https://x", None).configured is False
-    assert MockInboxClient(None, "k").configured is False
-    assert MockInboxClient("https://x", "k").configured is True
+    no_key = InboxClientConfig(base_url="https://x", api_key=None)
+    no_url = InboxClientConfig(base_url=None, api_key="k")
+    configured = InboxClientConfig(base_url="https://x", api_key="k")
+    assert MockInboxClient(no_key).configured is False
+    assert MockInboxClient(no_url).configured is False
+    assert MockInboxClient(configured).configured is True
 
 
 def test_messages_url_appends_api_path():
-    client = MockInboxClient("https://datamailer.example/", "k")
+    config = InboxClientConfig(
+        base_url="https://datamailer.example/",
+        api_key="k",
+    )
+    client = MockInboxClient(config)
     assert client.messages_url == "https://datamailer.example/api/mock-inbox/messages"
 
 
@@ -178,12 +193,15 @@ def test_wait_for_message_matches_template_and_fetches_detail():
     detail_resp = FakeResponse(200, {"message": _summary() | {"html_body": "<p>/homework/hw-1</p>"}})
     client = _client([list_resp, detail_resp])
 
-    msg = client.wait_for_message(
-        "e2e+run@mailbox.test",
-        template_key="homework-submission-confirmation",
-        subject="Homework submission saved",
+    request = MessageWaitRequest(
+        address="e2e+run@mailbox.test",
+        criteria=MessageMatchCriteria(
+            template_key="homework-submission-confirmation",
+            subject="Homework submission saved",
+        ),
         timeout=5,
     )
+    msg = client.wait_for_message(request)
     assert msg.detail_loaded
     assert msg.template_key == "homework-submission-confirmation"
 
@@ -191,20 +209,28 @@ def test_wait_for_message_matches_template_and_fetches_detail():
 def test_wait_for_message_skips_non_matching_template():
     other = _summary(template_key="welcome", subject="Welcome")
     client = _client([FakeResponse(200, {"messages": [other]})] * 50)
-    with pytest.raises(MockInboxTimeout) as exc:
-        client.wait_for_message(
-            "e2e+run@mailbox.test",
+    request = MessageWaitRequest(
+        address="e2e+run@mailbox.test",
+        criteria=MessageMatchCriteria(
             template_key="homework-submission-confirmation",
-            timeout=0.2,
-            poll_interval=0.01,
-        )
+        ),
+        timeout=0.2,
+        poll_interval=0.01,
+    )
+    with pytest.raises(MockInboxTimeout) as exc:
+        client.wait_for_message(request)
     assert "welcome" in str(exc.value)
 
 
 def test_wait_for_message_times_out_when_empty():
     client = _client([FakeResponse(200, {"messages": []})] * 50)
+    request = MessageWaitRequest(
+        address="e2e+run@mailbox.test",
+        timeout=0.2,
+        poll_interval=0.01,
+    )
     with pytest.raises(MockInboxTimeout):
-        client.wait_for_message("e2e+run@mailbox.test", timeout=0.2, poll_interval=0.01)
+        client.wait_for_message(request)
 
 
 # -- disabled deployment + retries -----------------------------------------
@@ -243,14 +269,19 @@ def test_clear_sends_delete_with_address_and_returns_count():
 
 
 def test_clear_is_safe_when_unconfigured():
-    assert MockInboxClient(None, None).clear("x") == 0
+    config = InboxClientConfig(base_url=None, api_key=None)
+    assert MockInboxClient(config).clear("x") == 0
 
 
 # -- real backend (SES-inbound) --------------------------------------------
 
 
 def _real_client(responses):
-    client = RealInboxClient("https://datamailer.example", "k-secret")
+    config = InboxClientConfig(
+        base_url="https://datamailer.example",
+        api_key="k-secret",
+    )
+    client = RealInboxClient(config)
     client._session = FakeSession(responses)
     client.retry_backoff = 0
     return client
@@ -270,13 +301,17 @@ def _real_summary(**over):
 
 
 def test_real_inbox_configured_requires_url_and_key():
-    assert RealInboxClient("https://x", None).configured is False
-    assert RealInboxClient(None, "k").configured is False
-    assert RealInboxClient("https://x", "k").configured is True
+    no_key = InboxClientConfig(base_url="https://x", api_key=None)
+    no_url = InboxClientConfig(base_url=None, api_key="k")
+    configured = InboxClientConfig(base_url="https://x", api_key="k")
+    assert RealInboxClient(no_key).configured is False
+    assert RealInboxClient(no_url).configured is False
+    assert RealInboxClient(configured).configured is True
 
 
 def test_real_inbox_unconfigured_raises_and_clear_is_safe():
-    client = RealInboxClient(None, None)
+    config = InboxClientConfig(base_url=None, api_key=None)
+    client = RealInboxClient(config)
     assert client.configured is False
     assert client.clear("e2e+x@mailer.dtcdev.click") == 0
     with pytest.raises(InboxNotConfigured):
@@ -284,7 +319,11 @@ def test_real_inbox_unconfigured_raises_and_clear_is_safe():
 
 
 def test_real_inbox_messages_url_uses_inbox_path():
-    client = RealInboxClient("https://datamailer.example/", "k")
+    config = InboxClientConfig(
+        base_url="https://datamailer.example/",
+        api_key="k",
+    )
+    client = RealInboxClient(config)
     assert client.messages_url == "https://datamailer.example/api/inbox/messages"
 
 
@@ -339,13 +378,16 @@ def test_real_wait_for_message_matches_subject_and_fetches_detail():
             FakeResponse(200, {"message": detail}),  # address-scoped detail
         ]
     )
-    msg = client.wait_for_message(
-        "e2e+run@mailer.dtcdev.click",
-        subject="Homework submission saved",
-        body_contains="/homework/",
+    request = MessageWaitRequest(
+        address="e2e+run@mailer.dtcdev.click",
+        criteria=MessageMatchCriteria(
+            subject="Homework submission saved",
+            body_contains="/homework/",
+        ),
         timeout=5,
         poll_interval=0,
     )
+    msg = client.wait_for_message(request)
     assert msg.body_contains("/homework/")
     # Detail fetch was address-scoped (the real backend's override).
     detail_call = client._session.calls[1]

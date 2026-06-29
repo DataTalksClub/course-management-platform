@@ -14,7 +14,7 @@ import pytest
 
 from e2e.api_client import ApiRequestData
 from e2e.browser import HomeworkSubmissionData
-from e2e.mock_inbox import InboxDisabled
+from e2e.mock_inbox import InboxDisabled, MessageMatchCriteria, MessageWaitRequest
 
 pytestmark = pytest.mark.homework
 
@@ -116,13 +116,16 @@ def _assert_homework_confirmation(backend, run_state):
     expected_template = (
         HOMEWORK_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
     )
-    message = backend.wait_for_message(
-        run_state.student_email,
-        template_key=expected_template,
-        subject="Homework submission saved",
+    request = MessageWaitRequest(
+        address=run_state.student_email,
+        criteria=MessageMatchCriteria(
+            template_key=expected_template,
+            subject="Homework submission saved",
+        ),
         # Real SES inbound is eventually consistent (~5-15s); give it headroom.
         timeout=120,
     )
+    message = backend.wait_for_message(request)
     assert "E2E Homework 1" in message.subject
     if expected_template:
         assert message.template_key == expected_template

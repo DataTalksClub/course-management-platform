@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from e2e.api_client import CmpApiClient  # noqa: E402
 from e2e.config import load_settings, Settings  # noqa: E402
-from e2e.mock_inbox import MockInboxClient, RealInboxClient  # noqa: E402
+from e2e.mock_inbox import InboxClientConfig, MockInboxClient, RealInboxClient  # noqa: E402
 from e2e.provisioning import (  # noqa: E402
     ProvisionedCourse,
     Provisioner,
@@ -61,12 +61,20 @@ def provisioner(api: CmpApiClient) -> Provisioner:
 
 @pytest.fixture(scope="session")
 def mock_inbox(settings: Settings) -> MockInboxClient:
-    return MockInboxClient(settings.mock_inbox_url, settings.mock_inbox_api_key)
+    config = InboxClientConfig(
+        base_url=settings.mock_inbox_url,
+        api_key=settings.mock_inbox_api_key,
+    )
+    return MockInboxClient(config)
 
 
 @pytest.fixture(scope="session")
 def real_inbox(settings: Settings) -> RealInboxClient:
-    return RealInboxClient(settings.real_inbox_url, settings.real_inbox_api_key)
+    config = InboxClientConfig(
+        base_url=settings.real_inbox_url,
+        api_key=settings.real_inbox_api_key,
+    )
+    return RealInboxClient(config)
 
 
 @pytest.fixture(scope="session")

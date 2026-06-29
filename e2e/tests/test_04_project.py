@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from e2e.browser import ProjectSubmissionData
-from e2e.mock_inbox import InboxDisabled
+from e2e.mock_inbox import InboxDisabled, MessageMatchCriteria, MessageWaitRequest
 
 pytestmark = pytest.mark.project
 
@@ -70,12 +70,15 @@ def _assert_project_confirmation(backend, run_state):
     expected_template = (
         PROJECT_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
     )
-    message = backend.wait_for_message(
-        run_state.student_email,
-        template_key=expected_template,
-        subject="Project submission saved",
+    request = MessageWaitRequest(
+        address=run_state.student_email,
+        criteria=MessageMatchCriteria(
+            template_key=expected_template,
+            subject="Project submission saved",
+        ),
         timeout=120,
     )
+    message = backend.wait_for_message(request)
     assert "E2E Project 1" in message.subject
     if expected_template:
         assert message.template_key == expected_template
