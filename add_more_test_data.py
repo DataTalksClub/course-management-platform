@@ -70,56 +70,74 @@ course.github_repo_url = "https://github.com/DataTalksClub/fake-course"
 course.save()
 
 
-def create_random_question(homework: Homework):
-    question_type = random.choice(
-        [QuestionTypes.FREE_FORM, QuestionTypes.FREE_FORM_LONG, QuestionTypes.MULTIPLE_CHOICE]
+def random_question_type():
+    question_types = [
+        QuestionTypes.FREE_FORM,
+        QuestionTypes.FREE_FORM_LONG,
+        QuestionTypes.MULTIPLE_CHOICE,
+    ]
+    return random.choice(question_types)
+
+
+def create_multiple_choice_question(homework: Homework, question_id: int):
+    answers = ["1", "2", "3", "4"]
+    correct_answer = random.choice(answers)
+    print(
+        f"  Correct answer is {correct_answer}, possible answers are {answers}"
     )
+
+    return Question.objects.create(
+        homework=homework,
+        text=f"Question text {question_id}",
+        correct_answer=correct_answer,
+        question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+        possible_answers=QUESTION_ANSWER_DELIMITER.join(answers),
+        scores_for_correct_answer=1,
+    )
+
+
+def create_free_form_question(homework: Homework, question_id: int):
+    correct_answer = "Example answer"
+    print(f"  Correct answer is {correct_answer}")
+
+    return Question.objects.create(
+        homework=homework,
+        text=f"Question text {question_id}",
+        correct_answer=correct_answer,
+        question_type=QuestionTypes.FREE_FORM.value,
+        answer_type=AnswerTypes.EXACT_STRING.value,
+        scores_for_correct_answer=1,
+    )
+
+
+def create_long_free_form_question(homework: Homework, question_id: int):
+    correct_answer = "Example long answer"
+    print(f"  Correct answer is {correct_answer}")
+
+    return Question.objects.create(
+        homework=homework,
+        text=f"Question text {question_id} (long form)",
+        correct_answer=correct_answer,
+        question_type=QuestionTypes.FREE_FORM_LONG.value,
+        answer_type=AnswerTypes.EXACT_STRING.value,
+        scores_for_correct_answer=1,
+    )
+
+
+def create_random_question(homework: Homework):
+    question_type = random_question_type()
     print(
         f"Creating question of type {question_type} for homework {homework}"
     )
     question_id = random.randint(1, 1000)
 
     if question_type == QuestionTypes.MULTIPLE_CHOICE:
-        answers = ["1", "2", "3", "4"]
-        correct_answer = random.choice(answers)
-        print(
-            f"  Correct answer is {correct_answer}, possible answers are {answers}"
-        )
+        return create_multiple_choice_question(homework, question_id)
 
-        return Question.objects.create(
-            homework=homework,
-            text=f"Question text {question_id}",
-            correct_answer=correct_answer,
-            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers=QUESTION_ANSWER_DELIMITER.join(answers),
-            scores_for_correct_answer=1,
-        )
+    if question_type == QuestionTypes.FREE_FORM:
+        return create_free_form_question(homework, question_id)
 
-    elif question_type == QuestionTypes.FREE_FORM:
-        correct_answer = "Example answer"
-        print(f"  Correct answer is {correct_answer}")
-
-        return Question.objects.create(
-            homework=homework,
-            text=f"Question text {question_id}",
-            correct_answer=correct_answer,
-            question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.EXACT_STRING.value,
-            scores_for_correct_answer=1,
-        )
-
-    elif question_type == QuestionTypes.FREE_FORM_LONG:
-        correct_answer = "Example long answer"
-        print(f"  Correct answer is {correct_answer}")
-
-        return Question.objects.create(
-            homework=homework,
-            text=f"Question text {question_id} (long form)",
-            correct_answer=correct_answer,
-            question_type=QuestionTypes.FREE_FORM_LONG.value,
-            answer_type=AnswerTypes.EXACT_STRING.value,
-            scores_for_correct_answer=1,
-        )
+    return create_long_free_form_question(homework, question_id)
 
 
 # Function to create questions for a given homework
