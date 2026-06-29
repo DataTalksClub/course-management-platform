@@ -10,11 +10,12 @@ shapes, poll/timeout/clear behaviour). The *live* email assertions
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 import requests
 
-from e2e.config import Settings, load_settings
+from e2e.config import Settings, _load_dotenv, load_settings
 from e2e.mock_inbox import (
     InboxDisabled,
     InboxNotConfigured,
@@ -98,6 +99,30 @@ def test_configured_requires_both_url_and_key():
 def test_messages_url_appends_api_path():
     client = MockInboxClient("https://datamailer.example/", "k")
     assert client.messages_url == "https://datamailer.example/api/mock-inbox/messages"
+
+
+def test_load_dotenv_sets_missing_values_only(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "# comment",
+                "E2E_EXISTING=from-file",
+                "E2E_NEW='from file'",
+                "E2E_QUOTED=\"quoted\"",
+                "malformed",
+            ]
+        )
+    )
+    monkeypatch.setenv("E2E_EXISTING", "from-env")
+    monkeypatch.delenv("E2E_NEW", raising=False)
+    monkeypatch.delenv("E2E_QUOTED", raising=False)
+
+    _load_dotenv(env_file)
+
+    assert os.environ["E2E_EXISTING"] == "from-env"
+    assert os.environ["E2E_NEW"] == "from file"
+    assert os.environ["E2E_QUOTED"] == "quoted"
 
 
 # -- list / auth / params --------------------------------------------------

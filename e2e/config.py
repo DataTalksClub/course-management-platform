@@ -34,14 +34,22 @@ def _load_dotenv(path: Path) -> None:
     if not path.exists():
         return
     for raw in path.read_text().splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = value
+        key, value = _dotenv_key_value(raw)
+        if key:
+            _set_env_default(key, value)
+
+
+def _dotenv_key_value(raw: str) -> tuple[str, str]:
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        return "", ""
+    key, _separator, value = line.partition("=")
+    return key.strip(), value.strip().strip('"').strip("'")
+
+
+def _set_env_default(key: str, value: str) -> None:
+    if key not in os.environ:
+        os.environ[key] = value
 
 
 def _ensure_env_loaded() -> None:
