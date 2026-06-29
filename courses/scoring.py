@@ -337,6 +337,29 @@ def _homework_scoring_success(homework_id, started_at):
     )
 
 
+def _score_and_persist_homework_submissions(homework_id):
+    submissions, answers, answers_by_submission_id = (
+        _homework_scoring_batch(homework_id)
+    )
+    logger.info(
+        f"Scoring {len(answers_by_submission_id)} submissions for homework {homework_id}"
+    )
+
+    _score_homework_submission_batch(
+        submissions,
+        answers_by_submission_id,
+    )
+    _persist_scored_homework_submissions(
+        homework_id,
+        submissions,
+        answers,
+    )
+
+    logger.info(
+        f"Scored {len(submissions)} submissions for homework {homework_id}"
+    )
+
+
 def score_homework_submissions(
     homework_id: str,
 ) -> tuple[HomeworkScoringStatus, str]:
@@ -349,26 +372,7 @@ def score_homework_submissions(
         if error := _homework_scoring_error(homework, homework_id):
             return (HomeworkScoringStatus.FAIL, error)
 
-        submissions, answers, answers_by_submission_id = (
-            _homework_scoring_batch(homework_id)
-        )
-        logger.info(
-            f"Scoring {len(answers_by_submission_id)} submissions for homework {homework_id}"
-        )
-
-        _score_homework_submission_batch(
-            submissions,
-            answers_by_submission_id,
-        )
-        _persist_scored_homework_submissions(
-            homework_id,
-            submissions,
-            answers,
-        )
-
-        logger.info(
-            f"Scored {len(submissions)} submissions for homework {homework_id}"
-        )
+        _score_and_persist_homework_submissions(homework_id)
         _mark_homework_scored(homework)
 
         return _homework_scoring_success(homework_id, t0)
