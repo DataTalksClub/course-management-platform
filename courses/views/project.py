@@ -339,16 +339,6 @@ def project_confirmation_payload(
     submission: ProjectSubmission,
     update_url: str,
 ) -> dict:
-    context = project_confirmation_context(
-        course=course,
-        project=project,
-        submission=submission,
-        update_url=update_url,
-        profile_url=build_account_settings_url(
-            request_base_url(update_url)
-        ),
-    )
-
     return {
         "email": user.email,
         "template_key": email_templates.PROJECT_SUBMISSION_CONFIRMATION,
@@ -356,13 +346,34 @@ def project_confirmation_payload(
         "idempotency_key": project_confirmation_idempotency_key(
             submission
         ),
-        "context": context,
+        "context": project_confirmation_payload_context(
+            course,
+            project,
+            submission,
+            update_url,
+        ),
         "metadata": project_confirmation_email_metadata(
             course,
             project,
             submission,
         ),
     }
+
+
+def project_confirmation_payload_context(
+    course: Course,
+    project: Project,
+    submission: ProjectSubmission,
+    update_url: str,
+) -> dict:
+    profile_url = build_account_settings_url(request_base_url(update_url))
+    return project_confirmation_context(
+        course=course,
+        project=project,
+        submission=submission,
+        update_url=update_url,
+        profile_url=profile_url,
+    )
 
 
 def project_confirmation_idempotency_key(
