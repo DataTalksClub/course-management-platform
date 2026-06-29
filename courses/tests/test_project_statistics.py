@@ -359,11 +359,8 @@ class ProjectStatisticsTestCase(TestCase):
 
 
 class ProjectStatisticsViewTestCase(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        # Create admin user
-        self.admin_user = User.objects.create_user(
+    def create_admin_user(self):
+        return User.objects.create_user(
             username="admin@test.com",
             email="admin@test.com",
             password="admin123",
@@ -371,17 +368,15 @@ class ProjectStatisticsViewTestCase(TestCase):
             is_superuser=True,
         )
 
-        # Create regular user
-        self.user = User.objects.create_user(**credentials)
-
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             project_passing_score=10,
         )
 
-        # Create completed project
-        self.project = Project.objects.create(
+    def create_completed_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -391,8 +386,8 @@ class ProjectStatisticsViewTestCase(TestCase):
             state=ProjectState.COMPLETED.value,
         )
 
-        # Create incomplete project for testing
-        self.incomplete_project = Project.objects.create(
+    def create_incomplete_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="incomplete-project",
             title="Incomplete Project",
@@ -402,13 +397,19 @@ class ProjectStatisticsViewTestCase(TestCase):
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
-    def test_project_statistics_view_success(self):
-        """Test successful project statistics view"""
-        # Create some submissions and statistics
+    def setUp(self):
+        self.client = Client()
+        self.admin_user = self.create_admin_user()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.project = self.create_completed_project()
+        self.incomplete_project = self.create_incomplete_project()
+
+    def create_project_statistics_submission(self):
         enrollment = Enrollment.objects.create(
             student=self.user, course=self.course
         )
-        ProjectSubmission.objects.create(
+        return ProjectSubmission.objects.create(
             project=self.project,
             student=self.user,
             enrollment=enrollment,
@@ -419,24 +420,32 @@ class ProjectStatisticsViewTestCase(TestCase):
             time_spent=10.0,
         )
 
-        # Mock the calculate_project_statistics function to avoid actual calculation
+    def mock_project_statistics(self, mock_calc):
+        mock_stats = ProjectStatistics(
+            project=self.project,
+            total_submissions=1,
+            min_project_score=10,
+            max_project_score=10,
+            avg_project_score=10.0,
+        )
+        mock_calc.return_value = mock_stats
+        return mock_stats
+
+    def project_statistics_url(self, project=None):
+        return reverse(
+            "project_statistics",
+            args=[self.course.slug, (project or self.project).slug],
+        )
+
+    def test_project_statistics_view_success(self):
+        """Test successful project statistics view"""
+        self.create_project_statistics_submission()
+
         with patch(
             "courses.views.project.calculate_project_statistics"
         ) as mock_calc:
-            mock_stats = ProjectStatistics(
-                project=self.project,
-                total_submissions=1,
-                min_project_score=10,
-                max_project_score=10,
-                avg_project_score=10.0,
-            )
-            mock_calc.return_value = mock_stats
-
-            url = reverse(
-                "project_statistics",
-                args=[self.course.slug, self.project.slug],
-            )
-            response = self.client.get(url)
+            self.mock_project_statistics(mock_calc)
+            response = self.client.get(self.project_statistics_url())
 
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, "Test Project statistics")
@@ -447,10 +456,7 @@ class ProjectStatisticsViewTestCase(TestCase):
 
     def test_project_statistics_view_incomplete_project(self):
         """Test project statistics view redirects for incomplete project"""
-        url = reverse(
-            "project_statistics",
-            args=[self.course.slug, self.incomplete_project.slug],
-        )
+        url = self.project_statistics_url(self.incomplete_project)
         response = self.client.get(url, follow=True)
 
         # Should redirect to project page
@@ -489,38 +495,13 @@ class ProjectStatisticsViewTestCase(TestCase):
 
     def test_project_statistics_template_rendering(self):
         """Test that the template renders correctly"""
-        # Create statistics object
-        enrollment = Enrollment.objects.create(
-            student=self.user, course=self.course
-        )
-        ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=enrollment,
-            github_link="https://github.com/test/repo",
-            commit_id="abc123",
-            project_score=10,
-            total_score=20,
-            time_spent=10.0,
-        )
+        self.create_project_statistics_submission()
 
         with patch(
             "courses.views.project.calculate_project_statistics"
         ) as mock_calc:
-            mock_stats = ProjectStatistics(
-                project=self.project,
-                total_submissions=1,
-                min_project_score=10,
-                max_project_score=10,
-                avg_project_score=10.0,
-            )
-            mock_calc.return_value = mock_stats
-
-            url = reverse(
-                "project_statistics",
-                args=[self.course.slug, self.project.slug],
-            )
-            response = self.client.get(url)
+            self.mock_project_statistics(mock_calc)
+            response = self.client.get(self.project_statistics_url())
 
             self.assertEqual(response.status_code, 200)
             self.assertTemplateUsed(response, "projects/stats.html")
