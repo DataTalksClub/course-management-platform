@@ -1195,45 +1195,77 @@ def datamailer_send_list_key(
         return list_data.get("key", "")
     return ""
 
+
+def _response_count(response: dict[str, Any], key: str) -> int:
+    return int(response.get(key) or 0)
+
+
+def _transactional_send_counts(response: dict[str, Any]) -> dict[str, int]:
+    idempotent_replay_count = int(bool(response.get("idempotent_replay")))
+    message = response.get("message") or {}
+    return {
+        "intended_count": 1,
+        "created_count": int(bool(response) and not idempotent_replay_count),
+        "enqueued_count": int(bool(response.get("enqueued"))),
+        "skipped_count": int(message.get("status") == "skipped"),
+        "idempotent_replay_count": idempotent_replay_count,
+    }
+
+
+def _recipient_list_intended_count(response: dict[str, Any]) -> int:
+    recipient_list = response.get("recipient_list") or {}
+    return int(recipient_list.get("active_member_count") or 0)
+
+
+def _active_payload_member_count(payload: dict[str, Any]) -> int:
+    members = payload.get("members")
+    if not isinstance(members, list):
+        return 0
+    return sum(1 for member in members if member.get("status") != "removed")
+
+
+def _transient_recipient_list_intended_count(
+    payload: dict[str, Any],
+    response: dict[str, Any],
+) -> int:
+    transient_list = response.get("transient_recipient_list") or {}
+    response_count = int(transient_list.get("active_member_count") or 0)
+    if response_count:
+        return response_count
+    return _active_payload_member_count(payload)
+
+
+def _recipient_send_counts(
+    intended_count: int,
+    response: dict[str, Any],
+) -> dict[str, int]:
+    return {
+        "intended_count": intended_count,
+        "created_count": _response_count(response, "created_count"),
+        "enqueued_count": _response_count(response, "enqueued_count"),
+        "skipped_count": _response_count(response, "skipped_count"),
+        "idempotent_replay_count": _response_count(
+            response,
+            "idempotent_replay_count",
+        ),
+    }
+
+
 def datamailer_send_counts(
     send_type: str,
     payload: dict[str, Any],
     response: dict[str, Any],
 ) -> dict[str, int]:
     if send_type == DatamailerSendAuditType.TRANSACTIONAL:
-        idempotent_replay_count = int(bool(response.get("idempotent_replay")))
-        enqueued_count = int(bool(response.get("enqueued")))
-        message = response.get("message") or {}
-        skipped_count = int(message.get("status") == "skipped")
-        created_count = int(bool(response) and not idempotent_replay_count)
-        return {
-            "intended_count": 1,
-            "created_count": created_count,
-            "enqueued_count": enqueued_count,
-            "skipped_count": skipped_count,
-            "idempotent_replay_count": idempotent_replay_count,
-        }
+        return _transactional_send_counts(response)
 
     intended_count = 0
     if send_type == DatamailerSendAuditType.RECIPIENT_LIST:
-        recipient_list = response.get("recipient_list") or {}
-        intended_count = recipient_list.get("active_member_count") or 0
+        intended_count = _recipient_list_intended_count(response)
     elif send_type == DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST:
-        transient_list = response.get("transient_recipient_list") or {}
-        intended_count = transient_list.get("active_member_count") or 0
-        if not intended_count:
-            members = payload.get("members")
-            if isinstance(members, list):
-                intended_count = sum(
-                    1 for member in members if member.get("status") != "removed"
-                )
+        intended_count = _transient_recipient_list_intended_count(
+            payload,
+            response,
+        )
 
-    return {
-        "intended_count": int(intended_count or 0),
-        "created_count": int(response.get("created_count") or 0),
-        "enqueued_count": int(response.get("enqueued_count") or 0),
-        "skipped_count": int(response.get("skipped_count") or 0),
-        "idempotent_replay_count": int(
-            response.get("idempotent_replay_count") or 0
-        ),
-    }
+    return _recipient_send_counts(intended_count, response)

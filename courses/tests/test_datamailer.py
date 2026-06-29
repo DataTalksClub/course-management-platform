@@ -29,6 +29,7 @@ from course_management.datamailer import (
     contact_tags_for_course,
     contact_payload_for_user,
     datamailer_enabled,
+    datamailer_send_counts,
     erase_contact_from_datamailer,
     enrollment_recipient_list_payload,
     get_contact_history,
@@ -1576,6 +1577,55 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(result["message"]["id"], "message-id")
         self.assert_transactional_send_called(send)
         self.assert_transactional_send_audit()
+
+    def test_datamailer_send_counts_marks_transactional_replay(self):
+        counts = datamailer_send_counts(
+            DatamailerSendAuditType.TRANSACTIONAL,
+            {},
+            {
+                "idempotent_replay": True,
+                "enqueued": False,
+                "message": {"status": "skipped"},
+            },
+        )
+
+        self.assertEqual(counts["intended_count"], 1)
+        self.assertEqual(counts["created_count"], 0)
+        self.assertEqual(counts["enqueued_count"], 0)
+        self.assertEqual(counts["skipped_count"], 1)
+        self.assertEqual(counts["idempotent_replay_count"], 1)
+
+    def test_datamailer_send_counts_uses_recipient_list_response(self):
+        counts = datamailer_send_counts(
+            DatamailerSendAuditType.RECIPIENT_LIST,
+            {},
+            {
+                "recipient_list": {"active_member_count": 3},
+                "created_count": 2,
+                "enqueued_count": 1,
+                "skipped_count": 1,
+            },
+        )
+
+        self.assertEqual(counts["intended_count"], 3)
+        self.assertEqual(counts["created_count"], 2)
+        self.assertEqual(counts["enqueued_count"], 1)
+        self.assertEqual(counts["skipped_count"], 1)
+
+    def test_datamailer_send_counts_falls_back_to_transient_members(self):
+        counts = datamailer_send_counts(
+            DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+            {
+                "members": [
+                    {"email": "active@example.com"},
+                    {"email": "removed@example.com", "status": "removed"},
+                ],
+            },
+            {"transient_recipient_list": {}, "enqueued_count": 1},
+        )
+
+        self.assertEqual(counts["intended_count"], 1)
+        self.assertEqual(counts["enqueued_count"], 1)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
