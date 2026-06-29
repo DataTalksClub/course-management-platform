@@ -34,6 +34,17 @@ def course_pk_from_row(row) -> int | None:
     return course_pk_from_href(link.get_attribute("href") or "")
 
 
+def indexed_values(values, limit):
+    pairs = []
+    if not values:
+        return pairs
+    for index, value in enumerate(values):
+        if index >= limit:
+            break
+        pairs.append((index, value))
+    return pairs
+
+
 class AdminSession:
     """Drives an authenticated admin browser session.
 
@@ -198,9 +209,24 @@ class AdminSession:
         """
         self.page.goto(self.url("/admin/accounts/customuser/add/"))
         self.page.wait_for_load_state("networkidle")
+        self._fill_student_add_form(email, password)
+        self.submit_form_containing("input[name='username']")
+        self.page.wait_for_load_state("networkidle")
+        self._ensure_student_email_on_change_form(email)
+        user_id = self.find_user_id_by_email(email)
+        if user_id is None:
+            raise AssertionError(
+                f"Created student {email} but could not find its user id."
+            )
+        return user_id
+
+    def _fill_student_add_form(self, email: str, password: str) -> None:
         self.page.fill("input[name='username']", email)
         if self.page.locator("input[name='email']").count():
             self.page.fill("input[name='email']", email)
+        self._fill_student_password_fields(password)
+
+    def _fill_student_password_fields(self, password: str) -> None:
         if self.page.locator("input[name='password1']").count():
             self.page.fill("input[name='password1']", password)
             self.page.fill("input[name='password2']", password)
@@ -210,19 +236,14 @@ class AdminSession:
             raise AssertionError(
                 "CustomUser admin add form did not expose password fields."
             )
-        self.submit_form_containing("input[name='username']")
-        self.page.wait_for_load_state("networkidle")
+
+    def _ensure_student_email_on_change_form(self, email: str) -> None:
         # On the resulting change form, also set the email field if present.
-        if self.page.locator("input[name='email']").count():
-            self.page.fill("input[name='email']", email)
-            self.submit_form_containing("input[name='email']")
-            self.page.wait_for_load_state("networkidle")
-        user_id = self.find_user_id_by_email(email)
-        if user_id is None:
-            raise AssertionError(
-                f"Created student {email} but could not find its user id."
-            )
-        return user_id
+        if not self.page.locator("input[name='email']").count():
+            return
+        self.page.fill("input[name='email']", email)
+        self.submit_form_containing("input[name='email']")
+        self.page.wait_for_load_state("networkidle")
 
     def ensure_student(self, email: str, password: str) -> int:
         existing = self.find_user_id_by_email(email)
@@ -415,23 +436,40 @@ class AdminSession:
         page.goto(self.url(f"/{course_slug}/project/{project_slug}"))
         page.wait_for_load_state("networkidle")
 
-        page.fill("[name='github_link']", github_link)
-        page.fill("[name='commit_id']", commit_id)
-        if certificate_name is not None and page.locator(
-            "[name='certificate_name']"
-        ).count():
-            page.fill("[name='certificate_name']", certificate_name)
-        if time_spent is not None and page.locator("[name='time_spent']").count():
-            page.fill("[name='time_spent']", str(time_spent))
-        if learning_in_public_links:
-            inputs = page.locator("[name='learning_in_public_links[]']")
-            for i, link in enumerate(learning_in_public_links):
-                if i < inputs.count():
-                    inputs.nth(i).fill(link)
+        self._fill_project_required_fields(github_link, commit_id)
+        self._fill_optional_project_field(
+            "[name='certificate_name']",
+            certificate_name,
+        )
+        self._fill_optional_project_field("[name='time_spent']", time_spent)
+        self._fill_project_learning_links(learning_in_public_links)
 
         page.click("#project-form button[type='submit'], "
                    "#project-form input[type='submit']")
         page.wait_for_load_state("networkidle")
+
+    def _fill_project_required_fields(
+        self,
+        github_link: str,
+        commit_id: str,
+    ) -> None:
+        self.page.fill("[name='github_link']", github_link)
+        self.page.fill("[name='commit_id']", commit_id)
+
+    def _fill_optional_project_field(self, selector: str, value) -> None:
+        if value is not None and self.page.locator(selector).count():
+            self.page.fill(selector, str(value))
+
+    def _fill_project_learning_links(
+        self,
+        learning_in_public_links: list[str] | None,
+    ) -> None:
+        inputs = self.page.locator("[name='learning_in_public_links[]']")
+        for index, link in indexed_values(
+            learning_in_public_links,
+            inputs.count(),
+        ):
+            inputs.nth(index).fill(link)
 
     def delete_project_submission(self, course_slug: str, project_slug: str) -> None:
         """Delete the impersonated student's own project submission via the UI.
