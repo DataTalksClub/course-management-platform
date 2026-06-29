@@ -205,38 +205,47 @@ def update_faq_score(submission: Submission) -> int:
     return faq_score
 
 
+def _answer_correctness(submission: Submission, answer: Answer) -> bool:
+    try:
+        return is_answer_correct(answer.question, answer)
+    except Exception:
+        logger.exception(f"Error while scoring submission {submission.id}")
+        raise
+
+
+def _score_answer(submission: Submission, answer: Answer, save: bool) -> int:
+    is_correct = _answer_correctness(submission, answer)
+    answer.is_correct = is_correct
+    if save:
+        answer.save()
+
+    if is_correct:
+        return answer.question.scores_for_correct_answer
+    return 0
+
+
+def _questions_score(
+    submission: Submission, answers: list[Answer], save: bool
+) -> int:
+    return sum(_score_answer(submission, answer, save) for answer in answers)
+
+
+def _submission_total_score(submission: Submission, questions_score: int):
+    lip_score = update_learning_in_public_score(submission)
+    faq_score = update_faq_score(submission)
+    return questions_score + lip_score + faq_score
+
+
 def update_score(
     submission: Submission, answers: list[Answer], save: bool = True
 ) -> None:
     logger.info(f"Scoring submission {submission.id}")
-    questions_score = 0
-
-    for answer in answers:
-        question = answer.question
-        try:
-            is_correct = is_answer_correct(question, answer)
-        except Exception as e:
-            logger.exception(
-                f"Error while scoring submission {submission.id}"
-            )
-            raise e
-            # is_correct = False
-
-        answer.is_correct = is_correct
-        if save:
-            answer.save()
-
-        if is_correct:
-            questions_score += question.scores_for_correct_answer
-
+    questions_score = _questions_score(submission, answers, save)
     submission.questions_score = questions_score
-
-    lip_score = update_learning_in_public_score(submission)
-    faq_score = update_faq_score(submission)
-
-    total_score = questions_score + lip_score + faq_score
-
-    submission.total_score = total_score
+    submission.total_score = _submission_total_score(
+        submission,
+        questions_score,
+    )
 
     if save:
         submission.save()
