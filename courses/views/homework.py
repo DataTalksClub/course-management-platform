@@ -1527,6 +1527,37 @@ def authenticated_homework_context(
     return context, submission, enrollment
 
 
+def authenticated_homework_response(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+):
+    context, submission, enrollment = authenticated_homework_context(
+        user=request.user,
+        course=course,
+        homework=homework,
+        questions=questions,
+    )
+
+    if request.method != "POST":
+        return render(request, "homework/homework.html", context)
+
+    post_data = HomeworkPostData(
+        request=request,
+        course=course,
+        homework=homework,
+        questions=questions,
+        submission=submission,
+        enrollment=enrollment,
+    )
+    post_result = handle_homework_post(post_data)
+    if not isinstance(post_result, dict):
+        return post_result
+
+    return render(request, "homework/homework.html", post_result)
+
+
 def homework_view(
     request: HttpRequest, course_slug: str, homework_slug: str
 ):
@@ -1542,28 +1573,12 @@ def homework_view(
         )
         return render(request, "homework/homework.html", context)
 
-    context, submission, enrollment = authenticated_homework_context(
-        user=user,
-        course=course,
-        homework=homework,
-        questions=questions,
+    return authenticated_homework_response(
+        request,
+        course,
+        homework,
+        questions,
     )
-
-    if request.method == "POST":
-        post_data = HomeworkPostData(
-            request=request,
-            course=course,
-            homework=homework,
-            questions=questions,
-            submission=submission,
-            enrollment=enrollment,
-        )
-        post_result = handle_homework_post(post_data)
-        if not isinstance(post_result, dict):
-            return post_result
-        context = post_result
-
-    return render(request, "homework/homework.html", context)
 
 
 def homework_statistics(request, course_slug, homework_slug):
