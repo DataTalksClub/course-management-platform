@@ -143,8 +143,16 @@ class CourseRegistrationForm(forms.ModelForm):
         self.campaign = campaign
         self.user = user
         super().__init__(*args, **kwargs)
+        self.configure_optional_fields()
+        self.configure_country_field()
+        self.configure_role_choices()
+        self.configure_authenticated_user()
+
+    def configure_optional_fields(self):
         for field_name in ("name", "country", "role", "comment"):
             self.fields[field_name].required = False
+
+    def configure_country_field(self):
         self.fields["country"].widget = forms.TextInput(
             attrs={
                 "class": "form-control",
@@ -153,22 +161,38 @@ class CourseRegistrationForm(forms.ModelForm):
                 "data-country-combobox-input": "",
             }
         )
+
+    def configure_role_choices(self):
         self.fields["role"].choices = [
             ("", "Select role")
         ] + list(CourseRegistration.Role.choices)
 
-        if user is not None and user.is_authenticated:
-            self.fields["email"].initial = user.email
-            self.fields["email"].disabled = True
-            self.fields["email"].help_text = "Using your account email."
-            if not self.is_bound:
-                self.initial["name"] = (
-                    user.certificate_name
-                    or user.get_full_name()
-                    or ""
-                )
-                self.initial["country"] = user.country
-                self.initial["role"] = user.registration_role
+    def has_authenticated_user(self):
+        return self.user is not None and self.user.is_authenticated
+
+    def configure_authenticated_email_field(self):
+        self.fields["email"].initial = self.user.email
+        self.fields["email"].disabled = True
+        self.fields["email"].help_text = "Using your account email."
+
+    def authenticated_user_initial_values(self):
+        return {
+            "name": (
+                self.user.certificate_name
+                or self.user.get_full_name()
+                or ""
+            ),
+            "country": self.user.country,
+            "role": self.user.registration_role,
+        }
+
+    def configure_authenticated_user(self):
+        if not self.has_authenticated_user():
+            return
+
+        self.configure_authenticated_email_field()
+        if not self.is_bound:
+            self.initial.update(self.authenticated_user_initial_values())
 
     def clean_email(self):
         if self.user is not None and self.user.is_authenticated:
