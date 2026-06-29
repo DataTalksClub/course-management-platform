@@ -271,6 +271,24 @@ def send_project_confirmation_email(
     if not user.email:
         return
 
+    send_transactional_email(
+        project_confirmation_payload(
+            user=user,
+            course=course,
+            project=project,
+            submission=submission,
+            update_url=update_url,
+        )
+    )
+
+
+def project_confirmation_payload(
+    user: User,
+    course: Course,
+    project: Project,
+    submission: ProjectSubmission,
+    update_url: str,
+) -> dict:
     context = project_confirmation_context(
         course=course,
         project=project,
@@ -281,27 +299,43 @@ def send_project_confirmation_email(
         ),
     )
 
-    send_transactional_email(
-        {
-            "email": user.email,
-            "template_key": (
-                email_templates.PROJECT_SUBMISSION_CONFIRMATION
-            ),
-            "category_tag": "submission-results",
-            "idempotency_key": (
-                f"project-submission:{submission.id}:"
-                f"{submission.submitted_at.isoformat()}"
-            ),
-            "context": context,
-            "metadata": {
-                "source": "course-management-platform",
-                "event": "project_submission",
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-                "submission_id": submission.id,
-            },
-        }
+    return {
+        "email": user.email,
+        "template_key": email_templates.PROJECT_SUBMISSION_CONFIRMATION,
+        "category_tag": "submission-results",
+        "idempotency_key": project_confirmation_idempotency_key(
+            submission
+        ),
+        "context": context,
+        "metadata": project_confirmation_email_metadata(
+            course,
+            project,
+            submission,
+        ),
+    }
+
+
+def project_confirmation_idempotency_key(
+    submission: ProjectSubmission,
+) -> str:
+    return (
+        f"project-submission:{submission.id}:"
+        f"{submission.submitted_at.isoformat()}"
     )
+
+
+def project_confirmation_email_metadata(
+    course: Course,
+    project: Project,
+    submission: ProjectSubmission,
+) -> dict:
+    return {
+        "source": "course-management-platform",
+        "event": "project_submission",
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+        "submission_id": submission.id,
+    }
 
 
 def project_submission_from_post(
