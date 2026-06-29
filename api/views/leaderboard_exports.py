@@ -148,14 +148,17 @@ def _leaderboard_enrollments(course):
 
 
 def _leaderboard_enrollment_entry(enrollment):
-    hw_data = [
-        _leaderboard_homework_entry(sub)
-        for sub in enrollment.scored_submissions
-    ]
-    proj_data = [
-        _leaderboard_project_entry(sub)
-        for sub in enrollment.completed_project_submissions
-    ]
+    hw_data = []
+    scored_submissions = enrollment.scored_submissions
+    for submission in scored_submissions:
+        homework_entry = _leaderboard_homework_entry(submission)
+        hw_data.append(homework_entry)
+
+    proj_data = []
+    completed_submissions = enrollment.completed_project_submissions
+    for submission in completed_submissions:
+        project_entry = _leaderboard_project_entry(submission)
+        proj_data.append(project_entry)
 
     entry = {
         "position": enrollment.position_on_leaderboard,
@@ -199,10 +202,11 @@ def _build_leaderboard_data(course, page_number):
         LEADERBOARD_DATA_PAGE_SIZE,
     )
     page_obj = paginator.get_page(page_number)
-    results = [
-        _leaderboard_enrollment_entry(enrollment)
-        for enrollment in page_obj.object_list
-    ]
+    results = []
+    enrollments = page_obj.object_list
+    for enrollment in enrollments:
+        enrollment_entry = _leaderboard_enrollment_entry(enrollment)
+        results.append(enrollment_entry)
 
     return {
         "course": course.slug,

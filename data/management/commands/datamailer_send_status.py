@@ -121,32 +121,38 @@ def send_audit_totals():
 
 
 def recent_failed_sends(limit):
-    return [
-        {
+    failed_sends = []
+    failed_audits = DatamailerSendAudit.objects.filter(status="failed")[
+        :limit
+    ]
+    for item in failed_audits:
+        failed_send = {
             "occurred_at": item.occurred_at,
             "send_type": item.send_type,
             "idempotency_key": item.idempotency_key,
             "error": item.error,
         }
-        for item in DatamailerSendAudit.objects.filter(status="failed")[
-            :limit
-        ]
-    ]
+        failed_sends.append(failed_send)
+    return failed_sends
 
 
 def grouped_counts(field):
-    return [
-        {
-            "key": row[field],
-            "count": row["count"],
-            "enqueued_count": row["enqueued_count"] or 0,
-            "skipped_count": row["skipped_count"] or 0,
-        }
-        for row in DatamailerSendAudit.objects.values(field)
+    counts = []
+    rows = (
+        DatamailerSendAudit.objects.values(field)
         .annotate(
             count=Count("id"),
             enqueued_count=Sum("enqueued_count"),
             skipped_count=Sum("skipped_count"),
         )
         .order_by(field)
-    ]
+    )
+    for row in rows:
+        count_record = {
+            "key": row[field],
+            "count": row["count"],
+            "enqueued_count": row["enqueued_count"] or 0,
+            "skipped_count": row["skipped_count"] or 0,
+        }
+        counts.append(count_record)
+    return counts

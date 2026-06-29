@@ -46,14 +46,11 @@ def authenticate_webhook(request):
 
 
 def preference_key_from_payload(payload):
-    return next(
-        (
-            preference_key
-            for preference_key in preference_key_candidates(payload)
-            if preference_key in PREFERENCE_FIELDS
-        ),
-        "",
-    )
+    candidates = preference_key_candidates(payload)
+    for preference_key in candidates:
+        if preference_key in PREFERENCE_FIELDS:
+            return preference_key
+    return ""
 
 
 def preference_key_candidates(payload):
