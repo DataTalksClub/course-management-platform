@@ -403,6 +403,15 @@ def homework_public_url(homework):
 
 
 def project_submission_metadata(submission) -> dict[str, Any]:
+    return {
+        **project_submission_identity_metadata(submission),
+        **project_submission_score_metadata(submission),
+        **project_submission_source_metadata(submission),
+        **project_submission_status_metadata(submission),
+    }
+
+
+def project_submission_identity_metadata(submission) -> dict[str, Any]:
     project = submission.project
     course = project.course
     return {
@@ -413,6 +422,11 @@ def project_submission_metadata(submission) -> dict[str, Any]:
         "submitted_at": submission.submitted_at.isoformat()
         if submission.submitted_at
         else "",
+    }
+
+
+def project_submission_score_metadata(submission) -> dict[str, Any]:
+    return {
         "project_score": submission.project_score,
         "project_learning_in_public_score": (
             submission.project_learning_in_public_score
@@ -423,21 +437,35 @@ def project_submission_metadata(submission) -> dict[str, Any]:
             submission.peer_review_learning_in_public_score
         ),
         "total_score": submission.total_score,
+    }
+
+
+def project_submission_source_metadata(submission) -> dict[str, Any]:
+    return {
         "github_link": submission.github_link,
         "commit_id": submission.commit_id,
         "faq_contribution_url": submission.faq_contribution_url or "",
-        "project_url": public_url(
-            reverse(
-                "project",
-                kwargs={
-                    "course_slug": course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        ),
+        "project_url": project_public_url(submission.project),
+    }
+
+
+def project_submission_status_metadata(submission) -> dict[str, Any]:
+    return {
         "reviewed_enough_peers": submission.reviewed_enough_peers,
         "passed": submission.passed,
     }
+
+
+def project_public_url(project):
+    return public_url(
+        reverse(
+            "project",
+            kwargs={
+                "course_slug": project.course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
 
 
 def project_submission_recipient_list_payload(
