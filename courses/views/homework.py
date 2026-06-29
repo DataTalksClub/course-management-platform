@@ -606,6 +606,23 @@ def parse_time_spent_hours(
     return parsed
 
 
+def _invalid_learning_in_public_link_error():
+    return ValidationError(
+        "Learning in public links must be valid HTTP or HTTPS URLs."
+    )
+
+
+def _validate_learning_in_public_link(url_validator, link):
+    try:
+        url_validator(link)
+    except ValidationError:
+        raise _invalid_learning_in_public_link_error()
+
+
+def _is_blank_or_duplicate_link(link, cleaned_links):
+    return len(link) == 0 or link in cleaned_links
+
+
 def clean_learning_in_public_links(
     links: List[str], cap: int
 ) -> List[str]:
@@ -614,20 +631,12 @@ def clean_learning_in_public_links(
 
     for link in links:
         link = link.strip()
-        if len(link) == 0:
-            continue
-        if link in cleaned_links:
+        if _is_blank_or_duplicate_link(link, cleaned_links):
             continue
         if len(cleaned_links) >= cap:
             break
 
-        try:
-            url_validator(link)
-        except ValidationError:
-            raise ValidationError(
-                "Learning in public links must be valid HTTP or HTTPS URLs."
-            )
-
+        _validate_learning_in_public_link(url_validator, link)
         cleaned_links.append(link)
 
     return cleaned_links
