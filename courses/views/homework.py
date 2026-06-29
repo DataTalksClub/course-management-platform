@@ -556,11 +556,9 @@ def build_homework_update_url(
 
 
 def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
-    if is_selected and is_correct:
+    if is_correct:
         return "option-answer-correct"
-    if not is_selected and is_correct:
-        return "option-answer-correct"
-    if is_selected and not is_correct:
+    if is_selected:
         return "option-answer-incorrect"
     return "option-answer-none"
 
