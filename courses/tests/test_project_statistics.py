@@ -153,46 +153,48 @@ class ProjectStatisticsTestCase(TestCase):
         str_representation = str(stats)
         self.assertIn(self.project.slug, str_representation)
 
+    def create_basic_raw_statistics_submissions(self):
+        self.create_bulk_submissions(
+            [
+                {"project_score": 8, "total_score": 15, "time_spent": 8.0},
+                {"project_score": 12, "total_score": 20, "time_spent": 12.0},
+                {"project_score": 10, "total_score": 18, "time_spent": 10.0},
+            ]
+        )
+
+    def assert_raw_stat(self, stats, field, *, minimum, maximum, average):
+        self.assertEqual(stats[field]["min"], minimum)
+        self.assertEqual(stats[field]["max"], maximum)
+        self.assertEqual(stats[field]["avg"], average)
+
     def test_calculate_raw_project_statistics_basic(self):
         """Test basic raw statistics calculation"""
-        # Create submissions with different scores using bulk operation
-        submissions_data = [
-            {"project_score": 8, "total_score": 15, "time_spent": 8.0},
-            {
-                "project_score": 12,
-                "total_score": 20,
-                "time_spent": 12.0,
-            },
-            {
-                "project_score": 10,
-                "total_score": 18,
-                "time_spent": 10.0,
-            },
-        ]
-
-        self.create_bulk_submissions(submissions_data)
+        self.create_basic_raw_statistics_submissions()
 
         stats = calculate_raw_project_statistics(self.project)
 
-        # Check total submissions
         self.assertEqual(stats["total_submissions"], 3)
-
-        # Check project_score statistics
-        self.assertEqual(stats["project_score"]["min"], 8)
-        self.assertEqual(stats["project_score"]["max"], 12)
-        self.assertEqual(stats["project_score"]["avg"], 10.0)
-
-        # Check total_score statistics
-        self.assertEqual(stats["total_score"]["min"], 15)
-        self.assertEqual(stats["total_score"]["max"], 20)
-        self.assertEqual(
-            stats["total_score"]["avg"], 17.666666666666668
+        self.assert_raw_stat(
+            stats,
+            "project_score",
+            minimum=8,
+            maximum=12,
+            average=10.0,
         )
-
-        # Check time_spent statistics
-        self.assertEqual(stats["time_spent"]["min"], 8.0)
-        self.assertEqual(stats["time_spent"]["max"], 12.0)
-        self.assertEqual(stats["time_spent"]["avg"], 10.0)
+        self.assert_raw_stat(
+            stats,
+            "total_score",
+            minimum=15,
+            maximum=20,
+            average=17.666666666666668,
+        )
+        self.assert_raw_stat(
+            stats,
+            "time_spent",
+            minimum=8.0,
+            maximum=12.0,
+            average=10.0,
+        )
 
     def test_calculate_raw_project_statistics_insufficient_data(self):
         """Test statistics calculation with insufficient data (< 3 submissions)"""
