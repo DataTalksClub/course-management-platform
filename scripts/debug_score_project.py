@@ -183,7 +183,8 @@ def check_review_responses(review, errors, warnings):
         warnings.append(f"Review {review.id} has no responses")
         return
 
-    for response in review.responses:
+    responses = review.responses
+    for response in responses:
         try:
             response.get_score()
         except Exception as e:
@@ -213,7 +214,9 @@ def process_submissions(submissions, reviews_by_submission, reviews_by_reviewer)
     errors = []
     warnings = []
 
-    for i, (submission_id, submission) in enumerate(submissions.items()):
+    submission_items = submissions.items()
+    indexed_submissions = enumerate(submission_items)
+    for i, (submission_id, submission) in indexed_submissions:
         try:
             process_submission(
                 submission_id,
@@ -238,7 +241,8 @@ def process_submissions(submissions, reviews_by_submission, reviews_by_reviewer)
 def print_limited_findings(label, findings, empty_message):
     if findings:
         print(f"{label} ({len(findings)}):")
-        for finding in findings[:10]:  # Show first 10
+        limited_findings = findings[:10]
+        for finding in limited_findings:
             print(f"  - {finding}")
         if len(findings) > 10:
             print(f"  ... and {len(findings) - 10} more")

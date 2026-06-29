@@ -48,7 +48,11 @@ def criteria_key(criteria: ReviewCriteria) -> tuple[str, str]:
 def existing_criteria_keys(
     criteria_list: list[ReviewCriteria],
 ) -> set[tuple[str, str]]:
-    return {criteria_key(criteria) for criteria in criteria_list}
+    keys = set()
+    for criteria in criteria_list:
+        key = criteria_key(criteria)
+        keys.add(key)
+    return keys
 
 
 def copied_criteria_for_dry_run(

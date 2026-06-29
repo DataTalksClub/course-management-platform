@@ -167,7 +167,8 @@ def print_submission_row(sub):
 
 def print_submission_table(submissions):
     print_submission_table_header()
-    for sub in submissions[:10]:
+    top_submissions = submissions[:10]
+    for sub in top_submissions:
         print_submission_row(sub)
 
     if submissions.count() > 10:

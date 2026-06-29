@@ -104,7 +104,9 @@ def print_submission_review_completion(project, submissions, submitted_reviews):
     reviews_by_reviewer = review_counts_by_reviewer(submitted_reviews)
 
     print("  Review completion by students:")
-    for sub in submissions.order_by('id')[:10]:  # Show first 10
+    ordered_submissions = submissions.order_by('id')
+    limited_submissions = ordered_submissions[:10]
+    for sub in limited_submissions:
         count = reviews_by_reviewer.get(sub.id, 0)
         expected = project.number_of_peers_to_evaluate
         status = "✓" if count >= expected else "✗"
