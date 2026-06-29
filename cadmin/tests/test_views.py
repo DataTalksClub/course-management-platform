@@ -277,6 +277,66 @@ class CadminViewTests(TestCase):
             self.project_action_url("cadmin_project_score"),
         )
 
+    def datamailer_operations_url(self):
+        return reverse("cadmin_datamailer_operations")
+
+    def create_datamailer_operations_records(self):
+        DatamailerOutboxEvent.objects.create(
+            event_id="evt-outbox-failed",
+            event_type="recipient_list.member_upsert",
+            idempotency_key="idem-outbox-failed",
+            status=DatamailerOutboxStatus.FAILED,
+            last_error="network error",
+        )
+        DatamailerOutboxDispatchRun.objects.create(
+            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+            processed_count=3,
+            acked_count=3,
+        )
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            status=DatamailerSendAuditStatus.SUCCEEDED,
+            idempotency_key="send-ok",
+            intended_count=5,
+            created_count=4,
+            enqueued_count=4,
+            skipped_count=1,
+        )
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            status=DatamailerSendAuditStatus.FAILED,
+            idempotency_key="send-failed",
+            template_key="course-registration-confirmation",
+            error="Datamailer failed",
+        )
+
+    def assert_datamailer_operations_content(self, response):
+        self.assertContains(response, "Datamailer operations")
+        self.assertContains(response, "network error")
+        self.assertContains(response, "Datamailer failed")
+        self.assertContains(response, reverse("cadmin_datamailer_events"))
+        self.assertContains(response, "Bootstrap and repair")
+        self.assertContains(
+            response,
+            "sync_datamailer_contacts --active-only",
+        )
+        self.assertContains(
+            response,
+            "sync_datamailer_recipient_lists &lt;kind&gt; --reconcile",
+        )
+        self.assertContains(
+            response,
+            "audit_datamailer_recipient_lists &lt;kind&gt; --repair",
+        )
+        self.assertContains(response, "project-passed")
+
+    def assert_datamailer_send_totals(self, response):
+        self.assertEqual(response.context["send_totals"]["intended_count"], 5)
+        self.assertEqual(response.context["send_totals"]["created_count"], 4)
+        self.assertEqual(response.context["send_totals"]["enqueued_count"], 4)
+        self.assertEqual(response.context["send_totals"]["skipped_count"], 1)
+        self.assertEqual(response.context["send_totals"]["failed"], 1)
+
     def create_project_submission(self, enrollment=None, **overrides):
         defaults = {
             "project": self.project,
@@ -417,69 +477,19 @@ class CadminViewTests(TestCase):
 
     def test_datamailer_operations_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(reverse("cadmin_datamailer_operations"))
+        response = self.client.get(self.datamailer_operations_url())
 
         self.assertEqual(response.status_code, 302)
 
     def test_datamailer_operations_staff_allowed(self):
-        DatamailerOutboxEvent.objects.create(
-            event_id="evt-outbox-failed",
-            event_type="recipient_list.member_upsert",
-            idempotency_key="idem-outbox-failed",
-            status=DatamailerOutboxStatus.FAILED,
-            last_error="network error",
-        )
-        DatamailerOutboxDispatchRun.objects.create(
-            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
-            processed_count=3,
-            acked_count=3,
-        )
-        DatamailerSendAudit.objects.create(
-            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-            status=DatamailerSendAuditStatus.SUCCEEDED,
-            idempotency_key="send-ok",
-            intended_count=5,
-            created_count=4,
-            enqueued_count=4,
-            skipped_count=1,
-        )
-        DatamailerSendAudit.objects.create(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            status=DatamailerSendAuditStatus.FAILED,
-            idempotency_key="send-failed",
-            template_key="course-registration-confirmation",
-            error="Datamailer failed",
-        )
+        self.create_datamailer_operations_records()
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        response = self.client.get(reverse("cadmin_datamailer_operations"))
+        self.login_admin()
+        response = self.client.get(self.datamailer_operations_url())
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Datamailer operations")
-        self.assertContains(response, "network error")
-        self.assertContains(response, "Datamailer failed")
-        self.assertContains(response, reverse("cadmin_datamailer_events"))
-        self.assertContains(response, "Bootstrap and repair")
-        self.assertContains(
-            response,
-            "sync_datamailer_contacts --active-only",
-        )
-        self.assertContains(
-            response,
-            "sync_datamailer_recipient_lists &lt;kind&gt; --reconcile",
-        )
-        self.assertContains(
-            response,
-            "audit_datamailer_recipient_lists &lt;kind&gt; --repair",
-        )
-        self.assertContains(response, "project-passed")
-        self.assertEqual(response.context["send_totals"]["intended_count"], 5)
-        self.assertEqual(response.context["send_totals"]["created_count"], 4)
-        self.assertEqual(response.context["send_totals"]["enqueued_count"], 4)
-        self.assertEqual(response.context["send_totals"]["skipped_count"], 1)
-        self.assertEqual(response.context["send_totals"]["failed"], 1)
+        self.assert_datamailer_operations_content(response)
+        self.assert_datamailer_send_totals(response)
 
     def test_datamailer_operations_requeues_failed_and_dead_outbox_events(self):
         failed = DatamailerOutboxEvent.objects.create(
