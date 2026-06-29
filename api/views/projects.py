@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -41,6 +42,14 @@ class ProjectCreateRequiredValues:
     name: str
     submission_due_str: str
     peer_review_due_str: str
+
+
+@dataclass(frozen=True)
+class ProjectCreateValues:
+    name: str
+    instructions_url: str | None
+    submission_due_date: datetime
+    peer_review_due_date: datetime
 
 
 def _project_delete_blockers(proj):
@@ -238,7 +247,7 @@ def _project_create_slug(course, proj_data, name):
 
 
 def _project_create_attrs(course, proj_data):
-    values, error = _project_create_required_values(proj_data)
+    required_values, error = _project_create_required_values(proj_data)
     if error:
         return None, error
 
@@ -248,59 +257,50 @@ def _project_create_attrs(course, proj_data):
 
     submission_due_date, peer_review_due_date, error = (
         _parse_project_due_dates(
-            values.submission_due_str,
-            values.peer_review_due_str,
+            required_values.submission_due_str,
+            required_values.peer_review_due_str,
         )
     )
     if error:
         return None, error
 
+    values = ProjectCreateValues(
+        name=required_values.name,
+        instructions_url=instructions_url,
+        submission_due_date=submission_due_date,
+        peer_review_due_date=peer_review_due_date,
+    )
     return _project_create_attrs_from_values(
         course,
         proj_data,
-        values.name,
-        instructions_url,
-        submission_due_date,
-        peer_review_due_date,
+        values,
     )
 
 
 def _project_create_attrs_from_values(
     course,
     proj_data,
-    name,
-    instructions_url,
-    submission_due_date,
-    peer_review_due_date,
+    values,
 ):
-    slug, error = _project_create_slug(course, proj_data, name)
+    slug, error = _project_create_slug(course, proj_data, values.name)
     if error:
         return None, error
 
-    attrs = _project_create_defaults(
-        proj_data,
-        name,
-        instructions_url,
-        submission_due_date,
-        peer_review_due_date,
-    )
+    attrs = _project_create_defaults(proj_data, values)
     attrs["slug"] = slug
     return attrs, None
 
 
 def _project_create_defaults(
     proj_data,
-    name,
-    instructions_url,
-    submission_due_date,
-    peer_review_due_date,
+    values,
 ):
     return {
-        "title": name,
+        "title": values.name,
         "description": proj_data.get("description", ""),
-        "instructions_url": instructions_url,
-        "submission_due_date": submission_due_date,
-        "peer_review_due_date": peer_review_due_date,
+        "instructions_url": values.instructions_url,
+        "submission_due_date": values.submission_due_date,
+        "peer_review_due_date": values.peer_review_due_date,
         "state": ProjectState.CLOSED.value,
     }
 
