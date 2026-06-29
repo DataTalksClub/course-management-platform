@@ -64,6 +64,7 @@ from course_management.datamailer import (
     sync_registration_to_datamailer,
     update_email_preferences_for_user,
 )
+from course_management.datamailer_outbox import _status_for_error
 from courses.models import (
     Course,
     CourseRegistration,
@@ -104,6 +105,37 @@ class DatamailerClientTest(TestCase):
 
     def datamailer_client(self, session):
         return DatamailerClient(self.datamailer_config(), session=session)
+
+    def http_error(self, status_code):
+        exc = requests.HTTPError("request failed")
+        exc.response = Mock(status_code=status_code)
+        return exc
+
+    def outbox_attempt(self, attempt_count=1, max_attempts=3):
+        return Mock(attempt_count=attempt_count, max_attempts=max_attempts)
+
+    def test_outbox_status_for_error_classifies_retryable_errors(self):
+        self.assertEqual(
+            _status_for_error(self.http_error(429), self.outbox_attempt()),
+            DatamailerOutboxStatus.RETRYING,
+        )
+        self.assertEqual(
+            _status_for_error(self.http_error(503), self.outbox_attempt()),
+            DatamailerOutboxStatus.RETRYING,
+        )
+
+    def test_outbox_status_for_error_classifies_failed_errors(self):
+        self.assertEqual(
+            _status_for_error(self.http_error(400), self.outbox_attempt()),
+            DatamailerOutboxStatus.FAILED,
+        )
+        self.assertEqual(
+            _status_for_error(
+                requests.RequestException("network error"),
+                self.outbox_attempt(attempt_count=3, max_attempts=3),
+            ),
+            DatamailerOutboxStatus.FAILED,
+        )
 
     def assert_datamailer_request(
         self,

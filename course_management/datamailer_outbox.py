@@ -251,33 +251,54 @@ def _handle_outbox_send_error(event, config, exc):
     return config.strict
 
 
+def _upsert_contact_if_present(client, payload):
+    contact_payload = payload.get("contact_payload")
+    if contact_payload:
+        client.upsert_contact(contact_payload)
+
+
+def _send_member_upsert_event(client, payload):
+    _upsert_contact_if_present(client, payload)
+    return client.upsert_recipient_list_member(
+        payload["list_key"],
+        payload["source_object_key"],
+        payload["member_payload"],
+    )
+
+
+def _send_member_remove_event(client, payload):
+    return client.remove_recipient_list_member(
+        payload["list_key"],
+        payload["source_object_key"],
+    )
+
+
+def _send_members_bulk_upsert_event(client, payload):
+    return client.bulk_upsert_recipient_list_members(
+        payload["list_key"],
+        payload["member_sync_payload"],
+    )
+
+
+def _send_contact_erase_event(client, payload):
+    return client.erase_contact(payload["email"])
+
+
+_OUTBOX_EVENT_SENDERS = {
+    "recipient_list.member_upsert": _send_member_upsert_event,
+    "recipient_list.member_remove": _send_member_remove_event,
+    "recipient_list.members_bulk_upsert": _send_members_bulk_upsert_event,
+    "contact.erase": _send_contact_erase_event,
+}
+
+
 def _send_event(client, event_type: str, payload: dict[str, Any]):
-    if event_type == "recipient_list.member_upsert":
-        contact_payload = payload.get("contact_payload")
-        if contact_payload:
-            client.upsert_contact(contact_payload)
-        return client.upsert_recipient_list_member(
-            payload["list_key"],
-            payload["source_object_key"],
-            payload["member_payload"],
+    sender = _OUTBOX_EVENT_SENDERS.get(event_type)
+    if sender is None:
+        raise ValueError(
+            f"Unsupported Datamailer outbox event type: {event_type}"
         )
-
-    if event_type == "recipient_list.member_remove":
-        return client.remove_recipient_list_member(
-            payload["list_key"],
-            payload["source_object_key"],
-        )
-
-    if event_type == "recipient_list.members_bulk_upsert":
-        return client.bulk_upsert_recipient_list_members(
-            payload["list_key"],
-            payload["member_sync_payload"],
-        )
-
-    if event_type == "contact.erase":
-        return client.erase_contact(payload["email"])
-
-    raise ValueError(f"Unsupported Datamailer outbox event type: {event_type}")
+    return sender(client, payload)
 
 
 def _mark_acked(event, response_payload):
@@ -312,14 +333,24 @@ def _mark_failed(event, message):
     )
 
 
+def _http_error_status_code(exc):
+    response = getattr(exc, "response", None)
+    return getattr(response, "status_code", 0) or 0
+
+
+def _is_non_retryable_http_error(exc):
+    if not isinstance(exc, requests.HTTPError):
+        return False
+
+    status_code = _http_error_status_code(exc)
+    return bool(status_code and status_code < 500 and status_code != 429)
+
+
 def _status_for_error(exc, event):
     if event.attempt_count >= event.max_attempts:
         return DatamailerOutboxStatus.FAILED
-    if isinstance(exc, requests.HTTPError):
-        response = getattr(exc, "response", None)
-        status_code = getattr(response, "status_code", 0) or 0
-        if status_code and status_code < 500 and status_code != 429:
-            return DatamailerOutboxStatus.FAILED
+    if _is_non_retryable_http_error(exc):
+        return DatamailerOutboxStatus.FAILED
     return DatamailerOutboxStatus.RETRYING
 
 
