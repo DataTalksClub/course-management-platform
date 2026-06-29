@@ -102,7 +102,8 @@ class Command(BaseCommand):
         options,
     ):
         drift_count = 0
-        for list_key, payload in batches.items():
+        batch_items = batches.items()
+        for list_key, payload in batch_items:
             drift = self._audit_list(
                 client,
                 config,
@@ -128,7 +129,8 @@ class Command(BaseCommand):
             )
 
     def _validate_options(self, options):
-        for error in option_validation_errors(options):
+        errors = option_validation_errors(options)
+        for error in errors:
             raise CommandError(error)
 
     def _audit_list(self, client, config, list_key, payload, *, limit, repair):
@@ -194,36 +196,45 @@ class Command(BaseCommand):
             f"email_mismatches={len(drift['email_mismatches'])} "
             f"metadata_mismatches={len(drift['metadata_mismatches'])}"
         )
-        for label in (
+        drift_labels = (
             "missing",
             "unexpected",
             "email_mismatches",
             "metadata_mismatches",
-        ):
+        )
+        for label in drift_labels:
             if drift[label]:
                 self.stdout.write(f"{label}: {', '.join(drift[label])}")
 
 
 def expected_members(payload):
-    return {
-        member["source_object_key"]: {
+    members = {}
+    payload_members = payload["members"]
+    for member in payload_members:
+        if member.get("status", "active") == "removed":
+            continue
+        source_object_key = member["source_object_key"]
+        member_record = {
             "email": member["email"].strip().lower(),
             "metadata": member.get("metadata") or {},
         }
-        for member in payload["members"]
-        if member.get("status", "active") != "removed"
-    }
+        members[source_object_key] = member_record
+    return members
 
 
 def actual_members(response):
-    return {
-        member["source_object_key"]: {
+    members = {}
+    response_members = response.get("members", [])
+    for member in response_members:
+        if member.get("status", "active") == "removed":
+            continue
+        source_object_key = member["source_object_key"]
+        member_record = {
             "email": member["email"].strip().lower(),
             "metadata": member.get("metadata") or {},
         }
-        for member in response.get("members", [])
-        if member.get("status", "active") != "removed"
-    }
+        members[source_object_key] = member_record
+    return members
 
 
 def option_validation_errors(options):
