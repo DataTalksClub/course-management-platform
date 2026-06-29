@@ -1,6 +1,7 @@
 import random
 import logging
 
+from dataclasses import dataclass
 from time import time
 from datetime import timedelta
 from enum import Enum
@@ -43,6 +44,32 @@ PEER_REVIEW_WINDOW = timedelta(days=7)
 class ProjectActionStatus(Enum):
     OK = "OK"
     FAIL = "Warning"
+
+
+@dataclass(frozen=True)
+class PeerReviewGroupData:
+    responses_by_review: dict
+    submissions: dict
+    reviews_by_submission: dict
+    reviews_by_reviewer: dict
+
+
+@dataclass(frozen=True)
+class ProjectScoringData:
+    project: Project
+    submissions: dict
+    reviews_by_submission: dict
+    reviews_by_reviewer: dict
+    criteria: Iterable
+
+
+@dataclass(frozen=True)
+class SubmissionScoringData:
+    submission: ProjectSubmission
+    project: Project
+    reviews: list
+    reviewed: list
+    criteria: Iterable
 
 
 def select_random_assignment(
@@ -340,30 +367,26 @@ def _criteria_responses_by_review(peer_reviews):
 
 def _ensure_peer_review_groups(
     review,
-    submissions,
-    reviews_by_submission,
-    reviews_by_reviewer,
+    group_data,
 ):
     submission = review.submission_under_evaluation
-    submissions[submission.id] = submission
-    reviews_by_submission.setdefault(submission.id, [])
-    reviews_by_reviewer.setdefault(review.reviewer.id, [])
+    group_data.submissions[submission.id] = submission
+    group_data.reviews_by_submission.setdefault(submission.id, [])
+    group_data.reviews_by_reviewer.setdefault(review.reviewer.id, [])
     return submission
 
 
 def _attach_submitted_peer_review(
     review,
     submission,
-    responses_by_review,
-    reviews_by_submission,
-    reviews_by_reviewer,
+    group_data,
 ):
     if review.state != PeerReviewState.SUBMITTED.value:
         return
 
-    reviews_by_submission[submission.id].append(review)
-    reviews_by_reviewer[review.reviewer.id].append(review)
-    review.responses = responses_by_review[review.id]
+    group_data.reviews_by_submission[submission.id].append(review)
+    group_data.reviews_by_reviewer[review.reviewer.id].append(review)
+    review.responses = group_data.responses_by_review[review.id]
 
 
 def _group_peer_reviews(peer_reviews):
@@ -377,20 +400,22 @@ def _group_peer_reviews(peer_reviews):
     submissions = {}
     reviews_by_submission = {}
     reviews_by_reviewer = {}
+    group_data = PeerReviewGroupData(
+        responses_by_review=responses_by_review,
+        submissions=submissions,
+        reviews_by_submission=reviews_by_submission,
+        reviews_by_reviewer=reviews_by_reviewer,
+    )
 
     for review in peer_reviews:
         submission = _ensure_peer_review_groups(
             review,
-            submissions,
-            reviews_by_submission,
-            reviews_by_reviewer,
+            group_data,
         )
         _attach_submitted_peer_review(
             review,
             submission,
-            responses_by_review,
-            reviews_by_submission,
-            reviews_by_reviewer,
+            group_data,
         )
 
     return submissions, reviews_by_submission, reviews_by_reviewer
@@ -459,28 +484,32 @@ def _assign_peer_review_scores(submission, project, reviewed) -> int:
     return mandatory_reviews_count
 
 
-def _score_submission(submission, project, reviews, reviewed, criteria):
+def _score_submission(data):
     """Compute and assign every score component for a single submission.
 
-    Mutates ``submission`` in place and returns the per-criteria
+    Mutates ``data.submission`` in place and returns the per-criteria
     ProjectEvaluationScore objects produced for it.
     """
     project_score, scores = calculate_project_score(
-        submission=submission,
-        evaluation_criteria=criteria,
-        reviews=reviews,
+        submission=data.submission,
+        evaluation_criteria=data.criteria,
+        reviews=data.reviews,
     )
-    submission.project_score = project_score
+    data.submission.project_score = project_score
 
-    _assign_peer_review_scores(submission, project, reviewed)
-    submission.project_learning_in_public_score = _project_lip_score(
-        submission, project
+    _assign_peer_review_scores(
+        data.submission,
+        data.project,
+        data.reviewed,
     )
-    submission.project_faq_score = _project_faq_score(submission)
-    submission.total_score = _project_total_score(submission)
-    submission.passed = (
-        submission.project_score >= project.points_to_pass
-    ) and submission.reviewed_enough_peers
+    data.submission.project_learning_in_public_score = (
+        _project_lip_score(data.submission, data.project)
+    )
+    data.submission.project_faq_score = _project_faq_score(data.submission)
+    data.submission.total_score = _project_total_score(data.submission)
+    data.submission.passed = (
+        data.submission.project_score >= data.project.points_to_pass
+    ) and data.submission.reviewed_enough_peers
 
     return scores
 
@@ -496,24 +525,23 @@ def _peer_reviews_for_project(project):
     ).select_related("submission_under_evaluation", "reviewer")
 
 
-def _score_project_submissions(
-    project,
-    submissions,
-    reviews_by_submission,
-    reviews_by_reviewer,
-    criteria,
-):
+def _score_project_submissions(data):
     submissions_to_update = []
     all_scores = []
     passed = 0
 
-    for submission_id, submission in submissions.items():
-        reviews = reviews_by_submission[submission_id]
-        reviewed = reviews_by_reviewer.get(submission_id) or []
+    for submission_id, submission in data.submissions.items():
+        reviews = data.reviews_by_submission[submission_id]
+        reviewed = data.reviews_by_reviewer.get(submission_id) or []
 
-        scores = _score_submission(
-            submission, project, reviews, reviewed, criteria
+        submission_data = SubmissionScoringData(
+            submission=submission,
+            project=data.project,
+            reviews=reviews,
+            reviewed=reviewed,
+            criteria=data.criteria,
         )
+        scores = _score_submission(submission_data)
         all_scores.extend(scores)
         submissions_to_update.append(submission)
 
@@ -567,14 +595,15 @@ def _calculate_project_scoring(project, peer_reviews):
         course=project.course
     ).all()
 
+    scoring_data = ProjectScoringData(
+        project=project,
+        submissions=submissions,
+        reviews_by_submission=reviews_by_submission,
+        reviews_by_reviewer=reviews_by_reviewer,
+        criteria=criteria,
+    )
     submissions_to_update, all_scores, passed = (
-        _score_project_submissions(
-            project,
-            submissions,
-            reviews_by_submission,
-            reviews_by_reviewer,
-            criteria,
-        )
+        _score_project_submissions(scoring_data)
     )
 
     return submissions, submissions_to_update, all_scores, passed
