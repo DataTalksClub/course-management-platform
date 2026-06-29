@@ -72,6 +72,21 @@ class ReminderTemplateContextData:
     context_extra: Callable[[str], dict[str, Any]]
 
 
+@dataclass(frozen=True)
+class ReminderEventData:
+    config: DatamailerConfig
+    spec: ReminderSpec
+    course: Course
+    item_id: int
+    item_slug: str
+    item_title: str
+    reminder_key: str
+    deadline: datetime
+    members: list[dict[str, Any]]
+    metadata: dict[str, Any]
+    context_extra: Callable[[str], dict[str, Any]]
+
+
 def aware_now(value: str):
     if not value:
         return timezone.now()
@@ -296,50 +311,58 @@ def deadline_context(
     return context
 
 
-def build_reminder_event(
-    config,
-    spec,
-    *,
-    course,
-    item_id,
-    item_slug,
-    item_title,
-    reminder_key,
-    deadline,
-    members,
-    metadata,
-    context_extra,
-):
-    action_url = deadline_action_url(spec, course, item_slug)
-    event_key = reminder_event_key(spec, item_id, reminder_key)
-    context_data = ReminderTemplateContextData(
-        spec=spec,
-        course=course,
-        item_slug=item_slug,
-        item_title=item_title,
-        reminder_key=reminder_key,
-        deadline=deadline,
-        action_url=action_url,
-        context_extra=context_extra,
+def reminder_event_send_payload(data, event_key, context):
+    return deadline_send_payload(
+        data.config,
+        event_key=event_key,
+        template_context=context,
+        metadata=data.metadata,
     )
-    context = reminder_template_context(context_data)
+
+
+def reminder_event_context(data, action_url):
+    context_data = ReminderTemplateContextData(
+        spec=data.spec,
+        course=data.course,
+        item_slug=data.item_slug,
+        item_title=data.item_title,
+        reminder_key=data.reminder_key,
+        deadline=data.deadline,
+        action_url=action_url,
+        context_extra=data.context_extra,
+    )
+    return reminder_template_context(context_data)
+
+
+def build_reminder_event(data):
+    action_url = deadline_action_url(
+        data.spec,
+        data.course,
+        data.item_slug,
+    )
+    event_key = reminder_event_key(
+        data.spec,
+        data.item_id,
+        data.reminder_key,
+    )
+    context = reminder_event_context(data, action_url)
     return ReminderEvent(
         key=event_key,
-        list_key=reminder_list_key(spec, course, item_slug, reminder_key),
+        list_key=reminder_list_key(
+            data.spec,
+            data.course,
+            data.item_slug,
+            data.reminder_key,
+        ),
         list_name=reminder_list_name(
-            spec,
-            course,
-            item_title,
-            reminder_key,
+            data.spec,
+            data.course,
+            data.item_title,
+            data.reminder_key,
         ),
-        list_metadata=metadata,
-        send_payload=deadline_send_payload(
-            config,
-            event_key=event_key,
-            template_context=context,
-            metadata=metadata,
-        ),
-        members=members,
+        list_metadata=data.metadata,
+        send_payload=reminder_event_send_payload(data, event_key, context),
+        members=data.members,
     )
 
 
@@ -587,9 +610,9 @@ def homework_reminder_event(config, spec, homework):
     )
     if not members:
         return None
-    return build_reminder_event(
-        config,
-        spec,
+    event_data = ReminderEventData(
+        config=config,
+        spec=spec,
         course=homework.course,
         item_id=homework.pk,
         item_slug=homework.slug,
@@ -600,6 +623,7 @@ def homework_reminder_event(config, spec, homework):
         metadata=metadata,
         context_extra=homework_deadline_context(homework),
     )
+    return build_reminder_event(event_data)
 
 
 def project_submission_reminder_event(config, spec, project, reminder_key):
@@ -619,9 +643,9 @@ def project_submission_reminder_event(config, spec, project, reminder_key):
     )
     if not members:
         return None
-    return build_reminder_event(
-        config,
-        spec,
+    event_data = ReminderEventData(
+        config=config,
+        spec=spec,
         course=project.course,
         item_id=project.pk,
         item_slug=project.slug,
@@ -632,6 +656,7 @@ def project_submission_reminder_event(config, spec, project, reminder_key):
         metadata=metadata,
         context_extra=project_submission_deadline_context(project),
     )
+    return build_reminder_event(event_data)
 
 
 def peer_review_reminder_event(config, spec, project):
@@ -651,9 +676,9 @@ def peer_review_reminder_event(config, spec, project):
     )
     if not members:
         return None
-    return build_reminder_event(
-        config,
-        spec,
+    event_data = ReminderEventData(
+        config=config,
+        spec=spec,
         course=project.course,
         item_id=project.pk,
         item_slug=project.slug,
@@ -664,6 +689,7 @@ def peer_review_reminder_event(config, spec, project):
         metadata=metadata,
         context_extra=peer_review_deadline_context(project),
     )
+    return build_reminder_event(event_data)
 
 
 def homework_events(config, now, course_slug):
