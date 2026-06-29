@@ -132,6 +132,31 @@ class DatamailerClientTest(TestCase):
         )
         response.raise_for_status.assert_called_once()
 
+    def assert_datamailer_method_case(
+        self,
+        method_name,
+        args,
+        method,
+        path,
+        *,
+        json_payload=None,
+        params=None,
+    ):
+        session, response = self.datamailer_session()
+        client = self.datamailer_client(session)
+
+        result = getattr(client, method_name)(*args)
+
+        self.assertEqual(result, {"ok": True})
+        self.assert_datamailer_request(
+            response,
+            session,
+            method,
+            path,
+            json_payload=json_payload,
+            params=params,
+        )
+
     def configure_campaign_command_mocks(
         self,
         upsert_campaign,
@@ -1331,7 +1356,20 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
-        cases = [
+        for case in self.recipient_list_import_method_cases():
+            method_name, args, method, path, expected_json, expected_params = case
+            with self.subTest(method_name=method_name):
+                self.assert_datamailer_method_case(
+                    method_name,
+                    args,
+                    method,
+                    path,
+                    json_payload=expected_json,
+                    params=expected_params,
+                )
+
+    def recipient_list_import_method_cases(self):
+        return [
             (
                 "create_recipient_list_import",
                 (
@@ -1360,23 +1398,6 @@ class DatamailerClientTest(TestCase):
                 {"audience": "dtc-courses", "client": "dtc-courses"},
             ),
         ]
-
-        for method_name, args, method, path, expected_json, expected_params in cases:
-            with self.subTest(method_name=method_name):
-                session, response = self.datamailer_session()
-                client = self.datamailer_client(session)
-
-                result = getattr(client, method_name)(*args)
-
-                self.assertEqual(result, {"ok": True})
-                self.assert_datamailer_request(
-                    response,
-                    session,
-                    method,
-                    path,
-                    json_payload=expected_json,
-                    params=expected_params,
-                )
 
     def test_recipient_list_transactional_send_uses_expected_endpoint(
         self,
@@ -1519,7 +1540,18 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_campaign_action_methods_use_expected_endpoints_and_scope(self):
-        actions = [
+        for method_name, extra_args, path, expected_json in self.campaign_action_cases():
+            with self.subTest(method_name=method_name):
+                self.assert_datamailer_method_case(
+                    method_name,
+                    ("course-start-2026", *extra_args),
+                    "POST",
+                    path,
+                    json_payload=expected_json,
+                )
+
+    def campaign_action_cases(self):
+        return [
             (
                 "queue_campaign",
                 (),
@@ -1549,22 +1581,6 @@ class DatamailerClientTest(TestCase):
                 },
             ),
         ]
-
-        for method_name, extra_args, path, expected_json in actions:
-            with self.subTest(method_name=method_name):
-                session, response = self.datamailer_session()
-                client = self.datamailer_client(session)
-
-                result = getattr(client, method_name)("course-start-2026", *extra_args)
-
-                self.assertEqual(result, {"ok": True})
-                self.assert_datamailer_request(
-                    response,
-                    session,
-                    "POST",
-                    path,
-                    json_payload=expected_json,
-                )
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("course_management.datamailer.DatamailerClient.queue_campaign")
