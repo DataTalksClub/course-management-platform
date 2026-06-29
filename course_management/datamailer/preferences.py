@@ -48,6 +48,11 @@ def email_preference_category_tags() -> list[str]:
         for category in EMAIL_PREFERENCE_CATEGORIES.values()
     ]
 
+
+def _normalized_user_email(user) -> str:
+    return (user.email or "").strip().lower()
+
+
 def email_preference_values_from_response(
     response: dict[str, Any] | None,
 ) -> dict[str, bool]:
@@ -65,8 +70,34 @@ def email_preference_values_from_response(
             values[field] = item["enabled"]
     return values
 
+
+def _email_preference_payload(
+    field: str,
+    enabled: bool,
+) -> dict[str, Any] | None:
+    category = EMAIL_PREFERENCE_CATEGORIES.get(field)
+    if category is None:
+        return None
+    return {
+        "tag": category["tag"],
+        "label": category["label"],
+        "enabled": bool(enabled),
+    }
+
+
+def _email_preference_payloads(
+    values: dict[str, bool],
+) -> list[dict[str, Any]]:
+    payloads = []
+    for field, enabled in values.items():
+        payload = _email_preference_payload(field, enabled)
+        if payload is not None:
+            payloads.append(payload)
+    return payloads
+
+
 def get_email_preferences_for_user(user) -> dict[str, bool] | None:
-    email = (user.email or "").strip().lower()
+    email = _normalized_user_email(user)
     if not email:
         return None
     config = DatamailerConfig.from_settings()
@@ -93,25 +124,14 @@ def update_email_preferences_for_user(
     user,
     values: dict[str, bool],
 ) -> bool:
-    email = (user.email or "").strip().lower()
+    email = _normalized_user_email(user)
     if not email:
         return False
     config = DatamailerConfig.from_settings()
     if config is None:
         return False
 
-    categories = []
-    for field, enabled in values.items():
-        category = EMAIL_PREFERENCE_CATEGORIES.get(field)
-        if category is None:
-            continue
-        categories.append(
-            {
-                "tag": category["tag"],
-                "label": category["label"],
-                "enabled": bool(enabled),
-            }
-        )
+    categories = _email_preference_payloads(values)
     if not categories:
         return False
 
