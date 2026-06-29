@@ -379,6 +379,10 @@ class CadminViewTests(TestCase):
             kwargs={"course_slug": self.course.slug},
         )
 
+    def cadmin_course_response(self):
+        self.login_admin()
+        return self.client.get(self.cadmin_course_url())
+
     def project_action_url(self, name):
         return reverse(
             name,
@@ -1611,49 +1615,12 @@ class CadminViewTests(TestCase):
         send_score_notification.assert_called_once_with(self.homework)
 
     def test_course_admin_shows_most_frequent_answer_action(self):
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=enrollment,
-        )
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
+        self.create_homework_submission()
 
-        response = self.client.get(
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            )
-        )
+        response = self.cadmin_course_response()
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Select most frequent answer")
-        self.assertContains(response, "Clear correct answers")
-        self.assertContains(
-            response,
-            reverse(
-                "cadmin_homework_set_correct_answers",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                },
-            ),
-        )
-        self.assertContains(
-            response,
-            reverse(
-                "cadmin_homework_clear_correct_answers",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                },
-            ),
-        )
+        self.assert_homework_submission_actions(response)
 
     def test_homework_set_correct_answers_uses_most_frequent_answer(
         self,
