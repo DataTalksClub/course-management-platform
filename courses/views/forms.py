@@ -214,23 +214,40 @@ class CourseRegistrationForm(forms.ModelForm):
         return registration
 
     def save_user_profile(self, registration):
-        if self.user is None or not self.user.is_authenticated:
+        if not _can_update_registration_user_profile(self.user):
             return
 
-        update_fields = []
-        certificate_name = registration.name.strip()
-        if certificate_name and self.user.certificate_name != certificate_name:
-            self.user.certificate_name = certificate_name
-            update_fields.append("certificate_name")
-
-        for user_field, value in (
-            ("country", registration.country),
-            ("region", registration.region),
-            ("registration_role", registration.role),
-        ):
-            if value and getattr(self.user, user_field) != value:
-                setattr(self.user, user_field, value)
-                update_fields.append(user_field)
-
+        update_fields = _update_user_profile_from_registration(
+            self.user,
+            registration,
+        )
         if update_fields:
             self.user.save(update_fields=update_fields)
+
+
+def _can_update_registration_user_profile(user):
+    return user is not None and user.is_authenticated
+
+
+def _update_user_profile_from_registration(user, registration):
+    update_fields = []
+    for field_name, value in _registration_profile_values(registration):
+        _update_user_profile_field(user, update_fields, field_name, value)
+    return update_fields
+
+
+def _registration_profile_values(registration):
+    return (
+        ("certificate_name", registration.name.strip()),
+        ("country", registration.country),
+        ("region", registration.region),
+        ("registration_role", registration.role),
+    )
+
+
+def _update_user_profile_field(user, update_fields, field_name, value):
+    if not value or getattr(user, field_name) == value:
+        return
+
+    setattr(user, field_name, value)
+    update_fields.append(field_name)
