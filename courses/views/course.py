@@ -124,38 +124,51 @@ def get_course_assignments(course: Course) -> list[dict]:
 
     homeworks = course.homework_set.all()
     for homework in homeworks:
-        homework_assignment = {
-            "type": "homework",
-            "label": "Homework",
-            "title": homework.title,
-            "due_date": homework.due_date,
-        }
+        homework_assignment = homework_assignment_record(homework)
         assignments.append(homework_assignment)
 
     projects = course.project_set.all()
     for project in projects:
-        project_assignment = {
-            "type": "project",
-            "label": "Project",
-            "title": project.title,
-            "due_date": project.submission_due_date,
-        }
+        project_assignment = project_assignment_record(project)
         assignments.append(project_assignment)
 
-        peer_review_assignment = {
-            "type": "peer_review",
-            "label": "Peer review",
-            "title": project.title,
-            "due_date": project.peer_review_due_date,
-        }
+        peer_review_assignment = peer_review_assignment_record(project)
         assignments.append(peer_review_assignment)
 
-    return sorted(
-        assignments,
-        key=lambda assignment: (
-            assignment["due_date"],
-            ASSIGNMENT_TYPE_ORDER[assignment["type"]],
-        ),
+    return sorted(assignments, key=course_assignment_sort_key)
+
+
+def homework_assignment_record(homework) -> dict:
+    return {
+        "type": "homework",
+        "label": "Homework",
+        "title": homework.title,
+        "due_date": homework.due_date,
+    }
+
+
+def project_assignment_record(project) -> dict:
+    return {
+        "type": "project",
+        "label": "Project",
+        "title": project.title,
+        "due_date": project.submission_due_date,
+    }
+
+
+def peer_review_assignment_record(project) -> dict:
+    return {
+        "type": "peer_review",
+        "label": "Peer review",
+        "title": project.title,
+        "due_date": project.peer_review_due_date,
+    }
+
+
+def course_assignment_sort_key(assignment):
+    return (
+        assignment["due_date"],
+        ASSIGNMENT_TYPE_ORDER[assignment["type"]],
     )
 
 
