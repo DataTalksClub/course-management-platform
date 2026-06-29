@@ -896,6 +896,22 @@ def _build_leaderboard_data(course, cache_key):
     return enrollments_data
 
 
+def _leaderboard_cache_missing_current_student(
+    enrollments_data,
+    current_student_enrollment,
+    current_student_enrollment_id,
+):
+    if current_student_enrollment_id is None:
+        return False
+    if not current_student_enrollment.display_on_leaderboard:
+        return False
+
+    return not any(
+        enrollment["id"] == current_student_enrollment_id
+        for enrollment in enrollments_data
+    )
+
+
 def _get_leaderboard_data(
     course,
     cache_key,
@@ -908,13 +924,10 @@ def _get_leaderboard_data(
         return _build_leaderboard_data(course, cache_key)
 
     logger.info(f"Cache hit for leaderboard of course {course.slug}")
-    if (
-        current_student_enrollment_id is not None
-        and current_student_enrollment.display_on_leaderboard
-        and not any(
-            enrollment["id"] == current_student_enrollment_id
-            for enrollment in enrollments_data
-        )
+    if _leaderboard_cache_missing_current_student(
+        enrollments_data,
+        current_student_enrollment,
+        current_student_enrollment_id,
     ):
         return _build_leaderboard_data(course, cache_key)
 
