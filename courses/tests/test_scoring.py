@@ -228,50 +228,47 @@ class HomeworkScoringTestCase(TestCase):
         self.assertEqual(self.homework.is_scored(), True)
         self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
 
+    def leaderboard_students(self):
+        return [
+            (self.student1, self.enrollment1),
+            (self.student2, self.enrollment2),
+            (self.student3, self.enrollment3),
+            (self.student4, self.enrollment4),
+            (self.student5, self.enrollment5),
+        ]
+
+    def leaderboard_answer_sets(self):
+        return [
+            ["paris", "15", "nitrogen", "2", "1", "1,3,4"],
+            ["london", "20", "nitrogen", "1", "1", "1,3,4"],
+            ["paris", "15", "oxygen", "2", "2", "1,3"],
+            ["berlin", "15", "oxygen", "1", "2", "1,2,3"],
+            ["madrid", "20", "carbon dioxide", "1", "2", "2,3,4"],
+        ]
+
+    def leaderboard_expected_scores(self):
+        return [111111, 110100, 1011, 10, 0]
+
+    def leaderboard_row(self, student, enrollment, answers, score, position):
+        return {
+            "student": student,
+            "enrollment": enrollment,
+            "answers": answers,
+            "score": score,
+            "leaderboard_position": position,
+        }
+
     def leaderboard_test_data(self):
         return [
-            {
-                "student": self.student1,
-                "enrollment": self.enrollment1,
-                "answers": ["paris", "15", "nitrogen", "2", "1", "1,3,4"],
-                "score": 111111,
-                "leaderboard_position": 1,
-            },
-            {
-                "student": self.student2,
-                "enrollment": self.enrollment2,
-                "answers": ["london", "20", "nitrogen", "1", "1", "1,3,4"],
-                "score": 110100,
-                "leaderboard_position": 2,
-            },
-            {
-                "student": self.student3,
-                "enrollment": self.enrollment3,
-                "answers": ["paris", "15", "oxygen", "2", "2", "1,3"],
-                "score": 1011,
-                "leaderboard_position": 3,
-            },
-            {
-                "student": self.student4,
-                "enrollment": self.enrollment4,
-                "answers": ["berlin", "15", "oxygen", "1", "2", "1,2,3"],
-                "score": 10,
-                "leaderboard_position": 4,
-            },
-            {
-                "student": self.student5,
-                "enrollment": self.enrollment5,
-                "answers": [
-                    "madrid",
-                    "20",
-                    "carbon dioxide",
-                    "1",
-                    "2",
-                    "2,3,4",
-                ],
-                "score": 0,
-                "leaderboard_position": 5,
-            },
+            self.leaderboard_row(student, enrollment, answers, score, position)
+            for position, ((student, enrollment), answers, score) in enumerate(
+                zip(
+                    self.leaderboard_students(),
+                    self.leaderboard_answer_sets(),
+                    self.leaderboard_expected_scores(),
+                ),
+                start=1,
+            )
         ]
 
     def assert_leaderboard_rows(self, data):
