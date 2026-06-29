@@ -233,6 +233,23 @@ def _course_create_validation_error(course):
     return None
 
 
+def _validated_course_from_create_data(data):
+    err = _missing_course_create_fields_response(data)
+    if err:
+        return None, err
+
+    err = _duplicate_course_slug_response(data)
+    if err:
+        return None, err
+
+    course = _course_from_create_data(data)
+    err = _course_create_validation_error(course)
+    if err:
+        return None, err
+
+    return course, None
+
+
 def _create_course_response(request):
     staff_error = require_staff_token(request)
     if staff_error:
@@ -242,16 +259,7 @@ def _create_course_response(request):
     if err:
         return err
 
-    err = _missing_course_create_fields_response(data)
-    if err:
-        return err
-
-    err = _duplicate_course_slug_response(data)
-    if err:
-        return err
-
-    course = _course_from_create_data(data)
-    err = _course_create_validation_error(course)
+    course, err = _validated_course_from_create_data(data)
     if err:
         return err
 
