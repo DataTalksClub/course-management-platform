@@ -115,8 +115,18 @@ class Command(BaseCommand):
             raise CommandError("--limit must be between 1 and 10000.")
 
     def _audit_list(self, client, config, list_key, payload, *, limit, repair):
+        response = self._list_members(client, config, list_key, limit)
+        self._ensure_complete_response(response, list_key, limit)
+        expected, actual, drift = self._member_drift(payload, response)
+        self._print_drift(list_key, expected, actual, drift)
+
+        if repair and drift["has_drift"]:
+            self._repair_list(client, config, list_key, payload)
+        return drift
+
+    def _list_members(self, client, config, list_key, limit):
         try:
-            response = client.recipient_list_members(
+            return client.recipient_list_members(
                 list_key,
                 include_removed=False,
                 limit=limit,
@@ -128,35 +138,36 @@ class Command(BaseCommand):
                 f"Datamailer member listing failed for {list_key}: {exc}"
             ) from exc
 
+    def _ensure_complete_response(self, response, list_key, limit):
         if (response or {}).get("has_more"):
             raise CommandError(
                 f"Datamailer returned more than {limit} active members for {list_key}; "
                 "rerun with a narrower course/item filter."
             )
 
+    def _member_drift(self, payload, response):
         expected = expected_members(payload)
         actual = actual_members(response or {})
         drift = compare_members(expected, actual)
-        self._print_drift(list_key, expected, actual, drift)
+        return expected, actual, drift
 
-        if repair and drift["has_drift"]:
-            try:
-                repair_response = client.reconcile_recipient_list_members(
-                    list_key,
-                    payload,
-                )
-            except requests.RequestException as exc:
-                if config.strict:
-                    raise
-                raise CommandError(
-                    f"Datamailer repair failed for {list_key}: {exc}"
-                ) from exc
-            self.stdout.write(
-                "Repaired "
-                f"{list_key}: upserted={repair_response.get('upsert_count', 0)} "
-                f"removed={repair_response.get('removed_count', 0)}"
+    def _repair_list(self, client, config, list_key, payload):
+        try:
+            repair_response = client.reconcile_recipient_list_members(
+                list_key,
+                payload,
             )
-        return drift
+        except requests.RequestException as exc:
+            if config.strict:
+                raise
+            raise CommandError(
+                f"Datamailer repair failed for {list_key}: {exc}"
+            ) from exc
+        self.stdout.write(
+            "Repaired "
+            f"{list_key}: upserted={repair_response.get('upsert_count', 0)} "
+            f"removed={repair_response.get('removed_count', 0)}"
+        )
 
     def _print_drift(self, list_key, expected, actual, drift):
         self.stdout.write(

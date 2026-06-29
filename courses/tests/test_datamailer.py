@@ -563,7 +563,13 @@ class DatamailerClientTest(TestCase):
         )
         return enrollment, list_key, source_object_key, payload
 
-    def audit_enrollment_recipient_list(self, course, *, repair=False):
+    def audit_enrollment_recipient_list(
+        self,
+        course,
+        *,
+        repair=False,
+        extra_args=None,
+    ):
         out = StringIO()
         command_args = [
             "audit_datamailer_recipient_lists",
@@ -573,6 +579,8 @@ class DatamailerClientTest(TestCase):
         ]
         if repair:
             command_args.append("--repair")
+        if extra_args:
+            command_args.extend(extra_args)
         call_command(*command_args, stdout=out)
         return out.getvalue()
 
@@ -3521,6 +3529,49 @@ class DatamailerClientTest(TestCase):
             source_object_key,
             output,
         )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_members"
+    )
+    def test_recipient_list_audit_rejects_truncated_member_listing(
+        self,
+        recipient_list_members,
+    ):
+        recipient_list_members.return_value = {"has_more": True, "members": []}
+        enrollment, list_key, _source_object_key, _payload = (
+            self.create_recipient_list_audit_target()
+        )
+
+        with self.assertRaisesMessage(
+            CommandError,
+            f"Datamailer returned more than 2 active members for {list_key}",
+        ):
+            self.audit_enrollment_recipient_list(
+                enrollment.course,
+                extra_args=["--limit", "2"],
+            )
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_members"
+    )
+    def test_recipient_list_audit_wraps_member_listing_errors(
+        self,
+        recipient_list_members,
+    ):
+        recipient_list_members.side_effect = requests.RequestException(
+            "network error"
+        )
+        enrollment, list_key, _source_object_key, _payload = (
+            self.create_recipient_list_audit_target()
+        )
+
+        with self.assertRaisesMessage(
+            CommandError,
+            f"Datamailer member listing failed for {list_key}: network error",
+        ):
+            self.audit_enrollment_recipient_list(enrollment.course)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
