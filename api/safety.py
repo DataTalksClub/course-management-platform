@@ -13,6 +13,15 @@ class PatchFieldRules:
     date_fields: set[str]
 
 
+@dataclass(frozen=True)
+class DeleteObjectData:
+    instance: object
+    closed_state: str
+    related_queryset: object
+    related_name: str
+    noun: str
+
+
 def error_response(message, code, status=400, details=None):
     data = {"error": message, "code": code}
     if details:
@@ -51,24 +60,28 @@ def ensure_no_related_records_for_delete(queryset, related_name, noun):
     return None
 
 
-def delete_object_or_error(
-    instance, *, closed_state, related_queryset, related_name, noun
-):
+def delete_object_or_error(data):
     """Delete instance if it's closed and has no related records.
 
     Returns the success JsonResponse, or an error response if a guard fails.
     """
-    err = ensure_closed_for_delete(instance, closed_state, noun)
-    if err:
-        return err
-
-    err = ensure_no_related_records_for_delete(
-        related_queryset, related_name, noun
+    err = ensure_closed_for_delete(
+        data.instance,
+        data.closed_state,
+        data.noun,
     )
     if err:
         return err
 
-    instance.delete()
+    err = ensure_no_related_records_for_delete(
+        data.related_queryset,
+        data.related_name,
+        data.noun,
+    )
+    if err:
+        return err
+
+    data.instance.delete()
     return JsonResponse({"deleted": True})
 
 

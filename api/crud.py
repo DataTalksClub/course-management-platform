@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
 from api.safety import (
+    DeleteObjectData,
     PatchFieldRules,
     apply_patch_fields,
     delete_object_or_error,
@@ -112,13 +113,14 @@ def detail_delete_response(
     instance,
     config,
 ):
-    return delete_object_or_error(
-        instance,
+    delete_data = DeleteObjectData(
+        instance=instance,
         closed_state=config.closed_state,
         related_queryset=config.related_queryset,
         related_name=config.related_name,
         noun=config.noun,
     )
+    return delete_object_or_error(delete_data)
 
 
 def detail_patch_response(
