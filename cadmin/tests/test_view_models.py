@@ -89,7 +89,7 @@ class CadminViewModelTests(TestCase):
             [item.id for item in expected_items],
         )
 
-    def test_project_submission_list_data_filters_statuses(self):
+    def create_project_submission_status_examples(self):
         incomplete = self.create_project_submission(
             self.create_enrollment("incomplete")
         )
@@ -110,6 +110,22 @@ class CadminViewModelTests(TestCase):
             note_to_peer="Please review",
             state=PeerReviewState.TO_REVIEW.value,
         )
+        return {
+            "incomplete": incomplete,
+            "missing_repo": missing_repo,
+            "not_passed": not_passed,
+        }
+
+    def assert_project_submission_filter(self, status_filter, expected_item):
+        submissions, _ = project_submission_list_data(
+            self.project,
+            "",
+            status_filter,
+        )
+        self.assert_item_ids(submissions, [expected_item])
+
+    def test_project_submission_list_data_filters_statuses(self):
+        examples = self.create_project_submission_status_examples()
 
         submissions, counts = project_submission_list_data(
             self.project,
@@ -117,7 +133,7 @@ class CadminViewModelTests(TestCase):
             "incomplete-reviews",
         )
 
-        self.assert_item_ids(submissions, [incomplete])
+        self.assert_item_ids(submissions, [examples["incomplete"]])
         self.assertEqual(
             counts,
             {
@@ -128,22 +144,16 @@ class CadminViewModelTests(TestCase):
                 "not_passed": 1,
             },
         )
-
-        submissions, _ = project_submission_list_data(
-            self.project,
-            "",
+        self.assert_project_submission_filter(
             "missing-repository",
+            examples["missing_repo"],
         )
-        self.assert_item_ids(submissions, [missing_repo])
-
-        submissions, _ = project_submission_list_data(
-            self.project,
-            "",
+        self.assert_project_submission_filter(
             "not-passed",
+            examples["not_passed"],
         )
-        self.assert_item_ids(submissions, [not_passed])
 
-    def test_enrollment_list_data_filters_statuses(self):
+    def create_enrollment_status_examples(self):
         lip_disabled = self.create_enrollment(
             "lip-disabled",
             disable_learning_in_public=True,
@@ -159,6 +169,22 @@ class CadminViewModelTests(TestCase):
         )
         for enrollment in (lip_disabled, zero_score, hidden):
             self.create_homework_submission(enrollment)
+        return {
+            "lip_disabled": lip_disabled,
+            "hidden": hidden,
+            "no_submissions": no_submissions,
+        }
+
+    def assert_enrollment_filter(self, status_filter, expected_item):
+        enrollments, _ = enrollment_list_data(
+            self.course,
+            "",
+            status_filter,
+        )
+        self.assert_item_ids(enrollments, [expected_item])
+
+    def test_enrollment_list_data_filters_statuses(self):
+        examples = self.create_enrollment_status_examples()
 
         enrollments, counts = enrollment_list_data(
             self.course,
@@ -166,7 +192,7 @@ class CadminViewModelTests(TestCase):
             "no-submissions",
         )
 
-        self.assert_item_ids(enrollments, [no_submissions])
+        self.assert_item_ids(enrollments, [examples["no_submissions"]])
         self.assertEqual(
             counts,
             {
@@ -177,17 +203,11 @@ class CadminViewModelTests(TestCase):
                 "no_submissions": 1,
             },
         )
-
-        enrollments, _ = enrollment_list_data(
-            self.course,
-            "",
+        self.assert_enrollment_filter(
             "lip-disabled",
+            examples["lip_disabled"],
         )
-        self.assert_item_ids(enrollments, [lip_disabled])
-
-        enrollments, _ = enrollment_list_data(
-            self.course,
-            "",
+        self.assert_enrollment_filter(
             "hidden",
+            examples["hidden"],
         )
-        self.assert_item_ids(enrollments, [hidden])
