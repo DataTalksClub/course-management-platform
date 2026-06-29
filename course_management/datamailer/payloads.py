@@ -1224,6 +1224,24 @@ def recipient_list_send_payload(
         }
     }
 
+
+def recipient_list_response_key(response: dict[str, Any]) -> str:
+    recipient_list = response.get("recipient_list") or {}
+    return recipient_list.get("key", "")
+
+
+def transient_recipient_list_key(
+    payload: dict[str, Any],
+    response: dict[str, Any],
+) -> str:
+    transient_list = response.get("transient_recipient_list") or {}
+    if transient_list.get("key"):
+        return transient_list["key"]
+
+    list_data = payload.get("list") or {}
+    return list_data.get("key", "")
+
+
 def datamailer_send_list_key(
     send_type: str,
     *,
@@ -1234,14 +1252,9 @@ def datamailer_send_list_key(
     if explicit_list_key:
         return explicit_list_key
     if send_type == DatamailerSendAuditType.RECIPIENT_LIST:
-        recipient_list = response.get("recipient_list") or {}
-        return recipient_list.get("key", "")
+        return recipient_list_response_key(response)
     if send_type == DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST:
-        transient_list = response.get("transient_recipient_list") or {}
-        if transient_list.get("key"):
-            return transient_list["key"]
-        list_data = payload.get("list") or {}
-        return list_data.get("key", "")
+        return transient_recipient_list_key(payload, response)
     return ""
 
 
