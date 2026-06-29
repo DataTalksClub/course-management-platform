@@ -285,7 +285,6 @@ def registration_recipient_list_payload(
     if not email:
         return None
 
-    course = registration.course
     list_key = registration_list_key(registration)
     source_object_key = f"registration:{registration.pk}"
     payload = recipient_list_member_payload(
@@ -708,41 +707,43 @@ def _homework_score_notification_context(homework):
 
 def _project_score_notification_context(project):
     course = project.course
-    project_url = public_url(
-        reverse(
-            "project",
-            kwargs={
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-            },
-        )
-    )
-    project_results_url = public_url(
-        reverse(
-            "project_results",
-            kwargs={
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-            },
-        )
-    )
-    profile_url = public_url(reverse("account_settings"))
+    urls = _project_score_notification_urls(course, project)
+    project_results_url = urls["project_results_url"]
+    profile_url = urls["profile_url"]
     return {
         "course_slug": course.slug,
         "course_title": course.title,
         "project_slug": project.slug,
         "project_title": project.title,
+        "course_url": urls["course_url"],
+        "project_url": urls["project_url"],
+        "project_results_url": project_results_url,
+        "scores_url": project_results_url,
+        "leaderboard_url": urls["leaderboard_url"],
+        "profile_url": profile_url,
+        **_score_notification_footer(course, project, profile_url),
+    }
+
+
+def _project_score_notification_urls(course, project):
+    project_kwargs = {
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+    }
+    return {
         "course_url": public_url(
             reverse("course", kwargs={"course_slug": course.slug})
         ),
-        "project_url": project_url,
-        "project_results_url": project_results_url,
-        "scores_url": project_results_url,
+        "project_url": public_url(
+            reverse("project", kwargs=project_kwargs)
+        ),
+        "project_results_url": public_url(
+            reverse("project_results", kwargs=project_kwargs)
+        ),
         "leaderboard_url": public_url(
             reverse("leaderboard", kwargs={"course_slug": course.slug})
         ),
-        "profile_url": profile_url,
-        **_score_notification_footer(course, project, profile_url),
+        "profile_url": public_url(reverse("account_settings")),
     }
 
 
