@@ -581,31 +581,50 @@ def _authenticated_course_progress(
     course: Course,
     registration_campaign: RegistrationCampaign | None,
 ) -> dict:
-    context = {
-        "has_enrollment": False,
-        "total_score": None,
-        "certificate_url": None,
-        "has_registration": False,
-    }
+    context = _course_enrollment_progress(user, course)
+    context["has_registration"] = _has_course_registration(
+        user,
+        registration_campaign,
+    )
+    return context
 
+
+def _course_enrollment_progress(user, course: Course) -> dict:
     try:
         enrollment = Enrollment.objects.get(
             student=user,
             course=course,
         )
-        context["has_enrollment"] = True
-        context["total_score"] = enrollment.total_score
-        context["certificate_url"] = enrollment.certificate_url
     except Enrollment.DoesNotExist:
-        pass
+        return _empty_course_enrollment_progress()
 
-    if registration_campaign:
-        context["has_registration"] = CourseRegistration.objects.filter(
-            campaign=registration_campaign,
-            email_normalized=(user.email or "").strip().lower(),
-        ).exists()
+    return {
+        "has_enrollment": True,
+        "total_score": enrollment.total_score,
+        "certificate_url": enrollment.certificate_url,
+    }
 
-    return context
+
+def _empty_course_enrollment_progress() -> dict:
+    return {
+        "has_enrollment": False,
+        "total_score": None,
+        "certificate_url": None,
+    }
+
+
+def _has_course_registration(
+    user,
+    registration_campaign: RegistrationCampaign | None,
+) -> bool:
+    if not registration_campaign:
+        return False
+
+    email_normalized = (user.email or "").strip().lower()
+    return CourseRegistration.objects.filter(
+        campaign=registration_campaign,
+        email_normalized=email_normalized,
+    ).exists()
 
 
 def course_user_context(
