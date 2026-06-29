@@ -203,54 +203,107 @@ HOMEWORK_PATCH_FIELDS = {
 VALID_HOMEWORK_STATES = {s.value for s in HomeworkState}
 
 
+HOMEWORK_DIRECT_UPDATE_FIELDS = (
+    "learning_in_public_cap",
+    "homework_url_field",
+    "time_spent_lectures_field",
+    "time_spent_homework_field",
+    "faq_contribution_field",
+)
+
+
+def _homework_title_from_data(data):
+    return data.get("title", data.get("name"))
+
+
+def _invalid_instructions_url_response(error):
+    return error_response(
+        error,
+        "invalid_instructions_url",
+        details={"field": "instructions_url"},
+    )
+
+
+def _invalid_due_date_response():
+    return error_response(
+        "Invalid date format for due_date",
+        "invalid_date_format",
+        details={"field": "due_date"},
+    )
+
+
+def _invalid_homework_state_response():
+    return error_response(
+        f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
+        "invalid_homework_state",
+        details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
+    )
+
+
 def _apply_homework_data(homework, data):
-    title = data.get("title", data.get("name"))
+    title = _homework_title_from_data(data)
     if title is not None:
         homework.title = title
 
     if "description" in data:
         homework.description = data["description"]
 
-    if "instructions_url" in data:
-        error = instructions_url_error(data["instructions_url"])
-        if error:
-            return error_response(
-                error,
-                "invalid_instructions_url",
-                details={"field": "instructions_url"},
-            )
-        homework.instructions_url = data["instructions_url"]
+    error = _apply_homework_instructions_url(homework, data)
+    if error:
+        return error
 
-    if "due_date" in data:
-        due_date = parse_date(data["due_date"])
-        if due_date is None:
-            return error_response(
-                "Invalid date format for due_date",
-                "invalid_date_format",
-                details={"field": "due_date"},
-            )
-        homework.due_date = due_date
+    error = _apply_homework_due_date(homework, data)
+    if error:
+        return error
 
-    for field in (
-        "state",
-        "learning_in_public_cap",
-        "homework_url_field",
-        "time_spent_lectures_field",
-        "time_spent_homework_field",
-        "faq_contribution_field",
-    ):
+    error = _apply_homework_state(homework, data)
+    if error:
+        return error
+
+    _apply_homework_direct_fields(homework, data)
+    return None
+
+
+def _apply_homework_instructions_url(homework, data):
+    if "instructions_url" not in data:
+        return None
+
+    error = instructions_url_error(data["instructions_url"])
+    if error:
+        return _invalid_instructions_url_response(error)
+
+    homework.instructions_url = data["instructions_url"]
+    return None
+
+
+def _apply_homework_due_date(homework, data):
+    if "due_date" not in data:
+        return None
+
+    due_date = parse_date(data["due_date"])
+    if due_date is None:
+        return _invalid_due_date_response()
+
+    homework.due_date = due_date
+    return None
+
+
+def _apply_homework_state(homework, data):
+    if "state" not in data:
+        return None
+
+    if data["state"] not in VALID_HOMEWORK_STATES:
+        return _invalid_homework_state_response()
+
+    homework.state = data["state"]
+    return None
+
+
+def _apply_homework_direct_fields(homework, data):
+    for field in HOMEWORK_DIRECT_UPDATE_FIELDS:
         if field not in data:
             continue
-        value = data[field]
-        if field == "state" and value not in VALID_HOMEWORK_STATES:
-            return error_response(
-                f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
-                "invalid_homework_state",
-                details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
-            )
-        setattr(homework, field, value)
-
-    return None
+        setattr(homework, field, data[field])
 
 
 def _homework_questions_replace_error(homework):
@@ -291,40 +344,108 @@ def _replace_homework_questions(homework, questions_data):
 
 def _validate_homework_upsert(data, homework, created):
     """Validate an upsert payload. Returns an error response, or None if ok."""
-    title = data.get("title", data.get("name"))
+    error = _validate_created_homework_fields(data, created)
+    if error:
+        return error
+
+    error = _validate_homework_instructions_url(data)
+    if error:
+        return error
+
+    error = _validate_homework_due_date(data)
+    if error:
+        return error
+
+    error = _validate_homework_state(data)
+    if error:
+        return error
+
+    return _validate_homework_questions(data, homework)
+
+
+def _validate_created_homework_fields(data, created):
+    title = _homework_title_from_data(data)
     if created and (not title or not data.get("due_date")):
         return error_response(
             "title/name and due_date are required",
             "missing_required_fields",
         )
+    return None
 
-    if "instructions_url" in data:
-        error = instructions_url_error(data.get("instructions_url"))
-        if error:
-            return error_response(
-                error,
-                "invalid_instructions_url",
-                details={"field": "instructions_url"},
-            )
 
-    if "due_date" in data and parse_date(data["due_date"]) is None:
-        return error_response(
-            "Invalid date format for due_date",
-            "invalid_date_format",
-            details={"field": "due_date"},
-        )
+def _validate_homework_instructions_url(data):
+    if "instructions_url" not in data:
+        return None
 
-    if "state" in data and data["state"] not in VALID_HOMEWORK_STATES:
-        return error_response(
-            f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
-            "invalid_homework_state",
-            details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
-        )
-
-    if homework is not None and "questions" in data:
-        return _homework_questions_replace_error(homework)
+    error = instructions_url_error(data.get("instructions_url"))
+    if error:
+        return _invalid_instructions_url_response(error)
 
     return None
+
+
+def _validate_homework_due_date(data):
+    if "due_date" in data and parse_date(data["due_date"]) is None:
+        return _invalid_due_date_response()
+    return None
+
+
+def _validate_homework_state(data):
+    if "state" in data and data["state"] not in VALID_HOMEWORK_STATES:
+        return _invalid_homework_state_response()
+    return None
+
+
+def _validate_homework_questions(data, homework):
+    if homework is None or "questions" not in data:
+        return None
+    return _homework_questions_replace_error(homework)
+
+
+def _homework_by_slug(course, homework_slug):
+    return Homework.objects.filter(
+        course=course,
+        slug=homework_slug,
+    ).first()
+
+
+def _create_homework_for_upsert(course, homework_slug, data):
+    title = _homework_title_from_data(data)
+    return Homework.objects.create(
+        course=course,
+        slug=homework_slug,
+        title=title,
+        description=data.get("description", ""),
+        instructions_url=data.get("instructions_url"),
+        due_date=parse_date(data["due_date"]),
+        state=HomeworkState.CLOSED.value,
+    )
+
+
+def _replace_homework_questions_if_present(homework, data):
+    if "questions" not in data:
+        return None
+    return _replace_homework_questions(homework, data["questions"])
+
+
+def _save_homework_upsert(course, homework_slug, data, homework, created):
+    with transaction.atomic():
+        if created:
+            homework = _create_homework_for_upsert(
+                course, homework_slug, data
+            )
+
+        error = _apply_homework_data(homework, data)
+        if error:
+            return homework, error
+
+        homework.save()
+
+        error = _replace_homework_questions_if_present(homework, data)
+        if error:
+            return homework, error
+
+    return homework, None
 
 
 def _upsert_homework_by_slug(request, course_slug, homework_slug):
@@ -333,41 +454,18 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
     if err:
         return err
 
-    homework = Homework.objects.filter(
-        course=course,
-        slug=homework_slug,
-    ).first()
+    homework = _homework_by_slug(course, homework_slug)
     created = homework is None
 
     error = _validate_homework_upsert(data, homework, created)
     if error:
         return error
 
-    title = data.get("title", data.get("name"))
-    with transaction.atomic():
-        if created:
-            homework = Homework.objects.create(
-                course=course,
-                slug=homework_slug,
-                title=title,
-                description=data.get("description", ""),
-                instructions_url=data.get("instructions_url"),
-                due_date=parse_date(data["due_date"]),
-                state=HomeworkState.CLOSED.value,
-            )
-
-        error = _apply_homework_data(homework, data)
-        if error:
-            return error
-
-        homework.save()
-
-        if "questions" in data:
-            error = _replace_homework_questions(
-                homework, data["questions"]
-            )
-            if error:
-                return error
+    homework, error = _save_homework_upsert(
+        course, homework_slug, data, homework, created
+    )
+    if error:
+        return error
 
     return JsonResponse(
         _homework_to_dict(homework), status=201 if created else 200
