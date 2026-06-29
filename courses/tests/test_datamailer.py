@@ -3480,24 +3480,9 @@ class DatamailerClientTest(TestCase):
         self,
         bulk_upsert,
     ):
-        bulk_upsert.return_value = {
-            "recipient_list": {
-                "active_member_count": 1,
-            },
-        }
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
+        self.configure_bulk_upsert_success(bulk_upsert)
+        enrollment = self.create_enrolled_student()
+        course = enrollment.course
 
         out = StringIO()
         call_command(
@@ -3508,20 +3493,13 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        bulk_upsert.assert_called_once()
-        self.assertEqual(
-            bulk_upsert.call_args.args[0],
-            course_enrolled_list_key(course),
+        self.assert_bulk_upsert_member(
+            bulk_upsert,
+            list_key=course_enrolled_list_key(course),
+            source_object_key=f"user:{enrollment.student_id}",
+            list_type="custom",
         )
-        payload = bulk_upsert.call_args.args[1]
-        self.assertEqual(payload["list"]["type"], "custom")
-        self.assertEqual(
-            payload["members"][0]["source_object_key"],
-            f"user:{enrollment.student_id}",
-        )
-        self.assertIn(
-            "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
-        )
+        self.assert_prepared_one_member(out)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
