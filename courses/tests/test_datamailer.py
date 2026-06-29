@@ -764,6 +764,52 @@ class DatamailerClientTest(TestCase):
             homework_submitters_list_key(homework),
         )
 
+    def transactional_email_payload(self):
+        return {
+            "template_key": "welcome",
+            "email": "student@example.com",
+            "idempotency_key": "welcome:student",
+            "category_tag": "course-updates",
+            "metadata": {
+                "source": "course-management-platform",
+                "event": "welcome",
+            },
+        }
+
+    def configure_transactional_send_success(self, send):
+        send.return_value = {
+            "message": {
+                "id": "message-id",
+                "status": "queued",
+                "template_key": "welcome",
+            },
+            "enqueued": True,
+            "idempotent_replay": False,
+        }
+
+    def assert_transactional_send_called(self, send):
+        expected_payload = self.transactional_email_payload()
+        expected_payload.update(
+            {
+                "audience": "dtc-courses",
+                "client": "dtc-courses",
+            }
+        )
+        send.assert_called_once_with(expected_payload)
+
+    def assert_transactional_send_audit(self):
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.idempotency_key, "welcome:student")
+        self.assertEqual(audit.template_key, "welcome")
+        self.assertEqual(audit.category_tag, "course-updates")
+        self.assertEqual(audit.source, "course-management-platform")
+        self.assertEqual(audit.event, "welcome")
+        self.assertEqual(audit.intended_count, 1)
+        self.assertEqual(audit.enqueued_count, 1)
+        self.assertEqual(audit.skipped_count, 0)
+
     def create_peer_review_assignment_fixture(self):
         project = self.create_project(
             state=ProjectState.PEER_REVIEWING.value,
@@ -1523,55 +1569,13 @@ class DatamailerClientTest(TestCase):
     def test_send_transactional_email_uses_datamailer_client(
         self, send
     ):
-        send.return_value = {
-            "message": {
-                "id": "message-id",
-                "status": "queued",
-                "template_key": "welcome",
-            },
-            "enqueued": True,
-            "idempotent_replay": False,
-        }
+        self.configure_transactional_send_success(send)
 
-        result = send_transactional_email(
-            {
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "idempotency_key": "welcome:student",
-                "category_tag": "course-updates",
-                "metadata": {
-                    "source": "course-management-platform",
-                    "event": "welcome",
-                },
-            }
-        )
+        result = send_transactional_email(self.transactional_email_payload())
 
         self.assertEqual(result["message"]["id"], "message-id")
-        send.assert_called_once_with(
-            {
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "idempotency_key": "welcome:student",
-                "category_tag": "course-updates",
-                "metadata": {
-                    "source": "course-management-platform",
-                    "event": "welcome",
-                },
-            }
-        )
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.idempotency_key, "welcome:student")
-        self.assertEqual(audit.template_key, "welcome")
-        self.assertEqual(audit.category_tag, "course-updates")
-        self.assertEqual(audit.source, "course-management-platform")
-        self.assertEqual(audit.event, "welcome")
-        self.assertEqual(audit.intended_count, 1)
-        self.assertEqual(audit.enqueued_count, 1)
-        self.assertEqual(audit.skipped_count, 0)
+        self.assert_transactional_send_called(send)
+        self.assert_transactional_send_audit()
 
     @override_settings(
         **DATAMAILER_SETTINGS,
