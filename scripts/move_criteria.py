@@ -23,6 +23,7 @@ Usage:
 import os
 import sys
 import argparse
+from dataclasses import dataclass
 
 # Add parent directory to path so Django can find course_management module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,6 +35,25 @@ import django
 django.setup()
 
 from courses.models import Course, ReviewCriteria
+
+
+@dataclass(frozen=True)
+class CriteriaCopyData:
+    criteria: ReviewCriteria
+    dest_course: Course
+    existing_keys: set[tuple[str, str]]
+    dry_run: bool
+    delete_from_source: bool
+    to_delete: list[ReviewCriteria]
+
+
+@dataclass(frozen=True)
+class MigrationSummaryData:
+    created: list[ReviewCriteria]
+    deleted: list[ReviewCriteria]
+    dest_course: Course
+    dry_run: bool
+    delete_in_source: bool
 
 
 def list_criteria(course: Course) -> list[ReviewCriteria]:
@@ -84,30 +104,23 @@ def create_copied_criteria(
     return new_criteria
 
 
-def copy_single_criteria(
-    criteria: ReviewCriteria,
-    dest_course: Course,
-    existing_keys: set[tuple[str, str]],
-    dry_run: bool,
-    delete_from_source: bool,
-    to_delete: list[ReviewCriteria],
-) -> ReviewCriteria | None:
-    if criteria_key(criteria) in existing_keys:
-        print(f"  ⊘ Skipping existing: {criteria.description}")
+def copy_single_criteria(data: CriteriaCopyData) -> ReviewCriteria | None:
+    if criteria_key(data.criteria) in data.existing_keys:
+        print(f"  ⊘ Skipping existing: {data.criteria.description}")
         return None
 
-    if dry_run:
+    if data.dry_run:
         return copied_criteria_for_dry_run(
-            criteria,
-            delete_from_source,
-            to_delete,
+            data.criteria,
+            data.delete_from_source,
+            data.to_delete,
         )
 
     return create_copied_criteria(
-        criteria,
-        dest_course,
-        delete_from_source,
-        to_delete,
+        data.criteria,
+        data.dest_course,
+        data.delete_from_source,
+        data.to_delete,
     )
 
 
@@ -145,14 +158,15 @@ def copy_criteria(
     to_delete = []
 
     for criteria in source_criteria:
-        copied = copy_single_criteria(
-            criteria,
-            dest_course,
-            existing_keys,
-            dry_run,
-            delete_from_source,
-            to_delete,
+        copy_data = CriteriaCopyData(
+            criteria=criteria,
+            dest_course=dest_course,
+            existing_keys=existing_keys,
+            dry_run=dry_run,
+            delete_from_source=delete_from_source,
+            to_delete=to_delete,
         )
+        copied = copy_single_criteria(copy_data)
         if copied is not None:
             created.append(copied)
 
@@ -221,25 +235,19 @@ def print_migration_header(
         print()
 
 
-def print_migration_summary(
-    created: list[ReviewCriteria],
-    deleted: list[ReviewCriteria],
-    dest_course: Course,
-    dry_run: bool,
-    delete_in_source: bool,
-) -> None:
+def print_migration_summary(data: MigrationSummaryData) -> None:
     print("-" * 60)
-    if dry_run:
-        print(f"Would create {len(created)} criteria")
-        if delete_in_source:
-            print(f"Would delete {len(deleted)} criteria from source")
+    if data.dry_run:
+        print(f"Would create {len(data.created)} criteria")
+        if data.delete_in_source:
+            print(f"Would delete {len(data.deleted)} criteria from source")
     else:
-        print(f"Created {len(created)} criteria")
-        if delete_in_source:
-            print(f"Deleted {len(deleted)} criteria from source")
+        print(f"Created {len(data.created)} criteria")
+        if data.delete_in_source:
+            print(f"Deleted {len(data.deleted)} criteria from source")
 
-    if not dry_run:
-        dest_criteria_after = list_criteria(dest_course)
+    if not data.dry_run:
+        dest_criteria_after = list_criteria(data.dest_course)
         print(f"Destination course now has {len(dest_criteria_after)} criteria")
 
 
@@ -260,13 +268,14 @@ def main():
         delete_from_source=args.delete_in_source
     )
 
-    print_migration_summary(
-        created,
-        deleted,
-        dest_course,
-        args.dry_run,
-        args.delete_in_source,
+    summary_data = MigrationSummaryData(
+        created=created,
+        deleted=deleted,
+        dest_course=dest_course,
+        dry_run=args.dry_run,
+        delete_in_source=args.delete_in_source,
     )
+    print_migration_summary(summary_data)
 
 
 if __name__ == "__main__":
