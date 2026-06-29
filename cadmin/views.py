@@ -2,13 +2,15 @@ import logging
 import re
 
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import timedelta
 
 import requests
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
+from django.core.paginator import Page, Paginator
 from django.core.validators import validate_email
 from django.db.models import Count, Q, Sum
+from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
@@ -69,7 +71,6 @@ from courses.scoring import (
     score_homework_submissions,
     fill_correct_answers,
     clear_correct_answers,
-    update_leaderboard,
 )
 from courses.services.enrollment_flags import (
     set_learning_in_public_disabled,
@@ -97,6 +98,44 @@ DATAMAILER_CAMPAIGN_UPSERT_ACTIONS = {
     "test_send",
     "queue",
 }
+
+
+@dataclass(frozen=True)
+class CampaignRegistrationsContextData:
+    request: HttpRequest
+    campaign: RegistrationCampaign
+    registrations_page: Page
+    filters: dict
+    search_query: str
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionsContextData:
+    request: HttpRequest
+    course: Course
+    homework: Homework
+    submissions_page: Page
+    search_query: str
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionEditContextData:
+    request: HttpRequest
+    course: Course
+    homework: Homework
+    submission: Submission
+    questions_with_answers: list
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionsContextData:
+    request: HttpRequest
+    course: Course
+    project: Project
+    submissions_page: Page
+    project_filter_counts: dict
+    search_query: str
+    status_filter: str
 
 
 def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
@@ -850,24 +889,20 @@ def _apply_campaign_registration_search(registrations, search_query):
     )
 
 
-def _campaign_registrations_context(
-    request,
-    campaign,
-    registrations_page,
-    filters,
-    search_query,
-):
+def _campaign_registrations_context(data):
     return {
-        "campaign": campaign,
-        "course": campaign.current_course,
-        "registrations_page": registrations_page,
-        "page_range": registrations_page.paginator.get_elided_page_range(
-            registrations_page.number
+        "campaign": data.campaign,
+        "course": data.campaign.current_course,
+        "registrations_page": data.registrations_page,
+        "page_range": (
+            data.registrations_page.paginator.get_elided_page_range(
+                data.registrations_page.number
+            )
         ),
-        "metrics": registration_campaign_metrics(campaign),
-        "filters": filters,
-        "search_query": search_query,
-        "pagination_querystring": pagination_querystring(request),
+        "metrics": registration_campaign_metrics(data.campaign),
+        "filters": data.filters,
+        "search_query": data.search_query,
+        "pagination_querystring": pagination_querystring(data.request),
     }
 
 
@@ -888,13 +923,14 @@ def campaign_registrations(request, campaign_slug):
         registrations, search_query
     )
     registrations_page = paginate_queryset(request, registrations, 50)
-    context = _campaign_registrations_context(
-        request,
-        campaign,
-        registrations_page,
-        filters,
-        search_query,
+    context_data = CampaignRegistrationsContextData(
+        request=request,
+        campaign=campaign,
+        registrations_page=registrations_page,
+        filters=filters,
+        search_query=search_query,
     )
+    context = _campaign_registrations_context(context_data)
     return render(
         request, "cadmin/campaign_registrations.html", context
     )
@@ -990,22 +1026,16 @@ def _homework_submissions_data(submissions):
     return submissions_data
 
 
-def _homework_submissions_context(
-    request,
-    course,
-    homework,
-    submissions_page,
-    search_query,
-):
+def _homework_submissions_context(data):
     return {
-        "course": course,
-        "homework": homework,
+        "course": data.course,
+        "homework": data.homework,
         "submissions_data": _homework_submissions_data(
-            submissions_page.object_list
+            data.submissions_page.object_list
         ),
-        "submissions_page": submissions_page,
-        "search_query": search_query,
-        "pagination_querystring": pagination_querystring(request),
+        "submissions_page": data.submissions_page,
+        "search_query": data.search_query,
+        "pagination_querystring": pagination_querystring(data.request),
     }
 
 
@@ -1019,13 +1049,14 @@ def homework_submissions(request, course_slug, homework_slug):
     search_query = request.GET.get("q", "").strip()
     submissions = _homework_submissions_queryset(homework, search_query)
     submissions_page = paginate_queryset(request, submissions)
-    context = _homework_submissions_context(
-        request,
-        course,
-        homework,
-        submissions_page,
-        search_query,
+    context_data = HomeworkSubmissionsContextData(
+        request=request,
+        course=course,
+        homework=homework,
+        submissions_page=submissions_page,
+        search_query=search_query,
     )
+    context = _homework_submissions_context(context_data)
     return render(request, "cadmin/homework_submissions.html", context)
 
 
@@ -1125,23 +1156,18 @@ def _homework_submission_faq_data(request, submission):
     return submission.faq_contribution_url or "", submission.faq_score
 
 
-def _homework_submission_edit_context(
-    request,
-    course,
-    homework,
-    submission,
-    questions_with_answers,
-):
+def _homework_submission_edit_context(data):
     faq_contribution_url, faq_score = _homework_submission_faq_data(
-        request, submission
+        data.request,
+        data.submission,
     )
     return {
-        "course": course,
-        "homework": homework,
-        "submission": submission,
-        "questions_with_answers": questions_with_answers,
+        "course": data.course,
+        "homework": data.homework,
+        "submission": data.submission,
+        "questions_with_answers": data.questions_with_answers,
         "learning_in_public_links_text": "\n".join(
-            submission.learning_in_public_links or []
+            data.submission.learning_in_public_links or []
         ),
         "faq_contribution_url": faq_contribution_url,
         "faq_score": faq_score,
@@ -1175,13 +1201,14 @@ def homework_submission_edit(
         if response is not None:
             return response
 
-    context = _homework_submission_edit_context(
-        request,
-        course,
-        homework,
-        submission,
-        questions_with_answers,
+    context_data = HomeworkSubmissionEditContextData(
+        request=request,
+        course=course,
+        homework=homework,
+        submission=submission,
+        questions_with_answers=questions_with_answers,
     )
+    context = _homework_submission_edit_context(context_data)
 
     return render(
         request, "cadmin/homework_submission_edit.html", context
@@ -1243,27 +1270,19 @@ def _apply_project_action_flags(project):
     )
 
 
-def _project_submissions_context(
-    request,
-    course,
-    project,
-    submissions_page,
-    project_filter_counts,
-    search_query,
-    status_filter,
-):
+def _project_submissions_context(data):
     return {
-        "course": course,
-        "project": project,
-        "submissions": submissions_page.object_list,
-        "submissions_page": submissions_page,
-        "page_range": submissions_page.paginator.get_elided_page_range(
-            submissions_page.number
+        "course": data.course,
+        "project": data.project,
+        "submissions": data.submissions_page.object_list,
+        "submissions_page": data.submissions_page,
+        "page_range": data.submissions_page.paginator.get_elided_page_range(
+            data.submissions_page.number
         ),
-        "project_filter_counts": project_filter_counts,
-        "search_query": search_query,
-        "status_filter": status_filter,
-        "pagination_querystring": pagination_querystring(request),
+        "project_filter_counts": data.project_filter_counts,
+        "search_query": data.search_query,
+        "status_filter": data.status_filter,
+        "pagination_querystring": pagination_querystring(data.request),
     }
 
 
@@ -1287,15 +1306,16 @@ def project_submissions(request, course_slug, project_slug):
         submissions,
         per_page=CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE,
     )
-    context = _project_submissions_context(
-        request,
-        course,
-        project,
-        submissions_page,
-        project_filter_counts,
-        search_query,
-        status_filter,
+    context_data = ProjectSubmissionsContextData(
+        request=request,
+        course=course,
+        project=project,
+        submissions_page=submissions_page,
+        project_filter_counts=project_filter_counts,
+        search_query=search_query,
+        status_filter=status_filter,
     )
+    context = _project_submissions_context(context_data)
     return render(request, "cadmin/project_submissions.html", context)
 
 
