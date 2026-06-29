@@ -1019,6 +1019,22 @@ class DatamailerClientTest(TestCase):
         )
         return project, latest_submission
 
+    def create_project_score_submission(self):
+        project = self.create_project()
+        submission = self.create_project_submission(
+            project,
+            self.create_user("project-learner@example.com"),
+            project_score=70,
+            project_learning_in_public_score=5,
+            project_faq_score=1,
+            peer_review_score=18,
+            peer_review_learning_in_public_score=4,
+            total_score=98,
+            reviewed_enough_peers=True,
+            passed=True,
+        )
+        return project, submission
+
     def assert_project_score_member(self, member, submission):
         self.assertEqual(
             member["source_object_key"],
@@ -1048,6 +1064,20 @@ class DatamailerClientTest(TestCase):
         )
         self.assertTrue(member["metadata"]["reviewed_enough_peers"])
         self.assertTrue(member["metadata"]["passed"])
+
+    def assert_project_score_context(self, payload):
+        self.assertEqual(
+            payload["context"]["scores_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1/results",
+        )
+        self.assertEqual(
+            payload["context"]["project_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
+        )
+        self.assertEqual(
+            payload["context"]["leaderboard_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
+        )
 
     def assert_latest_project_score_member(self, member, submission):
         self.assertEqual(
@@ -2961,20 +2991,7 @@ class DatamailerClientTest(TestCase):
     def test_project_score_notification_payload_targets_project_submitters(
         self,
     ):
-        project = self.create_project()
-        user = self.create_user("project-learner@example.com")
-        submission = self.create_project_submission(
-            project,
-            user,
-            project_score=70,
-            project_learning_in_public_score=5,
-            project_faq_score=1,
-            peer_review_score=18,
-            peer_review_learning_in_public_score=4,
-            total_score=98,
-            reviewed_enough_peers=True,
-            passed=True,
-        )
+        project, submission = self.create_project_score_submission()
 
         list_key, payload = project_score_notification_payload(project)
 
@@ -2986,18 +3003,7 @@ class DatamailerClientTest(TestCase):
             footer_text="you submitted Project 1",
             list_type="project_submitters",
         )
-        self.assertEqual(
-            payload["context"]["scores_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/project/project-1/results",
-        )
-        self.assertEqual(
-            payload["context"]["project_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
-        )
-        self.assertEqual(
-            payload["context"]["leaderboard_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
-        )
+        self.assert_project_score_context(payload)
         self.assert_project_score_member(member, submission)
 
     @override_settings(**DATAMAILER_SETTINGS)
