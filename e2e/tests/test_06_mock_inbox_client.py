@@ -54,7 +54,8 @@ class FakeSession:
         self.calls = []
 
     def request(self, method, url, **kwargs):
-        self.calls.append((method, url, kwargs))
+        call_record = (method, url, kwargs)
+        self.calls.append(call_record)
         result = self._responses.pop(0)
         if isinstance(result, Exception):
             raise result

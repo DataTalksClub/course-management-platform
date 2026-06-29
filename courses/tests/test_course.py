@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
@@ -28,6 +30,39 @@ credentials = dict(
 )
 
 
+@dataclass(frozen=True)
+class HomeworkFixtureData:
+    slug: str
+    title: str
+    description: str
+    days_due: int
+    state: str
+
+
+@dataclass(frozen=True)
+class ProjectFixtureData:
+    title: str
+    slug: str
+    state: str
+    submission_days: int
+
+
+@dataclass(frozen=True)
+class ScoredHomeworkExpectation:
+    homework: Homework
+    submitted: bool
+    score: int | None
+    with_submitted_at: bool = False
+
+
+@dataclass(frozen=True)
+class OpenHomeworkExpectation:
+    homework: Homework
+    submitted: bool
+    score: int | None
+    days_until_due: int
+
+
 class CourseDetailViewTests(TestCase):
     def create_course(self):
         return Course.objects.create(
@@ -40,38 +75,41 @@ class CourseDetailViewTests(TestCase):
             course=self.course,
         )
 
-    def create_homework(self, slug, title, description, days_due, state):
+    def create_homework(self, data: HomeworkFixtureData):
         return Homework.objects.create(
-            slug=slug,
+            slug=data.slug,
             course=self.course,
-            title=title,
-            description=description,
-            due_date=timezone.now() + timezone.timedelta(days=days_due),
-            state=state,
+            title=data.title,
+            description=data.description,
+            due_date=timezone.now() + timezone.timedelta(days=data.days_due),
+            state=data.state,
         )
 
     def create_homeworks(self):
-        self.homework1 = self.create_homework(
-            "scored-homework",
-            "Scored Homework",
-            "This homework is already scored.",
-            -1,
-            HomeworkState.SCORED.value,
+        scored_homework_data = HomeworkFixtureData(
+            slug="scored-homework",
+            title="Scored Homework",
+            description="This homework is already scored.",
+            days_due=-1,
+            state=HomeworkState.SCORED.value,
         )
-        self.homework2 = self.create_homework(
-            "submitted-homework",
-            "Submitted Homework",
-            "Homework with submitted answers.",
-            7,
-            HomeworkState.OPEN.value,
+        self.homework1 = self.create_homework(scored_homework_data)
+        submitted_homework_data = HomeworkFixtureData(
+            slug="submitted-homework",
+            title="Submitted Homework",
+            description="Homework with submitted answers.",
+            days_due=7,
+            state=HomeworkState.OPEN.value,
         )
-        self.homework3 = self.create_homework(
-            "unscored-homework",
-            "Homework Without Submissions",
-            "Homework without any submissions yet.",
-            14,
-            HomeworkState.OPEN.value,
+        self.homework2 = self.create_homework(submitted_homework_data)
+        unscored_homework_data = HomeworkFixtureData(
+            slug="unscored-homework",
+            title="Homework Without Submissions",
+            description="Homework without any submissions yet.",
+            days_due=14,
+            state=HomeworkState.OPEN.value,
         )
+        self.homework3 = self.create_homework(unscored_homework_data)
         self.homeworks = [
             self.homework1,
             self.homework2,
@@ -106,31 +144,33 @@ class CourseDetailViewTests(TestCase):
             total_score=0,
         )
 
-    def create_project(self, title, slug, state, submission_days):
+    def create_project(self, data: ProjectFixtureData):
         return Project.objects.create(
             course=self.course,
-            title=title,
-            slug=slug,
-            state=state,
+            title=data.title,
+            slug=data.slug,
+            state=data.state,
             submission_due_date=timezone.now()
-            + timezone.timedelta(days=submission_days),
+            + timezone.timedelta(days=data.submission_days),
             peer_review_due_date=timezone.now()
             + timezone.timedelta(days=14),
         )
 
     def create_projects(self):
-        self.open_project = self.create_project(
-            "Open Project",
-            "open-project",
-            ProjectState.COLLECTING_SUBMISSIONS.value,
-            7,
+        open_project_data = ProjectFixtureData(
+            title="Open Project",
+            slug="open-project",
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+            submission_days=7,
         )
-        self.completed_project = self.create_project(
-            "Completed Project",
-            "completed-project",
-            ProjectState.COMPLETED.value,
-            -7,
+        self.open_project = self.create_project(open_project_data)
+        completed_project_data = ProjectFixtureData(
+            title="Completed Project",
+            slug="completed-project",
+            state=ProjectState.COMPLETED.value,
+            submission_days=-7,
         )
+        self.completed_project = self.create_project(completed_project_data)
 
     def create_project_submissions(self):
         self.completed_submission = ProjectSubmission.objects.create(
@@ -180,25 +220,21 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(len(context["homeworks"]), 3)
         self.assertEqual(context["is_authenticated"], authenticated)
 
-    def assert_scored_homework(
-        self, homework, submitted, score, with_submitted_at=False
-    ):
-        self.assertEqual(homework.submitted, submitted)
-        self.assertEqual(homework.is_scored(), True)
-        self.assertEqual(homework.state, HomeworkState.SCORED.value)
-        self.assertEqual(homework.score, score)
-        self.assertEqual(homework.days_until_due, 0)
-        if not with_submitted_at:
-            self.assertFalse(hasattr(homework, "submitted_at"))
+    def assert_scored_homework(self, data: ScoredHomeworkExpectation):
+        self.assertEqual(data.homework.submitted, data.submitted)
+        self.assertEqual(data.homework.is_scored(), True)
+        self.assertEqual(data.homework.state, HomeworkState.SCORED.value)
+        self.assertEqual(data.homework.score, data.score)
+        self.assertEqual(data.homework.days_until_due, 0)
+        if not data.with_submitted_at:
+            self.assertFalse(hasattr(data.homework, "submitted_at"))
 
-    def assert_open_homework(
-        self, homework, submitted, score, days_until_due
-    ):
-        self.assertEqual(homework.submitted, submitted)
-        self.assertEqual(homework.state, HomeworkState.OPEN.value)
-        self.assertEqual(homework.is_scored(), False)
-        self.assertEqual(homework.score, score)
-        self.assertEqual(homework.days_until_due, days_until_due)
+    def assert_open_homework(self, data: OpenHomeworkExpectation):
+        self.assertEqual(data.homework.submitted, data.submitted)
+        self.assertEqual(data.homework.state, HomeworkState.OPEN.value)
+        self.assertEqual(data.homework.is_scored(), False)
+        self.assertEqual(data.homework.score, data.score)
+        self.assertEqual(data.homework.days_until_due, data.days_until_due)
 
     def assert_unsubmitted_open_homework(self, homework):
         self.assertFalse(homework.submitted)
@@ -232,19 +268,21 @@ class CourseDetailViewTests(TestCase):
 
     def assert_authenticated_homework_summary(self, response):
         homeworks = self.homeworks_by_slug(response)
-        self.assert_scored_homework(
-            homeworks["scored-homework"],
+        scored_expectation = ScoredHomeworkExpectation(
+            homework=homeworks["scored-homework"],
             submitted=True,
             score=80,
         )
+        self.assert_scored_homework(scored_expectation)
 
         submitted_homework = homeworks["submitted-homework"]
-        self.assert_open_homework(
-            submitted_homework,
+        open_expectation = OpenHomeworkExpectation(
+            homework=submitted_homework,
             submitted=True,
             score=None,
             days_until_due=7,
         )
+        self.assert_open_homework(open_expectation)
         self.assertEqual(
             submitted_homework.submitted_at,
             self.submission2.submitted_at,
@@ -324,13 +362,14 @@ class CourseDetailViewTests(TestCase):
         )
 
     def create_due_homework(self, slug, title, days_due):
-        homework = self.create_homework(
-            slug,
-            title,
-            f"{title} description",
-            days_due,
-            HomeworkState.OPEN.value,
+        homework_data = HomeworkFixtureData(
+            slug=slug,
+            title=title,
+            description=f"{title} description",
+            days_due=days_due,
+            state=HomeworkState.OPEN.value,
         )
+        homework = self.create_homework(homework_data)
         Question.objects.create(
             homework=homework,
             text=f"Question for {homework.title}",
@@ -736,19 +775,21 @@ class CourseDetailViewTests(TestCase):
         homeworks = self.homeworks_by_slug(response)
 
         scored_homework = homeworks["scored-homework"]
-        self.assert_scored_homework(
-            scored_homework,
+        scored_expectation = ScoredHomeworkExpectation(
+            homework=scored_homework,
             submitted=False,
             score=None,
         )
+        self.assert_scored_homework(scored_expectation)
 
         submitted_homework = homeworks["submitted-homework"]
-        self.assert_open_homework(
-            submitted_homework,
+        open_expectation = OpenHomeworkExpectation(
+            homework=submitted_homework,
             submitted=False,
             score=None,
             days_until_due=7,
         )
+        self.assert_open_homework(open_expectation)
 
         unscored_homework = homeworks["unscored-homework"]
         self.assert_unsubmitted_open_homework(unscored_homework)

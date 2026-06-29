@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +12,14 @@ from courses.models import (
     ProjectVote,
     User,
 )
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionFixtureData:
+    username: str
+    display_name: str
+    repo: str
+    commit_id: str
 
 
 class ProjectVotingTest(TestCase):
@@ -47,19 +57,19 @@ class ProjectVotingTest(TestCase):
             args=[self.course.slug, self.project.slug],
         )
 
-    def create_submission(self, username, display_name, repo, commit_id):
-        student = User.objects.create_user(username=username)
+    def create_submission(self, data: ProjectSubmissionFixtureData):
+        student = User.objects.create_user(username=data.username)
         enrollment = Enrollment.objects.create(
             course=self.course,
             student=student,
-            display_name=display_name,
+            display_name=data.display_name,
         )
         return ProjectSubmission.objects.create(
             project=self.project,
             student=student,
             enrollment=enrollment,
-            github_link=f"https://github.com/example/{repo}",
-            commit_id=commit_id,
+            github_link=f"https://github.com/example/{data.repo}",
+            commit_id=data.commit_id,
         )
 
     def post_vote(self, submission):
@@ -142,24 +152,27 @@ class ProjectVotingTest(TestCase):
         self.assertFalse(data["vote_limit_reached"])
 
     def test_user_has_three_votes_per_project(self):
-        other_submission = self.create_submission(
-            "other-student",
-            "Other Student",
-            "other-project",
-            "def5678",
+        other_data = ProjectSubmissionFixtureData(
+            username="other-student",
+            display_name="Other Student",
+            repo="other-project",
+            commit_id="def5678",
         )
-        third_submission = self.create_submission(
-            "third-student",
-            "Third Student",
-            "third-project",
-            "ghi9012",
+        other_submission = self.create_submission(other_data)
+        third_data = ProjectSubmissionFixtureData(
+            username="third-student",
+            display_name="Third Student",
+            repo="third-project",
+            commit_id="ghi9012",
         )
-        fourth_submission = self.create_submission(
-            "fourth-student",
-            "Fourth Student",
-            "fourth-project",
-            "jkl3456",
+        third_submission = self.create_submission(third_data)
+        fourth_data = ProjectSubmissionFixtureData(
+            username="fourth-student",
+            display_name="Fourth Student",
+            repo="fourth-project",
+            commit_id="jkl3456",
         )
+        fourth_submission = self.create_submission(fourth_data)
         self.client.force_login(self.voter)
 
         self.post_vote(self.submission)
