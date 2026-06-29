@@ -44,6 +44,10 @@ logger = logging.getLogger(__name__)
 
 LEADERBOARD_PAGE_SIZE = 100
 PROJECT_SUBMISSIONS_PAGE_SIZE = 25
+ENROLLMENT_TOGGLE_FIELDS = {
+    "display_on_leaderboard",
+    "display_public_profile",
+}
 
 
 @dataclass(frozen=True)
@@ -1249,22 +1253,14 @@ def update_enrollment_toggle(request, course_slug):
 
     field = request.POST.get("field", "")
     value = request.POST.get("value", "")
-    if field not in {"display_on_leaderboard", "display_public_profile"}:
+    if field not in ENROLLMENT_TOGGLE_FIELDS:
         return JsonResponse(
             {"error": "Unsupported enrollment setting."},
             status=400,
         )
 
-    previous_display_on_leaderboard = enrollment.display_on_leaderboard
     enabled = value.lower() in {"1", "true", "yes", "on"}
-    setattr(enrollment, field, enabled)
-    enrollment.save(update_fields=[field])
-
-    if (
-        field == "display_on_leaderboard"
-        and previous_display_on_leaderboard != enabled
-    ):
-        invalidate_leaderboard_cache(course.id)
+    update_enrollment_toggle_value(enrollment, course, field, enabled)
 
     return JsonResponse(
         {
@@ -1272,6 +1268,19 @@ def update_enrollment_toggle(request, course_slug):
             "value": enabled,
         }
     )
+
+
+def update_enrollment_toggle_value(enrollment, course, field, enabled):
+    previous_display_on_leaderboard = enrollment.display_on_leaderboard
+    setattr(enrollment, field, enabled)
+    enrollment.save(update_fields=[field])
+
+    if field != "display_on_leaderboard":
+        return
+    if previous_display_on_leaderboard == enabled:
+        return
+
+    invalidate_leaderboard_cache(course.id)
 
 
 def _enrollment_context(course, enrollment, form):
