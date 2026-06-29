@@ -55,41 +55,31 @@ def _create_question(homework, q_data):
     return _question_to_dict(question), None
 
 
-@token_required
-@csrf_exempt
-@require_methods("GET", "POST")
-def questions_view(request, course_slug, homework_id):
-    """
-    GET /api/courses/<slug>/homeworks/<id>/questions/ - List questions.
-    POST /api/courses/<slug>/homeworks/<id>/questions/ - Add questions.
-    """
-    course, homework = _get_course_and_homework(course_slug, homework_id)
+def _questions_list_response(homework):
+    questions = Question.objects.filter(homework=homework).order_by("id")
+    return JsonResponse({
+        "homework_id": homework.id,
+        "homework_title": homework.title,
+        "questions": [_question_to_dict(q) for q in questions],
+    })
 
-    if request.method == "GET":
-        questions = Question.objects.filter(homework=homework).order_by("id")
-        return JsonResponse({
-            "homework_id": homework.id,
-            "homework_title": homework.title,
-            "questions": [_question_to_dict(q) for q in questions],
-        })
 
-    # POST
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
+def _question_create_items(data):
+    return data if isinstance(data, list) else [data]
 
-    data, err = parse_json_body(request)
-    if err:
-        return err
 
-    items = data if isinstance(data, list) else [data]
+def _question_create_error(item, error):
+    return {"text": item.get("text", "unknown"), "error": error}
 
+
+def _questions_create_response(homework, data):
     created = []
     errors = []
-    for item in items:
+
+    for item in _question_create_items(data):
         q_dict, error = _create_question(homework, item)
         if error:
-            errors.append({"text": item.get("text", "unknown"), "error": error})
+            errors.append(_question_create_error(item, error))
         else:
             created.append(q_dict)
 
@@ -101,10 +91,82 @@ def questions_view(request, course_slug, homework_id):
     return JsonResponse(result, status=status)
 
 
+@token_required
+@csrf_exempt
+@require_methods("GET", "POST")
+def questions_view(request, course_slug, homework_id):
+    """
+    GET /api/courses/<slug>/homeworks/<id>/questions/ - List questions.
+    POST /api/courses/<slug>/homeworks/<id>/questions/ - Add questions.
+    """
+    course, homework = _get_course_and_homework(course_slug, homework_id)
+
+    if request.method == "GET":
+        return _questions_list_response(homework)
+
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    return _questions_create_response(homework, data)
+
+
 QUESTION_PATCH_FIELDS = {
     "text", "question_type", "answer_type",
     "possible_answers", "correct_answer", "scores_for_correct_answer",
 }
+
+
+def _question_delete_response(question):
+    error_response_result = ensure_no_related_records_for_delete(
+        question.answer_set.all(), "answers", "question"
+    )
+    if error_response_result:
+        return error_response_result
+
+    question.delete()
+    return JsonResponse({"deleted": True})
+
+
+def _question_patch_value(field, value):
+    if field == "possible_answers" and isinstance(value, list):
+        return "\n".join(value)
+    return value
+
+
+def _question_invalid_field_response(field):
+    return error_response(
+        f"Cannot update field: {field}",
+        "invalid_field",
+        details={"field": field},
+    )
+
+
+def _apply_question_patch(question, data):
+    for field, value in data.items():
+        if field not in QUESTION_PATCH_FIELDS:
+            return _question_invalid_field_response(field)
+
+        setattr(question, field, _question_patch_value(field, value))
+
+    return None
+
+
+def _question_patch_response(question, request):
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    error = _apply_question_patch(question, data)
+    if error:
+        return error
+
+    question.save()
+    return JsonResponse(_question_to_dict(question))
 
 
 @token_required
@@ -127,33 +189,6 @@ def question_detail_view(request, course_slug, homework_id, question_id):
         return staff_error
 
     if request.method == "DELETE":
-        error_response_result = ensure_no_related_records_for_delete(
-            question.answer_set.all(), "answers", "question"
-        )
-        if error_response_result:
-            return error_response_result
+        return _question_delete_response(question)
 
-        question.delete()
-        return JsonResponse({"deleted": True})
-
-    # PATCH
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    for field, value in data.items():
-        if field not in QUESTION_PATCH_FIELDS:
-            return error_response(
-                f"Cannot update field: {field}",
-                "invalid_field",
-                details={"field": field},
-            )
-
-        if field == "possible_answers":
-            if isinstance(value, list):
-                value = "\n".join(value)
-
-        setattr(question, field, value)
-
-    question.save()
-    return JsonResponse(_question_to_dict(question))
+    return _question_patch_response(question, request)
