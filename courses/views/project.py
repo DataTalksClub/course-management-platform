@@ -67,6 +67,15 @@ class ProjectEvalSubmitPage:
 
 
 @dataclass(frozen=True)
+class ProjectConfirmationEmailData:
+    user: User
+    course: Course
+    project: Project
+    submission: ProjectSubmission
+    update_url: str
+
+
+@dataclass(frozen=True)
 class ProjectConfirmationData:
     course: Course
     project: Project
@@ -303,70 +312,39 @@ def build_project_update_url(
     return absolute_url_with_fallback(request, path, label="project")
 
 
-def send_project_confirmation_email(
-    user: User,
-    course: Course,
-    project: Project,
-    submission: ProjectSubmission,
-    update_url: str,
-) -> None:
-    if not user.email:
+def send_project_confirmation_email(data: ProjectConfirmationEmailData) -> None:
+    if not data.user.email:
         return
 
-    send_transactional_email(
-        project_confirmation_payload(
-            user=user,
-            course=course,
-            project=project,
-            submission=submission,
-            update_url=update_url,
-        )
-    )
+    payload = project_confirmation_payload(data)
+    send_transactional_email(payload)
 
 
-def project_confirmation_payload(
-    user: User,
-    course: Course,
-    project: Project,
-    submission: ProjectSubmission,
-    update_url: str,
-) -> dict:
+def project_confirmation_payload(data: ProjectConfirmationEmailData) -> dict:
     return {
-        "email": user.email,
+        "email": data.user.email,
         "template_key": email_templates.PROJECT_SUBMISSION_CONFIRMATION,
         "category_tag": "submission-results",
         "idempotency_key": project_confirmation_idempotency_key(
-            submission
+            data.submission
         ),
-        "context": project_confirmation_payload_context(
-            course,
-            project,
-            submission,
-            update_url,
-        ),
-        "metadata": project_confirmation_email_metadata(
-            course,
-            project,
-            submission,
-        ),
+        "context": project_confirmation_payload_context(data),
+        "metadata": project_confirmation_email_metadata(data),
     }
 
 
 def project_confirmation_payload_context(
-    course: Course,
-    project: Project,
-    submission: ProjectSubmission,
-    update_url: str,
+    data: ProjectConfirmationEmailData,
 ) -> dict:
-    profile_url = build_account_settings_url(request_base_url(update_url))
-    data = ProjectConfirmationData(
-        course=course,
-        project=project,
-        submission=submission,
-        update_url=update_url,
+    profile_url = build_account_settings_url(request_base_url(data.update_url))
+    context_data = ProjectConfirmationData(
+        course=data.course,
+        project=data.project,
+        submission=data.submission,
+        update_url=data.update_url,
         profile_url=profile_url,
     )
-    return project_confirmation_context(data)
+    return project_confirmation_context(context_data)
 
 
 def project_confirmation_idempotency_key(
@@ -379,16 +357,14 @@ def project_confirmation_idempotency_key(
 
 
 def project_confirmation_email_metadata(
-    course: Course,
-    project: Project,
-    submission: ProjectSubmission,
+    data: ProjectConfirmationEmailData,
 ) -> dict:
     return {
         "source": "course-management-platform",
         "event": "project_submission",
-        "course_slug": course.slug,
-        "project_slug": project.slug,
-        "submission_id": submission.id,
+        "course_slug": data.course.slug,
+        "project_slug": data.project.slug,
+        "submission_id": data.submission.id,
     }
 
 
@@ -525,19 +501,20 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     update_url = build_project_update_url(
         request, project.course, project
     )
+    confirmation_data = ProjectConfirmationEmailData(
+        user=request.user,
+        course=project.course,
+        project=project,
+        submission=project_submission,
+        update_url=update_url,
+    )
     transaction.on_commit(
         lambda: sync_project_submission_to_datamailer(
             project_submission
         )
     )
     transaction.on_commit(
-        lambda: send_project_confirmation_email(
-            user=request.user,
-            course=project.course,
-            project=project,
-            submission=project_submission,
-            update_url=update_url,
-        )
+        lambda: send_project_confirmation_email(confirmation_data)
     )
 
     messages.success(

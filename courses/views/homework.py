@@ -82,6 +82,15 @@ class HomeworkPostData:
 
 
 @dataclass(frozen=True)
+class HomeworkConfirmationEmailData:
+    user: User
+    course: Course
+    homework: Homework
+    submission: Submission
+    update_url: str
+
+
+@dataclass(frozen=True)
 class HomeworkConfirmationData:
     course: Course
     homework: Homework
@@ -820,69 +829,39 @@ def _matching_learning_links(submission, candidate_links):
     return matching_links
 
 
-def send_homework_confirmation_email(
-    user: User,
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-    update_url: str,
-) -> None:
-    if not user.email:
+def send_homework_confirmation_email(data: HomeworkConfirmationEmailData) -> None:
+    if not data.user.email:
         return
 
-    send_transactional_email(
-        homework_confirmation_payload(
-            user=user,
-            course=course,
-            homework=homework,
-            submission=submission,
-            update_url=update_url,
-        )
-    )
+    payload = homework_confirmation_payload(data)
+    send_transactional_email(payload)
 
 
-def homework_confirmation_payload(
-    *,
-    user: User,
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-    update_url: str,
-) -> dict:
+def homework_confirmation_payload(data: HomeworkConfirmationEmailData) -> dict:
     return {
-        "email": user.email,
+        "email": data.user.email,
         "template_key": email_templates.HOMEWORK_SUBMISSION_CONFIRMATION,
         "category_tag": "submission-results",
         "idempotency_key": homework_confirmation_idempotency_key(
-            submission
+            data.submission
         ),
-        "context": homework_confirmation_payload_context(
-            course,
-            homework,
-            submission,
-            update_url,
-        ),
-        "metadata": homework_confirmation_email_metadata(
-            course, homework, submission
-        ),
+        "context": homework_confirmation_payload_context(data),
+        "metadata": homework_confirmation_email_metadata(data),
     }
 
 
 def homework_confirmation_payload_context(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-    update_url: str,
+    data: HomeworkConfirmationEmailData,
 ) -> dict[str, Any]:
-    profile_url = build_account_settings_url(request_base_url(update_url))
-    data = HomeworkConfirmationData(
-        course=course,
-        homework=homework,
-        submission=submission,
-        update_url=update_url,
+    profile_url = build_account_settings_url(request_base_url(data.update_url))
+    context_data = HomeworkConfirmationData(
+        course=data.course,
+        homework=data.homework,
+        submission=data.submission,
+        update_url=data.update_url,
         profile_url=profile_url,
     )
-    return homework_confirmation_context(data)
+    return homework_confirmation_context(context_data)
 
 
 def homework_confirmation_idempotency_key(submission: Submission) -> str:
@@ -893,16 +872,14 @@ def homework_confirmation_idempotency_key(submission: Submission) -> str:
 
 
 def homework_confirmation_email_metadata(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
+    data: HomeworkConfirmationEmailData,
 ) -> dict:
     return {
         "source": "course-management-platform",
         "event": "homework_submission",
-        "course_slug": course.slug,
-        "homework_slug": homework.slug,
-        "submission_id": submission.id,
+        "course_slug": data.course.slug,
+        "homework_slug": data.homework.slug,
+        "submission_id": data.submission.id,
     }
 
 
@@ -1058,14 +1035,15 @@ def _register_homework_submission_callbacks(data, submission):
         data.course,
         data.homework,
     )
+    confirmation_data = HomeworkConfirmationEmailData(
+        user=user,
+        course=data.course,
+        homework=data.homework,
+        submission=submission,
+        update_url=update_url,
+    )
     transaction.on_commit(
-        lambda: send_homework_confirmation_email(
-            user=user,
-            course=data.course,
-            homework=data.homework,
-            submission=submission,
-            update_url=update_url,
-        )
+        lambda: send_homework_confirmation_email(confirmation_data)
     )
     transaction.on_commit(
         lambda: sync_homework_submission_to_datamailer(submission)
