@@ -54,37 +54,75 @@ class CmpApiClient:
         last_exc: Exception | None = None
         for attempt in range(retries + 1):
             try:
-                resp = self.session.request(
-                    method,
-                    url,
-                    data=json.dumps(json_body) if json_body is not None else None,
-                    timeout=self.timeout,
-                )
+                resp = self._send_request(method, url, json_body)
             except requests.RequestException as exc:  # network blip
                 last_exc = exc
                 if attempt < retries:
-                    time.sleep(1.5 * (attempt + 1))
+                    self._sleep_before_retry(attempt)
                     continue
-                raise ApiError(
-                    f"{method} {path} failed after {retries + 1} attempts: {exc}"
-                ) from exc
+                self._raise_network_error(method, path, retries, exc)
 
-            # Retry transient 5xx once or twice.
-            if resp.status_code >= 500 and attempt < retries:
-                time.sleep(1.5 * (attempt + 1))
+            if self._should_retry_response(resp, attempt, retries):
+                self._sleep_before_retry(attempt)
                 continue
 
-            if resp.status_code not in expected:
-                raise ApiError(
-                    f"{method} {path} returned {resp.status_code} "
-                    f"(expected {expected}): {resp.text[:500]}",
-                    status=resp.status_code,
-                    body=_safe_json(resp),
-                )
+            self._validate_response(method, path, resp, expected)
             return resp
 
         # Unreachable, but keeps type-checkers happy.
         raise ApiError(f"{method} {path} failed: {last_exc}")
+
+    def _send_request(
+        self,
+        method: str,
+        url: str,
+        json_body: Any,
+    ) -> requests.Response:
+        return self.session.request(
+            method,
+            url,
+            data=json.dumps(json_body) if json_body is not None else None,
+            timeout=self.timeout,
+        )
+
+    def _sleep_before_retry(self, attempt: int) -> None:
+        time.sleep(1.5 * (attempt + 1))
+
+    def _should_retry_response(
+        self,
+        resp: requests.Response,
+        attempt: int,
+        retries: int,
+    ) -> bool:
+        return resp.status_code >= 500 and attempt < retries
+
+    def _validate_response(
+        self,
+        method: str,
+        path: str,
+        resp: requests.Response,
+        expected: tuple[int, ...],
+    ) -> None:
+        if resp.status_code in expected:
+            return
+
+        raise ApiError(
+            f"{method} {path} returned {resp.status_code} "
+            f"(expected {expected}): {resp.text[:500]}",
+            status=resp.status_code,
+            body=_safe_json(resp),
+        )
+
+    def _raise_network_error(
+        self,
+        method: str,
+        path: str,
+        retries: int,
+        exc: requests.RequestException,
+    ) -> None:
+        raise ApiError(
+            f"{method} {path} failed after {retries + 1} attempts: {exc}"
+        ) from exc
 
     # -- health ----------------------------------------------------------
     def health(self) -> dict:
