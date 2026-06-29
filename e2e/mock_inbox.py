@@ -94,7 +94,8 @@ class InboxMessage:
 
     def _context_strings(self) -> list[str]:
         strings = []
-        for value in (self.context or {}).values():
+        context_values = (self.context or {}).values()
+        for value in context_values:
             strings.extend(context_value_strings(value))
         return strings
 
@@ -105,7 +106,8 @@ def context_value_strings(value) -> list[str]:
     if isinstance(value, (list, tuple)):
         strings = []
         for item in value:
-            strings.append(str(item))
+            string = str(item)
+            strings.append(string)
         return strings
     return []
 
@@ -141,7 +143,8 @@ class InboxBackend:
         self._require_configured()
         kwargs.setdefault("headers", self._headers())
         kwargs.setdefault("timeout", self.timeout)
-        for attempt in range(1, self.max_retries + 1):
+        attempts = range(1, self.max_retries + 1)
+        for attempt in attempts:
             try:
                 resp = self._session.request(method, url, **kwargs)
             except requests.RequestException as exc:
@@ -464,7 +467,8 @@ class MockInboxClient(InboxBackend):
         items = payload.get("messages", []) if isinstance(payload, dict) else []
         messages = []
         for item in items:
-            messages.append(self._summary_to_message(item, address))
+            message = self._summary_to_message(item, address)
+            messages.append(message)
         return messages
 
     def get_message(self, message_id) -> InboxMessage:
@@ -621,7 +625,8 @@ class RealInboxClient(InboxBackend):
         items = payload.get("messages", []) if isinstance(payload, dict) else []
         messages = []
         for item in items:
-            messages.append(self._summary_to_message(item, address))
+            message = self._summary_to_message(item, address)
+            messages.append(message)
         return messages
 
     def _fetch_detail(self, address: str, message: InboxMessage) -> InboxMessage:

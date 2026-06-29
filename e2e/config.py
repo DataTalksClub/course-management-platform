@@ -33,7 +33,8 @@ def _load_dotenv(path: Path) -> None:
     """
     if not path.exists():
         return
-    for raw in path.read_text().splitlines():
+    lines = path.read_text().splitlines()
+    for raw in lines:
         key, value = _dotenv_key_value(raw)
         if key:
             _set_env_default(key, value)

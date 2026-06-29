@@ -38,7 +38,8 @@ def indexed_values(values, limit):
     pairs = []
     if not values:
         return pairs
-    for index, value in enumerate(values):
+    indexed_items = enumerate(values)
+    for index, value in indexed_items:
         if index >= limit:
             break
         pairs.append((index, value))
@@ -68,7 +69,8 @@ class AdminSession:
         plain ``locator.click()`` acts on the first match even if it is hidden.
         """
         candidates = self.page.locator(selector)
-        for index in range(candidates.count()):
+        indexes = range(candidates.count())
+        for index in indexes:
             candidate = candidates.nth(index)
             if candidate.is_visible():
                 candidate.click()
@@ -191,7 +193,8 @@ class AdminSession:
         ).filter(has_text="")
         import re
 
-        for i in range(link.count()):
+        indexes = range(link.count())
+        for i in indexes:
             href = link.nth(i).get_attribute("href") or ""
             m = re.search(r"/admin/accounts/customuser/(\d+)/change/", href)
             if m:
@@ -267,7 +270,8 @@ class AdminSession:
         # Each result row's first cell is an <a> to the change form. Find the
         # row whose visible text contains our slug/title and read its pk.
         rows = self.page.locator("#result_list tbody tr")
-        for i in range(rows.count()):
+        indexes = range(rows.count())
+        for i in indexes:
             row = rows.nth(i)
             try:
                 row_text = row.inner_text()
@@ -333,7 +337,8 @@ class AdminSession:
 
     # -- homework flow ---------------------------------------------------
     def _check_homework_checkboxes(self, field: str, value: str) -> None:
-        for idx in str(value).split(","):
+        indexes = str(value).split(",")
+        for idx in indexes:
             idx = idx.strip()
             checkbox = self.page.locator(
                 f"input[name='{field}'][type='checkbox'][value='{idx}']"
@@ -367,7 +372,8 @@ class AdminSession:
 
     def _fill_learning_in_public_links(self, links: list[str] | None) -> None:
         inputs = self.page.locator("[name='learning_in_public_links[]']")
-        for index, link in indexed_values(links, inputs.count()):
+        link_values = indexed_values(links, inputs.count())
+        for index, link in link_values:
             inputs.nth(index).fill(link)
 
     def _homework_submit_selector(self, answers: dict[int, str]) -> str:
@@ -412,7 +418,8 @@ class AdminSession:
         time_spent_lectures: float | None,
         time_spent_homework: float | None,
     ) -> None:
-        for question_id, value in answers.items():
+        answer_items = answers.items()
+        for question_id, value in answer_items:
             self._fill_homework_answer(question_id, value)
 
         self._fill_optional_homework_field("[name='homework_url']", homework_url)
@@ -474,10 +481,11 @@ class AdminSession:
         learning_in_public_links: list[str] | None,
     ) -> None:
         inputs = self.page.locator("[name='learning_in_public_links[]']")
-        for index, link in indexed_values(
+        link_values = indexed_values(
             learning_in_public_links,
             inputs.count(),
-        ):
+        )
+        for index, link in link_values:
             inputs.nth(index).fill(link)
 
     def delete_project_submission(self, course_slug: str, project_slug: str) -> None:

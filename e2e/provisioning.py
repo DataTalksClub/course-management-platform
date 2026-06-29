@@ -164,7 +164,8 @@ class Provisioner:
         deleted: list[str],
         residual: list[str],
     ) -> None:
-        for proj in self.api.list_projects(slug):
+        projects = self.api.list_projects(slug)
+        for proj in projects:
             _close_and_delete(
                 lambda pid: self.api.update_project(slug, pid, {"state": "CL"}),
                 lambda pid: self.api.delete_project(slug, pid),
@@ -180,7 +181,8 @@ class Provisioner:
         deleted: list[str],
         residual: list[str],
     ) -> None:
-        for hw in self.api.list_homeworks(slug):
+        homeworks = self.api.list_homeworks(slug)
+        for hw in homeworks:
             _close_and_delete(
                 lambda hid: self.api.update_homework(slug, hid, {"state": "CL"}),
                 lambda hid: self.api.delete_homework(slug, hid),
@@ -300,16 +302,22 @@ class Provisioner:
         otherwise falls back to parking each stale course hidden.
         """
         reports = []
-        for course in self.api.list_courses():
+        courses = self.api.list_courses()
+        for course in courses:
             slug = course.get("slug", "")
             if slug.startswith(NAMESPACE_PREFIX):
-                reports.append(self.teardown_course(slug, admin_session=admin_session))
+                report = self.teardown_course(
+                    slug,
+                    admin_session=admin_session,
+                )
+                reports.append(report)
         return reports
 
     def list_active_namespaced_courses(self) -> list[str]:
         """Courses still visible under our namespace (for the clean assert)."""
         slugs = []
-        for course in self.api.list_courses():
+        courses = self.api.list_courses()
+        for course in courses:
             if not course.get("slug", "").startswith(NAMESPACE_PREFIX):
                 continue
             if not course.get("visible", True):
