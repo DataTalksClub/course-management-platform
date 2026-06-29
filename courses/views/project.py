@@ -1290,39 +1290,16 @@ def _project_vote_response(request, course, project):
     if not request.user.is_authenticated:
         return redirect("login")
 
-    submission_id = request.POST.get("submission_id")
-    action = request.POST.get("action", "vote")
-    submission = get_object_or_404(
-        ProjectSubmission.objects.select_related("project"),
-        id=submission_id,
-        project=project,
-        volunteer_review_only=False,
+    submission = _project_vote_submission(request, project)
+    update_project_vote(
+        request.user,
+        submission,
+        action=request.POST.get("action", "vote"),
     )
-    update_project_vote(request.user, submission, action=action)
 
-    if request.headers.get("x-requested-with") == "XMLHttpRequest":
-        voted_submission_ids = get_voted_submission_ids(request.user, course)
-        project_vote_counts = get_project_vote_counts(request.user, course)
-        project_vote_count = project_vote_counts.get(project.id, 0)
-        votes_left = max(PROJECT_VOTES_PER_PROJECT - project_vote_count, 0)
-        vote_count = (
-            ProjectSubmission.objects.filter(id=submission.id)
-            .annotate(vote_count=Count("votes"))
-            .values_list("vote_count", flat=True)
-            .get()
-        )
-
+    if _is_ajax_request(request):
         return JsonResponse(
-            {
-                "submission_id": submission.id,
-                "vote_count": vote_count,
-                "voted": submission.id in voted_submission_ids,
-                "voted_submission_ids": list(voted_submission_ids),
-                "votes_left": votes_left,
-                "vote_limit_reached": (
-                    project_vote_count >= PROJECT_VOTES_PER_PROJECT
-                ),
-            }
+            _project_vote_payload(request.user, course, project, submission)
         )
 
     return redirect(
@@ -1330,6 +1307,46 @@ def _project_vote_response(request, course, project):
         course_slug=course.slug,
         project_slug=project.slug,
     )
+
+
+def _is_ajax_request(request):
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"
+
+
+def _project_vote_submission(request, project):
+    return get_object_or_404(
+        ProjectSubmission.objects.select_related("project"),
+        id=request.POST.get("submission_id"),
+        project=project,
+        volunteer_review_only=False,
+    )
+
+
+def _project_submission_vote_count(submission):
+    return (
+        ProjectSubmission.objects.filter(id=submission.id)
+        .annotate(vote_count=Count("votes"))
+        .values_list("vote_count", flat=True)
+        .get()
+    )
+
+
+def _project_vote_payload(user, course, project, submission):
+    voted_submission_ids = get_voted_submission_ids(user, course)
+    project_vote_counts = get_project_vote_counts(user, course)
+    project_vote_count = project_vote_counts.get(project.id, 0)
+    votes_left = max(PROJECT_VOTES_PER_PROJECT - project_vote_count, 0)
+
+    return {
+        "submission_id": submission.id,
+        "vote_count": _project_submission_vote_count(submission),
+        "voted": submission.id in voted_submission_ids,
+        "voted_submission_ids": list(voted_submission_ids),
+        "votes_left": votes_left,
+        "vote_limit_reached": (
+            project_vote_count >= PROJECT_VOTES_PER_PROJECT
+        ),
+    }
 
 
 def _decorate_project_submissions(
