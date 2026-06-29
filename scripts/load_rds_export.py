@@ -167,7 +167,8 @@ def sqlite_url(path: Path) -> str:
 
 def latest_export(source_dir: Path, pattern: str) -> Path:
     candidates = []
-    for path in source_dir.glob(pattern):
+    matching_paths = source_dir.glob(pattern)
+    for path in matching_paths:
         if path.is_file() and path.stat().st_size > 0:
             candidates.append(path)
     if not candidates:
@@ -200,10 +201,12 @@ def setup_django() -> dict[str, Any]:
 
     django.setup()
 
-    return {
-        model._meta.db_table: model
-        for model in apps.get_models(include_auto_created=True)
-    }
+    model_by_table = {}
+    models = apps.get_models(include_auto_created=True)
+    for model in models:
+        table = model._meta.db_table
+        model_by_table[table] = model
+    return model_by_table
 
 
 def django_field_default(model: Any, column: str) -> tuple[bool, Any]:
@@ -223,7 +226,8 @@ def django_field_default(model: Any, column: str) -> tuple[bool, Any]:
 def django_field_for_column(model: Any, column: str):
     if model is None:
         return None
-    for field in model._meta.fields:
+    model_fields = model._meta.fields
+    for field in model_fields:
         if field.column == column:
             return field
     return None
@@ -231,7 +235,12 @@ def django_field_for_column(model: Any, column: str):
 
 def table_names(cursor: sqlite3.Cursor) -> set[str]:
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    return {row[0] for row in cursor.fetchall()}
+    names = set()
+    rows = cursor.fetchall()
+    for row in rows:
+        name = row[0]
+        names.add(name)
+    return names
 
 
 def pragma_table_info(
@@ -317,7 +326,10 @@ def build_table_copy_plan(
 ) -> TableCopyPlan:
     source_info = pragma_table_info(source_cursor, table)
     target_info = pragma_table_info(target_cursor, table)
-    source_columns = {row["name"] for row in source_info}
+    source_columns = set()
+    for row in source_info:
+        column = row["name"]
+        source_columns.add(column)
     plan = TableCopyPlan(
         table=table,
         insert_columns=[],
@@ -343,12 +355,17 @@ def build_table_copy_plan(
 
 
 def quoted_csv(columns: list[str]) -> str:
-    return ", ".join(f'"{column}"' for column in columns)
+    quoted_columns = []
+    for column in columns:
+        quoted_column = f'"{column}"'
+        quoted_columns.append(quoted_column)
+    return ", ".join(quoted_columns)
 
 
 def table_source_columns(plan: TableCopyPlan) -> list[str]:
     columns = []
-    for column in plan.insert_columns:
+    insert_columns = plan.insert_columns
+    for column in insert_columns:
         if column in plan.source_columns:
             columns.append(column)
     return columns
@@ -358,19 +375,26 @@ def row_values(
     source_row: sqlite3.Row,
     plan: TableCopyPlan,
 ) -> tuple[Any, ...]:
-    return tuple(
-        source_row[column]
-        if column in plan.source_columns
-        else plan.default_values[column]
-        for column in plan.insert_columns
-    )
+    values = []
+    insert_columns = plan.insert_columns
+    for column in insert_columns:
+        if column in plan.source_columns:
+            value = source_row[column]
+        else:
+            value = plan.default_values[column]
+        values.append(value)
+    return tuple(values)
 
 
 def insert_batch_sql(plan: TableCopyPlan) -> str:
-    placeholders = ", ".join("?" for _ in plan.insert_columns)
+    placeholders = []
+    insert_columns = plan.insert_columns
+    for _column in insert_columns:
+        placeholders.append("?")
+    placeholder_sql = ", ".join(placeholders)
     return (
         f'INSERT INTO "{plan.table}" ({quoted_csv(plan.insert_columns)}) '
-        f"VALUES ({placeholders})"
+        f"VALUES ({placeholder_sql})"
     )
 
 
@@ -393,7 +417,8 @@ def copy_table_rows(
 
         values = []
         for source_row in batch:
-            values.append(row_values(source_row, plan))
+            value = row_values(source_row, plan)
+            values.append(value)
         target_cursor.executemany(insert_batch_sql(plan), values)
         row_count += len(values)
 
@@ -406,7 +431,12 @@ def validate_foreign_keys(target_cursor: sqlite3.Cursor) -> None:
         "PRAGMA foreign_key_check"
     ).fetchall()
     if violations:
-        details = "\n".join(str(tuple(row)) for row in violations[:20])
+        detail_lines = []
+        violation_sample = violations[:20]
+        for row in violation_sample:
+            detail = str(tuple(row))
+            detail_lines.append(detail)
+        details = "\n".join(detail_lines)
         raise RuntimeError(
             "Foreign-key check failed with "
             f"{len(violations)} violations:\n"
@@ -432,7 +462,8 @@ def print_imported_tables(
 def print_defaults_used(defaults_used: set[tuple[str, str, Any]]) -> None:
     if defaults_used:
         print("Filled local-only columns with Django defaults:")
-        for table, column, default in sorted(defaults_used):
+        sorted_defaults = sorted(defaults_used)
+        for table, column, default in sorted_defaults:
             print(f"  {table}.{column} = {default!r}")
 
 
