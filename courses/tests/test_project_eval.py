@@ -36,23 +36,18 @@ credentials = dict(
 
 
 class ProjectEvaluationTestCase(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        self.user = User.objects.create_user(**credentials)
-
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test Course Description",
         )
 
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
+    def create_enrollment(self, user):
+        return Enrollment.objects.create(student=user, course=self.course)
 
-        self.project = Project.objects.create(
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -61,80 +56,93 @@ class ProjectEvaluationTestCase(TestCase):
             state=ProjectState.PEER_REVIEWING.value,
         )
 
-        self.submission = ProjectSubmission.objects.create(
+    def create_project_submission(self, user, enrollment, github_link):
+        return ProjectSubmission.objects.create(
             project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/user/project",
+            student=user,
+            enrollment=enrollment,
+            github_link=github_link,
             commit_id="1234567",
         )
 
-        self.other_user = User.objects.create_user(
-            username="student",
-            email="email@email.com",
-            password="12345",
-        )
-
-        self.other_enrollment = Enrollment.objects.create(
-            student=self.other_user,
-            course=self.course,
-        )
-
-        self.other_submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.other_user,
-            enrollment=self.other_enrollment,
-            github_link="https://github.com/other_student/project",
-            commit_id="1234567",
-        )
-
-        self.peer_review = PeerReview.objects.create(
+    def create_peer_review(self):
+        return PeerReview.objects.create(
             submission_under_evaluation=self.other_submission,
             reviewer=self.submission,
             optional=False,
         )
 
-        self.criteria1 = ReviewCriteria.objects.create(
+    def create_review_criteria(
+        self, description, options, review_criteria_type
+    ):
+        return ReviewCriteria.objects.create(
             course=self.course,
-            description="Code quality",
-            options=[
+            description=description,
+            options=options,
+            review_criteria_type=review_criteria_type,
+        )
+
+    def create_review_criteria_set(self):
+        self.criteria1 = self.create_review_criteria(
+            "Code quality",
+            [
                 {"criteria": "Poor", "score": 0},
                 {"criteria": "Satisfactory", "score": 1},
                 {"criteria": "Good", "score": 2},
                 {"criteria": "Excellent", "score": 3},
             ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
+            ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
-
-        self.criteria2 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Project documentation",
-            options=[
+        self.criteria2 = self.create_review_criteria(
+            "Project documentation",
+            [
                 {"criteria": "None", "score": 0},
                 {"criteria": "Basic", "score": 1},
                 {"criteria": "Complete", "score": 2},
                 {"criteria": "In-depth", "score": 3},
             ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
+            ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
-
-        self.criteria3 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Best practices",
-            options=[
+        self.criteria3 = self.create_review_criteria(
+            "Best practices",
+            [
                 {"criteria": "Coding standards", "score": 1},
                 {"criteria": "Tests", "score": 1},
                 {"criteria": "Logging", "score": 1},
                 {"criteria": "Version control", "score": 1},
                 {"criteria": "CI/CD", "score": 1},
             ],
-            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
+            ReviewCriteriaTypes.CHECKBOXES.value,
         )
-
         self.criteria = [self.criteria1, self.criteria2, self.criteria3]
 
-    def test_eval_submit_not_authenticated(self):
-        url = reverse(
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment(self.user)
+        self.project = self.create_project()
+        self.submission = self.create_project_submission(
+            self.user,
+            self.enrollment,
+            "https://github.com/user/project",
+        )
+        self.other_user = User.objects.create_user(
+            username="student",
+            email="email@email.com",
+            password="12345",
+        )
+        self.other_enrollment = self.create_enrollment(self.other_user)
+        self.other_submission = self.create_project_submission(
+            self.other_user,
+            self.other_enrollment,
+            "https://github.com/other_student/project",
+        )
+        self.peer_review = self.create_peer_review()
+        self.create_review_criteria_set()
+
+    def eval_submit_url(self):
+        return reverse(
             "projects_eval_submit",
             args=[
                 self.course.slug,
@@ -143,23 +151,165 @@ class ProjectEvaluationTestCase(TestCase):
             ],
         )
 
-        response = self.client.get(url)
+    def eval_view_url(self):
+        return reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+    def get_eval_submit_response(self):
+        self.client.login(**credentials)
+        return self.client.get(self.eval_submit_url())
+
+    def review_post_data(self, **extra_fields):
+        data = {
+            "note_to_peer": "Well done!",
+            "time_spent_reviewing": "3",
+            f"answer_{self.criteria1.id}": "1",
+            f"answer_{self.criteria2.id}": "2",
+            f"answer_{self.criteria3.id}": "1,3",
+        }
+        data.update(extra_fields)
+        return data
+
+    def updated_review_post_data(self):
+        return self.review_post_data(
+            **{
+                f"answer_{self.criteria1.id}": "2",
+                f"answer_{self.criteria2.id}": "3",
+                f"answer_{self.criteria3.id}": "1,2,3",
+                "learning_in_public_links[]": [],
+            }
+        )
+
+    def post_eval_submit(self, post_data):
+        self.client.login(**credentials)
+        return self.client.post(self.eval_submit_url(), post_data)
+
+    def create_criteria_responses(self):
+        responses = {
+            self.criteria1: CriteriaResponse.objects.create(
+                review=self.peer_review,
+                criteria=self.criteria1,
+                answer="1",
+            ),
+            self.criteria2: CriteriaResponse.objects.create(
+                review=self.peer_review,
+                criteria=self.criteria2,
+                answer="2",
+            ),
+            self.criteria3: CriteriaResponse.objects.create(
+                review=self.peer_review,
+                criteria=self.criteria3,
+                answer="1,3",
+            ),
+        }
+        return responses
+
+    def mark_peer_review_submitted(self):
+        self.peer_review.state = PeerReviewState.SUBMITTED.value
+        self.peer_review.save()
+
+    def selected_options(self, rows, selected_indexes):
+        return [
+            {
+                "criteria": criteria,
+                "score": score,
+                "index": index,
+                "is_selected": index in selected_indexes,
+            }
+            for index, (criteria, score) in enumerate(rows, start=1)
+        ]
+
+    def assert_empty_criteria_response_pairs(self, pairs):
+        self.assertEqual(len(pairs), 3)
+        expected_criteria = [self.criteria1, self.criteria2, self.criteria3]
+        for pair, criteria in zip(pairs, expected_criteria):
+            actual_criteria, response = pair
+            self.assertEqual(actual_criteria, criteria)
+            self.assertIsNone(response)
+
+    def assert_submitted_criteria_response_pairs(
+        self, pairs, criteria_responses
+    ):
+        self.assertEqual(len(pairs), 3)
+        self.assert_submitted_criteria_pair(
+            pairs[0],
+            self.criteria1,
+            criteria_responses[self.criteria1],
+            self.selected_options(
+                [
+                    ("Poor", 0),
+                    ("Satisfactory", 1),
+                    ("Good", 2),
+                    ("Excellent", 3),
+                ],
+                {1},
+            ),
+        )
+        self.assert_submitted_criteria_pair(
+            pairs[1],
+            self.criteria2,
+            criteria_responses[self.criteria2],
+            self.selected_options(
+                [
+                    ("None", 0),
+                    ("Basic", 1),
+                    ("Complete", 2),
+                    ("In-depth", 3),
+                ],
+                {2},
+            ),
+        )
+        self.assert_submitted_criteria_pair(
+            pairs[2],
+            self.criteria3,
+            criteria_responses[self.criteria3],
+            self.selected_options(
+                [
+                    ("Coding standards", 1),
+                    ("Tests", 1),
+                    ("Logging", 1),
+                    ("Version control", 1),
+                    ("CI/CD", 1),
+                ],
+                {1, 3},
+            ),
+        )
+
+    def assert_submitted_criteria_pair(
+        self, pair, criteria, response, expected_options
+    ):
+        actual_criteria, actual_response = pair
+        self.assertEqual(actual_criteria, criteria)
+        self.assertEqual(actual_response, response)
+        self.assertEqual(actual_criteria.options, expected_options)
+
+    def criteria_responses(self):
+        return CriteriaResponse.objects.filter(review=self.peer_review)
+
+    def assert_review_saved(self, expected_answers):
+        self.peer_review = fetch_fresh(self.peer_review)
+        self.assertEqual(
+            self.peer_review.state, PeerReviewState.SUBMITTED.value
+        )
+        self.assertEqual(self.peer_review.note_to_peer, "Well done!")
+        self.assertEqual(self.peer_review.time_spent_reviewing, 3.0)
+
+        criteria_responses = self.criteria_responses()
+        self.assertEqual(criteria_responses.count(), len(expected_answers))
+        for criteria, expected_answer in expected_answers.items():
+            response = criteria_responses.get(criteria=criteria)
+            self.assertEqual(response.answer, expected_answer)
+
+    def test_eval_submit_not_authenticated(self):
+        response = self.client.get(self.eval_submit_url())
         self.assertEqual(response.status_code, 302)
 
     def test_eval_submit_get_authenticated_not_submitted_accepting_responses(
         self,
     ):
-        self.client.login(**credentials)
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.get(url)
+        response = self.get_eval_submit_response()
         self.assertEqual(response.status_code, 200)
 
         context = response.context
@@ -182,20 +332,9 @@ class ProjectEvaluationTestCase(TestCase):
             submission, self.peer_review.submission_under_evaluation
         )
 
-        criteria_response_pairs = context["criteria_response_pairs"]
-
-        self.assertEqual(len(criteria_response_pairs), 3)
-        c1, r1 = criteria_response_pairs[0]
-        self.assertEqual(c1, self.criteria1)
-        self.assertEqual(r1, None)
-
-        c2, r2 = criteria_response_pairs[1]
-        self.assertEqual(c2, self.criteria2)
-        self.assertEqual(r2, None)
-
-        c3, r3 = criteria_response_pairs[2]
-        self.assertEqual(c3, self.criteria3)
-        self.assertEqual(r3, None)
+        self.assert_empty_criteria_response_pairs(
+            context["criteria_response_pairs"]
+        )
 
         submission = context["submission"]
         self.assertEqual(
@@ -208,18 +347,7 @@ class ProjectEvaluationTestCase(TestCase):
         self.project.state = ProjectState.COMPLETED.value
         self.project.save()
 
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.get(url)
+        response = self.get_eval_submit_response()
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
@@ -240,46 +368,15 @@ class ProjectEvaluationTestCase(TestCase):
         review = context["review"]
         self.assertEqual(review, self.peer_review)
 
-        criteria_response_pairs = context["criteria_response_pairs"]
-
-        self.assertEqual(len(criteria_response_pairs), 3)
-        c1, r1 = criteria_response_pairs[0]
-        self.assertEqual(c1, self.criteria1)
-        self.assertEqual(r1, None)
-
-        c2, r2 = criteria_response_pairs[1]
-        self.assertEqual(c2, self.criteria2)
-        self.assertEqual(r2, None)
-
-        c3, r3 = criteria_response_pairs[2]
-        self.assertEqual(c3, self.criteria3)
-        self.assertEqual(r3, None)
+        self.assert_empty_criteria_response_pairs(
+            context["criteria_response_pairs"]
+        )
 
     def test_eval_submit_post_not_accepting_responses(self):
         self.project.state = ProjectState.COMPLETED.value
         self.project.save()
 
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.post(
-            url,
-            {
-                "note_to_peer": "Well done!",
-                "time_spent_reviewing": "3",
-                f"answer_{self.criteria1.id}": "1",
-                f"answer_{self.criteria2.id}": "2",
-                f"answer_{self.criteria3.id}": "1,3",
-            },
-        )
+        response = self.post_eval_submit(self.review_post_data())
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -297,38 +394,10 @@ class ProjectEvaluationTestCase(TestCase):
         )
 
     def test_eval_submit_get_authenticated_submitted(self):
-        r1 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria1,
-            answer="1",
-        )
+        criteria_responses = self.create_criteria_responses()
+        self.mark_peer_review_submitted()
 
-        r2 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria2,
-            answer="2",
-        )
-
-        r3 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria3,
-            answer="1,3",
-        )
-
-        self.peer_review.state = PeerReviewState.SUBMITTED.value
-        self.peer_review.save()
-
-        self.client.login(**credentials)
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.get(url)
+        response = self.get_eval_submit_response()
         self.assertEqual(response.status_code, 200)
 
         context = response.context
@@ -339,155 +408,35 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(review, self.peer_review)
         self.assertEqual(review.state, PeerReviewState.SUBMITTED.value)
 
-        criteria_response_pairs = context["criteria_response_pairs"]
-
-        self.assertEqual(len(criteria_response_pairs), 3)
-        c1, r1_actual = criteria_response_pairs[0]
-        self.assertEqual(c1, self.criteria1)
-        self.assertEqual(r1_actual, r1)
-
-        expected_options1 = [
-            {
-                "criteria": "Poor",
-                "score": 0,
-                "index": 1,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Satisfactory",
-                "score": 1,
-                "index": 2,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Good",
-                "score": 2,
-                "index": 3,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Excellent",
-                "score": 3,
-                "index": 4,
-                "is_selected": False,
-            },
-        ]
-
-        self.assertEqual(c1.options, expected_options1)
-
-        c2, r2_actual = criteria_response_pairs[1]
-        self.assertEqual(c2, self.criteria2)
-        self.assertEqual(r2_actual, r2)
-
-        expected_options2 = [
-            {
-                "criteria": "None",
-                "score": 0,
-                "index": 1,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Basic",
-                "score": 1,
-                "index": 2,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Complete",
-                "score": 2,
-                "index": 3,
-                "is_selected": False,
-            },
-            {
-                "criteria": "In-depth",
-                "score": 3,
-                "index": 4,
-                "is_selected": False,
-            },
-        ]
-
-        self.assertEqual(c2.options, expected_options2)
-
-        c3, r3_actual = criteria_response_pairs[2]
-        self.assertEqual(c3, self.criteria3)
-        self.assertEqual(r3_actual, r3)
-
-        expected_options3 = [
-            {
-                "criteria": "Coding standards",
-                "score": 1,
-                "index": 1,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Tests",
-                "score": 1,
-                "index": 2,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Logging",
-                "score": 1,
-                "index": 3,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Version control",
-                "score": 1,
-                "index": 4,
-                "is_selected": False,
-            },
-            {
-                "criteria": "CI/CD",
-                "score": 1,
-                "index": 5,
-                "is_selected": False,
-            },
-        ]
-
-        self.assertEqual(c3.options, expected_options3)
+        self.assert_submitted_criteria_response_pairs(
+            context["criteria_response_pairs"],
+            criteria_responses,
+        )
 
     def test_eval_submit_post_not_submitted(self):
-        self.client.login(**credentials)
-
-        criteria_responses = CriteriaResponse.objects.filter(
-            review=self.peer_review
-        )
+        criteria_responses = self.criteria_responses()
         self.assertEqual(criteria_responses.count(), 0)
 
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.post(
-            url,
-            {
-                "note_to_peer": "Well done!",
-                "time_spent_reviewing": "3",
-                f"answer_{self.criteria1.id}": "1",
-                f"answer_{self.criteria2.id}": "2",
-                f"answer_{self.criteria3.id}": "1,3",
-                "learning_in_public_links[]": [
-                    "http://example.com/page",
-                    "http://example.com/page2",
-                ],
-                "problems_comments": "No problems"
-            },
+        response = self.post_eval_submit(
+            self.review_post_data(
+                **{
+                    "learning_in_public_links[]": [
+                        "http://example.com/page",
+                        "http://example.com/page2",
+                    ],
+                },
+                problems_comments="No problems",
+            )
         )
 
         self.assertEqual(response.status_code, 302)
-
-        self.peer_review = fetch_fresh(self.peer_review)
-
-        self.assertEqual(
-            self.peer_review.state, PeerReviewState.SUBMITTED.value
+        self.assert_review_saved(
+            {
+                self.criteria1: "1",
+                self.criteria2: "2",
+                self.criteria3: "1,3",
+            }
         )
-        self.assertEqual(self.peer_review.note_to_peer, "Well done!")
         self.assertEqual(self.peer_review.problems_comments, "No problems")
 
         learning_in_public_links = (
@@ -504,80 +453,24 @@ class ProjectEvaluationTestCase(TestCase):
             "http://example.com/page2",
         )
 
-        self.assertEqual(self.peer_review.time_spent_reviewing, 3.0)
-
-        self.assertEqual(criteria_responses.count(), 3)
-
-        c1 = criteria_responses.get(criteria=self.criteria1)
-        self.assertEqual(c1.answer, "1")
-
-        c2 = criteria_responses.get(criteria=self.criteria2)
-        self.assertEqual(c2.answer, "2")
-
-        c3 = criteria_responses.get(criteria=self.criteria3)
-        self.assertEqual(c3.answer, "1,3")
-
     def test_eval_submit_post_already_submitted(self):
-        c1 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria1,
-            answer="1",
-        )
-
-        c2 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria2,
-            answer="2",
-        )
-
-        c3 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria3,
-            answer="1,3",
-        )
-
-        self.peer_review.state = PeerReviewState.SUBMITTED.value
-        self.peer_review.save()
-
-        self.client.login(**credentials)
-
-        criteria_responses = CriteriaResponse.objects.filter(
-            review=self.peer_review
-        )
+        criteria_response_map = self.create_criteria_responses()
+        self.mark_peer_review_submitted()
+        criteria_responses = self.criteria_responses()
         self.assertEqual(criteria_responses.count(), 3)
 
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.post(
-            url,
-            {
-                "note_to_peer": "Well done!",
-                "time_spent_reviewing": "3",
-                f"answer_{self.criteria1.id}": "2",
-                f"answer_{self.criteria2.id}": "3",
-                f"answer_{self.criteria3.id}": "1,2,3",
-                "learning_in_public_links[]": [],
-            },
-        )
+        response = self.post_eval_submit(self.updated_review_post_data())
 
         self.assertEqual(response.status_code, 302)
-
         self.assertEqual(criteria_responses.count(), 3)
 
-        c1 = fetch_fresh(c1)
+        c1 = fetch_fresh(criteria_response_map[self.criteria1])
         self.assertEqual(c1.answer, "2")
 
-        c2 = fetch_fresh(c2)
+        c2 = fetch_fresh(criteria_response_map[self.criteria2])
         self.assertEqual(c2.answer, "3")
 
-        c3 = fetch_fresh(c3)
+        c3 = fetch_fresh(criteria_response_map[self.criteria3])
         self.assertEqual(c3.answer, "1,2,3")
 
     def test_eval_view_authenticated_no_submission(self):
