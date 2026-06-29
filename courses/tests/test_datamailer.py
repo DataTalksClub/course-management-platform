@@ -894,6 +894,43 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
+    def create_contact_payload_fixture(self):
+        user = CustomUser.objects.create(
+            email="Student@Example.com",
+            username="student",
+        )
+        return user, self.create_ml_course()
+
+    def assert_course_subscription_contact_payload(self, payload):
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(payload["client"], "dtc-courses")
+        self.assertEqual(payload["audience"], "dtc-courses")
+        self.assertEqual(payload["status"], "subscribed")
+        self.assertTrue(payload["verified"])
+        self.assertEqual(
+            payload["email_validation"]["status"],
+            "externally_validated",
+        )
+        self.assertEqual(
+            payload["tags"],
+            [
+                "course-ml-zoomcamp",
+                "course-cohort-ml-zoomcamp-2026",
+            ],
+        )
+        self.assertEqual(
+            payload["custom_fields"]["course_slug"],
+            "ml-zoomcamp-2026",
+        )
+        self.assertEqual(
+            payload["custom_fields"]["course_family_slug"],
+            "ml-zoomcamp",
+        )
+        self.assertEqual(
+            payload["custom_fields"]["course_cohort_slug"],
+            "ml-zoomcamp-2026",
+        )
+
     def configure_contact_bulk_import_counts(self, bulk_import):
         bulk_import.return_value = {
             "counts": {
@@ -1839,46 +1876,11 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
-        user = CustomUser.objects.create(
-            email="Student@Example.com",
-            username="student",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
+        user, course = self.create_contact_payload_fixture()
 
         payload = contact_payload_for_user(user, course=course)
 
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(payload["client"], "dtc-courses")
-        self.assertEqual(payload["audience"], "dtc-courses")
-        self.assertEqual(payload["status"], "subscribed")
-        self.assertTrue(payload["verified"])
-        self.assertEqual(
-            payload["email_validation"]["status"],
-            "externally_validated",
-        )
-        self.assertEqual(
-            payload["tags"],
-            [
-                "course-ml-zoomcamp",
-                "course-cohort-ml-zoomcamp-2026",
-            ],
-        )
-        self.assertEqual(
-            payload["custom_fields"]["course_slug"],
-            "ml-zoomcamp-2026",
-        )
-        self.assertEqual(
-            payload["custom_fields"]["course_family_slug"],
-            "ml-zoomcamp",
-        )
-        self.assertEqual(
-            payload["custom_fields"]["course_cohort_slug"],
-            "ml-zoomcamp-2026",
-        )
+        self.assert_course_subscription_contact_payload(payload)
 
     def test_contact_tags_for_course_without_trailing_year(self):
         course = Course(
