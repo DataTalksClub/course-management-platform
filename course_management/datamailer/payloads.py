@@ -879,56 +879,87 @@ def _assigned_review_links(submission) -> list[dict[str, Any]]:
     )
     items = []
     for review in reviews:
-        target = review.submission_under_evaluation
-        item = {
-            "review_id": review.id,
-            "eval_url": public_url(
-                reverse(
-                    "projects_eval_submit",
-                    kwargs={
-                        "course_slug": course.slug,
-                        "project_slug": project.slug,
-                        "review_id": review.id,
-                    },
-                )
-            ),
-            "submission_github_link": (
-                getattr(target, "github_link", "") or ""
-            ),
-        }
+        item = assigned_review_link_item(review, course, project)
         items.append(item)
     return items
 
 
-def peer_review_assignment_metadata(submission) -> dict[str, Any]:
-    project = submission.project
-    course = project.course
-    assigned_reviews = _assigned_review_links(submission)
-    deadline = format_deadline_for_email(
-        project.peer_review_due_date,
-        submission.student,
+def assigned_review_link_item(review, course, project) -> dict[str, Any]:
+    target = review.submission_under_evaluation
+    return {
+        "review_id": review.id,
+        "eval_url": assigned_review_eval_url(review, course, project),
+        "submission_github_link": getattr(target, "github_link", "") or "",
+    }
+
+
+def assigned_review_eval_url(review, course, project) -> str:
+    return public_url(
+        reverse(
+            "projects_eval_submit",
+            kwargs={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+                "review_id": review.id,
+            },
+        )
     )
+
+
+def peer_review_assignment_metadata(submission) -> dict[str, Any]:
+    return {
+        **peer_review_assignment_identity_metadata(submission),
+        **peer_review_assignment_review_metadata(submission),
+        **peer_review_assignment_deadline_metadata(submission),
+    }
+
+
+def peer_review_assignment_identity_metadata(submission) -> dict[str, Any]:
+    project = submission.project
     return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
-        "course_slug": course.slug,
+        "course_slug": project.course.slug,
         "project_slug": project.slug,
         "submitted_at": submission.submitted_at.isoformat()
         if submission.submitted_at
         else "",
         "github_link": submission.github_link,
-        "evaluations_url": public_url(
-            reverse(
-                "projects_eval",
-                kwargs={
-                    "course_slug": course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        ),
+    }
+
+
+def peer_review_assignment_review_metadata(submission) -> dict[str, Any]:
+    project = submission.project
+    assigned_reviews = _assigned_review_links(submission)
+    return {
+        "evaluations_url": peer_review_assignment_evaluations_url(project),
         "number_of_peers_to_evaluate": project.number_of_peers_to_evaluate,
         "assigned_reviews": assigned_reviews,
         "assigned_reviews_count": len(assigned_reviews),
+    }
+
+
+def peer_review_assignment_evaluations_url(project) -> str:
+    return public_url(
+        reverse(
+            "projects_eval",
+            kwargs={
+                "course_slug": project.course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
+
+
+def peer_review_assignment_deadline_metadata(
+    submission,
+) -> dict[str, Any]:
+    project = submission.project
+    deadline = format_deadline_for_email(
+        project.peer_review_due_date,
+        submission.student,
+    )
+    return {
         "deadline_weekday": deadline["deadline_weekday"],
         "deadline_date": deadline["deadline_date"],
         "deadline_time": deadline["deadline_time"],
