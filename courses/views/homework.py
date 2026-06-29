@@ -686,9 +686,23 @@ def _apply_homework_submission_fields(
     submission, request, course, homework, user
 ):
     """Populate the optional submission fields enabled for this homework."""
+    _apply_homework_url_field(submission, request, homework)
+    _apply_learning_in_public_links(
+        submission, request, course, homework, user
+    )
+    _apply_time_spent_fields(submission, request, homework)
+    _apply_problems_comments_field(submission, request, course)
+    _apply_faq_contribution_field(submission, request, homework)
+
+
+def _apply_homework_url_field(submission, request, homework):
     if homework.homework_url_field:
         submission.homework_link = request.POST.get("homework_url")
 
+
+def _apply_learning_in_public_links(
+    submission, request, course, homework, user
+):
     if homework.learning_in_public_cap > 0:
         links = request.POST.getlist("learning_in_public_links[]")
         cleaned_links = clean_learning_in_public_links(
@@ -707,27 +721,48 @@ def _apply_homework_submission_fields(
             )
         submission.learning_in_public_links = cleaned_links
 
-    if homework.time_spent_lectures_field:
-        time_spent_lectures = parse_time_spent_hours(
-            request.POST.get("time_spent_lectures"),
-            "time spent on lectures",
-        )
-        if time_spent_lectures is not None:
-            submission.time_spent_lectures = time_spent_lectures
 
-    if homework.time_spent_homework_field:
-        time_spent_homework = parse_time_spent_hours(
-            request.POST.get("time_spent_homework"),
-            "time spent on homework",
-        )
-        if time_spent_homework is not None:
-            submission.time_spent_homework = time_spent_homework
+def _apply_time_spent_fields(submission, request, homework):
+    _apply_time_spent_field(
+        submission,
+        request,
+        enabled=homework.time_spent_lectures_field,
+        post_key="time_spent_lectures",
+        model_field="time_spent_lectures",
+        field_label="time spent on lectures",
+    )
+    _apply_time_spent_field(
+        submission,
+        request,
+        enabled=homework.time_spent_homework_field,
+        post_key="time_spent_homework",
+        model_field="time_spent_homework",
+        field_label="time spent on homework",
+    )
 
+
+def _apply_time_spent_field(
+    submission, request, *, enabled, post_key, model_field, field_label
+):
+    if not enabled:
+        return
+
+    time_spent = parse_time_spent_hours(
+        request.POST.get(post_key),
+        field_label,
+    )
+    if time_spent is not None:
+        setattr(submission, model_field, time_spent)
+
+
+def _apply_problems_comments_field(submission, request, course):
     if course.homework_problems_comments_field:
         submission.problems_comments = request.POST.get(
             "problems_comments", ""
         ).strip()
 
+
+def _apply_faq_contribution_field(submission, request, homework):
     if homework.faq_contribution_field:
         submission.faq_contribution_url = clean_faq_contribution_url(
             request.POST.get("faq_contribution_url", "")
