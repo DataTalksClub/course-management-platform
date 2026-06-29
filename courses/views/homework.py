@@ -81,6 +81,15 @@ class HomeworkPostData:
     enrollment: Enrollment
 
 
+@dataclass(frozen=True)
+class HomeworkConfirmationData:
+    course: Course
+    homework: Homework
+    submission: Submission
+    update_url: str
+    profile_url: str
+
+
 def process_unscored_free_form_answer(answer: Optional[Answer]):
     if not answer:
         return {"text": ""}
@@ -512,22 +521,18 @@ def homework_submission_summary_text(
 
 
 def homework_confirmation_metadata(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-    update_url: str,
-    profile_url: str,
+    data: HomeworkConfirmationData,
 ) -> dict[str, Any]:
     return {
-        "course_slug": course.slug,
-        "course_title": course.title,
-        "homework_slug": homework.slug,
-        "homework_title": homework.title,
-        "homework_due_at": homework.due_date.isoformat(),
-        "submission_id": submission.id,
-        "submitted_at": submission.submitted_at.isoformat(),
-        "update_url": update_url,
-        "profile_url": profile_url,
+        "course_slug": data.course.slug,
+        "course_title": data.course.title,
+        "homework_slug": data.homework.slug,
+        "homework_title": data.homework.title,
+        "homework_due_at": data.homework.due_date.isoformat(),
+        "submission_id": data.submission.id,
+        "submitted_at": data.submission.submitted_at.isoformat(),
+        "update_url": data.update_url,
+        "profile_url": data.profile_url,
         "update_link_text": "Update your submission",
     }
 
@@ -550,24 +555,24 @@ def homework_confirmation_notification_context(
 
 
 def homework_confirmation_message_context(
-    course: Course,
-    homework: Homework,
-    update_url: str,
+    data: HomeworkConfirmationData,
 ) -> dict[str, str]:
     return {
-        "email_subject": f"Homework submission saved: {homework.title}",
+        "email_subject": (
+            f"Homework submission saved: {data.homework.title}"
+        ),
         "email_preview": (
             "Your homework submission was saved. "
             "Review what you submitted and update it while the "
             "homework is open."
         ),
         "intro_text": (
-            f"Your homework submission for {homework.title} in "
-            f"{course.title} was saved."
+            f"Your homework submission for {data.homework.title} in "
+            f"{data.course.title} was saved."
         ),
         "update_text": (
             "You can update your submission while the homework "
-            f"is open: {update_url}"
+            f"is open: {data.update_url}"
         ),
     }
 
@@ -600,32 +605,18 @@ def homework_submitted_content(
 
 
 def homework_confirmation_context(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-    update_url: str,
-    profile_url: str,
+    data: HomeworkConfirmationData,
 ) -> dict[str, Any]:
     submitted_content = homework_submitted_content(
-        course,
-        homework,
-        submission,
+        data.course,
+        data.homework,
+        data.submission,
     )
 
     return {
-        **homework_confirmation_metadata(
-            course,
-            homework,
-            submission,
-            update_url,
-            profile_url,
-        ),
-        **homework_confirmation_notification_context(profile_url),
-        **homework_confirmation_message_context(
-            course,
-            homework,
-            update_url,
-        ),
+        **homework_confirmation_metadata(data),
+        **homework_confirmation_notification_context(data.profile_url),
+        **homework_confirmation_message_context(data),
         **submitted_content.context(),
     }
 
@@ -871,13 +862,14 @@ def homework_confirmation_payload_context(
     update_url: str,
 ) -> dict[str, Any]:
     profile_url = build_account_settings_url(request_base_url(update_url))
-    return homework_confirmation_context(
+    data = HomeworkConfirmationData(
         course=course,
         homework=homework,
         submission=submission,
         update_url=update_url,
         profile_url=profile_url,
     )
+    return homework_confirmation_context(data)
 
 
 def homework_confirmation_idempotency_key(submission: Submission) -> str:
