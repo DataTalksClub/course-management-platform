@@ -22,7 +22,8 @@ def contact_queryset(*, active_only=False):
 
 def contact_payloads(*, active_only=False):
     payloads = []
-    for user in contact_queryset(active_only=active_only):
+    users = contact_queryset(active_only=active_only)
+    for user in users:
         payload = contact_payload_for_user(user)
         if payload is not None:
             payloads.append(payload)
@@ -30,7 +31,8 @@ def contact_payloads(*, active_only=False):
 
 
 def batches(items, batch_size):
-    for index in range(0, len(items), batch_size):
+    indexes = range(0, len(items), batch_size)
+    for index in indexes:
         yield items[index : index + batch_size]
 
 
@@ -101,12 +103,14 @@ class Command(BaseCommand):
         )
 
     def write_dry_run(self, contact_batches):
-        for index, batch in enumerate(contact_batches, start=1):
+        indexed_batches = enumerate(contact_batches, start=1)
+        for index, batch in indexed_batches:
             self.stdout.write(f"batch {index}: {len(batch)} contact(s)")
 
     def sync_contact_batches(self, config, contact_batches):
         client = DatamailerClient(config)
-        for index, batch in enumerate(contact_batches, start=1):
+        indexed_batches = enumerate(contact_batches, start=1)
+        for index, batch in indexed_batches:
             response = self.sync_contact_batch(config, client, index, batch)
             self.write_sync_result(index, batch, response)
 
@@ -138,14 +142,16 @@ class Command(BaseCommand):
 
     def sync_count_summary(self, response):
         counts = response.get("counts", {}) if response else {}
-        return ", ".join(
-            f"{key}={counts[key]}"
-            for key in (
-                "created",
-                "updated",
-                "unchanged",
-                "skipped",
-                "invalid",
-            )
-            if key in counts
+        summary_parts = []
+        count_keys = (
+            "created",
+            "updated",
+            "unchanged",
+            "skipped",
+            "invalid",
         )
+        for key in count_keys:
+            if key in counts:
+                summary_part = f"{key}={counts[key]}"
+                summary_parts.append(summary_part)
+        return ", ".join(summary_parts)

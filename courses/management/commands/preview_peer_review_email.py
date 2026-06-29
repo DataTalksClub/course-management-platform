@@ -80,9 +80,11 @@ class Command(BaseCommand):
     def write_submission_previews(self, project):
         out = self.stdout
         recipients = 0
-        for submission in latest_student_submissions(project):
+        submissions = latest_student_submissions(project)
+        for submission in submissions:
             recipients += 1
-            for line in submission_preview_lines(submission):
+            preview_lines = submission_preview_lines(submission)
+            for line in preview_lines:
                 out.write(line)
 
         return recipients
@@ -123,7 +125,8 @@ def ordered_project_submissions(project):
 
 def latest_student_submissions(project):
     seen = set()
-    for submission in ordered_project_submissions(project):
+    submissions = ordered_project_submissions(project)
+    for submission in submissions:
         if submission.student_id in seen:
             continue
         seen.add(submission.student_id)
@@ -137,7 +140,8 @@ def submission_preview_lines(submission):
     ]
     links = _assigned_review_links(submission)
     lines.append(f"    you were assigned {len(links)} projects to review:")
-    for i, link in enumerate(links, start=1):
+    indexed_links = enumerate(links, start=1)
+    for i, link in indexed_links:
         lines.append(f"      {i}. {link['eval_url']}")
         if link["submission_github_link"]:
             lines.append(f"         (project: {link['submission_github_link']})")
