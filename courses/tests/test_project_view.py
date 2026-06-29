@@ -446,46 +446,18 @@ class ProjectViewTestCase(TestCase):
         """
         Test posting a project submission when there are no existing submissions.
         """
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
+        self.mock_url_check_status(mock_get, mock_head, 200)
+        data = self.project_confirmation_data()
+        data["github_link"] = "https://httpbin.org/status/200"
+        data["problems_comments"] = "Encountered an issue with..."
 
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://httpbin.org/status/200",
-            "commit_id": "1234567",
-            "time_spent": "2",
-            "problems_comments": "Encountered an issue with...",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
-        }
-        response = self.client.post(url, data)
+        response = self.post_project(data)
 
         self.assertEqual(response.status_code, 302)
-
-        submissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-
-        self.assertEqual(submissions.count(), 1)
-
-        submission = submissions.first()
-
-        self.assertEqual(submission.github_link, data["github_link"])
-        self.assertEqual(submission.commit_id, data["commit_id"])
-        self.assertEqual(submission.time_spent, int(data["time_spent"]))
-        self.assertEqual(
-            submission.problems_comments, data["problems_comments"]
-        )
-        self.assertEqual(
-            submission.faq_contribution_url,
-            data["faq_contribution_url"],
+        self.assertEqual(self.project_submission_count(), 1)
+        self.assert_project_submission_matches(
+            self.get_project_submission(),
+            data,
         )
 
     @override_settings(PUBLIC_BASE_URL="")
