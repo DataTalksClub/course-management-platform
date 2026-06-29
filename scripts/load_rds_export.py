@@ -268,29 +268,48 @@ def missing_required_columns(
     missing_required: list[str] = []
 
     for column_info in target_info:
-        column = column_info["name"]
-        not_null = bool(column_info["notnull"])
-        db_default = column_info["dflt_value"]
-        is_primary_key = bool(column_info["pk"])
-
-        if column in source_columns:
-            plan.insert_columns.append(column)
-            continue
-
-        if is_primary_key:
-            continue
-
-        has_default, default = django_field_default(model, column)
-        if has_default:
-            plan.insert_columns.append(column)
-            plan.default_values[column] = default
-            defaults_used.add((table, column, default))
-        elif not not_null or db_default is not None:
-            continue
-        else:
-            missing_required.append(column)
+        missing_column = apply_column_copy_plan(
+            model,
+            table,
+            column_info,
+            source_columns,
+            plan,
+            defaults_used,
+        )
+        if missing_column:
+            missing_required.append(missing_column)
 
     return missing_required
+
+
+def apply_column_copy_plan(
+    model: Any,
+    table: str,
+    column_info: sqlite3.Row,
+    source_columns: set[str],
+    plan: TableCopyPlan,
+    defaults_used: set[tuple[str, str, Any]],
+) -> str:
+    column = column_info["name"]
+    if column in source_columns:
+        plan.insert_columns.append(column)
+        return ""
+    if bool(column_info["pk"]):
+        return ""
+
+    has_default, default = django_field_default(model, column)
+    if has_default:
+        plan.insert_columns.append(column)
+        plan.default_values[column] = default
+        defaults_used.add((table, column, default))
+        return ""
+    if column_allows_local_value(column_info):
+        return ""
+    return column
+
+
+def column_allows_local_value(column_info: sqlite3.Row) -> bool:
+    return not bool(column_info["notnull"]) or column_info["dflt_value"] is not None
 
 
 def build_table_copy_plan(
