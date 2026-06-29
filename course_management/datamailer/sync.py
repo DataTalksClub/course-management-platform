@@ -106,13 +106,21 @@ def erase_contact_from_datamailer(
 
 
 def _contact_erase_target(user, *, user_id, email):
+    user_id = _contact_erase_user_id(user, user_id)
+    email = _contact_erase_email(user, email)
+    return user_id, email
+
+
+def _contact_erase_user_id(user, user_id):
+    if user_id is None and user is not None:
+        return user.pk
+    return user_id
+
+
+def _contact_erase_email(user, email):
     if email is None and user is not None:
         email = user.email
-    if user_id is None and user is not None:
-        user_id = user.pk
-
-    email = (email or "").strip().lower()
-    return user_id, email
+    return (email or "").strip().lower()
 
 
 def _contact_erase_ordering_key(user_id, email):
