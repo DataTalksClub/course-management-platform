@@ -46,41 +46,62 @@ CHOICE_QUESTION_TYPES = {
     QuestionTypes.MULTIPLE_CHOICE.value,
     QuestionTypes.CHECKBOXES.value,
 }
+FREE_FORM_QUESTION_TYPES = {
+    QuestionTypes.FREE_FORM.value,
+    QuestionTypes.FREE_FORM_LONG.value,
+}
 
 
-def process_quesion_free_form(
-    homework: Homework, question: Question, answer: Answer
-):
-    if not homework.is_scored():
-        if not answer:
-            return {"text": ""}
-        else:
-            return {"text": answer.answer_text}
+def process_unscored_free_form_answer(answer: Optional[Answer]):
+    if not answer:
+        return {"text": ""}
 
-    # homework is scored - show correct answers
-    if (
+    return {"text": answer.answer_text}
+
+
+def free_form_answer_missing(answer: Optional[Answer]) -> bool:
+    return (
         not answer
         or not answer.answer_text
         or not answer.answer_text.strip()
-    ):
-        return {
-            "text": question.correct_answer,
-            "no_answer_submitted": True,
-        }
+    )
 
-    # the homework is scored and we want to show the answers
 
-    is_correct = is_free_form_answer_correct(question, answer)
+def process_missing_scored_free_form_answer(question: Question):
+    return {
+        "text": question.correct_answer,
+        "no_answer_submitted": True,
+    }
 
+
+def free_form_answer_class(is_correct: bool) -> str:
     if is_correct:
-        correctly_selected = "option-answer-correct"
-    else:
-        correctly_selected = "option-answer-incorrect"
+        return "option-answer-correct"
+
+    return "option-answer-incorrect"
+
+
+def process_scored_free_form_answer(
+    question: Question, answer: Optional[Answer]
+):
+    if free_form_answer_missing(answer):
+        return process_missing_scored_free_form_answer(question)
 
     return {
         "text": answer.answer_text,
-        "correctly_selected_class": correctly_selected,
+        "correctly_selected_class": free_form_answer_class(
+            is_free_form_answer_correct(question, answer)
+        ),
     }
+
+
+def process_question_free_form(
+    homework: Homework, question: Question, answer: Optional[Answer]
+):
+    if not homework.is_scored():
+        return process_unscored_free_form_answer(answer)
+
+    return process_scored_free_form_answer(question, answer)
 
 
 def process_question_options_multiple_choice_or_checkboxes(
@@ -547,11 +568,8 @@ def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
 def process_question_options(
     homework: Homework, question: Question, answer: Answer
 ):
-    if question.question_type == QuestionTypes.FREE_FORM.value:
-        return process_quesion_free_form(homework, question, answer)
-
-    if question.question_type == QuestionTypes.FREE_FORM_LONG.value:
-        return process_quesion_free_form(homework, question, answer)
+    if question.question_type in FREE_FORM_QUESTION_TYPES:
+        return process_question_free_form(homework, question, answer)
 
     return process_question_options_multiple_choice_or_checkboxes(
         homework, question, answer
