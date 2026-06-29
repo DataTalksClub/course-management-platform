@@ -44,6 +44,31 @@ class ScoredOptionExpectation:
     selected_class: str
 
 
+@dataclass(frozen=True)
+class QuestionData:
+    text: str
+    question_type: str
+    possible_answers: str | None = None
+    correct_answer: str | None = None
+    answer_type: str | None = None
+
+
+@dataclass(frozen=True)
+class AnswerPostData:
+    question2_answer: str = "Some text"
+    question3_answers: list[str] | None = None
+    question4_answers: list[str] | None = None
+    question6_answers: list[str] | None = None
+
+
+@dataclass(frozen=True)
+class AnsweredFreeFormQuestionData:
+    text: str
+    answer_type: str
+    correct_answer: str
+    answer_text: str
+
+
 class HomeworkDetailViewTests(TestCase):
     def create_course(self):
         return Course.objects.create(
@@ -60,38 +85,33 @@ class HomeworkDetailViewTests(TestCase):
             slug="test-homework",
         )
 
-    def create_question(
-        self,
-        text,
-        question_type,
-        possible_answers=None,
-        correct_answer=None,
-        answer_type=None,
-    ):
+    def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
-            text=text,
-            question_type=question_type,
-            possible_answers=possible_answers,
-            correct_answer=correct_answer,
-            answer_type=answer_type,
+            text=data.text,
+            question_type=data.question_type,
+            possible_answers=data.possible_answers,
+            correct_answer=data.correct_answer,
+            answer_type=data.answer_type,
         )
 
     def create_multiple_choice_question(self, text, answers, correct_answer):
-        return self.create_question(
-            text,
-            QuestionTypes.MULTIPLE_CHOICE.value,
+        question = QuestionData(
+            text=text,
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             possible_answers=join_possible_answers(answers),
             correct_answer=correct_answer,
         )
+        return self.create_question(question)
 
     def create_checkboxes_question(self, text, answers, correct_answer):
-        return self.create_question(
-            text,
-            QuestionTypes.CHECKBOXES.value,
+        question = QuestionData(
+            text=text,
+            question_type=QuestionTypes.CHECKBOXES.value,
             possible_answers=join_possible_answers(answers),
             correct_answer=correct_answer,
         )
+        return self.create_question(question)
 
     def create_free_form_question(
         self,
@@ -99,12 +119,13 @@ class HomeworkDetailViewTests(TestCase):
         answer_type,
         correct_answer=None,
     ):
-        return self.create_question(
-            text,
-            QuestionTypes.FREE_FORM.value,
+        question = QuestionData(
+            text=text,
+            question_type=QuestionTypes.FREE_FORM.value,
             answer_type=answer_type,
             correct_answer=correct_answer,
         )
+        return self.create_question(question)
 
     def create_questions(self):
         self.question1 = self.create_multiple_choice_question(
@@ -246,33 +267,31 @@ class HomeworkDetailViewTests(TestCase):
             }
         )
 
-    def answer_post_data(
-        self,
-        question2_answer="Some text",
-        question3_answers=None,
-        question4_answers=None,
-        question6_answers=None,
-        **extra_fields,
-    ):
-        data = {
+    def answer_post_data(self, data=None, **extra_fields):
+        if data is None:
+            data = AnswerPostData()
+        question3_answers = data.question3_answers or ["1", "2"]
+        question4_answers = data.question4_answers or ["1"]
+        question6_answers = data.question6_answers or ["1", "2", "3"]
+        post_data = {
             f"answer_{self.question1.id}": ["1"],
-            f"answer_{self.question2.id}": [question2_answer],
-            f"answer_{self.question3.id}": question3_answers or ["1", "2"],
-            f"answer_{self.question4.id}": question4_answers or ["1"],
+            f"answer_{self.question2.id}": [data.question2_answer],
+            f"answer_{self.question3.id}": question3_answers,
+            f"answer_{self.question4.id}": question4_answers,
             f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": question6_answers or ["1", "2", "3"],
+            f"answer_{self.question6.id}": question6_answers,
         }
-        data.update(extra_fields)
-        return data
+        post_data.update(extra_fields)
+        return post_data
 
     def updated_answer_post_data(self, **extra_fields):
-        return self.answer_post_data(
+        data = AnswerPostData(
             question2_answer="Some other text",
             question3_answers=["1", "2", "4"],
             question4_answers=["3"],
             question6_answers=["1", "2"],
-            **extra_fields,
         )
+        return self.answer_post_data(data, **extra_fields)
 
     def artifact_post_data(self, question1_answer="1\r\n"):
         return {
@@ -1434,20 +1453,18 @@ class HomeworkSubmissionsViewTests(TestCase):
             },
         )
 
-    def create_answered_free_form_question(
-        self, text, answer_type, correct_answer, answer_text
-    ):
+    def create_answered_free_form_question(self, data):
         question = Question.objects.create(
             homework=self.homework,
-            text=text,
+            text=data.text,
             question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=answer_type,
-            correct_answer=correct_answer,
+            answer_type=data.answer_type,
+            correct_answer=data.correct_answer,
         )
         Answer.objects.create(
             submission=self.submission,
             question=question,
-            answer_text=answer_text,
+            answer_text=data.answer_text,
         )
         return question
 
@@ -1617,18 +1634,20 @@ class HomeworkSubmissionsViewTests(TestCase):
 
     def test_submissions_view_hides_answers_and_links_to_edit_page(self):
         """Test that submissions view keeps answers out of the compact list."""
-        self.create_answered_free_form_question(
+        arithmetic_question = AnsweredFreeFormQuestionData(
             text="What is 2+2?",
             answer_type=AnswerTypes.INTEGER.value,
             correct_answer="4",
             answer_text="4",
         )
-        self.create_answered_free_form_question(
+        self.create_answered_free_form_question(arithmetic_question)
+        capital_question = AnsweredFreeFormQuestionData(
             text="What is the capital of France?",
             answer_type=AnswerTypes.EXACT_STRING.value,
             correct_answer="Paris",
             answer_text="Paris",
         )
+        self.create_answered_free_form_question(capital_question)
 
         self.login_admin()
         response = self.client.get(self.submissions_url(), follow=True)
