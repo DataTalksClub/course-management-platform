@@ -229,6 +229,38 @@ class DashboardHomeworkStatsTestCase(TestCase):
                 data,
             )
 
+    def null_time_submission_stats_data(self):
+        return [
+            {
+                "time_spent_lectures": 2.0,
+                "time_spent_homework": 3.0,
+                "total_score": 85,
+            },
+            {
+                "time_spent_lectures": None,
+                "time_spent_homework": 4.0,
+                "total_score": 90,
+            },
+            {
+                "time_spent_lectures": 3.0,
+                "time_spent_homework": None,
+                "total_score": 80,
+            },
+            {
+                "time_spent_lectures": 4.0,
+                "time_spent_homework": 5.0,
+                "total_score": 95,
+            },
+        ]
+
+    def create_null_time_submissions(self):
+        for index, data in enumerate(self.null_time_submission_stats_data()):
+            self.create_homework_submission(
+                self.users[index],
+                self.enrollments[index],
+                data,
+            )
+
     def assert_homework_stat_summary(self, hw_stat):
         self.assertEqual(hw_stat["homework"], self.homework)
         self.assertEqual(hw_stat["submissions_count"], 5)
@@ -237,6 +269,10 @@ class DashboardHomeworkStatsTestCase(TestCase):
         self.assertEqual(hw_stat["time_homework_median"], 4.0)
         self.assertEqual(hw_stat["time_total_median"], 7.0)
         self.assertEqual(hw_stat["score_median"], 90)
+
+    def assert_null_time_homework_stats(self, hw_stat):
+        self.assertEqual(hw_stat["submissions_count"], 4)
+        self.assertIsNotNone(hw_stat["time_lecture_median"])
 
     def test_homework_statistics_calculation(self):
         """Test homework statistics calculation with various data"""
@@ -351,45 +387,14 @@ class DashboardHomeworkStatsTestCase(TestCase):
 
     def test_homework_statistics_with_null_values(self):
         """Test homework statistics with some null time values"""
-        # Create submissions with mixed null/non-null values
-        submission_data = [
-            {
-                "time_spent_lectures": 2.0,
-                "time_spent_homework": 3.0,
-                "total_score": 85,
-            },
-            {
-                "time_spent_lectures": None,
-                "time_spent_homework": 4.0,
-                "total_score": 90,
-            },
-            {
-                "time_spent_lectures": 3.0,
-                "time_spent_homework": None,
-                "total_score": 80,
-            },
-            {
-                "time_spent_lectures": 4.0,
-                "time_spent_homework": 5.0,
-                "total_score": 95,
-            },
-        ]
-
-        for i, data in enumerate(submission_data):
-            self.create_homework_submission(
-                self.users[i], self.enrollments[i], data
-            )
+        self.create_null_time_submissions()
 
         url = reverse("dashboard", args=[self.course.slug])
         response = self.client.get(url)
 
-        hw_stats = response.context["homework_stats"]
-        hw_stat = hw_stats[0]
-
-        # Should handle null values gracefully
-        self.assertEqual(hw_stat["submissions_count"], 4)
-        # Only 3 non-null lecture time values, so should calculate quartiles
-        self.assertIsNotNone(hw_stat["time_lecture_median"])
+        self.assert_null_time_homework_stats(
+            response.context["homework_stats"][0]
+        )
 
     def test_homework_formatted_time_display(self):
         """Test that time formatting works correctly"""
