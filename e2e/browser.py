@@ -247,6 +247,22 @@ class AdminSession:
                 return int(m.group(1))
         return None
 
+    def _course_is_absent(self, slug: str, title: str | None) -> bool:
+        return self.find_course_pk(slug, title=title) is None
+
+    def _open_course_delete_confirmation(self, course_pk: int) -> None:
+        self.page.goto(self.url(f"/admin/courses/course/{course_pk}/delete/"))
+        self.page.wait_for_load_state("networkidle")
+
+    def _submit_course_delete_confirmation(self) -> bool:
+        # The confirmation page's form carries csrfmiddlewaretoken + post=yes.
+        selector = "input[name='post'][value='yes']"
+        if self.page.locator(selector).count() == 0:
+            return False
+        self.submit_form_containing(selector)
+        self.page.wait_for_load_state("networkidle")
+        return True
+
     def delete_course_via_admin(
         self, slug: str, *, course_pk: int | None = None, title: str | None = None
     ) -> bool:
@@ -273,23 +289,15 @@ class AdminSession:
             if pk is None:
                 # Already absent -> nothing to delete; treat as success only
                 # if the changelist truly has no matching row.
-                return self.find_course_pk(slug, title=title) is None
+                return self._course_is_absent(slug, title)
 
-            self.page.goto(
-                self.url(f"/admin/courses/course/{pk}/delete/")
-            )
-            self.page.wait_for_load_state("networkidle")
-            # The confirmation page's submit button is inside a POST form that
-            # already carries csrfmiddlewaretoken + post=yes (Django renders a
-            # hidden <input name="post" value="yes">).
-            if self.page.locator("input[name='post'][value='yes']").count() == 0:
+            self._open_course_delete_confirmation(pk)
+            if not self._submit_course_delete_confirmation():
                 # Page may have 404'd (already deleted) -- verify and report.
-                return self.find_course_pk(slug, title=title) is None
-            self.submit_form_containing("input[name='post'][value='yes']")
-            self.page.wait_for_load_state("networkidle")
+                return self._course_is_absent(slug, title)
 
             # Verify: change page should 404 and changelist should not list it.
-            return self.find_course_pk(slug, title=title) is None
+            return self._course_is_absent(slug, title)
         except Exception:
             return False
 
