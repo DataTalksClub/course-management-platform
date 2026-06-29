@@ -84,55 +84,59 @@ def duplicate_course(modeladmin, request, queryset):
     current_year = timezone.now().year
 
     for course in queryset:
-        # Create a new course instance
-        old_title = course.title
-        new_title = old_title.replace(
-            str(current_year - 1), str(current_year)
-        )
-        if str(current_year - 1) not in old_title:
-            new_title = f"{old_title} {current_year}"
-
-        old_slug = course.slug
-        new_slug = old_slug.replace(
-            str(current_year - 1), str(current_year)
-        )
-        if str(current_year - 1) not in old_slug:
-            new_slug = f"{old_slug}-{current_year}"
-
-        # Create new course with updated fields
-        new_course = Course.objects.create(
-            title=new_title,
-            slug=new_slug,
-            description=course.description,
-            start_date=course.start_date,
-            end_date=course.end_date,
-            registration_url=course.registration_url,
-            github_repo_url=course.github_repo_url,
-            social_media_hashtag=course.social_media_hashtag,
-            first_homework_scored=False,
-            finished=False,
-            faq_document_url=course.faq_document_url,
-            project_passing_score=course.project_passing_score,
-            visible=course.visible,
-        )
-
-        # Copy review criteria with all fields
-        for criteria in course.reviewcriteria_set.all():
-            ReviewCriteria.objects.create(
-                course=new_course,
-                description=criteria.description,
-                options=criteria.options,
-                review_criteria_type=criteria.review_criteria_type,
-            )
-
+        new_course = _duplicate_course(course, current_year)
         modeladmin.message_user(
             request,
-            f"Course '{old_title}' was duplicated to '{new_title}'",
+            f"Course '{course.title}' was duplicated to "
+            f"'{new_course.title}'",
             level=messages.SUCCESS,
         )
 
 
 duplicate_course.short_description = "Duplicate selected courses"
+
+
+def _duplicate_course(course, current_year):
+    new_course = Course.objects.create(
+        **_course_duplicate_fields(course, current_year)
+    )
+    _copy_review_criteria(course, new_course)
+    return new_course
+
+
+def _course_duplicate_fields(course, current_year):
+    return {
+        "title": _year_rollover_value(course.title, current_year, " "),
+        "slug": _year_rollover_value(course.slug, current_year, "-"),
+        "description": course.description,
+        "start_date": course.start_date,
+        "end_date": course.end_date,
+        "registration_url": course.registration_url,
+        "github_repo_url": course.github_repo_url,
+        "social_media_hashtag": course.social_media_hashtag,
+        "first_homework_scored": False,
+        "finished": False,
+        "faq_document_url": course.faq_document_url,
+        "project_passing_score": course.project_passing_score,
+        "visible": course.visible,
+    }
+
+
+def _year_rollover_value(value, current_year, separator):
+    previous_year = str(current_year - 1)
+    if previous_year in value:
+        return value.replace(previous_year, str(current_year))
+    return f"{value}{separator}{current_year}"
+
+
+def _copy_review_criteria(source_course, target_course):
+    for criteria in source_course.reviewcriteria_set.all():
+        ReviewCriteria.objects.create(
+            course=target_course,
+            description=criteria.description,
+            options=criteria.options,
+            review_criteria_type=criteria.review_criteria_type,
+        )
 
 
 @admin.register(Course)
