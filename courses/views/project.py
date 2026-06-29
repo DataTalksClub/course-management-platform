@@ -66,6 +66,15 @@ class ProjectEvalSubmitPage:
     review_criteria: Iterable[ReviewCriteria]
 
 
+@dataclass(frozen=True)
+class ProjectConfirmationData:
+    course: Course
+    project: Project
+    submission: ProjectSubmission
+    update_url: str
+    profile_url: str
+
+
 def paginate_project_submissions(request, submissions):
     paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
     return paginator.get_page(request.GET.get("page"))
@@ -209,22 +218,18 @@ def project_submission_fields(
 
 
 def project_confirmation_metadata(
-    course: Course,
-    project: Project,
-    submission: ProjectSubmission,
-    update_url: str,
-    profile_url: str,
+    data: ProjectConfirmationData,
 ) -> dict:
     return {
-        "course_slug": course.slug,
-        "course_title": course.title,
-        "project_slug": project.slug,
-        "project_title": project.title,
-        "project_due_at": project.submission_due_date.isoformat(),
-        "submission_id": submission.id,
-        "submitted_at": submission.submitted_at.isoformat(),
-        "update_url": update_url,
-        "profile_url": profile_url,
+        "course_slug": data.course.slug,
+        "course_title": data.course.title,
+        "project_slug": data.project.slug,
+        "project_title": data.project.title,
+        "project_due_at": data.project.submission_due_date.isoformat(),
+        "submission_id": data.submission.id,
+        "submitted_at": data.submission.submitted_at.isoformat(),
+        "update_url": data.update_url,
+        "profile_url": data.profile_url,
         "update_link_text": "Update your submission",
     }
 
@@ -245,51 +250,38 @@ def project_confirmation_notification_context(profile_url: str) -> dict:
 
 
 def project_confirmation_message_context(
-    course: Course,
-    project: Project,
-    update_url: str,
+    data: ProjectConfirmationData,
 ) -> dict:
     return {
-        "email_subject": f"Project submission saved: {project.title}",
+        "email_subject": f"Project submission saved: {data.project.title}",
         "email_preview": (
             "Your project submission was saved. Review what you "
             "submitted and update it while the project is open."
         ),
         "intro_text": (
-            f"Your project submission for {project.title} in "
-            f"{course.title} was saved."
+            f"Your project submission for {data.project.title} in "
+            f"{data.course.title} was saved."
         ),
         "update_text": (
             "You can update your submission while the project "
-            f"is open: {update_url}"
+            f"is open: {data.update_url}"
         ),
     }
 
 
 def project_confirmation_context(
-    course: Course,
-    project: Project,
-    submission: ProjectSubmission,
-    update_url: str,
-    profile_url: str,
+    data: ProjectConfirmationData,
 ) -> dict:
-    submission_fields = project_submission_fields(project, submission)
+    submission_fields = project_submission_fields(
+        data.project,
+        data.submission,
+    )
     submitted_fields_text = format_submission_lines(submission_fields)
 
     return {
-        **project_confirmation_metadata(
-            course,
-            project,
-            submission,
-            update_url,
-            profile_url,
-        ),
-        **project_confirmation_notification_context(profile_url),
-        **project_confirmation_message_context(
-            course,
-            project,
-            update_url,
-        ),
+        **project_confirmation_metadata(data),
+        **project_confirmation_notification_context(data.profile_url),
+        **project_confirmation_message_context(data),
         "submission_fields": submission_fields,
         "submitted_fields_text": submitted_fields_text,
         "submission_summary_text": submitted_fields_text,
@@ -367,13 +359,14 @@ def project_confirmation_payload_context(
     update_url: str,
 ) -> dict:
     profile_url = build_account_settings_url(request_base_url(update_url))
-    return project_confirmation_context(
+    data = ProjectConfirmationData(
         course=course,
         project=project,
         submission=submission,
         update_url=update_url,
         profile_url=profile_url,
     )
+    return project_confirmation_context(data)
 
 
 def project_confirmation_idempotency_key(
