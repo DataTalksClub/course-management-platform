@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import pytest
 
+from e2e.provisioning import ProjectProvisionData
+
 pytestmark = pytest.mark.provisioning
 
 
@@ -52,12 +54,13 @@ def test_create_homework_with_all_question_types(
 
 def test_create_project(provisioner, run_state, due_dates):
     assert run_state.course, "Course must be created first."
-    provisioner.add_project(
-        run_state.course,
+    project_data = ProjectProvisionData(
+        course=run_state.course,
         submission_due_date=due_dates["project_due"],
         peer_review_due_date=due_dates["peer_review_due"],
         collecting=True,
     )
+    provisioner.add_project(project_data)
     assert run_state.course.project_id is not None
     proj = provisioner.api.list_projects(run_state.course.slug)[0]
     assert proj["state"] == "CS", "Project should be collecting submissions."

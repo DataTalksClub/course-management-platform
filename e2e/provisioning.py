@@ -60,6 +60,24 @@ class AdminDeleteResultData:
     residual: list[str]
 
 
+@dataclass(frozen=True)
+class ProjectProvisionData:
+    course: ProvisionedCourse
+    submission_due_date: str
+    peer_review_due_date: str
+    collecting: bool = True
+
+
+@dataclass(frozen=True)
+class CloseDeleteData:
+    close_fn: object
+    delete_fn: object
+    obj: dict
+    kind: str
+    deleted: list[str]
+    residual: list[str]
+
+
 def make_namespace(timestamp: int | None = None) -> str:
     ts = timestamp if timestamp is not None else int(time.time())
     return f"{NAMESPACE_PREFIX}{ts}"
@@ -163,28 +181,25 @@ class Provisioner:
         if open_now:
             self.api.update_homework(course.slug, hw["id"], {"state": "OP"})
 
-    def add_project(
-        self,
-        course: ProvisionedCourse,
-        *,
-        submission_due_date: str,
-        peer_review_due_date: str,
-        collecting: bool = True,
-    ) -> None:
+    def add_project(self, data: ProjectProvisionData) -> None:
         proj = self.api.create_project(
-            course.slug,
+            data.course.slug,
             {
                 "name": "E2E Project 1",
                 "slug": "project-1",
-                "submission_due_date": submission_due_date,
-                "peer_review_due_date": peer_review_due_date,
+                "submission_due_date": data.submission_due_date,
+                "peer_review_due_date": data.peer_review_due_date,
                 "description": "Smoke-test project.",
             },
         )
-        course.project_id = proj["id"]
-        course.project_slug = proj["slug"]
-        if collecting:
-            self.api.update_project(course.slug, proj["id"], {"state": "CS"})
+        data.course.project_id = proj["id"]
+        data.course.project_slug = proj["slug"]
+        if data.collecting:
+            self.api.update_project(
+                data.course.slug,
+                proj["id"],
+                {"state": "CS"},
+            )
 
     # -- teardown --------------------------------------------------------
     def _delete_project_prepass(
@@ -195,14 +210,19 @@ class Provisioner:
     ) -> None:
         projects = self.api.list_projects(slug)
         for proj in projects:
-            _close_and_delete(
-                lambda pid: self.api.update_project(slug, pid, {"state": "CL"}),
-                lambda pid: self.api.delete_project(slug, pid),
-                proj,
+            delete_data = CloseDeleteData(
+                close_fn=lambda pid: self.api.update_project(
+                    slug,
+                    pid,
+                    {"state": "CL"},
+                ),
+                delete_fn=lambda pid: self.api.delete_project(slug, pid),
+                obj=proj,
                 kind="project",
                 deleted=deleted,
                 residual=residual,
             )
+            _close_and_delete(delete_data)
 
     def _delete_homework_prepass(
         self,
@@ -212,14 +232,19 @@ class Provisioner:
     ) -> None:
         homeworks = self.api.list_homeworks(slug)
         for hw in homeworks:
-            _close_and_delete(
-                lambda hid: self.api.update_homework(slug, hid, {"state": "CL"}),
-                lambda hid: self.api.delete_homework(slug, hid),
-                hw,
+            delete_data = CloseDeleteData(
+                close_fn=lambda hid: self.api.update_homework(
+                    slug,
+                    hid,
+                    {"state": "CL"},
+                ),
+                delete_fn=lambda hid: self.api.delete_homework(slug, hid),
+                obj=hw,
                 kind="homework",
                 deleted=deleted,
                 residual=residual,
             )
+            _close_and_delete(delete_data)
 
     def _delete_child_objects(
         self,
@@ -364,20 +389,20 @@ class Provisioner:
         return slugs
 
 
-def _close_and_delete(close_fn, delete_fn, obj, *, kind, deleted, residual):
-    obj_id = obj.get("id")
-    label = f"{kind}:{obj.get('slug', obj_id)}"
+def _close_and_delete(data):
+    obj_id = data.obj.get("id")
+    label = f"{data.kind}:{data.obj.get('slug', obj_id)}"
     try:
-        close_fn(obj_id)
+        data.close_fn(obj_id)
     except ApiError:
         pass
     try:
-        resp = delete_fn(obj_id)
+        resp = data.delete_fn(obj_id)
     except ApiError:
-        residual.append(f"{label} (delete errored)")
+        data.residual.append(f"{label} (delete errored)")
         return
     if resp.status_code in (200, 404):
-        deleted.append(label)
+        data.deleted.append(label)
     else:
         # 400 -> blocked, typically by existing submissions.
         body = ""
@@ -385,4 +410,4 @@ def _close_and_delete(close_fn, delete_fn, obj, *, kind, deleted, residual):
             body = resp.json().get("error", "")
         except ValueError:
             body = resp.text[:120]
-        residual.append(f"{label} (blocked: {body})")
+        data.residual.append(f"{label} (blocked: {body})")
