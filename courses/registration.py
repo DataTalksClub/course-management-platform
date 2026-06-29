@@ -223,11 +223,16 @@ COUNTRIES_BY_REGION = {
     ],
 }
 
-COUNTRY_REGION = {
-    country: region
-    for region, countries in COUNTRIES_BY_REGION.items()
-    for country in countries
-}
+def _build_country_region_map():
+    country_region = {}
+    region_entries = COUNTRIES_BY_REGION.items()
+    for region, countries in region_entries:
+        for country in countries:
+            country_region[country] = region
+    return country_region
+
+
+COUNTRY_REGION = _build_country_region_map()
 
 TOP_COUNTRIES = [
     "United States",
@@ -254,18 +259,37 @@ TOP_COUNTRIES = [
 
 
 def ordered_countries():
-    top_countries = [
-        country for country in TOP_COUNTRIES if country in COUNTRY_REGION
-    ]
-    remaining_countries = sorted(
-        country
-        for country in COUNTRY_REGION
-        if country not in set(top_countries)
-    )
-    return [*top_countries, *remaining_countries]
+    top_countries = []
+    for country in TOP_COUNTRIES:
+        if country in COUNTRY_REGION:
+            top_countries.append(country)
+
+    top_country_set = set(top_countries)
+    remaining_countries = []
+    country_names = COUNTRY_REGION.keys()
+    for country in country_names:
+        if country not in top_country_set:
+            remaining_countries.append(country)
+    remaining_countries.sort()
+
+    countries = []
+    for country in top_countries:
+        countries.append(country)
+    for country in remaining_countries:
+        countries.append(country)
+    return countries
 
 
-COUNTRY_CHOICES = [(country, country) for country in ordered_countries()]
+def _build_country_choices():
+    country_choices = []
+    countries = ordered_countries()
+    for country in countries:
+        country_choice = (country, country)
+        country_choices.append(country_choice)
+    return country_choices
+
+
+COUNTRY_CHOICES = _build_country_choices()
 
 ALLOWED_MARKDOWN_TAGS = [
     "a",
