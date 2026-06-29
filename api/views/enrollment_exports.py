@@ -35,6 +35,14 @@ class CertificateApplyResult:
     error: dict | None = None
 
 
+@dataclass
+class CertificateApplyBatch:
+    enrollments_to_update: dict
+    enrollments_to_notify: dict
+    updated: list
+    errors: list
+
+
 def get_passed_enrollments(passed_project_submissions, min_projects):
     """
     Helper function to get enrollments that passed the minimum required projects.
@@ -231,8 +239,7 @@ def _apply_certificate_updates(
 ):
     """Apply validated updates to enrollments.
 
-    Returns (enrollments_to_update, enrollments_to_notify, updated, errors),
-    where _to_notify holds enrollments that gained a certificate they did not
+    The notify batch holds enrollments that gained a certificate they did not
     have before. Mutates the enrollment objects' certificate_url in place.
     """
     enrollments_to_update = {}
@@ -256,7 +263,12 @@ def _apply_certificate_updates(
             enrollments_to_notify[result.enrollment.id] = result.enrollment
         updated.append(result.updated)
 
-    return enrollments_to_update, enrollments_to_notify, updated, errors
+    return CertificateApplyBatch(
+        enrollments_to_update=enrollments_to_update,
+        enrollments_to_notify=enrollments_to_notify,
+        updated=updated,
+        errors=errors,
+    )
 
 
 def _certificate_request_updates(request):
@@ -341,20 +353,18 @@ def _process_certificate_updates(course, course_slug, certificate_updates):
         course,
         valid_updates,
     )
-    enrollments_to_update, enrollments_to_notify, updated, apply_errors = (
-        _apply_certificate_updates(
-            valid_updates,
-            course_slug,
-            users_by_email,
-            enrollments_by_email,
-        )
+    apply_batch = _apply_certificate_updates(
+        valid_updates,
+        course_slug,
+        users_by_email,
+        enrollments_by_email,
     )
-    errors.extend(apply_errors)
+    errors.extend(apply_batch.errors)
 
-    _persist_certificate_updates(enrollments_to_update)
-    _queue_certificate_notifications(enrollments_to_notify)
+    _persist_certificate_updates(apply_batch.enrollments_to_update)
+    _queue_certificate_notifications(apply_batch.enrollments_to_notify)
 
-    return updated, errors
+    return apply_batch.updated, errors
 
 
 @csrf_exempt

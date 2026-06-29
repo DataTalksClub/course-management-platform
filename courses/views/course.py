@@ -77,6 +77,27 @@ class ProjectDeadlineCalendarEventData:
 
 
 @dataclass(frozen=True)
+class QuartileValues:
+    q25: object
+    median: object
+    q75: object
+
+
+@dataclass(frozen=True)
+class HomeworkScoreRatio:
+    questions_score_median: object
+    max_questions_score: object
+    score_ratio: object
+
+
+@dataclass(frozen=True)
+class ProjectBadgeData:
+    name: str
+    css_class: str
+    score: object = None
+
+
+@dataclass(frozen=True)
 class CourseListCourses:
     courses: list
     active_courses: list
@@ -491,12 +512,12 @@ def _project_days_until(due_date) -> int:
 
 
 def _base_project_badge(state):
-    """Badge (name, css) from a project's state alone, before any submission."""
+    """Badge from a project's state alone, before any submission."""
     if state == ProjectState.CLOSED.value:
-        return "Closed", "bg-secondary"
+        return ProjectBadgeData("Closed", "bg-secondary")
     if state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        return "Open", "bg-warning"
-    return "Not submitted", "bg-secondary"
+        return ProjectBadgeData("Open", "bg-warning")
+    return ProjectBadgeData("Not submitted", "bg-secondary")
 
 
 def _submitted_mandatory_review_count(submission):
@@ -512,27 +533,24 @@ def _peer_review_project_badge(project, submission):
         submission
     )
     if completed_reviews_count >= project.number_of_peers_to_evaluate:
-        return "Review completed", "bg-success", None
+        return ProjectBadgeData("Review completed", "bg-success")
 
-    return "Review", "bg-danger", None
+    return ProjectBadgeData("Review", "bg-danger")
 
 
 def _completed_project_badge(submission):
     score = submission.total_score
     if submission.passed:
-        return f"Passed ({score})", "bg-success", score
+        return ProjectBadgeData(f"Passed ({score})", "bg-success", score)
 
-    return f"Failed ({score})", "bg-secondary", score
+    return ProjectBadgeData(f"Failed ({score})", "bg-secondary", score)
 
 
 def _submitted_project_badge(project, submission):
-    """Badge override (name, css, score) once a project has a submission.
-
-    Returns None for states that keep the base badge (e.g. still CLOSED).
-    """
+    """Badge override once a project has a submission."""
     state = project.state
     if state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        return "Submitted", "bg-info", None
+        return ProjectBadgeData("Submitted", "bg-info")
     if state == ProjectState.PEER_REVIEWING.value:
         return _peer_review_project_badge(project, submission)
     if state == ProjectState.COMPLETED.value:
@@ -550,9 +568,9 @@ def update_project_with_additional_info(project: Project) -> None:
 
     project.submitted = False
     project.score = None
-    project.badge_state_name, project.badge_css_class = (
-        _base_project_badge(project.state)
-    )
+    badge = _base_project_badge(project.state)
+    project.badge_state_name = badge.name
+    project.badge_css_class = badge.css_class
 
     if not project.submissions:
         return
@@ -563,11 +581,9 @@ def update_project_with_additional_info(project: Project) -> None:
 
     override = _submitted_project_badge(project, submission)
     if override is not None:
-        (
-            project.badge_state_name,
-            project.badge_css_class,
-            project.score,
-        ) = override
+        project.badge_state_name = override.name
+        project.badge_css_class = override.css_class
+        project.score = override.score
 
 
 def active_registration_campaign_for_course(
@@ -1425,14 +1441,18 @@ def _all_project_submissions_context(
 
 
 def _safe_quartiles(data):
-    """Return (q25, median, q75), or (None, None, None) if too little data."""
+    """Return quartiles, or empty quartiles if there is too little data."""
     if len(data) < 3:
-        return None, None, None
+        return QuartileValues(None, None, None)
     try:
-        q25, median, q75 = statistics.quantiles(data, n=4)
-        return q25, median, q75
+        quartiles = statistics.quantiles(data, n=4)
+        return QuartileValues(
+            quartiles[0],
+            quartiles[1],
+            quartiles[2],
+        )
     except statistics.StatisticsError:
-        return None, None, None
+        return QuartileValues(None, None, None)
 
 
 def _format_median(value):
@@ -1457,17 +1477,17 @@ def _dashboard_project_stats(course, total_enrollments):
     )
     scores = _project_submission_values(project_submissions, "total_score")
     pass_count, fail_count = _project_pass_fail_counts(project_submissions)
-    time_q25, time_median, time_q75 = _safe_quartiles(time_spent)
-    score_q25, score_median, score_q75 = _safe_quartiles(scores)
+    time_quartiles = _safe_quartiles(time_spent)
+    score_quartiles = _safe_quartiles(scores)
 
     return {
         "project_completion_rate": round(completion_rate, 1),
-        "project_time_q25": time_q25,
-        "project_time_median": time_median,
-        "project_time_q75": time_q75,
-        "project_score_q25": score_q25,
-        "project_score_median": score_median,
-        "project_score_q75": score_q75,
+        "project_time_q25": time_quartiles.q25,
+        "project_time_median": time_quartiles.median,
+        "project_time_q75": time_quartiles.q75,
+        "project_score_q25": score_quartiles.q25,
+        "project_score_median": score_quartiles.median,
+        "project_score_q75": score_quartiles.q75,
         "project_pass_count": pass_count,
         "project_fail_count": fail_count,
         "project_total_submissions": pass_count + fail_count,
@@ -1546,12 +1566,12 @@ def _dashboard_total_homework_times(hw_submissions):
 
 
 def _quartile_fields(prefix, values):
-    q25, median, q75 = _safe_quartiles(values)
+    quartiles = _safe_quartiles(values)
     return {
-        f"{prefix}_q25": q25,
-        f"{prefix}_median": median,
-        f"{prefix}_q75": q75,
-        f"{prefix}_median_formatted": _format_median(median),
+        f"{prefix}_q25": quartiles.q25,
+        f"{prefix}_median": quartiles.median,
+        f"{prefix}_q75": quartiles.q75,
+        f"{prefix}_median_formatted": _format_median(quartiles.median),
     }
 
 
@@ -1580,33 +1600,39 @@ def _dashboard_homework_time_stats(hw_submissions):
 
 def _dashboard_homework_score_ratio(homework, hw_submissions):
     questions_scores = _submission_values(hw_submissions, "questions_score")
-    _, questions_score_median, _ = _safe_quartiles(questions_scores)
+    questions_score_quartiles = _safe_quartiles(questions_scores)
     max_questions_score = homework.max_questions_score
     score_ratio = (
-        questions_score_median / max_questions_score
-        if questions_score_median is not None and max_questions_score
+        questions_score_quartiles.median / max_questions_score
+        if questions_score_quartiles.median is not None
+        and max_questions_score
         else None
     )
-    return questions_score_median, max_questions_score, score_ratio
+    return HomeworkScoreRatio(
+        questions_score_median=questions_score_quartiles.median,
+        max_questions_score=max_questions_score,
+        score_ratio=score_ratio,
+    )
 
 
 def _dashboard_homework_score_stats(homework, hw_submissions):
-    score_q25, score_median, score_q75 = _safe_quartiles(
+    score_quartiles = _safe_quartiles(
         _submission_values(hw_submissions, "total_score")
     )
-    questions_score_median, max_questions_score, score_ratio = (
-        _dashboard_homework_score_ratio(homework, hw_submissions)
+    score_ratio_data = _dashboard_homework_score_ratio(
+        homework,
+        hw_submissions,
     )
     return {
-        "score_q25": score_q25,
-        "score_median": score_median,
-        "score_q75": score_q75,
-        "questions_score_median": questions_score_median,
-        "max_questions_score": max_questions_score,
-        "score_ratio": score_ratio,
+        "score_q25": score_quartiles.q25,
+        "score_median": score_quartiles.median,
+        "score_q75": score_quartiles.q75,
+        "questions_score_median": score_ratio_data.questions_score_median,
+        "max_questions_score": score_ratio_data.max_questions_score,
+        "score_ratio": score_ratio_data.score_ratio,
         "score_ratio_pct": (
-            round(score_ratio * 100, 1)
-            if score_ratio is not None
+            round(score_ratio_data.score_ratio * 100, 1)
+            if score_ratio_data.score_ratio is not None
             else None
         ),
     }
