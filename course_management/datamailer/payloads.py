@@ -1117,15 +1117,46 @@ def course_graduate_recipient_list_payload(
     if config is None:
         return None
 
+    member_data = _course_graduate_member_data(enrollment)
+    if member_data is None:
+        return None
+
+    course = enrollment.course
+    source_object_key, member_payload = member_data
+    payload = _bulk_recipient_list_payload(
+        config,
+        member_payload["list"],
+        [
+            recipient_list_send_member_payload(
+                source_object_key, member_payload
+            )
+        ],
+    )
+    return course_graduates_list_key(course), payload
+
+
+def _course_graduate_member_data(enrollment):
     email = (enrollment.student.email or "").strip().lower()
     certificate_url = (enrollment.certificate_url or "").strip()
     if not email or not certificate_url:
         return None
 
-    course = enrollment.course
-    list_key = course_graduates_list_key(course)
     source_object_key = f"enrollment:{enrollment.pk}"
-    metadata = {
+    member_payload = recipient_list_member_payload(
+        list_type="custom",
+        list_name=f"{enrollment.course.title} graduates",
+        email=email,
+        source_object_key=source_object_key,
+        metadata=_course_graduate_metadata(enrollment, certificate_url),
+    )
+    if member_payload is None:
+        return None
+    return source_object_key, member_payload
+
+
+def _course_graduate_metadata(enrollment, certificate_url):
+    course = enrollment.course
+    return {
         "enrollment_id": enrollment.pk,
         "user_id": enrollment.student_id,
         "course_slug": course.slug,
@@ -1134,26 +1165,7 @@ def course_graduate_recipient_list_payload(
         "certificate_url": public_url(certificate_url),
         "outcome": "course_graduated",
     }
-    member_payload = recipient_list_member_payload(
-        list_type="custom",
-        list_name=f"{course.title} graduates",
-        email=email,
-        source_object_key=source_object_key,
-        metadata=metadata,
-    )
-    if member_payload is None:
-        return None
 
-    return list_key, {
-        "audience": config.audience,
-        "client": config.client,
-        "list": member_payload["list"],
-        "members": [
-            recipient_list_send_member_payload(
-                source_object_key, member_payload
-            )
-        ],
-    }
 
 def course_graduate_recipient_list_member_payload(
     enrollment,
