@@ -656,6 +656,62 @@ def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
     return events
 
 
+def _project_detail_url(request, course, project) -> str:
+    return request.build_absolute_uri(
+        reverse(
+            "project",
+            kwargs={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+            },
+        )
+    )
+
+
+def _project_deadline_calendar_event(
+    *,
+    course,
+    project,
+    uid_suffix: str,
+    event_type: str,
+    deadline,
+    url: str,
+    dtstamp,
+) -> list[str]:
+    return calendar_event(
+        uid=f"project-{project.id}-{uid_suffix}@courses.datatalks.club",
+        summary=f"{course.title}: {project.title} {event_type} deadline",
+        start=deadline,
+        url=url,
+        description=(
+            f"Project {event_type} deadline for {project.title}. "
+            f"Open the project: {url}"
+        ),
+        dtstamp=dtstamp,
+    )
+
+
+def _project_deadline_calendar_events(
+    course, project, url, dtstamp
+) -> list[list[str]]:
+    deadlines = (
+        ("submission", "submission", project.submission_due_date),
+        ("peer-review", "peer review", project.peer_review_due_date),
+    )
+    return [
+        _project_deadline_calendar_event(
+            course=course,
+            project=project,
+            uid_suffix=uid_suffix,
+            event_type=event_type,
+            deadline=deadline,
+            url=url,
+            dtstamp=dtstamp,
+        )
+        for uid_suffix, event_type, deadline in deadlines
+    ]
+
+
 def _project_calendar_events(request, course, dtstamp) -> list[list[str]]:
     projects = Project.objects.filter(course=course).order_by(
         "submission_due_date",
@@ -663,39 +719,10 @@ def _project_calendar_events(request, course, dtstamp) -> list[list[str]]:
     )
     events = []
     for project in projects:
-        project_url = request.build_absolute_uri(
-            reverse(
-                "project",
-                kwargs={
-                    "course_slug": course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        )
-        events.append(
-            calendar_event(
-                uid=f"project-{project.id}-submission@courses.datatalks.club",
-                summary=f"{course.title}: {project.title} submission deadline",
-                start=project.submission_due_date,
-                url=project_url,
-                description=(
-                    f"Project submission deadline for {project.title}. "
-                    f"Open the project: {project_url}"
-                ),
-                dtstamp=dtstamp,
-            )
-        )
-        events.append(
-            calendar_event(
-                uid=f"project-{project.id}-peer-review@courses.datatalks.club",
-                summary=f"{course.title}: {project.title} peer review deadline",
-                start=project.peer_review_due_date,
-                url=project_url,
-                description=(
-                    f"Project peer review deadline for {project.title}. "
-                    f"Open the project: {project_url}"
-                ),
-                dtstamp=dtstamp,
+        project_url = _project_detail_url(request, course, project)
+        events.extend(
+            _project_deadline_calendar_events(
+                course, project, project_url, dtstamp
             )
         )
     return events
