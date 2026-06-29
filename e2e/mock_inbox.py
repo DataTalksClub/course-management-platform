@@ -93,13 +93,19 @@ class InboxMessage:
         return any(needle in h for h in haystacks)
 
     def _context_strings(self) -> list[str]:
-        out: list[str] = []
-        for value in (self.context or {}).values():
-            if isinstance(value, str):
-                out.append(value)
-            elif isinstance(value, (list, tuple)):
-                out.extend(str(v) for v in value)
-        return out
+        return [
+            item
+            for value in (self.context or {}).values()
+            for item in context_value_strings(value)
+        ]
+
+
+def context_value_strings(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value]
+    return []
 
 
 class InboxBackend:
@@ -119,6 +125,61 @@ class InboxBackend:
 
     def clear(self, address: str | None = None) -> int:
         raise NotImplementedError
+
+    def _request_with_retries(
+        self,
+        method: str,
+        url: str,
+        *,
+        backend_name: str,
+        disabled_message: str,
+        **kwargs,
+    ) -> requests.Response:
+        """Issue a request with retries on transient transport/5xx errors."""
+        self._require_configured()
+        kwargs.setdefault("headers", self._headers())
+        kwargs.setdefault("timeout", self.timeout)
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                resp = self._session.request(method, url, **kwargs)
+            except requests.RequestException as exc:
+                self._handle_request_exception(exc, attempt)
+                continue
+
+            self._raise_if_disabled(resp, disabled_message)
+            if self._should_retry_response(resp, attempt):
+                self._sleep_before_retry(attempt)
+                continue
+            return resp
+
+        raise RuntimeError(f"{backend_name} request failed")
+
+    def _handle_request_exception(
+        self,
+        exc: requests.RequestException,
+        attempt: int,
+    ) -> None:
+        if attempt == self.max_retries:
+            raise exc
+        self._sleep_before_retry(attempt)
+
+    def _raise_if_disabled(
+        self,
+        resp: requests.Response,
+        disabled_message: str,
+    ) -> None:
+        if resp.status_code == 404 and self._looks_disabled(resp):
+            raise InboxDisabled(disabled_message)
+
+    def _should_retry_response(
+        self,
+        resp: requests.Response,
+        attempt: int,
+    ) -> bool:
+        return resp.status_code >= 500 and attempt < self.max_retries
+
+    def _sleep_before_retry(self, attempt: int) -> None:
+        time.sleep(self.retry_backoff * attempt)
 
     def _fetch_detail(self, address: str, message: "InboxMessage") -> "InboxMessage":
         """Load a message's full detail (bodies/context) during polling.
@@ -178,27 +239,64 @@ class InboxBackend:
         load_detail: bool,
     ) -> InboxMessage | None:
         for message in messages:
-            if not self._summary_matches(
+            matched = self._matched_candidate(
+                address,
                 message,
                 template_key=template_key,
                 subject=subject,
-            ):
-                continue
-
-            matched = self._message_matches_body(
-                address,
-                message,
                 body_contains=body_contains,
                 load_detail=load_detail,
             )
-            if matched is None:
-                continue
-
-            if load_detail and not body_contains and message.id is not None:
-                return self._fetch_detail(address, message)
-            return matched
+            if matched is not None:
+                return matched
 
         return None
+
+    def _matched_candidate(
+        self,
+        address: str,
+        message: InboxMessage,
+        *,
+        template_key: str | None,
+        subject: str | None,
+        body_contains: str | None,
+        load_detail: bool,
+    ) -> InboxMessage | None:
+        if not self._summary_matches(
+            message,
+            template_key=template_key,
+            subject=subject,
+        ):
+            return None
+
+        matched = self._message_matches_body(
+            address,
+            message,
+            body_contains=body_contains,
+            load_detail=load_detail,
+        )
+        if matched is None:
+            return None
+        return self._matched_with_optional_detail(
+            address,
+            message,
+            matched,
+            body_contains=body_contains,
+            load_detail=load_detail,
+        )
+
+    def _matched_with_optional_detail(
+        self,
+        address: str,
+        message: InboxMessage,
+        matched: InboxMessage,
+        *,
+        body_contains: str | None,
+        load_detail: bool,
+    ) -> InboxMessage:
+        if load_detail and not body_contains and message.id is not None:
+            return self._fetch_detail(address, message)
+        return matched
 
     def _timeout_error(
         self,
@@ -334,34 +432,16 @@ class MockInboxClient(InboxBackend):
             )
 
     def _request(self, method: str, url: str, **kwargs) -> requests.Response:
-        """Issue a request with retries on transient transport/5xx errors."""
-        self._require_configured()
-        kwargs.setdefault("headers", self._headers())
-        kwargs.setdefault("timeout", self.timeout)
-        last_exc: Exception | None = None
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                resp = self._session.request(method, url, **kwargs)
-            except requests.RequestException as exc:
-                last_exc = exc
-                if attempt == self.max_retries:
-                    raise
-                time.sleep(self.retry_backoff * attempt)
-                continue
-
-            if resp.status_code == 404 and self._looks_disabled(resp):
-                raise InboxDisabled(
-                    "Mock inbox is disabled on this deployment "
-                    "(MOCK_INBOX_ENABLED is off). 404 mock_inbox_disabled."
-                )
-            if resp.status_code >= 500 and attempt < self.max_retries:
-                last_exc = requests.HTTPError(f"{resp.status_code} from mock inbox")
-                time.sleep(self.retry_backoff * attempt)
-                continue
-            return resp
-
-        # Unreachable, but keeps type-checkers happy.
-        raise last_exc or RuntimeError("mock inbox request failed")
+        return self._request_with_retries(
+            method,
+            url,
+            backend_name="mock inbox",
+            disabled_message=(
+                "Mock inbox is disabled on this deployment "
+                "(MOCK_INBOX_ENABLED is off). 404 mock_inbox_disabled."
+            ),
+            **kwargs,
+        )
 
     @staticmethod
     def _looks_disabled(resp: requests.Response) -> bool:
@@ -504,33 +584,16 @@ class RealInboxClient(InboxBackend):
             )
 
     def _request(self, method: str, url: str, **kwargs) -> requests.Response:
-        """Issue a request with retries on transient transport/5xx errors."""
-        self._require_configured()
-        kwargs.setdefault("headers", self._headers())
-        kwargs.setdefault("timeout", self.timeout)
-        last_exc: Exception | None = None
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                resp = self._session.request(method, url, **kwargs)
-            except requests.RequestException as exc:
-                last_exc = exc
-                if attempt == self.max_retries:
-                    raise
-                time.sleep(self.retry_backoff * attempt)
-                continue
-
-            if resp.status_code == 404 and self._looks_disabled(resp):
-                raise InboxDisabled(
-                    "Real inbox is disabled on this deployment "
-                    "(REAL_INBOX_ENABLED is off). 404 real_inbox_disabled."
-                )
-            if resp.status_code >= 500 and attempt < self.max_retries:
-                last_exc = requests.HTTPError(f"{resp.status_code} from real inbox")
-                time.sleep(self.retry_backoff * attempt)
-                continue
-            return resp
-
-        raise last_exc or RuntimeError("real inbox request failed")
+        return self._request_with_retries(
+            method,
+            url,
+            backend_name="real inbox",
+            disabled_message=(
+                "Real inbox is disabled on this deployment "
+                "(REAL_INBOX_ENABLED is off). 404 real_inbox_disabled."
+            ),
+            **kwargs,
+        )
 
     @staticmethod
     def _looks_disabled(resp: requests.Response) -> bool:
