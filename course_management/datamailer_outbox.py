@@ -50,15 +50,40 @@ def enqueue_datamailer_outbox_event(
 
 def process_due_datamailer_outbox(*, limit=100, record_run=True) -> dict[str, int]:
     started_at = timezone.now()
-    run = None
-    if record_run:
-        run = DatamailerOutboxDispatchRun.objects.create(
-            started_at=started_at,
-            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
-        )
+    run = _create_dispatch_run(started_at) if record_run else None
+    event_ids = _due_outbox_event_ids(limit)
+    counts = _initial_outbox_counts()
 
+    try:
+        _process_outbox_event_ids(event_ids, counts)
+    except Exception as exc:
+        _finish_dispatch_run_if_present(
+            run,
+            counts,
+            status=DatamailerOutboxDispatchRunStatus.FAILED,
+            last_error=str(exc),
+        )
+        raise
+
+    _finish_dispatch_run_if_present(
+        run,
+        counts,
+        status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+        last_error="",
+    )
+    return counts
+
+
+def _create_dispatch_run(started_at):
+    return DatamailerOutboxDispatchRun.objects.create(
+        started_at=started_at,
+        status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+    )
+
+
+def _due_outbox_event_ids(limit):
     now = timezone.now()
-    event_ids = list(
+    return list(
         DatamailerOutboxEvent.objects.filter(
             status__in=RETRYABLE_STATUSES,
             next_attempt_at__lte=now,
@@ -66,37 +91,40 @@ def process_due_datamailer_outbox(*, limit=100, record_run=True) -> dict[str, in
         .order_by("created_at", "id")
         .values_list("id", flat=True)[:limit]
     )
-    counts = {"processed": 0, "acked": 0, "retrying": 0, "failed": 0}
-    try:
-        for event_id in event_ids:
-            event = DatamailerOutboxEvent.objects.get(id=event_id)
-            dispatch_datamailer_outbox_event(event)
-            event.refresh_from_db()
-            counts["processed"] += 1
-            if event.status in {
-                DatamailerOutboxStatus.ACKED,
-                DatamailerOutboxStatus.RETRYING,
-                DatamailerOutboxStatus.FAILED,
-            }:
-                counts[event.status] += 1
-    except Exception as exc:
-        if run is not None:
-            _finish_dispatch_run(
-                run,
-                counts,
-                status=DatamailerOutboxDispatchRunStatus.FAILED,
-                last_error=str(exc),
-            )
-        raise
 
-    if run is not None:
-        _finish_dispatch_run(
-            run,
-            counts,
-            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
-            last_error="",
-        )
-    return counts
+
+def _initial_outbox_counts():
+    return {"processed": 0, "acked": 0, "retrying": 0, "failed": 0}
+
+
+def _process_outbox_event_ids(event_ids, counts):
+    for event_id in event_ids:
+        event = DatamailerOutboxEvent.objects.get(id=event_id)
+        dispatch_datamailer_outbox_event(event)
+        event.refresh_from_db()
+        _count_processed_outbox_event(counts, event)
+
+
+def _count_processed_outbox_event(counts, event):
+    counts["processed"] += 1
+    if event.status in {
+        DatamailerOutboxStatus.ACKED,
+        DatamailerOutboxStatus.RETRYING,
+        DatamailerOutboxStatus.FAILED,
+    }:
+        counts[event.status] += 1
+
+
+def _finish_dispatch_run_if_present(run, counts, *, status, last_error):
+    if run is None:
+        return
+
+    _finish_dispatch_run(
+        run,
+        counts,
+        status=status,
+        last_error=last_error,
+    )
 
 
 def datamailer_outbox_status_summary() -> dict[str, Any]:
