@@ -48,6 +48,14 @@ class CopySummary:
     defaults_used: set[tuple[str, str, Any]] = field(default_factory=set)
 
 
+@dataclass
+class ImportPaths:
+    source_db: Path
+    rebuilt_db: Path
+    target_db: Path
+    work_dir: Path
+
+
 def add_source_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--source-db",
@@ -545,8 +553,7 @@ def replace_target(
     return backup_db
 
 
-def main() -> int:
-    args = parse_args()
+def resolve_import_paths(args: argparse.Namespace) -> ImportPaths:
     source_db = (
         args.source_db.resolve()
         if args.source_db
@@ -559,32 +566,53 @@ def main() -> int:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     rebuilt_db = work_dir / f"rds-import-{timestamp}.db"
 
-    print(f"Source export: {source_db}")
-    print(f"Rebuilt DB:    {rebuilt_db}")
-    print(f"Target DB:     {target_db}")
+    return ImportPaths(
+        source_db=source_db,
+        rebuilt_db=rebuilt_db,
+        target_db=target_db,
+        work_dir=work_dir,
+    )
 
-    migrate_empty_db(rebuilt_db)
-    copy_rows(source_db, rebuilt_db)
-    create_admin_user(rebuilt_db, args)
-    validate_rebuilt_db(rebuilt_db)
+
+def print_import_paths(paths: ImportPaths) -> None:
+    print(f"Source export: {paths.source_db}")
+    print(f"Rebuilt DB:    {paths.rebuilt_db}")
+    print(f"Target DB:     {paths.target_db}")
+
+
+def rebuild_database(paths: ImportPaths, args: argparse.Namespace) -> None:
+    migrate_empty_db(paths.rebuilt_db)
+    copy_rows(paths.source_db, paths.rebuilt_db)
+    create_admin_user(paths.rebuilt_db, args)
+    validate_rebuilt_db(paths.rebuilt_db)
+
+
+def replace_rebuilt_database(paths: ImportPaths, args: argparse.Namespace) -> None:
+    backup_db = replace_target(paths.rebuilt_db, paths.target_db, paths.work_dir)
+    if backup_db:
+        print(f"Backed up previous DB to: {backup_db}")
+    print(f"Loaded rebuilt export into: {paths.target_db}")
+
+    if args.keep_rebuilt:
+        print(f"Kept rebuilt DB at: {paths.rebuilt_db}")
+    else:
+        paths.rebuilt_db.unlink(missing_ok=True)
+
+
+def main() -> int:
+    args = parse_args()
+    paths = resolve_import_paths(args)
+    print_import_paths(paths)
+    rebuild_database(paths, args)
 
     if args.no_replace:
         print(
             "Built and validated DB without replacing target: "
-            f"{rebuilt_db}"
+            f"{paths.rebuilt_db}"
         )
         return 0
 
-    backup_db = replace_target(rebuilt_db, target_db, work_dir)
-    if backup_db:
-        print(f"Backed up previous DB to: {backup_db}")
-    print(f"Loaded rebuilt export into: {target_db}")
-
-    if args.keep_rebuilt:
-        print(f"Kept rebuilt DB at: {rebuilt_db}")
-    else:
-        rebuilt_db.unlink(missing_ok=True)
-
+    replace_rebuilt_database(paths, args)
     return 0
 
 
