@@ -738,36 +738,16 @@ class ProjectViewTestCase(TestCase):
         When the link is invalid and there's no submission yet,
         no submission is created
         """
-        mock_response = mock.Mock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
+        self.mock_url_check_status(mock_get, mock_head, 404)
+        data = self.project_submission_data(
+            github_link="https://github.com/alexeygrigorev/404",
         )
 
-        data = {
-            "github_link": "https://github.com/alexeygrigorev/404",
-            "commit_id": "1234567",
-        }
-        response = self.client.post(url, data)
+        response = self.post_project(data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.context["submission"].github_link,
-            data["github_link"],
+        self.assert_project_submission_matches(
+            response.context["submission"],
+            data,
         )
-        self.assertEqual(
-            response.context["submission"].commit_id,
-            data["commit_id"],
-        )
-
-        submission = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-
-        self.assertFalse(submission.exists())
+        self.assertEqual(self.project_submission_count(), 0)
