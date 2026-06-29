@@ -660,36 +660,72 @@ def send_certificate_availability_notification(
     if config is None:
         return None
 
+    notification_payloads = _certificate_availability_payloads(enrollment)
+    if notification_payloads is None:
+        return None
+
+    graduate_list_payload, payload = notification_payloads
+    try:
+        return _send_certificate_availability_if_ready(
+            config,
+            enrollment,
+            graduate_list_payload,
+            payload,
+        )
+    except requests.RequestException as exc:
+        return _handle_certificate_availability_send_error(
+            config,
+            enrollment,
+            payload,
+            exc,
+        )
+
+
+def _certificate_availability_payloads(enrollment):
     graduate_list_payload = course_graduate_recipient_list_payload(
         enrollment
     )
     payload = certificate_availability_notification_payload(enrollment)
     if graduate_list_payload is None and payload is None:
         return None
+    return graduate_list_payload, payload
 
-    try:
-        if not _sync_graduate_outcome_before_certificate_send(
-            config, enrollment, graduate_list_payload, payload
-        ):
-            return None
-        if payload is None:
-            return None
-        return _send_transactional_and_audit(config, payload)
-    except requests.RequestException as exc:
-        logger.exception(
-            "Datamailer certificate availability notification failed "
-            "for enrollment_id=%s",
-            enrollment.pk,
-        )
-        if payload is not None:
-            record_datamailer_send_audit(
-                send_type=DatamailerSendAuditType.TRANSACTIONAL,
-                payload=payload,
-                error=str(exc),
-            )
-        if config.strict:
-            raise
+
+def _send_certificate_availability_if_ready(
+    config,
+    enrollment,
+    graduate_list_payload,
+    payload,
+):
+    if not _sync_graduate_outcome_before_certificate_send(
+        config, enrollment, graduate_list_payload, payload
+    ):
         return None
+    if payload is None:
+        return None
+    return _send_transactional_and_audit(config, payload)
+
+
+def _handle_certificate_availability_send_error(
+    config,
+    enrollment,
+    payload,
+    exc,
+):
+    logger.exception(
+        "Datamailer certificate availability notification failed "
+        "for enrollment_id=%s",
+        enrollment.pk,
+    )
+    if payload is not None:
+        record_datamailer_send_audit(
+            send_type=DatamailerSendAuditType.TRANSACTIONAL,
+            payload=payload,
+            error=str(exc),
+        )
+    if config.strict:
+        raise
+    return None
 
 
 def _sync_graduate_outcome_before_certificate_send(
