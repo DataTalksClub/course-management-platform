@@ -335,7 +335,9 @@ class EnrollmentDataAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assert_certificate_update_result(result, False, 2, 3)
-        error_codes = {error["code"] for error in result["errors"]}
+        error_codes = set()
+        for error in result["errors"]:
+            error_codes.add(error["code"])
         self.assertEqual(
             error_codes,
             {"missing_fields", "not_enrolled", "user_not_found"},

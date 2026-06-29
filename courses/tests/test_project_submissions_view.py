@@ -122,7 +122,7 @@ class ProjectSubmissionsViewTests(TestCase):
         )
 
     def create_peer_review(self, submission, state):
-        from courses.models import PeerReview, PeerReviewState
+        from courses.models import PeerReview
 
         return PeerReview.objects.create(
             submission_under_evaluation=submission,
@@ -156,10 +156,10 @@ class ProjectSubmissionsViewTests(TestCase):
 
     def submission_for_user(self, response, user):
         submissions = list(response.context["submissions"])
-        return [
-            submission for submission in submissions
-            if submission.student == user
-        ][0]
+        for submission in submissions:
+            if submission.student == user:
+                return submission
+        return None
 
     def assert_peer_review_completion(self, response):
         user_submission = self.submission_for_user(response, self.user)

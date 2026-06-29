@@ -52,6 +52,13 @@ class ReminderSpec:
     list_name_suffix: str
 
 
+@dataclass(frozen=True)
+class ReminderWindow:
+    key: str
+    start: datetime
+    end: datetime
+
+
 def aware_now(value: str):
     if not value:
         return timezone.now()
@@ -86,9 +93,9 @@ def reminder_window(now, reminder_key):
 
 
 def matching_reminder_key(deadline, windows):
-    for reminder_key, start, end in windows:
-        if is_within_window(deadline, start, end):
-            return reminder_key
+    for window in windows:
+        if is_within_window(deadline, window.start, window.end):
+            return window.key
     return None
 
 
@@ -405,24 +412,24 @@ def project_submission_reminder_windows(now):
     daily_start, daily_end = reminder_window(now, "24h")
     weekly_start, weekly_end = reminder_window(now, "7d")
     return (
-        ("24h", daily_start, daily_end),
-        ("7d", weekly_start, weekly_end),
+        ReminderWindow("24h", daily_start, daily_end),
+        ReminderWindow("7d", weekly_start, weekly_end),
     )
 
 
 def project_submission_reminder_queryset(windows, course_slug):
-    _, daily_start, daily_end = windows[0]
-    _, weekly_start, weekly_end = windows[1]
+    daily_window = windows[0]
+    weekly_window = windows[1]
     queryset = Project.objects.select_related("course").filter(
         state=ProjectState.COLLECTING_SUBMISSIONS.value,
     ).filter(
         Q(
-            submission_due_date__gte=daily_start,
-            submission_due_date__lt=daily_end,
+            submission_due_date__gte=daily_window.start,
+            submission_due_date__lt=daily_window.end,
         )
         | Q(
-            submission_due_date__gte=weekly_start,
-            submission_due_date__lt=weekly_end,
+            submission_due_date__gte=weekly_window.start,
+            submission_due_date__lt=weekly_window.end,
         )
     )
     if course_slug:
@@ -663,7 +670,10 @@ def project_submission_events(config, now, course_slug):
     events = []
     spec = project_submission_reminder_spec()
     windows = project_submission_reminder_windows(now)
-    projects = project_submission_reminder_queryset(windows, course_slug)
+    projects = project_submission_reminder_queryset(
+        windows,
+        course_slug,
+    )
     for project in projects:
         reminder_key = matching_reminder_key(
             project.submission_due_date,

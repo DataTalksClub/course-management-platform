@@ -197,9 +197,8 @@ class PeerReviewBadgeEndToEndTests(TestCase):
         for index in range(3):
             other_submission = self.create_other_submission(index)
             self.other_submissions.append(other_submission)
-            self.peer_reviews.append(
-                self.create_assigned_review(other_submission)
-            )
+            peer_review = self.create_assigned_review(other_submission)
+            self.peer_reviews.append(peer_review)
             self.create_submitted_reverse_review(other_submission)
 
     def create_assigned_review(self, other_submission):

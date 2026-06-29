@@ -84,9 +84,15 @@ class CadminViewModelTests(TestCase):
         return ProjectSubmission.objects.create(**defaults)
 
     def assert_item_ids(self, items, expected_items):
+        item_ids = []
+        for item in items:
+            item_ids.append(item.id)
+        expected_item_ids = []
+        for item in expected_items:
+            expected_item_ids.append(item.id)
         self.assertEqual(
-            [item.id for item in items],
-            [item.id for item in expected_items],
+            item_ids,
+            expected_item_ids,
         )
 
     def create_project_submission_status_examples(self):

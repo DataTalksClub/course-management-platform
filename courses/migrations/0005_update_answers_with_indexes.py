@@ -9,9 +9,11 @@ logger = logging.getLogger("courses.migrations")
 
 
 def replace_answers_with_indexes(possible_answers, answers, question_id=None):
-    possible_answers = [
-        answer.strip().lower() for answer in possible_answers
-    ]
+    normalized_answers = []
+    for answer in possible_answers:
+        normalized_answer = answer.strip().lower()
+        normalized_answers.append(normalized_answer)
+    possible_answers = normalized_answers
     answers = answers.lower().strip()
 
     logger.debug(f"Possible answers: {possible_answers}")
@@ -24,7 +26,8 @@ def replace_answers_with_indexes(possible_answers, answers, question_id=None):
         try:
             zero_based_index = possible_answers.index(answer)
             index = zero_based_index + 1
-            correct_indexes.append(str(index))
+            correct_index = str(index)
+            correct_indexes.append(correct_index)
         except ValueError:
             logger.error(
                 f"Answer '{answer}' not found in possible_answers for question ID {question_id}"

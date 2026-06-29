@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 from django.urls import reverse
 from django.test import TestCase, Client
@@ -22,6 +23,13 @@ from courses.models import (
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ExpectedCriteriaResponse:
+    pair: tuple
+    criteria: ReviewCriteria
+    options: list[dict]
 
 
 def fetch_fresh(obj):
@@ -211,15 +219,16 @@ class ProjectEvaluationTestCase(TestCase):
         self.peer_review.save()
 
     def selected_options(self, rows, selected_indexes):
-        return [
-            {
+        options = []
+        for index, (criteria, score) in enumerate(rows, start=1):
+            option = {
                 "criteria": criteria,
                 "score": score,
                 "index": index,
                 "is_selected": index in selected_indexes,
             }
-            for index, (criteria, score) in enumerate(rows, start=1)
-        ]
+            options.append(option)
+        return options
 
     def assert_empty_criteria_response_pairs(self, pairs):
         self.assertEqual(len(pairs), 3)
@@ -234,16 +243,28 @@ class ProjectEvaluationTestCase(TestCase):
     ):
         self.assertEqual(len(pairs), 3)
         expected_rows = [
-            (pairs[0], self.criteria1, self.code_quality_options()),
-            (pairs[1], self.criteria2, self.documentation_options()),
-            (pairs[2], self.criteria3, self.best_practices_options()),
+            ExpectedCriteriaResponse(
+                pairs[0],
+                self.criteria1,
+                self.code_quality_options(),
+            ),
+            ExpectedCriteriaResponse(
+                pairs[1],
+                self.criteria2,
+                self.documentation_options(),
+            ),
+            ExpectedCriteriaResponse(
+                pairs[2],
+                self.criteria3,
+                self.best_practices_options(),
+            ),
         ]
-        for pair, criteria, expected_options in expected_rows:
+        for expected_row in expected_rows:
             self.assert_submitted_criteria_pair(
-                pair,
-                criteria,
-                criteria_responses[criteria],
-                expected_options,
+                expected_row.pair,
+                expected_row.criteria,
+                criteria_responses[expected_row.criteria],
+                expected_row.options,
             )
 
     def code_quality_options(self):

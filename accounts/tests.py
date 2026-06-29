@@ -331,9 +331,9 @@ class AccountSettingsTestCase(TestCase):
         self.assertTrue(self.user.dark_mode)
 
     def test_custom_user_does_not_store_email_preference_fields(self):
-        field_names = {
-            field.name for field in CustomUser._meta.get_fields()
-        }
+        field_names = set()
+        for field in CustomUser._meta.get_fields():
+            field_names.add(field.name)
 
         self.assertNotIn("email_submission_confirmations", field_names)
         self.assertNotIn("email_deadline_reminders", field_names)

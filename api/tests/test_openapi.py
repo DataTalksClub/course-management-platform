@@ -39,11 +39,10 @@ class OpenAPITestCase(TestCase):
 
     def test_all_api_routes_are_documented(self):
         spec = build_openapi_spec()
-        documented_names = {
-            operation["x-django-url-name"]
-            for methods in spec["paths"].values()
-            for operation in methods.values()
-        }
+        documented_names = set()
+        for methods in spec["paths"].values():
+            for operation in methods.values():
+                documented_names.add(operation["x-django-url-name"])
         self.assertEqual(routed_url_names(), documented_names)
 
     def test_documented_paths_match_routed_paths(self):

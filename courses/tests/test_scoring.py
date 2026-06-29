@@ -140,16 +140,11 @@ class HomeworkScoringTestCase(TestCase):
         return self.create_free_form_questions() + self.create_choice_questions()
 
     def create_students(self):
-        (
-            (self.student1, self.enrollment1),
-            (self.student2, self.enrollment2),
-            (self.student3, self.enrollment3),
-            (self.student4, self.enrollment4),
-            (self.student5, self.enrollment5),
-        ) = [
-            self.create_student(name)
-            for name in ("s1", "s2", "s3", "s4", "s5")
-        ]
+        self.student1, self.enrollment1 = self.create_student("s1")
+        self.student2, self.enrollment2 = self.create_student("s2")
+        self.student3, self.enrollment3 = self.create_student("s3")
+        self.student4, self.enrollment4 = self.create_student("s4")
+        self.student5, self.enrollment5 = self.create_student("s5")
 
     def setUp(self):
         self.course = self.create_course()
@@ -266,17 +261,25 @@ class HomeworkScoringTestCase(TestCase):
         }
 
     def leaderboard_test_data(self):
-        return [
-            self.leaderboard_row(student, enrollment, answers, score, position)
-            for position, ((student, enrollment), answers, score) in enumerate(
-                zip(
-                    self.leaderboard_students(),
-                    self.leaderboard_answer_sets(),
-                    self.leaderboard_expected_scores(),
-                ),
-                start=1,
+        data = []
+        rows = zip(
+            self.leaderboard_students(),
+            self.leaderboard_answer_sets(),
+            self.leaderboard_expected_scores(),
+        )
+        for position, row in enumerate(rows, start=1):
+            student, enrollment = row[0]
+            answers = row[1]
+            score = row[2]
+            leaderboard_row = self.leaderboard_row(
+                student,
+                enrollment,
+                answers,
+                score,
+                position,
             )
-        ]
+            data.append(leaderboard_row)
+        return data
 
     def assert_leaderboard_rows(self, data):
         for row in data:

@@ -41,11 +41,25 @@ class TableCopyPlan:
     default_values: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class ImportedTable:
+    table: str
+    rows: int
+    columns: int
+
+
+@dataclass(frozen=True)
+class ColumnDefault:
+    table: str
+    column: str
+    default: Any
+
+
 @dataclass
 class CopySummary:
-    imported: list[tuple[str, int, int]] = field(default_factory=list)
+    imported: list[ImportedTable] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
-    defaults_used: set[tuple[str, str, Any]] = field(default_factory=set)
+    defaults_used: set[ColumnDefault] = field(default_factory=set)
 
 
 @dataclass
@@ -212,13 +226,16 @@ def setup_django() -> dict[str, Any]:
 def django_field_default(model: Any, column: str) -> tuple[bool, Any]:
     from django.db.models import NOT_PROVIDED
 
-    field = django_field_for_column(model, column)
-    if field is None:
+    model_field = django_field_for_column(model, column)
+    if model_field is None:
         return False, None
-    if field.default is not NOT_PROVIDED:
-        default = field.default() if callable(field.default) else field.default
+    if model_field.default is not NOT_PROVIDED:
+        if callable(model_field.default):
+            default = model_field.default()
+        else:
+            default = model_field.default
         return True, default
-    if field.null:
+    if model_field.null:
         return True, None
     return False, None
 
@@ -227,9 +244,9 @@ def django_field_for_column(model: Any, column: str):
     if model is None:
         return None
     model_fields = model._meta.fields
-    for field in model_fields:
-        if field.column == column:
-            return field
+    for model_field in model_fields:
+        if model_field.column == column:
+            return model_field
     return None
 
 
@@ -268,7 +285,7 @@ def missing_required_columns(
     target_info: list[sqlite3.Row],
     source_columns: set[str],
     plan: TableCopyPlan,
-    defaults_used: set[tuple[str, str, Any]],
+    defaults_used: set[ColumnDefault],
 ) -> list[str]:
     missing_required: list[str] = []
 
@@ -293,7 +310,7 @@ def apply_column_copy_plan(
     column_info: sqlite3.Row,
     source_columns: set[str],
     plan: TableCopyPlan,
-    defaults_used: set[tuple[str, str, Any]],
+    defaults_used: set[ColumnDefault],
 ) -> str:
     column = column_info["name"]
     if column in source_columns:
@@ -306,7 +323,8 @@ def apply_column_copy_plan(
     if has_default:
         plan.insert_columns.append(column)
         plan.default_values[column] = default
-        defaults_used.add((table, column, default))
+        default_info = ColumnDefault(table, column, default)
+        defaults_used.add(default_info)
         return ""
     if column_allows_local_value(column_info):
         return ""
@@ -322,7 +340,7 @@ def build_table_copy_plan(
     source_cursor: sqlite3.Cursor,
     target_cursor: sqlite3.Cursor,
     model_by_table: dict[str, Any],
-    defaults_used: set[tuple[str, str, Any]],
+    defaults_used: set[ColumnDefault],
 ) -> TableCopyPlan:
     source_info = pragma_table_info(source_cursor, table)
     target_info = pragma_table_info(target_cursor, table)
@@ -452,19 +470,33 @@ def print_copy_summary(source_db: Path, summary: CopySummary) -> None:
 
 def print_imported_tables(
     source_db: Path,
-    imported: list[tuple[str, int, int]],
+    imported: list[ImportedTable],
 ) -> None:
     print(f"Imported {len(imported)} tables from {source_db}:")
-    for table, rows, columns in imported:
-        print(f"  {table}: {rows} rows, {columns} columns")
+    for imported_table in imported:
+        print(
+            f"  {imported_table.table}: "
+            f"{imported_table.rows} rows, "
+            f"{imported_table.columns} columns"
+        )
 
 
-def print_defaults_used(defaults_used: set[tuple[str, str, Any]]) -> None:
+def print_defaults_used(defaults_used: set[ColumnDefault]) -> None:
     if defaults_used:
         print("Filled local-only columns with Django defaults:")
-        sorted_defaults = sorted(defaults_used)
-        for table, column, default in sorted_defaults:
-            print(f"  {table}.{column} = {default!r}")
+        sorted_defaults = sorted(
+            defaults_used,
+            key=lambda item: (
+                item.table,
+                item.column,
+                repr(item.default),
+            ),
+        )
+        for default_info in sorted_defaults:
+            print(
+                f"  {default_info.table}.{default_info.column} "
+                f"= {default_info.default!r}"
+            )
 
 
 def print_skipped_tables(skipped: list[tuple[str, str]]) -> None:
@@ -503,7 +535,12 @@ def copy_source_table(
         return
 
     row_count = copy_table_rows(source_cursor, target_cursor, plan)
-    summary.imported.append((table, row_count, len(plan.insert_columns)))
+    imported_table = ImportedTable(
+        table,
+        row_count,
+        len(plan.insert_columns),
+    )
+    summary.imported.append(imported_table)
 
 
 def copy_rows(source_db: Path, target_db: Path) -> None:
@@ -539,14 +576,19 @@ def copy_rows(source_db: Path, target_db: Path) -> None:
 
 
 def refresh_sqlite_sequences(
-    cursor: sqlite3.Cursor, imported: list[tuple[str, int, int]]
+    cursor: sqlite3.Cursor, imported: list[ImportedTable]
 ) -> None:
     if not sqlite_sequence_exists(cursor):
         return
 
-    for table, _rows, _columns in imported:
+    for imported_table in imported:
+        table = imported_table.table
         if table_has_single_id_primary_key(cursor, table):
-            upsert_sqlite_sequence(cursor, table, table_max_id(cursor, table))
+            upsert_sqlite_sequence(
+                cursor,
+                table,
+                table_max_id(cursor, table),
+            )
 
 
 def sqlite_sequence_exists(cursor: sqlite3.Cursor) -> bool:

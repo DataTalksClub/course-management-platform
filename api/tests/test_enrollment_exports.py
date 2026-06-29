@@ -108,8 +108,11 @@ class EnrollmentExportsAPITestCase(TestCase):
         self.assertEqual(data["updated_count"], 1)
         self.assertEqual(data["error_count"], 4)
         self.assertEqual(data["updated"][0]["enrollment_id"], enrolled.id)
+        error_codes = []
+        for error in data["errors"]:
+            error_codes.append(error["code"])
         self.assertEqual(
-            [error["code"] for error in data["errors"]],
+            error_codes,
             [
                 "missing_fields",
                 "invalid_item",

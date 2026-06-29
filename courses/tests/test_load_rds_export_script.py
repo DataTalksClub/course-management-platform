@@ -7,7 +7,9 @@ from django.test import SimpleTestCase
 
 from courses.models import Course
 from scripts.load_rds_export import (
+    ColumnDefault,
     CopySummary,
+    ImportedTable,
     TableCopyPlan,
     django_field_default,
     missing_required_columns,
@@ -56,7 +58,12 @@ class LoadRdsExportScriptTest(SimpleTestCase):
         self.assertEqual(missing, ["required_local"])
         self.assertEqual(plan.insert_columns, ["slug", "title", "visible"])
         self.assertEqual(plan.default_values, {"visible": True})
-        self.assertEqual(defaults_used, {("courses_course", "visible", True)})
+        expected_default = ColumnDefault(
+            "courses_course",
+            "visible",
+            True,
+        )
+        self.assertEqual(defaults_used, {expected_default})
 
     def test_django_field_default_uses_model_defaults_and_nullable_fields(self):
         self.assertEqual(django_field_default(Course, "visible"), (True, True))
@@ -85,7 +92,10 @@ class LoadRdsExportScriptTest(SimpleTestCase):
 
         refresh_sqlite_sequences(
             cursor,
-            [("imported", 2, 2), ("keyed", 0, 1)],
+            [
+                ImportedTable("imported", 2, 2),
+                ImportedTable("keyed", 0, 1),
+            ],
         )
 
         sequence = cursor.execute(
@@ -94,10 +104,12 @@ class LoadRdsExportScriptTest(SimpleTestCase):
         self.assertEqual(sequence, 7)
 
     def test_print_copy_summary_outputs_each_section(self):
+        imported_table = ImportedTable("courses_course", 2, 3)
+        default_info = ColumnDefault("courses_course", "visible", True)
         summary = CopySummary(
-            imported=[("courses_course", 2, 3)],
+            imported=[imported_table],
             skipped=[("django_migrations", "managed locally")],
-            defaults_used={("courses_course", "visible", True)},
+            defaults_used={default_info},
         )
 
         out = StringIO()
