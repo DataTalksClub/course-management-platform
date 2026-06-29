@@ -1,5 +1,6 @@
 import hmac
 import json
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.db.models import F
@@ -28,6 +29,13 @@ PREFERENCE_FIELDS = {
     "email_deadline_reminders",
     "email_course_updates",
 }
+
+
+@dataclass(frozen=True)
+class DatamailerEventFields:
+    event_id: str
+    event_type: str
+    email: str
 
 
 def bearer_token(request):
@@ -82,26 +90,27 @@ def json_payload_from_request(request):
 
 
 def required_event_fields(payload):
-    return (
-        str(payload.get("event_id") or "").strip(),
-        str(payload.get("event_type") or "").strip(),
-        str(payload.get("email") or "").strip().lower(),
+    fields = DatamailerEventFields(
+        event_id=str(payload.get("event_id") or "").strip(),
+        event_type=str(payload.get("event_type") or "").strip(),
+        email=str(payload.get("email") or "").strip().lower(),
     )
+    return fields
 
 
 def validate_datamailer_payload(payload):
-    event_id, event_type, email = required_event_fields(payload)
-    if not event_id or not event_type or not email:
+    fields = required_event_fields(payload)
+    if not fields.event_id or not fields.event_type or not fields.email:
         return None, webhook_error(
             "event_id, event_type, and email are required",
             400,
         )
-    if event_type not in SUPPORTED_EVENT_TYPES:
+    if fields.event_type not in SUPPORTED_EVENT_TYPES:
         return None, webhook_error(
-            f"Unsupported event_type: {event_type}",
+            f"Unsupported event_type: {fields.event_type}",
             400,
         )
-    return (event_id, event_type, email), None
+    return fields, None
 
 
 def parsed_occurred_at(payload):
@@ -133,10 +142,13 @@ def update_duplicate_datamailer_event(event):
 
 
 def record_datamailer_event(payload, fields):
-    event_id, event_type, email = fields
     event, created = DatamailerContactEvent.objects.get_or_create(
-        event_id=event_id,
-        defaults=datamailer_event_defaults(payload, event_type, email),
+        event_id=fields.event_id,
+        defaults=datamailer_event_defaults(
+            payload,
+            fields.event_type,
+            fields.email,
+        ),
     )
     if not created:
         update_duplicate_datamailer_event(event)

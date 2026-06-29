@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 
 from django.db import transaction
 from django.http import JsonResponse
@@ -42,6 +43,19 @@ class HomeworkUpsertData:
     data: dict
     homework: Homework | None
     created: bool
+
+
+@dataclass(frozen=True)
+class HomeworkCreateRequiredValues:
+    name: str
+    due_date_str: str
+
+
+@dataclass(frozen=True)
+class HomeworkCreateValues:
+    name: str
+    due_date: date
+    instructions_url: str | None
 
 
 def _homework_delete_blockers(hw):
@@ -100,12 +114,12 @@ def _homework_score_response(homework):
     )
 
 
-def _homework_create_defaults(hw_data, name, due_date, instructions_url):
+def _homework_create_defaults(hw_data, values):
     return {
-        "title": name,
+        "title": values.name,
         "description": hw_data.get("description", ""),
-        "instructions_url": instructions_url,
-        "due_date": due_date,
+        "instructions_url": values.instructions_url,
+        "due_date": values.due_date,
         "state": HomeworkState.CLOSED.value,
     }
 
@@ -120,9 +134,10 @@ def _homework_create_required_values(hw_data):
     due_date_str = hw_data.get("due_date")
 
     if not name or not due_date_str:
-        return None, None, "name and due_date are required"
+        return None, "name and due_date are required"
 
-    return name, due_date_str, None
+    values = HomeworkCreateRequiredValues(name, due_date_str)
+    return values, None
 
 
 def _homework_create_instructions_url(hw_data):
@@ -152,7 +167,7 @@ def _homework_create_slug(course, hw_data, name):
 
 
 def _homework_create_attrs(course, hw_data):
-    name, due_date_str, error = _homework_create_required_values(hw_data)
+    required_values, error = _homework_create_required_values(hw_data)
     if error:
         return None, error
 
@@ -160,17 +175,23 @@ def _homework_create_attrs(course, hw_data):
     if error:
         return None, error
 
-    due_date, error = _homework_create_due_date(due_date_str)
-    if error:
-        return None, error
-
-    slug, error = _homework_create_slug(course, hw_data, name)
-    if error:
-        return None, error
-
-    attrs = _homework_create_defaults(
-        hw_data, name, due_date, instructions_url
+    due_date, error = _homework_create_due_date(
+        required_values.due_date_str
     )
+    if error:
+        return None, error
+
+    values = HomeworkCreateValues(
+        name=required_values.name,
+        due_date=due_date,
+        instructions_url=instructions_url,
+    )
+
+    slug, error = _homework_create_slug(course, hw_data, values.name)
+    if error:
+        return None, error
+
+    attrs = _homework_create_defaults(hw_data, values)
     attrs["slug"] = slug
     return attrs, None
 

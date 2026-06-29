@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -48,8 +48,14 @@ class ProjectCreateRequiredValues:
 class ProjectCreateValues:
     name: str
     instructions_url: str | None
-    submission_due_date: datetime
-    peer_review_due_date: datetime
+    submission_due_date: date
+    peer_review_due_date: date
+
+
+@dataclass(frozen=True)
+class ProjectDueDates:
+    submission_due_date: date
+    peer_review_due_date: date
 
 
 def _project_delete_blockers(proj):
@@ -160,41 +166,20 @@ def _project_score_response(project):
     )
 
 
-def _project_required_fields(proj_data):
+def _project_create_required_values(proj_data):
     name = proj_data.get("name")
     submission_due_str = proj_data.get("submission_due_date")
     peer_review_due_str = proj_data.get("peer_review_due_date")
-    return name, submission_due_str, peer_review_due_str
-
-
-def _missing_project_required_fields(
-    name,
-    submission_due_str,
-    peer_review_due_str,
-):
-    if name and submission_due_str and peer_review_due_str:
-        return None
-    return (
-        "name, submission_due_date, and peer_review_due_date are required"
-    )
-
-
-def _project_create_required_values(proj_data):
-    name, submission_due_str, peer_review_due_str = _project_required_fields(
-        proj_data
-    )
-    error = _missing_project_required_fields(
-        name,
-        submission_due_str,
-        peer_review_due_str,
-    )
-    if error:
-        return None, error
+    if not name or not submission_due_str or not peer_review_due_str:
+        return (
+            None,
+            "name, submission_due_date, and peer_review_due_date are required",
+        )
 
     values = ProjectCreateRequiredValues(
-        name,
-        submission_due_str,
-        peer_review_due_str,
+        name=name,
+        submission_due_str=submission_due_str,
+        peer_review_due_str=peer_review_due_str,
     )
     return values, None
 
@@ -218,13 +203,17 @@ def _project_create_instructions_url(proj_data):
 def _parse_project_due_dates(submission_due_str, peer_review_due_str):
     submission_due_date = parse_date(submission_due_str)
     if submission_due_date is None:
-        return None, None, f"Invalid date format: {submission_due_str}"
+        return None, f"Invalid date format: {submission_due_str}"
 
     peer_review_due_date = parse_date(peer_review_due_str)
     if peer_review_due_date is None:
-        return None, None, f"Invalid date format: {peer_review_due_str}"
+        return None, f"Invalid date format: {peer_review_due_str}"
 
-    return submission_due_date, peer_review_due_date, None
+    due_dates = ProjectDueDates(
+        submission_due_date=submission_due_date,
+        peer_review_due_date=peer_review_due_date,
+    )
+    return due_dates, None
 
 
 def _project_slug(proj_data, name):
@@ -255,11 +244,9 @@ def _project_create_attrs(course, proj_data):
     if error:
         return None, error
 
-    submission_due_date, peer_review_due_date, error = (
-        _parse_project_due_dates(
-            required_values.submission_due_str,
-            required_values.peer_review_due_str,
-        )
+    due_dates, error = _parse_project_due_dates(
+        required_values.submission_due_str,
+        required_values.peer_review_due_str,
     )
     if error:
         return None, error
@@ -267,8 +254,8 @@ def _project_create_attrs(course, proj_data):
     values = ProjectCreateValues(
         name=required_values.name,
         instructions_url=instructions_url,
-        submission_due_date=submission_due_date,
-        peer_review_due_date=peer_review_due_date,
+        submission_due_date=due_dates.submission_due_date,
+        peer_review_due_date=due_dates.peer_review_due_date,
     )
     return _project_create_attrs_from_values(
         course,
