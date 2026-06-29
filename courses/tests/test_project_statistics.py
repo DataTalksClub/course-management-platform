@@ -115,6 +115,44 @@ class ProjectStatisticsTestCase(TestCase):
             submissions.append(submission)
         return ProjectSubmission.objects.bulk_create(submissions)
 
+    def create_model_method_submissions(self):
+        for i in range(3):
+            scores = {
+                "project_score": 10 + i,
+                "total_score": 20 + i,
+                "time_spent": 10.0 + i,
+            }
+            self.create_project_submission(
+                self.users[i], self.enrollments[i], scores
+            )
+
+    def assert_statistics_values(self, stats):
+        self.assertEqual(stats.get_value("project_score", "min"), 10)
+        self.assertEqual(stats.get_value("project_score", "max"), 12)
+        self.assertEqual(stats.get_value("total_score", "avg"), 21.0)
+
+    def assert_stat_fields_shape(self, stats):
+        stat_fields = stats.get_stat_fields()
+        self.assertIsInstance(stat_fields, list)
+        self.assertTrue(len(stat_fields) > 0)
+
+        first_field = stat_fields[0]
+        self.assertIsInstance(first_field, tuple)
+        self.assertEqual(len(first_field), 3)
+
+        field_name, field_stats, field_icon = first_field
+        self.assertIsInstance(field_name, str)
+        self.assertIsInstance(field_stats, list)
+        self.assertIsInstance(field_icon, str)
+
+        if field_stats:
+            stat_item = field_stats[0]
+            self.assertEqual(len(stat_item), 3)
+
+    def assert_statistics_string_includes_project(self, stats):
+        str_representation = str(stats)
+        self.assertIn(self.project.slug, str_representation)
+
     def test_calculate_raw_project_statistics_basic(self):
         """Test basic raw statistics calculation"""
         # Create submissions with different scores using bulk operation
@@ -312,49 +350,12 @@ class ProjectStatisticsTestCase(TestCase):
 
     def test_project_statistics_model_methods(self):
         """Test ProjectStatistics model methods"""
-        # Create submissions and statistics
-        for i in range(3):
-            scores = {
-                "project_score": 10 + i,
-                "total_score": 20 + i,
-                "time_spent": 10.0 + i,
-            }
-            self.create_project_submission(
-                self.users[i], self.enrollments[i], scores
-            )
-
+        self.create_model_method_submissions()
         stats = calculate_project_statistics(self.project)
 
-        # Test get_value method
-        self.assertEqual(stats.get_value("project_score", "min"), 10)
-        self.assertEqual(stats.get_value("project_score", "max"), 12)
-        self.assertEqual(stats.get_value("total_score", "avg"), 21.0)
-
-        # Test get_stat_fields method
-        stat_fields = stats.get_stat_fields()
-        self.assertIsInstance(stat_fields, list)
-        self.assertTrue(len(stat_fields) > 0)
-
-        # Check that it returns tuples with the expected structure
-        first_field = stat_fields[0]
-        self.assertIsInstance(first_field, tuple)
-        self.assertEqual(
-            len(first_field), 3
-        )  # (name, stats_list, icon)
-
-        field_name, field_stats, field_icon = first_field
-        self.assertIsInstance(field_name, str)
-        self.assertIsInstance(field_stats, list)
-        self.assertIsInstance(field_icon, str)
-
-        # Check individual stat structure
-        if field_stats:
-            stat_item = field_stats[0]
-            self.assertEqual(len(stat_item), 3)  # (value, label, icon)
-
-        # Test __str__ method
-        str_representation = str(stats)
-        self.assertIn(self.project.slug, str_representation)
+        self.assert_statistics_values(stats)
+        self.assert_stat_fields_shape(stats)
+        self.assert_statistics_string_includes_project(stats)
 
 
 class ProjectStatisticsViewTestCase(TestCase):
