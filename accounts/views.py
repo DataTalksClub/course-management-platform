@@ -1,4 +1,5 @@
 import json
+from dataclasses import dataclass
 from urllib.parse import unquote
 
 from django.shortcuts import redirect, render
@@ -34,6 +35,12 @@ EMAIL_PREFERENCE_FIELDS = {
     "email_deadline_reminders",
     "email_course_updates",
 }
+
+
+@dataclass(frozen=True)
+class EmailPreferenceUpdate:
+    field: str
+    enabled: bool
 
 
 def disabled(request):
@@ -151,37 +158,65 @@ def update_account_toggle(request):
 @require_http_methods(["GET", "POST"])
 def account_email_preferences(request):
     if request.method == "GET":
-        preferences = get_email_preferences_for_user(request.user)
-        if preferences is None:
-            return JsonResponse(
-                {"error": "Email preferences are unavailable."},
-                status=503,
-            )
-        return JsonResponse({"preferences": preferences})
+        return _account_email_preferences_get_response(request.user)
 
+    return _account_email_preferences_update_response(request)
+
+
+def _email_preferences_unavailable_response():
+    return JsonResponse(
+        {"error": "Email preferences are unavailable."},
+        status=503,
+    )
+
+
+def _account_email_preferences_get_response(user):
+    preferences = get_email_preferences_for_user(user)
+    if preferences is None:
+        return _email_preferences_unavailable_response()
+    return JsonResponse({"preferences": preferences})
+
+
+def _email_preference_update_payload(request):
     field = request.POST.get("field", "")
     value = request.POST.get("value", "")
     if field not in EMAIL_PREFERENCE_FIELDS:
-        return JsonResponse(
+        response = JsonResponse(
             {"error": "Unsupported email preference."},
             status=400,
         )
+        return None, response
 
-    enabled = value.lower() in {"1", "true", "yes", "on"}
+    enabled = _enabled_from_request_value(value)
+    update = EmailPreferenceUpdate(field, enabled)
+    return update, None
+
+
+def _enabled_from_request_value(value):
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _account_email_preferences_update_response(request):
+    update, error_response = _email_preference_update_payload(request)
+    if error_response:
+        return error_response
+
+    preferences = {update.field: update.enabled}
     datamailer_synced = update_email_preferences_for_user(
         request.user,
-        {field: enabled},
+        preferences,
     )
     if not datamailer_synced:
-        return JsonResponse(
-            {"error": "Email preferences are unavailable."},
-            status=503,
-        )
+        return _email_preferences_unavailable_response()
 
+    return _email_preference_update_success_response(update)
+
+
+def _email_preference_update_success_response(update):
     return JsonResponse(
         {
-            "field": field,
-            "value": enabled,
+            "field": update.field,
+            "value": update.enabled,
             "datamailer_synced": True,
         }
     )
