@@ -952,8 +952,34 @@ def leaderboard_score_breakdown_view(
         id=enrollment_id,
         course__slug=course_slug,
     )
+    context = _leaderboard_score_breakdown_context(enrollment, request.user)
 
-    state_order = Case(
+    return render(
+        request, "courses/leaderboard_score_breakdown.html", context
+    )
+
+
+def _leaderboard_score_breakdown_context(enrollment, user):
+    is_own_record = (
+        user.is_authenticated and user.id == enrollment.student_id
+    )
+    public_profile = (
+        enrollment.student if enrollment.display_public_profile else None
+    )
+
+    return {
+        "enrollment": enrollment,
+        "public_profile": public_profile,
+        "show_public_profile_settings_link": (
+            is_own_record and public_profile is None
+        ),
+        "submissions": _leaderboard_homework_submissions(enrollment),
+        "project_submissions": _leaderboard_project_submissions(enrollment),
+    }
+
+
+def _leaderboard_homework_state_order():
+    return Case(
         When(homework__state=HomeworkState.SCORED.value, then=Value(0)),
         When(homework__state=HomeworkState.OPEN.value, then=Value(1)),
         When(homework__state=HomeworkState.CLOSED.value, then=Value(2)),
@@ -961,37 +987,18 @@ def leaderboard_score_breakdown_view(
         output_field=IntegerField(),
     )
 
-    # Update the queryset to use the custom sorting order
-    homework_submissions = Submission.objects.filter(
-        enrollment=enrollment
-    ).order_by(state_order, "homework__id")
 
-    project_submissions = ProjectSubmission.objects.filter(
+def _leaderboard_homework_submissions(enrollment):
+    return Submission.objects.filter(
+        enrollment=enrollment
+    ).order_by(_leaderboard_homework_state_order(), "homework__id")
+
+
+def _leaderboard_project_submissions(enrollment):
+    return ProjectSubmission.objects.filter(
         enrollment=enrollment,
         volunteer_review_only=False,
     ).order_by("project__id")
-
-    is_own_record = (
-        request.user.is_authenticated
-        and request.user.id == enrollment.student_id
-    )
-    public_profile = (
-        enrollment.student if enrollment.display_public_profile else None
-    )
-
-    context = {
-        "enrollment": enrollment,
-        "public_profile": public_profile,
-        "show_public_profile_settings_link": (
-            is_own_record and public_profile is None
-        ),
-        "submissions": homework_submissions,
-        "project_submissions": project_submissions,
-    }
-
-    return render(
-        request, "courses/leaderboard_score_breakdown.html", context
-    )
 
 
 @login_required
