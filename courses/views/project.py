@@ -105,6 +105,20 @@ class SubmissionViewerStateData:
     project_vote_counts: dict
 
 
+@dataclass(frozen=True)
+class ProjectContextUserDetails:
+    submission: Optional[ProjectSubmission]
+    enrollment: Optional[Enrollment]
+    certificate_name: Optional[str]
+
+
+@dataclass(frozen=True)
+class ProjectEvalReviewGroups:
+    assigned_reviews: list
+    selected_reviews: list
+    completed_count: int
+
+
 def paginate_project_submissions(request, submissions):
     paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
     return paginator.get_page(request.GET.get("page"))
@@ -570,25 +584,23 @@ def project_build_context(
     user = request.user
     is_authenticated = user.is_authenticated
     accepting_submissions = project_accepting_submissions(project)
-    project_submission, enrollment, ceritificate_name = (
-        project_context_user_details(
-            user=user,
-            course=course,
-            project=project,
-            is_authenticated=is_authenticated,
-        )
+    user_details = project_context_user_details(
+        user=user,
+        course=course,
+        project=project,
+        is_authenticated=is_authenticated,
     )
 
     return {
         "course": course,
         "project": project,
-        "submission": project_submission,
+        "submission": user_details.submission,
         "is_authenticated": is_authenticated,
         "disabled": not accepting_submissions,
         "accepting_submissions": accepting_submissions,
-        "ceritificate_name": ceritificate_name,
+        "ceritificate_name": user_details.certificate_name,
         "disable_learning_in_public": project_learning_in_public_disabled(
-            enrollment
+            user_details.enrollment
         ),
     }
 
@@ -602,19 +614,19 @@ def project_context_user_details(
     course: Course,
     project: Project,
     is_authenticated: bool,
-) -> tuple[Optional[ProjectSubmission], Optional[Enrollment], Optional[str]]:
+) -> ProjectContextUserDetails:
     if not is_authenticated:
-        return None, None, None
+        return ProjectContextUserDetails(None, None, None)
 
     project_submission = project_context_submission(user, project)
     enrollment, _ = Enrollment.objects.get_or_create(
         student=user,
         course=course,
     )
-    return (
-        project_submission,
-        enrollment,
-        project_context_certificate_name(user, enrollment),
+    return ProjectContextUserDetails(
+        submission=project_submission,
+        enrollment=enrollment,
+        certificate_name=project_context_certificate_name(user, enrollment),
     )
 
 
@@ -778,7 +790,11 @@ def split_project_eval_reviews(reviews):
         if review.state == PeerReviewState.SUBMITTED.value:
             completed_count += 1
 
-    return assigned_reviews, selected_reviews, completed_count
+    return ProjectEvalReviewGroups(
+        assigned_reviews=assigned_reviews,
+        selected_reviews=selected_reviews,
+        completed_count=completed_count,
+    )
 
 
 def student_project_eval_context(course, project, user, eval_closed):
@@ -787,18 +803,16 @@ def student_project_eval_context(course, project, user, eval_closed):
         volunteer_review_only=False,
     )
     reviews = project_eval_reviews(project, student_submissions)
-    assigned_reviews, selected_reviews, completed_count = (
-        split_project_eval_reviews(reviews)
-    )
+    review_groups = split_project_eval_reviews(reviews)
 
     return {
         "course": course,
         "project": project,
         "reviews": reviews,
-        "assigned_reviews": assigned_reviews,
-        "selected_reviews": selected_reviews,
+        "assigned_reviews": review_groups.assigned_reviews,
+        "selected_reviews": review_groups.selected_reviews,
         "is_authenticated": True,
-        "number_of_completed_evaluation": completed_count,
+        "number_of_completed_evaluation": review_groups.completed_count,
         "has_submission": project_submissions.exists(),
         "eval_closed": eval_closed,
     }

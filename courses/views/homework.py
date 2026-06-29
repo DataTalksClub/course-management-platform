@@ -136,6 +136,20 @@ class HomeworkDetailContextData:
     enrollment: Optional[Enrollment]
 
 
+@dataclass(frozen=True)
+class HomeworkDetailObjects:
+    course: Course
+    homework: Homework
+    questions: List[Question]
+
+
+@dataclass(frozen=True)
+class AuthenticatedHomeworkContext:
+    context: dict
+    submission: Optional[Submission]
+    enrollment: Enrollment
+
+
 def process_unscored_free_form_answer(answer: Optional[Answer]):
     if not answer:
         return {"text": ""}
@@ -1461,7 +1475,11 @@ def homework_detail_objects(course_slug: str, homework_slug: str):
     questions = Question.objects.filter(homework=homework).order_by(
         "id"
     )
-    return course, homework, questions
+    return HomeworkDetailObjects(
+        course=course,
+        homework=homework,
+        questions=questions,
+    )
 
 
 def authenticated_homework_context(
@@ -1486,7 +1504,11 @@ def authenticated_homework_context(
         enrollment=enrollment,
     )
     context = homework_detail_build_context_authenticated(context_data)
-    return context, submission, enrollment
+    return AuthenticatedHomeworkContext(
+        context=context,
+        submission=submission,
+        enrollment=enrollment,
+    )
 
 
 def authenticated_homework_response(
@@ -1495,7 +1517,7 @@ def authenticated_homework_response(
     homework: Homework,
     questions: List[Question],
 ):
-    context, submission, enrollment = authenticated_homework_context(
+    authenticated_context = authenticated_homework_context(
         user=request.user,
         course=course,
         homework=homework,
@@ -1503,15 +1525,19 @@ def authenticated_homework_response(
     )
 
     if request.method != "POST":
-        return render(request, "homework/homework.html", context)
+        return render(
+            request,
+            "homework/homework.html",
+            authenticated_context.context,
+        )
 
     post_data = HomeworkPostData(
         request=request,
         course=course,
         homework=homework,
         questions=questions,
-        submission=submission,
-        enrollment=enrollment,
+        submission=authenticated_context.submission,
+        enrollment=authenticated_context.enrollment,
     )
     post_result = handle_homework_post(post_data)
     if not isinstance(post_result, dict):
@@ -1523,10 +1549,13 @@ def authenticated_homework_response(
 def homework_view(
     request: HttpRequest, course_slug: str, homework_slug: str
 ):
-    course, homework, questions = homework_detail_objects(
+    detail_objects = homework_detail_objects(
         course_slug,
         homework_slug,
     )
+    course = detail_objects.course
+    homework = detail_objects.homework
+    questions = detail_objects.questions
     user = request.user
 
     if not user.is_authenticated:

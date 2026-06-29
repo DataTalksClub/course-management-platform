@@ -153,9 +153,9 @@ class CourseRegistrationForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, campaign=None, user=None, **kwargs):
-        self.campaign = campaign
-        self.user = user
+    def __init__(self, *args, **kwargs):
+        self.campaign = kwargs.pop("campaign", None)
+        self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.configure_optional_fields()
         self.configure_country_field()

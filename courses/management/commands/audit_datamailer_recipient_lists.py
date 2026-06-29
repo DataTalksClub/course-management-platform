@@ -45,6 +45,13 @@ class DriftReportData:
     drift: dict
 
 
+@dataclass(frozen=True)
+class MemberDriftData:
+    expected: dict
+    actual: dict
+    drift: dict
+
+
 def add_recipient_list_filter_arguments(parser):
     parser.add_argument(
         "--course-slug",
@@ -169,18 +176,18 @@ class Command(BaseCommand):
     def _audit_list(self, data):
         response = self._list_members(data)
         self._ensure_complete_response(response, data.list_key, data.limit)
-        expected, actual, drift = self._member_drift(data.payload, response)
+        member_drift = self._member_drift(data.payload, response)
         report_data = DriftReportData(
             list_key=data.list_key,
-            expected=expected,
-            actual=actual,
-            drift=drift,
+            expected=member_drift.expected,
+            actual=member_drift.actual,
+            drift=member_drift.drift,
         )
         self._print_drift(report_data)
 
-        if data.repair and drift["has_drift"]:
+        if data.repair and member_drift.drift["has_drift"]:
             self._repair_list(data)
-        return drift
+        return member_drift.drift
 
     def _list_members(self, data):
         try:
@@ -207,7 +214,7 @@ class Command(BaseCommand):
         expected = expected_members(payload)
         actual = actual_members(response or {})
         drift = compare_members(expected, actual)
-        return expected, actual, drift
+        return MemberDriftData(expected, actual, drift)
 
     def _repair_list(self, data):
         try:

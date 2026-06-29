@@ -8,7 +8,9 @@ class HomeworkSubmissionEditForm(forms.Form):
     faq_contribution_url = forms.CharField(required=False)
     faq_score = forms.IntegerField(required=False, min_value=0)
 
-    def __init__(self, *args, submission, questions, **kwargs):
+    def __init__(self, *args, **kwargs):
+        submission = kwargs.pop("submission")
+        questions = kwargs.pop("questions")
         super().__init__(*args, **kwargs)
         self.submission = submission
         self.questions = list(questions)

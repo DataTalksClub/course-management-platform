@@ -149,6 +149,33 @@ class ProjectSubmissionEditPageData:
     criteria_with_scores: list
 
 
+@dataclass(frozen=True)
+class CampaignEditPostResult:
+    response: object
+    form: object
+    datamailer_preview: object
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionEditObjects:
+    course: Course
+    homework: Homework
+    submission: Submission
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionQuestions:
+    questions: list
+    questions_with_answers: list
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionEditObjects:
+    course: Course
+    project: Project
+    submission: ProjectSubmission
+
+
 def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
     paginator = Paginator(queryset, per_page)
     return paginator.get_page(request.GET.get("page"))
@@ -819,16 +846,32 @@ def _handle_campaign_edit_post(request, campaign):
             handle_datamailer_campaign_action(request, campaign)
         )
         if should_redirect:
-            return _campaign_edit_redirect(campaign), None, None
+            return CampaignEditPostResult(
+                response=_campaign_edit_redirect(campaign),
+                form=None,
+                datamailer_preview=None,
+            )
         form = RegistrationCampaignForm(instance=campaign)
-        return None, form, datamailer_preview
+        return CampaignEditPostResult(
+            response=None,
+            form=form,
+            datamailer_preview=datamailer_preview,
+        )
 
     form = RegistrationCampaignForm(request.POST, instance=campaign)
     if form.is_valid():
         campaign = form.save()
         messages.success(request, "Registration landing page saved.")
-        return _campaign_edit_redirect(campaign), None, None
-    return None, form, None
+        return CampaignEditPostResult(
+            response=_campaign_edit_redirect(campaign),
+            form=None,
+            datamailer_preview=None,
+        )
+    return CampaignEditPostResult(
+        response=None,
+        form=form,
+        datamailer_preview=None,
+    )
 
 
 def _campaign_edit_context(campaign, form, datamailer_preview):
@@ -851,11 +894,13 @@ def campaign_edit(request, campaign_slug):
     )
 
     if request.method == "POST":
-        response, form, datamailer_preview = _handle_campaign_edit_post(
+        post_result = _handle_campaign_edit_post(
             request, campaign
         )
-        if response:
-            return response
+        if post_result.response:
+            return post_result.response
+        form = post_result.form
+        datamailer_preview = post_result.datamailer_preview
     else:
         form = RegistrationCampaignForm(instance=campaign)
         datamailer_preview = None
@@ -1093,7 +1138,10 @@ def _questions_with_submission_answers(homework, submission):
             "answer_text": answer_text,
         }
         questions_with_answers.append(record)
-    return questions, questions_with_answers
+    return HomeworkSubmissionQuestions(
+        questions=questions,
+        questions_with_answers=questions_with_answers,
+    )
 
 
 def _handle_homework_submission_edit_post(data):
@@ -1140,7 +1188,11 @@ def _homework_submission_edit_objects(
     submission = get_object_or_404(
         Submission, id=submission_id, homework=homework
     )
-    return course, homework, submission
+    return HomeworkSubmissionEditObjects(
+        course=course,
+        homework=homework,
+        submission=submission,
+    )
 
 
 def _homework_submission_faq_data(request, submission):
@@ -1183,23 +1235,21 @@ def homework_submission_edit(
     request, course_slug, homework_slug, submission_id
 ):
     """Edit a homework submission"""
-    course, homework, submission = _homework_submission_edit_objects(
+    edit_objects = _homework_submission_edit_objects(
         course_slug, homework_slug, submission_id
     )
 
-    questions, questions_with_answers = (
-        _questions_with_submission_answers(
-            homework,
-            submission,
-        )
+    submission_questions = _questions_with_submission_answers(
+        edit_objects.homework,
+        edit_objects.submission,
     )
     edit_data = HomeworkSubmissionEditPageData(
         request=request,
-        course=course,
-        homework=homework,
-        submission=submission,
-        questions=questions,
-        questions_with_answers=questions_with_answers,
+        course=edit_objects.course,
+        homework=edit_objects.homework,
+        submission=edit_objects.submission,
+        questions=submission_questions.questions,
+        questions_with_answers=submission_questions.questions_with_answers,
     )
 
     if request.method == "POST":
@@ -1326,7 +1376,11 @@ def _project_submission_edit_objects(
     submission = get_object_or_404(
         ProjectSubmission, id=submission_id, project=project
     )
-    return course, project, submission
+    return ProjectSubmissionEditObjects(
+        course=course,
+        project=project,
+        submission=submission,
+    )
 
 
 def _project_review_criteria(course):
@@ -1408,22 +1462,22 @@ def project_submission_edit(
     request, course_slug, project_slug, submission_id
 ):
     """Edit a project submission"""
-    course, project, submission = _project_submission_edit_objects(
+    edit_objects = _project_submission_edit_objects(
         course_slug,
         project_slug,
         submission_id,
     )
 
-    review_criteria = _project_review_criteria(course)
+    review_criteria = _project_review_criteria(edit_objects.course)
     criteria_with_scores = _criteria_with_project_scores(
         review_criteria,
-        submission,
+        edit_objects.submission,
     )
     edit_data = ProjectSubmissionEditPageData(
         request=request,
-        course=course,
-        project=project,
-        submission=submission,
+        course=edit_objects.course,
+        project=edit_objects.project,
+        submission=edit_objects.submission,
         review_criteria=review_criteria,
         criteria_with_scores=criteria_with_scores,
     )
