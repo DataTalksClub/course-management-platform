@@ -522,12 +522,16 @@ class DatamailerClientTest(TestCase):
         submission,
     ):
         self.assertEqual(remove_member.call_count, 2)
-        list_keys = [call.args[0] for call in remove_member.call_args_list]
+        list_keys = []
+        remove_calls = remove_member.call_args_list
+        for call in remove_calls:
+            list_key = call.args[0]
+            list_keys.append(list_key)
         self.assertEqual(
             list_keys,
             [project_submitters_list_key(project), project_passed_list_key(project)],
         )
-        for call in remove_member.call_args_list:
+        for call in remove_calls:
             self.assertEqual(call.args[1], f"project-submission:{submission.pk}")
 
     def configure_import_by_reference(self, boto3_client, create_import, job_id):
@@ -553,10 +557,12 @@ class DatamailerClientTest(TestCase):
             put_kwargs["ContentType"],
             "application/x-ndjson",
         )
-        rows = [
-            json.loads(line)
-            for line in put_kwargs["Body"].decode("utf-8").splitlines()
-        ]
+        rows = []
+        body = put_kwargs["Body"].decode("utf-8")
+        lines = body.splitlines()
+        for line in lines:
+            row = json.loads(line)
+            rows.append(row)
         self.assertEqual(len(rows), 1)
         self.assertEqual(
             rows[0]["source_object_key"],
@@ -1262,18 +1268,18 @@ class DatamailerClientTest(TestCase):
             peer_review_due_date="2026-07-02T22:00:00Z",
         )
         submissions = []
-        for i in range(4):
+        submission_indexes = range(4)
+        for i in submission_indexes:
             user = self.create_user(f"learner-{i}@example.com")
             if i == 0:
                 user.preferred_timezone = "Europe/Berlin"
                 user.save(update_fields=["preferred_timezone"])
-            submissions.append(
-                self.create_project_submission(
-                    project,
-                    user,
-                    github_link=f"https://github.com/example/p{i}",
-                )
+            submission = self.create_project_submission(
+                project,
+                user,
+                github_link=f"https://github.com/example/p{i}",
             )
+            submissions.append(submission)
 
         reviewer = submissions[0]
         targets = submissions[1:]
@@ -1314,7 +1320,11 @@ class DatamailerClientTest(TestCase):
         )
 
     def assert_berlin_reviewer_assignments(self, payload):
-        members_by_email = {m["email"]: m for m in payload["members"]}
+        members_by_email = {}
+        members = payload["members"]
+        for member in members:
+            email = member["email"]
+            members_by_email[email] = member
         self.assertEqual(len(members_by_email), 4)
         reviewer_member = members_by_email["learner-0@example.com"]
         self.assertEqual(
@@ -1632,7 +1642,8 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_recipient_list_import_methods_use_expected_endpoints_and_scope(self):
-        for case in self.recipient_list_import_method_cases():
+        cases = self.recipient_list_import_method_cases()
+        for case in cases:
             method_name, args, method, path, expected_json, expected_params = case
             with self.subTest(method_name=method_name):
                 self.assert_datamailer_method_case(
@@ -1804,7 +1815,8 @@ class DatamailerClientTest(TestCase):
         response.raise_for_status.assert_called_once()
 
     def test_campaign_action_methods_use_expected_endpoints_and_scope(self):
-        for method_name, extra_args, path, expected_json in self.campaign_action_cases():
+        cases = self.campaign_action_cases()
+        for method_name, extra_args, path, expected_json in cases:
             with self.subTest(method_name=method_name):
                 self.assert_datamailer_method_case(
                     method_name,
@@ -2797,14 +2809,19 @@ class DatamailerClientTest(TestCase):
         remove_enrollment_from_datamailer(enrollment)
 
         self.assertEqual(remove_member.call_count, 2)
-        list_keys = [call.args[0] for call in remove_member.call_args_list]
+        list_keys = []
+        remove_calls = remove_member.call_args_list
+        for call in remove_calls:
+            list_key = call.args[0]
+            list_keys.append(list_key)
         self.assertEqual(
             list_keys,
             [course_enrolled_list_key(course), course_graduates_list_key(course)],
         )
-        source_object_keys = [
-            call.args[1] for call in remove_member.call_args_list
-        ]
+        source_object_keys = []
+        for call in remove_calls:
+            source_object_key = call.args[1]
+            source_object_keys.append(source_object_key)
         self.assertEqual(
             source_object_keys,
             [f"user:{user.pk}", f"enrollment:{enrollment.pk}"],
