@@ -173,17 +173,16 @@ def _split_trailing_year(text):
     return base, match.group(1)
 
 
-def campaign_form_initial(request):
+def campaign_initial_course(request):
     course_slug = request.GET.get("course", "").strip()
     if not course_slug:
-        return {}
+        return None
 
-    course = Course.objects.filter(slug=course_slug).first()
-    if course is None:
-        return {}
+    return Course.objects.filter(slug=course_slug).first()
 
+
+def campaign_initial_from_course(course):
     initial = {"current_course": course}
-
     title_base, title_year = _split_trailing_year(course.title)
     slug_base, slug_year = _split_trailing_year(course.slug)
     year = title_year or slug_year
@@ -199,6 +198,14 @@ def campaign_form_initial(request):
         initial["edition_label"] = f"{year} cohort"
 
     return initial
+
+
+def campaign_form_initial(request):
+    course = campaign_initial_course(request)
+    if course is None:
+        return {}
+
+    return campaign_initial_from_course(course)
 
 
 def campaign_form_course(form):
