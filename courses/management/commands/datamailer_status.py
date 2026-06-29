@@ -54,77 +54,107 @@ class Command(BaseCommand):
 
         self.print_email_status(result, raw_json=options["json"])
 
+    def write_raw_json(self, result):
+        self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
+
     def print_email_status(self, result, *, raw_json):
         if raw_json:
-            self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
+            self.write_raw_json(result)
             return
 
         status = result["status"]
         history = result.get("history") or {}
 
-        self.stdout.write(f"Email: {status['email']}")
-        self.stdout.write(f"Exists: {status['exists']}")
-        self.stdout.write(f"Contact ID: {status['contact_id'] or '-'}")
-        self.stdout.write(f"Can send marketing: {status['can_send_marketing']}")
-        self.stdout.write(f"Can send transactional: {status['can_send_transactional']}")
-        self.stdout.write(f"Client status: {status['client']['status'] or '-'}")
-        self.stdout.write(f"Client verified: {status['client']['verified']}")
-        self.stdout.write(f"Hard bounced: {status['hard_bounced']}")
-        self.stdout.write(f"Complained: {status['complained']}")
+        self.write_contact_status(status)
 
         if not status.get("contact_id"):
             return
 
-        self.stdout.write("")
-        self.stdout.write("Recent transactional messages:")
-        transactional_messages = history.get("transactional_messages", [])
-        if not transactional_messages:
-            self.stdout.write("  none")
-        for message in transactional_messages:
-            self.stdout.write(
-                "  "
-                f"{message['id']} {message['template_key']} "
-                f"{message['status']} sent={message['sent_at'] or '-'} "
-                f"delivered={message['delivered_at'] or '-'} "
-                f"error={message['last_error'] or '-'}"
-            )
+        self.write_history_section(
+            "Recent transactional messages:",
+            history.get("transactional_messages", []),
+            self.transactional_message_line,
+        )
+        self.write_history_section(
+            "Recent campaign recipients:",
+            history.get("campaign_recipients", []),
+            self.campaign_recipient_line,
+        )
 
+    def write_contact_status(self, status):
+        fields = [
+            ("Email", status["email"]),
+            ("Exists", status["exists"]),
+            ("Contact ID", status["contact_id"] or "-"),
+            ("Can send marketing", status["can_send_marketing"]),
+            ("Can send transactional", status["can_send_transactional"]),
+            ("Client status", status["client"]["status"] or "-"),
+            ("Client verified", status["client"]["verified"]),
+            ("Hard bounced", status["hard_bounced"]),
+            ("Complained", status["complained"]),
+        ]
+        for label, value in fields:
+            self.stdout.write(f"{label}: {value}")
+
+    def write_history_section(self, title, items, line_formatter):
         self.stdout.write("")
-        self.stdout.write("Recent campaign recipients:")
-        campaign_recipients = history.get("campaign_recipients", [])
-        if not campaign_recipients:
+        self.stdout.write(title)
+        if not items:
             self.stdout.write("  none")
-        for recipient in campaign_recipients:
-            self.stdout.write(
-                "  "
-                f"{recipient['id']} {recipient['campaign']['subject']} "
-                f"{recipient['status']} sent={recipient['sent_at'] or '-'} "
-                f"delivered={recipient['delivered_at'] or '-'} "
-                f"error={recipient['last_error'] or '-'}"
-            )
+            return
+        for item in items:
+            self.stdout.write(line_formatter(item))
+
+    def transactional_message_line(self, message):
+        return (
+            "  "
+            f"{message['id']} {message['template_key']} "
+            f"{message['status']} sent={message['sent_at'] or '-'} "
+            f"delivered={message['delivered_at'] or '-'} "
+            f"error={message['last_error'] or '-'}"
+        )
+
+    def campaign_recipient_line(self, recipient):
+        return (
+            "  "
+            f"{recipient['id']} {recipient['campaign']['subject']} "
+            f"{recipient['status']} sent={recipient['sent_at'] or '-'} "
+            f"delivered={recipient['delivered_at'] or '-'} "
+            f"error={recipient['last_error'] or '-'}"
+        )
 
     def print_message_status(self, result, *, raw_json):
         if raw_json:
-            self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
+            self.write_raw_json(result)
             return
 
         message = result["message"]
-        self.stdout.write(f"Message ID: {message['id']}")
-        self.stdout.write(f"Email: {message['email']}")
-        self.stdout.write(f"Template: {message['template_key']}")
-        self.stdout.write(f"Status: {message['status']}")
-        self.stdout.write(f"Queued/created: {message['created_at']}")
-        self.stdout.write(f"Sent: {message['sent_at'] or '-'}")
-        self.stdout.write(f"Delivered: {message['delivered_at'] or '-'}")
-        self.stdout.write(f"Opened: {message['first_opened_at'] or '-'}")
-        self.stdout.write(f"Clicked: {message['first_clicked_at'] or '-'}")
-        self.stdout.write(f"Last error: {message['last_error'] or '-'}")
+        self.write_message_status(message)
+        self.write_message_events(result.get("events", []))
 
+    def write_message_status(self, message):
+        fields = [
+            ("Message ID", message["id"]),
+            ("Email", message["email"]),
+            ("Template", message["template_key"]),
+            ("Status", message["status"]),
+            ("Queued/created", message["created_at"]),
+            ("Sent", message["sent_at"] or "-"),
+            ("Delivered", message["delivered_at"] or "-"),
+            ("Opened", message["first_opened_at"] or "-"),
+            ("Clicked", message["first_clicked_at"] or "-"),
+            ("Last error", message["last_error"] or "-"),
+        ]
+        for label, value in fields:
+            self.stdout.write(f"{label}: {value}")
+
+    def write_message_events(self, events):
         self.stdout.write("")
         self.stdout.write("Events:")
-        if not result.get("events"):
+        if not events:
             self.stdout.write("  none")
-        for event in result.get("events", []):
+            return
+        for event in events:
             self.stdout.write(
                 "  "
                 f"{event['id']} {event['event_type']} "

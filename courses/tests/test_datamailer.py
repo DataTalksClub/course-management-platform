@@ -1940,6 +1940,88 @@ class DatamailerClientTest(TestCase):
         message_status.assert_called_once_with(42)
 
     @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.management.commands.datamailer_status.get_email_status")
+    def test_datamailer_status_command_prints_email_history(
+        self,
+        get_status,
+    ):
+        get_status.return_value = {
+            "status": {
+                "email": "student@example.com",
+                "exists": True,
+                "contact_id": 42,
+                "can_send_marketing": True,
+                "can_send_transactional": True,
+                "client": {"status": "subscribed", "verified": True},
+                "hard_bounced": False,
+                "complained": False,
+            },
+            "history": {
+                "transactional_messages": [
+                    {
+                        "id": 7,
+                        "template_key": "welcome",
+                        "status": "sent",
+                        "sent_at": "2026-01-01T00:00:00Z",
+                        "delivered_at": None,
+                        "last_error": "",
+                    }
+                ],
+                "campaign_recipients": [],
+            },
+        }
+
+        out = StringIO()
+        call_command("datamailer_status", "student@example.com", stdout=out)
+
+        output = out.getvalue()
+        self.assertIn("Email: student@example.com", output)
+        self.assertIn("Recent transactional messages:", output)
+        self.assertIn("7 welcome sent", output)
+        self.assertIn("Recent campaign recipients:\n  none", output)
+        get_status.assert_called_once_with("student@example.com", limit=10)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "courses.management.commands.datamailer_status."
+        "get_transactional_message_status"
+    )
+    def test_datamailer_status_command_prints_message_events(
+        self,
+        get_message_status,
+    ):
+        get_message_status.return_value = {
+            "message": {
+                "id": 42,
+                "email": "student@example.com",
+                "template_key": "welcome",
+                "status": "sent",
+                "created_at": "2026-01-01T00:00:00Z",
+                "sent_at": "2026-01-01T00:01:00Z",
+                "delivered_at": None,
+                "first_opened_at": None,
+                "first_clicked_at": None,
+                "last_error": "",
+            },
+            "events": [
+                {
+                    "id": 99,
+                    "event_type": "sent",
+                    "created_at": "2026-01-01T00:01:00Z",
+                }
+            ],
+        }
+
+        out = StringIO()
+        call_command("datamailer_status", "--message-id", "42", stdout=out)
+
+        output = out.getvalue()
+        self.assertIn("Message ID: 42", output)
+        self.assertIn("Events:", output)
+        self.assertIn("99 sent at=2026-01-01T00:01:00Z", output)
+        get_message_status.assert_called_once_with(42)
+
+    @override_settings(**DATAMAILER_SETTINGS)
     @patch("course_management.datamailer.DatamailerClient.erase_contact")
     def test_erase_contact_enqueues_outbox_event(self, erase_contact):
         user = CustomUser.objects.create_user(
