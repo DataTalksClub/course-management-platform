@@ -30,7 +30,7 @@ def parse_metadata(items):
     return metadata
 
 
-def campaign_payload(options):
+def campaign_bodies(options):
     html_body = read_body(
         inline=options["html"],
         file_path=options["html_file"],
@@ -43,13 +43,37 @@ def campaign_payload(options):
         raise CommandError(
             "Provide --html, --html-file, --text, or --text-file."
         )
+    return html_body, text_body
 
-    subject = options["subject"].strip()
-    if not subject:
-        raise CommandError("--subject is required.")
-    category_tag = options["category_tag"].strip()
-    if not category_tag:
-        raise CommandError("--category-tag is required.")
+
+def required_campaign_option(options, key, error_message):
+    value = options[key].strip()
+    if not value:
+        raise CommandError(error_message)
+    return value
+
+
+def campaign_optional_fields(options):
+    optional_fields = {}
+    if options["recipient_list_key"]:
+        optional_fields["recipient_list_key"] = options["recipient_list_key"]
+    if options["scheduled_at"]:
+        optional_fields["scheduled_at"] = options["scheduled_at"]
+    return optional_fields
+
+
+def campaign_payload(options):
+    html_body, text_body = campaign_bodies(options)
+    subject = required_campaign_option(
+        options,
+        "subject",
+        "--subject is required.",
+    )
+    category_tag = required_campaign_option(
+        options,
+        "category_tag",
+        "--category-tag is required.",
+    )
 
     payload = {
         "subject": subject,
@@ -61,10 +85,7 @@ def campaign_payload(options):
         "exclude_tags": options["exclude_tag"],
         "metadata": parse_metadata(options["metadata"]),
     }
-    if options["recipient_list_key"]:
-        payload["recipient_list_key"] = options["recipient_list_key"]
-    if options["scheduled_at"]:
-        payload["scheduled_at"] = options["scheduled_at"]
+    payload.update(campaign_optional_fields(options))
     return payload
 
 
