@@ -58,6 +58,25 @@ class ProjectDeadlineEventSpec:
 
 
 @dataclass(frozen=True)
+class CalendarEventData:
+    uid: str
+    summary: str
+    start: object
+    url: str
+    description: str
+    dtstamp: object
+
+
+@dataclass(frozen=True)
+class ProjectDeadlineCalendarEventData:
+    course: Course
+    project: Project
+    deadline: ProjectDeadlineEventSpec
+    url: str
+    dtstamp: object
+
+
+@dataclass(frozen=True)
 class CourseListCourses:
     courses: list
     active_courses: list
@@ -739,26 +758,18 @@ def format_ics_datetime(value) -> str:
     return value.strftime("%Y%m%dT%H%M%SZ")
 
 
-def calendar_event(
-    *,
-    uid: str,
-    summary: str,
-    start,
-    url: str,
-    description: str,
-    dtstamp,
-) -> list[str]:
-    end = start + timedelta(minutes=30)
+def calendar_event(data: CalendarEventData) -> list[str]:
+    end = data.start + timedelta(minutes=30)
 
     return [
         "BEGIN:VEVENT",
-        f"UID:{escape_ics_text(uid)}",
-        f"DTSTAMP:{format_ics_datetime(dtstamp)}",
-        f"DTSTART:{format_ics_datetime(start)}",
+        f"UID:{escape_ics_text(data.uid)}",
+        f"DTSTAMP:{format_ics_datetime(data.dtstamp)}",
+        f"DTSTART:{format_ics_datetime(data.start)}",
         f"DTEND:{format_ics_datetime(end)}",
-        f"SUMMARY:{escape_ics_text(summary)}",
-        f"DESCRIPTION:{escape_ics_text(description)}",
-        f"URL:{escape_ics_text(url)}",
+        f"SUMMARY:{escape_ics_text(data.summary)}",
+        f"DESCRIPTION:{escape_ics_text(data.description)}",
+        f"URL:{escape_ics_text(data.url)}",
         "END:VEVENT",
     ]
 
@@ -776,7 +787,7 @@ def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
                 },
             )
         )
-        event = calendar_event(
+        event_data = CalendarEventData(
             uid=f"homework-{homework.id}@courses.datatalks.club",
             summary=f"{course.title}: {homework.title} deadline",
             start=homework.due_date,
@@ -787,6 +798,7 @@ def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
             ),
             dtstamp=dtstamp,
         )
+        event = calendar_event(event_data)
         events.append(event)
     return events
 
@@ -804,26 +816,26 @@ def _project_detail_url(request, course, project) -> str:
 
 
 def _project_deadline_calendar_event(
-    *,
-    course,
-    project,
-    uid_suffix: str,
-    event_type: str,
-    deadline,
-    url: str,
-    dtstamp,
+    data: ProjectDeadlineCalendarEventData,
 ) -> list[str]:
-    return calendar_event(
-        uid=f"project-{project.id}-{uid_suffix}@courses.datatalks.club",
-        summary=f"{course.title}: {project.title} {event_type} deadline",
-        start=deadline,
-        url=url,
-        description=(
-            f"Project {event_type} deadline for {project.title}. "
-            f"Open the project: {url}"
+    event_data = CalendarEventData(
+        uid=(
+            f"project-{data.project.id}-{data.deadline.uid_suffix}"
+            "@courses.datatalks.club"
         ),
-        dtstamp=dtstamp,
+        summary=(
+            f"{data.course.title}: {data.project.title} "
+            f"{data.deadline.event_type} deadline"
+        ),
+        start=data.deadline.deadline,
+        url=data.url,
+        description=(
+            f"Project {data.deadline.event_type} deadline for "
+            f"{data.project.title}. Open the project: {data.url}"
+        ),
+        dtstamp=data.dtstamp,
     )
+    return calendar_event(event_data)
 
 
 def _project_deadline_calendar_events(
@@ -843,15 +855,14 @@ def _project_deadline_calendar_events(
     )
     events = []
     for deadline in deadlines:
-        event = _project_deadline_calendar_event(
+        event_data = ProjectDeadlineCalendarEventData(
             course=course,
             project=project,
-            uid_suffix=deadline.uid_suffix,
-            event_type=deadline.event_type,
-            deadline=deadline.deadline,
+            deadline=deadline,
             url=url,
             dtstamp=dtstamp,
         )
+        event = _project_deadline_calendar_event(event_data)
         events.append(event)
     return events
 
