@@ -119,11 +119,12 @@ class HomeworkSubmissionsContextData:
 
 
 @dataclass(frozen=True)
-class HomeworkSubmissionEditContextData:
+class HomeworkSubmissionEditPageData:
     request: HttpRequest
     course: Course
     homework: Homework
     submission: Submission
+    questions: list
     questions_with_answers: list
 
 
@@ -136,6 +137,16 @@ class ProjectSubmissionsContextData:
     project_filter_counts: dict
     search_query: str
     status_filter: str
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionEditPageData:
+    request: HttpRequest
+    course: Course
+    project: Project
+    submission: ProjectSubmission
+    review_criteria: list
+    criteria_with_scores: list
 
 
 def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
@@ -1086,50 +1097,37 @@ def _questions_with_submission_answers(homework, submission):
     return questions, questions_with_answers
 
 
-def _homework_submission_edit_redirect(course_slug, homework_slug):
-    return redirect(
-        "cadmin_homework_submissions",
-        course_slug=course_slug,
-        homework_slug=homework_slug,
-    )
-
-
-def _handle_homework_submission_edit_post(
-    request,
-    *,
-    submission,
-    questions,
-    course_slug,
-    homework_slug,
-):
+def _handle_homework_submission_edit_post(data):
     form = HomeworkSubmissionEditForm(
-        request.POST,
-        submission=submission,
-        questions=questions,
+        data.request.POST,
+        submission=data.submission,
+        questions=data.questions,
     )
 
     if not form.is_valid():
         messages.error(
-            request,
+            data.request,
             f"Error updating submission: {first_form_error(form)}",
         )
         return None
 
     try:
         update_homework_submission_from_admin(
-            submission,
+            data.submission,
             form.cleaned_data,
         )
     except Exception as e:
-        messages.error(request, f"Error updating submission: {e}")
+        messages.error(data.request, f"Error updating submission: {e}")
         return None
 
     messages.success(
-        request,
-        f"Homework submission for {submission.student.username} updated successfully",
+        data.request,
+        f"Homework submission for {data.submission.student.username} updated successfully",
     )
-    return _homework_submission_edit_redirect(
-        course_slug, homework_slug
+    return redirect(
+        "cadmin_homework_submissions",
+        course_slug=data.course.slug,
+        homework_slug=data.homework.slug,
     )
 
 
@@ -1174,6 +1172,13 @@ def _homework_submission_edit_context(data):
     }
 
 
+def _homework_submission_edit_response(data):
+    context = _homework_submission_edit_context(data)
+    return render(
+        data.request, "cadmin/homework_submission_edit.html", context
+    )
+
+
 @staff_required
 def homework_submission_edit(
     request, course_slug, homework_slug, submission_id
@@ -1189,30 +1194,21 @@ def homework_submission_edit(
             submission,
         )
     )
-
-    if request.method == "POST":
-        response = _handle_homework_submission_edit_post(
-            request,
-            submission=submission,
-            questions=questions,
-            course_slug=course_slug,
-            homework_slug=homework_slug,
-        )
-        if response is not None:
-            return response
-
-    context_data = HomeworkSubmissionEditContextData(
+    edit_data = HomeworkSubmissionEditPageData(
         request=request,
         course=course,
         homework=homework,
         submission=submission,
+        questions=questions,
         questions_with_answers=questions_with_answers,
     )
-    context = _homework_submission_edit_context(context_data)
 
-    return render(
-        request, "cadmin/homework_submission_edit.html", context
-    )
+    if request.method == "POST":
+        response = _handle_homework_submission_edit_post(edit_data)
+        if response is not None:
+            return response
+
+    return _homework_submission_edit_response(edit_data)
 
 
 @staff_required
@@ -1365,42 +1361,47 @@ def _criteria_with_project_scores(review_criteria, submission):
     return criteria_scores
 
 
-def _project_submission_edit_redirect(course_slug, project_slug):
-    return redirect(
-        "cadmin_project_submissions",
-        course_slug=course_slug,
-        project_slug=project_slug,
-    )
-
-
-def _handle_project_submission_edit_post(
-    request,
-    *,
-    submission,
-    review_criteria,
-    course_slug,
-    project_slug,
-):
+def _handle_project_submission_edit_post(data):
     form = ProjectSubmissionEditForm(
-        request.POST,
-        review_criteria=review_criteria,
+        data.request.POST,
+        review_criteria=data.review_criteria,
     )
     if not form.is_valid():
         messages.error(
-            request,
+            data.request,
             f"Error updating submission: {first_form_error(form)}",
         )
         return None
 
     update_project_submission_from_admin(
-        submission,
+        data.submission,
         form.cleaned_data,
     )
     messages.success(
-        request,
-        f"Project submission for {submission.student.username} updated successfully",
+        data.request,
+        f"Project submission for {data.submission.student.username} updated successfully",
     )
-    return _project_submission_edit_redirect(course_slug, project_slug)
+    return redirect(
+        "cadmin_project_submissions",
+        course_slug=data.course.slug,
+        project_slug=data.project.slug,
+    )
+
+
+def _project_submission_edit_context(data):
+    return {
+        "course": data.course,
+        "project": data.project,
+        "submission": data.submission,
+        "criteria_with_scores": data.criteria_with_scores,
+    }
+
+
+def _project_submission_edit_response(data):
+    context = _project_submission_edit_context(data)
+    return render(
+        data.request, "cadmin/project_submission_edit.html", context
+    )
 
 
 @staff_required
@@ -1419,28 +1420,21 @@ def project_submission_edit(
         review_criteria,
         submission,
     )
+    edit_data = ProjectSubmissionEditPageData(
+        request=request,
+        course=course,
+        project=project,
+        submission=submission,
+        review_criteria=review_criteria,
+        criteria_with_scores=criteria_with_scores,
+    )
 
     if request.method == "POST":
-        response = _handle_project_submission_edit_post(
-            request,
-            submission=submission,
-            review_criteria=review_criteria,
-            course_slug=course_slug,
-            project_slug=project_slug,
-        )
+        response = _handle_project_submission_edit_post(edit_data)
         if response is not None:
             return response
 
-    context = {
-        "course": course,
-        "project": project,
-        "submission": submission,
-        "criteria_with_scores": criteria_with_scores,
-    }
-
-    return render(
-        request, "cadmin/project_submission_edit.html", context
-    )
+    return _project_submission_edit_response(edit_data)
 
 
 @staff_required

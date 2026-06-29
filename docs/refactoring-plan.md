@@ -38,6 +38,14 @@ testable service functions.
   through several functions together. Introduce a named dataclass or value
   object for that group, then pass the object directly instead of unpacking it
   back into many arguments.
+- As a working threshold, pause when an internal function needs five or more
+  arguments. Either split responsibilities or group the values into a named
+  request/context/result object. Keyword-only arguments make calls clearer, but
+  they do not by themselves fix the smell.
+- When a dataclass or value object replaces a group of arguments, let downstream
+  functions accept that object when they operate on the same concept. Do not
+  immediately expand `data.field_one`, `data.field_two`, and so on into another
+  long call unless the called API is an external/framework boundary.
 - In general, avoid hiding non-trivial work inside inline expressions during
   cleanup. Prefer named intermediate variables for constructed records,
   counters, querysets with filtering/annotations, and other values whose purpose
