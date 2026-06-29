@@ -59,7 +59,8 @@ def get_passed_enrollments(passed_project_submissions, min_projects):
 
     passed_enrollments = []
 
-    for eid, count in counter_passed.items():
+    passed_counts = counter_passed.items()
+    for eid, count in passed_counts:
         if count >= min_projects:
             passed_enrollments.append(ids_mapping[eid])
 
@@ -87,12 +88,11 @@ def graduates_data_view(request, course_slug: str):
         email = student.email
         name = student.certificate_name or enrollment.display_name
 
-        graduates.append(
-            {
-                "email": email,
-                "name": name,
-            }
-        )
+        graduate_record = {
+            "email": email,
+            "name": name,
+        }
+        graduates.append(graduate_record)
 
     response = {"graduates": graduates}
     return JsonResponse(response)
@@ -146,7 +146,8 @@ def _validate_certificate_update_items(certificate_updates):
     valid_updates = []
     errors = []
 
-    for index, update in enumerate(certificate_updates):
+    indexed_updates = enumerate(certificate_updates)
+    for index, update in indexed_updates:
         valid_update, error = _validate_certificate_update_item(index, update)
         if error:
             errors.append(error)
@@ -288,7 +289,8 @@ def _certificate_update_lookups(course, valid_updates):
         emails.append(update["email"])
 
     users_by_email = {}
-    for user in User.objects.filter(email__in=emails):
+    users = User.objects.filter(email__in=emails)
+    for user in users:
         users_by_email[user.email] = user
 
     enrollments_by_email = {}
@@ -311,7 +313,8 @@ def _persist_certificate_updates(enrollments_to_update):
 
 
 def _queue_certificate_notifications(enrollments_to_notify):
-    for enrollment in enrollments_to_notify.values():
+    notification_enrollments = enrollments_to_notify.values()
+    for enrollment in notification_enrollments:
 
         def send_notification(enrollment=enrollment):
             send_certificate_availability_notification(enrollment)

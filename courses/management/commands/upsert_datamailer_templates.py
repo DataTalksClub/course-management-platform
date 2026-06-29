@@ -54,7 +54,8 @@ class Command(BaseCommand):
                 f"/api/transactional/templates/{key}",
                 json=TEMPLATES[key],
             )
-            results.append({"template_key": key, "response": response})
+            result = {"template_key": key, "response": response}
+            results.append(result)
             self.stdout.write(
                 self.style.SUCCESS(f"upserted {key} -> {config.url}")
             )

@@ -21,6 +21,15 @@ testable service functions.
 - Do not add trivial pass-through functions. Extract helpers only when they
   name a real concept, isolate non-trivial branching, or make repeated behavior
   safer.
+- Do not inline constructed values inside `append(...)`. Assign the dictionary,
+  object, or function result to a named local variable first, then append it.
+- Avoid compact `sum(...)`/`next(...)` generator expressions when they include
+  filtering, branching, or non-trivial construction. Use an explicit loop with a
+  named counter/result instead.
+- In general, avoid hiding work inside inline expressions during cleanup. Prefer
+  named intermediate variables for querysets, function-call results, records,
+  counters, and other non-trivial values before looping, appending, returning,
+  or passing them to another call.
 
 ## Current Findings
 

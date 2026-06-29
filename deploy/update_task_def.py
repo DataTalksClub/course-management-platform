@@ -19,7 +19,8 @@ def load_task_definition(input_file):
 
 
 def update_container_definitions(task_def, new_tag):
-    for container_def in task_def["containerDefinitions"]:
+    container_definitions = task_def["containerDefinitions"]
+    for container_def in container_definitions:
         update_container_image(container_def, new_tag)
         update_container_version(container_def, new_tag)
 
@@ -35,20 +36,18 @@ def update_container_image(container_def, new_tag):
 
 def update_container_version(container_def, new_tag):
     environment = container_def.get("environment", [])
-    version_var = next(
-        (
-            env_var
-            for env_var in environment
-            if env_var["name"] == "VERSION"
-        ),
-        None,
-    )
+    version_var = None
+    for env_var in environment:
+        if env_var["name"] == "VERSION":
+            version_var = env_var
+            break
 
     if version_var is not None:
         version_var["value"] = new_tag
         return
 
-    environment.append({"name": "VERSION", "value": new_tag})
+    version_record = {"name": "VERSION", "value": new_tag}
+    environment.append(version_record)
 
 
 def remove_register_task_definition_fields(task_def):

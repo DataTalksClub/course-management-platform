@@ -57,10 +57,15 @@ def _create_question(homework, q_data):
 
 def _questions_list_response(homework):
     questions = Question.objects.filter(homework=homework).order_by("id")
+    question_records = []
+    for question in questions:
+        question_record = _question_to_dict(question)
+        question_records.append(question_record)
+
     return JsonResponse({
         "homework_id": homework.id,
         "homework_title": homework.title,
-        "questions": [_question_to_dict(q) for q in questions],
+        "questions": question_records,
     })
 
 
@@ -76,10 +81,12 @@ def _questions_create_response(homework, data):
     created = []
     errors = []
 
-    for item in _question_create_items(data):
+    question_items = _question_create_items(data)
+    for item in question_items:
         q_dict, error = _create_question(homework, item)
         if error:
-            errors.append(_question_create_error(item, error))
+            question_error = _question_create_error(item, error)
+            errors.append(question_error)
         else:
             created.append(q_dict)
 
@@ -147,7 +154,8 @@ def _question_invalid_field_response(field):
 
 
 def _apply_question_patch(question, data):
-    for field, value in data.items():
+    patch_items = data.items()
+    for field, value in patch_items:
         if field not in QUESTION_PATCH_FIELDS:
             return _question_invalid_field_response(field)
 

@@ -44,19 +44,19 @@ def build_timezone_options() -> list[TimezoneOption]:
     """Return IANA timezones labeled with current GMT offset, west to east."""
     now_utc = timezone.now().astimezone(UTC)
     options = []
-    for timezone_name in available_timezones():
+    timezone_names = available_timezones()
+    for timezone_name in timezone_names:
         tz = ZoneInfo(timezone_name)
         offset = now_utc.astimezone(tz).utcoffset()
         if offset is None:
             continue
         offset_minutes = int(offset.total_seconds() // 60)
-        options.append(
-            TimezoneOption(
-                value=timezone_name,
-                label=f"{_format_offset(offset_minutes)} {timezone_name}",
-                offset_minutes=offset_minutes,
-            )
+        option = TimezoneOption(
+            value=timezone_name,
+            label=f"{_format_offset(offset_minutes)} {timezone_name}",
+            offset_minutes=offset_minutes,
         )
+        options.append(option)
     return sorted(options, key=lambda option: (option.offset_minutes, option.value))
 
 

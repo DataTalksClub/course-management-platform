@@ -77,7 +77,8 @@ def get_course_outcome(course: Course) -> str:
     if course.description:
         return course.description
 
-    for slug_prefix, presentation in COURSE_OUTCOMES.items():
+    course_outcomes = COURSE_OUTCOMES.items()
+    for slug_prefix, presentation in course_outcomes:
         if course.slug.startswith(slug_prefix):
             return presentation["outcome"]
 
@@ -85,7 +86,9 @@ def get_course_outcome(course: Course) -> str:
 
 
 def course_year(course: Course) -> str:
-    for part in reversed(course.title.split()):
+    title_parts = course.title.split()
+    reversed_title_parts = reversed(title_parts)
+    for part in reversed_title_parts:
         if part.isdigit() and len(part) == 4:
             return part
     return "Archive"
@@ -111,33 +114,33 @@ def course_duration_label(course: Course) -> str:
 def get_course_assignments(course: Course) -> list[dict]:
     assignments = []
 
-    for homework in course.homework_set.all():
-        assignments.append(
-            {
-                "type": "homework",
-                "label": "Homework",
-                "title": homework.title,
-                "due_date": homework.due_date,
-            }
-        )
+    homeworks = course.homework_set.all()
+    for homework in homeworks:
+        homework_assignment = {
+            "type": "homework",
+            "label": "Homework",
+            "title": homework.title,
+            "due_date": homework.due_date,
+        }
+        assignments.append(homework_assignment)
 
-    for project in course.project_set.all():
-        assignments.append(
-            {
-                "type": "project",
-                "label": "Project",
-                "title": project.title,
-                "due_date": project.submission_due_date,
-            }
-        )
-        assignments.append(
-            {
-                "type": "peer_review",
-                "label": "Peer review",
-                "title": project.title,
-                "due_date": project.peer_review_due_date,
-            }
-        )
+    projects = course.project_set.all()
+    for project in projects:
+        project_assignment = {
+            "type": "project",
+            "label": "Project",
+            "title": project.title,
+            "due_date": project.submission_due_date,
+        }
+        assignments.append(project_assignment)
+
+        peer_review_assignment = {
+            "type": "peer_review",
+            "label": "Peer review",
+            "title": project.title,
+            "due_date": project.peer_review_due_date,
+        }
+        assignments.append(peer_review_assignment)
 
     return sorted(
         assignments,
@@ -154,10 +157,10 @@ def current_assignment_info(course: Course, now) -> tuple[str, dict | None]:
     if not assignments:
         return "Current assignment", None
 
-    upcoming_assignments = [
-        assignment for assignment in assignments
-        if assignment["due_date"] >= now
-    ]
+    upcoming_assignments = []
+    for assignment in assignments:
+        if assignment["due_date"] >= now:
+            upcoming_assignments.append(assignment)
 
     if upcoming_assignments:
         return "Next assignment", upcoming_assignments[0]
@@ -183,7 +186,9 @@ def add_course_homepage_info(course: Course, now) -> None:
 
 
 def attach_registration_campaigns(courses) -> None:
-    course_ids = [course.id for course in courses]
+    course_ids = []
+    for course in courses:
+        course_ids.append(course.id)
     campaigns = RegistrationCampaign.objects.filter(
         current_course_id__in=course_ids,
         is_active=True,
@@ -197,11 +202,12 @@ def attach_registration_campaigns(courses) -> None:
 
 
 def _registration_campaign_ids(courses):
-    return [
-        course.registration_campaign.id
-        for course in courses
-        if getattr(course, "registration_campaign", None)
-    ]
+    campaign_ids = []
+    for course in courses:
+        registration_campaign = getattr(course, "registration_campaign", None)
+        if registration_campaign:
+            campaign_ids.append(registration_campaign.id)
+    return campaign_ids
 
 
 def _normalized_user_email(user) -> str:
@@ -238,7 +244,9 @@ def mark_enrolled_courses(courses, user) -> None:
     if not user.is_authenticated:
         return
 
-    course_ids = [course.id for course in courses]
+    course_ids = []
+    for course in courses:
+        course_ids.append(course.id)
     enrolled_course_ids = set(
         Enrollment.objects.filter(
             student=user,
@@ -301,21 +309,28 @@ def _course_archive_groups(archive_courses_by_year):
         archive_years.remove("Archive")
         archive_years.append("Archive")
 
-    return [
-        {
+    archive_groups = []
+    for year in archive_years:
+        archive_group = {
             "year": year,
             "courses": archive_courses_by_year[year],
         }
-        for year in archive_years
-    ]
+        archive_groups.append(archive_group)
+    return archive_groups
 
 
 def _course_home_stats(courses, active_courses, finished_courses):
+    homework_count = 0
+    project_count = 0
+    for course in courses:
+        homework_count += course.homework_count
+        project_count += course.project_count
+
     return {
         "active_courses": len(active_courses),
         "archive_courses": len(finished_courses),
-        "homeworks": sum(course.homework_count for course in courses),
-        "projects": sum(course.project_count for course in courses),
+        "homeworks": homework_count,
+        "projects": project_count,
     }
 
 
@@ -330,9 +345,10 @@ def course_list(request):
     mark_registered_courses(courses, request.user)
 
     featured_course = _featured_course(active_courses)
-    other_active_courses = [
-        course for course in active_courses if course != featured_course
-    ]
+    other_active_courses = []
+    for course in active_courses:
+        if course != featured_course:
+            other_active_courses.append(course)
 
     context = {
         "active_courses": active_courses,
@@ -667,19 +683,18 @@ def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
                 },
             )
         )
-        events.append(
-            calendar_event(
-                uid=f"homework-{homework.id}@courses.datatalks.club",
-                summary=f"{course.title}: {homework.title} deadline",
-                start=homework.due_date,
-                url=url,
-                description=(
-                    f"Homework deadline for {homework.title}. "
-                    f"Open the assignment: {url}"
-                ),
-                dtstamp=dtstamp,
-            )
+        event = calendar_event(
+            uid=f"homework-{homework.id}@courses.datatalks.club",
+            summary=f"{course.title}: {homework.title} deadline",
+            start=homework.due_date,
+            url=url,
+            description=(
+                f"Homework deadline for {homework.title}. "
+                f"Open the assignment: {url}"
+            ),
+            dtstamp=dtstamp,
         )
+        events.append(event)
     return events
 
 
@@ -725,8 +740,9 @@ def _project_deadline_calendar_events(
         ("submission", "submission", project.submission_due_date),
         ("peer-review", "peer review", project.peer_review_due_date),
     )
-    return [
-        _project_deadline_calendar_event(
+    events = []
+    for uid_suffix, event_type, deadline in deadlines:
+        event = _project_deadline_calendar_event(
             course=course,
             project=project,
             uid_suffix=uid_suffix,
@@ -735,8 +751,8 @@ def _project_deadline_calendar_events(
             url=url,
             dtstamp=dtstamp,
         )
-        for uid_suffix, event_type, deadline in deadlines
-    ]
+        events.append(event)
+    return events
 
 
 def _project_calendar_events(request, course, dtstamp) -> list[list[str]]:
@@ -747,11 +763,10 @@ def _project_calendar_events(request, course, dtstamp) -> list[list[str]]:
     events = []
     for project in projects:
         project_url = _project_detail_url(request, course, project)
-        events.extend(
-            _project_deadline_calendar_events(
-                course, project, project_url, dtstamp
-            )
+        project_events = _project_deadline_calendar_events(
+            course, project, project_url, dtstamp
         )
+        events.extend(project_events)
     return events
 
 
@@ -774,15 +789,16 @@ def course_calendar_view(
 ) -> HttpResponse:
     course = get_object_or_404(Course, slug=course_slug, visible=True)
     dtstamp = timezone.now()
-    nested_events = [
-        *_homework_calendar_events(request, course, dtstamp),
-        *_project_calendar_events(request, course, dtstamp),
-    ]
-    events = [
-        line
-        for event_lines in nested_events
-        for line in event_lines
-    ]
+    nested_events = []
+    homework_events = _homework_calendar_events(request, course, dtstamp)
+    nested_events.extend(homework_events)
+    project_events = _project_calendar_events(request, course, dtstamp)
+    nested_events.extend(project_events)
+
+    events = []
+    for event_lines in nested_events:
+        for line in event_lines:
+            events.append(line)
     calendar_lines = _course_calendar_lines(course, events)
 
     response = HttpResponse(
@@ -867,24 +883,26 @@ def _completed_project_submissions_prefetch():
 
 
 def _serialize_leaderboard_enrollment(enrollment):
+    passed_projects = []
+    completed_submissions = enrollment.completed_project_submissions
+    indexed_submissions = enumerate(completed_submissions, 1)
+    for index, submission in indexed_submissions:
+        if not submission.passed:
+            continue
+        passed_project = {
+            "title": submission.project.title,
+            "slug": submission.project.slug,
+            "attempt": index,
+            "medal_index": ((index - 1) % 5) + 1,
+        }
+        passed_projects.append(passed_project)
+
     return {
         "id": enrollment.id,
         "display_name": enrollment.display_name,
         "total_score": enrollment.total_score,
         "position_on_leaderboard": enrollment.position_on_leaderboard,
-        "passed_projects": [
-            {
-                "title": submission.project.title,
-                "slug": submission.project.slug,
-                "attempt": index,
-                "medal_index": ((index - 1) % 5) + 1,
-            }
-            for index, submission in enumerate(
-                enrollment.completed_project_submissions,
-                1,
-            )
-            if submission.passed
-        ],
+        "passed_projects": passed_projects,
     }
 
 
@@ -903,10 +921,10 @@ def _build_leaderboard_data(course, cache_key):
         )
     )
     # Store dictionaries in cache to avoid stale model instances.
-    enrollments_data = [
-        _serialize_leaderboard_enrollment(enrollment)
-        for enrollment in enrollments
-    ]
+    enrollments_data = []
+    for enrollment in enrollments:
+        enrollment_data = _serialize_leaderboard_enrollment(enrollment)
+        enrollments_data.append(enrollment_data)
     cache.set(cache_key, enrollments_data, 3600)
     return enrollments_data
 
@@ -960,7 +978,8 @@ def _current_student_page_number(
     ):
         return None
 
-    for index, enrollment in enumerate(enrollments_data):
+    indexed_enrollments = enumerate(enrollments_data)
+    for index, enrollment in indexed_enrollments:
         if enrollment["id"] == current_student_enrollment_id:
             return (index // LEADERBOARD_PAGE_SIZE) + 1
 
@@ -1341,31 +1360,37 @@ def _project_completion_rate(project_submissions, total_enrollments):
 
 
 def _project_submission_enrollment_ids(project_submissions):
-    return {submission["enrollment_id"] for submission in project_submissions}
+    enrollment_ids = set()
+    for submission in project_submissions:
+        enrollment_ids.add(submission["enrollment_id"])
+    return enrollment_ids
 
 
 def _project_submission_values(project_submissions, field_name):
-    return [
-        submission[field_name]
-        for submission in project_submissions
-        if submission[field_name] is not None
-    ]
+    values = []
+    for submission in project_submissions:
+        value = submission[field_name]
+        if value is not None:
+            values.append(value)
+    return values
 
 
 def _project_pass_fail_counts(project_submissions):
-    pass_count = sum(
-        1 for submission in project_submissions if submission["passed"]
-    )
+    pass_count = 0
+    for submission in project_submissions:
+        if submission["passed"]:
+            pass_count += 1
     fail_count = len(project_submissions) - pass_count
     return pass_count, fail_count
 
 
 def _submission_values(submissions, field_name):
-    return [
-        submission[field_name]
-        for submission in submissions
-        if submission[field_name] is not None
-    ]
+    values = []
+    for submission in submissions:
+        value = submission[field_name]
+        if value is not None:
+            values.append(value)
+    return values
 
 
 def _dashboard_completion_rate(submissions_count, total_enrollments):
@@ -1375,13 +1400,15 @@ def _dashboard_completion_rate(submissions_count, total_enrollments):
 
 
 def _dashboard_total_homework_times(hw_submissions):
-    return [
-        submission["time_spent_lectures"]
-        + submission["time_spent_homework"]
-        for submission in hw_submissions
-        if submission["time_spent_lectures"] is not None
-        and submission["time_spent_homework"] is not None
-    ]
+    total_times = []
+    for submission in hw_submissions:
+        lectures_time = submission["time_spent_lectures"]
+        homework_time = submission["time_spent_homework"]
+        if lectures_time is None or homework_time is None:
+            continue
+        total_time = lectures_time + homework_time
+        total_times.append(total_time)
+    return total_times
 
 
 def _quartile_fields(prefix, values):
@@ -1482,22 +1509,23 @@ def _dashboard_homework_stat_rows(
     hw_submissions_by_homework,
     total_enrollments,
 ):
-    return [
-        _dashboard_homework_stat(
+    stat_rows = []
+    for homework in homeworks:
+        submissions = hw_submissions_by_homework.get(homework.id, [])
+        stat_row = _dashboard_homework_stat(
             homework,
-            hw_submissions_by_homework.get(homework.id, []),
+            submissions,
             total_enrollments,
         )
-        for homework in homeworks
-    ]
+        stat_rows.append(stat_row)
+    return stat_rows
 
 
 def _dashboard_homework_difficulty_stats(homework_stats):
-    difficulty_stats = [
-        hw_stat
-        for hw_stat in homework_stats
-        if hw_stat["score_ratio"] is not None
-    ]
+    difficulty_stats = []
+    for hw_stat in homework_stats:
+        if hw_stat["score_ratio"] is not None:
+            difficulty_stats.append(hw_stat)
     difficulty_stats.sort(
         key=lambda hw_stat: (
             hw_stat["score_ratio"],
@@ -1505,7 +1533,8 @@ def _dashboard_homework_difficulty_stats(homework_stats):
             hw_stat["homework"].title,
         )
     )
-    for rank, hw_stat in enumerate(difficulty_stats, start=1):
+    ranked_homeworks = enumerate(difficulty_stats, start=1)
+    for rank, hw_stat in ranked_homeworks:
         hw_stat["difficulty_rank"] = rank
 
     return difficulty_stats

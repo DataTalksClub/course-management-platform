@@ -61,14 +61,13 @@ def add_member_to_batches(
             "members": [],
         },
     )
-    batch["members"].append(
-        {
-            "source_object_key": source_object_key,
-            "email": payload["member"]["email"],
-            "status": payload["member"]["status"],
-            "metadata": payload["member"]["metadata"],
-        }
-    )
+    member = {
+        "source_object_key": source_object_key,
+        "email": payload["member"]["email"],
+        "status": payload["member"]["status"],
+        "metadata": payload["member"]["metadata"],
+    }
+    batch["members"].append(member)
 
 
 def add_payload_members_to_batches(batches, list_key, payload):
@@ -200,7 +199,8 @@ def build_batches(
 
     queryset_fn, payload_for = source
     batches = OrderedDict()
-    for obj in queryset_fn(course_slug, homework_slug, project_slug):
+    objects = queryset_fn(course_slug, homework_slug, project_slug)
+    for obj in objects:
         item = payload_for(obj)
         if item is None:
             continue
@@ -216,10 +216,10 @@ def build_batches(
 
 
 def import_member_jsonl(members):
-    lines = [
-        json.dumps(member, sort_keys=True, separators=(",", ":"))
-        for member in members
-    ]
+    lines = []
+    for member in members:
+        line = json.dumps(member, sort_keys=True, separators=(",", ":"))
+        lines.append(line)
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
@@ -482,15 +482,17 @@ class Command(BaseCommand):
         )
 
     def write_batch_summary(self, batches):
-        total_members = sum(
-            len(payload["members"]) for payload in batches.values()
-        )
+        total_members = 0
+        payloads = batches.values()
+        for payload in payloads:
+            total_members += len(payload["members"])
         self.stdout.write(
             f"Prepared {len(batches)} recipient list(s), {total_members} member(s)."
         )
 
     def write_dry_run(self, batches, options):
-        for list_key, payload in batches.items():
+        batch_items = batches.items()
+        for list_key, payload in batch_items:
             self.stdout.write(
                 f"{list_key}: {len(payload['members'])} member(s)"
             )
@@ -526,7 +528,8 @@ class Command(BaseCommand):
         import_timeout,
         import_poll_interval,
     ):
-        for list_key, payload in batches.items():
+        batch_items = batches.items()
+        for list_key, payload in batch_items:
             if import_by_reference:
                 import_options = ImportJobOptions(
                     remove_absent=reconcile,

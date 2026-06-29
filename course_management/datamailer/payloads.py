@@ -500,11 +500,10 @@ def homework_score_notification_members(
         seen_students.add(submission.student_id)
         _, source_object_key, member_payload = item
         list_data = member_payload["list"]
-        members.append(
-            recipient_list_send_member_payload(
-                source_object_key, member_payload
-            )
+        member = recipient_list_send_member_payload(
+            source_object_key, member_payload
         )
+        members.append(member)
     return list_data, members
 
 def project_score_notification_members(
@@ -532,11 +531,10 @@ def project_score_notification_members(
         seen_students.add(submission.student_id)
         _, source_object_key, member_payload = item
         list_data = member_payload["list"]
-        members.append(
-            recipient_list_send_member_payload(
-                source_object_key, member_payload
-            )
+        member = recipient_list_send_member_payload(
+            source_object_key, member_payload
         )
+        members.append(member)
     return list_data, members
 
 def project_passed_recipient_list_payload(
@@ -572,7 +570,8 @@ def _project_passed_list_data(project) -> dict[str, Any]:
 def _project_passed_members(project) -> list[dict[str, Any]]:
     members = []
     seen_students = set()
-    for submission in _project_passed_candidate_submissions(project):
+    candidate_submissions = _project_passed_candidate_submissions(project)
+    for submission in candidate_submissions:
         if submission.student_id in seen_students:
             continue
         seen_students.add(submission.student_id)
@@ -834,24 +833,23 @@ def _assigned_review_links(submission) -> list[dict[str, Any]]:
     items = []
     for review in reviews:
         target = review.submission_under_evaluation
-        items.append(
-            {
-                "review_id": review.id,
-                "eval_url": public_url(
-                    reverse(
-                        "projects_eval_submit",
-                        kwargs={
-                            "course_slug": course.slug,
-                            "project_slug": project.slug,
-                            "review_id": review.id,
-                        },
-                    )
-                ),
-                "submission_github_link": (
-                    getattr(target, "github_link", "") or ""
-                ),
-            }
-        )
+        item = {
+            "review_id": review.id,
+            "eval_url": public_url(
+                reverse(
+                    "projects_eval_submit",
+                    kwargs={
+                        "course_slug": course.slug,
+                        "project_slug": project.slug,
+                        "review_id": review.id,
+                    },
+                )
+            ),
+            "submission_github_link": (
+                getattr(target, "github_link", "") or ""
+            ),
+        }
+        items.append(item)
     return items
 
 
@@ -939,11 +937,10 @@ def peer_review_assignment_notification_members(
         seen_students.add(submission.student_id)
         _, source_object_key, member_payload = item
         list_data = member_payload["list"]
-        members.append(
-            recipient_list_send_member_payload(
-                source_object_key, member_payload
-            )
+        member = recipient_list_send_member_payload(
+            source_object_key, member_payload
         )
+        members.append(member)
     return list_data, members
 
 
@@ -1263,17 +1260,18 @@ def recipient_list_member_sync_payload(
 def recipient_list_send_payload(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
-        key: value
-        for key, value in payload.items()
-        if key
-        not in {
-            "list",
-            "members",
-            "member_sync",
-            "remove_absent_members",
-        }
+    excluded_keys = {
+        "list",
+        "members",
+        "member_sync",
+        "remove_absent_members",
     }
+    send_payload = {}
+    payload_items = payload.items()
+    for key, value in payload_items:
+        if key not in excluded_keys:
+            send_payload[key] = value
+    return send_payload
 
 
 def recipient_list_response_key(response: dict[str, Any]) -> str:
@@ -1334,7 +1332,11 @@ def _active_payload_member_count(payload: dict[str, Any]) -> int:
     members = payload.get("members")
     if not isinstance(members, list):
         return 0
-    return sum(1 for member in members if member.get("status") != "removed")
+    count = 0
+    for member in members:
+        if member.get("status") != "removed":
+            count += 1
+    return count
 
 
 def _transient_recipient_list_intended_count(

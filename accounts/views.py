@@ -275,14 +275,16 @@ def get_available_providers():
 
     site_id = settings.SITE_ID
 
-    for provider, name in registry.as_choices():
+    provider_choices = registry.as_choices()
+    for provider, name in provider_choices:
         if not SocialApp.objects.filter(
             provider=provider, sites__id__exact=site_id
         ).exists():
             continue
 
         login_url = reverse(f"{provider}_login")
-        providers.append({"name": name, "login_url": login_url})
+        provider_record = {"name": name, "login_url": login_url}
+        providers.append(provider_record)
 
     cache.set('available_providers', providers, 60 * 60)  # Cache for 60 minutes
 

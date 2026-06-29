@@ -71,7 +71,8 @@ def safe_split_to_int(value: str, delimiter: str = ","):
     raw = safe_split(value, delimiter)
     values = []
     for item in raw:
-        values.append(int(item))
+        parsed_item = int(item)
+        values.append(parsed_item)
     return values
 
 
@@ -230,7 +231,11 @@ def _score_answer(submission: Submission, answer: Answer, save: bool) -> int:
 def _questions_score(
     submission: Submission, answers: list[Answer], save: bool
 ) -> int:
-    return sum(_score_answer(submission, answer, save) for answer in answers)
+    score = 0
+    for answer in answers:
+        answer_score = _score_answer(submission, answer, save)
+        score += answer_score
+    return score
 
 
 def _submission_total_score(submission: Submission, questions_score: int):
@@ -376,10 +381,11 @@ def _homework_scores_by_enrollment(course):
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
     )
-    return {
-        score["enrollment"]: score["total_score"]
-        for score in aggregated_homework_scores
-    }
+    scores_by_enrollment = {}
+    for score in aggregated_homework_scores:
+        enrollment_id = score["enrollment"]
+        scores_by_enrollment[enrollment_id] = score["total_score"]
+    return scores_by_enrollment
 
 
 def _project_scores_by_enrollment(course):
@@ -392,10 +398,11 @@ def _project_scores_by_enrollment(course):
         .values("enrollment")
         .annotate(total_score=Sum("total_score"))
     )
-    return {
-        score["enrollment"]: score["total_score"]
-        for score in aggregated_project_scores
-    }
+    scores_by_enrollment = {}
+    for score in aggregated_project_scores:
+        enrollment_id = score["enrollment"]
+        scores_by_enrollment[enrollment_id] = score["total_score"]
+    return scores_by_enrollment
 
 
 def _rank_enrollments(enrollments):
@@ -403,7 +410,8 @@ def _rank_enrollments(enrollments):
         enrollments,
         key=lambda x: (-(x.total_score or 0), x.id),
     )
-    for rank, enrollment in enumerate(enrollments, 1):
+    ranked_enrollments = enumerate(enrollments, 1)
+    for rank, enrollment in ranked_enrollments:
         enrollment.position_on_leaderboard = rank
     return enrollments
 
@@ -672,11 +680,12 @@ def _wrapped_total_hours(homework_submissions, project_submissions):
     )
 
     total_hours = 0
-    for value in (
+    hour_values = (
         homework_hours["total_lecture_hours"],
         homework_hours["total_homework_hours"],
         project_hours["total_project_hours"],
-    ):
+    )
+    for value in hour_values:
         if value:
             total_hours += value
 
@@ -687,13 +696,12 @@ def _wrapped_course_stats(enrollments, courses):
     """Per-course enrollment counts, sorted most-popular first."""
     course_stats_list = []
     for course in courses:
-        course_stats_list.append(
-            {
-                "title": course.title,
-                "slug": course.slug,
-                "enrollment_count": enrollments.filter(course=course).count(),
-            }
-        )
+        course_stats = {
+            "title": course.title,
+            "slug": course.slug,
+            "enrollment_count": enrollments.filter(course=course).count(),
+        }
+        course_stats_list.append(course_stats)
     course_stats_list.sort(
         key=lambda x: x["enrollment_count"], reverse=True
     )
@@ -721,15 +729,15 @@ def _wrapped_leaderboard(enrollments):
     )[:100]
 
     leaderboard = []
-    for idx, user_data in enumerate(sorted_users, start=1):
-        leaderboard.append(
-            {
-                "rank": idx,
-                "display_name": user_data["display_name"],
-                "total_score": user_data["total_score"],
-                "student_id": user_data["student"].id,
-            }
-        )
+    indexed_users = enumerate(sorted_users, start=1)
+    for idx, user_data in indexed_users:
+        leaderboard_entry = {
+            "rank": idx,
+            "display_name": user_data["display_name"],
+            "total_score": user_data["total_score"],
+            "student_id": user_data["student"].id,
+        }
+        leaderboard.append(leaderboard_entry)
     return leaderboard
 
 
@@ -750,24 +758,22 @@ def _has_faq_contribution(submission):
 def _wrapped_courses(enrollments):
     courses = []
     for enrollment in enrollments:
-        courses.append(
-            {
-                "title": enrollment.course.title,
-                "score": enrollment.total_score,
-                "slug": enrollment.course.slug,
-                "enrollment_id": enrollment.id,
-            }
-        )
+        course_record = {
+            "title": enrollment.course.title,
+            "score": enrollment.total_score,
+            "slug": enrollment.course.slug,
+            "enrollment_id": enrollment.id,
+        }
+        courses.append(course_record)
     return courses
 
 
 def _wrapped_certificates_count(enrollments):
-    return sum(
-        1
-        for enrollment in enrollments
-        if enrollment.certificate_url
-        and enrollment.certificate_url.strip()
-    )
+    count = 0
+    for enrollment in enrollments:
+        if enrollment.certificate_url and enrollment.certificate_url.strip():
+            count += 1
+    return count
 
 
 def _capped_hours(value):
@@ -785,14 +791,14 @@ def _wrapped_project_hours(submission):
 
 
 def _wrapped_total_hours(homework_submissions, project_submissions):
-    homework_hours = sum(
-        _wrapped_homework_hours(submission)
-        for submission in homework_submissions
-    )
-    project_hours = sum(
-        _wrapped_project_hours(submission)
-        for submission in project_submissions
-    )
+    homework_hours = 0
+    for submission in homework_submissions:
+        homework_hours += _wrapped_homework_hours(submission)
+
+    project_hours = 0
+    for submission in project_submissions:
+        project_hours += _wrapped_project_hours(submission)
+
     return round(homework_hours + project_hours, 1)
 
 
@@ -800,42 +806,42 @@ def _wrapped_learning_in_public_count(
     homework_submissions,
     project_submissions,
 ):
-    homework_links = sum(
-        len(hw.learning_in_public_links)
-        if hw.learning_in_public_links
-        else 0
-        for hw in homework_submissions
-    )
-    project_links = sum(
-        len(proj.learning_in_public_links)
-        if proj.learning_in_public_links
-        else 0
-        for proj in project_submissions
-    )
+    homework_links = 0
+    for homework_submission in homework_submissions:
+        if homework_submission.learning_in_public_links:
+            homework_links += len(homework_submission.learning_in_public_links)
+
+    project_links = 0
+    for project_submission in project_submissions:
+        if project_submission.learning_in_public_links:
+            project_links += len(project_submission.learning_in_public_links)
+
     return homework_links + project_links
 
 
 def _wrapped_faq_count(homework_submissions, project_submissions):
-    return sum(
-        1
-        for submission in [*homework_submissions, *project_submissions]
-        if _has_faq_contribution(submission)
-    )
+    count = 0
+    for submission in homework_submissions:
+        if _has_faq_contribution(submission):
+            count += 1
+    for submission in project_submissions:
+        if _has_faq_contribution(submission):
+            count += 1
+    return count
 
 
 def _wrapped_rank(student, leaderboard_data):
-    return next(
-        (
-            entry["rank"]
-            for entry in leaderboard_data
-            if entry["student_id"] == student.id
-        ),
-        None,
-    )
+    for entry in leaderboard_data:
+        if entry["student_id"] == student.id:
+            return entry["rank"]
+    return None
 
 
 def _wrapped_total_points(enrollments):
-    return sum(e.total_score or 0 for e in enrollments)
+    total_points = 0
+    for enrollment in enrollments:
+        total_points += enrollment.total_score or 0
+    return total_points
 
 
 def _wrapped_display_name(student, enrollments):
@@ -900,22 +906,28 @@ def _wrapped_activity_querysets(year_start, year_end):
 
 
 def _wrapped_students_with_activity(homework_submissions, project_submissions):
-    students_from_homeworks = {hw.student for hw in homework_submissions}
-    students_from_projects = {
-        proj.student for proj in project_submissions
-    }
+    students_from_homeworks = set()
+    for homework_submission in homework_submissions:
+        students_from_homeworks.add(homework_submission.student)
+
+    students_from_projects = set()
+    for project_submission in project_submissions:
+        students_from_projects.add(project_submission.student)
+
     return students_from_homeworks | students_from_projects
 
 
 def _wrapped_enrollment_ids(homework_submissions, project_submissions):
-    enrollment_ids_from_homeworks = {
-        hw.enrollment_id for hw in homework_submissions if hw.enrollment_id
-    }
-    enrollment_ids_from_projects = {
-        proj.enrollment_id
-        for proj in project_submissions
-        if proj.enrollment_id
-    }
+    enrollment_ids_from_homeworks = set()
+    for homework_submission in homework_submissions:
+        if homework_submission.enrollment_id:
+            enrollment_ids_from_homeworks.add(homework_submission.enrollment_id)
+
+    enrollment_ids_from_projects = set()
+    for project_submission in project_submissions:
+        if project_submission.enrollment_id:
+            enrollment_ids_from_projects.add(project_submission.enrollment_id)
+
     return enrollment_ids_from_homeworks | enrollment_ids_from_projects
 
 
@@ -938,7 +950,9 @@ def _wrapped_active_students_and_enrollments(
         project_submissions,
     )
     enrollments = _wrapped_enrollments(enrollment_ids)
-    courses = {enrollment.course for enrollment in enrollments}
+    courses = set()
+    for enrollment in enrollments:
+        courses.add(enrollment.course)
     return students_with_activity, enrollments, courses
 
 
@@ -1025,17 +1039,16 @@ def _build_user_wrapped_stats(
 ):
     user_stats = []
     for student in students_with_activity:
-        user_stats.append(
-            _build_user_wrapped_stat(
-                stats,
-                student,
-                homework_submissions=homework_by_student.get(student, []),
-                project_submissions=project_by_student.get(student, []),
-                enrollments=enrollment_by_student.get(student, []),
-                peer_reviews_count=peer_review_counts.get(student.id, 0),
-                leaderboard_data=leaderboard_data,
-            )
+        user_stat = _build_user_wrapped_stat(
+            stats,
+            student,
+            homework_submissions=homework_by_student.get(student, []),
+            project_submissions=project_by_student.get(student, []),
+            enrollments=enrollment_by_student.get(student, []),
+            peer_reviews_count=peer_review_counts.get(student.id, 0),
+            leaderboard_data=leaderboard_data,
         )
+        user_stats.append(user_stat)
     return user_stats
 
 

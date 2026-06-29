@@ -393,9 +393,10 @@ def remove_project_submission_from_datamailer(submission) -> None:
         project_submission_recipient_list_payload(submission)
     ]
     if submission.passed:
-        list_payloads.append(
-            project_passed_recipient_list_member_payload(submission)
+        passed_payload = project_passed_recipient_list_member_payload(
+            submission
         )
+        list_payloads.append(passed_payload)
     _remove_recipient_list_memberships(
         config,
         list_payloads,

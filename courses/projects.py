@@ -60,17 +60,15 @@ def select_random_assignment(
     )
 
     all_assignments = []
-    for reviewer_idx, reviewer_submission in enumerate(
-        submissions_list
-    ):
-        all_assignments.extend(
-            _select_reviewer_assignments(
-                reviewer_idx,
-                reviewer_submission,
-                submissions_list,
-                projects_pool,
-            )
+    indexed_submissions = enumerate(submissions_list)
+    for reviewer_idx, reviewer_submission in indexed_submissions:
+        assignments = _select_reviewer_assignments(
+            reviewer_idx,
+            reviewer_submission,
+            submissions_list,
+            projects_pool,
         )
+        all_assignments.extend(assignments)
 
     return all_assignments
 
@@ -92,10 +90,12 @@ def _review_slot_project_pools(
     num_submissions: int,
     num_projects_to_review: int,
 ) -> list[list[int]]:
-    return [
-        list(range(num_submissions))
-        for _ in range(num_projects_to_review)
-    ]
+    project_pools = []
+    review_slots = range(num_projects_to_review)
+    for _ in review_slots:
+        project_pool = list(range(num_submissions))
+        project_pools.append(project_pool)
+    return project_pools
 
 
 def _select_reviewer_assignments(
@@ -115,12 +115,11 @@ def _select_reviewer_assignments(
         )
         selected.add(selected_project_idx)
         _remove_project_from_slot_pool(selected_project_idx, projects)
-        assignments.append(
-            _peer_review_assignment(
-                reviewer_submission,
-                submissions[selected_project_idx],
-            )
+        assignment = _peer_review_assignment(
+            reviewer_submission,
+            submissions[selected_project_idx],
         )
+        assignments.append(assignment)
 
     return assignments
 
@@ -140,18 +139,23 @@ def _available_review_projects(
     projects: list[int],
     selected: set[int],
 ) -> list[int]:
-    return [project for project in projects if project not in selected]
+    available_projects = []
+    for project in projects:
+        if project not in selected:
+            available_projects.append(project)
+    return available_projects
 
 
 def _fallback_review_projects(
     selected: set[int],
     num_submissions: int,
 ) -> list[int]:
-    return [
-        project
-        for project in range(num_submissions)
-        if project not in selected
-    ]
+    fallback_projects = []
+    projects = range(num_submissions)
+    for project in projects:
+        if project not in selected:
+            fallback_projects.append(project)
+    return fallback_projects
 
 
 def _remove_project_from_slot_pool(
@@ -277,7 +281,8 @@ def calculate_project_score(
     project_score = 0
     responses_by_criteria = responses_grouped_by_criteria(reviews)
 
-    for responses in responses_by_criteria.values():
+    criteria_responses = responses_by_criteria.values()
+    for responses in criteria_responses:
         criteria_score, evaluation = score_project_criteria(
             submission, responses
         )
@@ -290,7 +295,8 @@ def calculate_project_score(
 def responses_grouped_by_criteria(reviews: List[PeerReview]):
     responses_by_criteria = defaultdict(list)
     for review in reviews:
-        for response in review.responses:
+        responses = review.responses
+        for response in responses:
             responses_by_criteria[response.criteria_id].append(response)
     return responses_by_criteria
 
@@ -419,7 +425,11 @@ def _peer_review_lip_score(submission, project, reviewed) -> int:
 
 
 def _mandatory_reviews_count(reviewed) -> int:
-    return sum(1 for review in reviewed if not review.optional)
+    count = 0
+    for review in reviewed:
+        if not review.optional:
+            count += 1
+    return count
 
 
 def _project_faq_score(submission) -> int:
@@ -500,7 +510,8 @@ def _score_project_submissions(
     all_scores = []
     passed = 0
 
-    for submission_id, submission in submissions.items():
+    submission_items = submissions.items()
+    for submission_id, submission in submission_items:
         reviews = reviews_by_submission[submission_id]
         reviewed = reviews_by_reviewer.get(submission_id) or []
 

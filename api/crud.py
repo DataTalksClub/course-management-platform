@@ -16,15 +16,15 @@ def single_or_list(data):
 def bulk_create_response(data, create_item, *, name_field="name"):
     created = []
     errors = []
-    for item in single_or_list(data):
+    items = single_or_list(data)
+    for item in items:
         item_dict, error = create_item(item)
         if error:
-            errors.append(
-                {
-                    "name": item.get(name_field, "unknown"),
-                    "error": error,
-                }
-            )
+            error_record = {
+                "name": item.get(name_field, "unknown"),
+                "error": error,
+            }
+            errors.append(error_record)
         else:
             created.append(item_dict)
 
