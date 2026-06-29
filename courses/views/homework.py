@@ -1044,14 +1044,15 @@ def _homework_submission_success_response(request, course, homework):
     )
 
 
-def process_homework_submission(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
+def _save_homework_submission_data(
+    request,
+    *,
+    user,
+    course,
+    homework,
+    questions,
+    submission,
 ):
-    user = request.user
     answers_dict = _homework_answers_from_post(request)
     submission = _homework_submission_for_user(
         user,
@@ -1060,13 +1061,30 @@ def process_homework_submission(
         submission,
     )
     _save_homework_answers(submission, questions, answers_dict)
-
     _apply_homework_submission_fields(
         submission, request, course, homework, user
     )
-
     submission.full_clean()
     submission.save()
+    return submission
+
+
+def process_homework_submission(
+    request: HttpRequest,
+    course: Course,
+    homework: Homework,
+    questions: List[Question],
+    submission: Optional[Submission],
+):
+    user = request.user
+    submission = _save_homework_submission_data(
+        request,
+        user=user,
+        course=course,
+        homework=homework,
+        questions=questions,
+        submission=submission,
+    )
     _register_homework_submission_callbacks(
         request,
         user=user,
