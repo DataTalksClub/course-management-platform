@@ -760,47 +760,82 @@ def campaign_edit(request, campaign_slug):
     return render(request, "cadmin/campaign_form.html", context)
 
 
-@staff_required
-def campaign_registrations(request, campaign_slug):
-    campaign = get_object_or_404(
-        RegistrationCampaign.objects.select_related("current_course"),
-        slug=campaign_slug,
-    )
-    registrations = CourseRegistration.objects.filter(
+def _campaign_registration_queryset(campaign):
+    return CourseRegistration.objects.filter(
         campaign=campaign
     ).select_related("campaign", "course", "user")
 
-    filters = {
+
+def _campaign_registration_filters(request):
+    return {
         "role": request.GET.get("role", "").strip(),
         "country": request.GET.get("country", "").strip(),
         "region": request.GET.get("region", "").strip(),
     }
+
+
+def _apply_campaign_registration_filters(registrations, filters):
     for field, value in filters.items():
         if value:
             registrations = registrations.filter(**{field: value})
+    return registrations
 
-    search_query = request.GET.get("q", "").strip()
-    if search_query:
-        registrations = registrations.filter(
-            Q(email_normalized__icontains=search_query)
-            | Q(name__icontains=search_query)
-        )
 
-    metrics = registration_campaign_metrics(campaign)
-    registrations_page = paginate_queryset(request, registrations, 50)
+def _apply_campaign_registration_search(registrations, search_query):
+    if not search_query:
+        return registrations
 
-    context = {
+    return registrations.filter(
+        Q(email_normalized__icontains=search_query)
+        | Q(name__icontains=search_query)
+    )
+
+
+def _campaign_registrations_context(
+    request,
+    campaign,
+    registrations_page,
+    filters,
+    search_query,
+):
+    return {
         "campaign": campaign,
         "course": campaign.current_course,
         "registrations_page": registrations_page,
         "page_range": registrations_page.paginator.get_elided_page_range(
             registrations_page.number
         ),
-        "metrics": metrics,
+        "metrics": registration_campaign_metrics(campaign),
         "filters": filters,
         "search_query": search_query,
         "pagination_querystring": pagination_querystring(request),
     }
+
+
+@staff_required
+def campaign_registrations(request, campaign_slug):
+    campaign = get_object_or_404(
+        RegistrationCampaign.objects.select_related("current_course"),
+        slug=campaign_slug,
+    )
+    filters = _campaign_registration_filters(request)
+    search_query = request.GET.get("q", "").strip()
+
+    registrations = _campaign_registration_queryset(campaign)
+    registrations = _apply_campaign_registration_filters(
+        registrations, filters
+    )
+    registrations = _apply_campaign_registration_search(
+        registrations, search_query
+    )
+    registrations_page = paginate_queryset(request, registrations, 50)
+    context = _campaign_registrations_context(
+        request,
+        campaign,
+        registrations_page,
+        filters,
+        search_query,
+    )
     return render(
         request, "cadmin/campaign_registrations.html", context
     )
