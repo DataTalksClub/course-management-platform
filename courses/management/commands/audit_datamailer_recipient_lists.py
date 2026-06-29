@@ -58,20 +58,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        config = DatamailerConfig.from_settings()
-        if config is None:
-            raise CommandError(
-                "Datamailer is not configured. Set DATAMAILER_URL, "
-                "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
-            )
-
+        config = self._datamailer_config()
         self._validate_options(options)
-        batches = build_batches(
-            options["kind"],
-            course_slug=options["course_slug"],
-            homework_slug=options["homework_slug"],
-            project_slug=options["project_slug"],
-        )
+        batches = self._audit_batches(options)
         if not batches:
             self.stdout.write(
                 "No Datamailer recipient-list members to audit."
@@ -79,6 +68,39 @@ class Command(BaseCommand):
             return
 
         client = DatamailerClient(config)
+        drift_count = self._audit_batches_against_datamailer(
+            client,
+            config,
+            batches,
+            options,
+        )
+        self._write_audit_summary(batches, drift_count)
+        self._fail_on_drift_if_requested(drift_count, options)
+
+    def _datamailer_config(self):
+        config = DatamailerConfig.from_settings()
+        if config is None:
+            raise CommandError(
+                "Datamailer is not configured. Set DATAMAILER_URL, "
+                "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
+            )
+        return config
+
+    def _audit_batches(self, options):
+        return build_batches(
+            options["kind"],
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
+
+    def _audit_batches_against_datamailer(
+        self,
+        client,
+        config,
+        batches,
+        options,
+    ):
         drift_count = 0
         for list_key, payload in batches.items():
             drift = self._audit_list(
@@ -91,11 +113,15 @@ class Command(BaseCommand):
             )
             if drift["has_drift"]:
                 drift_count += 1
+        return drift_count
 
+    def _write_audit_summary(self, batches, drift_count):
         self.stdout.write(
             f"Audited {len(batches)} recipient list(s); "
             f"drifted={drift_count}."
         )
+
+    def _fail_on_drift_if_requested(self, drift_count, options):
         if drift_count and options["fail_on_drift"]:
             raise CommandError(
                 f"Datamailer recipient-list drift detected in {drift_count} list(s)."
