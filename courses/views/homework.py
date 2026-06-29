@@ -86,50 +86,65 @@ def process_quesion_free_form(
 def process_question_options_multiple_choice_or_checkboxes(
     homework: Homework, question: Question, answer: Optional[Answer]
 ):
-    options = []
-
-    if answer:
-        selected_options = extract_selected_options(answer)
-    else:
-        # no answer yet, so we need to show just options
-        selected_options = []
-
+    selected_options = extract_selected_options(answer)
     possible_answers = question.get_possible_answers()
+    correct_indices = (
+        question.get_correct_answer_indices()
+        if homework.is_scored()
+        else []
+    )
 
-    if homework.is_scored():
-        correct_indices = question.get_correct_answer_indices()
-
-    for zero_based_index, option in enumerate(possible_answers):
-        index = zero_based_index + 1
-        is_selected = index in selected_options
-
-        processed_answer = {
-            "value": option,
-            "is_selected": is_selected,
-            "index": index,
-        }
-
-        if homework.state == HomeworkState.SCORED.value:
-            is_correct = index in correct_indices
-
-            correctly_selected = determine_answer_class(
-                is_selected, is_correct
-            )
-
-            processed_answer["is_correct"] = is_correct
-            processed_answer["correctly_selected_class"] = (
-                correctly_selected
-            )
-
-        options.append(processed_answer)
+    options = [
+        process_choice_option(
+            homework,
+            option,
+            index,
+            selected_options,
+            correct_indices,
+        )
+        for index, option in enumerate(possible_answers, start=1)
+    ]
 
     result = {"options": options}
-
-    # Check if no answer was submitted for a scored homework
-    if homework.is_scored() and len(selected_options) == 0:
+    if no_choice_answer_submitted(homework, selected_options):
         result["no_answer_submitted"] = True
 
     return result
+
+
+def process_choice_option(
+    homework: Homework,
+    option: str,
+    index: int,
+    selected_options: list[int],
+    correct_indices: list[int],
+):
+    is_selected = index in selected_options
+    processed_answer = {
+        "value": option,
+        "is_selected": is_selected,
+        "index": index,
+    }
+
+    if homework.state == HomeworkState.SCORED.value:
+        is_correct = index in correct_indices
+        processed_answer.update(
+            {
+                "is_correct": is_correct,
+                "correctly_selected_class": determine_answer_class(
+                    is_selected, is_correct
+                ),
+            }
+        )
+
+    return processed_answer
+
+
+def no_choice_answer_submitted(
+    homework: Homework,
+    selected_options: list[int],
+) -> bool:
+    return homework.is_scored() and len(selected_options) == 0
 
 
 def extract_selected_options(answer):
