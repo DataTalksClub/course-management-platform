@@ -290,36 +290,53 @@ PROJECT_PATCH_FIELDS = {
 VALID_PROJECT_STATES = {s.value for s in ProjectState}
 
 
-def _apply_project_data(project, data):
+def _apply_project_title(project, data):
     title = data.get("title", data.get("name"))
     if title is not None:
         project.title = title
 
+
+def _apply_project_description(project, data):
     if "description" in data:
         project.description = data["description"]
 
-    if "instructions_url" in data:
-        error = instructions_url_error(data["instructions_url"])
-        if error:
-            return error_response(
-                error,
-                "invalid_instructions_url",
-                details={"field": "instructions_url"},
-            )
-        project.instructions_url = data["instructions_url"]
 
-    # The remaining scalar/date fields share the generic PATCH applier.
-    # title / description / instructions_url are handled above, so exclude
-    # them; everything else in PROJECT_PATCH_FIELDS flows through.
+def _apply_project_instructions_url(project, data):
+    if "instructions_url" not in data:
+        return None
+
+    error = instructions_url_error(data["instructions_url"])
+    if error:
+        return error_response(
+            error,
+            "invalid_instructions_url",
+            details={"field": "instructions_url"},
+        )
+
+    project.instructions_url = data["instructions_url"]
+    return None
+
+
+def _project_generic_patch_data(data):
     handled = {"title", "name", "description", "instructions_url"}
-    patch_data = {
+    return {
         k: v
         for k, v in data.items()
         if k in PROJECT_PATCH_FIELDS and k not in handled
     }
+
+
+def _apply_project_data(project, data):
+    _apply_project_title(project, data)
+    _apply_project_description(project, data)
+
+    error = _apply_project_instructions_url(project, data)
+    if error:
+        return error
+
     return apply_patch_fields(
         project,
-        patch_data,
+        _project_generic_patch_data(data),
         allowed_fields=PROJECT_PATCH_FIELDS,
         valid_states=VALID_PROJECT_STATES,
         invalid_state_code="invalid_project_state",
