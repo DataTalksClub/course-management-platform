@@ -365,6 +365,19 @@ class DatamailerClientTest(TestCase):
             list_type,
         )
 
+    def assert_project_passed_member_upserted(self, upsert_member, project):
+        upsert_member.assert_called_once()
+        self.assertEqual(
+            upsert_member.call_args.args[0],
+            project_passed_list_key(project),
+        )
+        payload = upsert_member.call_args.args[2]
+        self.assertEqual(payload["member"]["status"], "active")
+        self.assertEqual(
+            payload["member"]["metadata"]["outcome"],
+            "project_passed",
+        )
+
     def assert_score_payload_common(
         self,
         payload,
@@ -3184,30 +3197,10 @@ class DatamailerClientTest(TestCase):
         upsert_contact,
         upsert_member,
     ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        submission = ProjectSubmission.objects.create(
+        project = self.create_project()
+        submission = self.create_project_submission(
             project=project,
-            student=user,
-            enrollment=enrollment,
+            user=self.create_user("student@example.com"),
             total_score=98,
             passed=True,
         )
@@ -3215,17 +3208,7 @@ class DatamailerClientTest(TestCase):
         sync_project_passed_outcome_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
-        upsert_member.assert_called_once()
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            project_passed_list_key(project),
-        )
-        payload = upsert_member.call_args.args[2]
-        self.assertEqual(payload["member"]["status"], "active")
-        self.assertEqual(
-            payload["member"]["metadata"]["outcome"],
-            "project_passed",
-        )
+        self.assert_project_passed_member_upserted(upsert_member, project)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
