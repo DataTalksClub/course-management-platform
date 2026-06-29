@@ -240,20 +240,27 @@ def path_parameters_for_url_name(url_name):
     ]
 
 
-def apply_inspected_operation_metadata(url_name, operation):
-    result = deepcopy(operation)
-
+def operation_with_inspected_parameters(url_name, operation):
     generated_parameters = path_parameters_for_url_name(url_name)
     explicit_parameters = [
         parameter
-        for parameter in result.get("parameters", [])
+        for parameter in operation.get("parameters", [])
         if parameter.get("in") != "path"
     ]
-    if generated_parameters or explicit_parameters:
-        result["parameters"] = [
+    if not generated_parameters and not explicit_parameters:
+        return operation
+
+    return operation | {
+        "parameters": [
             *generated_parameters,
             *explicit_parameters,
         ]
+    }
+
+
+def apply_inspected_operation_metadata(url_name, operation):
+    result = deepcopy(operation)
+    result = operation_with_inspected_parameters(url_name, result)
 
     view = view_for_url_name(url_name)
     if getattr(view, "requires_token_auth", False):
