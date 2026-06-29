@@ -10,7 +10,28 @@ views and templates, not brittle text matching.
 
 from __future__ import annotations
 
+import re
+
 from playwright.sync_api import Page, expect
+
+
+def course_row_matches(row_text: str, slug: str, title: str | None = None) -> bool:
+    needle = title or slug
+    return needle in row_text or slug in row_text
+
+
+def course_pk_from_href(href: str) -> int | None:
+    match = re.search(r"/admin/courses/course/(\d+)/change/", href)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def course_pk_from_row(row) -> int | None:
+    link = row.locator("a[href*='/admin/courses/course/']").first
+    if link.count() == 0:
+        return None
+    return course_pk_from_href(link.get_attribute("href") or "")
 
 
 class AdminSession:
@@ -220,11 +241,8 @@ class AdminSession:
         ``title``), then read the ``<pk>`` out of that row's change link
         (``/admin/courses/course/<pk>/change/``).
         """
-        import re
-
         self.page.goto(self.url("/admin/courses/course/"))
         self.page.wait_for_load_state("networkidle")
-        needle = title or slug
         # Each result row's first cell is an <a> to the change form. Find the
         # row whose visible text contains our slug/title and read its pk.
         rows = self.page.locator("#result_list tbody tr")
@@ -234,17 +252,11 @@ class AdminSession:
                 row_text = row.inner_text()
             except Exception:
                 continue
-            if needle not in row_text and slug not in row_text:
+            if not course_row_matches(row_text, slug, title):
                 continue
-            link = row.locator(
-                "a[href*='/admin/courses/course/']"
-            ).first
-            if link.count() == 0:
-                continue
-            href = link.get_attribute("href") or ""
-            m = re.search(r"/admin/courses/course/(\d+)/change/", href)
-            if m:
-                return int(m.group(1))
+            course_pk = course_pk_from_row(row)
+            if course_pk is not None:
+                return course_pk
         return None
 
     def _course_is_absent(self, slug: str, title: str | None) -> bool:
