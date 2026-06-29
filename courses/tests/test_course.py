@@ -783,11 +783,37 @@ class CourseDetailViewTests(TestCase):
         self.create_leaderboard_enrollment("Bob", 90, 2)
         self.create_leaderboard_enrollment("Charlie", 80, 3)
 
+    def create_new_enrollment_leaderboard(self):
+        return {
+            "e1": self.create_leaderboard_enrollment("e1", 0, None),
+            "e2": self.create_leaderboard_enrollment("e2", 90, 1),
+            "e3": self.create_leaderboard_enrollment("e3", 80, 2),
+            "e4": self.create_leaderboard_enrollment("e4", 70, 3),
+            "e5": self.create_leaderboard_enrollment("e5", 0, None),
+        }
+
+    def set_current_enrollment_leaderboard_position(self, score, position):
+        self.enrollment.total_score = score
+        self.enrollment.position_on_leaderboard = position
+        self.enrollment.save()
+
     def leaderboard_response(self, *, login=False):
         if login:
             self.client.login(**credentials)
         url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
         return self.client.get(url)
+
+    def assert_leaderboard_order(self, response, expected_order):
+        enrollments = response.context["enrollments"]
+        actual_order = [e["display_name"] for e in enrollments]
+        self.assertEqual(actual_order, expected_order)
+
+    def assert_leaderboard_positions(self, response, expected_positions):
+        enrollments = response.context["enrollments"]
+        actual_positions = [
+            e["position_on_leaderboard"] for e in enrollments
+        ]
+        self.assertEqual(actual_positions, expected_positions)
 
     def assert_current_student_enrollment(self, response):
         current_enrollment = response.context.get("current_student_enrollment")
@@ -849,46 +875,22 @@ class CourseDetailViewTests(TestCase):
         self.assertEqual(actual_order, expected_order)
 
     def test_new_enrollment_at_the_end_of_leaderboard(self):
-        e1 = self.create_leaderboard_enrollment("e1", 0, None)
-        e2 = self.create_leaderboard_enrollment("e2", 90, 1)
-        e3 = self.create_leaderboard_enrollment("e3", 80, 2)
-        e4 = self.create_leaderboard_enrollment("e4", 70, 3)
-        e5 = self.create_leaderboard_enrollment("e5", 0, None)
+        enrollments = self.create_new_enrollment_leaderboard()
+        self.set_current_enrollment_leaderboard_position(50, 4)
 
-        self.enrollment.total_score = 50
-        self.enrollment.position_on_leaderboard = 4
-        self.enrollment.save()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "leaderboard", kwargs={"course_slug": self.course.slug}
-        )
-
-        response = self.client.get(url)
+        response = self.leaderboard_response(login=True)
         self.assertEqual(response.status_code, 200)
 
-        enrollments = response.context["enrollments"]
-
         expected_order = [
-            e2.display_name,
-            e3.display_name,
-            e4.display_name,
+            enrollments["e2"].display_name,
+            enrollments["e3"].display_name,
+            enrollments["e4"].display_name,
             self.enrollment.display_name,
-            # no scores, null position, order by id on tie
-            e1.display_name,
-            e5.display_name,
+            enrollments["e1"].display_name,
+            enrollments["e5"].display_name,
         ]
-
-        actual_order = [e['display_name'] for e in enrollments]
-
-        self.assertEqual(actual_order, expected_order)
-
-        expected_positions = [1, 2, 3, 4, None, None]
-        actual_positions = [
-            e['position_on_leaderboard'] for e in enrollments
-        ]
-        self.assertEqual(actual_positions, expected_positions)
+        self.assert_leaderboard_order(response, expected_order)
+        self.assert_leaderboard_positions(response, [1, 2, 3, 4, None, None])
 
     def test_not_enrolled_yet_but_leaderboard_displays(self):
         """Test that the leaderboard displays even when user is not enrolled"""
