@@ -225,6 +225,34 @@ class CourseDetailViewTests(TestCase):
             reverse("enrollment", kwargs={"course_slug": self.course.slug}),
         )
 
+    def assert_authenticated_homework_summary(self, response):
+        homeworks = self.homeworks_by_slug(response)
+        self.assert_scored_homework(
+            homeworks["scored-homework"],
+            submitted=True,
+            score=80,
+        )
+
+        submitted_homework = homeworks["submitted-homework"]
+        self.assert_open_homework(
+            submitted_homework,
+            submitted=True,
+            score=None,
+            days_until_due=7,
+        )
+        self.assertEqual(
+            submitted_homework.submitted_at,
+            self.submission2.submitted_at,
+        )
+        self.assert_unsubmitted_open_homework(
+            homeworks["unscored-homework"]
+        )
+
+    def assert_enrolled_course_context(self, response, total_score):
+        self.assertEqual(response.context["total_score"], total_score)
+        self.assertTrue(response.context["has_enrollment"])
+        self.assert_enrollment_profile_links(response)
+
     def set_homework_score_breakdown_fixture(self):
         self.submission1.questions_score = 7
         self.submission1.faq_score = 2
@@ -670,33 +698,8 @@ class CourseDetailViewTests(TestCase):
         context = response.context
 
         self.assert_course_context(context, authenticated=True)
-        homeworks = self.homeworks_by_slug(response)
-
-        scored_homework = homeworks["scored-homework"]
-        self.assert_scored_homework(
-            scored_homework,
-            submitted=True,
-            score=80,
-        )
-
-        submitted_homework = homeworks["submitted-homework"]
-        self.assert_open_homework(
-            submitted_homework,
-            submitted=True,
-            score=None,
-            days_until_due=7,
-        )
-        self.assertEqual(
-            submitted_homework.submitted_at,
-            self.submission2.submitted_at,
-        )
-
-        unscored_homework = homeworks["unscored-homework"]
-        self.assert_unsubmitted_open_homework(unscored_homework)
-
-        self.assertEqual(context["total_score"], total_score)
-        self.assertTrue(context["has_enrollment"])
-        self.assert_enrollment_profile_links(response)
+        self.assert_authenticated_homework_summary(response)
+        self.assert_enrolled_course_context(response, total_score)
 
     def test_course_detail_authenticated_user_not_enrolled(self):
         # Test the view for an authenticated user
