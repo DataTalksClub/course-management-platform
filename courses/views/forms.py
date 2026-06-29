@@ -87,7 +87,8 @@ class EnrollmentForm(forms.ModelForm):
     def is_valid(self):
         valid = super().is_valid()
         if not valid:
-            for field in self.fields:
+            field_names = self.fields
+            for field in field_names:
                 if field in self.errors:
                     attrs = self.fields[field].widget.attrs
                     class_name = attrs.get("class", "")
@@ -162,7 +163,8 @@ class CourseRegistrationForm(forms.ModelForm):
         self.configure_authenticated_user()
 
     def configure_optional_fields(self):
-        for field_name in ("name", "country", "role", "comment"):
+        optional_field_names = ("name", "country", "role", "comment")
+        for field_name in optional_field_names:
             self.fields[field_name].required = False
 
     def configure_country_field(self):
@@ -268,7 +270,8 @@ def _can_update_registration_user_profile(user):
 
 def _update_user_profile_from_registration(user, registration):
     update_fields = []
-    for field_name, value in _registration_profile_values(registration):
+    profile_values = _registration_profile_values(registration)
+    for field_name, value in profile_values:
         _update_user_profile_field(user, update_fields, field_name, value)
     return update_fields
 
