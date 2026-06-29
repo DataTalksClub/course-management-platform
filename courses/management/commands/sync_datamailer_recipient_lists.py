@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from dataclasses import dataclass
 import hashlib
 import json
 import re
@@ -38,6 +39,14 @@ RECIPIENT_LIST_KINDS = [
     "graduates",
 ]
 PROJECT_FILTER_KINDS = {"project", "project-passed"}
+
+
+@dataclass(frozen=True)
+class ImportJobOptions:
+    remove_absent: bool
+    wait_for_import: bool
+    timeout: int
+    poll_interval: float
 
 
 def add_member_to_batches(
@@ -231,35 +240,45 @@ def import_object_key(kind, config, list_key, content_sha256):
     return "/".join(part.strip("/") for part in parts if part)
 
 
-def upload_import_file(kind, config, list_key, payload):
+def import_s3_bucket():
     bucket = getattr(settings, "DATAMAILER_IMPORT_S3_BUCKET", "")
     if not bucket:
         raise CommandError(
             "DATAMAILER_IMPORT_S3_BUCKET must be set when using "
             "--import-by-reference."
         )
+    return bucket
 
-    body = import_member_jsonl(payload["members"])
-    content_sha256 = hashlib.sha256(body).hexdigest()
-    key = import_object_key(kind, config, list_key, content_sha256)
+
+def import_s3_client():
     region = getattr(settings, "DATAMAILER_IMPORT_S3_REGION", "")
     s3_kwargs = {"region_name": region} if region else {}
-    s3 = boto3.client("s3", **s3_kwargs)
+    return boto3.client("s3", **s3_kwargs)
+
+
+def import_file_metadata(config, list_key, content_sha256):
+    return {
+        "client": config.client,
+        "audience": config.audience,
+        "list-key-sha256": hashlib.sha256(
+            list_key.encode("utf-8")
+        ).hexdigest(),
+        "content-sha256": content_sha256,
+    }
+
+
+def upload_import_body(s3, bucket, key, body, metadata):
     s3.put_object(
         Bucket=bucket,
         Key=key,
         Body=body,
         ContentType="application/x-ndjson",
-        Metadata={
-            "client": config.client,
-            "audience": config.audience,
-            "list-key-sha256": hashlib.sha256(
-                list_key.encode("utf-8")
-            ).hexdigest(),
-            "content-sha256": content_sha256,
-        },
+        Metadata=metadata,
     )
-    source_url = s3.generate_presigned_url(
+
+
+def presigned_import_url(s3, bucket, key):
+    return s3.generate_presigned_url(
         "get_object",
         Params={"Bucket": bucket, "Key": key},
         ExpiresIn=getattr(
@@ -267,8 +286,18 @@ def upload_import_file(kind, config, list_key, payload):
         ),
         HttpMethod="GET",
     )
+
+
+def upload_import_file(kind, config, list_key, payload):
+    bucket = import_s3_bucket()
+    body = import_member_jsonl(payload["members"])
+    content_sha256 = hashlib.sha256(body).hexdigest()
+    key = import_object_key(kind, config, list_key, content_sha256)
+    s3 = import_s3_client()
+    metadata = import_file_metadata(config, list_key, content_sha256)
+    upload_import_body(s3, bucket, key, body, metadata)
     return {
-        "source_url": source_url,
+        "source_url": presigned_import_url(s3, bucket, key),
         "s3_bucket": bucket,
         "s3_key": key,
         "content_sha256": content_sha256,
@@ -499,16 +528,19 @@ class Command(BaseCommand):
     ):
         for list_key, payload in batches.items():
             if import_by_reference:
+                import_options = ImportJobOptions(
+                    remove_absent=reconcile,
+                    wait_for_import=wait_for_import,
+                    timeout=import_timeout,
+                    poll_interval=import_poll_interval,
+                )
                 self._create_import_job(
                     client,
                     config,
                     kind,
                     list_key,
                     payload,
-                    remove_absent=reconcile,
-                    wait_for_import=wait_for_import,
-                    import_timeout=import_timeout,
-                    import_poll_interval=import_poll_interval,
+                    import_options,
                 )
                 continue
 
@@ -560,20 +592,45 @@ class Command(BaseCommand):
         kind,
         list_key,
         payload,
-        *,
-        remove_absent,
-        wait_for_import,
-        import_timeout,
-        import_poll_interval,
+        import_options,
+    ):
+        upload, response = self._safe_create_import_job_response(
+            client,
+            config,
+            kind,
+            list_key,
+            payload,
+            import_options,
+        )
+        job = (response or {}).get("import_job", {})
+        job_id = job.get("id")
+        self._write_import_job_created(list_key, upload, job, job_id)
+        if import_options.wait_for_import:
+            self._wait_for_created_import_job(
+                client,
+                list_key,
+                job_id,
+                timeout=import_options.timeout,
+                poll_interval=import_options.poll_interval,
+            )
+
+    def _safe_create_import_job_response(
+        self,
+        client,
+        config,
+        kind,
+        list_key,
+        payload,
+        import_options,
     ):
         try:
-            upload, response = self._create_import_job_response(
+            return self._create_import_job_response(
                 client,
                 config,
                 kind,
                 list_key,
                 payload,
-                remove_absent=remove_absent,
+                remove_absent=import_options.remove_absent,
             )
         except (
             BotoCoreError,
@@ -585,18 +642,6 @@ class Command(BaseCommand):
             raise CommandError(
                 f"Datamailer import job creation failed for {list_key}: {exc}"
             ) from exc
-
-        job = (response or {}).get("import_job", {})
-        job_id = job.get("id")
-        self._write_import_job_created(list_key, upload, job, job_id)
-        if wait_for_import:
-            self._wait_for_created_import_job(
-                client,
-                list_key,
-                job_id,
-                timeout=import_timeout,
-                poll_interval=import_poll_interval,
-            )
 
     def _create_import_job_response(
         self, client, config, kind, list_key, payload, *, remove_absent
