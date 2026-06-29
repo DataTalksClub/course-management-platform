@@ -263,23 +263,34 @@ def removed_recipient_list_member_payload(
 def registration_recipient_list_payload(
     registration,
 ) -> tuple[str, str, dict[str, Any]] | None:
-    email = (
-        (registration.email_normalized or registration.email or "")
-        .strip()
-        .lower()
-    )
+    email = _registration_email(registration)
     if not email:
         return None
 
     course = registration.course
     list_key = registration_list_key(registration)
-    list_name = (
-        f"{course.title} registrants"
-        if course is not None
-        else f"{registration.campaign.title} registrants"
-    )
     source_object_key = f"registration:{registration.pk}"
-    metadata = {
+    payload = recipient_list_member_payload(
+        list_type="registrants",
+        list_name=registration_recipient_list_name(registration),
+        email=email,
+        source_object_key=source_object_key,
+        metadata=registration_recipient_metadata(registration),
+    )
+    if payload is None:
+        return None
+    return list_key, source_object_key, payload
+
+
+def registration_recipient_list_name(registration) -> str:
+    course = registration.course
+    title = course.title if course is not None else registration.campaign.title
+    return f"{title} registrants"
+
+
+def registration_recipient_metadata(registration) -> dict[str, Any]:
+    course = registration.course
+    return {
         "registration_id": registration.pk,
         "campaign_slug": registration.campaign.slug,
         "course_slug": course.slug if course is not None else "",
@@ -291,16 +302,7 @@ def registration_recipient_list_payload(
         "region": registration.region,
         "role": registration.role,
     }
-    payload = recipient_list_member_payload(
-        list_type="registrants",
-        list_name=list_name,
-        email=email,
-        source_object_key=source_object_key,
-        metadata=metadata,
-    )
-    if payload is None:
-        return None
-    return list_key, source_object_key, payload
+
 
 def enrollment_recipient_list_payload(
     enrollment,
