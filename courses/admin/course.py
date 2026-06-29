@@ -130,7 +130,8 @@ def _year_rollover_value(value, current_year, separator):
 
 
 def _copy_review_criteria(source_course, target_course):
-    for criteria in source_course.reviewcriteria_set.all():
+    review_criteria = source_course.reviewcriteria_set.all()
+    for criteria in review_criteria:
         ReviewCriteria.objects.create(
             course=target_course,
             description=criteria.description,

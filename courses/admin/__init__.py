@@ -11,7 +11,8 @@ def import_admin_modules():
     # so in admin.py we can use the star import
     current_dir = Path(__file__).resolve().parent
 
-    for python_file in current_dir.glob("*.py"):
+    python_files = current_dir.glob("*.py")
+    for python_file in python_files:
         if python_file.name == "__init__.py":
             continue
 

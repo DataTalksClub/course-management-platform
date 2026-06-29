@@ -33,10 +33,11 @@ def absolute_public_base_url(path):
 
 
 def concrete_allowed_host():
-    return next(
-        (host for host in settings.ALLOWED_HOSTS if host and host != "*"),
-        "localhost",
-    )
+    allowed_hosts = settings.ALLOWED_HOSTS
+    for host in allowed_hosts:
+        if host and host != "*":
+            return host
+    return "localhost"
 
 
 def fallback_absolute_url(request, path, *, label):

@@ -27,9 +27,10 @@ def build_stat_fields(stats, sections):
     """
     results = []
     for field_name, section_label, section_icon in sections:
-        rows = [
-            (stats.get_value(field_name, stats_type), row_label, row_icon)
-            for stats_type, row_label, row_icon in STAT_ROWS
-        ]
+        rows = []
+        for stats_type, row_label, row_icon in STAT_ROWS:
+            value = stats.get_value(field_name, stats_type)
+            row = (value, row_label, row_icon)
+            rows.append(row)
         results.append((section_label, rows, section_icon))
     return results

@@ -49,12 +49,17 @@ def get_project_vote_counts(user, course) -> dict[int, int]:
     if not user.is_authenticated:
         return {}
 
-    return {
-        row["submission__project_id"]: row["count"]
-        for row in ProjectVote.objects.filter(
+    project_vote_counts = {}
+    rows = (
+        ProjectVote.objects.filter(
             voter=user,
             submission__project__course=course,
         )
         .values("submission__project_id")
         .annotate(count=Count("id"))
-    }
+    )
+    for row in rows:
+        project_id = row["submission__project_id"]
+        vote_count = row["count"]
+        project_vote_counts[project_id] = vote_count
+    return project_vote_counts

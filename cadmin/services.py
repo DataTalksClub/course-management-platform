@@ -68,7 +68,8 @@ def apply_homework_admin_score_overrides(submission, cleaned_data):
 def update_project_submission_from_admin(submission, cleaned_data):
     with transaction.atomic():
         project_score = 0
-        for criteria, score in cleaned_data["criteria_scores"]:
+        criteria_scores = cleaned_data["criteria_scores"]
+        for criteria, score in criteria_scores:
             project_score += score
             ProjectEvaluationScore.objects.update_or_create(
                 submission=submission,

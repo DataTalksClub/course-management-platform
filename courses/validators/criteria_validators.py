@@ -71,5 +71,6 @@ def validate_review_criteria_options(value):
     """
     validate_options_is_list(value)
 
-    for idx, option in enumerate(value):
+    indexed_options = enumerate(value)
+    for idx, option in indexed_options:
         validate_review_criteria_option(option, idx)

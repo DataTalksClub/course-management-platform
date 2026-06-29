@@ -47,7 +47,12 @@ def _is_faq_issue_or_pull_request(url: str) -> bool:
 
 
 def _url_path_parts(path: str) -> list[str]:
-    return [part for part in path.split("/") if part]
+    path_parts = []
+    raw_parts = path.split("/")
+    for part in raw_parts:
+        if part:
+            path_parts.append(part)
+    return path_parts
 
 
 def _is_faq_github_host(parsed_url) -> bool:
