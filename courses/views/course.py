@@ -70,6 +70,12 @@ class CoursePageData:
     registration_campaign: object
 
 
+@dataclass(frozen=True)
+class CurrentLeaderboardStudent:
+    enrollment: Enrollment | None
+    enrollment_id: int | None
+
+
 ASSIGNMENT_TYPE_ORDER = {
     "homework": 1,
     "project": 2,
@@ -675,11 +681,11 @@ def course_page_data(course_slug: str, user) -> CoursePageData:
         course
     )
     return CoursePageData(
-        course,
-        user,
-        homeworks,
-        projects,
-        registration_campaign,
+        course=course,
+        user=user,
+        homeworks=homeworks,
+        projects=projects,
+        registration_campaign=registration_campaign,
     )
 
 
@@ -953,11 +959,14 @@ def _current_student_leaderboard_enrollment(course, user):
                 student=user,
                 course=course,
             )
-            return enrollment, enrollment.id
+            return CurrentLeaderboardStudent(
+                enrollment=enrollment,
+                enrollment_id=enrollment.id,
+            )
         except Enrollment.DoesNotExist:
             pass
 
-    return None, None
+    return CurrentLeaderboardStudent(enrollment=None, enrollment_id=None)
 
 
 def _completed_project_submissions_prefetch():
@@ -1021,26 +1030,25 @@ def _build_leaderboard_data(course, cache_key):
 
 def _leaderboard_cache_missing_current_student(
     enrollments_data,
-    current_student_enrollment,
-    current_student_enrollment_id,
+    current_student: CurrentLeaderboardStudent,
 ):
-    if current_student_enrollment_id is None:
+    if current_student.enrollment_id is None:
         return False
-    if not current_student_enrollment.display_on_leaderboard:
+    if not current_student.enrollment.display_on_leaderboard:
         return False
 
-    return not any(
-        enrollment["id"] == current_student_enrollment_id
-        for enrollment in enrollments_data
-    )
+    for enrollment in enrollments_data:
+        if enrollment["id"] == current_student.enrollment_id:
+            return False
+
+    return True
 
 
 def _get_leaderboard_data(
     course,
-    cache_key,
-    current_student_enrollment,
-    current_student_enrollment_id,
+    current_student: CurrentLeaderboardStudent,
 ):
+    cache_key = f"leaderboard:{course.id}"
     enrollments_data = cache.get(cache_key)
 
     if enrollments_data is None:
@@ -1049,8 +1057,7 @@ def _get_leaderboard_data(
     logger.info(f"Cache hit for leaderboard of course {course.slug}")
     if _leaderboard_cache_missing_current_student(
         enrollments_data,
-        current_student_enrollment,
-        current_student_enrollment_id,
+        current_student,
     ):
         return _build_leaderboard_data(course, cache_key)
 
@@ -1059,56 +1066,52 @@ def _get_leaderboard_data(
 
 def _current_student_page_number(
     enrollments_data,
-    current_student_enrollment,
-    current_student_enrollment_id,
+    current_student: CurrentLeaderboardStudent,
 ):
     if (
-        current_student_enrollment_id is None
-        or not current_student_enrollment.display_on_leaderboard
+        current_student.enrollment_id is None
+        or not current_student.enrollment.display_on_leaderboard
     ):
         return None
 
     for index, enrollment in enumerate(enrollments_data):
-        if enrollment["id"] == current_student_enrollment_id:
+        if enrollment["id"] == current_student.enrollment_id:
             return (index // LEADERBOARD_PAGE_SIZE) + 1
 
     return None
 
 
-def leaderboard_view(request, course_slug: str):
-    course = get_object_or_404(Course, slug=course_slug)
-    current_student_enrollment, current_student_enrollment_id = (
-        _current_student_leaderboard_enrollment(course, request.user)
-    )
-
-    cache_key = f"leaderboard:{course.id}"
+def leaderboard_context(course, user, page_number):
+    current_student = _current_student_leaderboard_enrollment(course, user)
     enrollments_data = _get_leaderboard_data(
         course,
-        cache_key,
-        current_student_enrollment,
-        current_student_enrollment_id,
+        current_student,
     )
 
     paginator = Paginator(enrollments_data, LEADERBOARD_PAGE_SIZE)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    page_obj = paginator.get_page(page_number)
     enrollments_page = page_obj.object_list
 
     current_student_page_number = _current_student_page_number(
         enrollments_data,
-        current_student_enrollment,
-        current_student_enrollment_id,
+        current_student,
     )
 
-    context = {
+    return {
         "enrollments": enrollments_page,
         "page_obj": page_obj,
         "page_range": paginator.get_elided_page_range(page_obj.number),
         "total_enrollments": paginator.count,
         "course": course,
-        "current_student_enrollment": current_student_enrollment,
-        "current_student_enrollment_id": current_student_enrollment_id,
+        "current_student_enrollment": current_student.enrollment,
+        "current_student_enrollment_id": current_student.enrollment_id,
         "current_student_page_number": current_student_page_number,
     }
+
+
+def leaderboard_view(request, course_slug: str):
+    course = get_object_or_404(Course, slug=course_slug)
+    context = leaderboard_context(course, request.user, request.GET.get("page"))
 
     return render(request, "courses/leaderboard.html", context)
 
