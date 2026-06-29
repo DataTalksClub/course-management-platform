@@ -238,6 +238,20 @@ class CadminViewTests(TestCase):
             is_correct=is_correct,
         )
 
+    def create_submission_with_answer_preview(self, answer_text):
+        question = Question.objects.create(
+            homework=self.homework,
+            text="Explain your answer",
+            question_type=QuestionTypes.FREE_FORM.value,
+        )
+        submission = self.create_homework_submission(total_score=1)
+        Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text=answer_text,
+        )
+        return submission
+
     def homework_submission_edit_url(self, submission):
         return reverse(
             "cadmin_homework_submission_edit",
@@ -1167,53 +1181,21 @@ class CadminViewTests(TestCase):
 
     def test_cadmin_homework_submissions_hides_answer_previews(self):
         """Submission lists stay compact and link to the edit page."""
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
+        answer_text = (
+            "This long answer should only be visible after opening the submission."
         )
-        question = Question.objects.create(
-            homework=self.homework,
-            text="Explain your answer",
-            question_type=QuestionTypes.FREE_FORM.value,
-        )
-        submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=enrollment,
-            total_score=1,
-        )
-        Answer.objects.create(
-            submission=submission,
-            question=question,
-            answer_text="This long answer should only be visible after opening the submission.",
-        )
+        submission = self.create_submission_with_answer_preview(answer_text)
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
+        self.login_admin()
 
-        response = self.client.get(url)
+        response = self.client.get(self.cadmin_homework_submissions_url())
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "This long answer should only")
         self.assertContains(response, "Open")
         self.assertContains(
             response,
-            reverse(
-                "cadmin_homework_submission_edit",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                    "submission_id": submission.id,
-                },
-            ),
+            self.homework_submission_edit_url(submission),
         )
 
     def test_cadmin_homework_submissions_shows_course_actions(self):
