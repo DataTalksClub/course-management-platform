@@ -220,18 +220,30 @@ def campaign_form_course(form):
     return Course.objects.filter(pk=course_id).first()
 
 
-def parse_test_recipients(value):
-    emails = [
+def _test_recipient_emails(value):
+    return [
         item.strip()
         for item in re.split(r"[\s,;]+", value or "")
         if item.strip()
     ]
+
+
+def _validate_test_recipient_count(emails):
     if not emails:
         raise ValidationError("Enter at least one test recipient.")
     if len(emails) > 25:
         raise ValidationError("Enter no more than 25 test recipients.")
+
+
+def _validate_test_recipient_emails(emails):
     for email in emails:
         validate_email(email)
+
+
+def parse_test_recipients(value):
+    emails = _test_recipient_emails(value)
+    _validate_test_recipient_count(emails)
+    _validate_test_recipient_emails(emails)
     return emails
 
 
