@@ -156,23 +156,23 @@ def is_free_form_answer_correct(
     return answer_check(user_answer, correct_answer)
 
 
+QUESTION_ANSWER_CHECKS = {
+    QuestionTypes.MULTIPLE_CHOICE.value: is_multiple_choice_answer_correct,
+    QuestionTypes.CHECKBOXES.value: is_checkbox_answer_correct,
+    QuestionTypes.FREE_FORM.value: is_free_form_answer_correct,
+    QuestionTypes.FREE_FORM_LONG.value: is_free_form_answer_correct,
+}
+
+
 def is_answer_correct(question: Question, answer: Answer) -> bool:
     if question.answer_type == AnswerTypes.ANY.value:
         return True
 
-    if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
-        return is_multiple_choice_answer_correct(question, answer)
+    answer_check = QUESTION_ANSWER_CHECKS.get(question.question_type)
+    if answer_check is None:
+        return False
 
-    if question.question_type == QuestionTypes.CHECKBOXES.value:
-        return is_checkbox_answer_correct(question, answer)
-
-    if question.question_type == QuestionTypes.FREE_FORM.value:
-        return is_free_form_answer_correct(question, answer)
-
-    if question.question_type == QuestionTypes.FREE_FORM_LONG.value:
-        return is_free_form_answer_correct(question, answer)
-
-    return False
+    return answer_check(question, answer)
 
 
 def update_learning_in_public_score(submission: Submission) -> int:
