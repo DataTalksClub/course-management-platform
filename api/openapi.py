@@ -79,25 +79,29 @@ def choices_schema(choices, *, nullable=False):
     return {"type": schema_type, "enum": values}
 
 
+MODEL_FIELD_SCHEMA_TYPES = (
+    (models.BooleanField, {"type": "boolean"}),
+    (models.IntegerField, {"type": "integer"}),
+    (models.FloatField, {"type": "number"}),
+    (models.DateTimeField, {"type": "string", "format": "date-time"}),
+    (models.DateField, {"type": "string", "format": "date"}),
+    (models.URLField, {"type": "string", "format": "uri"}),
+)
+
+
+def _typed_model_field_schema(field):
+    for field_type, schema in MODEL_FIELD_SCHEMA_TYPES:
+        if isinstance(field, field_type):
+            return dict(schema)
+
+    return {"type": "string"}
+
+
 def model_field_schema(field):
     if field.choices:
         return choices_schema(field.choices, nullable=field.null)
 
-    if isinstance(field, models.BooleanField):
-        schema = {"type": "boolean"}
-    elif isinstance(field, models.IntegerField):
-        schema = {"type": "integer"}
-    elif isinstance(field, models.FloatField):
-        schema = {"type": "number"}
-    elif isinstance(field, models.DateTimeField):
-        schema = {"type": "string", "format": "date-time"}
-    elif isinstance(field, models.DateField):
-        schema = {"type": "string", "format": "date"}
-    elif isinstance(field, models.URLField):
-        schema = {"type": "string", "format": "uri"}
-    else:
-        schema = {"type": "string"}
-
+    schema = _typed_model_field_schema(field)
     if field.null:
         schema["nullable"] = True
 
