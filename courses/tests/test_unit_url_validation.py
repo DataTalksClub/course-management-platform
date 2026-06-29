@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from courses.validators.custom_url_validators import (
     URL_VALIDATION_TIMEOUT,
+    clean_faq_contribution_url,
     validate_url_200,
     get_error_message,
 )
@@ -19,6 +20,51 @@ class MockResponse:
 
 
 class UrlValidationTestCase(TestCase):
+
+    def test_clean_faq_contribution_url_strips_valid_issue_url(self):
+        url = " https://github.com/DataTalksClub/faq/issues/281 "
+
+        cleaned = clean_faq_contribution_url(url)
+
+        self.assertEqual(
+            cleaned, "https://github.com/DataTalksClub/faq/issues/281"
+        )
+
+    def test_clean_faq_contribution_url_accepts_pull_url(self):
+        url = "https://github.com/DataTalksClub/faq/pull/266"
+
+        cleaned = clean_faq_contribution_url(url)
+
+        self.assertEqual(cleaned, url)
+
+    def test_clean_faq_contribution_url_rejects_non_https_url(self):
+        url = "http://github.com/DataTalksClub/faq/issues/281"
+
+        with self.assertRaises(ValidationError) as context:
+            clean_faq_contribution_url(url)
+
+        self.assertEqual(
+            context.exception.message_dict["faq_contribution_url"],
+            [
+                "FAQ contribution must be a valid HTTPS GitHub issue "
+                "or pull request URL."
+            ],
+        )
+
+    def test_clean_faq_contribution_url_rejects_other_github_urls(self):
+        url = "https://gist.github.com/Sanjomwa/hash"
+
+        with self.assertRaises(ValidationError) as context:
+            clean_faq_contribution_url(url)
+
+        self.assertEqual(
+            context.exception.message_dict["faq_contribution_url"],
+            [
+                "FAQ contribution must be a DataTalksClub/faq issue "
+                "or pull request URL, for example "
+                "https://github.com/DataTalksClub/faq/issues/281."
+            ],
+        )
 
     def test_validation_code_200_github_mock(self):
         def mock_get(url, **kwargs):

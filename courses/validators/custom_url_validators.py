@@ -6,49 +6,66 @@ import requests
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
+FAQ_CONTRIBUTION_FIELD = "faq_contribution_url"
+FAQ_URL_FORMAT_ERROR = (
+    "FAQ contribution must be a valid HTTPS GitHub issue "
+    "or pull request URL."
+)
+FAQ_URL_REPOSITORY_ERROR = (
+    "FAQ contribution must be a DataTalksClub/faq issue "
+    "or pull request URL, for example "
+    "https://github.com/DataTalksClub/faq/issues/281."
+)
+FAQ_URL_VALIDATOR = URLValidator(schemes=["https"])
+
 
 def clean_faq_contribution_url(url: Optional[str]) -> str:
     url = (url or "").strip()
     if not url:
         return ""
 
-    url_validator = URLValidator(schemes=["https"])
+    _validate_faq_contribution_url_format(url)
+    if not _is_faq_issue_or_pull_request(url):
+        raise _faq_contribution_url_error(FAQ_URL_REPOSITORY_ERROR)
+
+    return url
+
+
+def _validate_faq_contribution_url_format(url: str) -> None:
     try:
-        url_validator(url)
+        FAQ_URL_VALIDATOR(url)
     except ValidationError:
-        raise ValidationError(
-            {
-                "faq_contribution_url": (
-                    "FAQ contribution must be a valid HTTPS GitHub issue "
-                    "or pull request URL."
-                )
-            }
-        )
+        raise _faq_contribution_url_error(FAQ_URL_FORMAT_ERROR)
 
+
+def _is_faq_issue_or_pull_request(url: str) -> bool:
     parsed = urlparse(url)
-    path_parts = [part for part in parsed.path.split("/") if part]
+    path_parts = _url_path_parts(parsed.path)
+    return _is_faq_github_host(parsed) and _is_faq_issue_or_pull_path(
+        path_parts
+    )
 
-    is_faq_issue_or_pr = (
-        parsed.hostname == "github.com"
-        and len(path_parts) == 4
+
+def _url_path_parts(path: str) -> list[str]:
+    return [part for part in path.split("/") if part]
+
+
+def _is_faq_github_host(parsed_url) -> bool:
+    return parsed_url.hostname == "github.com"
+
+
+def _is_faq_issue_or_pull_path(path_parts: list[str]) -> bool:
+    return (
+        len(path_parts) == 4
         and path_parts[0].lower() == "datatalksclub"
         and path_parts[1].lower() == "faq"
         and path_parts[2].lower() in {"issues", "pull"}
         and path_parts[3].isdigit()
     )
 
-    if not is_faq_issue_or_pr:
-        raise ValidationError(
-            {
-                "faq_contribution_url": (
-                    "FAQ contribution must be a DataTalksClub/faq issue "
-                    "or pull request URL, for example "
-                    "https://github.com/DataTalksClub/faq/issues/281."
-                )
-            }
-        )
 
-    return url
+def _faq_contribution_url_error(message: str) -> ValidationError:
+    return ValidationError({FAQ_CONTRIBUTION_FIELD: message})
 
 
 def get_error_message(status_code, url):
