@@ -737,6 +737,52 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
+    def configure_contact_bulk_import_counts(self, bulk_import):
+        bulk_import.return_value = {
+            "counts": {
+                "created": 1,
+                "updated": 1,
+                "unchanged": 0,
+                "skipped": 0,
+                "invalid": 0,
+            },
+        }
+
+    def create_contact_backfill_users(self):
+        CustomUser.objects.create_user(
+            username="student-1",
+            email="Student1@Example.com",
+        )
+        CustomUser.objects.create_user(
+            username="student-2",
+            email="student2@example.com",
+        )
+
+    def assert_first_contact_import_payload(self, bulk_import):
+        self.assertEqual(bulk_import.call_count, 2)
+        first_payload = bulk_import.call_args_list[0].args[0]
+        self.assertEqual(first_payload["audience"], "dtc-courses")
+        self.assertEqual(first_payload["client"], "dtc-courses")
+        self.assertEqual(
+            first_payload["idempotency_key"],
+            "cmp-contact-bootstrap:1",
+        )
+        self.assertEqual(
+            first_payload["contacts"][0]["email"],
+            "student1@example.com",
+        )
+        self.assertEqual(
+            first_payload["contacts"][0]["email_validation"]["status"],
+            "externally_validated",
+        )
+
+    def assert_contact_import_output(self, out):
+        self.assertIn(
+            "Prepared 2 contact batch(es), 2 contact(s).",
+            out.getvalue(),
+        )
+        self.assertIn("Synced batch 1: 1 contact(s); created=1", out.getvalue())
+
     def create_duplicate_homework_submissions(self):
         homework = self.create_homework()
         user = self.create_user("learner@example.com")
@@ -3337,23 +3383,8 @@ class DatamailerClientTest(TestCase):
         self,
         bulk_import,
     ):
-        bulk_import.return_value = {
-            "counts": {
-                "created": 1,
-                "updated": 1,
-                "unchanged": 0,
-                "skipped": 0,
-                "invalid": 0,
-            },
-        }
-        CustomUser.objects.create_user(
-            username="student-1",
-            email="Student1@Example.com",
-        )
-        CustomUser.objects.create_user(
-            username="student-2",
-            email="student2@example.com",
-        )
+        self.configure_contact_bulk_import_counts(bulk_import)
+        self.create_contact_backfill_users()
 
         out = StringIO()
         call_command(
@@ -3363,24 +3394,8 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        self.assertEqual(bulk_import.call_count, 2)
-        first_payload = bulk_import.call_args_list[0].args[0]
-        self.assertEqual(first_payload["audience"], "dtc-courses")
-        self.assertEqual(first_payload["client"], "dtc-courses")
-        self.assertEqual(first_payload["idempotency_key"], "cmp-contact-bootstrap:1")
-        self.assertEqual(
-            first_payload["contacts"][0]["email"],
-            "student1@example.com",
-        )
-        self.assertEqual(
-            first_payload["contacts"][0]["email_validation"]["status"],
-            "externally_validated",
-        )
-        self.assertIn(
-            "Prepared 2 contact batch(es), 2 contact(s).",
-            out.getvalue(),
-        )
-        self.assertIn("Synced batch 1: 1 contact(s); created=1", out.getvalue())
+        self.assert_first_contact_import_payload(bulk_import)
+        self.assert_contact_import_output(out)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
