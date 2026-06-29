@@ -385,6 +385,32 @@ class DatamailerClientTest(TestCase):
             "project_passed",
         )
 
+    def create_failed_project_submission_for_passed_outcome(self):
+        project = self.create_project()
+        submission = self.create_project_submission(
+            project,
+            self.create_user("student@example.com"),
+            total_score=50,
+            passed=False,
+        )
+        return project, submission
+
+    def assert_project_passed_member_removed(
+        self,
+        remove_member,
+        project,
+        submission,
+    ):
+        remove_member.assert_called_once()
+        self.assertEqual(
+            remove_member.call_args.args[0],
+            project_passed_list_key(project),
+        )
+        self.assertEqual(
+            remove_member.call_args.args[1],
+            f"project-submission:{submission.pk}",
+        )
+
     def assert_score_payload_common(
         self,
         payload,
@@ -3182,44 +3208,16 @@ class DatamailerClientTest(TestCase):
         self,
         remove_member,
     ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        submission = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            total_score=50,
-            passed=False,
+        project, submission = (
+            self.create_failed_project_submission_for_passed_outcome()
         )
 
         sync_project_passed_outcome_to_datamailer(submission)
 
-        remove_member.assert_called_once()
-        self.assertEqual(
-            remove_member.call_args.args[0],
-            project_passed_list_key(project),
-        )
-        self.assertEqual(
-            remove_member.call_args.args[1],
-            f"project-submission:{submission.pk}",
+        self.assert_project_passed_member_removed(
+            remove_member,
+            project,
+            submission,
         )
 
     @override_settings(
