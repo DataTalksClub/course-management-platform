@@ -517,9 +517,18 @@ def project_passed_recipient_list_payload(
     if config is None:
         return None
 
-    course = project.course
     list_key = project_passed_list_key(project)
-    list_data = {
+    payload = _bulk_recipient_list_payload(
+        config,
+        _project_passed_list_data(project),
+        _project_passed_members(project),
+    )
+    return list_key, payload
+
+
+def _project_passed_list_data(project) -> dict[str, Any]:
+    course = project.course
+    return {
         "type": "custom",
         "name": f"{course.title} {project.title} passed learners",
         "metadata": {
@@ -529,36 +538,53 @@ def project_passed_recipient_list_payload(
             "outcome": "project_passed",
         },
     }
+
+
+def _project_passed_members(project) -> list[dict[str, Any]]:
     members = []
-    submissions = project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
-    for submission in submissions:
+    for submission in _project_passed_candidate_submissions(project):
         if submission.student_id in seen_students:
             continue
         seen_students.add(submission.student_id)
-        if not submission.passed:
-            continue
-        item = project_submission_recipient_list_payload(submission)
-        if item is None:
-            continue
-        _, source_object_key, member_payload = item
-        member = recipient_list_send_member_payload(
-            source_object_key, member_payload
-        )
-        member["metadata"] = member["metadata"] | {
-            "outcome": "project_passed",
-        }
-        members.append(member)
+        member = _project_passed_member(submission)
+        if member is not None:
+            members.append(member)
+    return members
 
-    payload = {
+
+def _project_passed_candidate_submissions(project):
+    return project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
+
+
+def _project_passed_member(submission) -> dict[str, Any] | None:
+    if not submission.passed:
+        return None
+
+    item = project_submission_recipient_list_payload(submission)
+    if item is None:
+        return None
+
+    _, source_object_key, member_payload = item
+    member = recipient_list_send_member_payload(
+        source_object_key, member_payload
+    )
+    member["metadata"] = member["metadata"] | {
+        "outcome": "project_passed",
+    }
+    return member
+
+
+def _bulk_recipient_list_payload(config, list_data, members):
+    return {
         "audience": config.audience,
         "client": config.client,
         "list": list_data,
         "members": members,
     }
-    return list_key, payload
+
 
 def project_passed_recipient_list_member_payload(
     submission,
