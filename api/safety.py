@@ -78,29 +78,64 @@ def apply_patch_fields(
     field, else None (mutating ``instance`` in place).
     """
     for field, value in data.items():
-        if field not in allowed_fields:
-            return error_response(
-                f"Cannot update field: {field}",
-                "invalid_field",
-                details={"field": field},
-            )
+        error = validate_patch_field(
+            field,
+            value,
+            allowed_fields=allowed_fields,
+            valid_states=valid_states,
+            invalid_state_code=invalid_state_code,
+        )
+        if error:
+            return error
 
-        if field == "state" and value not in valid_states:
-            return error_response(
-                f"Invalid state. Must be one of: {sorted(valid_states)}",
-                invalid_state_code,
-                details={"valid_states": sorted(valid_states)},
-            )
-
-        if field in date_fields:
-            value = parse_date(value)
-            if value is None:
-                return error_response(
-                    f"Invalid date format for {field}",
-                    "invalid_date_format",
-                    details={"field": field},
-                )
+        value, error = parse_patch_field_value(
+            field,
+            value,
+            date_fields=date_fields,
+        )
+        if error:
+            return error
 
         setattr(instance, field, value)
 
     return None
+
+
+def validate_patch_field(
+    field,
+    value,
+    *,
+    allowed_fields,
+    valid_states,
+    invalid_state_code,
+):
+    if field not in allowed_fields:
+        return error_response(
+            f"Cannot update field: {field}",
+            "invalid_field",
+            details={"field": field},
+        )
+
+    if field == "state" and value not in valid_states:
+        return error_response(
+            f"Invalid state. Must be one of: {sorted(valid_states)}",
+            invalid_state_code,
+            details={"valid_states": sorted(valid_states)},
+        )
+
+    return None
+
+
+def parse_patch_field_value(field, value, *, date_fields):
+    if field not in date_fields:
+        return value, None
+
+    parsed_value = parse_date(value)
+    if parsed_value is None:
+        return None, error_response(
+            f"Invalid date format for {field}",
+            "invalid_date_format",
+            details={"field": field},
+        )
+
+    return parsed_value, None
