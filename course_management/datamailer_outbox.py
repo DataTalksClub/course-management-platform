@@ -186,43 +186,69 @@ def _finish_dispatch_run(run, counts, *, status, last_error):
 
 
 def dispatch_datamailer_outbox_event(event: DatamailerOutboxEvent) -> None:
-    from course_management.datamailer import DatamailerClient, DatamailerConfig
+    config = _outbox_datamailer_config(event)
+    if config is None:
+        return
+
+    if not _claim_outbox_event(event):
+        return
+
+    _dispatch_claimed_outbox_event(event, config)
+
+
+def _outbox_datamailer_config(event):
+    from course_management.datamailer import DatamailerConfig
 
     config = DatamailerConfig.from_settings()
     if config is None:
         _mark_failed(event, "Datamailer is not configured")
-        return
+    return config
 
+
+def _claim_outbox_event(event):
     with transaction.atomic():
         locked = DatamailerOutboxEvent.objects.select_for_update().get(id=event.id)
         if locked.status not in RETRYABLE_STATUSES:
-            return
-        locked.status = DatamailerOutboxStatus.PROCESSING
-        locked.attempt_count += 1
-        locked.last_attempt_at = timezone.now()
-        locked.save(
-            update_fields=[
-                "status",
-                "attempt_count",
-                "last_attempt_at",
-                "updated_at",
-            ]
-        )
+            return False
+        _mark_processing(locked)
+        return True
+
+
+def _mark_processing(event):
+    event.status = DatamailerOutboxStatus.PROCESSING
+    event.attempt_count += 1
+    event.last_attempt_at = timezone.now()
+    event.save(
+        update_fields=[
+            "status",
+            "attempt_count",
+            "last_attempt_at",
+            "updated_at",
+        ]
+    )
+
+
+def _dispatch_claimed_outbox_event(event, config):
+    from course_management.datamailer import DatamailerClient
 
     client = DatamailerClient(config)
     try:
         response = _send_event(client, event.event_type, event.payload)
     except requests.RequestException as exc:
-        logger.exception(
-            "Datamailer outbox dispatch failed for event_id=%s",
-            event.event_id,
-        )
-        _mark_retry_or_failed(event, exc)
-        if config.strict:
+        if _handle_outbox_send_error(event, config, exc):
             raise
         return
 
     _mark_acked(event, response or {})
+
+
+def _handle_outbox_send_error(event, config, exc):
+    logger.exception(
+        "Datamailer outbox dispatch failed for event_id=%s",
+        event.event_id,
+    )
+    _mark_retry_or_failed(event, exc)
+    return config.strict
 
 
 def _send_event(client, event_type: str, payload: dict[str, Any]):
