@@ -100,6 +100,29 @@ class InboxMessage:
         return strings
 
 
+@dataclass(frozen=True)
+class MessageMatchCriteria:
+    template_key: str | None
+    subject: str | None
+    body_contains: str | None
+    load_detail: bool
+
+
+@dataclass
+class MessageWaitState:
+    last_seen: list[InboxMessage] = field(default_factory=list)
+    last_error: Exception | None = None
+
+
+@dataclass(frozen=True)
+class MessageWaitData:
+    address: str
+    criteria: MessageMatchCriteria
+    timeout: float
+    poll_interval: float
+    state: MessageWaitState
+
+
 def context_value_strings(value) -> list[str]:
     if isinstance(value, str):
         return [value]
@@ -327,10 +350,7 @@ class InboxBackend:
         self,
         address: str,
         *,
-        template_key: str | None,
-        subject: str | None,
-        body_contains: str | None,
-        load_detail: bool,
+        criteria: MessageMatchCriteria,
         poll_interval: float,
     ) -> tuple[InboxMessage | None, list[InboxMessage] | None, Exception | None]:
         try:
@@ -344,10 +364,10 @@ class InboxBackend:
         matched = self._matched_message(
             address,
             messages,
-            template_key=template_key,
-            subject=subject,
-            body_contains=body_contains,
-            load_detail=load_detail,
+            template_key=criteria.template_key,
+            subject=criteria.subject,
+            body_contains=criteria.body_contains,
+            load_detail=criteria.load_detail,
         )
         if matched is None:
             time.sleep(poll_interval)
@@ -365,32 +385,47 @@ class InboxBackend:
         load_detail: bool = True,
     ) -> InboxMessage:
         """Poll until a matching message arrives or ``timeout`` elapses."""
-        deadline = time.monotonic() + timeout
-        last_seen: list[InboxMessage] = []
-        last_error: Exception | None = None
-
-        while time.monotonic() < deadline:
-            matched, seen, error = self._poll_for_message_match(
-                address,
-                template_key=template_key,
-                subject=subject,
-                body_contains=body_contains,
-                load_detail=load_detail,
-                poll_interval=poll_interval,
-            )
-            if matched is not None:
-                return matched
-            last_seen = seen if seen is not None else last_seen
-            last_error = error if error is not None else last_error
-
-        raise self._timeout_error(
-            address,
+        criteria = MessageMatchCriteria(
             template_key=template_key,
             subject=subject,
             body_contains=body_contains,
+            load_detail=load_detail,
+        )
+        state = MessageWaitState()
+        wait_data = MessageWaitData(
+            address=address,
+            criteria=criteria,
             timeout=timeout,
-            last_seen=last_seen,
-            last_error=last_error,
+            poll_interval=poll_interval,
+            state=state,
+        )
+        return self._wait_for_message_or_timeout(wait_data)
+
+    def _wait_for_message_or_timeout(self, data):
+        deadline = time.monotonic() + data.timeout
+        while time.monotonic() < deadline:
+            matched, seen, error = self._poll_for_message_match(
+                data.address,
+                criteria=data.criteria,
+                poll_interval=data.poll_interval,
+            )
+            if matched is not None:
+                return matched
+            data.state.last_seen = (
+                seen if seen is not None else data.state.last_seen
+            )
+            data.state.last_error = (
+                error if error is not None else data.state.last_error
+            )
+
+        raise self._timeout_error(
+            data.address,
+            template_key=data.criteria.template_key,
+            subject=data.criteria.subject,
+            body_contains=data.criteria.body_contains,
+            timeout=data.timeout,
+            last_seen=data.state.last_seen,
+            last_error=data.state.last_error,
         )
 
 
