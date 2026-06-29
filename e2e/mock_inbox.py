@@ -93,18 +93,20 @@ class InboxMessage:
         return any(needle in h for h in haystacks)
 
     def _context_strings(self) -> list[str]:
-        return [
-            item
-            for value in (self.context or {}).values()
-            for item in context_value_strings(value)
-        ]
+        strings = []
+        for value in (self.context or {}).values():
+            strings.extend(context_value_strings(value))
+        return strings
 
 
 def context_value_strings(value) -> list[str]:
     if isinstance(value, str):
         return [value]
     if isinstance(value, (list, tuple)):
-        return [str(item) for item in value]
+        strings = []
+        for item in value:
+            strings.append(str(item))
+        return strings
     return []
 
 
@@ -309,7 +311,9 @@ class InboxBackend:
         last_seen: list[InboxMessage],
         last_error: Exception | None,
     ) -> MockInboxTimeout:
-        seen = [(m.template_key, m.subject) for m in last_seen]
+        seen = []
+        for message in last_seen:
+            seen.append((message.template_key, message.subject))
         hint = f" Last error: {last_error!r}." if last_error else ""
         return MockInboxTimeout(
             f"[{self.name}] No email to {address} matching "
@@ -458,7 +462,10 @@ class MockInboxClient(InboxBackend):
         resp.raise_for_status()
         payload = resp.json()
         items = payload.get("messages", []) if isinstance(payload, dict) else []
-        return [self._summary_to_message(item, address) for item in items]
+        messages = []
+        for item in items:
+            messages.append(self._summary_to_message(item, address))
+        return messages
 
     def get_message(self, message_id) -> InboxMessage:
         resp = self._request("GET", f"{self.messages_url}/{message_id}")
@@ -612,7 +619,10 @@ class RealInboxClient(InboxBackend):
         resp.raise_for_status()
         payload = resp.json()
         items = payload.get("messages", []) if isinstance(payload, dict) else []
-        return [self._summary_to_message(item, address) for item in items]
+        messages = []
+        for item in items:
+            messages.append(self._summary_to_message(item, address))
+        return messages
 
     def _fetch_detail(self, address: str, message: InboxMessage) -> InboxMessage:
         # The real-inbox detail route needs the address as a scope, so the

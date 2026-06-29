@@ -214,7 +214,9 @@ def get_or_create_project(course, project_data, clear_existing):
 
 
 def existing_users_by_username(users_data):
-    usernames = [user_data["username"] for user_data in users_data]
+    usernames = []
+    for user_data in users_data:
+        usernames.append(user_data["username"])
     return {u.username: u for u in User.objects.filter(username__in=usernames)}
 
 
@@ -358,7 +360,10 @@ def create_review_criteria(criteria_records, course, maps: ImportMaps) -> None:
 def bulk_create_mapped(model, pending, target_map):
     if not pending:
         return []
-    created = model.objects.bulk_create([obj for _, obj in pending])
+    objects = []
+    for _old_id, obj in pending:
+        objects.append(obj)
+    created = model.objects.bulk_create(objects)
     for (old_id, _), created_obj in zip(pending, created):
         target_map[old_id] = created_obj.id
     return []

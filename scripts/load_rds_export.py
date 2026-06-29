@@ -166,11 +166,10 @@ def sqlite_url(path: Path) -> str:
 
 
 def latest_export(source_dir: Path, pattern: str) -> Path:
-    candidates = [
-        path
-        for path in source_dir.glob(pattern)
-        if path.is_file() and path.stat().st_size > 0
-    ]
+    candidates = []
+    for path in source_dir.glob(pattern):
+        if path.is_file() and path.stat().st_size > 0:
+            candidates.append(path)
     if not candidates:
         raise SystemExit(
             f"No export DBs found in {source_dir} matching {pattern!r}."
@@ -348,11 +347,11 @@ def quoted_csv(columns: list[str]) -> str:
 
 
 def table_source_columns(plan: TableCopyPlan) -> list[str]:
-    return [
-        column
-        for column in plan.insert_columns
-        if column in plan.source_columns
-    ]
+    columns = []
+    for column in plan.insert_columns:
+        if column in plan.source_columns:
+            columns.append(column)
+    return columns
 
 
 def row_values(
@@ -392,7 +391,9 @@ def copy_table_rows(
         if not batch:
             break
 
-        values = [row_values(source_row, plan) for source_row in batch]
+        values = []
+        for source_row in batch:
+            values.append(row_values(source_row, plan))
         target_cursor.executemany(insert_batch_sql(plan), values)
         row_count += len(values)
 
@@ -527,7 +528,10 @@ def sqlite_sequence_exists(cursor: sqlite3.Cursor) -> bool:
 
 def table_has_single_id_primary_key(cursor: sqlite3.Cursor, table: str) -> bool:
     table_info = pragma_table_info(cursor, table)
-    primary_keys = [row["name"] for row in table_info if row["pk"] == 1]
+    primary_keys = []
+    for row in table_info:
+        if row["pk"] == 1:
+            primary_keys.append(row["name"])
     return primary_keys == ["id"]
 
 
