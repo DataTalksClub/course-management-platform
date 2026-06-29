@@ -196,17 +196,30 @@ def format_selected_answer(
 ) -> str:
     selected_indexes = extract_selected_option_indexes(answer_text)
     possible_answers = question.get_possible_answers()
-
-    selected_options = []
-    for index in selected_indexes:
-        if 1 <= index <= len(possible_answers):
-            selected_options.append(
-                f"{index}. {possible_answers[index - 1]}"
-            )
-        else:
-            selected_options.append(str(index))
-
+    selected_options = [
+        selected_option_label(possible_answers, index)
+        for index in selected_indexes
+    ]
     return ", ".join(selected_options)
+
+
+def selected_option_value(
+    possible_answers: List[str],
+    index: int,
+) -> str:
+    if 1 <= index <= len(possible_answers):
+        return possible_answers[index - 1]
+    return ""
+
+
+def selected_option_label(
+    possible_answers: List[str],
+    index: int,
+) -> str:
+    value = selected_option_value(possible_answers, index)
+    if value:
+        return f"{index}. {value}"
+    return str(index)
 
 
 def homework_url_submission_field(
@@ -315,48 +328,62 @@ def homework_submission_fields(
 def homework_submitted_answers(
     submission: Submission,
 ) -> List[dict[str, Any]]:
-    answers = (
+    return [
+        submitted_answer_payload(answer)
+        for answer in submitted_homework_answers(submission)
+    ]
+
+
+def submitted_homework_answers(submission: Submission):
+    return (
         Answer.objects.filter(submission=submission)
         .select_related("question")
         .order_by("question_id")
     )
 
-    result = []
-    for answer in answers:
-        question = answer.question
-        raw_answer = answer.answer_text or ""
-        display_answer = raw_answer
-        selected_options = []
 
-        if question.question_type in CHOICE_QUESTION_TYPES:
-            possible_answers = question.get_possible_answers()
-            selected_indexes = extract_selected_option_indexes(
-                raw_answer
-            )
-            for index in selected_indexes:
-                value = ""
-                if 1 <= index <= len(possible_answers):
-                    value = possible_answers[index - 1]
-                selected_options.append(
-                    {"index": index, "value": value}
-                )
-            display_answer = format_selected_answer(
-                question,
-                raw_answer,
-            )
+def submitted_answer_payload(answer: Answer) -> dict[str, Any]:
+    question = answer.question
+    raw_answer = answer.answer_text or ""
+    display_answer, selected_options = submitted_answer_display(
+        question,
+        raw_answer,
+    )
 
-        result.append(
-            {
-                "question_id": question.id,
-                "question": question.text,
-                "question_type": question.question_type,
-                "answer": display_answer,
-                "raw_answer": raw_answer,
-                "selected_options": selected_options,
-            }
-        )
+    return {
+        "question_id": question.id,
+        "question": question.text,
+        "question_type": question.question_type,
+        "answer": display_answer,
+        "raw_answer": raw_answer,
+        "selected_options": selected_options,
+    }
 
-    return result
+
+def submitted_answer_display(
+    question: Question,
+    raw_answer: str,
+) -> tuple[str, List[dict[str, Any]]]:
+    if question.question_type not in CHOICE_QUESTION_TYPES:
+        return raw_answer, []
+
+    selected_options = submitted_selected_options(question, raw_answer)
+    display_answer = format_selected_answer(question, raw_answer)
+    return display_answer, selected_options
+
+
+def submitted_selected_options(
+    question: Question,
+    raw_answer: str,
+) -> List[dict[str, Any]]:
+    possible_answers = question.get_possible_answers()
+    return [
+        {
+            "index": index,
+            "value": selected_option_value(possible_answers, index),
+        }
+        for index in extract_selected_option_indexes(raw_answer)
+    ]
 
 
 def format_submission_lines(items: List[dict[str, Any]]) -> str:
