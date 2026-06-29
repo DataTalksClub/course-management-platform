@@ -178,10 +178,8 @@ class DashboardHomeworkStatsTestCase(TestCase):
             **scores,
         )
 
-    def test_homework_statistics_calculation(self):
-        """Test homework statistics calculation with various data"""
-        # Create submissions with different time/score values
-        submission_data = [
+    def homework_submission_stats_data(self):
+        return [
             {
                 "time_spent_lectures": 1.0,
                 "time_spent_homework": 2.0,
@@ -209,10 +207,26 @@ class DashboardHomeworkStatsTestCase(TestCase):
             },
         ]
 
-        for i, data in enumerate(submission_data):
+    def create_homework_stat_submissions(self):
+        for index, data in enumerate(self.homework_submission_stats_data()):
             self.create_homework_submission(
-                self.users[i], self.enrollments[i], data
+                self.users[index],
+                self.enrollments[index],
+                data,
             )
+
+    def assert_homework_stat_summary(self, hw_stat):
+        self.assertEqual(hw_stat["homework"], self.homework)
+        self.assertEqual(hw_stat["submissions_count"], 5)
+        self.assertEqual(hw_stat["completion_rate"], 100.0)
+        self.assertEqual(hw_stat["time_lecture_median"], 3.0)
+        self.assertEqual(hw_stat["time_homework_median"], 4.0)
+        self.assertEqual(hw_stat["time_total_median"], 7.0)
+        self.assertEqual(hw_stat["score_median"], 90)
+
+    def test_homework_statistics_calculation(self):
+        """Test homework statistics calculation with various data"""
+        self.create_homework_stat_submissions()
 
         url = reverse("dashboard", args=[self.course.slug])
         response = self.client.get(url)
@@ -221,16 +235,7 @@ class DashboardHomeworkStatsTestCase(TestCase):
         hw_stats = response.context["homework_stats"]
         self.assertEqual(len(hw_stats), 1)
 
-        hw_stat = hw_stats[0]
-        self.assertEqual(hw_stat["homework"], self.homework)
-        self.assertEqual(hw_stat["submissions_count"], 5)
-        self.assertEqual(hw_stat["completion_rate"], 100.0)
-
-        # Check quartile calculations (median should be middle value)
-        self.assertEqual(hw_stat["time_lecture_median"], 3.0)
-        self.assertEqual(hw_stat["time_homework_median"], 4.0)
-        self.assertEqual(hw_stat["time_total_median"], 7.0)  # 3.0 + 4.0
-        self.assertEqual(hw_stat["score_median"], 90)
+        self.assert_homework_stat_summary(hw_stats[0])
 
     def test_homework_statistics_with_insufficient_data(self):
         """Test homework statistics with insufficient data for quartiles"""
@@ -266,25 +271,17 @@ class DashboardHomeworkStatsTestCase(TestCase):
             ]
         )
 
-    def test_homework_difficulty_ranking(self):
-        """Difficulty is ranked by the question score normalized by question count.
-
-        A short homework with a high raw median is not "harder" than a long
-        homework with a lower per-question score, so ranking must use the ratio
-        of the median question score to the max achievable.
-        """
-        # Short homework: 3 questions, students get all 3 right -> ratio 100%.
-        self._add_questions(self.homework, 3)
-        # Long homework: 10 questions, students get 5 -> ratio 50% (harder).
-        harder_homework = Homework.objects.create(
+    def create_homework_for_difficulty(self, slug, title, days_until_due):
+        homework = Homework.objects.create(
             course=self.course,
-            slug="hw2",
-            title="Homework 2",
-            due_date=timezone.now() + timedelta(days=14),
+            slug=slug,
+            title=title,
+            due_date=timezone.now() + timedelta(days=days_until_due),
             state=HomeworkState.OPEN.value,
         )
-        self._add_questions(harder_homework, 10)
+        return homework
 
+    def create_difficulty_submissions(self, harder_homework):
         for user, enrollment in zip(self.users, self.enrollments):
             Submission.objects.create(
                 homework=self.homework,
@@ -302,17 +299,11 @@ class DashboardHomeworkStatsTestCase(TestCase):
                 time_spent_lectures=2.0,
                 time_spent_homework=3.0,
                 questions_score=5,
-                # Bonus points push total_score above the short homework's,
-                # which under the old (raw median) ranking wrongly looked easier.
                 total_score=12,
             )
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
-
+    def assert_difficulty_ranking(self, response, harder_homework):
         difficulty_stats = response.context["homework_difficulty_stats"]
-
-        # 50% < 100% -> the long homework is correctly ranked hardest.
         self.assertEqual(difficulty_stats[0]["homework"], harder_homework)
         self.assertEqual(difficulty_stats[0]["difficulty_rank"], 1)
         self.assertEqual(difficulty_stats[0]["score_ratio_pct"], 50.0)
@@ -321,6 +312,26 @@ class DashboardHomeworkStatsTestCase(TestCase):
         self.assertEqual(difficulty_stats[1]["difficulty_rank"], 2)
         self.assertEqual(difficulty_stats[1]["score_ratio_pct"], 100.0)
 
+    def test_homework_difficulty_ranking(self):
+        """Difficulty is ranked by the question score normalized by question count.
+
+        A short homework with a high raw median is not "harder" than a long
+        homework with a lower per-question score, so ranking must use the ratio
+        of the median question score to the max achievable.
+        """
+        self._add_questions(self.homework, 3)
+        harder_homework = self.create_homework_for_difficulty(
+            "hw2",
+            "Homework 2",
+            14,
+        )
+        self._add_questions(harder_homework, 10)
+        self.create_difficulty_submissions(harder_homework)
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assert_difficulty_ranking(response, harder_homework)
         self.assertContains(response, "Assignment difficulty")
         self.assertContains(response, "Completion")
 
@@ -682,99 +693,105 @@ class DashboardIntegrationTestCase(TestCase):
             state=ProjectState.COMPLETED.value,
         )
 
-    def test_dashboard_with_complete_course_data(self):
-        """Test dashboard with a complete course setup"""
-        # Create users and enrollments
+    def create_student_enrollments(self):
         users = []
         enrollments = []
-        for i in range(4):
+        for index in range(4):
             user = User.objects.create_user(
-                username=f"student{i}@test.com",
-                email=f"student{i}@test.com",
+                username=f"student{index}@test.com",
+                email=f"student{index}@test.com",
                 password="12345",
             )
             enrollment = Enrollment.objects.create(
                 student=user,
                 course=self.course,
-                total_score=80 + i * 10,
+                total_score=80 + index * 10,
             )
             users.append(user)
             enrollments.append(enrollment)
+        return users, enrollments
 
-        # Create homework submissions
-        for i, (user, enrollment) in enumerate(zip(users, enrollments)):
-            # Homework 1 submissions
+    def create_homework_submissions(self, users, enrollments):
+        for index, (user, enrollment) in enumerate(zip(users, enrollments)):
             Submission.objects.create(
                 homework=self.homework1,
                 student=user,
                 enrollment=enrollment,
-                time_spent_lectures=2.0 + i,
-                time_spent_homework=3.0 + i,
-                total_score=80 + i * 5,
+                time_spent_lectures=2.0 + index,
+                time_spent_homework=3.0 + index,
+                total_score=80 + index * 5,
             )
-
-            # Some homework 2 submissions (not all students)
-            if i < 3:
+            if index < 3:
                 Submission.objects.create(
                     homework=self.homework2,
                     student=user,
                     enrollment=enrollment,
-                    time_spent_lectures=1.5 + i,
-                    time_spent_homework=2.5 + i,
-                    total_score=75 + i * 5,
+                    time_spent_lectures=1.5 + index,
+                    time_spent_homework=2.5 + index,
+                    total_score=75 + index * 5,
                 )
 
-        # Create project submissions
-        for i, (user, enrollment) in enumerate(
+    def create_project_submissions(self, users, enrollments):
+        for index, (user, enrollment) in enumerate(
             zip(users[:3], enrollments[:3])
         ):
+            total_score = 70 + index * 10
             ProjectSubmission.objects.create(
                 project=self.project,
                 student=user,
                 enrollment=enrollment,
-                github_link=f"https://github.com/user{i}/project",
-                total_score=70 + i * 10,
-                time_spent=8.0 + i * 2,
-                passed=True if (70 + i * 10) >= 70 else False,
+                github_link=f"https://github.com/user{index}/project",
+                total_score=total_score,
+                time_spent=8.0 + index * 2,
+                passed=total_score >= 70,
             )
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
+    def create_complete_dashboard_fixture(self):
+        users, enrollments = self.create_student_enrollments()
+        self.create_homework_submissions(users, enrollments)
+        self.create_project_submissions(users, enrollments)
 
-        self.assertEqual(response.status_code, 200)
+    def homework_stats_by_homework(self, response):
+        return {
+            stat["homework"]: stat
+            for stat in response.context["homework_stats"]
+        }
 
-        # Check basic counts
+    def assert_complete_dashboard_counts(self, response):
         self.assertEqual(response.context["total_enrollments"], 4)
-
-        # Check homework stats
-        hw_stats = response.context["homework_stats"]
-        self.assertEqual(len(hw_stats), 2)  # Two homeworks created
-
-        # Verify homework data
-        hw1_stats = next(
-            stat
-            for stat in hw_stats
-            if stat["homework"] == self.homework1
-        )
-        hw2_stats = next(
-            stat
-            for stat in hw_stats
-            if stat["homework"] == self.homework2
-        )
-
-        self.assertEqual(hw1_stats["submissions_count"], 4)
-        self.assertEqual(hw2_stats["submissions_count"], 3)
-
-        # Check project stats
+        self.assertEqual(len(response.context["homework_stats"]), 2)
         self.assertEqual(response.context["project_pass_count"], 3)
         self.assertEqual(response.context["project_fail_count"], 0)
 
-        # Verify template renders correctly
+    def assert_complete_homework_stats(self, response):
+        homework_stats = self.homework_stats_by_homework(response)
+        self.assertEqual(
+            homework_stats[self.homework1]["submissions_count"],
+            4,
+        )
+        self.assertEqual(
+            homework_stats[self.homework2]["submissions_count"],
+            3,
+        )
+
+    def assert_complete_dashboard_content(self, response):
         self.assertContains(response, "Test Course Dashboard")
         self.assertContains(response, "Homework 1")
         self.assertContains(response, "Homework 2")
         self.assertContains(response, "View Leaderboard")
         self.assertContains(response, "View All Project Submissions")
+
+    def test_dashboard_with_complete_course_data(self):
+        """Test dashboard with a complete course setup"""
+        self.create_complete_dashboard_fixture()
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_complete_dashboard_counts(response)
+        self.assert_complete_homework_stats(response)
+        self.assert_complete_dashboard_content(response)
 
 
 class DashboardAuthenticationTestCase(TestCase):
