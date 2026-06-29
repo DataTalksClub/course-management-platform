@@ -279,6 +279,28 @@ class DatamailerClientTest(TestCase):
         defaults.update(overrides)
         return CourseRegistration.objects.create(**defaults)
 
+    def create_llm_registration_for_confirmation(self):
+        course = Course.objects.create(
+            slug="llm-zoomcamp-2026",
+            title="LLM Zoomcamp 2026",
+            description="LLM course",
+        )
+        campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp",
+            title="LLM Zoomcamp",
+            current_course=course,
+        )
+        return CourseRegistration.objects.create(
+            campaign=campaign,
+            course=course,
+            email="Student@Example.com",
+            name="Student One",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+
     def create_homework_submission(self, homework, user, **overrides):
         defaults = {
             "homework": homework,
@@ -407,6 +429,28 @@ class DatamailerClientTest(TestCase):
             )
         )
         self.assertNotIn("members", payload)
+
+    def assert_registration_confirmation_payload(self, payload, registration):
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(payload["template_key"], "registration-confirmation")
+        self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(
+            payload["idempotency_key"],
+            f"registration-confirmation:{registration.pk}",
+        )
+        self.assertEqual(
+            payload["context"]["registration_url"],
+            "https://courses.example.com/register/llm-zoomcamp/",
+        )
+        self.assertEqual(
+            payload["context"]["course_url"],
+            "https://courses.example.com/llm-zoomcamp-2026/",
+        )
+        self.assertEqual(payload["metadata"]["event"], "course_registration")
+        self.assertEqual(
+            payload["metadata"]["preference_key"],
+            "email_course_updates",
+        )
 
     def configure_successful_import_polling(
         self, recipient_list_import, job_id
@@ -1755,55 +1799,11 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_registration_confirmation_payload(self):
-        course = Course.objects.create(
-            slug="llm-zoomcamp-2026",
-            title="LLM Zoomcamp 2026",
-            description="LLM course",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            current_course=course,
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
-            email="Student@Example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
+        registration = self.create_llm_registration_for_confirmation()
 
         payload = registration_confirmation_payload(registration)
 
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(
-            payload["template_key"],
-            "registration-confirmation",
-        )
-        self.assertEqual(payload["category_tag"], "course-updates")
-        self.assertEqual(
-            payload["idempotency_key"],
-            f"registration-confirmation:{registration.pk}",
-        )
-        self.assertEqual(
-            payload["context"]["registration_url"],
-            "https://courses.example.com/register/llm-zoomcamp/",
-        )
-        self.assertEqual(
-            payload["context"]["course_url"],
-            "https://courses.example.com/llm-zoomcamp-2026/",
-        )
-        self.assertEqual(
-            payload["metadata"]["event"],
-            "course_registration",
-        )
-        self.assertEqual(
-            payload["metadata"]["preference_key"],
-            "email_course_updates",
-        )
+        self.assert_registration_confirmation_payload(payload, registration)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
