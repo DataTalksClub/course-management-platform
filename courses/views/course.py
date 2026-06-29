@@ -1186,38 +1186,17 @@ def _format_median(value):
 
 def _dashboard_project_stats(course, total_enrollments):
     """Project-submission aggregates for the course dashboard."""
-    project_submissions = list(
-        ProjectSubmission.objects.filter(project__course=course)
-        .select_related("project", "enrollment")
-        .values("enrollment_id", "time_spent", "total_score", "passed")
+    project_submissions = _dashboard_project_submission_rows(course)
+    completion_rate = _project_completion_rate(
+        project_submissions,
+        total_enrollments,
     )
-
-    # Project completion: share of enrolled students who submitted at least one
-    # project. Counting distinct enrollments keeps the rate <= 100% when a
-    # course has multiple projects (a student who submits several must not be
-    # counted more than once).
-    enrollments_with_submission = {
-        s["enrollment_id"] for s in project_submissions
-    }
-    completion_rate = (
-        len(enrollments_with_submission) / total_enrollments * 100
-        if total_enrollments > 0
-        else 0
+    time_spent = _project_submission_values(
+        project_submissions,
+        "time_spent",
     )
-
-    time_spent = [
-        s["time_spent"]
-        for s in project_submissions
-        if s["time_spent"] is not None
-    ]
-    scores = [
-        s["total_score"]
-        for s in project_submissions
-        if s["total_score"] is not None
-    ]
-    pass_count = sum(1 for s in project_submissions if s["passed"])
-    fail_count = sum(1 for s in project_submissions if not s["passed"])
-
+    scores = _project_submission_values(project_submissions, "total_score")
+    pass_count, fail_count = _project_pass_fail_counts(project_submissions)
     time_q25, time_median, time_q75 = _safe_quartiles(time_spent)
     score_q25, score_median, score_q75 = _safe_quartiles(scores)
 
@@ -1233,6 +1212,45 @@ def _dashboard_project_stats(course, total_enrollments):
         "project_fail_count": fail_count,
         "project_total_submissions": pass_count + fail_count,
     }
+
+
+def _dashboard_project_submission_rows(course):
+    return list(
+        ProjectSubmission.objects.filter(project__course=course)
+        .select_related("project", "enrollment")
+        .values("enrollment_id", "time_spent", "total_score", "passed")
+    )
+
+
+def _project_completion_rate(project_submissions, total_enrollments):
+    if total_enrollments <= 0:
+        return 0
+
+    return (
+        len(_project_submission_enrollment_ids(project_submissions))
+        / total_enrollments
+        * 100
+    )
+
+
+def _project_submission_enrollment_ids(project_submissions):
+    return {submission["enrollment_id"] for submission in project_submissions}
+
+
+def _project_submission_values(project_submissions, field_name):
+    return [
+        submission[field_name]
+        for submission in project_submissions
+        if submission[field_name] is not None
+    ]
+
+
+def _project_pass_fail_counts(project_submissions):
+    pass_count = sum(
+        1 for submission in project_submissions if submission["passed"]
+    )
+    fail_count = len(project_submissions) - pass_count
+    return pass_count, fail_count
 
 
 def _submission_values(submissions, field_name):
