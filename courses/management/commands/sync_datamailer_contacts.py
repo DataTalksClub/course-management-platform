@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import requests
 from django.core.management.base import BaseCommand, CommandError
 
@@ -7,6 +9,14 @@ from course_management.datamailer import (
     DatamailerConfig,
     contact_payload_for_user,
 )
+
+
+@dataclass(frozen=True)
+class ContactBatchSyncData:
+    config: DatamailerConfig
+    client: DatamailerClient
+    index: int
+    batch: list
 
 
 def contact_queryset(*, active_only=False):
@@ -108,26 +118,33 @@ class Command(BaseCommand):
     def sync_contact_batches(self, config, contact_batches):
         client = DatamailerClient(config)
         for index, batch in enumerate(contact_batches, start=1):
-            response = self.sync_contact_batch(config, client, index, batch)
+            sync_data = ContactBatchSyncData(
+                config=config,
+                client=client,
+                index=index,
+                batch=batch,
+            )
+            response = self.sync_contact_batch(sync_data)
             self.write_sync_result(index, batch, response)
 
-    def sync_contact_batch(self, config, client, index, batch):
-        payload = self.contact_import_payload(config, index, batch)
+    def sync_contact_batch(self, data):
+        payload = self.contact_import_payload(data)
         try:
-            return client.bulk_import_contacts(payload)
+            return data.client.bulk_import_contacts(payload)
         except requests.RequestException as exc:
-            if config.strict:
+            if data.config.strict:
                 raise
             raise CommandError(
-                f"Datamailer contact sync failed for batch {index}: {exc}"
+                "Datamailer contact sync failed for batch "
+                f"{data.index}: {exc}"
             ) from exc
 
-    def contact_import_payload(self, config, index, batch):
+    def contact_import_payload(self, data):
         return {
-            "audience": config.audience,
-            "client": config.client,
-            "idempotency_key": f"cmp-contact-bootstrap:{index}",
-            "contacts": batch,
+            "audience": data.config.audience,
+            "client": data.config.client,
+            "idempotency_key": f"cmp-contact-bootstrap:{data.index}",
+            "contacts": data.batch,
         }
 
     def write_sync_result(self, index, batch, response):
