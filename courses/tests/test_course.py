@@ -427,6 +427,11 @@ class CourseDetailViewTests(TestCase):
         self.course.project_passing_score = 75
         self.course.save()
 
+    def prepare_hidden_course_for_duplication(self, year):
+        self.prepare_course_for_duplication(year)
+        self.course.visible = False
+        self.course.save(update_fields=["visible"])
+
     def duplicate_course(self, admin_client):
         url = reverse("admin:courses_course_changelist")
         data = {
@@ -1452,42 +1457,15 @@ class CourseDetailViewTests(TestCase):
     def test_duplicate_course_preserves_visibility(self):
         """Test that course duplication preserves the visibility setting"""
         current_year = timezone.now().year
-        previous_year = current_year - 1
-        
-        # Set the course to be hidden with previous year in slug
-        self.course.visible = False
-        self.course.title = f"Test Course {previous_year}"
-        self.course.slug = f"test-course-{previous_year}"
-        self.course.save()
-        
-        # Create admin user and client
-        User.objects.create_superuser(
-            username="admin2@test.com",
-            email="admin2@test.com",
-            password="admin12345",
-        )
-        admin_client = Client()
-        admin_client.login(
-            username="admin2@test.com", password="admin12345"
-        )
-        
-        # Execute the duplicate action
-        url = reverse("admin:courses_course_changelist")
-        data = {
-            "action": "duplicate_course",
-            "_selected_action": [str(self.course.pk)],
-        }
-        response = admin_client.post(url, data, follow=True)
-        
-        # Check if the duplication was successful
+        self.prepare_hidden_course_for_duplication(current_year)
+        admin_client = self.create_admin_client()
+
+        response = self.duplicate_course(admin_client)
+
         self.assertEqual(response.status_code, 200)
-        
-        # Get the duplicated course
         new_course = Course.objects.get(
             slug=f"test-course-{current_year}"
         )
-        
-        # Test that visibility was preserved
         self.assertFalse(new_course.visible)
 
     def test_project_deadline_display_for_peer_review_state(self):
