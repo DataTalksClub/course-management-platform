@@ -1,4 +1,5 @@
 from copy import deepcopy
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.db import models
@@ -19,6 +20,18 @@ from courses.models.project import ProjectState
 
 
 JSON = {"type": "object", "additionalProperties": True}
+
+
+@dataclass(frozen=True)
+class OperationData:
+    url_name: str
+    tags: list[str]
+    summary: str
+    responses: dict
+    parameters: list | None = None
+    body: dict | None = None
+    requires_auth: bool | None = None
+    description: str | None = None
 
 
 def ref(name):
@@ -146,31 +159,21 @@ def auth_required(operation):
     return result
 
 
-def operation(
-    url_name,
-    tags,
-    summary,
-    responses,
-    *,
-    parameters=None,
-    body=None,
-    requires_auth=None,
-    description=None,
-):
+def operation(data):
     result = {
-        "tags": tags,
-        "summary": summary,
-        "operationId": url_name,
-        "x-django-url-name": url_name,
-        "responses": responses,
+        "tags": data.tags,
+        "summary": data.summary,
+        "operationId": data.url_name,
+        "x-django-url-name": data.url_name,
+        "responses": data.responses,
     }
-    if description:
-        result["description"] = description
-    if parameters:
-        result["parameters"] = parameters
-    if body:
-        result["requestBody"] = body
-    if requires_auth is True:
+    if data.description:
+        result["description"] = data.description
+    if data.parameters:
+        result["parameters"] = data.parameters
+    if data.body:
+        result["requestBody"] = data.body
+    if data.requires_auth is True:
         result = auth_required(result)
     return result
 
@@ -1074,713 +1077,862 @@ SCHEMAS = {
 PATHS_BY_URL_NAME = {
     "api_health": {
         "get": operation(
-            "api_health",
-            ["System"],
-            "Health check",
-            {"200": response("Service status", ref("Health"))},
-            requires_auth=False,
+            OperationData(
+                "api_health",
+                ["System"],
+                "Health check",
+                {"200": response("Service status", ref("Health"))},
+                requires_auth=False,
+            )
         ),
     },
     "api_course_criteria_yaml": {
         "get": operation(
-            "api_course_criteria_yaml",
-            ["Course Data"],
-            "Get course criteria YAML",
-            {
-                "200": content_response(
-                    "Course criteria YAML",
-                    {"text/yaml": {"schema": {"type": "string"}}},
-                ),
-                "404": response("Course not found", ref("Error")),
-            },
-            requires_auth=False,
+            OperationData(
+                "api_course_criteria_yaml",
+                ["Course Data"],
+                "Get course criteria YAML",
+                {
+                    "200": content_response(
+                        "Course criteria YAML",
+                        {"text/yaml": {"schema": {"type": "string"}}},
+                    ),
+                    "404": response("Course not found", ref("Error")),
+                },
+                requires_auth=False,
+            )
         ),
     },
     "api_course_leaderboard": {
         "get": operation(
-            "api_course_leaderboard",
-            ["Course Data"],
-            "Get leaderboard YAML",
-            {
-                "200": content_response(
-                    "Leaderboard YAML",
-                    {"text/plain": {"schema": {"type": "string"}}},
-                ),
-                "404": response("Course not found", ref("Error")),
-            },
-            requires_auth=False,
+            OperationData(
+                "api_course_leaderboard",
+                ["Course Data"],
+                "Get leaderboard YAML",
+                {
+                    "200": content_response(
+                        "Leaderboard YAML",
+                        {"text/plain": {"schema": {"type": "string"}}},
+                    ),
+                    "404": response("Course not found", ref("Error")),
+                },
+                requires_auth=False,
+            )
         ),
     },
     "api_homework_submissions_export": {
         "get": operation(
-            "api_homework_submissions_export",
-            ["Course Data"],
-            "Export homework submissions",
-            {
-                "200": response("Homework submissions export", JSON),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_homework_submissions_export",
+                ["Course Data"],
+                "Export homework submissions",
+                {
+                    "200": response(
+                        "Homework submissions export", JSON
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+            )
         ),
     },
     "api_project_submissions_export": {
         "get": operation(
-            "api_project_submissions_export",
-            ["Course Data"],
-            "Export project submissions",
-            {
-                "200": response("Project submissions export", JSON),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_project_submissions_export",
+                ["Course Data"],
+                "Export project submissions",
+                {
+                    "200": response("Project submissions export", JSON),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+            )
         ),
     },
     "api_course_graduates": {
         "get": operation(
-            "api_course_graduates",
-            ["Course Data"],
-            "Get course graduates",
-            {
-                "200": response("Course graduates", ref("Graduates")),
-                "404": response("Course not found", ref("Error")),
-            },
+            OperationData(
+                "api_course_graduates",
+                ["Course Data"],
+                "Get course graduates",
+                {
+                    "200": response(
+                        "Course graduates", ref("Graduates")
+                    ),
+                    "404": response("Course not found", ref("Error")),
+                },
+            )
         ),
     },
     "api_course_certificates": {
         "post": operation(
-            "api_course_certificates",
-            ["Course Data"],
-            "Bulk update enrollment certificate URLs",
-            {
-                "200": response(
-                    "Certificate update result",
-                    ref("CertificateUpdateResponse"),
+            OperationData(
+                "api_course_certificates",
+                ["Course Data"],
+                "Bulk update enrollment certificate URLs",
+                {
+                    "200": response(
+                        "Certificate update result",
+                        ref("CertificateUpdateResponse"),
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                    "404": response("Course not found", ref("Error")),
+                },
+                body=request_body(ref("CertificateUpdateRequest")),
+                description=(
+                    "Updates many enrollment certificate URLs in one request. "
+                    "The response includes per-entry errors for missing users, "
+                    "unenrolled users, and invalid entries."
                 ),
-                "400": response("Invalid request", ref("Error")),
-                "404": response("Course not found", ref("Error")),
-            },
-            body=request_body(ref("CertificateUpdateRequest")),
-            description=(
-                "Updates many enrollment certificate URLs in one request. "
-                "The response includes per-entry errors for missing users, "
-                "unenrolled users, and invalid entries."
-            ),
+            )
         ),
     },
     "api_datamailer_events": {
         "post": operation(
-            "api_datamailer_events",
-            ["Datamailer"],
-            "Receive Datamailer contact event",
-            {
-                "200": response(
-                    "Datamailer event accepted",
-                    ref("DatamailerEventAccepted"),
+            OperationData(
+                "api_datamailer_events",
+                ["Datamailer"],
+                "Receive Datamailer contact event",
+                {
+                    "200": response(
+                        "Datamailer event accepted",
+                        ref("DatamailerEventAccepted"),
+                    ),
+                    "400": response(
+                        "Invalid event payload", ref("Error")
+                    ),
+                    "401": response(
+                        "Invalid webhook token", ref("Error")
+                    ),
+                    "503": response(
+                        "Webhook not configured", ref("Error")
+                    ),
+                },
+                body=request_body(ref("DatamailerEvent")),
+                requires_auth=False,
+                description=(
+                    "Webhook used by Datamailer to report hard bounces, "
+                    "complaints, subscription changes, skipped/failed sends, and "
+                    "message lifecycle events back to CMP for support and audit "
+                    "visibility. CMP records these callbacks but does not use them "
+                    "as its email preference store. The request must include the "
+                    "configured Datamailer webhook token in the Authorization "
+                    "bearer token or X-Datamailer-Webhook-Token header."
                 ),
-                "400": response("Invalid event payload", ref("Error")),
-                "401": response("Invalid webhook token", ref("Error")),
-                "503": response("Webhook not configured", ref("Error")),
-            },
-            body=request_body(ref("DatamailerEvent")),
-            requires_auth=False,
-            description=(
-                "Webhook used by Datamailer to report hard bounces, "
-                "complaints, subscription changes, skipped/failed sends, and "
-                "message lifecycle events back to CMP for support and audit "
-                "visibility. CMP records these callbacks but does not use them "
-                "as its email preference store. The request must include the "
-                "configured Datamailer webhook token in the Authorization "
-                "bearer token or X-Datamailer-Webhook-Token header."
-            ),
+            )
         ),
     },
     "api_courses_list": {
         "get": operation(
-            "api_courses_list",
-            ["Courses"],
-            "List courses",
-            {"200": response("Course list", ref("CoursesList"))},
+            OperationData(
+                "api_courses_list",
+                ["Courses"],
+                "List courses",
+                {"200": response("Course list", ref("CoursesList"))},
+            )
         ),
         "post": operation(
-            "api_courses_list",
-            ["Courses"],
-            "Create course",
-            {
-                "201": response("Created course", ref("CourseDetail")),
-                "400": response("Invalid request", ref("Error")),
-            },
-            body=request_body(ref("CourseCreate")),
+            OperationData(
+                "api_courses_list",
+                ["Courses"],
+                "Create course",
+                {
+                    "201": response(
+                        "Created course", ref("CourseDetail")
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                },
+                body=request_body(ref("CourseCreate")),
+            )
         ),
     },
     "api_course_detail": {
         "get": operation(
-            "api_course_detail",
-            ["Courses"],
-            "Get course details",
-            {
-                "200": response("Course details", ref("CourseDetail")),
-                "404": response("Course not found", ref("Error")),
-            },
+            OperationData(
+                "api_course_detail",
+                ["Courses"],
+                "Get course details",
+                {
+                    "200": response(
+                        "Course details", ref("CourseDetail")
+                    ),
+                    "404": response("Course not found", ref("Error")),
+                },
+            )
         ),
         "patch": operation(
-            "api_course_detail",
-            ["Courses"],
-            "Update course",
-            {
-                "200": response("Updated course", ref("CourseDetail")),
-                "400": response("Invalid field", ref("Error")),
-                "404": response("Course not found", ref("Error")),
-            },
-            body=request_body(ref("CoursePatch")),
+            OperationData(
+                "api_course_detail",
+                ["Courses"],
+                "Update course",
+                {
+                    "200": response(
+                        "Updated course", ref("CourseDetail")
+                    ),
+                    "400": response("Invalid field", ref("Error")),
+                    "404": response("Course not found", ref("Error")),
+                },
+                body=request_body(ref("CoursePatch")),
+            )
         ),
     },
     "api_registration_campaigns": {
         "get": operation(
-            "api_registration_campaigns",
-            ["Registration Campaigns"],
-            "List registration campaigns",
-            {
-                "200": response(
-                    "Registration campaign list",
-                    ref("RegistrationCampaignsList"),
-                ),
-            },
+            OperationData(
+                "api_registration_campaigns",
+                ["Registration Campaigns"],
+                "List registration campaigns",
+                {
+                    "200": response(
+                        "Registration campaign list",
+                        ref("RegistrationCampaignsList"),
+                    ),
+                },
+            )
         ),
         "post": operation(
-            "api_registration_campaigns",
-            ["Registration Campaigns"],
-            "Create registration campaign",
-            {
-                "201": response(
-                    "Created registration campaign",
-                    ref("RegistrationCampaign"),
-                ),
-                "400": response("Invalid request", ref("Error")),
-            },
-            body=request_body(ref("RegistrationCampaignCreate")),
+            OperationData(
+                "api_registration_campaigns",
+                ["Registration Campaigns"],
+                "Create registration campaign",
+                {
+                    "201": response(
+                        "Created registration campaign",
+                        ref("RegistrationCampaign"),
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                },
+                body=request_body(ref("RegistrationCampaignCreate")),
+            )
         ),
     },
     "api_registration_campaign_detail": {
         "get": operation(
-            "api_registration_campaign_detail",
-            ["Registration Campaigns"],
-            "Get registration campaign",
-            {
-                "200": response(
-                    "Registration campaign",
-                    ref("RegistrationCampaign"),
-                ),
-                "404": response(
-                    "Registration campaign not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_registration_campaign_detail",
+                ["Registration Campaigns"],
+                "Get registration campaign",
+                {
+                    "200": response(
+                        "Registration campaign",
+                        ref("RegistrationCampaign"),
+                    ),
+                    "404": response(
+                        "Registration campaign not found", ref("Error")
+                    ),
+                },
+            )
         ),
         "patch": operation(
-            "api_registration_campaign_detail",
-            ["Registration Campaigns"],
-            "Update registration campaign",
-            {
-                "200": response(
-                    "Updated registration campaign",
-                    ref("RegistrationCampaign"),
-                ),
-                "400": response("Invalid request", ref("Error")),
-                "404": response(
-                    "Registration campaign not found", ref("Error")
-                ),
-            },
-            body=request_body(ref("RegistrationCampaignPatch")),
+            OperationData(
+                "api_registration_campaign_detail",
+                ["Registration Campaigns"],
+                "Update registration campaign",
+                {
+                    "200": response(
+                        "Updated registration campaign",
+                        ref("RegistrationCampaign"),
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                    "404": response(
+                        "Registration campaign not found", ref("Error")
+                    ),
+                },
+                body=request_body(ref("RegistrationCampaignPatch")),
+            )
         ),
     },
     "api_registration_campaign_registrations": {
         "get": operation(
-            "api_registration_campaign_registrations",
-            ["Registration Campaigns"],
-            "List registration campaign registrations and stats",
-            {
-                "200": response(
-                    "Registration campaign registrations",
-                    ref("RegistrationCampaignRegistrations"),
-                ),
-                "404": response(
-                    "Registration campaign not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_registration_campaign_registrations",
+                ["Registration Campaigns"],
+                "List registration campaign registrations and stats",
+                {
+                    "200": response(
+                        "Registration campaign registrations",
+                        ref("RegistrationCampaignRegistrations"),
+                    ),
+                    "404": response(
+                        "Registration campaign not found", ref("Error")
+                    ),
+                },
+            )
         ),
     },
     "api_homeworks": {
         "get": operation(
-            "api_homeworks",
-            ["Homeworks"],
-            "List homeworks",
-            {"200": response("Homework list", ref("HomeworksList"))},
+            OperationData(
+                "api_homeworks",
+                ["Homeworks"],
+                "List homeworks",
+                {
+                    "200": response(
+                        "Homework list", ref("HomeworksList")
+                    )
+                },
+            )
         ),
         "post": operation(
-            "api_homeworks",
-            ["Homeworks"],
-            "Create homework or homeworks",
-            {
-                "201": response(
-                    "Created homeworks", ref("HomeworkCreateResponse")
-                ),
-                "400": response("Invalid request", ref("Error")),
-                "404": response("Course not found", ref("Error")),
-            },
-            body=request_body(ref("HomeworkCreateRequest")),
+            OperationData(
+                "api_homeworks",
+                ["Homeworks"],
+                "Create homework or homeworks",
+                {
+                    "201": response(
+                        "Created homeworks",
+                        ref("HomeworkCreateResponse"),
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                    "404": response("Course not found", ref("Error")),
+                },
+                body=request_body(ref("HomeworkCreateRequest")),
+            )
         ),
     },
     "api_homework_detail": {
         "get": operation(
-            "api_homework_detail",
-            ["Homeworks"],
-            "Get homework details",
-            {
-                "200": response("Homework details", ref("Homework")),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_homework_detail",
+                ["Homeworks"],
+                "Get homework details",
+                {
+                    "200": response(
+                        "Homework details", ref("Homework")
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+            )
         ),
         "patch": operation(
-            "api_homework_detail",
-            ["Homeworks"],
-            "Update homework",
-            {
-                "200": response("Updated homework", ref("Homework")),
-                "400": response(
-                    "Invalid field, state, or date", ref("Error")
-                ),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            body=request_body(ref("HomeworkPatch")),
+            OperationData(
+                "api_homework_detail",
+                ["Homeworks"],
+                "Update homework",
+                {
+                    "200": response(
+                        "Updated homework", ref("Homework")
+                    ),
+                    "400": response(
+                        "Invalid field, state, or date", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                body=request_body(ref("HomeworkPatch")),
+            )
         ),
         "delete": operation(
-            "api_homework_detail",
-            ["Homeworks"],
-            "Delete homework",
-            {
-                "200": response("Deleted", ref("Deleted")),
-                "400": response(
-                    "Homework is not closed or has submissions",
-                    ref("Error"),
+            OperationData(
+                "api_homework_detail",
+                ["Homeworks"],
+                "Delete homework",
+                {
+                    "200": response("Deleted", ref("Deleted")),
+                    "400": response(
+                        "Homework is not closed or has submissions",
+                        ref("Error"),
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Deletes a homework only when state is CL and there are no "
+                    "submissions. This endpoint never deletes submission data."
                 ),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            description=(
-                "Deletes a homework only when state is CL and there are no "
-                "submissions. This endpoint never deletes submission data."
-            ),
+            )
         ),
     },
     "api_homework_score": {
         "post": operation(
-            "api_homework_score",
-            ["Homeworks"],
-            "Score homework submissions",
-            {
-                "200": response(
-                    "Homework scored", ref("HomeworkScoreResponse")
+            OperationData(
+                "api_homework_score",
+                ["Homeworks"],
+                "Score homework submissions",
+                {
+                    "200": response(
+                        "Homework scored", ref("HomeworkScoreResponse")
+                    ),
+                    "400": response(
+                        "Scoring blocked", ref("HomeworkScoreResponse")
+                    ),
+                    "403": response(
+                        "Staff token required", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Scores homework submissions with the same safeguards as "
+                    "cadmin: due date must be in the past, state must be OP, "
+                    "and already scored homeworks are rejected."
                 ),
-                "400": response(
-                    "Scoring blocked", ref("HomeworkScoreResponse")
-                ),
-                "403": response("Staff token required", ref("Error")),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            description=(
-                "Scores homework submissions with the same safeguards as "
-                "cadmin: due date must be in the past, state must be OP, "
-                "and already scored homeworks are rejected."
-            ),
+            )
         ),
     },
     "api_homework_detail_by_slug": {
         "get": operation(
-            "api_homework_detail_by_slug",
-            ["Homeworks"],
-            "Get homework details by slug",
-            {
-                "200": response("Homework details", ref("Homework")),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_homework_detail_by_slug",
+                ["Homeworks"],
+                "Get homework details by slug",
+                {
+                    "200": response(
+                        "Homework details", ref("Homework")
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+            )
         ),
         "patch": operation(
-            "api_homework_detail_by_slug",
-            ["Homeworks"],
-            "Update homework by slug",
-            {
-                "200": response("Updated homework", ref("Homework")),
-                "400": response(
-                    "Invalid field, state, or date", ref("Error")
-                ),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            body=request_body(ref("HomeworkPatch")),
+            OperationData(
+                "api_homework_detail_by_slug",
+                ["Homeworks"],
+                "Update homework by slug",
+                {
+                    "200": response(
+                        "Updated homework", ref("Homework")
+                    ),
+                    "400": response(
+                        "Invalid field, state, or date", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                body=request_body(ref("HomeworkPatch")),
+            )
         ),
         "put": operation(
-            "api_homework_detail_by_slug",
-            ["Homeworks"],
-            "Create or update homework by slug",
-            {
-                "200": response("Updated homework", ref("Homework")),
-                "201": response("Created homework", ref("Homework")),
-                "400": response(
-                    "Invalid request or replace blocked", ref("Error")
+            OperationData(
+                "api_homework_detail_by_slug",
+                ["Homeworks"],
+                "Create or update homework by slug",
+                {
+                    "200": response(
+                        "Updated homework", ref("Homework")
+                    ),
+                    "201": response(
+                        "Created homework", ref("Homework")
+                    ),
+                    "400": response(
+                        "Invalid request or replace blocked",
+                        ref("Error"),
+                    ),
+                    "404": response("Course not found", ref("Error")),
+                },
+                body=request_body(ref("HomeworkUpsert")),
+                description=(
+                    "Idempotently creates or updates a homework using the slug in "
+                    "the path. If questions are supplied for an existing homework, "
+                    "they replace current questions only when the homework is "
+                    "closed and has no submissions."
                 ),
-                "404": response("Course not found", ref("Error")),
-            },
-            body=request_body(ref("HomeworkUpsert")),
-            description=(
-                "Idempotently creates or updates a homework using the slug in "
-                "the path. If questions are supplied for an existing homework, "
-                "they replace current questions only when the homework is "
-                "closed and has no submissions."
-            ),
+            )
         ),
         "delete": operation(
-            "api_homework_detail_by_slug",
-            ["Homeworks"],
-            "Delete homework by slug",
-            {
-                "200": response("Deleted", ref("Deleted")),
-                "400": response(
-                    "Homework is not closed or has submissions",
-                    ref("Error"),
+            OperationData(
+                "api_homework_detail_by_slug",
+                ["Homeworks"],
+                "Delete homework by slug",
+                {
+                    "200": response("Deleted", ref("Deleted")),
+                    "400": response(
+                        "Homework is not closed or has submissions",
+                        ref("Error"),
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Deletes a homework only when state is CL and there are no "
+                    "submissions. This endpoint never deletes submission data."
                 ),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            description=(
-                "Deletes a homework only when state is CL and there are no "
-                "submissions. This endpoint never deletes submission data."
-            ),
+            )
         ),
     },
     "api_homework_score_by_slug": {
         "post": operation(
-            "api_homework_score_by_slug",
-            ["Homeworks"],
-            "Score homework submissions by slug",
-            {
-                "200": response(
-                    "Homework scored", ref("HomeworkScoreResponse")
+            OperationData(
+                "api_homework_score_by_slug",
+                ["Homeworks"],
+                "Score homework submissions by slug",
+                {
+                    "200": response(
+                        "Homework scored", ref("HomeworkScoreResponse")
+                    ),
+                    "400": response(
+                        "Scoring blocked", ref("HomeworkScoreResponse")
+                    ),
+                    "403": response(
+                        "Staff token required", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Scores homework submissions with the same safeguards as "
+                    "cadmin: due date must be in the past, state must be OP, "
+                    "and already scored homeworks are rejected."
                 ),
-                "400": response(
-                    "Scoring blocked", ref("HomeworkScoreResponse")
-                ),
-                "403": response("Staff token required", ref("Error")),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            description=(
-                "Scores homework submissions with the same safeguards as "
-                "cadmin: due date must be in the past, state must be OP, "
-                "and already scored homeworks are rejected."
-            ),
+            )
         ),
     },
     "api_projects": {
         "get": operation(
-            "api_projects",
-            ["Projects"],
-            "List projects",
-            {"200": response("Project list", ref("ProjectsList"))},
+            OperationData(
+                "api_projects",
+                ["Projects"],
+                "List projects",
+                {"200": response("Project list", ref("ProjectsList"))},
+            )
         ),
         "post": operation(
-            "api_projects",
-            ["Projects"],
-            "Create project or projects",
-            {
-                "201": response(
-                    "Created projects", ref("ProjectCreateResponse")
-                ),
-                "400": response("Invalid request", ref("Error")),
-                "404": response("Course not found", ref("Error")),
-            },
-            body=request_body(ref("ProjectCreateRequest")),
+            OperationData(
+                "api_projects",
+                ["Projects"],
+                "Create project or projects",
+                {
+                    "201": response(
+                        "Created projects", ref("ProjectCreateResponse")
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                    "404": response("Course not found", ref("Error")),
+                },
+                body=request_body(ref("ProjectCreateRequest")),
+            )
         ),
     },
     "api_project_detail": {
         "get": operation(
-            "api_project_detail",
-            ["Projects"],
-            "Get project details",
-            {
-                "200": response("Project details", ref("Project")),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_project_detail",
+                ["Projects"],
+                "Get project details",
+                {
+                    "200": response("Project details", ref("Project")),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+            )
         ),
         "patch": operation(
-            "api_project_detail",
-            ["Projects"],
-            "Update project",
-            {
-                "200": response("Updated project", ref("Project")),
-                "400": response(
-                    "Invalid field, state, or date", ref("Error")
-                ),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            body=request_body(ref("ProjectPatch")),
+            OperationData(
+                "api_project_detail",
+                ["Projects"],
+                "Update project",
+                {
+                    "200": response("Updated project", ref("Project")),
+                    "400": response(
+                        "Invalid field, state, or date", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                body=request_body(ref("ProjectPatch")),
+            )
         ),
         "delete": operation(
-            "api_project_detail",
-            ["Projects"],
-            "Delete project",
-            {
-                "200": response("Deleted", ref("Deleted")),
-                "400": response(
-                    "Project is not closed or has submissions",
-                    ref("Error"),
+            OperationData(
+                "api_project_detail",
+                ["Projects"],
+                "Delete project",
+                {
+                    "200": response("Deleted", ref("Deleted")),
+                    "400": response(
+                        "Project is not closed or has submissions",
+                        ref("Error"),
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Deletes a project only when state is CL and there are no "
+                    "submissions. This endpoint never deletes submission data."
                 ),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            description=(
-                "Deletes a project only when state is CL and there are no "
-                "submissions. This endpoint never deletes submission data."
-            ),
+            )
         ),
     },
     "api_project_assign_reviews": {
         "post": operation(
-            "api_project_assign_reviews",
-            ["Projects"],
-            "Assign project peer reviews",
-            {
-                "200": response(
-                    "Peer reviews assigned",
-                    ref("ProjectAssignReviewsResponse"),
+            OperationData(
+                "api_project_assign_reviews",
+                ["Projects"],
+                "Assign project peer reviews",
+                {
+                    "200": response(
+                        "Peer reviews assigned",
+                        ref("ProjectAssignReviewsResponse"),
+                    ),
+                    "400": response(
+                        "Assignment blocked",
+                        ref("ProjectAssignReviewsResponse"),
+                    ),
+                    "403": response(
+                        "Staff token required", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Assigns peer reviews with the same safeguards as cadmin: "
+                    "project state must be CS, submission due date must be in "
+                    "the past, and enough submissions must exist."
                 ),
-                "400": response(
-                    "Assignment blocked",
-                    ref("ProjectAssignReviewsResponse"),
-                ),
-                "403": response("Staff token required", ref("Error")),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            description=(
-                "Assigns peer reviews with the same safeguards as cadmin: "
-                "project state must be CS, submission due date must be in "
-                "the past, and enough submissions must exist."
-            ),
+            )
         ),
     },
     "api_project_score": {
         "post": operation(
-            "api_project_score",
-            ["Projects"],
-            "Score project",
-            {
-                "200": response(
-                    "Project scored", ref("ProjectScoreResponse")
+            OperationData(
+                "api_project_score",
+                ["Projects"],
+                "Score project",
+                {
+                    "200": response(
+                        "Project scored", ref("ProjectScoreResponse")
+                    ),
+                    "400": response(
+                        "Scoring blocked", ref("ProjectScoreResponse")
+                    ),
+                    "403": response(
+                        "Staff token required", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Scores project submissions with the same safeguards as "
+                    "cadmin: project state must be PR, peer review due date "
+                    "must be in the past, and peer reviews must exist."
                 ),
-                "400": response(
-                    "Scoring blocked", ref("ProjectScoreResponse")
-                ),
-                "403": response("Staff token required", ref("Error")),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            description=(
-                "Scores project submissions with the same safeguards as "
-                "cadmin: project state must be PR, peer review due date "
-                "must be in the past, and peer reviews must exist."
-            ),
+            )
         ),
     },
     "api_project_detail_by_slug": {
         "get": operation(
-            "api_project_detail_by_slug",
-            ["Projects"],
-            "Get project details by slug",
-            {
-                "200": response("Project details", ref("Project")),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
+            OperationData(
+                "api_project_detail_by_slug",
+                ["Projects"],
+                "Get project details by slug",
+                {
+                    "200": response("Project details", ref("Project")),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+            )
         ),
         "patch": operation(
-            "api_project_detail_by_slug",
-            ["Projects"],
-            "Update project by slug",
-            {
-                "200": response("Updated project", ref("Project")),
-                "400": response(
-                    "Invalid field, state, or date", ref("Error")
-                ),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            body=request_body(ref("ProjectPatch")),
+            OperationData(
+                "api_project_detail_by_slug",
+                ["Projects"],
+                "Update project by slug",
+                {
+                    "200": response("Updated project", ref("Project")),
+                    "400": response(
+                        "Invalid field, state, or date", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                body=request_body(ref("ProjectPatch")),
+            )
         ),
         "put": operation(
-            "api_project_detail_by_slug",
-            ["Projects"],
-            "Create or update project by slug",
-            {
-                "200": response("Updated project", ref("Project")),
-                "201": response("Created project", ref("Project")),
-                "400": response("Invalid request", ref("Error")),
-                "404": response("Course not found", ref("Error")),
-            },
-            body=request_body(ref("ProjectUpsert")),
-            description=(
-                "Idempotently creates or updates a project using the slug in "
-                "the path."
-            ),
+            OperationData(
+                "api_project_detail_by_slug",
+                ["Projects"],
+                "Create or update project by slug",
+                {
+                    "200": response("Updated project", ref("Project")),
+                    "201": response("Created project", ref("Project")),
+                    "400": response("Invalid request", ref("Error")),
+                    "404": response("Course not found", ref("Error")),
+                },
+                body=request_body(ref("ProjectUpsert")),
+                description=(
+                    "Idempotently creates or updates a project using the slug in "
+                    "the path."
+                ),
+            )
         ),
         "delete": operation(
-            "api_project_detail_by_slug",
-            ["Projects"],
-            "Delete project by slug",
-            {
-                "200": response("Deleted", ref("Deleted")),
-                "400": response(
-                    "Project is not closed or has submissions",
-                    ref("Error"),
+            OperationData(
+                "api_project_detail_by_slug",
+                ["Projects"],
+                "Delete project by slug",
+                {
+                    "200": response("Deleted", ref("Deleted")),
+                    "400": response(
+                        "Project is not closed or has submissions",
+                        ref("Error"),
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Deletes a project only when state is CL and there are no "
+                    "submissions. This endpoint never deletes submission data."
                 ),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            description=(
-                "Deletes a project only when state is CL and there are no "
-                "submissions. This endpoint never deletes submission data."
-            ),
+            )
         ),
     },
     "api_project_assign_reviews_by_slug": {
         "post": operation(
-            "api_project_assign_reviews_by_slug",
-            ["Projects"],
-            "Assign project peer reviews by slug",
-            {
-                "200": response(
-                    "Peer reviews assigned",
-                    ref("ProjectAssignReviewsResponse"),
+            OperationData(
+                "api_project_assign_reviews_by_slug",
+                ["Projects"],
+                "Assign project peer reviews by slug",
+                {
+                    "200": response(
+                        "Peer reviews assigned",
+                        ref("ProjectAssignReviewsResponse"),
+                    ),
+                    "400": response(
+                        "Assignment blocked",
+                        ref("ProjectAssignReviewsResponse"),
+                    ),
+                    "403": response(
+                        "Staff token required", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Assigns peer reviews with the same safeguards as cadmin: "
+                    "project state must be CS, submission due date must be in "
+                    "the past, and enough submissions must exist."
                 ),
-                "400": response(
-                    "Assignment blocked",
-                    ref("ProjectAssignReviewsResponse"),
-                ),
-                "403": response("Staff token required", ref("Error")),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            description=(
-                "Assigns peer reviews with the same safeguards as cadmin: "
-                "project state must be CS, submission due date must be in "
-                "the past, and enough submissions must exist."
-            ),
+            )
         ),
     },
     "api_project_score_by_slug": {
         "post": operation(
-            "api_project_score_by_slug",
-            ["Projects"],
-            "Score project by slug",
-            {
-                "200": response(
-                    "Project scored", ref("ProjectScoreResponse")
+            OperationData(
+                "api_project_score_by_slug",
+                ["Projects"],
+                "Score project by slug",
+                {
+                    "200": response(
+                        "Project scored", ref("ProjectScoreResponse")
+                    ),
+                    "400": response(
+                        "Scoring blocked", ref("ProjectScoreResponse")
+                    ),
+                    "403": response(
+                        "Staff token required", ref("Error")
+                    ),
+                    "404": response(
+                        "Course or project not found", ref("Error")
+                    ),
+                },
+                description=(
+                    "Scores project submissions with the same safeguards as "
+                    "cadmin: project state must be PR, peer review due date "
+                    "must be in the past, and peer reviews must exist."
                 ),
-                "400": response(
-                    "Scoring blocked", ref("ProjectScoreResponse")
-                ),
-                "403": response("Staff token required", ref("Error")),
-                "404": response(
-                    "Course or project not found", ref("Error")
-                ),
-            },
-            description=(
-                "Scores project submissions with the same safeguards as "
-                "cadmin: project state must be PR, peer review due date "
-                "must be in the past, and peer reviews must exist."
-            ),
+            )
         ),
     },
     "api_questions": {
         "get": operation(
-            "api_questions",
-            ["Questions"],
-            "List homework questions",
-            {"200": response("Question list", ref("QuestionsList"))},
+            OperationData(
+                "api_questions",
+                ["Questions"],
+                "List homework questions",
+                {
+                    "200": response(
+                        "Question list", ref("QuestionsList")
+                    )
+                },
+            )
         ),
         "post": operation(
-            "api_questions",
-            ["Questions"],
-            "Create question or questions",
-            {
-                "201": response(
-                    "Created questions", ref("QuestionCreateResponse")
-                ),
-                "400": response("Invalid request", ref("Error")),
-                "404": response(
-                    "Course or homework not found", ref("Error")
-                ),
-            },
-            body=request_body(ref("QuestionCreateRequest")),
+            OperationData(
+                "api_questions",
+                ["Questions"],
+                "Create question or questions",
+                {
+                    "201": response(
+                        "Created questions",
+                        ref("QuestionCreateResponse"),
+                    ),
+                    "400": response("Invalid request", ref("Error")),
+                    "404": response(
+                        "Course or homework not found", ref("Error")
+                    ),
+                },
+                body=request_body(ref("QuestionCreateRequest")),
+            )
         ),
     },
     "api_question_detail": {
         "get": operation(
-            "api_question_detail",
-            ["Questions"],
-            "Get question details",
-            {
-                "200": response("Question details", ref("Question")),
-                "404": response("Question not found", ref("Error")),
-            },
+            OperationData(
+                "api_question_detail",
+                ["Questions"],
+                "Get question details",
+                {
+                    "200": response(
+                        "Question details", ref("Question")
+                    ),
+                    "404": response("Question not found", ref("Error")),
+                },
+            )
         ),
         "patch": operation(
-            "api_question_detail",
-            ["Questions"],
-            "Update question",
-            {
-                "200": response("Updated question", ref("Question")),
-                "400": response("Invalid field", ref("Error")),
-                "404": response("Question not found", ref("Error")),
-            },
-            body=request_body(ref("QuestionPatch")),
+            OperationData(
+                "api_question_detail",
+                ["Questions"],
+                "Update question",
+                {
+                    "200": response(
+                        "Updated question", ref("Question")
+                    ),
+                    "400": response("Invalid field", ref("Error")),
+                    "404": response("Question not found", ref("Error")),
+                },
+                body=request_body(ref("QuestionPatch")),
+            )
         ),
         "delete": operation(
-            "api_question_detail",
-            ["Questions"],
-            "Delete question",
-            {
-                "200": response("Deleted", ref("Deleted")),
-                "400": response("Question has answers", ref("Error")),
-                "404": response("Question not found", ref("Error")),
-            },
-            description=(
-                "Deletes a question only when it has no answers. This "
-                "endpoint never deletes submitted answer data."
-            ),
+            OperationData(
+                "api_question_detail",
+                ["Questions"],
+                "Delete question",
+                {
+                    "200": response("Deleted", ref("Deleted")),
+                    "400": response(
+                        "Question has answers", ref("Error")
+                    ),
+                    "404": response("Question not found", ref("Error")),
+                },
+                description=(
+                    "Deletes a question only when it has no answers. This "
+                    "endpoint never deletes submitted answer data."
+                ),
+            )
         ),
     },
 }
