@@ -239,25 +239,33 @@ def compare_members(expected, actual):
     expected_keys = set(expected)
     actual_keys = set(actual)
     shared_keys = expected_keys & actual_keys
-    email_mismatches = sorted(
-        key for key in shared_keys if expected[key]["email"] != actual[key]["email"]
-    )
-    metadata_mismatches = sorted(
-        key
-        for key in shared_keys
-        if expected[key]["metadata"] != actual[key]["metadata"]
-    )
-    missing = sorted(expected_keys - actual_keys)
-    unexpected = sorted(actual_keys - expected_keys)
-    return {
-        "missing": missing,
-        "unexpected": unexpected,
-        "email_mismatches": email_mismatches,
-        "metadata_mismatches": metadata_mismatches,
-        "has_drift": bool(
-            missing
-            or unexpected
-            or email_mismatches
-            or metadata_mismatches
+    drift = {
+        "missing": sorted(expected_keys - actual_keys),
+        "unexpected": sorted(actual_keys - expected_keys),
+        "email_mismatches": member_field_mismatches(
+            expected, actual, shared_keys, "email"
+        ),
+        "metadata_mismatches": member_field_mismatches(
+            expected, actual, shared_keys, "metadata"
         ),
     }
+    drift["has_drift"] = has_member_drift(drift)
+    return drift
+
+
+def member_field_mismatches(expected, actual, shared_keys, field):
+    return sorted(
+        key for key in shared_keys if expected[key][field] != actual[key][field]
+    )
+
+
+def has_member_drift(drift):
+    return any(
+        drift[label]
+        for label in (
+            "missing",
+            "unexpected",
+            "email_mismatches",
+            "metadata_mismatches",
+        )
+    )
