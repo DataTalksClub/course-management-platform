@@ -835,16 +835,6 @@ def homework_confirmation_payload(
     submission: Submission,
     update_url: str,
 ) -> dict:
-    context = homework_confirmation_context(
-        course=course,
-        homework=homework,
-        submission=submission,
-        update_url=update_url,
-        profile_url=build_account_settings_url(
-            request_base_url(update_url)
-        ),
-    )
-
     return {
         "email": user.email,
         "template_key": email_templates.HOMEWORK_SUBMISSION_CONFIRMATION,
@@ -852,11 +842,32 @@ def homework_confirmation_payload(
         "idempotency_key": homework_confirmation_idempotency_key(
             submission
         ),
-        "context": context,
+        "context": homework_confirmation_payload_context(
+            course,
+            homework,
+            submission,
+            update_url,
+        ),
         "metadata": homework_confirmation_email_metadata(
             course, homework, submission
         ),
     }
+
+
+def homework_confirmation_payload_context(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+    update_url: str,
+) -> dict[str, Any]:
+    profile_url = build_account_settings_url(request_base_url(update_url))
+    return homework_confirmation_context(
+        course=course,
+        homework=homework,
+        submission=submission,
+        update_url=update_url,
+        profile_url=profile_url,
+    )
 
 
 def homework_confirmation_idempotency_key(submission: Submission) -> str:
