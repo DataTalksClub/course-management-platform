@@ -44,6 +44,13 @@ class SubmissionDebugData:
     warnings: list[str]
 
 
+@dataclass(frozen=True)
+class ReviewDictionaryData:
+    submissions: dict
+    reviews_by_submission: dict
+    reviews_by_reviewer: dict
+
+
 def print_debug_header(course_slug, project_slug):
     print("=" * 80)
     print(f"DEBUGGING PROJECT SCORING: {course_slug}/{project_slug}")
@@ -120,37 +127,50 @@ def responses_by_review(criteria_responses):
     return responses
 
 
+def register_review_for_debug(review, response_map, data):
+    submission = review.submission_under_evaluation
+    data.submissions[submission.id] = submission
+
+    if submission.id not in data.reviews_by_submission:
+        data.reviews_by_submission[submission.id] = []
+
+    if review.reviewer.id not in data.reviews_by_reviewer:
+        data.reviews_by_reviewer[review.reviewer.id] = []
+
+    if review.state != 'SU':
+        return
+
+    data.reviews_by_submission[submission.id].append(review)
+    reviewer = review.reviewer
+    data.reviews_by_reviewer[reviewer.id].append(review)
+    review.responses = response_map[review.id]
+
+
+def print_review_dictionary_counts(data):
+    print("✓ Built dictionaries:")
+    print(f"  - {len(data.submissions)} unique submissions")
+    print(
+        f"  - {len(data.reviews_by_submission)} submissions have reviews"
+    )
+    print(f"  - {len(data.reviews_by_reviewer)} reviewers")
+
+
 def build_review_dictionaries(peer_reviews, criteria_responses):
     print_step("Step 3: Building review dictionaries")
     try:
         response_map = responses_by_review(criteria_responses)
         print(f"✓ Built responses_by_review with {len(response_map)} reviews")
-
-        submissions = {}
-        reviews_by_submission = {}
-        reviews_by_reviewer = {}
+        review_data = ReviewDictionaryData(
+            submissions={},
+            reviews_by_submission={},
+            reviews_by_reviewer={},
+        )
 
         for review in peer_reviews:
-            submission = review.submission_under_evaluation
-            submissions[submission.id] = submission
+            register_review_for_debug(review, response_map, review_data)
 
-            if submission.id not in reviews_by_submission:
-                reviews_by_submission[submission.id] = []
-
-            if review.reviewer.id not in reviews_by_reviewer:
-                reviews_by_reviewer[review.reviewer.id] = []
-
-            if review.state == 'SU':
-                reviews_by_submission[submission.id].append(review)
-                reviewer = review.reviewer
-                reviews_by_reviewer[reviewer.id].append(review)
-                review.responses = response_map[review.id]
-
-        print("✓ Built dictionaries:")
-        print(f"  - {len(submissions)} unique submissions")
-        print(f"  - {len(reviews_by_submission)} submissions have reviews")
-        print(f"  - {len(reviews_by_reviewer)} reviewers")
-        return submissions, reviews_by_submission, reviews_by_reviewer
+        print_review_dictionary_counts(review_data)
+        return review_data
     except Exception as e:
         print(f"✗ Error building dictionaries: {e}")
         traceback.print_exc()
@@ -221,32 +241,35 @@ def process_submission(
         check_review_responses(review, data.errors, data.warnings)
 
 
-def process_submissions(submissions, reviews_by_submission, reviews_by_reviewer):
+def process_submissions(review_data):
     print_step("Step 5: Processing submissions (checking for issues)")
     errors = []
     warnings = []
 
-    submission_items = submissions.items()
+    submission_items = review_data.submissions.items()
     for i, (submission_id, submission) in enumerate(submission_items):
         try:
             submission_data = SubmissionDebugData(
                 submission_id=submission_id,
                 submission=submission,
-                reviews_by_submission=reviews_by_submission,
-                reviews_by_reviewer=reviews_by_reviewer,
+                reviews_by_submission=review_data.reviews_by_submission,
+                reviews_by_reviewer=review_data.reviews_by_reviewer,
                 errors=errors,
                 warnings=warnings,
             )
             process_submission(submission_data)
             # Progress indicator
             if (i + 1) % 50 == 0:
-                print(f"  Processed {i + 1}/{len(submissions)} submissions...")
+                print(
+                    f"  Processed {i + 1}/"
+                    f"{len(review_data.submissions)} submissions..."
+                )
 
         except Exception as e:
             errors.append(f"Submission {submission_id}: {e}")
             traceback.print_exc()
 
-    print(f"✓ Processed all {len(submissions)} submissions")
+    print(f"✓ Processed all {len(review_data.submissions)} submissions")
     return errors, warnings
 
 
@@ -335,16 +358,11 @@ def debug_score_project(course_slug, project_slug):
     review_data = build_review_dictionaries(peer_reviews, criteria_responses)
     if review_data is None:
         return
-    submissions, reviews_by_submission, reviews_by_reviewer = review_data
 
     if fetch_review_criteria(project) is None:
         return
 
-    errors, warnings = process_submissions(
-        submissions,
-        reviews_by_submission,
-        reviews_by_reviewer,
-    )
+    errors, warnings = process_submissions(review_data)
     print_diagnosis(errors, warnings)
     print_recommendations(errors, warnings)
 
