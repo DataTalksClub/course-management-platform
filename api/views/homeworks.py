@@ -280,7 +280,7 @@ def _invalid_homework_state_response():
     )
 
 
-def _apply_homework_data(homework, data):
+def _apply_homework_text_fields(homework, data):
     title = _homework_title_from_data(data)
     if title is not None:
         homework.title = title
@@ -288,15 +288,24 @@ def _apply_homework_data(homework, data):
     if "description" in data:
         homework.description = data["description"]
 
-    error = _apply_homework_instructions_url(homework, data)
-    if error:
-        return error
 
-    error = _apply_homework_due_date(homework, data)
-    if error:
-        return error
+def _apply_homework_validated_fields(homework, data):
+    for apply_field in (
+        _apply_homework_instructions_url,
+        _apply_homework_due_date,
+        _apply_homework_state,
+    ):
+        error = apply_field(homework, data)
+        if error:
+            return error
 
-    error = _apply_homework_state(homework, data)
+    return None
+
+
+def _apply_homework_data(homework, data):
+    _apply_homework_text_fields(homework, data)
+
+    error = _apply_homework_validated_fields(homework, data)
     if error:
         return error
 
