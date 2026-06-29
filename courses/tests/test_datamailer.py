@@ -324,6 +324,22 @@ class DatamailerClientTest(TestCase):
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
+    def assert_upserted_recipient_member(
+        self,
+        upsert_member,
+        *,
+        list_key,
+        source_object_key,
+        list_type,
+    ):
+        upsert_member.assert_called_once()
+        self.assertEqual(upsert_member.call_args.args[0], list_key)
+        self.assertEqual(upsert_member.call_args.args[1], source_object_key)
+        self.assertEqual(
+            upsert_member.call_args.args[2]["list"]["type"],
+            list_type,
+        )
+
     def assert_score_payload_common(
         self,
         payload,
@@ -2500,48 +2516,22 @@ class DatamailerClientTest(TestCase):
         upsert_contact,
         upsert_member,
     ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user, course=course
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        submission = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/project",
+        user = self.create_user("student@example.com")
+        project = self.create_project()
+        submission = self.create_project_submission(
+            project,
+            user,
             commit_id="a" * 40,
         )
 
         sync_project_submission_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
-        upsert_member.assert_called_once()
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            project_submitters_list_key(project),
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[1],
-            f"project-submission:{submission.pk}",
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[2]["list"]["type"],
-            "project_submitters",
+        self.assert_upserted_recipient_member(
+            upsert_member,
+            list_key=project_submitters_list_key(project),
+            source_object_key=f"project-submission:{submission.pk}",
+            list_type="project_submitters",
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
