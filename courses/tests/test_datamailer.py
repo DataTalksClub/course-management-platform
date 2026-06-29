@@ -509,6 +509,27 @@ class DatamailerClientTest(TestCase):
             "email_course_updates",
         )
 
+    def configure_registration_confirmation_send_success(self, send):
+        send.return_value = {
+            "message": {
+                "id": "message-id",
+                "status": "queued",
+                "template_key": "registration-confirmation",
+            },
+            "enqueued": True,
+        }
+
+    def assert_registration_confirmation_audit(self):
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(
+            audit.send_type,
+            DatamailerSendAuditType.TRANSACTIONAL,
+        )
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        self.assertEqual(audit.template_key, "registration-confirmation")
+        self.assertEqual(audit.category_tag, "course-updates")
+        self.assertEqual(audit.event, "course_registration")
+
     def configure_successful_import_polling(
         self, recipient_list_import, job_id
     ):
@@ -1956,54 +1977,28 @@ class DatamailerClientTest(TestCase):
 
         self.assert_registration_confirmation_payload(payload, registration)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
     @patch(
         "course_management.datamailer.DatamailerClient.send_transactional"
     )
     def test_send_registration_confirmation_email_uses_transactional_send(
         self, send
     ):
-        send.return_value = {
-            "message": {
-                "id": "message-id",
-                "status": "queued",
-                "template_key": "registration-confirmation",
-            },
-            "enqueued": True,
-        }
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            email="student@example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
+        self.configure_registration_confirmation_send_success(send)
+        registration = self.create_llm_registration_for_confirmation()
 
         result = send_registration_confirmation_email(registration)
 
         self.assertEqual(result["message"]["id"], "message-id")
         send.assert_called_once()
-        payload = send.call_args.args[0]
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(
-            payload["template_key"],
-            "registration-confirmation",
+        self.assert_registration_confirmation_payload(
+            send.call_args.args[0],
+            registration,
         )
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(
-            audit.send_type,
-            DatamailerSendAuditType.TRANSACTIONAL,
-        )
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.template_key, "registration-confirmation")
-        self.assertEqual(audit.category_tag, "course-updates")
-        self.assertEqual(audit.event, "course_registration")
+        self.assert_registration_confirmation_audit()
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
