@@ -114,8 +114,13 @@ def _campaigns_list_response():
     campaigns = RegistrationCampaign.objects.select_related(
         "current_course"
     ).order_by("title", "slug")
+    campaign_records = []
+    for campaign in campaigns:
+        campaign_record = _campaign_to_dict(campaign)
+        campaign_records.append(campaign_record)
+
     return JsonResponse(
-        {"registration_campaigns": [_campaign_to_dict(c) for c in campaigns]}
+        {"registration_campaigns": campaign_records}
     )
 
 
@@ -179,7 +184,8 @@ def _campaign_patch_response(request, campaign):
     if err:
         return err
 
-    for field, value in data.items():
+    data_items = data.items()
+    for field, value in data_items:
         setattr(campaign, field, value)
 
     err = _save_campaign(campaign)
@@ -209,13 +215,15 @@ def registration_campaign_detail_view(request, campaign_slug):
 
 
 def _count_by(queryset, field):
-    return [
-        {"value": item[field] or "", "count": item["count"]}
-        for item in queryset.values(field).annotate(count=Count("id")).order_by(
-            "-count",
-            field,
-        )
-    ]
+    counts = []
+    grouped_values = queryset.values(field).annotate(count=Count("id")).order_by(
+        "-count",
+        field,
+    )
+    for item in grouped_values:
+        count_record = {"value": item[field] or "", "count": item["count"]}
+        counts.append(count_record)
+    return counts
 
 
 def _campaign_registrations_queryset(campaign):
@@ -235,7 +243,8 @@ def _apply_registration_search(queryset, search):
 
 
 def _apply_registration_exact_filters(queryset, params):
-    for field in ("role", "country", "region"):
+    filter_fields = ("role", "country", "region")
+    for field in filter_fields:
         value = params.get(field, "").strip()
         if value:
             queryset = queryset.filter(**{field: value})
@@ -273,13 +282,16 @@ def _registration_limit(params):
 
 
 def _registration_list_payload(campaign, registrations, stats, limit):
+    registration_records = []
+    ordered_registrations = registrations.order_by("-created_at")[:limit]
+    for registration in ordered_registrations:
+        registration_record = _registration_to_dict(registration)
+        registration_records.append(registration_record)
+
     return {
         "campaign": _campaign_to_dict(campaign),
         "stats": stats,
-        "registrations": [
-            _registration_to_dict(registration)
-            for registration in registrations.order_by("-created_at")[:limit]
-        ],
+        "registrations": registration_records,
     }
 
 
