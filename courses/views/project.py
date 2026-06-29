@@ -982,6 +982,24 @@ def project_eval_criteria_response_pairs(
     return criteria_response_pairs
 
 
+def project_eval_responses_by_criteria_id(review):
+    responses_by_criteria_id = {}
+    criteria_responses = review.get_criteria_responses()
+    for response in criteria_responses:
+        responses_by_criteria_id[response.criteria.id] = response
+    return responses_by_criteria_id
+
+
+def project_eval_accepting_submissions(project):
+    return project.state == ProjectState.PEER_REVIEWING.value
+
+
+def project_eval_disable_learning_in_public(enrollment):
+    if enrollment is None:
+        return False
+    return enrollment.disable_learning_in_public
+
+
 def project_eval_build_context(
     project: Project,
     review: PeerReview,
@@ -989,20 +1007,9 @@ def project_eval_build_context(
     enrollment: Optional["Enrollment"] = None,
 ):
     submission = review.submission_under_evaluation
-
-    accepting_submissions = (
-        project.state == ProjectState.PEER_REVIEWING.value
-    )
-
+    accepting_submissions = project_eval_accepting_submissions(project)
     disabled = not accepting_submissions
-
-    disable_learning_in_public = (
-        enrollment.disable_learning_in_public if enrollment else False
-    )
-    responses_by_criteria_id = {}
-    criteria_responses = review.get_criteria_responses()
-    for response in criteria_responses:
-        responses_by_criteria_id[response.criteria.id] = response
+    responses_by_criteria_id = project_eval_responses_by_criteria_id(review)
 
     context = {
         "project": project,
@@ -1014,7 +1021,9 @@ def project_eval_build_context(
         ),
         "accepting_submissions": accepting_submissions,
         "disabled": disabled,
-        "disable_learning_in_public": disable_learning_in_public,
+        "disable_learning_in_public": (
+            project_eval_disable_learning_in_public(enrollment)
+        ),
     }
 
     return context
