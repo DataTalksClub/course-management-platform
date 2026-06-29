@@ -270,6 +270,13 @@ class HomeworkDetailViewTests(TestCase):
             ).exists()
         )
 
+    def assert_no_submission(self):
+        self.assertFalse(
+            Submission.objects.filter(
+                student=self.user, homework=self.homework
+            ).exists()
+        )
+
     def get_saved_submission(self):
         return Submission.objects.get(
             homework=self.homework, student=self.user
@@ -299,6 +306,44 @@ class HomeworkDetailViewTests(TestCase):
         mock_response.status_code = 200
         mock_get.return_value = mock_response
         mock_head.return_value = mock_response
+
+    def mock_failed_url_checks(self, mock_get, mock_head, status_code=404):
+        mock_response = mock.Mock()
+        mock_response.status_code = status_code
+        mock_get.return_value = mock_response
+        mock_head.return_value = mock_response
+
+    def enable_homework_url_field(self):
+        self.homework.homework_url_field = True
+        self.homework.save()
+
+    def assert_invalid_homework_url_response(self, response, homework_url):
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "The submitted GitHub link")
+        self.assertContains(response, "does not exist")
+        self.assertContains(response, f'value="{homework_url}"')
+        self.assertContains(
+            response,
+            'class="form-control mt-2 is-invalid"',
+        )
+        self.assertContains(
+            response,
+            "Check that the repository exists and is public.",
+        )
+        self.assertContains(
+            response,
+            f'id="radio-{self.question1.id}-1"',
+        )
+        self.assertContains(response, "checked")
+        self.assertContains(
+            response,
+            'value="Some other text"',
+        )
+        self.assertContains(
+            response,
+            'value="3.141516"',
+        )
+        self.assert_no_submission()
 
     def enable_full_submission_fields(self):
         self.course.homework_problems_comments_field = True
@@ -881,70 +926,15 @@ class HomeworkDetailViewTests(TestCase):
     def test_submit_homework_url_validation_404_error(
         self, mock_get, mock_head
     ):
-        mock_response = mock.Mock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
+        self.mock_failed_url_checks(mock_get, mock_head)
+        self.enable_homework_url_field()
+        homework_url = "https://github.com/nonexistent/repo"
 
-        self.homework.homework_url_field = True
-        self.homework.save()
-
-        self.client.login(**credentials)
-
-        post_data = {
-            f"answer_{self.question1.id}": ["1"],
-            f"answer_{self.question2.id}": ["Some other text"],
-            f"answer_{self.question3.id}": ["1", "2", "4"],
-            f"answer_{self.question4.id}": ["3"],
-            f"answer_{self.question5.id}": ["3.141516"],
-            f"answer_{self.question6.id}": ["1", "2"],
-            "homework_url": "https://github.com/nonexistent/repo",
-        }
-
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
+        response = self.post_homework(
+            self.updated_answer_post_data(homework_url=homework_url)
         )
 
-        response = self.client.post(url, post_data)
-
-        # Should return form with errors due to 404
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "The submitted GitHub link")
-        self.assertContains(response, "does not exist")
-        self.assertContains(
-            response,
-            'value="https://github.com/nonexistent/repo"',
-        )
-        self.assertContains(
-            response,
-            'class="form-control mt-2 is-invalid"',
-        )
-        self.assertContains(
-            response,
-            "Check that the repository exists and is public.",
-        )
-        self.assertContains(
-            response,
-            'value="Some other text"',
-        )
-        self.assertContains(
-            response,
-            'value="3.141516"',
-        )
-        self.assertContains(
-            response,
-            f'id="radio-{self.question1.id}-1"',
-        )
-        self.assertContains(response, "checked")
-        self.assertFalse(
-            Submission.objects.filter(
-                homework=self.homework, student=self.user
-            ).exists()
-        )
+        self.assert_invalid_homework_url_response(response, homework_url)
 
     def test_closed_homework_without_submission_hides_form(self):
         self.homework.state = HomeworkState.CLOSED.value
