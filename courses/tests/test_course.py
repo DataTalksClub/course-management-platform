@@ -79,8 +79,10 @@ class CourseDetailViewTests(TestCase):
         ]
 
     def create_questions_for_homeworks(self):
-        for homework in self.homeworks:
-            for i in range(1, 4):
+        homeworks = self.homeworks
+        for homework in homeworks:
+            question_numbers = range(1, 4)
+            for i in question_numbers:
                 Question.objects.create(
                     homework=homework,
                     text=f"Question {i} of {homework.title}",
@@ -168,7 +170,11 @@ class CourseDetailViewTests(TestCase):
         return self.client.get(self.course_url())
 
     def homeworks_by_slug(self, response):
-        return {h.slug: h for h in response.context["homeworks"]}
+        homeworks_by_slug = {}
+        homeworks = response.context["homeworks"]
+        for homework in homeworks:
+            homeworks_by_slug[homework.slug] = homework
+        return homeworks_by_slug
 
     def assert_course_context(self, context, authenticated):
         self.assertEqual(context["course"], self.course)
@@ -343,7 +349,9 @@ class CourseDetailViewTests(TestCase):
     def assert_homeworks_in_due_order(self, response):
         homeworks = response.context["homeworks"]
         self.assertEqual(len(homeworks), 6)
-        homework_slugs = [homework.slug for homework in homeworks]
+        homework_slugs = []
+        for homework in homeworks:
+            homework_slugs.append(homework.slug)
         early_pos = homework_slugs.index("homework-early")
         middle_pos = homework_slugs.index("homework-middle")
         late_pos = homework_slugs.index("homework-late")
@@ -512,10 +520,11 @@ class CourseDetailViewTests(TestCase):
         self.course.save()
 
     def active_course_from_response(self, response):
-        return next(
-            course for course in response.context["active_courses"]
-            if course.slug == self.course.slug
-        )
+        active_courses = response.context["active_courses"]
+        for course in active_courses:
+            if course.slug == self.course.slug:
+                return course
+        return None
 
     def course_card_html(self, content, course):
         course_url = reverse("course", kwargs={"course_slug": course.slug})
@@ -573,8 +582,13 @@ class CourseDetailViewTests(TestCase):
         self.assertIsNone(context["total_score"])
 
         # Check the properties of each homework in the context
-        for hw in context["homeworks"]:
-            self.assertIn(hw.title, [h.title for h in self.homeworks])
+        expected_titles = []
+        homeworks = self.homeworks
+        for homework in homeworks:
+            expected_titles.append(homework.title)
+        context_homeworks = context["homeworks"]
+        for hw in context_homeworks:
+            self.assertIn(hw.title, expected_titles)
             self.assertFalse(hw.submitted)
             self.assertIsNone(hw.score)
             self.assertFalse(hasattr(hw, "submitted_at"))
@@ -810,14 +824,18 @@ class CourseDetailViewTests(TestCase):
 
     def assert_leaderboard_order(self, response, expected_order):
         enrollments = response.context["enrollments"]
-        actual_order = [e["display_name"] for e in enrollments]
+        actual_order = []
+        for enrollment in enrollments:
+            display_name = enrollment["display_name"]
+            actual_order.append(display_name)
         self.assertEqual(actual_order, expected_order)
 
     def assert_leaderboard_positions(self, response, expected_positions):
         enrollments = response.context["enrollments"]
-        actual_positions = [
-            e["position_on_leaderboard"] for e in enrollments
-        ]
+        actual_positions = []
+        for enrollment in enrollments:
+            position = enrollment["position_on_leaderboard"]
+            actual_positions.append(position)
         self.assertEqual(actual_positions, expected_positions)
 
     def assert_current_student_enrollment(self, response):
@@ -875,7 +893,10 @@ class CourseDetailViewTests(TestCase):
             self.enrollment.display_name,
         ]
 
-        actual_order = [e['display_name'] for e in enrollments]
+        actual_order = []
+        for enrollment in enrollments:
+            display_name = enrollment["display_name"]
+            actual_order.append(display_name)
 
         self.assertEqual(actual_order, expected_order)
 
@@ -1245,7 +1266,8 @@ class CourseDetailViewTests(TestCase):
 
     def test_list_all_submissions_view_is_paginated(self):
         """Test the list all submissions view limits results per page."""
-        for index in range(30):
+        student_indexes = range(30)
+        for index in student_indexes:
             user = User.objects.create_user(
                 username=f"student-{index}",
                 email=f"student-{index}@example.com",
@@ -1339,28 +1361,30 @@ class CourseDetailViewTests(TestCase):
         Course.objects.create(
             title="Visible Course",
             slug="visible-course",
-            visible=True
+            visible=True,
         )
-        
+
         # Create a non-visible course
         Course.objects.create(
             title="Hidden Course",
             slug="hidden-course",
-            visible=False
+            visible=False,
         )
-        
+
         # Test the course list view
         url = reverse("course_list")
         response = self.client.get(url)
-        
+
         self.assertEqual(response.status_code, 200)
-        
+
         # Check that visible course is in the list
         active_courses = response.context["active_courses"]
         finished_courses = response.context["finished_courses"]
         all_courses = list(active_courses) + list(finished_courses)
-        course_slugs = [course.slug for course in all_courses]
-        
+        course_slugs = []
+        for course in all_courses:
+            course_slugs.append(course.slug)
+
         self.assertIn("visible-course", course_slugs)
         self.assertNotIn("hidden-course", course_slugs)
 
