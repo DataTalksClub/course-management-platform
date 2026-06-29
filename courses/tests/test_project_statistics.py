@@ -531,16 +531,27 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.user = cls.create_primary_user()
+        cls.course = cls.create_course()
+        cls.project = cls.create_project()
+        cls.users = cls.create_bulk_users()
+        cls.enrollments = cls.create_bulk_enrollments(cls.users)
 
-        cls.user = User.objects.create_user(**credentials)
+    @classmethod
+    def create_primary_user(cls):
+        return User.objects.create_user(**credentials)
 
-        cls.course = Course.objects.create(
+    @classmethod
+    def create_course(cls):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             project_passing_score=10,
         )
 
-        cls.project = Project.objects.create(
+    @classmethod
+    def create_project(cls):
+        return Project.objects.create(
             course=cls.course,
             slug="test-project",
             title="Test Project",
@@ -550,30 +561,26 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             state=ProjectState.COMPLETED.value,
         )
 
-        # Create test users and enrollments once
-        cls.users = []
-        cls.enrollments = []
-        users_data = []
-        enrollments_data = []
+    @classmethod
+    def create_bulk_users(cls):
+        return User.objects.bulk_create(
+            [
+                User(
+                    username=f"student{i}@test.com",
+                    email=f"student{i}@test.com",
+                    password="password123",
+                )
+                for i in range(10)
+            ]
+        )
 
-        for i in range(10):
-            user_data = User(
-                username=f"student{i}@test.com",
-                email=f"student{i}@test.com",
-                password="password123",
-            )
-            users_data.append(user_data)
-
-        cls.users = User.objects.bulk_create(users_data)
-
-        for user in cls.users:
-            enrollment_data = Enrollment(
-                student=user, course=cls.course
-            )
-            enrollments_data.append(enrollment_data)
-
-        cls.enrollments = Enrollment.objects.bulk_create(
-            enrollments_data
+    @classmethod
+    def create_bulk_enrollments(cls, users):
+        return Enrollment.objects.bulk_create(
+            [
+                Enrollment(student=user, course=cls.course)
+                for user in users
+            ]
         )
 
     def setUp(self):
