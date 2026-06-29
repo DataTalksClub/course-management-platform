@@ -90,6 +90,24 @@ class HomeworkConfirmationData:
     profile_url: str
 
 
+@dataclass(frozen=True)
+class ChoiceOptionData:
+    homework: Homework
+    option: str
+    index: int
+    selected_options: list[int]
+    correct_indices: list[int]
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionFieldData:
+    submission: Submission
+    request: HttpRequest
+    course: Course
+    homework: Homework
+    user: User
+
+
 def process_unscored_free_form_answer(answer: Optional[Answer]):
     if not answer:
         return {"text": ""}
@@ -155,13 +173,14 @@ def process_question_options_multiple_choice_or_checkboxes(
 
     options = []
     for index, option in enumerate(possible_answers, start=1):
-        processed_option = process_choice_option(
-            homework,
-            option,
-            index,
-            selected_options,
-            correct_indices,
+        option_data = ChoiceOptionData(
+            homework=homework,
+            option=option,
+            index=index,
+            selected_options=selected_options,
+            correct_indices=correct_indices,
         )
+        processed_option = process_choice_option(option_data)
         options.append(processed_option)
 
     result = {"options": options}
@@ -171,22 +190,16 @@ def process_question_options_multiple_choice_or_checkboxes(
     return result
 
 
-def process_choice_option(
-    homework: Homework,
-    option: str,
-    index: int,
-    selected_options: list[int],
-    correct_indices: list[int],
-):
-    is_selected = index in selected_options
+def process_choice_option(data: ChoiceOptionData):
+    is_selected = data.index in data.selected_options
     processed_answer = {
-        "value": option,
+        "value": data.option,
         "is_selected": is_selected,
-        "index": index,
+        "index": data.index,
     }
 
-    if homework.state == HomeworkState.SCORED.value:
-        is_correct = index in correct_indices
+    if data.homework.state == HomeworkState.SCORED.value:
+        is_correct = data.index in data.correct_indices
         processed_answer.update(
             {
                 "is_correct": is_correct,
@@ -907,59 +920,58 @@ def build_account_settings_url(base_url: str) -> str:
     return path
 
 
-def _apply_homework_submission_fields(
-    submission, request, course, homework, user
-):
+def _apply_homework_submission_fields(field_data):
     """Populate the optional submission fields enabled for this homework."""
-    _apply_homework_url_field(submission, request, homework)
-    _apply_learning_in_public_links(
-        submission, request, course, homework, user
-    )
-    _apply_time_spent_fields(submission, request, homework)
-    _apply_problems_comments_field(submission, request, course)
-    _apply_faq_contribution_field(submission, request, homework)
+    _apply_homework_url_field(field_data)
+    _apply_learning_in_public_links(field_data)
+    _apply_time_spent_fields(field_data)
+    _apply_problems_comments_field(field_data)
+    _apply_faq_contribution_field(field_data)
 
 
-def _apply_homework_url_field(submission, request, homework):
-    if homework.homework_url_field:
-        submission.homework_link = request.POST.get("homework_url")
+def _apply_homework_url_field(field_data):
+    if field_data.homework.homework_url_field:
+        field_data.submission.homework_link = (
+            field_data.request.POST.get("homework_url")
+        )
 
 
-def _apply_learning_in_public_links(
-    submission, request, course, homework, user
-):
-    if homework.learning_in_public_cap > 0:
-        links = request.POST.getlist("learning_in_public_links[]")
+def _apply_learning_in_public_links(field_data):
+    if field_data.homework.learning_in_public_cap > 0:
+        links = field_data.request.POST.getlist(
+            "learning_in_public_links[]"
+        )
         cleaned_links = clean_learning_in_public_links(
-            links, homework.learning_in_public_cap
+            links,
+            field_data.homework.learning_in_public_cap,
         )
         duplicate_links = find_duplicate_learning_in_public_links(
-            user=user,
-            course=course,
+            user=field_data.user,
+            course=field_data.course,
             links=cleaned_links,
-            current_submission=submission,
+            current_submission=field_data.submission,
         )
         if duplicate_links:
             raise ValidationError(
                 "Learning in public links were already used in another "
                 f"submission: {', '.join(duplicate_links)}"
             )
-        submission.learning_in_public_links = cleaned_links
+        field_data.submission.learning_in_public_links = cleaned_links
 
 
-def _apply_time_spent_fields(submission, request, homework):
+def _apply_time_spent_fields(field_data):
     _apply_time_spent_field(
-        submission,
-        request,
-        enabled=homework.time_spent_lectures_field,
+        field_data.submission,
+        field_data.request,
+        enabled=field_data.homework.time_spent_lectures_field,
         post_key="time_spent_lectures",
         model_field="time_spent_lectures",
         field_label="time spent on lectures",
     )
     _apply_time_spent_field(
-        submission,
-        request,
-        enabled=homework.time_spent_homework_field,
+        field_data.submission,
+        field_data.request,
+        enabled=field_data.homework.time_spent_homework_field,
         post_key="time_spent_homework",
         model_field="time_spent_homework",
         field_label="time spent on homework",
@@ -980,18 +992,23 @@ def _apply_time_spent_field(
         setattr(submission, model_field, time_spent)
 
 
-def _apply_problems_comments_field(submission, request, course):
-    if course.homework_problems_comments_field:
-        submission.problems_comments = request.POST.get(
-            "problems_comments", ""
-        ).strip()
+def _apply_problems_comments_field(field_data):
+    if field_data.course.homework_problems_comments_field:
+        field_data.submission.problems_comments = (
+            field_data.request.POST.get(
+                "problems_comments",
+                "",
+            ).strip()
+        )
 
 
-def _apply_faq_contribution_field(submission, request, homework):
-    if homework.faq_contribution_field:
-        submission.faq_contribution_url = clean_faq_contribution_url(
-            request.POST.get("faq_contribution_url", "")
-        ).strip()
+def _apply_faq_contribution_field(field_data):
+    if field_data.homework.faq_contribution_field:
+        field_data.submission.faq_contribution_url = (
+            clean_faq_contribution_url(
+                field_data.request.POST.get("faq_contribution_url", "")
+            ).strip()
+        )
 
 
 def _homework_answers_from_post(request):
@@ -1092,9 +1109,14 @@ def _save_homework_submission_data(
         submission,
     )
     _save_homework_answers(submission, questions, answers_dict)
-    _apply_homework_submission_fields(
-        submission, request, course, homework, user
+    field_data = HomeworkSubmissionFieldData(
+        submission=submission,
+        request=request,
+        course=course,
+        homework=homework,
+        user=user,
     )
+    _apply_homework_submission_fields(field_data)
     submission.full_clean()
     submission.save()
     return submission
@@ -1238,21 +1260,17 @@ def homework_state_context(homework: Homework) -> dict[str, bool]:
 
 
 def bound_homework_submission_from_post(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    submission: Optional[Submission],
-    enrollment: Enrollment,
+    data: HomeworkPostData,
 ) -> Submission:
-    bound_submission = submission or Submission(
-        homework=homework,
-        student=request.user,
-        enrollment=enrollment,
+    bound_submission = data.submission or Submission(
+        homework=data.homework,
+        student=data.request.user,
+        enrollment=data.enrollment,
     )
     apply_homework_post_preview_fields(
-        request,
-        course,
-        homework,
+        data.request,
+        data.course,
+        data.homework,
         bound_submission,
     )
     return bound_submission
@@ -1368,33 +1386,24 @@ def question_answers_from_post(
 
 
 def homework_detail_build_context_from_post(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
-    enrollment: Enrollment,
+    data: HomeworkPostData,
 ) -> dict:
-    bound_submission = bound_homework_submission_from_post(
-        request,
-        course,
-        homework,
-        submission,
-        enrollment,
-    )
+    bound_submission = bound_homework_submission_from_post(data)
     context = {
-        "course": course,
-        "homework": homework,
+        "course": data.course,
+        "homework": data.homework,
         "question_answers": question_answers_from_post(
-            request,
-            homework,
-            questions,
+            data.request,
+            data.homework,
+            data.questions,
         ),
         "submission": bound_submission,
         "is_authenticated": True,
-        "disable_learning_in_public": enrollment.disable_learning_in_public,
+        "disable_learning_in_public": (
+            data.enrollment.disable_learning_in_public
+        ),
     }
-    context.update(homework_state_context(homework))
+    context.update(homework_state_context(data.homework))
     return context
 
 
@@ -1442,22 +1451,10 @@ def closed_homework_submission_response(
 
 
 def homework_validation_context(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
-    enrollment: Enrollment,
+    data: HomeworkPostData,
     error: ValidationError,
 ) -> dict:
-    context = homework_detail_build_context_from_post(
-        request=request,
-        course=course,
-        homework=homework,
-        questions=questions,
-        submission=submission,
-        enrollment=enrollment,
-    )
+    context = homework_detail_build_context_from_post(data)
     context["errors"] = error.messages
     context["error_fields"] = homework_error_fields(error)
     return context
@@ -1488,12 +1485,7 @@ def handle_homework_post(data: HomeworkPostData):
         return submit_homework_post(data)
     except ValidationError as error:
         return homework_validation_context(
-            request=data.request,
-            course=data.course,
-            homework=data.homework,
-            questions=data.questions,
-            submission=data.submission,
-            enrollment=data.enrollment,
+            data=data,
             error=error,
         )
 
