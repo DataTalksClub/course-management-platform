@@ -519,17 +519,42 @@ def print_skipped_tables(skipped: list[tuple[str, str]]) -> None:
             print(f"  {table}: {reason}")
 
 
-def copy_source_table(data: SourceTableCopyData) -> None:
+def source_table_skip_reason(data: SourceTableCopyData) -> str | None:
     if data.table in SKIP_TABLES:
-        data.summary.skipped.append(
-            (data.table, "managed by local migrations")
-        )
-        return
+        return "managed by local migrations"
 
     if data.table not in data.target_tables:
-        data.summary.skipped.append(
-            (data.table, "not in local Django schema")
-        )
+        return "not in local Django schema"
+
+    return None
+
+
+def skip_source_table(data: SourceTableCopyData, reason: str) -> None:
+    skipped_table = (data.table, reason)
+    data.summary.skipped.append(skipped_table)
+
+
+def execute_table_copy_plan(
+    data: SourceTableCopyData,
+    plan: TableCopyPlan,
+) -> None:
+    row_count = copy_table_rows(
+        data.source_cursor,
+        data.target_cursor,
+        plan,
+    )
+    imported_table = ImportedTable(
+        data.table,
+        row_count,
+        len(plan.insert_columns),
+    )
+    data.summary.imported.append(imported_table)
+
+
+def copy_source_table(data: SourceTableCopyData) -> None:
+    skip_reason = source_table_skip_reason(data)
+    if skip_reason is not None:
+        skip_source_table(data, skip_reason)
         return
 
     build_data = TableCopyBuildData(
@@ -542,20 +567,10 @@ def copy_source_table(data: SourceTableCopyData) -> None:
     plan = build_table_copy_plan(build_data)
 
     if not plan.insert_columns:
-        data.summary.skipped.append((data.table, "no insertable columns"))
+        skip_source_table(data, "no insertable columns")
         return
 
-    row_count = copy_table_rows(
-        data.source_cursor,
-        data.target_cursor,
-        plan,
-    )
-    imported_table = ImportedTable(
-        data.table,
-        row_count,
-        len(plan.insert_columns),
-    )
-    data.summary.imported.append(imported_table)
+    execute_table_copy_plan(data, plan)
 
 
 def copy_rows(source_db: Path, target_db: Path) -> None:

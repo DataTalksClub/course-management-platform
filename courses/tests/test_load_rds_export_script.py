@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from courses.models import Course
 from scripts.load_rds_export import (
     ColumnDefault,
+    ColumnCopyData,
     CopySummary,
     ImportedTable,
     TableCopyPlan,
@@ -46,14 +47,14 @@ class LoadRdsExportScriptTest(SimpleTestCase):
             column_info("required_local", notnull=True),
         ]
 
-        missing = missing_required_columns(
-            Course,
-            "courses_course",
-            target_info,
-            {"slug", "title"},
-            plan,
-            defaults_used,
+        column_data = ColumnCopyData(
+            model=Course,
+            table="courses_course",
+            source_columns={"slug", "title"},
+            plan=plan,
+            defaults_used=defaults_used,
         )
+        missing = missing_required_columns(target_info, column_data)
 
         self.assertEqual(missing, ["required_local"])
         self.assertEqual(plan.insert_columns, ["slug", "title", "visible"])
