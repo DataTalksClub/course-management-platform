@@ -66,7 +66,8 @@ class ProjectStatisticsTestCase(TestCase):
         # Create some test users and enrollments
         self.users = []
         self.enrollments = []
-        for i in range(5):
+        user_indexes = range(5)
+        for i in user_indexes:
             user = User.objects.create_user(
                 username=f"student{i}@test.com",
                 email=f"student{i}@test.com",
@@ -103,7 +104,8 @@ class ProjectStatisticsTestCase(TestCase):
     def create_bulk_submissions(self, submissions_data):
         """Bulk create submissions for better performance"""
         submissions = []
-        for i, scores in enumerate(submissions_data):
+        indexed_submission_data = enumerate(submissions_data)
+        for i, scores in indexed_submission_data:
             submission = ProjectSubmission(
                 project=self.project,
                 student=self.users[i],
@@ -116,7 +118,8 @@ class ProjectStatisticsTestCase(TestCase):
         return ProjectSubmission.objects.bulk_create(submissions)
 
     def create_model_method_submissions(self):
-        for i in range(3):
+        submission_indexes = range(3)
+        for i in submission_indexes:
             scores = {
                 "project_score": 10 + i,
                 "total_score": 20 + i,
@@ -199,7 +202,8 @@ class ProjectStatisticsTestCase(TestCase):
     def test_calculate_raw_project_statistics_insufficient_data(self):
         """Test statistics calculation with insufficient data (< 3 submissions)"""
         # Create only 2 submissions
-        for i in range(2):
+        submission_indexes = range(2)
+        for i in submission_indexes:
             self.create_project_submission(
                 self.users[i], self.enrollments[i]
             )
@@ -210,7 +214,8 @@ class ProjectStatisticsTestCase(TestCase):
         self.assertEqual(stats["total_submissions"], 2)
 
         # All score fields should have None values
-        for field in ["project_score", "total_score", "time_spent"]:
+        score_fields = ["project_score", "total_score", "time_spent"]
+        for field in score_fields:
             self.assertIsNone(stats[field]["min"])
             self.assertIsNone(stats[field]["max"])
             self.assertIsNone(stats[field]["avg"])
@@ -236,7 +241,8 @@ class ProjectStatisticsTestCase(TestCase):
             {"project_score": 9, "total_score": 16, "time_spent": 8.0},
         ]
 
-        for i, scores in enumerate(submissions_data):
+        indexed_submissions = enumerate(submissions_data)
+        for i, scores in indexed_submissions:
             self.create_project_submission(
                 self.users[i], self.enrollments[i], scores
             )
@@ -255,7 +261,8 @@ class ProjectStatisticsTestCase(TestCase):
     def test_calculate_project_statistics_model_creation(self):
         """Test that calculate_project_statistics creates a ProjectStatistics object"""
         # Create some submissions
-        for i in range(3):
+        submission_indexes = range(3)
+        for i in submission_indexes:
             scores = {
                 "project_score": 10 + i,
                 "total_score": 20 + i,
@@ -547,25 +554,24 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
 
     @classmethod
     def create_bulk_users(cls):
-        return User.objects.bulk_create(
-            [
-                User(
-                    username=f"student{i}@test.com",
-                    email=f"student{i}@test.com",
-                    password="password123",
-                )
-                for i in range(10)
-            ]
-        )
+        users = []
+        user_indexes = range(10)
+        for i in user_indexes:
+            user = User(
+                username=f"student{i}@test.com",
+                email=f"student{i}@test.com",
+                password="password123",
+            )
+            users.append(user)
+        return User.objects.bulk_create(users)
 
     @classmethod
     def create_bulk_enrollments(cls, users):
-        return Enrollment.objects.bulk_create(
-            [
-                Enrollment(student=user, course=cls.course)
-                for user in users
-            ]
-        )
+        enrollments = []
+        for user in users:
+            enrollment = Enrollment(student=user, course=cls.course)
+            enrollments.append(enrollment)
+        return Enrollment.objects.bulk_create(enrollments)
 
     def setUp(self):
         self.client = Client()
@@ -612,25 +618,28 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         }
 
     def workflow_submission_data(self):
-        return [
-            self.workflow_submission_scores(row)
-            for row in self.workflow_submission_score_rows()
-        ]
+        submission_data = []
+        score_rows = self.workflow_submission_score_rows()
+        for row in score_rows:
+            scores = self.workflow_submission_scores(row)
+            submission_data.append(scores)
+        return submission_data
 
     def create_workflow_submissions(self):
         ProjectSubmission.objects.filter(project=self.project).delete()
         submissions = []
-        for index, scores in enumerate(self.workflow_submission_data()):
-            submissions.append(
-                ProjectSubmission(
-                    project=self.project,
-                    student=self.users[index],
-                    enrollment=self.enrollments[index],
-                    github_link=f"https://github.com/student{index}/repo",
-                    commit_id=f"abc12{index}",
-                    **scores,
-                )
+        submission_data = self.workflow_submission_data()
+        indexed_submission_data = enumerate(submission_data)
+        for index, scores in indexed_submission_data:
+            submission = ProjectSubmission(
+                project=self.project,
+                student=self.users[index],
+                enrollment=self.enrollments[index],
+                github_link=f"https://github.com/student{index}/repo",
+                commit_id=f"abc12{index}",
+                **scores,
             )
+            submissions.append(submission)
         return ProjectSubmission.objects.bulk_create(submissions)
 
     def assert_workflow_statistics(self, stats):
