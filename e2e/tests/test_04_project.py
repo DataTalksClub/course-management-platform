@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+from e2e.browser import ProjectSubmissionData
 from e2e.mock_inbox import InboxDisabled
 
 pytestmark = pytest.mark.project
@@ -25,9 +26,9 @@ def test_submit_project_via_ui(admin_session, run_state):
     assert run_state.student_user_id, "Student/impersonation required first."
     assert run_state.course and run_state.course.project_slug
 
-    admin_session.submit_project(
-        run_state.course.slug,
-        run_state.course.project_slug,
+    submission_data = ProjectSubmissionData(
+        course_slug=run_state.course.slug,
+        project_slug=run_state.course.project_slug,
         github_link="https://github.com/DataTalksClub/course-management-platform",
         commit_id="4ce0ca4",
         certificate_name="E2E Smoke Student",
@@ -36,6 +37,7 @@ def test_submit_project_via_ui(admin_session, run_state):
             f"https://twitter.com/e2e/{run_state.namespace}-proj"
         ],
     )
+    admin_session.submit_project(submission_data)
     run_state.project_submitted = True
 
     body = admin_session.page.locator("body").inner_text()

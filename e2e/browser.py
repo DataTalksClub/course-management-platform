@@ -11,8 +11,31 @@ views and templates, not brittle text matching.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from playwright.sync_api import Page, expect
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionData:
+    course_slug: str
+    homework_slug: str
+    answers: dict[int, str]
+    homework_url: str | None = None
+    learning_in_public_links: list[str] | None = None
+    time_spent_lectures: float | None = None
+    time_spent_homework: float | None = None
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionData:
+    course_slug: str
+    project_slug: str
+    github_link: str
+    commit_id: str
+    certificate_name: str | None = None
+    time_spent: float | None = None
+    learning_in_public_links: list[str] | None = None
 
 
 def course_row_matches(row_text: str, slug: str, title: str | None = None) -> bool:
@@ -380,80 +403,49 @@ class AdminSession:
             f"form:has({first_answer_selector}) input[type='submit']"
         )
 
-    def submit_homework(
-        self,
-        course_slug: str,
-        homework_slug: str,
-        answers: dict[int, str],
-        *,
-        homework_url: str | None = None,
-        learning_in_public_links: list[str] | None = None,
-        time_spent_lectures: float | None = None,
-        time_spent_homework: float | None = None,
-    ) -> None:
+    def submit_homework(self, data: HomeworkSubmissionData) -> None:
         page = self.page
-        page.goto(self.url(f"/{course_slug}/homework/{homework_slug}"))
+        page.goto(self.url(f"/{data.course_slug}/homework/{data.homework_slug}"))
         page.wait_for_load_state("networkidle")
 
-        self._fill_homework_form(
-            answers,
-            homework_url=homework_url,
-            learning_in_public_links=learning_in_public_links,
-            time_spent_lectures=time_spent_lectures,
-            time_spent_homework=time_spent_homework,
-        )
-        self.click_first_visible(self._homework_submit_selector(answers))
+        self._fill_homework_form(data)
+        self.click_first_visible(self._homework_submit_selector(data.answers))
         page.wait_for_load_state("networkidle")
 
-    def _fill_homework_form(
-        self,
-        answers: dict[int, str],
-        *,
-        homework_url: str | None,
-        learning_in_public_links: list[str] | None,
-        time_spent_lectures: float | None,
-        time_spent_homework: float | None,
-    ) -> None:
-        for question_id, value in answers.items():
+    def _fill_homework_form(self, data: HomeworkSubmissionData) -> None:
+        for question_id, value in data.answers.items():
             self._fill_homework_answer(question_id, value)
 
-        self._fill_optional_homework_field("[name='homework_url']", homework_url)
+        self._fill_optional_homework_field(
+            "[name='homework_url']",
+            data.homework_url,
+        )
         self._fill_optional_homework_field(
             "[name='time_spent_lectures']",
-            time_spent_lectures,
+            data.time_spent_lectures,
         )
         self._fill_optional_homework_field(
             "[name='time_spent_homework']",
-            time_spent_homework,
+            data.time_spent_homework,
         )
-        self._fill_learning_in_public_links(learning_in_public_links)
+        self._fill_learning_in_public_links(data.learning_in_public_links)
 
     def homework_confirmation_text(self) -> str:
         return self.page.locator("body").inner_text()
 
     # -- project flow ----------------------------------------------------
-    def submit_project(
-        self,
-        course_slug: str,
-        project_slug: str,
-        *,
-        github_link: str,
-        commit_id: str,
-        certificate_name: str | None = None,
-        time_spent: float | None = None,
-        learning_in_public_links: list[str] | None = None,
-    ) -> None:
+    def submit_project(self, data: ProjectSubmissionData) -> None:
         page = self.page
-        page.goto(self.url(f"/{course_slug}/project/{project_slug}"))
+        page.goto(self.url(f"/{data.course_slug}/project/{data.project_slug}"))
         page.wait_for_load_state("networkidle")
 
-        self._fill_project_required_fields(github_link, commit_id)
+        self._fill_project_required_fields(data.github_link, data.commit_id)
         self._fill_optional_project_field(
             "[name='certificate_name']",
-            certificate_name,
+            data.certificate_name,
         )
-        self._fill_optional_project_field("[name='time_spent']", time_spent)
-        self._fill_project_learning_links(learning_in_public_links)
+        self._fill_optional_project_field("[name='time_spent']", data.time_spent)
+        self._fill_project_learning_links(data.learning_in_public_links)
 
         page.click("#project-form button[type='submit'], "
                    "#project-form input[type='submit']")

@@ -13,6 +13,7 @@ from __future__ import annotations
 import pytest
 
 from e2e.api_client import ApiRequestData
+from e2e.browser import HomeworkSubmissionData
 from e2e.mock_inbox import InboxDisabled
 
 pytestmark = pytest.mark.homework
@@ -68,10 +69,10 @@ def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
     if "long_free_form" in qmap:
         answers[qmap["long_free_form"]] = hw_answers["long_free_form"]
 
-    admin_session.submit_homework(
-        run_state.course.slug,
-        run_state.course.homework_slug,
-        answers,
+    submission_data = HomeworkSubmissionData(
+        course_slug=run_state.course.slug,
+        homework_slug=run_state.course.homework_slug,
+        answers=answers,
         homework_url="https://github.com/DataTalksClub/course-management-platform",
         learning_in_public_links=[
             f"https://twitter.com/e2e/{run_state.namespace}-hw"
@@ -79,6 +80,7 @@ def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
         time_spent_lectures=2,
         time_spent_homework=3,
     )
+    admin_session.submit_homework(submission_data)
     run_state.homework_submitted = True
 
     body = admin_session.homework_confirmation_text()
