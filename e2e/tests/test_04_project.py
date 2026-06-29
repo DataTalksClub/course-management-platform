@@ -62,6 +62,27 @@ def test_project_submission_recorded_in_api(api, run_state):
 PROJECT_CONFIRMATION_TEMPLATE = "project-submission-confirmation"
 
 
+def _assert_project_confirmation(backend, run_state):
+    # The real SES-inbound backend has no template_key (parsed from raw MIME);
+    # match on subject + body. Only the mock store carries a template_key.
+    expected_template = (
+        PROJECT_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
+    )
+    message = backend.wait_for_message(
+        run_state.student_email,
+        template_key=expected_template,
+        subject="Project submission saved",
+        timeout=120,
+    )
+    assert "E2E Project 1" in message.subject
+    if expected_template:
+        assert message.template_key == expected_template
+    assert message.body_contains("/project/"), (
+        "Project confirmation email missing update link "
+        f"(subject={message.subject!r})."
+    )
+
+
 @pytest.mark.email
 def test_project_confirmation_email(email_backend, run_state):
     """Student really receives the project submission-confirmation email.
@@ -82,25 +103,8 @@ def test_project_confirmation_email(email_backend, run_state):
             "Real inbox disabled on this deployment (REAL_INBOX_ENABLED off); "
             "enable REAL_INBOX_* on the Datamailer deployment to verify receipt."
         )
-    # The real SES-inbound backend has no template_key (parsed from raw MIME);
-    # match on subject + body. Only the mock store carries a template_key.
-    expected_template = (
-        PROJECT_CONFIRMATION_TEMPLATE if email_backend.name == "mock" else None
-    )
     try:
-        message = email_backend.wait_for_message(
-            run_state.student_email,
-            template_key=expected_template,
-            subject="Project submission saved",
-            timeout=120,
-        )
-        assert "E2E Project 1" in message.subject
-        if expected_template:
-            assert message.template_key == expected_template
-        assert message.body_contains("/project/"), (
-            "Project confirmation email missing update link "
-            f"(subject={message.subject!r})."
-        )
+        _assert_project_confirmation(email_backend, run_state)
     finally:
         email_backend.clear(run_state.student_email)
 
