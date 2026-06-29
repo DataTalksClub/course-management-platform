@@ -204,11 +204,14 @@ def homeworks_view(request, course_slug):
         homeworks = Homework.objects.filter(course=course).order_by(
             "id"
         )
+        homework_records = []
+        for homework in homeworks:
+            homework_record = _homework_to_dict(homework)
+            homework_records.append(homework_record)
+
         return JsonResponse(
             {
-                "homeworks": [
-                    _homework_to_dict(hw) for hw in homeworks
-                ],
+                "homeworks": homework_records,
             }
         )
 
@@ -240,7 +243,9 @@ HOMEWORK_PATCH_FIELDS = {
     "faq_contribution_field",
 }
 
-VALID_HOMEWORK_STATES = {s.value for s in HomeworkState}
+VALID_HOMEWORK_STATES = set()
+for homework_state in HomeworkState:
+    VALID_HOMEWORK_STATES.add(homework_state.value)
 
 
 HOMEWORK_DIRECT_UPDATE_FIELDS = (
@@ -290,11 +295,12 @@ def _apply_homework_text_fields(homework, data):
 
 
 def _apply_homework_validated_fields(homework, data):
-    for apply_field in (
+    field_applicators = (
         _apply_homework_instructions_url,
         _apply_homework_due_date,
         _apply_homework_state,
-    ):
+    )
+    for apply_field in field_applicators:
         error = apply_field(homework, data)
         if error:
             return error
