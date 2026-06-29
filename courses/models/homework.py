@@ -123,18 +123,29 @@ class Question(models.Model):
         split = [s.strip() for s in split]  # remove /r if present
         return split
 
-    def get_correct_answer(self):
-        if (self.question_type == QuestionTypes.CHECKBOXES.value) or (
-            self.question_type == QuestionTypes.MULTIPLE_CHOICE.value
-        ):
-            if not self.correct_answer:
-                return set()
+    def has_choice_answers(self):
+        return self.question_type in {
+            QuestionTypes.CHECKBOXES.value,
+            QuestionTypes.MULTIPLE_CHOICE.value,
+        }
 
-            indicies_raw = self.correct_answer.split(",")
-            indicies = [int(index) - 1 for index in indicies_raw]
-            possible_answers = self.get_possible_answers()
-            result = {possible_answers[i] for i in indicies}
-            return result
+    def zero_based_correct_answer_indices(self):
+        if not self.correct_answer:
+            return []
+
+        indices_raw = self.correct_answer.split(",")
+        return [int(index) - 1 for index in indices_raw]
+
+    def get_choice_correct_answer(self):
+        possible_answers = self.get_possible_answers()
+        return {
+            possible_answers[index]
+            for index in self.zero_based_correct_answer_indices()
+        }
+
+    def get_correct_answer(self):
+        if self.has_choice_answers():
+            return self.get_choice_correct_answer()
 
         return self.correct_answer or ""
 
