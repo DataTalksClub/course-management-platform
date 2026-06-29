@@ -175,29 +175,28 @@ def extract_selected_options(answer):
     return extract_selected_option_indexes(answer.answer_text)
 
 
+def _selected_option_index(option: str) -> Optional[int]:
+    option = option.strip()
+    if not option:
+        return None
+
+    try:
+        return int(option)
+    except ValueError:
+        return None
+
+
+def _selected_option_indexes(answer_text: Optional[str]):
+    for option in (answer_text or "").strip().split(","):
+        index = _selected_option_index(option)
+        if index is not None:
+            yield index
+
+
 def extract_selected_option_indexes(
     answer_text: Optional[str],
 ) -> List[int]:
-    answer_text = answer_text or ""
-    answer_text = answer_text.strip()
-
-    if not answer_text:
-        return []
-
-    selected_options = answer_text.strip().split(",")
-
-    result = []
-
-    for option in selected_options:
-        option = option.strip()
-        if not option:
-            continue
-        try:
-            result.append(int(option))
-        except ValueError:
-            pass
-
-    return result
+    return list(_selected_option_indexes(answer_text))
 
 
 def format_hours(value: Optional[float]) -> str:
