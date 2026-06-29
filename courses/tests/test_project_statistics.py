@@ -593,13 +593,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             time_spent=10.0,
         )
 
-    def test_full_statistics_workflow(self):
-        """Test the complete statistics workflow from submission to view"""
-        # Clear any existing submissions from setUp
-        ProjectSubmission.objects.filter(project=self.project).delete()
-
-        # Create diverse submissions using bulk operation
-        submission_data = [
+    def workflow_submission_data(self):
+        return [
             {
                 "project_score": 5,
                 "project_learning_in_public_score": 2,
@@ -642,42 +637,51 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             },
         ]
 
+    def create_workflow_submissions(self):
+        ProjectSubmission.objects.filter(project=self.project).delete()
         submissions = []
-        for i, scores in enumerate(submission_data):
-            submission = ProjectSubmission(
-                project=self.project,
-                student=self.users[i],
-                enrollment=self.enrollments[i],
-                github_link=f"https://github.com/student{i}/repo",
-                commit_id=f"abc12{i}",
-                **scores,
+        for index, scores in enumerate(self.workflow_submission_data()):
+            submissions.append(
+                ProjectSubmission(
+                    project=self.project,
+                    student=self.users[index],
+                    enrollment=self.enrollments[index],
+                    github_link=f"https://github.com/student{index}/repo",
+                    commit_id=f"abc12{index}",
+                    **scores,
+                )
             )
-            submissions.append(submission)
+        return ProjectSubmission.objects.bulk_create(submissions)
 
-        ProjectSubmission.objects.bulk_create(submissions)
-
-        # Calculate statistics
-        stats = calculate_project_statistics(self.project)
-
-        # Verify statistics were created
+    def assert_workflow_statistics(self, stats):
         self.assertIsNotNone(stats)
         self.assertEqual(stats.total_submissions, 5)
         self.assertEqual(stats.min_project_score, 5)
         self.assertEqual(stats.max_project_score, 15)
         self.assertEqual(stats.avg_project_score, 10.0)
 
-        # Test the view
-        url = reverse(
+    def project_statistics_url(self):
+        return reverse(
             "project_statistics",
             args=[self.course.slug, self.project.slug],
         )
-        response = self.client.get(url)
 
+    def assert_statistics_view_content(self, response):
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "5")  # total submissions
+        self.assertContains(response, "5")
         self.assertContains(response, "Project score")
         self.assertContains(response, "Total score")
         self.assertContains(response, "Time spent on project")
+
+    def test_full_statistics_workflow(self):
+        """Test the complete statistics workflow from submission to view"""
+        self.create_workflow_submissions()
+
+        stats = calculate_project_statistics(self.project)
+        self.assert_workflow_statistics(stats)
+
+        response = self.client.get(self.project_statistics_url())
+        self.assert_statistics_view_content(response)
 
         # Verify the statistics link appears on project page when completed
         project_url = reverse(
@@ -685,7 +689,7 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         )
         project_response = self.client.get(project_url)
         self.assertContains(project_response, "Project statistics")
-        self.assertContains(project_response, url)
+        self.assertContains(project_response, self.project_statistics_url())
 
     def test_statistics_links_in_navigation(self):
         """Test that statistics links appear in appropriate navigation areas"""
