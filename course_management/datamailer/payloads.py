@@ -505,19 +505,10 @@ def recipient_list_send_member_payload(
 def homework_score_notification_members(
     homework,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    list_data = {
-        "type": "homework_submitters",
-        "name": f"{homework.course.title} {homework.title} submitters",
-        "metadata": {
-            "course_slug": homework.course.slug,
-            "homework_slug": homework.slug,
-        },
-    }
+    list_data = homework_score_notification_list_data(homework)
     members = []
-    submissions = homework.submission_set.select_related(
-        "student", "homework__course"
-    ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
+    submissions = homework_score_notification_submissions(homework)
     for submission in submissions:
         if submission.student_id in seen_students:
             continue
@@ -533,22 +524,31 @@ def homework_score_notification_members(
         members.append(member)
     return list_data, members
 
+
+def homework_score_notification_list_data(homework) -> dict[str, Any]:
+    return {
+        "type": "homework_submitters",
+        "name": f"{homework.course.title} {homework.title} submitters",
+        "metadata": {
+            "course_slug": homework.course.slug,
+            "homework_slug": homework.slug,
+        },
+    }
+
+
+def homework_score_notification_submissions(homework):
+    return homework.submission_set.select_related(
+        "student", "homework__course"
+    ).order_by("student_id", "-submitted_at", "-id")
+
+
 def project_score_notification_members(
     project,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    list_data = {
-        "type": "project_submitters",
-        "name": f"{project.course.title} {project.title} submitters",
-        "metadata": {
-            "course_slug": project.course.slug,
-            "project_slug": project.slug,
-        },
-    }
+    list_data = project_score_notification_list_data(project)
     members = []
-    submissions = project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
+    submissions = project_score_notification_submissions(project)
     for submission in submissions:
         if submission.student_id in seen_students:
             continue
@@ -563,6 +563,24 @@ def project_score_notification_members(
         )
         members.append(member)
     return list_data, members
+
+
+def project_score_notification_list_data(project) -> dict[str, Any]:
+    return {
+        "type": "project_submitters",
+        "name": f"{project.course.title} {project.title} submitters",
+        "metadata": {
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+        },
+    }
+
+
+def project_score_notification_submissions(project):
+    return project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
+
 
 def project_passed_recipient_list_payload(
     project,
