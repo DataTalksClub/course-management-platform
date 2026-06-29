@@ -421,6 +421,12 @@ class CadminViewTests(TestCase):
             },
         )
 
+    def post_homework_action_to_submissions(self, action_name):
+        return self.client.post(
+            self.homework_action_url(action_name),
+            {"next": self.cadmin_homework_submissions_url()},
+        )
+
     def cadmin_course_url(self):
         return reverse(
             "cadmin_course",
@@ -1342,42 +1348,17 @@ class CadminViewTests(TestCase):
     def test_homework_actions_can_redirect_back_to_homework_submissions(
         self,
     ):
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        submissions_url = reverse(
-            "cadmin_homework_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        action_url = reverse(
-            "cadmin_homework_set_correct_answers",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
+        self.login_admin()
+        submissions_url = self.cadmin_homework_submissions_url()
 
-        response = self.client.post(
-            action_url, {"next": submissions_url}
+        response = self.post_homework_action_to_submissions(
+            "cadmin_homework_set_correct_answers"
         )
-
         self.assertRedirects(response, submissions_url)
 
-        clear_url = reverse(
-            "cadmin_homework_clear_correct_answers",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
+        response = self.post_homework_action_to_submissions(
+            "cadmin_homework_clear_correct_answers"
         )
-
-        response = self.client.post(
-            clear_url, {"next": submissions_url}
-        )
-
         self.assertRedirects(response, submissions_url)
 
     def test_homework_actions_ignore_unsafe_next_redirects(self):
