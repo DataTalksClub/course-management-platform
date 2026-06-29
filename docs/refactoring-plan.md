@@ -34,6 +34,10 @@ testable service functions.
   more positional values, prefer a named structure such as a dataclass, named
   tuple, small object, or explicit dictionary keys so field meaning is visible
   at the use site.
+- Treat long parameter lists as a smell, especially when the same values travel
+  through several functions together. Introduce a named dataclass or value
+  object for that group, then pass the object directly instead of unpacking it
+  back into many arguments.
 - In general, avoid hiding non-trivial work inside inline expressions during
   cleanup. Prefer named intermediate variables for constructed records,
   counters, querysets with filtering/annotations, and other values whose purpose

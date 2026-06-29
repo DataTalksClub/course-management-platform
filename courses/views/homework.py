@@ -71,6 +71,16 @@ class HomeworkSubmittedContent:
         }
 
 
+@dataclass(frozen=True)
+class HomeworkPostData:
+    request: HttpRequest
+    course: Course
+    homework: Homework
+    questions: List[Question]
+    submission: Optional[Submission]
+    enrollment: Enrollment
+
+
 def process_unscored_free_form_answer(answer: Optional[Answer]):
     if not answer:
         return {"text": ""}
@@ -1461,38 +1471,37 @@ def homework_validation_context(
     return context
 
 
-def handle_homework_post(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
-    enrollment: Enrollment,
+def submit_homework_post(
+    data: HomeworkPostData,
 ):
-    if homework.state != HomeworkState.OPEN.value:
+    with transaction.atomic():
+        return process_homework_submission(
+            request=data.request,
+            course=data.course,
+            homework=data.homework,
+            questions=data.questions,
+            submission=data.submission,
+        )
+
+
+def handle_homework_post(data: HomeworkPostData):
+    if data.homework.state != HomeworkState.OPEN.value:
         return closed_homework_submission_response(
-            request,
-            course,
-            homework,
+            data.request,
+            data.course,
+            data.homework,
         )
 
     try:
-        with transaction.atomic():
-            return process_homework_submission(
-                request=request,
-                course=course,
-                homework=homework,
-                questions=questions,
-                submission=submission,
-            )
+        return submit_homework_post(data)
     except ValidationError as error:
         return homework_validation_context(
-            request=request,
-            course=course,
-            homework=homework,
-            questions=questions,
-            submission=submission,
-            enrollment=enrollment,
+            request=data.request,
+            course=data.course,
+            homework=data.homework,
+            questions=data.questions,
+            submission=data.submission,
+            enrollment=data.enrollment,
             error=error,
         )
 
@@ -1557,7 +1566,7 @@ def homework_view(
     )
 
     if request.method == "POST":
-        post_result = handle_homework_post(
+        post_data = HomeworkPostData(
             request=request,
             course=course,
             homework=homework,
@@ -1565,6 +1574,7 @@ def homework_view(
             submission=submission,
             enrollment=enrollment,
         )
+        post_result = handle_homework_post(post_data)
         if not isinstance(post_result, dict):
             return post_result
         context = post_result
