@@ -1,12 +1,17 @@
 import sqlite3
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
 
 from django.test import SimpleTestCase
 
 from courses.models import Course
 from scripts.load_rds_export import (
+    CopySummary,
     TableCopyPlan,
     django_field_default,
     missing_required_columns,
+    print_copy_summary,
     refresh_sqlite_sequences,
 )
 
@@ -87,3 +92,20 @@ class LoadRdsExportScriptTest(SimpleTestCase):
             "SELECT seq FROM sqlite_sequence WHERE name='imported'"
         ).fetchone()[0]
         self.assertEqual(sequence, 7)
+
+    def test_print_copy_summary_outputs_each_section(self):
+        summary = CopySummary(
+            imported=[("courses_course", 2, 3)],
+            skipped=[("django_migrations", "managed locally")],
+            defaults_used={("courses_course", "visible", True)},
+        )
+
+        out = StringIO()
+        with redirect_stdout(out):
+            print_copy_summary(Path("source.db"), summary)
+
+        output = out.getvalue()
+        self.assertIn("Imported 1 tables from source.db", output)
+        self.assertIn("courses_course: 2 rows, 3 columns", output)
+        self.assertIn("courses_course.visible = True", output)
+        self.assertIn("django_migrations: managed locally", output)

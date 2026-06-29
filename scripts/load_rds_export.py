@@ -414,18 +414,31 @@ def validate_foreign_keys(target_cursor: sqlite3.Cursor) -> None:
 
 
 def print_copy_summary(source_db: Path, summary: CopySummary) -> None:
-    print(f"Imported {len(summary.imported)} tables from {source_db}:")
-    for table, rows, columns in summary.imported:
+    print_imported_tables(source_db, summary.imported)
+    print_defaults_used(summary.defaults_used)
+    print_skipped_tables(summary.skipped)
+
+
+def print_imported_tables(
+    source_db: Path,
+    imported: list[tuple[str, int, int]],
+) -> None:
+    print(f"Imported {len(imported)} tables from {source_db}:")
+    for table, rows, columns in imported:
         print(f"  {table}: {rows} rows, {columns} columns")
 
-    if summary.defaults_used:
+
+def print_defaults_used(defaults_used: set[tuple[str, str, Any]]) -> None:
+    if defaults_used:
         print("Filled local-only columns with Django defaults:")
-        for table, column, default in sorted(summary.defaults_used):
+        for table, column, default in sorted(defaults_used):
             print(f"  {table}.{column} = {default!r}")
 
-    if summary.skipped:
+
+def print_skipped_tables(skipped: list[tuple[str, str]]) -> None:
+    if skipped:
         print("Skipped tables:")
-        for table, reason in summary.skipped:
+        for table, reason in skipped:
             print(f"  {table}: {reason}")
 
 
