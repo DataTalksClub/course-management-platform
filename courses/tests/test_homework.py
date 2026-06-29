@@ -1280,14 +1280,8 @@ class HomeworkDetailViewTests(TestCase):
 
 
 class HomeworkSubmissionsViewTests(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        # Create regular user
-        self.user = User.objects.create_user(**credentials)
-
-        # Create admin user
-        self.admin_user = User.objects.create_user(
+    def create_admin_user(self):
+        return User.objects.create_user(
             username="admin@test.com",
             email="admin@test.com",
             password="admin123",
@@ -1295,11 +1289,13 @@ class HomeworkSubmissionsViewTests(TestCase):
             is_superuser=True,
         )
 
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             title="Test Course", slug="test-course"
         )
 
-        self.homework = Homework.objects.create(
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             title="Test Homework",
             description="Test Homework Description",
@@ -1308,13 +1304,14 @@ class HomeworkSubmissionsViewTests(TestCase):
             slug="test-homework",
         )
 
-        # Create an enrollment and submission for the regular user
-        self.enrollment = Enrollment.objects.create(
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.user,
             course=self.course,
         )
 
-        self.submission = Submission.objects.create(
+    def create_submission(self):
+        return Submission.objects.create(
             homework=self.homework,
             student=self.user,
             enrollment=self.enrollment,
@@ -1323,6 +1320,15 @@ class HomeworkSubmissionsViewTests(TestCase):
             learning_in_public_score=3,
             total_score=15,
         )
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.admin_user = self.create_admin_user()
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.enrollment = self.create_enrollment()
+        self.submission = self.create_submission()
 
     def login_admin(self):
         self.client.login(username="admin@test.com", password="admin123")
