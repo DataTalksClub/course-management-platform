@@ -43,8 +43,8 @@ class ProjectDataAPITestCase(TestCase):
             f"Token {self.token.key}"
         )
 
-    def test_project_data_view(self):
-        self.project = Project.objects.create(
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -55,8 +55,9 @@ class ProjectDataAPITestCase(TestCase):
             + timezone.timedelta(days=14),
         )
 
-        self.project_submission = ProjectSubmission(
-            project=self.project,
+    def create_project_submission(self, project):
+        return ProjectSubmission.objects.create(
+            project=project,
             student=self.user,
             enrollment=self.enrollment,
             github_link="https://github.com/DataTalksClub",
@@ -64,22 +65,17 @@ class ProjectDataAPITestCase(TestCase):
             faq_contribution_url="https://github.com/DataTalksClub/faq/issues/266",
         )
 
-        self.project_submission.save()
-
-        url = reverse(
+    def project_export_url(self, project):
+        return reverse(
             "api_project_submissions_export",
             kwargs={
                 "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
+                "project_slug": project.slug,
             },
         )
-        response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 200)
-        actual_result = response.json()
-
-        # Expected results
-        expected_course = {
+    def expected_course_data(self):
+        return {
             "id": self.course.id,
             "slug": self.course.slug,
             "title": self.course.title,
@@ -88,184 +84,75 @@ class ProjectDataAPITestCase(TestCase):
             "faq_document_url": self.course.faq_document_url,
         }
 
-        expected_project = {
-            "id": self.project.id,
+    def expected_project_data(self, project):
+        return {
+            "id": project.id,
             "course": self.course.id,
-            "slug": self.project.slug,
-            "title": self.project.title,
-            "description": self.project.description,
-            "learning_in_public_cap_project": self.project.learning_in_public_cap_project,
-            "time_spent_project_field": self.project.time_spent_project_field,
-            "problems_comments_field": self.project.problems_comments_field,
-            "faq_contribution_field": self.project.faq_contribution_field,
-            "learning_in_public_cap_review": self.project.learning_in_public_cap_review,
-            "number_of_peers_to_evaluate": self.project.number_of_peers_to_evaluate,
-            "points_for_peer_review": self.project.points_for_peer_review,
-            "time_spent_evaluation_field": self.project.time_spent_evaluation_field,
-            "points_to_pass": self.project.points_to_pass,
-            "state": self.project.state,
+            "slug": project.slug,
+            "title": project.title,
+            "description": project.description,
+            "learning_in_public_cap_project": (
+                project.learning_in_public_cap_project
+            ),
+            "time_spent_project_field": project.time_spent_project_field,
+            "problems_comments_field": project.problems_comments_field,
+            "faq_contribution_field": project.faq_contribution_field,
+            "learning_in_public_cap_review": (
+                project.learning_in_public_cap_review
+            ),
+            "number_of_peers_to_evaluate": (
+                project.number_of_peers_to_evaluate
+            ),
+            "points_for_peer_review": project.points_for_peer_review,
+            "time_spent_evaluation_field": (
+                project.time_spent_evaluation_field
+            ),
+            "points_to_pass": project.points_to_pass,
+            "state": project.state,
         }
 
-        expected_submission = {
+    def expected_submission_data(self, submission):
+        return {
             "student_id": self.user.id,
             "student_email": self.user.email,
-            "github_link": self.project_submission.github_link,
-            "commit_id": self.project_submission.commit_id,
-            "learning_in_public_links": self.project_submission.learning_in_public_links,
-            "faq_contribution_url": self.project_submission.faq_contribution_url,
-            "time_spent": self.project_submission.time_spent,
-            "problems_comments": self.project_submission.problems_comments,
-            "project_score": self.project_submission.project_score,
-            "project_faq_score": self.project_submission.project_faq_score,
-            "project_learning_in_public_score": self.project_submission.project_learning_in_public_score,
-            "peer_review_score": self.project_submission.peer_review_score,
-            "peer_review_learning_in_public_score": self.project_submission.peer_review_learning_in_public_score,
-            "total_score": self.project_submission.total_score,
-            "reviewed_enough_peers": self.project_submission.reviewed_enough_peers,
-            "passed": self.project_submission.passed,
+            "github_link": submission.github_link,
+            "commit_id": submission.commit_id,
+            "learning_in_public_links": submission.learning_in_public_links,
+            "faq_contribution_url": submission.faq_contribution_url,
+            "time_spent": submission.time_spent,
+            "problems_comments": submission.problems_comments,
+            "project_score": submission.project_score,
+            "project_faq_score": submission.project_faq_score,
+            "project_learning_in_public_score": (
+                submission.project_learning_in_public_score
+            ),
+            "peer_review_score": submission.peer_review_score,
+            "peer_review_learning_in_public_score": (
+                submission.peer_review_learning_in_public_score
+            ),
+            "total_score": submission.total_score,
+            "reviewed_enough_peers": submission.reviewed_enough_peers,
+            "passed": submission.passed,
         }
 
-        # Compare course fields
-        self.assertEqual(
-            actual_result["course"]["id"], expected_course["id"]
-        )
-        self.assertEqual(
-            actual_result["course"]["slug"], expected_course["slug"]
-        )
-        self.assertEqual(
-            actual_result["course"]["title"], expected_course["title"]
-        )
-        self.assertEqual(
-            actual_result["course"]["description"],
-            expected_course["description"],
-        )
-        self.assertEqual(
-            actual_result["course"]["social_media_hashtag"],
-            expected_course["social_media_hashtag"],
-        )
-        self.assertEqual(
-            actual_result["course"]["faq_document_url"],
-            expected_course["faq_document_url"],
-        )
+    def assert_fields(self, actual, expected):
+        for field, expected_value in expected.items():
+            self.assertEqual(actual[field], expected_value)
 
-        # Compare project fields
-        self.assertEqual(
-            actual_result["project"]["id"], expected_project["id"]
-        )
-        self.assertEqual(
-            actual_result["project"]["course"],
-            expected_project["course"],
-        )
-        self.assertEqual(
-            actual_result["project"]["slug"], expected_project["slug"]
-        )
-        self.assertEqual(
-            actual_result["project"]["title"], expected_project["title"]
-        )
-        self.assertEqual(
-            actual_result["project"]["description"],
-            expected_project["description"],
-        )
-        self.assertEqual(
-            actual_result["project"]["learning_in_public_cap_project"],
-            expected_project["learning_in_public_cap_project"],
-        )
-        self.assertEqual(
-            actual_result["project"]["time_spent_project_field"],
-            expected_project["time_spent_project_field"],
-        )
-        self.assertEqual(
-            actual_result["project"]["problems_comments_field"],
-            expected_project["problems_comments_field"],
-        )
-        self.assertEqual(
-            actual_result["project"]["faq_contribution_field"],
-            expected_project["faq_contribution_field"],
-        )
-        self.assertEqual(
-            actual_result["project"]["learning_in_public_cap_review"],
-            expected_project["learning_in_public_cap_review"],
-        )
-        self.assertEqual(
-            actual_result["project"]["number_of_peers_to_evaluate"],
-            expected_project["number_of_peers_to_evaluate"],
-        )
-        self.assertEqual(
-            actual_result["project"]["points_for_peer_review"],
-            expected_project["points_for_peer_review"],
-        )
-        self.assertEqual(
-            actual_result["project"]["time_spent_evaluation_field"],
-            expected_project["time_spent_evaluation_field"],
-        )
-        self.assertEqual(
-            actual_result["project"]["points_to_pass"],
-            expected_project["points_to_pass"],
-        )
-        self.assertEqual(
-            actual_result["project"]["state"], expected_project["state"]
-        )
+    def test_project_data_view(self):
+        project = self.create_project()
+        submission = self.create_project_submission(project)
 
-        # Compare submissions fields
+        response = self.client.get(self.project_export_url(project))
+
+        self.assertEqual(response.status_code, 200)
+        actual_result = response.json()
+        self.assert_fields(actual_result["course"], self.expected_course_data())
+        self.assert_fields(
+            actual_result["project"], self.expected_project_data(project)
+        )
         self.assertEqual(len(actual_result["submissions"]), 1)
-        submission = actual_result["submissions"][0]
-        self.assertEqual(
-            submission["student_id"], expected_submission["student_id"]
-        )
-        self.assertEqual(
-            submission["student_email"],
-            expected_submission["student_email"],
-        )
-        self.assertEqual(
-            submission["github_link"],
-            expected_submission["github_link"],
-        )
-        self.assertEqual(
-            submission["commit_id"], expected_submission["commit_id"]
-        )
-        self.assertEqual(
-            submission["learning_in_public_links"],
-            expected_submission["learning_in_public_links"],
-        )
-        self.assertEqual(
-            submission["faq_contribution_url"],
-            expected_submission["faq_contribution_url"],
-        )
-        self.assertEqual(
-            submission["time_spent"], expected_submission["time_spent"]
-        )
-        self.assertEqual(
-            submission["problems_comments"],
-            expected_submission["problems_comments"],
-        )
-        self.assertEqual(
-            submission["project_score"],
-            expected_submission["project_score"],
-        )
-        self.assertEqual(
-            submission["project_faq_score"],
-            expected_submission["project_faq_score"],
-        )
-        self.assertEqual(
-            submission["project_learning_in_public_score"],
-            expected_submission["project_learning_in_public_score"],
-        )
-        self.assertEqual(
-            submission["peer_review_score"],
-            expected_submission["peer_review_score"],
-        )
-        self.assertEqual(
-            submission["peer_review_learning_in_public_score"],
-            expected_submission["peer_review_learning_in_public_score"],
-        )
-        self.assertEqual(
-            submission["total_score"],
-            expected_submission["total_score"],
-        )
-        self.assertEqual(
-            submission["reviewed_enough_peers"],
-            expected_submission["reviewed_enough_peers"],
-        )
-        self.assertEqual(
-            submission["passed"], expected_submission["passed"]
+        self.assert_fields(
+            actual_result["submissions"][0],
+            self.expected_submission_data(submission),
         )

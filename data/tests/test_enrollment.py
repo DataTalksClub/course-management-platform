@@ -49,77 +49,82 @@ class EnrollmentDataAPITestCase(TestCase):
             f"Token {self.token.key}"
         )
 
-    def test_graduate_data_view(self):
-        """Test that only students who passed enough projects are returned."""
+    def require_two_projects_to_pass(self):
         self.course.min_projects_to_pass = 2
         self.course.save()
 
+    def configure_certificate_user(self):
         self.user.email = "student1@example.com"
         self.user.certificate_name = "Student One"
         self.user.save()
 
-        other_user = CustomUser.objects.create(
+    def create_certificate_user(self, username, email, certificate_name):
+        return CustomUser.objects.create(
+            username=username,
+            email=email,
+            password="pass",
+            certificate_name=certificate_name,
+        )
+
+    def create_saved_project(self, slug, title):
+        return Project.objects.create(
+            course=self.course,
+            slug=slug,
+            title=title,
+            description="Description",
+            submission_due_date=timezone.now()
+            + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now()
+            + timezone.timedelta(days=14),
+        )
+
+    def create_passed_project_submission(
+        self, project, student, enrollment, commit_id
+    ):
+        ProjectSubmission.objects.create(
+            project=project,
+            student=student,
+            enrollment=enrollment,
+            github_link="https://httpbin.org/status/200",
+            commit_id=commit_id,
+            passed=True,
+        )
+
+    def create_graduate_view_scenario(self):
+        self.require_two_projects_to_pass()
+        self.configure_certificate_user()
+        other_user = self.create_certificate_user(
             username="student2",
             email="student2@example.com",
-            password="pass",
             certificate_name="Student Two",
         )
         other_enrollment = Enrollment.objects.create(
             student=other_user,
             course=self.course,
         )
-
-        project1 = Project.objects.create(
-            course=self.course,
-            slug="project1",
-            title="Project 1",
-            description="Description",
-            submission_due_date=timezone.now()
-            + timezone.timedelta(days=7),
-            peer_review_due_date=timezone.now()
-            + timezone.timedelta(days=14),
+        project1 = self.create_saved_project("project1", "Project 1")
+        project2 = self.create_saved_project("project2", "Project 2")
+        self.create_passed_project_submission(
+            project1, self.user, self.enrollment, "1111"
         )
-        project2 = Project.objects.create(
-            course=self.course,
-            slug="project2",
-            title="Project 2",
-            description="Description",
-            submission_due_date=timezone.now()
-            + timezone.timedelta(days=7),
-            peer_review_due_date=timezone.now()
-            + timezone.timedelta(days=14),
+        self.create_passed_project_submission(
+            project2, self.user, self.enrollment, "2222"
+        )
+        self.create_passed_project_submission(
+            project1, other_user, other_enrollment, "3333"
         )
 
-        ProjectSubmission.objects.create(
-            project=project1,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://httpbin.org/status/200",
-            commit_id="1111",
-            passed=True,
-        )
-        ProjectSubmission.objects.create(
-            project=project2,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://httpbin.org/status/200",
-            commit_id="2222",
-            passed=True,
-        )
-        ProjectSubmission.objects.create(
-            project=project1,
-            student=other_user,
-            enrollment=other_enrollment,
-            github_link="https://httpbin.org/status/200",
-            commit_id="3333",
-            passed=True,
-        )
-
-        url = reverse(
+    def graduates_url(self):
+        return reverse(
             "api_course_graduates",
             kwargs={"course_slug": self.course.slug},
         )
-        response = self.client.get(url)
+
+    def test_graduate_data_view(self):
+        """Test that only students who passed enough projects are returned."""
+        self.create_graduate_view_scenario()
+
+        response = self.client.get(self.graduates_url())
 
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
@@ -157,146 +162,126 @@ class EnrollmentDataAPITestCase(TestCase):
             passed=True,
         )
 
-    def test_get_passed_enrollments(self):
-        """Test the get_passed_enrollments function with various scenarios."""
-
-        # Create additional users and enrollments for testing
-        user2 = CustomUser(
-            username="student2",
-            email="student2@example.com",
-        )
-        user3 = CustomUser(
-            username="student3",
-            email="student3@example.com",
-        )
-        user4 = CustomUser(
-            username="student4",
-            email="student4@example.com",
+    def create_unsaved_student(self, username, email):
+        return CustomUser(
+            username=username,
+            email=email,
         )
 
-        enrollment2 = Enrollment(
-            id=2,
-            student=user2,
-            course=self.course,
-        )
-        enrollment3 = Enrollment(
-            id=3,
-            student=user3,
-            course=self.course,
-        )
-        enrollment4 = Enrollment(
-            id=4,
-            student=user4,
+    def create_unsaved_enrollment(self, enrollment_id, student):
+        return Enrollment(
+            id=enrollment_id,
+            student=student,
             course=self.course,
         )
 
+    def get_passed_enrollment_scenario(self):
+        user2 = self.create_unsaved_student(
+            "student2", "student2@example.com"
+        )
+        user3 = self.create_unsaved_student(
+            "student3", "student3@example.com"
+        )
+        user4 = self.create_unsaved_student(
+            "student4", "student4@example.com"
+        )
+        enrollment2 = self.create_unsaved_enrollment(2, user2)
+        enrollment3 = self.create_unsaved_enrollment(3, user3)
+        enrollment4 = self.create_unsaved_enrollment(4, user4)
         project1 = self.create_test_project("p1", "P1")
         project2 = self.create_test_project("p2", "P2")
         project3 = self.create_test_project("p3", "P3")
 
-        # User 1: Passes 2 projects (should be included with min_projects=2)
-        submission1_user1 = self.create_project_submission(
-            project1, self.user, self.enrollment
-        )
-        submission2_user1 = self.create_project_submission(
-            project2, self.user, self.enrollment
-        )
-
-        # User 2: Passes 1 project (should NOT be included with min_projects=2)
-        submission1_user2 = self.create_project_submission(
-            project1, user2, enrollment2
-        )
-
-        # User 3: Passes 3 projects (should be included with min_projects=2)
-        submission1_user3 = self.create_project_submission(
-            project1, user3, enrollment3
-        )
-        submission2_user3 = self.create_project_submission(
-            project2, user3, enrollment3
-        )
-        submission3_user3 = self.create_project_submission(
-            project3, user3, enrollment3
-        )
-
         passed_submissions = [
-            submission1_user1,
-            submission2_user1,
-            submission1_user2,
-            submission1_user3,
-            submission2_user3,
-            submission3_user3,
+            self.create_project_submission(
+                project1, self.user, self.enrollment
+            ),
+            self.create_project_submission(
+                project2, self.user, self.enrollment
+            ),
+            self.create_project_submission(project1, user2, enrollment2),
+            self.create_project_submission(project1, user3, enrollment3),
+            self.create_project_submission(project2, user3, enrollment3),
+            self.create_project_submission(project3, user3, enrollment3),
         ]
+        return passed_submissions, enrollment2, enrollment3, enrollment4
 
-        # Test with min_projects=2
-        result = get_passed_enrollments(passed_submissions, 2)
+    def assert_enrollments_for_min_projects(
+        self,
+        passed_submissions,
+        min_projects,
+        expected_enrollments,
+        missing_enrollments=(),
+    ):
+        result = get_passed_enrollments(passed_submissions, min_projects)
+        self.assertEqual(len(result), len(expected_enrollments))
+        for enrollment in expected_enrollments:
+            self.assertIn(enrollment, result)
+        for enrollment in missing_enrollments:
+            self.assertNotIn(enrollment, result)
+        return result
 
-        # Should return 2 enrollments (user1 with 2 passed, user3 with 3 passed)
-        self.assertEqual(len(result), 2)
+    def test_get_passed_enrollments(self):
+        """Test the get_passed_enrollments function with various scenarios."""
+        passed_submissions, enrollment2, enrollment3, enrollment4 = (
+            self.get_passed_enrollment_scenario()
+        )
 
-        # Check that the correct enrollments are returned
-        self.assertIn(self.enrollment, result)  # User 1
-        self.assertIn(enrollment3, result)  # User 3
-        self.assertNotIn(enrollment2, result)  # User 2 (only 1 passed)
-        self.assertNotIn(enrollment4, result)  # User 4 (no submissions)
-
-        # Test with min_projects=1
-        result = get_passed_enrollments(passed_submissions, 1)
-
-        # Should return 3 enrollments (all users with at least 1 passed)
-        self.assertEqual(len(result), 3)
-
-        # Check that the correct enrollments are returned
-        self.assertIn(self.enrollment, result)  # User 1
-        self.assertIn(enrollment2, result)  # User 2
-        self.assertIn(enrollment3, result)  # User 3
-        self.assertNotIn(enrollment4, result)  # User 4 (no submissions)
-
-        # Test with min_projects=3
-        result = get_passed_enrollments(passed_submissions, 3)
-
-        # Should return 1 enrollment (only user3 with 3 passed)
-        self.assertEqual(len(result), 1)
-
-        # Check that only user3's enrollment is returned
+        self.assert_enrollments_for_min_projects(
+            passed_submissions,
+            2,
+            [self.enrollment, enrollment3],
+            [enrollment2, enrollment4],
+        )
+        self.assert_enrollments_for_min_projects(
+            passed_submissions,
+            1,
+            [self.enrollment, enrollment2, enrollment3],
+            [enrollment4],
+        )
+        result = self.assert_enrollments_for_min_projects(
+            passed_submissions,
+            3,
+            [enrollment3],
+        )
         self.assertEqual(result[0], enrollment3)
-
-        # Test with min_projects=4
-        result = get_passed_enrollments(passed_submissions, 4)
-
-        # Should return 0 enrollments (no user has 4 passed projects)
-        self.assertEqual(len(result), 0)
-
-        # Test with empty submissions list
-        result = get_passed_enrollments([], 1)
-        self.assertEqual(len(result), 0)
-
-        # Test with min_projects=0
+        self.assertEqual(len(get_passed_enrollments(passed_submissions, 4)), 0)
+        self.assertEqual(len(get_passed_enrollments([], 1)), 0)
         with self.assertRaises(AssertionError):
-            result = get_passed_enrollments(passed_submissions, 0)
+            get_passed_enrollments(passed_submissions, 0)
 
-    def test_bulk_update_enrollment_certificates_view(self):
-        """Test bulk updating enrollment certificate URLs."""
-        second_user = CustomUser.objects.create(
-            username="seconduser",
-            email="second@example.com",
+    def create_enrolled_user(self, username, email, **enrollment_kwargs):
+        user = CustomUser.objects.create(
+            username=username,
+            email=email,
             password="password",
         )
-        second_enrollment = Enrollment.objects.create(
-            student=second_user,
+        enrollment = Enrollment.objects.create(
+            student=user,
             course=self.course,
+            **enrollment_kwargs,
         )
-        other_user = CustomUser.objects.create(
-            username="otheruser",
-            email="other@example.com",
-            password="password",
-        )
+        return user, enrollment
 
-        url = reverse(
+    def certificate_url(self):
+        return reverse(
             "api_course_certificates",
             kwargs={"course_slug": self.course.slug},
         )
-        data = {
-            "certificates": [
+
+    def post_certificates(self, data):
+        return self.client.post(
+            self.certificate_url(),
+            json.dumps(data),
+            content_type="application/json",
+        )
+
+    def certificate_payload(self, certificates):
+        return {"certificates": certificates}
+
+    def mixed_certificate_payload(self, second_user, other_user):
+        return self.certificate_payload(
+            [
                 {
                     "email": self.user.email,
                     "certificate_path": "/certificates/first.pdf",
@@ -315,46 +300,60 @@ class EnrollmentDataAPITestCase(TestCase):
                 },
                 {"email": self.user.email},
             ]
-        }
-
-        response = self.client.post(
-            url, json.dumps(data), content_type="application/json"
         )
+
+    def assert_certificate_update_result(
+        self,
+        result,
+        success,
+        updated_count,
+        error_count=None,
+    ):
+        self.assertEqual(result["success"], success)
+        self.assertEqual(result["updated_count"], updated_count)
+        if error_count is not None:
+            self.assertEqual(result["error_count"], error_count)
+
+    def assert_certificate_url(self, enrollment, certificate_url):
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.certificate_url, certificate_url)
+
+    def test_bulk_update_enrollment_certificates_view(self):
+        """Test bulk updating enrollment certificate URLs."""
+        second_user, second_enrollment = self.create_enrolled_user(
+            "seconduser", "second@example.com"
+        )
+        other_user = CustomUser.objects.create(
+            username="otheruser",
+            email="other@example.com",
+            password="password",
+        )
+        data = self.mixed_certificate_payload(second_user, other_user)
+
+        response = self.post_certificates(data)
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertFalse(result["success"])
-        self.assertEqual(result["updated_count"], 2)
-        self.assertEqual(result["error_count"], 3)
-
+        self.assert_certificate_update_result(result, False, 2, 3)
         error_codes = {error["code"] for error in result["errors"]}
         self.assertEqual(
             error_codes,
             {"missing_fields", "not_enrolled", "user_not_found"},
         )
-
-        self.enrollment.refresh_from_db()
-        second_enrollment.refresh_from_db()
-        self.assertEqual(
-            self.enrollment.certificate_url,
-            "/certificates/first.pdf",
+        self.assert_certificate_url(
+            self.enrollment, "/certificates/first.pdf"
         )
-        self.assertEqual(
-            second_enrollment.certificate_url,
-            "/certificates/second.pdf",
+        self.assert_certificate_url(
+            second_enrollment, "/certificates/second.pdf"
         )
 
-        response = self.client.get(url)
+        response = self.client.get(self.certificate_url())
         self.assertEqual(response.status_code, 405)
 
     def test_bulk_update_enrollment_certificates_accepts_array_payload(
         self,
     ):
         """Test bulk certificate updates with a bare array payload."""
-        url = reverse(
-            "api_course_certificates",
-            kwargs={"course_slug": self.course.slug},
-        )
         data = [
             {
                 "email": self.user.email,
@@ -362,20 +361,13 @@ class EnrollmentDataAPITestCase(TestCase):
             }
         ]
 
-        response = self.client.post(
-            url, json.dumps(data), content_type="application/json"
-        )
+        response = self.post_certificates(data)
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertTrue(result["success"])
-        self.assertEqual(result["updated_count"], 1)
-        self.assertEqual(result["error_count"], 0)
-
-        self.enrollment.refresh_from_db()
-        self.assertEqual(
-            self.enrollment.certificate_url,
-            "/certificates/array.pdf",
+        self.assert_certificate_update_result(result, True, 1, 0)
+        self.assert_certificate_url(
+            self.enrollment, "/certificates/array.pdf"
         )
 
     @patch(
@@ -386,23 +378,13 @@ class EnrollmentDataAPITestCase(TestCase):
         self,
         send_notification,
     ):
-        second_user = CustomUser.objects.create(
-            username="seconduser",
-            email="second@example.com",
-            password="password",
-        )
-        second_enrollment = Enrollment.objects.create(
-            student=second_user,
-            course=self.course,
+        second_user, second_enrollment = self.create_enrolled_user(
+            "seconduser",
+            "second@example.com",
             certificate_url="/certificates/old.pdf",
         )
-
-        url = reverse(
-            "api_course_certificates",
-            kwargs={"course_slug": self.course.slug},
-        )
-        data = {
-            "certificates": [
+        data = self.certificate_payload(
+            [
                 {
                     "email": self.user.email,
                     "certificate_path": "/certificates/first.pdf",
@@ -412,31 +394,20 @@ class EnrollmentDataAPITestCase(TestCase):
                     "certificate_path": "/certificates/second.pdf",
                 },
             ]
-        }
+        )
 
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                url,
-                json.dumps(data),
-                content_type="application/json",
-            )
+            response = self.post_certificates(data)
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertTrue(result["success"])
-        self.assertEqual(result["updated_count"], 2)
-
-        self.enrollment.refresh_from_db()
-        second_enrollment.refresh_from_db()
-        self.assertEqual(
-            self.enrollment.certificate_url,
-            "/certificates/first.pdf",
+        self.assert_certificate_update_result(result, True, 2)
+        self.assert_certificate_url(
+            self.enrollment, "/certificates/first.pdf"
         )
-        self.assertEqual(
-            second_enrollment.certificate_url,
-            "/certificates/second.pdf",
+        self.assert_certificate_url(
+            second_enrollment, "/certificates/second.pdf"
         )
-
         send_notification.assert_called_once()
         notified_enrollment = send_notification.call_args.args[0]
         self.assertEqual(notified_enrollment.id, self.enrollment.id)

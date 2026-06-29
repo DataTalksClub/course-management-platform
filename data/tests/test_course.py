@@ -38,9 +38,7 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
         # Note: This endpoint doesn't require authentication
         self.client = Client()
 
-    def test_course_criteria_yaml_view(self):
-        """Test the course criteria YAML endpoint."""
-        # Create some review criteria for the test course
+    def create_code_quality_criteria(self):
         ReviewCriteria.objects.create(
             course=self.course,
             description="Code Quality",
@@ -49,9 +47,10 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
                 {"criteria": "Poor", "score": 0},
                 {"criteria": "Good", "score": 1},
                 {"criteria": "Excellent", "score": 2},
-            ]
+            ],
         )
 
+    def create_features_criteria(self):
         ReviewCriteria.objects.create(
             course=self.course,
             description="Features Implemented",
@@ -60,52 +59,59 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
                 {"criteria": "Basic functionality", "score": 1},
                 {"criteria": "Advanced features", "score": 2},
                 {"criteria": "Documentation", "score": 1},
-            ]
+            ],
         )
 
-        # Test the endpoint
-        url = reverse(
+    def course_criteria_url(self, course):
+        return reverse(
             "api_course_criteria_yaml",
-            kwargs={"course_slug": self.course.slug}
+            kwargs={"course_slug": course.slug},
         )
-        response = self.client.get(url)
 
-        # Check response status and content type
+    def get_criteria_yaml(self, course):
+        response = self.client.get(self.course_criteria_url(course))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get("Content-Type"), "text/plain; charset=utf-8")
+        self.assertEqual(
+            response.get("Content-Type"), "text/plain; charset=utf-8"
+        )
+        return yaml.safe_load(response.content.decode("utf-8"))
 
-        # Parse and validate YAML content
-        yaml_content = response.content.decode('utf-8')
-        parsed_data = yaml.safe_load(yaml_content)
+    def assert_course_data(self, parsed_data, course):
+        course_data = parsed_data["course"]
+        self.assertEqual(course_data["slug"], course.slug)
+        self.assertEqual(course_data["title"], course.title)
 
-        # Validate structure
-        self.assertIn('course', parsed_data)
-        self.assertIn('review_criteria', parsed_data)
+    def assert_code_quality_criteria(self, criteria):
+        self.assertEqual(criteria["description"], "Code Quality")
+        self.assertEqual(criteria["type"], "Radio Buttons")
+        self.assertEqual(criteria["review_criteria_type"], "RB")
+        self.assertEqual(len(criteria["options"]), 3)
+        self.assertEqual(criteria["options"][0]["criteria"], "Poor")
+        self.assertEqual(criteria["options"][0]["score"], 0)
 
-        # Validate course data
-        course_data = parsed_data['course']
-        self.assertEqual(course_data['slug'], self.course.slug)
-        self.assertEqual(course_data['title'], self.course.title)
+    def assert_features_criteria(self, criteria):
+        self.assertEqual(criteria["description"], "Features Implemented")
+        self.assertEqual(criteria["type"], "Checkboxes")
+        self.assertEqual(criteria["review_criteria_type"], "CB")
+        self.assertEqual(len(criteria["options"]), 3)
 
-        # Validate criteria data
-        criteria_data = parsed_data['review_criteria']
+    def assert_yaml_structure(self, parsed_data):
+        self.assertIn("course", parsed_data)
+        self.assertIn("review_criteria", parsed_data)
+
+    def test_course_criteria_yaml_view(self):
+        """Test the course criteria YAML endpoint."""
+        self.create_code_quality_criteria()
+        self.create_features_criteria()
+
+        parsed_data = self.get_criteria_yaml(self.course)
+
+        self.assert_yaml_structure(parsed_data)
+        self.assert_course_data(parsed_data, self.course)
+        criteria_data = parsed_data["review_criteria"]
         self.assertEqual(len(criteria_data), 2)
-
-        # Check first criteria (Code Quality)
-        first_criteria = criteria_data[0]
-        self.assertEqual(first_criteria['description'], 'Code Quality')
-        self.assertEqual(first_criteria['type'], 'Radio Buttons')
-        self.assertEqual(first_criteria['review_criteria_type'], 'RB')
-        self.assertEqual(len(first_criteria['options']), 3)
-        self.assertEqual(first_criteria['options'][0]['criteria'], 'Poor')
-        self.assertEqual(first_criteria['options'][0]['score'], 0)
-
-        # Check second criteria (Features Implemented)
-        second_criteria = criteria_data[1]
-        self.assertEqual(second_criteria['description'], 'Features Implemented')
-        self.assertEqual(second_criteria['type'], 'Checkboxes')
-        self.assertEqual(second_criteria['review_criteria_type'], 'CB')
-        self.assertEqual(len(second_criteria['options']), 3)
+        self.assert_code_quality_criteria(criteria_data[0])
+        self.assert_features_criteria(criteria_data[1])
 
     def test_course_criteria_yaml_view_no_criteria(self):
         """Test the endpoint when course has no criteria."""

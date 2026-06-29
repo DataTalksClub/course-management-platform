@@ -52,8 +52,8 @@ class HomeworkDataAPITestCase(TestCase):
             f"Token {self.token.key}"
         )
 
-    def test_homework_data_view(self):
-        self.homework = Homework.objects.create(
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             title="Test Homework",
             description="Test Homework Description",
@@ -62,18 +62,18 @@ class HomeworkDataAPITestCase(TestCase):
             slug="test-homework",
         )
 
-        self.submission = Submission(
-            homework=self.homework,
+    def create_submission(self, homework):
+        return Submission.objects.create(
+            homework=homework,
             student=self.user,
             enrollment=self.enrollment,
             homework_link="https://github.com/DataTalksClub",
             faq_contribution_url="https://github.com/DataTalksClub/faq/pull/266",
         )
 
-        self.submission.save()
-
-        self.question = Question.objects.create(
-            homework=self.homework,
+    def create_question(self, homework):
+        return Question.objects.create(
+            homework=homework,
             text="What is the capital of France?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
             possible_answers=join_possible_answers(
@@ -81,135 +81,102 @@ class HomeworkDataAPITestCase(TestCase):
             ),
             correct_answer="1",
         )
-        self.question.save()
 
-        self.answer = Answer.objects.create(
-            submission=self.submission,
-            question=self.question,
+    def homework_export_url(self, homework):
+        return reverse(
+            "api_homework_submissions_export",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": homework.slug,
+            },
+        )
+
+    def expected_course_data(self):
+        return {
+            "id": self.course.id,
+            "slug": self.course.slug,
+            "title": self.course.title,
+            "description": self.course.description,
+            "social_media_hashtag": self.course.social_media_hashtag,
+            "faq_document_url": self.course.faq_document_url,
+        }
+
+    def expected_homework_data(self, homework):
+        return {
+            "id": homework.id,
+            "slug": homework.slug,
+            "course": self.course.id,
+            "title": homework.title,
+            "description": homework.description,
+            "learning_in_public_cap": homework.learning_in_public_cap,
+            "homework_url_field": homework.homework_url_field,
+            "time_spent_lectures_field": (
+                homework.time_spent_lectures_field
+            ),
+            "time_spent_homework_field": (
+                homework.time_spent_homework_field
+            ),
+            "faq_contribution_field": homework.faq_contribution_field,
+            "state": homework.state,
+        }
+
+    def expected_submission_data(self, submission):
+        return {
+            "student_id": self.user.id,
+            "homework_link": submission.homework_link,
+            "learning_in_public_links": (
+                submission.learning_in_public_links
+            ),
+            "time_spent_lectures": submission.time_spent_lectures,
+            "time_spent_homework": submission.time_spent_homework,
+            "problems_comments": submission.problems_comments,
+            "faq_contribution_url": submission.faq_contribution_url,
+            "questions_score": submission.questions_score,
+            "faq_score": submission.faq_score,
+            "learning_in_public_score": (
+                submission.learning_in_public_score
+            ),
+            "total_score": submission.total_score,
+        }
+
+    def expected_answer_data(self, question, answer):
+        return {
+            "question_id": question.id,
+            "answer_text": answer.answer_text,
+            "is_correct": True,
+        }
+
+    def assert_fields(self, actual, expected):
+        for field, expected_value in expected.items():
+            self.assertEqual(actual[field], expected_value)
+
+    def test_homework_data_view(self):
+        homework = self.create_homework()
+        submission = self.create_submission(homework)
+        question = self.create_question(homework)
+        answer = Answer.objects.create(
+            submission=submission,
+            question=question,
             answer_text="1",
             is_correct=True,
         )
 
-        url = reverse(
-            "api_homework_submissions_export",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.get(url)
+        response = self.client.get(self.homework_export_url(homework))
 
         self.assertEqual(response.status_code, 200)
         actual_result = response.json()
 
-        # Test course fields
-        self.assertEqual(actual_result["course"]["id"], self.course.id)
-        self.assertEqual(
-            actual_result["course"]["slug"], self.course.slug
+        self.assert_fields(actual_result["course"], self.expected_course_data())
+        self.assert_fields(
+            actual_result["homework"], self.expected_homework_data(homework)
         )
-        self.assertEqual(
-            actual_result["course"]["title"], self.course.title
-        )
-        self.assertEqual(
-            actual_result["course"]["description"],
-            self.course.description,
-        )
-        self.assertEqual(
-            actual_result["course"]["social_media_hashtag"],
-            self.course.social_media_hashtag,
-        )
-        self.assertEqual(
-            actual_result["course"]["faq_document_url"],
-            self.course.faq_document_url,
-        )
-
-        # Test homework fields
-        self.assertEqual(
-            actual_result["homework"]["id"], self.homework.id
-        )
-        self.assertEqual(
-            actual_result["homework"]["slug"], self.homework.slug
-        )
-        self.assertEqual(
-            actual_result["homework"]["course"], self.course.id
-        )
-        self.assertEqual(
-            actual_result["homework"]["title"], self.homework.title
-        )
-        self.assertEqual(
-            actual_result["homework"]["description"],
-            self.homework.description,
-        )
-        self.assertEqual(
-            actual_result["homework"]["learning_in_public_cap"],
-            self.homework.learning_in_public_cap,
-        )
-        self.assertEqual(
-            actual_result["homework"]["homework_url_field"],
-            self.homework.homework_url_field,
-        )
-        self.assertEqual(
-            actual_result["homework"]["time_spent_lectures_field"],
-            self.homework.time_spent_lectures_field,
-        )
-        self.assertEqual(
-            actual_result["homework"]["time_spent_homework_field"],
-            self.homework.time_spent_homework_field,
-        )
-        self.assertEqual(
-            actual_result["homework"]["faq_contribution_field"],
-            self.homework.faq_contribution_field,
-        )
-        self.assertEqual(
-            actual_result["homework"]["state"], self.homework.state
-        )
-
-        # Test submissions fields
         self.assertEqual(len(actual_result["submissions"]), 1)
-        submission = actual_result["submissions"][0]
-        self.assertEqual(submission["student_id"], self.user.id)
-        self.assertEqual(
-            submission["homework_link"], self.submission.homework_link
+        actual_submission = actual_result["submissions"][0]
+        self.assert_fields(
+            actual_submission, self.expected_submission_data(submission)
         )
-        self.assertEqual(
-            submission["learning_in_public_links"],
-            self.submission.learning_in_public_links,
+        self.assertEqual(len(actual_submission["answers"]), 1)
+        self.assert_fields(
+            actual_submission["answers"][0],
+            self.expected_answer_data(question, answer),
         )
-        self.assertEqual(
-            submission["time_spent_lectures"],
-            self.submission.time_spent_lectures,
-        )
-        self.assertEqual(
-            submission["time_spent_homework"],
-            self.submission.time_spent_homework,
-        )
-        self.assertEqual(
-            submission["problems_comments"],
-            self.submission.problems_comments,
-        )
-        self.assertEqual(
-            submission["faq_contribution_url"],
-            self.submission.faq_contribution_url,
-        )
-        self.assertEqual(
-            submission["questions_score"],
-            self.submission.questions_score,
-        )
-        self.assertEqual(
-            submission["faq_score"], self.submission.faq_score
-        )
-        self.assertEqual(
-            submission["learning_in_public_score"],
-            self.submission.learning_in_public_score,
-        )
-        self.assertEqual(
-            submission["total_score"], self.submission.total_score
-        )
-
-        # Test answers fields
-        self.assertEqual(len(submission["answers"]), 1)
-
-        answer = submission["answers"][0]
-        self.assertEqual(answer["question_id"], self.question.id)
-        self.assertEqual(answer["answer_text"], self.answer.answer_text)
-        self.assertEqual(answer["is_correct"], True)
