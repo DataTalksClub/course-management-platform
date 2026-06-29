@@ -123,7 +123,8 @@ def redirect_after_action(request, default_view_name, **kwargs):
 
 
 def first_form_error(form):
-    for errors in form.errors.values():
+    form_error_values = form.errors.values()
+    for errors in form_error_values:
         if errors:
             return errors[0]
     return "Invalid form data"
@@ -221,11 +222,13 @@ def campaign_form_course(form):
 
 
 def _test_recipient_emails(value):
-    return [
-        item.strip()
-        for item in re.split(r"[\s,;]+", value or "")
-        if item.strip()
-    ]
+    emails = []
+    raw_items = re.split(r"[\s,;]+", value or "")
+    for raw_item in raw_items:
+        email = raw_item.strip()
+        if email:
+            emails.append(email)
+    return emails
 
 
 def _validate_test_recipient_count(emails):
@@ -435,12 +438,17 @@ def course_registration_metrics(course):
         .select_related("current_course")
         .order_by("title", "slug")
     )
+    registration_metrics = []
+    primary_campaign = None
+    for campaign in campaigns:
+        if primary_campaign is None:
+            primary_campaign = campaign
+        metric = registration_campaign_metrics(campaign)
+        registration_metrics.append(metric)
+
     return {
-        "registration_metrics": [
-            registration_campaign_metrics(campaign)
-            for campaign in campaigns
-        ],
-        "primary_campaign": campaigns.first(),
+        "registration_metrics": registration_metrics,
+        "primary_campaign": primary_campaign,
     }
 
 
@@ -597,13 +605,15 @@ def normalized_send_totals(send_totals):
 
 
 def datamailer_outbox_status_rows(outbox_summary):
-    return [
-        {
+    rows = []
+    statuses = DatamailerOutboxStatus.values
+    for status in statuses:
+        row = {
             "status": status,
             "count": outbox_summary["event_counts"].get(status, 0),
         }
-        for status in DatamailerOutboxStatus.values
-    ]
+        rows.append(row)
+    return rows
 
 
 def datamailer_operations_context():
@@ -824,7 +834,8 @@ def _campaign_registration_filters(request):
 
 
 def _apply_campaign_registration_filters(registrations, filters):
-    for field, value in filters.items():
+    filter_items = filters.items()
+    for field, value in filter_items:
         if value:
             registrations = registrations.filter(**{field: value})
     return registrations
