@@ -259,49 +259,63 @@ def datamailer_campaign_queue_recipient_count(response):
     return recipient_count
 
 
+def sync_datamailer_campaign_action(request, client, external_key):
+    messages.success(request, "Datamailer campaign draft synced.")
+    return None, True
+
+
+def preview_datamailer_campaign_action(request, client, external_key):
+    preview = client.preview_campaign(external_key)
+    messages.success(request, "Datamailer campaign preview rendered.")
+    return preview, False
+
+
+def test_send_datamailer_campaign_action(request, client, external_key):
+    recipients = parse_test_recipients(
+        request.POST.get("test_recipients", "")
+    )
+    client.test_send_campaign(external_key, recipients)
+    messages.success(
+        request,
+        f"Datamailer test send queued for {len(recipients)} recipient(s).",
+    )
+    return None, True
+
+
+def queue_datamailer_campaign_action(request, client, external_key):
+    response = client.queue_campaign(external_key)
+    recipient_count = datamailer_campaign_queue_recipient_count(response)
+    messages.success(
+        request,
+        f"Datamailer campaign queued for {recipient_count} recipient(s).",
+    )
+    return None, True
+
+
+def cancel_datamailer_campaign_action(request, client, external_key):
+    client.cancel_campaign(external_key)
+    messages.success(request, "Datamailer campaign cancelled.")
+    return None, True
+
+
+DATAMAILER_CAMPAIGN_ACTION_HANDLERS = {
+    "sync": sync_datamailer_campaign_action,
+    "preview": preview_datamailer_campaign_action,
+    "test_send": test_send_datamailer_campaign_action,
+    "queue": queue_datamailer_campaign_action,
+    "cancel": cancel_datamailer_campaign_action,
+}
+
+
 def run_datamailer_campaign_action(
     request,
     action,
     client,
     external_key,
 ):
-    if action == "sync":
-        messages.success(request, "Datamailer campaign draft synced.")
-        return None, True
-
-    if action == "preview":
-        preview = client.preview_campaign(external_key)
-        messages.success(
-            request, "Datamailer campaign preview rendered."
-        )
-        return preview, False
-
-    if action == "test_send":
-        recipients = parse_test_recipients(
-            request.POST.get("test_recipients", "")
-        )
-        client.test_send_campaign(external_key, recipients)
-        messages.success(
-            request,
-            f"Datamailer test send queued for {len(recipients)} recipient(s).",
-        )
-        return None, True
-
-    if action == "queue":
-        response = client.queue_campaign(external_key)
-        recipient_count = datamailer_campaign_queue_recipient_count(
-            response
-        )
-        messages.success(
-            request,
-            f"Datamailer campaign queued for {recipient_count} recipient(s).",
-        )
-        return None, True
-
-    if action == "cancel":
-        client.cancel_campaign(external_key)
-        messages.success(request, "Datamailer campaign cancelled.")
-        return None, True
+    handler = DATAMAILER_CAMPAIGN_ACTION_HANDLERS.get(action)
+    if handler:
+        return handler(request, client, external_key)
 
     messages.error(request, "Unknown Datamailer campaign action.")
     return None, False
