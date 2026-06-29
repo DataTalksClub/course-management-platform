@@ -775,6 +775,41 @@ class CourseDetailViewTests(TestCase):
         )
         return enrollment
 
+    def create_standard_leaderboard(self):
+        self.create_leaderboard_enrollment("Alice", 100, 1)
+        self.create_leaderboard_enrollment("Bob", 90, 2)
+        self.create_leaderboard_enrollment("Charlie", 80, 3)
+
+    def leaderboard_response(self, *, login=False):
+        if login:
+            self.client.login(**credentials)
+        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        return self.client.get(url)
+
+    def assert_current_student_enrollment(self, response):
+        current_enrollment = response.context.get("current_student_enrollment")
+        self.assertIsNotNone(current_enrollment)
+        self.assertEqual(current_enrollment.id, self.enrollment.id)
+        self.assertEqual(current_enrollment.display_name, "TestUser")
+        self.assertEqual(current_enrollment.total_score, 95)
+        self.assertEqual(
+            response.context.get("current_student_enrollment_id"),
+            self.enrollment.id,
+        )
+
+    def assert_current_student_record_visible(self, response):
+        self.assertContains(response, "Your Record")
+        self.assertContains(response, "Your total score: 95")
+        self.assertContains(response, "Position: 2")
+        self.assertContains(response, "Display name: TestUser")
+        self.assertContains(response, "Jump to my record")
+        self.assertContains(response, f"record-{self.enrollment.id}")
+
+    def assert_standard_leaderboard_visible(self, response):
+        self.assertContains(response, "Alice")
+        self.assertContains(response, "Bob")
+        self.assertContains(response, "Charlie")
+
     def test_leaderboard_order(self):
         e1 = self.create_leaderboard_enrollment("e1", 100, 1)
         e2 = self.create_leaderboard_enrollment("e2", 90, 2)
@@ -1606,48 +1641,18 @@ class CourseDetailViewTests(TestCase):
 
     def test_leaderboard_authenticated_with_enrollment(self):
         """Test leaderboard for authenticated users who are enrolled"""
-        # Create some other enrollments
-        self.create_leaderboard_enrollment("Alice", 100, 1)
-        self.create_leaderboard_enrollment("Bob", 90, 2)
-        self.create_leaderboard_enrollment("Charlie", 80, 3)
+        self.create_standard_leaderboard()
 
-        # Set up test user's enrollment
         self.enrollment.display_name = "TestUser"
         self.enrollment.total_score = 95
         self.enrollment.position_on_leaderboard = 2
         self.enrollment.save()
 
-        # Login and visit leaderboard
-        self.client.login(**credentials)
-
-        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
-        response = self.client.get(url)
+        response = self.leaderboard_response(login=True)
 
         self.assertEqual(response.status_code, 200)
-
-        # Context checks
-        current_enrollment = response.context.get("current_student_enrollment")
-        self.assertIsNotNone(current_enrollment)
-        self.assertEqual(current_enrollment.id, self.enrollment.id)
-        self.assertEqual(current_enrollment.display_name, "TestUser")
-        self.assertEqual(current_enrollment.total_score, 95)
-
-        current_enrollment_id = response.context.get("current_student_enrollment_id")
-        self.assertEqual(current_enrollment_id, self.enrollment.id)
-
-        enrollments = response.context["enrollments"]
-        self.assertEqual(len(enrollments), 4)  # Alice, TestUser, Bob, Charlie
-
-        # HTML content checks - should show "Your Record" section
-        self.assertContains(response, "Your Record")
-        self.assertContains(response, "Your total score: 95")
-        self.assertContains(response, "Position: 2")
-        self.assertContains(response, "Display name: TestUser")
-        self.assertContains(response, "Jump to my record")
-        self.assertContains(response, f"record-{self.enrollment.id}")
-
-        # Should show the leaderboard with all students
-        self.assertContains(response, "Alice")
-        self.assertContains(response, "Bob")
-        self.assertContains(response, "Charlie")
+        self.assert_current_student_enrollment(response)
+        self.assertEqual(len(response.context["enrollments"]), 4)
+        self.assert_current_student_record_visible(response)
+        self.assert_standard_leaderboard_visible(response)
         self.assertContains(response, "TestUser")
