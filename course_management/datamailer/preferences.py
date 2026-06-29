@@ -42,10 +42,11 @@ EMAIL_PREFERENCE_CATEGORIES = {
 
 
 def email_preference_category_tags() -> list[str]:
-    return [
-        category["tag"]
-        for category in EMAIL_PREFERENCE_CATEGORIES.values()
-    ]
+    tags = []
+    categories = EMAIL_PREFERENCE_CATEGORIES.values()
+    for category in categories:
+        tags.append(category["tag"])
+    return tags
 
 
 def _normalized_user_email(user) -> str:
@@ -65,11 +66,14 @@ def _datamailer_user_context(user):
 
 
 def _response_categories_by_tag(response):
-    return {
-        category.get("tag"): category
-        for category in response.get("categories", [])
-        if isinstance(category, dict)
-    }
+    categories_by_tag = {}
+    categories = response.get("categories", [])
+    for category in categories:
+        if not isinstance(category, dict):
+            continue
+        tag = category.get("tag")
+        categories_by_tag[tag] = category
+    return categories_by_tag
 
 
 def _enabled_preference_value(category, by_tag):
@@ -88,7 +92,8 @@ def email_preference_values_from_response(
 
     by_tag = _response_categories_by_tag(response)
     values = {}
-    for field, category in EMAIL_PREFERENCE_CATEGORIES.items():
+    categories = EMAIL_PREFERENCE_CATEGORIES.items()
+    for field, category in categories:
         enabled = _enabled_preference_value(category, by_tag)
         if enabled is not None:
             values[field] = enabled
@@ -113,7 +118,8 @@ def _email_preference_payloads(
     values: dict[str, bool],
 ) -> list[dict[str, Any]]:
     payloads = []
-    for field, enabled in values.items():
+    value_items = values.items()
+    for field, enabled in value_items:
         payload = _email_preference_payload(field, enabled)
         if payload is not None:
             payloads.append(payload)
