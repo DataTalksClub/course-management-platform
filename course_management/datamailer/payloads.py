@@ -21,6 +21,33 @@ from .keys import (
 from .preferences import EMAIL_PREFERENCE_CATEGORIES
 
 
+def contact_base_custom_fields(user) -> dict[str, str]:
+    return {
+        "course_platform_user_id": str(user.pk),
+        "username": user.username or "",
+    }
+
+
+def contact_course_custom_fields(course) -> dict[str, str]:
+    return {
+        "course_slug": course.slug,
+        "course_family_slug": course_family_slug(course),
+        "course_cohort_slug": course.slug,
+        "course_title": course.title,
+    }
+
+
+def contact_payload_tags_and_fields(user, course):
+    tags = []
+    custom_fields = contact_base_custom_fields(user)
+
+    if course is not None:
+        tags.extend(contact_tags_for_course(course))
+        custom_fields.update(contact_course_custom_fields(course))
+
+    return tags, custom_fields
+
+
 def contact_payload_for_user(
     user, course=None
 ) -> dict[str, Any] | None:
@@ -32,18 +59,7 @@ def contact_payload_for_user(
     if config is None:
         return None
 
-    tags = []
-    custom_fields = {
-        "course_platform_user_id": str(user.pk),
-        "username": user.username or "",
-    }
-
-    if course is not None:
-        tags.extend(contact_tags_for_course(course))
-        custom_fields["course_slug"] = course.slug
-        custom_fields["course_family_slug"] = course_family_slug(course)
-        custom_fields["course_cohort_slug"] = course.slug
-        custom_fields["course_title"] = course.title
+    tags, custom_fields = contact_payload_tags_and_fields(user, course)
 
     return {
         "email": email,
@@ -57,6 +73,7 @@ def contact_payload_for_user(
         "tags": tags,
         "custom_fields": custom_fields,
     }
+
 
 def registration_campaign_datamailer_payload(campaign) -> dict[str, Any]:
     public_path = reverse(
@@ -1120,6 +1137,7 @@ def certificate_availability_notification_payload(
     if config.from_email:
         payload["from_email"] = config.from_email
     return payload
+
 
 def course_graduate_recipient_list_payload(
     enrollment,
