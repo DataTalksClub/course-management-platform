@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 from uuid import uuid4
@@ -22,26 +23,30 @@ RETRYABLE_STATUSES = {
 }
 
 
+@dataclass(frozen=True)
+class DatamailerOutboxEventData:
+    event_type: str
+    idempotency_key: str
+    ordering_key: str
+    payload: dict[str, Any]
+    dispatch_immediately: bool = True
+
+
 def enqueue_datamailer_outbox_event(
-    *,
-    event_type: str,
-    idempotency_key: str,
-    ordering_key: str,
-    payload: dict[str, Any],
-    dispatch_immediately: bool = True,
+    data: DatamailerOutboxEventData,
 ) -> DatamailerOutboxEvent:
     event_id = f"cmp-datamailer-event:{uuid4()}"
     event = DatamailerOutboxEvent.objects.create(
-        idempotency_key=idempotency_key,
+        idempotency_key=data.idempotency_key,
         event_id=event_id,
-        event_type=event_type,
-        ordering_key=ordering_key,
-        payload=payload,
+        event_type=data.event_type,
+        ordering_key=data.ordering_key,
+        payload=data.payload,
         occurred_at=timezone.now(),
         next_attempt_at=timezone.now(),
     )
 
-    if dispatch_immediately and event.status in RETRYABLE_STATUSES:
+    if data.dispatch_immediately and event.status in RETRYABLE_STATUSES:
         dispatch_datamailer_outbox_event(event)
         event.refresh_from_db()
 

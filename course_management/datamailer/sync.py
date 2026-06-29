@@ -5,6 +5,7 @@ from typing import Any
 import requests
 
 from course_management.datamailer_outbox import (
+    DatamailerOutboxEventData,
     enqueue_datamailer_outbox_event,
 )
 from data.models import (
@@ -198,7 +199,7 @@ def _contact_erase_ordering_key(user_id, email):
 
 
 def _enqueue_contact_erase_event(config, *, user_id, email, ordering_key):
-    enqueue_datamailer_outbox_event(
+    event_data = DatamailerOutboxEventData(
         event_type="contact.erase",
         idempotency_key=f"contact.erase:{ordering_key}:{email}",
         ordering_key=ordering_key,
@@ -209,6 +210,7 @@ def _enqueue_contact_erase_event(config, *, user_id, email, ordering_key):
             "user_id": user_id,
         },
     )
+    enqueue_datamailer_outbox_event(event_data)
 
 
 def _sync_contact_and_membership(data):
@@ -220,7 +222,7 @@ def _sync_contact_and_membership(data):
         return
 
     list_key, source_object_key, payload = data.list_payload
-    enqueue_datamailer_outbox_event(
+    event_data = DatamailerOutboxEventData(
         event_type="recipient_list.member_upsert",
         idempotency_key=(
             f"recipient-list.member-upsert:{list_key}:{source_object_key}:"
@@ -236,6 +238,7 @@ def _sync_contact_and_membership(data):
             "object_id": data.obj.pk,
         },
     )
+    enqueue_datamailer_outbox_event(event_data)
 
 
 def sync_registration_to_datamailer(registration) -> None:
@@ -335,7 +338,7 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
 
 
 def enqueue_recipient_list_bulk_upsert(data):
-    return enqueue_datamailer_outbox_event(
+    event_data = DatamailerOutboxEventData(
         event_type="recipient_list.members_bulk_upsert",
         idempotency_key=(
             "recipient-list.members-bulk-upsert:"
@@ -350,6 +353,7 @@ def enqueue_recipient_list_bulk_upsert(data):
             ),
         },
     )
+    return enqueue_datamailer_outbox_event(event_data)
 
 
 def bulk_upsert_recipient_list_members_before_send(data) -> bool:
@@ -362,7 +366,7 @@ def _remove_recipient_list_memberships(data) -> None:
         if list_payload is None:
             continue
         list_key, source_object_key, payload = list_payload
-        enqueue_datamailer_outbox_event(
+        event_data = DatamailerOutboxEventData(
             event_type="recipient_list.member_remove",
             idempotency_key=(
                 f"recipient-list.member-remove:{list_key}:{source_object_key}:"
@@ -379,6 +383,7 @@ def _remove_recipient_list_memberships(data) -> None:
                 "object_id": data.obj.pk,
             },
         )
+        enqueue_datamailer_outbox_event(event_data)
 
 
 def remove_registration_from_datamailer(registration) -> None:
