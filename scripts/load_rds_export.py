@@ -62,6 +62,34 @@ class CopySummary:
     defaults_used: set[ColumnDefault] = field(default_factory=set)
 
 
+@dataclass(frozen=True)
+class ColumnCopyData:
+    model: Any
+    table: str
+    source_columns: set[str]
+    plan: TableCopyPlan
+    defaults_used: set[ColumnDefault]
+
+
+@dataclass(frozen=True)
+class TableCopyBuildData:
+    table: str
+    source_cursor: sqlite3.Cursor
+    target_cursor: sqlite3.Cursor
+    model_by_table: dict[str, Any]
+    defaults_used: set[ColumnDefault]
+
+
+@dataclass(frozen=True)
+class SourceTableCopyData:
+    table: str
+    source_cursor: sqlite3.Cursor
+    target_cursor: sqlite3.Cursor
+    target_tables: set[str]
+    model_by_table: dict[str, Any]
+    summary: CopySummary
+
+
 @dataclass
 class ImportPaths:
     source_db: Path
@@ -280,23 +308,15 @@ def connect_databases(
 
 
 def missing_required_columns(
-    model: Any,
-    table: str,
     target_info: list[sqlite3.Row],
-    source_columns: set[str],
-    plan: TableCopyPlan,
-    defaults_used: set[ColumnDefault],
+    column_data: ColumnCopyData,
 ) -> list[str]:
     missing_required: list[str] = []
 
     for column_info in target_info:
         missing_column = apply_column_copy_plan(
-            model,
-            table,
             column_info,
-            source_columns,
-            plan,
-            defaults_used,
+            column_data,
         )
         if missing_column:
             missing_required.append(missing_column)
@@ -305,26 +325,22 @@ def missing_required_columns(
 
 
 def apply_column_copy_plan(
-    model: Any,
-    table: str,
     column_info: sqlite3.Row,
-    source_columns: set[str],
-    plan: TableCopyPlan,
-    defaults_used: set[ColumnDefault],
+    data: ColumnCopyData,
 ) -> str:
     column = column_info["name"]
-    if column in source_columns:
-        plan.insert_columns.append(column)
+    if column in data.source_columns:
+        data.plan.insert_columns.append(column)
         return ""
     if bool(column_info["pk"]):
         return ""
 
-    has_default, default = django_field_default(model, column)
+    has_default, default = django_field_default(data.model, column)
     if has_default:
-        plan.insert_columns.append(column)
-        plan.default_values[column] = default
-        default_info = ColumnDefault(table, column, default)
-        defaults_used.add(default_info)
+        data.plan.insert_columns.append(column)
+        data.plan.default_values[column] = default
+        default_info = ColumnDefault(data.table, column, default)
+        data.defaults_used.add(default_info)
         return ""
     if column_allows_local_value(column_info):
         return ""
@@ -335,37 +351,34 @@ def column_allows_local_value(column_info: sqlite3.Row) -> bool:
     return not bool(column_info["notnull"]) or column_info["dflt_value"] is not None
 
 
-def build_table_copy_plan(
-    table: str,
-    source_cursor: sqlite3.Cursor,
-    target_cursor: sqlite3.Cursor,
-    model_by_table: dict[str, Any],
-    defaults_used: set[ColumnDefault],
-) -> TableCopyPlan:
-    source_info = pragma_table_info(source_cursor, table)
-    target_info = pragma_table_info(target_cursor, table)
+def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
+    source_info = pragma_table_info(data.source_cursor, data.table)
+    target_info = pragma_table_info(data.target_cursor, data.table)
     source_columns = set()
     for row in source_info:
         column = row["name"]
         source_columns.add(column)
     plan = TableCopyPlan(
-        table=table,
+        table=data.table,
         insert_columns=[],
         source_columns=source_columns,
         default_values={},
     )
+    column_data = ColumnCopyData(
+        model=data.model_by_table.get(data.table),
+        table=data.table,
+        source_columns=source_columns,
+        plan=plan,
+        defaults_used=data.defaults_used,
+    )
     missing_required = missing_required_columns(
-        model_by_table.get(table),
-        table,
         target_info,
-        source_columns,
-        plan,
-        defaults_used,
+        column_data,
     )
 
     if missing_required:
         raise RuntimeError(
-            f"{table}: source export is missing required local "
+            f"{data.table}: source export is missing required local "
             f"columns without defaults: {missing_required}"
         )
 
@@ -506,41 +519,43 @@ def print_skipped_tables(skipped: list[tuple[str, str]]) -> None:
             print(f"  {table}: {reason}")
 
 
-def copy_source_table(
-    table: str,
-    source_cursor: sqlite3.Cursor,
-    target_cursor: sqlite3.Cursor,
-    target_tables: set[str],
-    model_by_table: dict[str, Any],
-    summary: CopySummary,
-) -> None:
-    if table in SKIP_TABLES:
-        summary.skipped.append((table, "managed by local migrations"))
+def copy_source_table(data: SourceTableCopyData) -> None:
+    if data.table in SKIP_TABLES:
+        data.summary.skipped.append(
+            (data.table, "managed by local migrations")
+        )
         return
 
-    if table not in target_tables:
-        summary.skipped.append((table, "not in local Django schema"))
+    if data.table not in data.target_tables:
+        data.summary.skipped.append(
+            (data.table, "not in local Django schema")
+        )
         return
 
-    plan = build_table_copy_plan(
-        table,
-        source_cursor,
-        target_cursor,
-        model_by_table,
-        summary.defaults_used,
+    build_data = TableCopyBuildData(
+        table=data.table,
+        source_cursor=data.source_cursor,
+        target_cursor=data.target_cursor,
+        model_by_table=data.model_by_table,
+        defaults_used=data.summary.defaults_used,
     )
+    plan = build_table_copy_plan(build_data)
 
     if not plan.insert_columns:
-        summary.skipped.append((table, "no insertable columns"))
+        data.summary.skipped.append((data.table, "no insertable columns"))
         return
 
-    row_count = copy_table_rows(source_cursor, target_cursor, plan)
+    row_count = copy_table_rows(
+        data.source_cursor,
+        data.target_cursor,
+        plan,
+    )
     imported_table = ImportedTable(
-        table,
+        data.table,
         row_count,
         len(plan.insert_columns),
     )
-    summary.imported.append(imported_table)
+    data.summary.imported.append(imported_table)
 
 
 def copy_rows(source_db: Path, target_db: Path) -> None:
@@ -556,14 +571,15 @@ def copy_rows(source_db: Path, target_db: Path) -> None:
 
         target_cursor.execute("PRAGMA foreign_keys=OFF")
         for table in source_tables:
-            copy_source_table(
-                table,
-                source_cursor,
-                target_cursor,
-                target_tables,
-                model_by_table,
-                summary,
+            table_data = SourceTableCopyData(
+                table=table,
+                source_cursor=source_cursor,
+                target_cursor=target_cursor,
+                target_tables=target_tables,
+                model_by_table=model_by_table,
+                summary=summary,
             )
+            copy_source_table(table_data)
 
         target.commit()
         refresh_sqlite_sequences(target_cursor, summary.imported)
