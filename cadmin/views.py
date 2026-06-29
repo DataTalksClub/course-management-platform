@@ -716,39 +716,30 @@ def campaign_create(request):
     return render(request, "cadmin/campaign_form.html", context)
 
 
-@staff_required
-def campaign_edit(request, campaign_slug):
-    campaign = get_object_or_404(
-        RegistrationCampaign.objects.select_related("current_course"),
-        slug=campaign_slug,
-    )
-    datamailer_preview = None
+def _campaign_edit_redirect(campaign):
+    return redirect("cadmin_campaign_edit", campaign_slug=campaign.slug)
 
-    if request.method == "POST" and request.POST.get(
-        "datamailer_action"
-    ):
+
+def _handle_campaign_edit_post(request, campaign):
+    if request.POST.get("datamailer_action"):
         datamailer_preview, should_redirect = (
             handle_datamailer_campaign_action(request, campaign)
         )
         if should_redirect:
-            return redirect(
-                "cadmin_campaign_edit", campaign_slug=campaign.slug
-            )
+            return _campaign_edit_redirect(campaign), None, None
         form = RegistrationCampaignForm(instance=campaign)
-    elif request.method == "POST":
-        form = RegistrationCampaignForm(request.POST, instance=campaign)
-        if form.is_valid():
-            campaign = form.save()
-            messages.success(
-                request, "Registration landing page saved."
-            )
-            return redirect(
-                "cadmin_campaign_edit", campaign_slug=campaign.slug
-            )
-    else:
-        form = RegistrationCampaignForm(instance=campaign)
+        return None, form, datamailer_preview
 
-    context = {
+    form = RegistrationCampaignForm(request.POST, instance=campaign)
+    if form.is_valid():
+        campaign = form.save()
+        messages.success(request, "Registration landing page saved.")
+        return _campaign_edit_redirect(campaign), None, None
+    return None, form, None
+
+
+def _campaign_edit_context(campaign, form, datamailer_preview):
+    return {
         "form": form,
         "campaign": campaign,
         "course": campaign.current_course,
@@ -757,6 +748,30 @@ def campaign_edit(request, campaign_slug):
         "datamailer_preview": datamailer_preview,
         **datamailer_campaign_context(campaign),
     }
+
+
+@staff_required
+def campaign_edit(request, campaign_slug):
+    campaign = get_object_or_404(
+        RegistrationCampaign.objects.select_related("current_course"),
+        slug=campaign_slug,
+    )
+
+    if request.method == "POST":
+        response, form, datamailer_preview = _handle_campaign_edit_post(
+            request, campaign
+        )
+        if response:
+            return response
+    else:
+        form = RegistrationCampaignForm(instance=campaign)
+        datamailer_preview = None
+
+    context = _campaign_edit_context(
+        campaign,
+        form,
+        datamailer_preview,
+    )
     return render(request, "cadmin/campaign_form.html", context)
 
 
