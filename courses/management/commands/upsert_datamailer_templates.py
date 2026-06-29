@@ -12,7 +12,11 @@ import json
 
 from django.core.management.base import BaseCommand, CommandError
 
-from course_management.datamailer import DatamailerClient, DatamailerConfig
+from course_management.datamailer import (
+    DatamailerClient,
+    DatamailerConfig,
+    DatamailerRequestData,
+)
 from course_management.datamailer_templates import TEMPLATES
 
 
@@ -49,11 +53,12 @@ class Command(BaseCommand):
 
         results = []
         for key in keys:
-            response = client.request(
-                "PUT",
-                f"/api/transactional/templates/{key}",
+            request_data = DatamailerRequestData(
+                method="PUT",
+                path=f"/api/transactional/templates/{key}",
                 json=TEMPLATES[key],
             )
+            response = client.request(request_data)
             result = {"template_key": key, "response": response}
             results.append(result)
             self.stdout.write(
