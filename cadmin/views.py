@@ -984,7 +984,11 @@ def _homework_submissions_queryset(homework, search_query):
 
 
 def _homework_submissions_data(submissions):
-    return [{"submission": submission} for submission in submissions]
+    submissions_data = []
+    for submission in submissions:
+        record = {"submission": submission}
+        submissions_data.append(record)
+    return submissions_data
 
 
 def _homework_submissions_context(
@@ -1033,19 +1037,23 @@ def _questions_with_submission_answers(homework, submission):
     answers = Answer.objects.filter(
         submission=submission
     ).select_related("question")
-    answer_map = {answer.question_id: answer for answer in answers}
-    return questions, [
-        {
+    answer_map = {}
+    for answer in answers:
+        answer_map[answer.question_id] = answer
+
+    questions_with_answers = []
+    for question in questions:
+        answer = answer_map.get(question.id)
+        answer_text = ""
+        if answer is not None:
+            answer_text = answer.answer_text
+        record = {
             "question": question,
-            "answer": answer_map.get(question.id),
-            "answer_text": (
-                answer_map[question.id].answer_text
-                if question.id in answer_map
-                else ""
-            ),
+            "answer": answer,
+            "answer_text": answer_text,
         }
-        for question in questions
-    ]
+        questions_with_answers.append(record)
+    return questions, questions_with_answers
 
 
 def _homework_submission_edit_redirect(course_slug, homework_slug):
@@ -1312,32 +1320,30 @@ def _project_review_criteria(course):
 
 
 def _project_evaluation_score_map(submission):
-    return {
-        score.review_criteria_id: score
-        for score in ProjectEvaluationScore.objects.filter(
-            submission=submission
-        )
-    }
+    scores = ProjectEvaluationScore.objects.filter(submission=submission)
+    score_map = {}
+    for score in scores:
+        score_map[score.review_criteria_id] = score
+    return score_map
 
 
 def _criteria_with_project_scores(review_criteria, submission):
     evaluation_scores = _project_evaluation_score_map(submission)
-    return [
-        {
+    criteria_scores = []
+    for criteria in review_criteria:
+        evaluation_score = evaluation_scores.get(criteria.id)
+        score = 0
+        score_id = None
+        if evaluation_score is not None:
+            score = evaluation_score.score
+            score_id = evaluation_score.id
+        record = {
             "criteria": criteria,
-            "score": (
-                evaluation_scores[criteria.id].score
-                if criteria.id in evaluation_scores
-                else 0
-            ),
-            "score_id": (
-                evaluation_scores[criteria.id].id
-                if criteria.id in evaluation_scores
-                else None
-            ),
+            "score": score,
+            "score_id": score_id,
         }
-        for criteria in review_criteria
-    ]
+        criteria_scores.append(record)
+    return criteria_scores
 
 
 def _project_submission_edit_redirect(course_slug, project_slug):
@@ -1482,13 +1488,15 @@ def complaints_grouped_by_enrollment(course):
 
 def complaint_enrollment_rows(course):
     complaints_by_enrollment = complaints_grouped_by_enrollment(course)
-    return [
-        {
+    enrollment_rows = []
+    enrollments = complaint_enrollments(course)
+    for enrollment in enrollments:
+        record = {
             "enrollment": enrollment,
             "complaints": complaints_by_enrollment[enrollment.id],
         }
-        for enrollment in complaint_enrollments(course)
-    ]
+        enrollment_rows.append(record)
+    return enrollment_rows
 
 
 def leaderboard_complaint_counts(course):
@@ -1595,11 +1603,19 @@ def enrollment_project_submissions(enrollment):
 
 
 def total_project_lip_score(project_submissions):
-    return sum(
-        submission.project_learning_in_public_score
-        + submission.peer_review_learning_in_public_score
-        for submission in project_submissions
-    )
+    total_score = 0
+    for submission in project_submissions:
+        project_score = submission.project_learning_in_public_score
+        peer_review_score = submission.peer_review_learning_in_public_score
+        total_score += project_score + peer_review_score
+    return total_score
+
+
+def total_homework_lip_score(homework_submissions):
+    total_score = 0
+    for submission in homework_submissions:
+        total_score += submission.learning_in_public_score
+    return total_score
 
 
 def enrollment_edit_context(course, enrollment):
@@ -1612,9 +1628,8 @@ def enrollment_edit_context(course, enrollment):
         "homework_submissions_count": homework_submissions.count(),
         "project_submissions": project_submissions,
         "project_submissions_count": project_submissions.count(),
-        "total_homework_lip_score": sum(
-            submission.learning_in_public_score
-            for submission in homework_submissions
+        "total_homework_lip_score": total_homework_lip_score(
+            homework_submissions
         ),
         "total_project_lip_score": total_project_lip_score(
             project_submissions
