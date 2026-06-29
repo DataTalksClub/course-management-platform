@@ -630,13 +630,14 @@ def project_faq_url(student_index, project_index, project_faq_score):
 
 
 def build_project_submission(course, enrollment, student_index, project_index, project, count):
+    scores = project_scores(student_index, count, project_index)
     (
         project_score,
         project_faq_score,
         project_lip_score,
         peer_review_score,
         peer_review_lip_score,
-    ) = project_scores(student_index, count, project_index)
+    ) = scores
     return ProjectSubmission(
         project=project,
         student=enrollment.student,
@@ -662,13 +663,7 @@ def build_project_submission(course, enrollment, student_index, project_index, p
         project_learning_in_public_score=project_lip_score,
         peer_review_score=peer_review_score,
         peer_review_learning_in_public_score=peer_review_lip_score,
-        total_score=(
-            project_score
-            + project_faq_score
-            + project_lip_score
-            + peer_review_score
-            + peer_review_lip_score
-        ),
+        total_score=sum(scores),
         reviewed_enough_peers=peer_review_score > 0,
         passed=project_score > 0,
     )
@@ -757,9 +752,7 @@ def seed_course(spec, count):
     )
 
 
-def main():
-    configure_sqlite_busy_timeout()
-
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--list-courses",
@@ -782,7 +775,23 @@ def main():
         type=int,
         help="Override generated participant count for every selected course.",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def seed_selected_courses(args):
+    specs_by_slug = {spec["slug"]: spec for spec in COURSE_SPECS}
+    selected_slugs = args.course or list(DEFAULT_SELECTED_COURSES)
+
+    for slug in selected_slugs:
+        count = args.count or DEFAULT_SELECTED_COURSES.get(slug, 300)
+        run_with_lock_retries(
+            lambda slug=slug, count=count: seed_course(specs_by_slug[slug], count)
+        )
+
+
+def main():
+    configure_sqlite_busy_timeout()
+    args = parse_args()
 
     if args.list_courses:
         list_courses()
@@ -792,12 +801,7 @@ def main():
     if args.catalog_only:
         return
 
-    specs_by_slug = {spec["slug"]: spec for spec in COURSE_SPECS}
-    selected_slugs = args.course or list(DEFAULT_SELECTED_COURSES)
-
-    for slug in selected_slugs:
-        count = args.count or DEFAULT_SELECTED_COURSES.get(slug, 300)
-        run_with_lock_retries(lambda slug=slug, count=count: seed_course(specs_by_slug[slug], count))
+    seed_selected_courses(args)
 
 
 if __name__ == "__main__":
