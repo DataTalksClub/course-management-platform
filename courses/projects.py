@@ -264,35 +264,39 @@ def calculate_project_score(
     new_evaluations: List[ProjectEvaluationScore] = []
 
     project_score = 0
-
-    responses_by_criteria = defaultdict(list)
-
-    for review in reviews:
-        for response in review.responses:
-            responses_by_criteria[response.criteria_id].append(response)
+    responses_by_criteria = responses_grouped_by_criteria(reviews)
 
     for responses in responses_by_criteria.values():
-        criteria_score = 0
-
-        scores = []
-        for response in responses:
-            score = response.get_score()
-            scores.append(score)
-
-        criteria = responses[0].criteria
-        median_score = statistics.median(scores)
-        criteria_score = math.ceil(median_score)
-
-        score = ProjectEvaluationScore(
-            submission=submission,
-            review_criteria=criteria,
-            score=criteria_score,
+        criteria_score, evaluation = score_project_criteria(
+            submission, responses
         )
-        new_evaluations.append(score)
-
+        new_evaluations.append(evaluation)
         project_score += criteria_score
 
     return project_score, new_evaluations
+
+
+def responses_grouped_by_criteria(reviews: List[PeerReview]):
+    responses_by_criteria = defaultdict(list)
+    for review in reviews:
+        for response in review.responses:
+            responses_by_criteria[response.criteria_id].append(response)
+    return responses_by_criteria
+
+
+def score_project_criteria(
+    submission: ProjectSubmission,
+    responses: list[CriteriaResponse],
+) -> tuple[int, ProjectEvaluationScore]:
+    criteria = responses[0].criteria
+    criteria_score = math.ceil(
+        statistics.median(response.get_score() for response in responses)
+    )
+    return criteria_score, ProjectEvaluationScore(
+        submission=submission,
+        review_criteria=criteria,
+        score=criteria_score,
+    )
 
 
 def _validate_project_scoreable(project: Project) -> str | None:
