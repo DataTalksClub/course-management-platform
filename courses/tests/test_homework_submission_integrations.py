@@ -63,46 +63,45 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
         self.client.force_login(self.user)
 
-    @override_settings(PUBLIC_BASE_URL="")
-    @patch("courses.views.homework.send_transactional_email")
-    def test_homework_submission_sends_confirmation_email(
-        self,
-        send_email,
-    ):
-        url = reverse(
+    def homework_url(self):
+        return reverse(
             "homework",
             args=[self.course.slug, self.homework.slug],
         )
 
+    def confirmation_post_data(self):
+        return {
+            f"answer_{self.multiple_choice_question.id}": ["2"],
+            f"answer_{self.free_form_question.id}": [
+                "I used pandas and DuckDB."
+            ],
+            f"answer_{self.checkbox_question.id}": ["1", "3"],
+            "learning_in_public_links[]": ["https://example.com/post"],
+            "time_spent_lectures": "2.5",
+            "time_spent_homework": "4",
+            "problems_comments": "No blockers.",
+            "faq_contribution_url": (
+                "https://github.com/DataTalksClub/faq/pull/1"
+            ),
+        }
+
+    def post_homework(self, post_data):
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                url,
-                {
-                    f"answer_{self.multiple_choice_question.id}": ["2"],
-                    f"answer_{self.free_form_question.id}": [
-                        "I used pandas and DuckDB."
-                    ],
-                    f"answer_{self.checkbox_question.id}": ["1", "3"],
-                    "learning_in_public_links[]": [
-                        "https://example.com/post"
-                    ],
-                    "time_spent_lectures": "2.5",
-                    "time_spent_homework": "4",
-                    "problems_comments": "No blockers.",
-                    "faq_contribution_url": (
-                        "https://github.com/DataTalksClub/faq/pull/1"
-                    ),
-                },
+            return self.client.post(
+                self.homework_url(),
+                post_data,
                 HTTP_HOST="localhost",
             )
 
-        self.assertEqual(response.status_code, 302)
-        submission = Submission.objects.get(
+    def get_submission(self):
+        return Submission.objects.get(
             student=self.user,
             homework=self.homework,
         )
-        send_email.assert_called_once()
-        payload = send_email.call_args.args[0]
+
+    def assert_confirmation_payload_basics(
+        self, payload, submission
+    ):
         self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(
             payload["template_key"],
@@ -117,32 +116,35 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             ),
         )
         self.assertEqual(
-            payload["context"]["submission_id"],
-            submission.id,
+            payload["metadata"]["event"],
+            "homework_submission",
         )
+
+    def assert_confirmation_context(self, payload, submission):
+        context = payload["context"]
+        self.assertEqual(context["submission_id"], submission.id)
         self.assertEqual(
-            payload["context"]["update_url"],
+            context["update_url"],
             "http://localhost/course/homework/hw1",
         )
         self.assertEqual(
-            payload["context"]["profile_url"],
+            context["profile_url"],
             "http://localhost/accounts/settings/",
         )
         self.assertEqual(
-            payload["context"]["notification_category"],
+            context["notification_category"],
             "homework and project submissions",
         )
         self.assertIn(
             "homework and project submission emails",
-            payload["context"]["notification_footer_text"],
+            context["notification_footer_text"],
         )
         self.assertEqual(
-            payload["context"]["intro_text"],
-            (
-                "Your homework submission for Homework 1 in Course "
-                "was saved."
-            ),
+            context["intro_text"],
+            "Your homework submission for Homework 1 in Course was saved.",
         )
+
+    def assert_submission_fields(self, payload):
         self.assertEqual(
             payload["context"]["submission_fields"],
             [
@@ -176,6 +178,8 @@ class HomeworkSubmissionIntegrationTest(TestCase):
                 },
             ],
         )
+
+    def assert_submitted_answers(self, payload):
         self.assertEqual(
             payload["context"]["submitted_answers"],
             [
@@ -212,6 +216,8 @@ class HomeworkSubmissionIntegrationTest(TestCase):
                 },
             ],
         )
+
+    def assert_confirmation_summary(self, payload):
         self.assertIn(
             "Time spent on lectures: 2.5 hours",
             payload["context"]["submission_summary_text"],
@@ -220,10 +226,25 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             "Pick all matching options: 1. Alpha, 3. Gamma",
             payload["context"]["submitted_answers_text"],
         )
-        self.assertEqual(
-            payload["metadata"]["event"],
-            "homework_submission",
-        )
+
+    @override_settings(PUBLIC_BASE_URL="")
+    @patch("courses.views.homework.send_transactional_email")
+    def test_homework_submission_sends_confirmation_email(
+        self,
+        send_email,
+    ):
+        response = self.post_homework(self.confirmation_post_data())
+
+        self.assertEqual(response.status_code, 302)
+        submission = self.get_submission()
+        send_email.assert_called_once()
+        payload = send_email.call_args.args[0]
+
+        self.assert_confirmation_payload_basics(payload, submission)
+        self.assert_confirmation_context(payload, submission)
+        self.assert_submission_fields(payload)
+        self.assert_submitted_answers(payload)
+        self.assert_confirmation_summary(payload)
 
     @patch("courses.views.homework.send_transactional_email")
     def test_homework_submission_uses_datamailer_without_local_preference(
