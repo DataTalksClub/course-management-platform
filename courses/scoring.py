@@ -772,17 +772,18 @@ def _wrapped_learning_in_public_count(
 
 
 def _wrapped_faq_count(homework_submissions, project_submissions):
-    homework_faqs = sum(
+    return sum(
         1
-        for hw in homework_submissions
-        if hw.faq_contribution_url and hw.faq_contribution_url.strip()
+        for submission in [*homework_submissions, *project_submissions]
+        if _has_faq_contribution(submission)
     )
-    project_faqs = sum(
-        1
-        for proj in project_submissions
-        if proj.faq_contribution_url and proj.faq_contribution_url.strip()
+
+
+def _has_faq_contribution(submission):
+    return bool(
+        submission.faq_contribution_url
+        and submission.faq_contribution_url.strip()
     )
-    return homework_faqs + project_faqs
 
 
 def _wrapped_courses(enrollments):
