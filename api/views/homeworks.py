@@ -190,32 +190,21 @@ def _create_question(homework, q_data):
     )
 
 
-@token_required
-@csrf_exempt
-@require_methods("GET", "POST")
-def homeworks_view(request, course_slug):
-    """
-    GET /api/courses/<slug>/homeworks/ - List homeworks.
-    POST /api/courses/<slug>/homeworks/ - Create homework(s), bulk supported.
-    """
-    course = get_object_or_404(Course, slug=course_slug)
+def _homeworks_list_response(course):
+    homeworks = Homework.objects.filter(course=course).order_by("id")
+    homework_records = []
+    for homework in homeworks:
+        homework_record = _homework_to_dict(homework)
+        homework_records.append(homework_record)
 
-    if request.method == "GET":
-        homeworks = Homework.objects.filter(course=course).order_by(
-            "id"
-        )
-        homework_records = []
-        for homework in homeworks:
-            homework_record = _homework_to_dict(homework)
-            homework_records.append(homework_record)
+    return JsonResponse(
+        {
+            "homeworks": homework_records,
+        }
+    )
 
-        return JsonResponse(
-            {
-                "homeworks": homework_records,
-            }
-        )
 
-    # POST
+def _homeworks_create_response(request, course):
     staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
@@ -228,6 +217,22 @@ def homeworks_view(request, course_slug):
         data,
         lambda item: _create_homework(course, item),
     )
+
+
+@token_required
+@csrf_exempt
+@require_methods("GET", "POST")
+def homeworks_view(request, course_slug):
+    """
+    GET /api/courses/<slug>/homeworks/ - List homeworks.
+    POST /api/courses/<slug>/homeworks/ - Create homework(s), bulk supported.
+    """
+    course = get_object_or_404(Course, slug=course_slug)
+
+    if request.method == "GET":
+        return _homeworks_list_response(course)
+
+    return _homeworks_create_response(request, course)
 
 
 HOMEWORK_PATCH_FIELDS = {
