@@ -722,33 +722,54 @@ def project_results(request, course_slug, project_slug):
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
+    context = _project_results_context(course, project, request.user)
 
-    user = request.user
-    is_authenticated = user.is_authenticated
+    return render(request, "projects/results.html", context)
 
-    if not is_authenticated:
-        context = {
-            "course": course,
-            "project": project,
-            "is_authenticated": False,
-        }
 
-        return render(request, "projects/results.html", context)
+def _project_results_context(course, project, user):
+    if not user.is_authenticated:
+        return _anonymous_project_results_context(course, project)
 
-    submission = ProjectSubmission.objects.filter(
+    submission = _project_results_submission(project, user)
+    return {
+        "course": course,
+        "project": project,
+        "submission": submission,
+        "scores": _project_results_scores(submission),
+        "feedback": _project_results_feedback(submission),
+        "is_authenticated": True,
+    }
+
+
+def _anonymous_project_results_context(course, project):
+    return {
+        "course": course,
+        "project": project,
+        "is_authenticated": False,
+    }
+
+
+def _project_results_submission(project, user):
+    return ProjectSubmission.objects.filter(
         project=project,
         student=user,
         volunteer_review_only=False,
     ).first()
 
+
+def _project_results_scores(submission):
     scores = list(
         ProjectEvaluationScore.objects.filter(submission=submission)
         .order_by("review_criteria__id")
         .prefetch_related("review_criteria")
     )
     annotate_scores_with_option_votes(submission, scores)
+    return scores
 
-    feedback = list(
+
+def _project_results_feedback(submission):
+    return list(
         PeerReview.objects.filter(
             submission_under_evaluation=submission,
             state=PeerReviewState.SUBMITTED.value,
@@ -756,17 +777,6 @@ def project_results(request, course_slug, project_slug):
             note_to_peer__gt="",
         )
     )
-
-    context = {
-        "course": course,
-        "project": project,
-        "submission": submission,
-        "scores": scores,
-        "feedback": feedback,
-        "is_authenticated": True,
-    }
-
-    return render(request, "projects/results.html", context)
 
 
 def criteria_response_answer_indexes(response):
