@@ -91,25 +91,38 @@ def get_error_message(status_code, url):
 URL_VALIDATION_TIMEOUT = 3
 
 
-def validate_url_200(
-    url, get_method=None, code=None, params=None
-):
-    if get_method is None:
-        get_method = requests.head
+def _url_validation_method(get_method):
+    return get_method or requests.head
+
+
+def _should_retry_with_get(status_code):
+    return status_code in [403, 405, 501]
+
+
+def _validated_url_response(url, get_method):
+    response = get_method(url, timeout=URL_VALIDATION_TIMEOUT)
+    if _should_retry_with_get(response.status_code):
+        return requests.get(url, timeout=URL_VALIDATION_TIMEOUT)
+
+    return response
+
+
+def _raise_url_status_error(status_code, url, code, params):
+    error_message = get_error_message(status_code, url)
+    raise ValidationError(error_message, code=code, params=params)
+
+
+def validate_url_200(url, get_method=None, code=None, params=None):
+    get_method = _url_validation_method(get_method)
 
     try:
-        response = get_method(url, timeout=URL_VALIDATION_TIMEOUT)
-
-        if response.status_code in [403, 405, 501]:
-            response = requests.get(url, timeout=URL_VALIDATION_TIMEOUT)
-
+        response = _validated_url_response(url, get_method)
         status_code = response.status_code
 
         if status_code == 200:
             return
 
-        error_message = get_error_message(status_code, url)
-        raise ValidationError(error_message, code=code, params=params)
+        _raise_url_status_error(status_code, url, code, params)
     except ValidationError:
         raise
     except Exception as e:
