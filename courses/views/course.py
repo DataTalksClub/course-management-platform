@@ -1179,6 +1179,34 @@ def _leaderboard_project_submissions(enrollment):
     ).order_by("project__id")
 
 
+def _save_leaderboard_complaint(form, enrollment, reporter):
+    complaint = form.save(commit=False)
+    complaint.enrollment = enrollment
+    complaint.reporter = reporter
+    complaint.save()
+
+
+def _leaderboard_complaint_post_response(
+    request,
+    form,
+    enrollment,
+    course_slug,
+):
+    if not form.is_valid():
+        return None
+
+    _save_leaderboard_complaint(form, enrollment, request.user)
+    messages.success(
+        request,
+        "Thanks. The course team will review this leaderboard record.",
+    )
+    return redirect(
+        "leaderboard_score_breakdown",
+        course_slug=course_slug,
+        enrollment_id=enrollment.id,
+    )
+
+
 @login_required
 def leaderboard_complaint_view(
     request, course_slug: str, enrollment_id: int
@@ -1191,20 +1219,14 @@ def leaderboard_complaint_view(
 
     if request.method == "POST":
         form = LeaderboardComplaintForm(request.POST)
-        if form.is_valid():
-            complaint = form.save(commit=False)
-            complaint.enrollment = enrollment
-            complaint.reporter = request.user
-            complaint.save()
-            messages.success(
-                request,
-                "Thanks. The course team will review this leaderboard record.",
-            )
-            return redirect(
-                "leaderboard_score_breakdown",
-                course_slug=course_slug,
-                enrollment_id=enrollment.id,
-            )
+        response = _leaderboard_complaint_post_response(
+            request,
+            form,
+            enrollment,
+            course_slug,
+        )
+        if response is not None:
+            return response
     else:
         form = LeaderboardComplaintForm()
 
