@@ -431,6 +431,47 @@ class CadminViewTests(TestCase):
         self.login_admin()
         return self.client.get(self.cadmin_course_url())
 
+    def create_llm_registration_campaign(self, **overrides):
+        defaults = {
+            "slug": "llm-zoomcamp",
+            "title": "LLM Zoomcamp",
+            "current_course": self.course,
+            "marketing_markdown": "Register now",
+        }
+        defaults.update(overrides)
+        return RegistrationCampaign.objects.create(**defaults)
+
+    def campaign_edit_url(self, campaign):
+        return reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+
+    def post_campaign_datamailer_action(self, campaign, payload):
+        self.login_admin()
+        return self.client.post(self.campaign_edit_url(campaign), payload)
+
+    def assert_campaign_draft_upserted(self, upsert_campaign):
+        upsert_campaign.assert_called_once()
+        self.assertEqual(
+            upsert_campaign.call_args.args[0],
+            "cmp-registration-llm-zoomcamp",
+        )
+        payload = upsert_campaign.call_args.args[1]
+        self.assertEqual(payload["subject"], "LLM Zoomcamp")
+        self.assertEqual(payload["preview_text"], "Learn LLMs")
+        self.assertIn("<h2>Register now</h2>", payload["html_body"])
+        self.assertEqual(payload["text_body"], "## Register now")
+        self.assertEqual(payload["category_tag"], "course-updates")
+        self.assertEqual(payload["recipient_list_key"], self.course.slug)
+        self.assertEqual(
+            payload["metadata"]["registration_url"],
+            "https://courses.example.com/register/llm-zoomcamp/",
+        )
+        self.assertEqual(
+            payload["metadata"]["course_slug"], self.course.slug
+        )
+
     def project_action_url(self, name):
         return reverse(
             name,
@@ -973,46 +1014,19 @@ class CadminViewTests(TestCase):
     def test_campaign_edit_syncs_datamailer_campaign_draft(
         self, upsert_campaign
     ):
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            current_course=self.course,
+        campaign = self.create_llm_registration_campaign(
             meta_description="Learn LLMs",
             marketing_markdown="## Register now",
         )
+        url = self.campaign_edit_url(campaign)
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
-        )
-        response = self.client.post(
-            url,
+        response = self.post_campaign_datamailer_action(
+            campaign,
             {"datamailer_action": "sync"},
         )
 
         self.assertRedirects(response, url)
-        upsert_campaign.assert_called_once()
-        self.assertEqual(
-            upsert_campaign.call_args.args[0],
-            "cmp-registration-llm-zoomcamp",
-        )
-        payload = upsert_campaign.call_args.args[1]
-        self.assertEqual(payload["subject"], "LLM Zoomcamp")
-        self.assertEqual(payload["preview_text"], "Learn LLMs")
-        self.assertIn("<h2>Register now</h2>", payload["html_body"])
-        self.assertEqual(payload["text_body"], "## Register now")
-        self.assertEqual(payload["category_tag"], "course-updates")
-        self.assertEqual(payload["recipient_list_key"], self.course.slug)
-        self.assertEqual(
-            payload["metadata"]["registration_url"],
-            "https://courses.example.com/register/llm-zoomcamp/",
-        )
-        self.assertEqual(
-            payload["metadata"]["course_slug"], self.course.slug
-        )
+        self.assert_campaign_draft_upserted(upsert_campaign)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("cadmin.views.DatamailerClient.preview_campaign")
