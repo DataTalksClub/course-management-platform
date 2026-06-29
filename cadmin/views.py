@@ -908,16 +908,7 @@ def homework_clear_correct_answers(request, course_slug, homework_slug):
     )
 
 
-@staff_required
-def homework_submissions(request, course_slug, homework_slug):
-    """View all submissions for a homework"""
-    course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
-    )
-
-    search_query = request.GET.get("q", "").strip()
-
+def _homework_submissions_queryset(homework, search_query):
     submissions = (
         Submission.objects.filter(homework=homework)
         .select_related("student", "enrollment")
@@ -929,26 +920,49 @@ def homework_submissions(request, course_slug, homework_slug):
             Q(student__email__icontains=search_query)
             | Q(student__username__icontains=search_query)
         )
+    return submissions
 
-    submissions_page = paginate_queryset(request, submissions)
 
-    submissions_data = []
-    for submission in submissions_page.object_list:
-        submissions_data.append(
-            {
-                "submission": submission,
-            }
-        )
+def _homework_submissions_data(submissions):
+    return [{"submission": submission} for submission in submissions]
 
-    context = {
+
+def _homework_submissions_context(
+    request,
+    course,
+    homework,
+    submissions_page,
+    search_query,
+):
+    return {
         "course": course,
         "homework": homework,
-        "submissions_data": submissions_data,
+        "submissions_data": _homework_submissions_data(
+            submissions_page.object_list
+        ),
         "submissions_page": submissions_page,
         "search_query": search_query,
         "pagination_querystring": pagination_querystring(request),
     }
 
+
+@staff_required
+def homework_submissions(request, course_slug, homework_slug):
+    """View all submissions for a homework"""
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+    search_query = request.GET.get("q", "").strip()
+    submissions = _homework_submissions_queryset(homework, search_query)
+    submissions_page = paginate_queryset(request, submissions)
+    context = _homework_submissions_context(
+        request,
+        course,
+        homework,
+        submissions_page,
+        search_query,
+    )
     return render(request, "cadmin/homework_submissions.html", context)
 
 
@@ -1153,34 +1167,25 @@ def project_score(request, course_slug, project_slug):
     )
 
 
-@staff_required
-def project_submissions(request, course_slug, project_slug):
-    """View all submissions for a project"""
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
-    )
+def _apply_project_action_flags(project):
     project.needs_review_assignment = (
         project.state == ProjectState.COLLECTING_SUBMISSIONS.value
     )
     project.needs_scoring = (
         project.state == ProjectState.PEER_REVIEWING.value
     )
-    search_query = request.GET.get("q", "").strip()
-    status_filter = request.GET.get("status", "all")
-    submissions, project_filter_counts = project_submission_list_data(
-        project,
-        search_query,
-        status_filter,
-    )
 
-    submissions_page = paginate_queryset(
-        request,
-        submissions,
-        per_page=CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE,
-    )
 
-    context = {
+def _project_submissions_context(
+    request,
+    course,
+    project,
+    submissions_page,
+    project_filter_counts,
+    search_query,
+    status_filter,
+):
+    return {
         "course": course,
         "project": project,
         "submissions": submissions_page.object_list,
@@ -1194,6 +1199,36 @@ def project_submissions(request, course_slug, project_slug):
         "pagination_querystring": pagination_querystring(request),
     }
 
+
+@staff_required
+def project_submissions(request, course_slug, project_slug):
+    """View all submissions for a project"""
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    _apply_project_action_flags(project)
+    search_query = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "all")
+    submissions, project_filter_counts = project_submission_list_data(
+        project,
+        search_query,
+        status_filter,
+    )
+    submissions_page = paginate_queryset(
+        request,
+        submissions,
+        per_page=CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE,
+    )
+    context = _project_submissions_context(
+        request,
+        course,
+        project,
+        submissions_page,
+        project_filter_counts,
+        search_query,
+        status_filter,
+    )
     return render(request, "cadmin/project_submissions.html", context)
 
 
