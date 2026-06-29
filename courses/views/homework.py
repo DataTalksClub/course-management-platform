@@ -710,6 +710,25 @@ def send_homework_confirmation_email(
     if not user.email:
         return
 
+    send_transactional_email(
+        homework_confirmation_payload(
+            user=user,
+            course=course,
+            homework=homework,
+            submission=submission,
+            update_url=update_url,
+        )
+    )
+
+
+def homework_confirmation_payload(
+    *,
+    user: User,
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+    update_url: str,
+) -> dict:
     context = homework_confirmation_context(
         course=course,
         homework=homework,
@@ -720,27 +739,39 @@ def send_homework_confirmation_email(
         ),
     )
 
-    send_transactional_email(
-        {
-            "email": user.email,
-            "template_key": (
-                email_templates.HOMEWORK_SUBMISSION_CONFIRMATION
-            ),
-            "category_tag": "submission-results",
-            "idempotency_key": (
-                f"homework-submission:{submission.id}:"
-                f"{submission.submitted_at.isoformat()}"
-            ),
-            "context": context,
-            "metadata": {
-                "source": "course-management-platform",
-                "event": "homework_submission",
-                "course_slug": course.slug,
-                "homework_slug": homework.slug,
-                "submission_id": submission.id,
-            },
-        }
+    return {
+        "email": user.email,
+        "template_key": email_templates.HOMEWORK_SUBMISSION_CONFIRMATION,
+        "category_tag": "submission-results",
+        "idempotency_key": homework_confirmation_idempotency_key(
+            submission
+        ),
+        "context": context,
+        "metadata": homework_confirmation_email_metadata(
+            course, homework, submission
+        ),
+    }
+
+
+def homework_confirmation_idempotency_key(submission: Submission) -> str:
+    return (
+        f"homework-submission:{submission.id}:"
+        f"{submission.submitted_at.isoformat()}"
     )
+
+
+def homework_confirmation_email_metadata(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+) -> dict:
+    return {
+        "source": "course-management-platform",
+        "event": "homework_submission",
+        "course_slug": course.slug,
+        "homework_slug": homework.slug,
+        "submission_id": submission.id,
+    }
 
 
 def request_base_url(url: str) -> str:
