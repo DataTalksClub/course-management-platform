@@ -317,6 +317,44 @@ class DatamailerClientTest(TestCase):
         self.assertTrue(member["metadata"]["reviewed_enough_peers"])
         self.assertTrue(member["metadata"]["passed"])
 
+    def assert_project_score_list_send(
+        self,
+        result,
+        bulk_upsert,
+        send_list,
+        project,
+        submission,
+    ):
+        self.assertEqual(result, {"enqueued_count": 1})
+        self.assertEqual(bulk_upsert.call_count, 2)
+        send_list.assert_called_once()
+        self.assertEqual(
+            DatamailerOutboxEvent.objects.filter(
+                event_type="recipient_list.members_bulk_upsert",
+                status=DatamailerOutboxStatus.ACKED,
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            send_list.call_args.args[0],
+            project_submitters_list_key(project),
+        )
+        self.assertNotIn("members", send_list.call_args.args[1])
+        self.assertNotIn("list", send_list.call_args.args[1])
+        self.assertEqual(
+            bulk_upsert.call_args_list[1].args[0],
+            project_passed_list_key(project),
+        )
+        passed_payload = bulk_upsert.call_args_list[1].args[1]
+        self.assertEqual(
+            passed_payload["members"][0]["source_object_key"],
+            f"project-submission:{submission.pk}",
+        )
+        self.assertEqual(
+            passed_payload["members"][0]["metadata"]["outcome"],
+            "project_passed",
+        )
+
     def create_peer_review_assignment_fixture(self):
         project = self.create_project(
             state=ProjectState.PEER_REVIEWING.value,
@@ -2572,66 +2610,22 @@ class DatamailerClientTest(TestCase):
     ):
         bulk_upsert.return_value = {"updated_count": 0}
         send_list.return_value = {"enqueued_count": 1}
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="project-learner@example.com",
-            email="project-learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        submission = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/project",
+        project = self.create_project()
+        submission = self.create_project_submission(
+            project,
+            self.create_user("project-learner@example.com"),
             total_score=98,
             passed=True,
         )
 
         result = send_project_score_notification(project)
 
-        self.assertEqual(result, {"enqueued_count": 1})
-        self.assertEqual(bulk_upsert.call_count, 2)
-        send_list.assert_called_once()
-        self.assertEqual(
-            DatamailerOutboxEvent.objects.filter(
-                event_type="recipient_list.members_bulk_upsert",
-                status=DatamailerOutboxStatus.ACKED,
-            ).count(),
-            2,
-        )
-        self.assertEqual(
-            send_list.call_args.args[0],
-            project_submitters_list_key(project),
-        )
-        self.assertNotIn("members", send_list.call_args.args[1])
-        self.assertNotIn("list", send_list.call_args.args[1])
-        self.assertEqual(
-            bulk_upsert.call_args_list[1].args[0],
-            project_passed_list_key(project),
-        )
-        passed_payload = bulk_upsert.call_args_list[1].args[1]
-        self.assertEqual(
-            passed_payload["members"][0]["source_object_key"],
-            f"project-submission:{submission.pk}",
-        )
-        self.assertEqual(
-            passed_payload["members"][0]["metadata"]["outcome"],
-            "project_passed",
+        self.assert_project_score_list_send(
+            result,
+            bulk_upsert,
+            send_list,
+            project,
+            submission,
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
