@@ -1051,20 +1051,18 @@ def _save_homework_answers(submission, questions, answers_dict):
         )
 
 
-def _register_homework_submission_callbacks(
-    request,
-    *,
-    user,
-    course,
-    homework,
-    submission,
-):
-    update_url = build_homework_update_url(request, course, homework)
+def _register_homework_submission_callbacks(data, submission):
+    user = data.request.user
+    update_url = build_homework_update_url(
+        data.request,
+        data.course,
+        data.homework,
+    )
     transaction.on_commit(
         lambda: send_homework_confirmation_email(
             user=user,
-            course=course,
-            homework=homework,
+            course=data.course,
+            homework=data.homework,
             submission=submission,
             update_url=update_url,
         )
@@ -1092,28 +1090,21 @@ def _homework_submission_success_response(request, course, homework):
     )
 
 
-def _save_homework_submission_data(
-    request,
-    *,
-    user,
-    course,
-    homework,
-    questions,
-    submission,
-):
-    answers_dict = _homework_answers_from_post(request)
+def _save_homework_submission_data(data):
+    user = data.request.user
+    answers_dict = _homework_answers_from_post(data.request)
     submission = _homework_submission_for_user(
         user,
-        course,
-        homework,
-        submission,
+        data.course,
+        data.homework,
+        data.submission,
     )
-    _save_homework_answers(submission, questions, answers_dict)
+    _save_homework_answers(submission, data.questions, answers_dict)
     field_data = HomeworkSubmissionFieldData(
         submission=submission,
-        request=request,
-        course=course,
-        homework=homework,
+        request=data.request,
+        course=data.course,
+        homework=data.homework,
         user=user,
     )
     _apply_homework_submission_fields(field_data)
@@ -1122,31 +1113,13 @@ def _save_homework_submission_data(
     return submission
 
 
-def process_homework_submission(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
-):
-    user = request.user
-    submission = _save_homework_submission_data(
-        request,
-        user=user,
-        course=course,
-        homework=homework,
-        questions=questions,
-        submission=submission,
-    )
-    _register_homework_submission_callbacks(
-        request,
-        user=user,
-        course=course,
-        homework=homework,
-        submission=submission,
-    )
+def process_homework_submission(data: HomeworkPostData):
+    submission = _save_homework_submission_data(data)
+    _register_homework_submission_callbacks(data, submission)
     return _homework_submission_success_response(
-        request, course, homework
+        data.request,
+        data.course,
+        data.homework,
     )
 
 
@@ -1464,13 +1437,7 @@ def submit_homework_post(
     data: HomeworkPostData,
 ):
     with transaction.atomic():
-        return process_homework_submission(
-            request=data.request,
-            course=data.course,
-            homework=data.homework,
-            questions=data.questions,
-            submission=data.submission,
-        )
+        return process_homework_submission(data)
 
 
 def handle_homework_post(data: HomeworkPostData):
