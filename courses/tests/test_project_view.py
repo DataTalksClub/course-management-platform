@@ -98,6 +98,21 @@ class ProjectViewTestCase(TestCase):
             action="delete",
         )
 
+    def closed_project_submission_data(self):
+        return self.project_submission_data(
+            github_link="https://github.com/existing/repo",
+            commit_id="1234567",
+            time_spent="2",
+            problems_comments="Encountered an issue with...",
+            faq_contribution_url=(
+                "https://github.com/DataTalksClub/faq/pull/266"
+            ),
+        )
+
+    def close_project_submissions(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
     def post_project(self, data, execute_callbacks=False):
         self.client.login(**credentials)
         if not execute_callbacks:
@@ -696,24 +711,9 @@ class ProjectViewTestCase(TestCase):
         """
         Test posting a project submission when there are no existing submissions.
         """
+        self.close_project_submissions()
 
-        self.client.login(**credentials)
-
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/existing/repo",
-            "commit_id": "1234567",
-            "time_spent": "2",
-            "problems_comments": "Encountered an issue with...",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
-        }
-        response = self.client.post(url, data)
+        response = self.post_project(self.closed_project_submission_data())
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -727,13 +727,7 @@ class ProjectViewTestCase(TestCase):
             status_code=200,
         )
 
-        submissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-
-        self.assertEqual(submissions.count(), 0)
+        self.assertEqual(self.project_submission_count(), 0)
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
