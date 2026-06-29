@@ -430,9 +430,11 @@ class DashboardHomeworkStatsTestCase(TestCase):
 
 class DashboardProjectStatsTestCase(TestCase):
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def create_dashboard_user(cls):
         cls.user = User.objects.create_user(**credentials)
+
+    @classmethod
+    def create_dashboard_course(cls):
         cls.course = Course.objects.create(
             slug="test-course",
             title="Test Course",
@@ -440,6 +442,8 @@ class DashboardProjectStatsTestCase(TestCase):
             first_homework_scored=True,
         )
 
+    @classmethod
+    def create_dashboard_project(cls):
         cls.project = Project.objects.create(
             course=cls.course,
             slug="project1",
@@ -449,7 +453,8 @@ class DashboardProjectStatsTestCase(TestCase):
             state=ProjectState.COMPLETED.value,
         )
 
-        # Create users for project submissions using bulk operations
+    @classmethod
+    def create_project_users(cls):
         user_data = []
         for i in range(6):
             user_data.append(
@@ -462,7 +467,8 @@ class DashboardProjectStatsTestCase(TestCase):
 
         cls.users = User.objects.bulk_create(user_data)
 
-        # Create enrollments in bulk
+    @classmethod
+    def create_project_enrollments(cls):
         enrollment_data = []
         for user in cls.users:
             enrollment_data.append(
@@ -472,6 +478,15 @@ class DashboardProjectStatsTestCase(TestCase):
         cls.enrollments = Enrollment.objects.bulk_create(
             enrollment_data
         )
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.create_dashboard_user()
+        cls.create_dashboard_course()
+        cls.create_dashboard_project()
+        cls.create_project_users()
+        cls.create_project_enrollments()
 
     def setUp(self):
         self.client = Client()
