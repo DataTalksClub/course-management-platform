@@ -121,6 +121,26 @@ class DatamailerClientTest(TestCase):
     def create_enrollment(self, user, course):
         return Enrollment.objects.create(student=user, course=course)
 
+    def create_registration(self, course=None, **overrides):
+        course = course or self.create_ml_course()
+        campaign = RegistrationCampaign.objects.create(
+            slug="ml-zoomcamp",
+            title="ML Zoomcamp",
+            current_course=course,
+        )
+        defaults = {
+            "campaign": campaign,
+            "course": course,
+            "email": "Student@Example.com",
+            "name": "Student One",
+            "country": "Germany",
+            "region": "Europe",
+            "role": CourseRegistration.Role.DATA_ENGINEER,
+            "accepted_newsletter": True,
+        }
+        defaults.update(overrides)
+        return CourseRegistration.objects.create(**defaults)
+
     def create_homework_submission(self, homework, user, **overrides):
         defaults = {
             "homework": homework,
@@ -168,6 +188,87 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(payload["list"]["type"], list_type)
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
+
+    def create_passed_and_failed_project_submissions(self):
+        project = self.create_project()
+        passed_submission = self.create_project_submission(
+            project,
+            self.create_user("passed@example.com"),
+            github_link="https://github.com/example/passed",
+            total_score=98,
+            passed=True,
+        )
+        self.create_project_submission(
+            project,
+            self.create_user("failed@example.com"),
+            github_link="https://github.com/example/failed",
+            total_score=50,
+            passed=False,
+        )
+        return project, passed_submission
+
+    def configure_import_by_reference(self, boto3_client, create_import, job_id):
+        s3 = boto3_client.return_value
+        s3.generate_presigned_url.return_value = (
+            "https://storage.example.com/import.jsonl?signature=abc"
+        )
+        create_import.return_value = {
+            "import_job": {"id": job_id, "status": "pending"}
+        }
+        return s3
+
+    def assert_registration_import_object(self, s3, registration):
+        s3.put_object.assert_called_once()
+        put_kwargs = s3.put_object.call_args.kwargs
+        self.assertEqual(put_kwargs["Bucket"], "cmp-imports")
+        self.assertTrue(
+            put_kwargs["Key"].startswith(
+                "datamailer-test/dtc-courses/dtc-courses/registrations/"
+            )
+        )
+        self.assertEqual(
+            put_kwargs["ContentType"],
+            "application/x-ndjson",
+        )
+        rows = [
+            json.loads(line)
+            for line in put_kwargs["Body"].decode("utf-8").splitlines()
+        ]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0]["source_object_key"],
+            f"registration:{registration.pk}",
+        )
+        self.assertEqual(rows[0]["email"], "student@example.com")
+        return put_kwargs["Key"]
+
+    def assert_presigned_import_url_created(self, s3, key):
+        s3.generate_presigned_url.assert_called_once_with(
+            "get_object",
+            Params={"Bucket": "cmp-imports", "Key": key},
+            ExpiresIn=900,
+            HttpMethod="GET",
+        )
+
+    def assert_registration_import_payload(self, create_import, registration):
+        create_import.assert_called_once()
+        self.assertEqual(
+            create_import.call_args.args[0],
+            registration_list_key(registration),
+        )
+        payload = create_import.call_args.args[1]
+        self.assertEqual(
+            payload["source_url"],
+            "https://storage.example.com/import.jsonl?signature=abc",
+        )
+        self.assertEqual(payload["list"]["type"], "registrants")
+        self.assertFalse(payload["remove_absent"])
+        self.assertTrue(
+            payload["idempotency_key"].startswith(
+                "cmp-recipient-list-import:registrations:"
+            )
+        )
+        self.assertNotIn("members", payload)
 
     def assert_homework_score_member(self, member, submission):
         self.assertEqual(
@@ -2382,51 +2483,8 @@ class DatamailerClientTest(TestCase):
     def test_project_passed_recipient_list_payload_targets_passed_outcome(
         self,
     ):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        passed_user = CustomUser.objects.create_user(
-            username="passed@example.com",
-            email="passed@example.com",
-            password="test",
-        )
-        failed_user = CustomUser.objects.create_user(
-            username="failed@example.com",
-            email="failed@example.com",
-            password="test",
-        )
-        passed_enrollment = Enrollment.objects.create(
-            student=passed_user,
-            course=course,
-        )
-        failed_enrollment = Enrollment.objects.create(
-            student=failed_user,
-            course=course,
-        )
-        passed_submission = ProjectSubmission.objects.create(
-            project=project,
-            student=passed_user,
-            enrollment=passed_enrollment,
-            github_link="https://github.com/example/passed",
-            total_score=98,
-            passed=True,
-        )
-        ProjectSubmission.objects.create(
-            project=project,
-            student=failed_user,
-            enrollment=failed_enrollment,
-            github_link="https://github.com/example/failed",
-            total_score=50,
-            passed=False,
+        project, passed_submission = (
+            self.create_passed_and_failed_project_submissions()
         )
 
         list_key, payload = project_passed_recipient_list_payload(project)
@@ -3216,51 +3274,8 @@ class DatamailerClientTest(TestCase):
                 "active_member_count": 1,
             },
         }
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        passed_user = CustomUser.objects.create_user(
-            username="passed@example.com",
-            email="passed@example.com",
-            password="test",
-        )
-        failed_user = CustomUser.objects.create_user(
-            username="failed@example.com",
-            email="failed@example.com",
-            password="test",
-        )
-        passed_enrollment = Enrollment.objects.create(
-            student=passed_user,
-            course=course,
-        )
-        failed_enrollment = Enrollment.objects.create(
-            student=failed_user,
-            course=course,
-        )
-        passed_submission = ProjectSubmission.objects.create(
-            project=project,
-            student=passed_user,
-            enrollment=passed_enrollment,
-            github_link="https://github.com/example/passed",
-            total_score=98,
-            passed=True,
-        )
-        ProjectSubmission.objects.create(
-            project=project,
-            student=failed_user,
-            enrollment=failed_enrollment,
-            github_link="https://github.com/example/failed",
-            total_score=50,
-            passed=False,
+        project, passed_submission = (
+            self.create_passed_and_failed_project_submissions()
         )
 
         out = StringIO()
@@ -3415,32 +3430,11 @@ class DatamailerClientTest(TestCase):
         boto3_client,
         create_import,
     ):
-        s3 = boto3_client.return_value
-        s3.generate_presigned_url.return_value = (
-            "https://storage.example.com/import.jsonl?signature=abc"
+        s3 = self.configure_import_by_reference(
+            boto3_client, create_import, job_id=17
         )
-        create_import.return_value = {
-            "import_job": {"id": 17, "status": "pending"}
-        }
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            current_course=course,
-        )
-        registration = CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
-            email="Student@Example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-        )
+        registration = self.create_registration(accepted_newsletter=False)
+        course = registration.course
 
         out = StringIO()
         call_command(
@@ -3452,53 +3446,9 @@ class DatamailerClientTest(TestCase):
             stdout=out,
         )
 
-        s3.put_object.assert_called_once()
-        put_kwargs = s3.put_object.call_args.kwargs
-        self.assertEqual(put_kwargs["Bucket"], "cmp-imports")
-        self.assertTrue(
-            put_kwargs["Key"].startswith(
-                "datamailer-test/dtc-courses/dtc-courses/registrations/"
-            )
-        )
-        self.assertEqual(
-            put_kwargs["ContentType"],
-            "application/x-ndjson",
-        )
-        rows = [
-            json.loads(line)
-            for line in put_kwargs["Body"].decode("utf-8").splitlines()
-        ]
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(
-            rows[0]["source_object_key"],
-            f"registration:{registration.pk}",
-        )
-        self.assertEqual(rows[0]["email"], "student@example.com")
-
-        s3.generate_presigned_url.assert_called_once_with(
-            "get_object",
-            Params={"Bucket": "cmp-imports", "Key": put_kwargs["Key"]},
-            ExpiresIn=900,
-            HttpMethod="GET",
-        )
-        create_import.assert_called_once()
-        self.assertEqual(
-            create_import.call_args.args[0],
-            registration_list_key(registration),
-        )
-        payload = create_import.call_args.args[1]
-        self.assertEqual(
-            payload["source_url"],
-            "https://storage.example.com/import.jsonl?signature=abc",
-        )
-        self.assertEqual(payload["list"]["type"], "registrants")
-        self.assertFalse(payload["remove_absent"])
-        self.assertTrue(
-            payload["idempotency_key"].startswith(
-                "cmp-recipient-list-import:registrations:"
-            )
-        )
-        self.assertNotIn("members", payload)
+        key = self.assert_registration_import_object(s3, registration)
+        self.assert_presigned_import_url_created(s3, key)
+        self.assert_registration_import_payload(create_import, registration)
         self.assertIn(
             "Created import job for ml-zoomcamp-2026: job_id=17",
             out.getvalue(),
