@@ -50,6 +50,8 @@ class ReminderSpec:
     item_type: str
     route_name: str
     route_slug_kwarg: str
+    metadata_slug_key: str
+    metadata_id_key: str
     list_name_suffix: str
 
 
@@ -58,6 +60,15 @@ class ReminderWindow:
     key: str
     start: datetime
     end: datetime
+
+
+@dataclass(frozen=True)
+class ReminderMetadataData:
+    spec: ReminderSpec
+    course: Course
+    item_slug: str
+    item_id: int
+    reminder_key: str
 
 
 @dataclass(frozen=True)
@@ -227,26 +238,19 @@ def transient_recipient_list_send_payload(event):
     }
 
 
-def base_context(
-    course,
-    *,
-    reminder_key,
-    item_type,
-    item_slug,
-    item_title,
-    deadline,
-    action_url,
-):
+def base_context(data):
     return {
-        "course_slug": course.slug,
-        "course_title": course.title,
-        "reminder_key": reminder_key,
-        "item_type": item_type,
-        "item_slug": item_slug,
-        "item_title": item_title,
-        "deadline_at": format_deadline_for_email(deadline)["deadline_summary"],
-        "deadline_iso": deadline.isoformat(),
-        "action_url": action_url,
+        "course_slug": data.course.slug,
+        "course_title": data.course.title,
+        "reminder_key": data.reminder_key,
+        "item_type": data.spec.item_type,
+        "item_slug": data.item_slug,
+        "item_title": data.item_title,
+        "deadline_at": format_deadline_for_email(data.deadline)[
+            "deadline_summary"
+        ],
+        "deadline_iso": data.deadline.isoformat(),
+        "action_url": data.action_url,
         "profile_url": public_url(reverse("account_settings")),
         "notification_category": "deadline reminders",
         "notification_footer": (
@@ -256,22 +260,13 @@ def base_context(
     }
 
 
-def reminder_metadata(
-    course,
-    *,
-    item_slug_key,
-    item_slug,
-    item_id_key,
-    item_id,
-    reminder_key,
-    deadline_kind,
-):
+def reminder_metadata(data):
     return {
-        "course_slug": course.slug,
-        item_slug_key: item_slug,
-        item_id_key: item_id,
-        "reminder_key": reminder_key,
-        "deadline_kind": deadline_kind,
+        "course_slug": data.course.slug,
+        data.spec.metadata_slug_key: data.item_slug,
+        data.spec.metadata_id_key: data.item_id,
+        "reminder_key": data.reminder_key,
+        "deadline_kind": data.spec.deadline_kind,
     }
 
 
@@ -287,26 +282,9 @@ def deadline_action_url(spec, course, item_slug):
     )
 
 
-def deadline_context(
-    course,
-    *,
-    reminder_key,
-    item_type,
-    item_slug,
-    item_title,
-    deadline,
-    action_url,
-    extra_context,
-):
-    context = base_context(
-        course,
-        reminder_key=reminder_key,
-        item_type=item_type,
-        item_slug=item_slug,
-        item_title=item_title,
-        deadline=deadline,
-        action_url=action_url,
-    )
+def deadline_context(data):
+    context = base_context(data)
+    extra_context = data.context_extra(data.action_url)
     context.update(extra_context)
     return context
 
@@ -331,7 +309,7 @@ def reminder_event_context(data, action_url):
         action_url=action_url,
         context_extra=data.context_extra,
     )
-    return reminder_template_context(context_data)
+    return deadline_context(context_data)
 
 
 def build_reminder_event(data):
@@ -366,19 +344,6 @@ def build_reminder_event(data):
     )
 
 
-def reminder_template_context(data):
-    return deadline_context(
-        data.course,
-        reminder_key=data.reminder_key,
-        item_type=data.spec.item_type,
-        item_slug=data.item_slug,
-        item_title=data.item_title,
-        deadline=data.deadline,
-        action_url=data.action_url,
-        extra_context=data.context_extra(data.action_url),
-    )
-
-
 def reminder_event_key(spec, item_id, reminder_key):
     return f"deadline-reminder:{spec.event_kind}:{item_id}:{reminder_key}"
 
@@ -402,6 +367,8 @@ def homework_reminder_spec():
         item_type="homework",
         route_name="homework",
         route_slug_kwarg="homework_slug",
+        metadata_slug_key="homework_slug",
+        metadata_id_key="homework_id",
         list_name_suffix="deadline reminders",
     )
 
@@ -414,6 +381,8 @@ def project_submission_reminder_spec():
         item_type="project",
         route_name="project",
         route_slug_kwarg="project_slug",
+        metadata_slug_key="project_slug",
+        metadata_id_key="project_id",
         list_name_suffix="submission deadline reminders",
     )
 
@@ -426,6 +395,8 @@ def peer_review_reminder_spec():
         item_type="peer_review",
         route_name="projects_eval",
         route_slug_kwarg="project_slug",
+        metadata_slug_key="project_slug",
+        metadata_id_key="project_id",
         list_name_suffix="peer review deadline reminders",
     )
 
@@ -594,15 +565,14 @@ def peer_review_deadline_context(project):
 
 
 def homework_reminder_event(config, spec, homework):
-    metadata = reminder_metadata(
-        homework.course,
-        item_slug_key="homework_slug",
+    metadata_data = ReminderMetadataData(
+        spec=spec,
+        course=homework.course,
         item_slug=homework.slug,
-        item_id_key="homework_id",
         item_id=homework.pk,
         reminder_key="24h",
-        deadline_kind=spec.deadline_kind,
     )
+    metadata = reminder_metadata(metadata_data)
     members = reminder_members_from_enrollments(
         pending_homework_enrollments(homework),
         metadata,
@@ -627,15 +597,14 @@ def homework_reminder_event(config, spec, homework):
 
 
 def project_submission_reminder_event(config, spec, project, reminder_key):
-    metadata = reminder_metadata(
-        project.course,
-        item_slug_key="project_slug",
+    metadata_data = ReminderMetadataData(
+        spec=spec,
+        course=project.course,
         item_slug=project.slug,
-        item_id_key="project_id",
         item_id=project.pk,
         reminder_key=reminder_key,
-        deadline_kind=spec.deadline_kind,
     )
+    metadata = reminder_metadata(metadata_data)
     members = reminder_members_from_enrollments(
         pending_project_submission_enrollments(project),
         metadata,
@@ -660,15 +629,14 @@ def project_submission_reminder_event(config, spec, project, reminder_key):
 
 
 def peer_review_reminder_event(config, spec, project):
-    metadata = reminder_metadata(
-        project.course,
-        item_slug_key="project_slug",
+    metadata_data = ReminderMetadataData(
+        spec=spec,
+        course=project.course,
         item_slug=project.slug,
-        item_id_key="project_id",
         item_id=project.pk,
         reminder_key="24h",
-        deadline_kind=spec.deadline_kind,
     )
+    metadata = reminder_metadata(metadata_data)
     members = reminder_members_from_submissions(
         pending_peer_review_submissions(project),
         metadata,
