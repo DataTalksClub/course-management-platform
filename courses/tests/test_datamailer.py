@@ -3779,6 +3779,36 @@ class DatamailerClientTest(TestCase):
             out.getvalue(),
         )
 
+    @override_settings(**DATAMAILER_SETTINGS)
+    def test_recipient_list_backfill_command_rejects_invalid_options(self):
+        cases = [
+            (
+                ("registrations", "--homework-slug", "homework-1"),
+                "--homework-slug can only be used with kind=homework.",
+            ),
+            (
+                ("enrollments", "--project-slug", "project-1"),
+                "--project-slug can only be used with kind=project or kind=project-passed.",
+            ),
+            (
+                ("registrations", "--wait-for-import"),
+                "--wait-for-import requires --import-by-reference.",
+            ),
+            (
+                ("registrations", "--import-timeout", "0"),
+                "--import-timeout must be positive.",
+            ),
+            (
+                ("registrations", "--import-poll-interval", "0"),
+                "--import-poll-interval must be positive.",
+            ),
+        ]
+
+        for args, message in cases:
+            with self.subTest(args=args):
+                with self.assertRaisesMessage(CommandError, message):
+                    call_command("sync_datamailer_recipient_lists", *args)
+
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",

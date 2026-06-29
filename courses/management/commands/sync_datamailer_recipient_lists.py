@@ -37,6 +37,7 @@ RECIPIENT_LIST_KINDS = [
     "project-passed",
     "graduates",
 ]
+PROJECT_FILTER_KINDS = {"project", "project-passed"}
 
 
 def add_member_to_batches(
@@ -289,6 +290,56 @@ def import_idempotency_key(
     )
 
 
+def validate_recipient_list_options(kind, options):
+    _validate_homework_filter(kind, options)
+    _validate_project_filter(kind, options)
+    _validate_import_wait_options(options)
+    _validate_positive_import_option(
+        options,
+        "import_timeout",
+        "--import-timeout",
+    )
+    _validate_positive_import_option(
+        options,
+        "import_poll_interval",
+        "--import-poll-interval",
+    )
+
+
+def _validate_homework_filter(kind, options):
+    if kind == "homework" or not options["homework_slug"]:
+        return
+
+    raise CommandError(
+        "--homework-slug can only be used with kind=homework."
+    )
+
+
+def _validate_project_filter(kind, options):
+    if kind in PROJECT_FILTER_KINDS or not options["project_slug"]:
+        return
+
+    raise CommandError(
+        "--project-slug can only be used with kind=project or kind=project-passed."
+    )
+
+
+def _validate_import_wait_options(options):
+    if not options["wait_for_import"] or options["import_by_reference"]:
+        return
+
+    raise CommandError(
+        "--wait-for-import requires --import-by-reference."
+    )
+
+
+def _validate_positive_import_option(options, option_key, option_name):
+    if options[option_key] > 0:
+        return
+
+    raise CommandError(f"{option_name} must be positive.")
+
+
 class Command(BaseCommand):
     help = "Backfill Datamailer recipient lists from CMP registrations, enrollments, and submissions."
 
@@ -391,30 +442,7 @@ class Command(BaseCommand):
         return config
 
     def validate_options(self, kind, options):
-        if kind != "homework" and options["homework_slug"]:
-            raise CommandError(
-                "--homework-slug can only be used with kind=homework."
-            )
-        if (
-            kind not in {"project", "project-passed"}
-            and options["project_slug"]
-        ):
-            raise CommandError(
-                "--project-slug can only be used with kind=project or kind=project-passed."
-            )
-        if (
-            options["wait_for_import"]
-            and not options["import_by_reference"]
-        ):
-            raise CommandError(
-                "--wait-for-import requires --import-by-reference."
-            )
-        if options["import_timeout"] <= 0:
-            raise CommandError("--import-timeout must be positive.")
-        if options["import_poll_interval"] <= 0:
-            raise CommandError(
-                "--import-poll-interval must be positive."
-            )
+        validate_recipient_list_options(kind, options)
 
     def get_batches(self, kind, options):
         return build_batches(
