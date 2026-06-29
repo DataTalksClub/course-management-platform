@@ -21,6 +21,15 @@ class ProjectState(Enum):
     COMPLETED = "CO"
 
 
+def _build_enum_choices(enum_type):
+    choices = []
+    states = enum_type
+    for state in states:
+        choice = (state.value, state.name)
+        choices.append(choice)
+    return choices
+
+
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     slug = models.SlugField(blank=False)
@@ -52,7 +61,7 @@ class Project(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=[(state.value, state.name) for state in ProjectState],
+        choices=_build_enum_choices(ProjectState),
         default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
@@ -158,14 +167,18 @@ class ReviewCriteria(models.Model):
 
     def median_score(self) -> int:
         result = 0
-        scores = [option["score"] for option in self.options]
+        scores = []
+        options = self.options
+        for option in options:
+            score = option["score"]
+            scores.append(score)
 
         if self.review_criteria_type == ReviewCriteriaTypes.RADIO_BUTTONS.value:
             result = statistics.median(scores)
 
         if self.review_criteria_type == ReviewCriteriaTypes.CHECKBOXES.value:
-            result = sum(scores) / 2 # just give the middle score
-    
+            result = sum(scores) / 2  # just give the middle score
+
         return math.ceil(result)
 
     def __str__(self):
@@ -201,9 +214,7 @@ class PeerReview(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=[
-            (state.value, state.name) for state in PeerReviewState
-        ],
+        choices=_build_enum_choices(PeerReviewState),
         default=PeerReviewState.TO_REVIEW.value,
     )
 
@@ -232,8 +243,16 @@ class CriteriaResponse(models.Model):
             return [0]
 
         answers = self.answer.split(",")
-        answer_idx = [int(s) - 1 for s in answers]
-        scores = [criteria.options[i]["score"] for i in answer_idx]
+        answer_indices = []
+        for answer in answers:
+            answer_index = int(answer) - 1
+            answer_indices.append(answer_index)
+
+        scores = []
+        for answer_index in answer_indices:
+            option = criteria.options[answer_index]
+            score = option["score"]
+            scores.append(score)
 
         return scores
 

@@ -18,6 +18,15 @@ class HomeworkState(Enum):
     SCORED = "SC"
 
 
+def _build_homework_state_choices():
+    choices = []
+    states = HomeworkState
+    for state in states:
+        choice = (state.value, state.name)
+        choices.append(choice)
+    return choices
+
+
 class Homework(models.Model):
     slug = models.SlugField(blank=False)
 
@@ -53,7 +62,7 @@ class Homework(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=[(state.value, state.name) for state in HomeworkState],
+        choices=_build_homework_state_choices(),
         default=HomeworkState.OPEN.value,
     )
 
@@ -119,9 +128,12 @@ class Question(models.Model):
         if not self.possible_answers:
             return []
 
-        split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
-        split = [s.strip() for s in split]  # remove /r if present
-        return split
+        possible_answers = []
+        raw_answers = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
+        for raw_answer in raw_answers:
+            possible_answer = raw_answer.strip()
+            possible_answers.append(possible_answer)
+        return possible_answers
 
     def has_choice_answers(self):
         return self.question_type in {
@@ -134,14 +146,20 @@ class Question(models.Model):
             return []
 
         indices_raw = self.correct_answer.split(",")
-        return [int(index) - 1 for index in indices_raw]
+        indices = []
+        for index_raw in indices_raw:
+            index = int(index_raw) - 1
+            indices.append(index)
+        return indices
 
     def get_choice_correct_answer(self):
         possible_answers = self.get_possible_answers()
-        return {
-            possible_answers[index]
-            for index in self.zero_based_correct_answer_indices()
-        }
+        correct_answers = set()
+        correct_answer_indices = self.zero_based_correct_answer_indices()
+        for index in correct_answer_indices:
+            correct_answer = possible_answers[index]
+            correct_answers.add(correct_answer)
+        return correct_answers
 
     def get_correct_answer(self):
         if self.has_choice_answers():
@@ -153,9 +171,12 @@ class Question(models.Model):
         if not self.correct_answer:
             return set()
 
-        indicies_raw = self.correct_answer.split(",")
-        indicies = {int(index) for index in indicies_raw}
-        return indicies
+        indices_raw = self.correct_answer.split(",")
+        indices = set()
+        for index_raw in indices_raw:
+            index = int(index_raw)
+            indices.add(index)
+        return indices
 
     def __str__(self):
         return f"{self.homework.course.title} / {self.homework.title} - {self.text}"
