@@ -81,14 +81,14 @@ def detail_response(
     noun,
 ):
     if request.method == "GET":
-        return JsonResponse(to_dict(instance))
+        return detail_get_response(instance, to_dict=to_dict)
 
     staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
     if request.method == "DELETE":
-        return delete_object_or_error(
+        return detail_delete_response(
             instance,
             closed_state=closed_state,
             related_queryset=related_queryset,
@@ -96,6 +96,48 @@ def detail_response(
             noun=noun,
         )
 
+    return detail_patch_response(
+        request,
+        instance,
+        to_dict=to_dict,
+        allowed_fields=allowed_fields,
+        valid_states=valid_states,
+        invalid_state_code=invalid_state_code,
+        date_fields=date_fields,
+    )
+
+
+def detail_get_response(instance, *, to_dict):
+    return JsonResponse(to_dict(instance))
+
+
+def detail_delete_response(
+    instance,
+    *,
+    closed_state,
+    related_queryset,
+    related_name,
+    noun,
+):
+    return delete_object_or_error(
+        instance,
+        closed_state=closed_state,
+        related_queryset=related_queryset,
+        related_name=related_name,
+        noun=noun,
+    )
+
+
+def detail_patch_response(
+    request,
+    instance,
+    *,
+    to_dict,
+    allowed_fields,
+    valid_states,
+    invalid_state_code,
+    date_fields,
+):
     data, err = parse_json_body(request)
     if err:
         return err
