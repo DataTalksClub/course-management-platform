@@ -352,11 +352,11 @@ def faq_contribution_submission_field(
     }
 
 
-def homework_submission_fields(
+def optional_homework_submission_fields(
     course: Course,
     homework: Homework,
     submission: Submission,
-) -> List[dict[str, Any]]:
+) -> List[dict[str, Any] | None]:
     fields = []
     homework_url_field = homework_url_submission_field(homework, submission)
     fields.append(homework_url_field)
@@ -379,12 +379,30 @@ def homework_submission_fields(
         submission,
     )
     fields.append(faq_contribution_field)
+    return fields
 
+
+def visible_homework_submission_fields(
+    fields: List[dict[str, Any] | None],
+) -> List[dict[str, Any]]:
     visible_fields = []
     for field in fields:
         if field is not None:
             visible_fields.append(field)
     return visible_fields
+
+
+def homework_submission_fields(
+    course: Course,
+    homework: Homework,
+    submission: Submission,
+) -> List[dict[str, Any]]:
+    fields = optional_homework_submission_fields(
+        course,
+        homework,
+        submission,
+    )
+    return visible_homework_submission_fields(fields)
 
 
 def homework_submitted_answers(
