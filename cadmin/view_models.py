@@ -10,6 +10,40 @@ from courses.models import (
 )
 
 
+def _project_submission_has_incomplete_reviews(submission):
+    return (
+        submission.peer_reviews_completed
+        < submission.peer_reviews_total
+    )
+
+
+def _project_submission_is_missing_repository(submission):
+    return not submission.github_link
+
+
+def _project_submission_is_unscored(submission):
+    return submission.total_score is None
+
+
+def _project_submission_did_not_pass(submission):
+    return submission.passed is False
+
+
+PROJECT_SUBMISSION_STATUS_FILTERS = {
+    "incomplete-reviews": _project_submission_has_incomplete_reviews,
+    "missing-repository": _project_submission_is_missing_repository,
+    "unscored": _project_submission_is_unscored,
+    "not-passed": _project_submission_did_not_pass,
+}
+
+PROJECT_SUBMISSION_FILTER_COUNTS = {
+    "incomplete_reviews": _project_submission_has_incomplete_reviews,
+    "missing_repository": _project_submission_is_missing_repository,
+    "unscored": _project_submission_is_unscored,
+    "not_passed": _project_submission_did_not_pass,
+}
+
+
 def project_submission_list_data(project, search_query, status_filter):
     submissions = (
         ProjectSubmission.objects.filter(project=project)
@@ -26,24 +60,10 @@ def project_submission_list_data(project, search_query, status_filter):
     submissions = list(submissions)
     _attach_project_review_counts(project, submissions)
 
-    filter_counts = {
-        "all": len(submissions),
-        "incomplete_reviews": sum(
-            1
-            for submission in submissions
-            if submission.peer_reviews_completed
-            < submission.peer_reviews_total
-        ),
-        "missing_repository": sum(
-            1 for submission in submissions if not submission.github_link
-        ),
-        "unscored": sum(
-            1 for submission in submissions if submission.total_score is None
-        ),
-        "not_passed": sum(
-            1 for submission in submissions if submission.passed is False
-        ),
-    }
+    filter_counts = _status_filter_counts(
+        submissions,
+        PROJECT_SUBMISSION_FILTER_COUNTS,
+    )
 
     return _filter_project_submissions(submissions, status_filter), filter_counts
 
@@ -68,28 +88,42 @@ def _attach_project_review_counts(project, submissions):
 
 
 def _filter_project_submissions(submissions, status_filter):
-    if status_filter == "incomplete-reviews":
-        return [
-            submission
-            for submission in submissions
-            if submission.peer_reviews_completed
-            < submission.peer_reviews_total
-        ]
-    if status_filter == "missing-repository":
-        return [
-            submission for submission in submissions if not submission.github_link
-        ]
-    if status_filter == "unscored":
-        return [
-            submission
-            for submission in submissions
-            if submission.total_score is None
-        ]
-    if status_filter == "not-passed":
-        return [
-            submission for submission in submissions if submission.passed is False
-        ]
-    return submissions
+    return _filter_by_status(
+        submissions,
+        status_filter,
+        PROJECT_SUBMISSION_STATUS_FILTERS,
+    )
+
+
+def _enrollment_has_lip_disabled(enrollment):
+    return enrollment.disable_learning_in_public
+
+
+def _enrollment_has_zero_score(enrollment):
+    return enrollment.total_score == 0
+
+
+def _enrollment_is_hidden(enrollment):
+    return not enrollment.display_on_leaderboard
+
+
+def _enrollment_has_no_submissions(enrollment):
+    return enrollment.has_no_submissions
+
+
+ENROLLMENT_STATUS_FILTERS = {
+    "lip-disabled": _enrollment_has_lip_disabled,
+    "zero-score": _enrollment_has_zero_score,
+    "hidden": _enrollment_is_hidden,
+    "no-submissions": _enrollment_has_no_submissions,
+}
+
+ENROLLMENT_FILTER_COUNTS = {
+    "lip_disabled": _enrollment_has_lip_disabled,
+    "zero_score": _enrollment_has_zero_score,
+    "hidden": _enrollment_is_hidden,
+    "no_submissions": _enrollment_has_no_submissions,
+}
 
 
 def enrollment_list_data(course, search_query, status_filter):
@@ -112,25 +146,10 @@ def enrollment_list_data(course, search_query, status_filter):
     enrollments = list(enrollments)
     _attach_enrollment_support_flags(enrollments)
 
-    filter_counts = {
-        "all": len(enrollments),
-        "lip_disabled": sum(
-            1
-            for enrollment in enrollments
-            if enrollment.disable_learning_in_public
-        ),
-        "zero_score": sum(
-            1 for enrollment in enrollments if enrollment.total_score == 0
-        ),
-        "hidden": sum(
-            1
-            for enrollment in enrollments
-            if not enrollment.display_on_leaderboard
-        ),
-        "no_submissions": sum(
-            1 for enrollment in enrollments if enrollment.has_no_submissions
-        ),
-    }
+    filter_counts = _status_filter_counts(
+        enrollments,
+        ENROLLMENT_FILTER_COUNTS,
+    )
 
     return _filter_enrollments(enrollments, status_filter), filter_counts
 
@@ -149,24 +168,26 @@ def _attach_enrollment_support_flags(enrollments):
 
 
 def _filter_enrollments(enrollments, status_filter):
-    if status_filter == "lip-disabled":
-        return [
-            enrollment
-            for enrollment in enrollments
-            if enrollment.disable_learning_in_public
-        ]
-    if status_filter == "zero-score":
-        return [
-            enrollment for enrollment in enrollments if enrollment.total_score == 0
-        ]
-    if status_filter == "hidden":
-        return [
-            enrollment
-            for enrollment in enrollments
-            if not enrollment.display_on_leaderboard
-        ]
-    if status_filter == "no-submissions":
-        return [
-            enrollment for enrollment in enrollments if enrollment.has_no_submissions
-        ]
-    return enrollments
+    return _filter_by_status(
+        enrollments,
+        status_filter,
+        ENROLLMENT_STATUS_FILTERS,
+    )
+
+
+def _status_filter_counts(items, count_predicates):
+    counts = {"all": len(items)}
+    counts.update(
+        {
+            key: sum(1 for item in items if predicate(item))
+            for key, predicate in count_predicates.items()
+        }
+    )
+    return counts
+
+
+def _filter_by_status(items, status_filter, predicates):
+    predicate = predicates.get(status_filter)
+    if predicate is None:
+        return items
+    return [item for item in items if predicate(item)]
