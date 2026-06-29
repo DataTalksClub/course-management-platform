@@ -112,6 +112,18 @@ class GeneratedProjectScores:
         )
 
 
+@dataclass(frozen=True)
+class GeneratedHomeworkLinks:
+    homework_link: str
+    learning_in_public_link: str
+
+
+@dataclass(frozen=True)
+class GeneratedHomeworkTimeSpent:
+    lectures: float
+    homework: float
+
+
 def configure_sqlite_busy_timeout():
     if connection.vendor != "sqlite":
         return
@@ -379,43 +391,60 @@ def homework_description(title):
 
 
 def homework_question_specs(homework):
+    primary_goal_question = primary_goal_question_spec(homework)
+    complete_submission_question = complete_submission_question_spec()
+    written_answer_question = written_answer_question_spec()
     return [
-        {
-            "text": f"What is the primary goal of {homework.title}?",
-            "question_type": QuestionTypes.MULTIPLE_CHOICE.value,
-            "answer_type": None,
-            "possible_answers": "\n".join(
-                [
-                    "Complete the assignment deliverables",
-                    "Skip the hands-on work",
-                    "Only read the course notes",
-                    "Submit an unrelated project",
-                ]
-            ),
-            "correct_answer": "1",
-        },
-        {
-            "text": "Which items are usually part of a complete submission?",
-            "question_type": QuestionTypes.CHECKBOXES.value,
-            "answer_type": None,
-            "possible_answers": "\n".join(
-                [
-                    "Working code or commands",
-                    "An empty repository",
-                    "Answers for the required tasks",
-                    "Unrelated screenshots",
-                ]
-            ),
-            "correct_answer": "1,3",
-        },
-        {
-            "text": "What should a short written answer include?",
-            "question_type": QuestionTypes.FREE_FORM.value,
-            "answer_type": AnswerTypes.CONTAINS_STRING.value,
-            "possible_answers": "",
-            "correct_answer": "explanation",
-        },
+        primary_goal_question,
+        complete_submission_question,
+        written_answer_question,
     ]
+
+
+def primary_goal_question_spec(homework):
+    possible_answers = "\n".join(
+        [
+            "Complete the assignment deliverables",
+            "Skip the hands-on work",
+            "Only read the course notes",
+            "Submit an unrelated project",
+        ]
+    )
+    return {
+        "text": f"What is the primary goal of {homework.title}?",
+        "question_type": QuestionTypes.MULTIPLE_CHOICE.value,
+        "answer_type": None,
+        "possible_answers": possible_answers,
+        "correct_answer": "1",
+    }
+
+
+def complete_submission_question_spec():
+    possible_answers = "\n".join(
+        [
+            "Working code or commands",
+            "An empty repository",
+            "Answers for the required tasks",
+            "Unrelated screenshots",
+        ]
+    )
+    return {
+        "text": "Which items are usually part of a complete submission?",
+        "question_type": QuestionTypes.CHECKBOXES.value,
+        "answer_type": None,
+        "possible_answers": possible_answers,
+        "correct_answer": "1,3",
+    }
+
+
+def written_answer_question_spec():
+    return {
+        "text": "What should a short written answer include?",
+        "question_type": QuestionTypes.FREE_FORM.value,
+        "answer_type": AnswerTypes.CONTAINS_STRING.value,
+        "possible_answers": "",
+        "correct_answer": "explanation",
+    }
 
 
 def ensure_homework_questions(homework):
@@ -632,41 +661,56 @@ def homework_faq_url(student_index, homework_index, faq_score):
     )
 
 
+def generated_homework_links(data):
+    base_url = (
+        f"https://example.com/{data.course.slug}/"
+        f"{data.student_index:04d}"
+    )
+    return GeneratedHomeworkLinks(
+        homework_link=f"{base_url}/homework-{data.item_index}",
+        learning_in_public_link=(
+            f"{base_url}/notes/homework-{data.item_index}"
+        ),
+    )
+
+
+def generated_homework_time_spent(data):
+    lectures = 1.5 + ((data.student_index + data.item_index) % 8)
+    homework = 2.0 + ((data.student_index * data.item_index) % 10)
+    return GeneratedHomeworkTimeSpent(
+        lectures=lectures,
+        homework=homework,
+    )
+
+
 def build_homework_submission(data):
     questions_score, faq_score, lip_score = homework_scores(
         data.student_index,
         data.count,
         data.item_index,
     )
+    links = generated_homework_links(data)
+    time_spent = generated_homework_time_spent(data)
+    faq_contribution_url = homework_faq_url(
+        data.student_index,
+        data.item_index,
+        faq_score,
+    )
+    total_score = questions_score + faq_score + lip_score
+
     return Submission(
         homework=data.item,
         student=data.enrollment.student,
         enrollment=data.enrollment,
-        homework_link=(
-            f"https://example.com/{data.course.slug}/"
-            f"{data.student_index:04d}/homework-{data.item_index}"
-        ),
-        learning_in_public_links=[
-            (
-                f"https://example.com/{data.course.slug}/"
-                f"{data.student_index:04d}/notes/homework-{data.item_index}"
-            )
-        ],
-        time_spent_lectures=(
-            1.5 + ((data.student_index + data.item_index) % 8)
-        ),
-        time_spent_homework=(
-            2.0 + ((data.student_index * data.item_index) % 10)
-        ),
-        faq_contribution_url=homework_faq_url(
-            data.student_index,
-            data.item_index,
-            faq_score,
-        ),
+        homework_link=links.homework_link,
+        learning_in_public_links=[links.learning_in_public_link],
+        time_spent_lectures=time_spent.lectures,
+        time_spent_homework=time_spent.homework,
+        faq_contribution_url=faq_contribution_url,
         questions_score=questions_score,
         faq_score=faq_score,
         learning_in_public_score=lip_score,
-        total_score=questions_score + faq_score + lip_score,
+        total_score=total_score,
     )
 
 
