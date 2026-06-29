@@ -55,20 +55,33 @@ class EnrollmentForm(forms.ModelForm):
         if self.user is not None and not self.is_bound:
             self.initial["certificate_name"] = self.user.certificate_name
 
-    def save(self, commit=True):
+    def _save_enrollment(self, commit):
         enrollment = super().save(commit=False)
         enrollment.certificate_name = self.enrollment_certificate_name
 
         if commit:
             enrollment.save()
             self.save_m2m()
+        return enrollment
 
-        if self.user is not None:
-            certificate_name = self.cleaned_data.get("certificate_name") or None
-            if self.user.certificate_name != certificate_name:
-                self.user.certificate_name = certificate_name
-                if commit:
-                    self.user.save(update_fields=["certificate_name"])
+    def _submitted_certificate_name(self):
+        return self.cleaned_data.get("certificate_name") or None
+
+    def _sync_user_certificate_name(self, commit):
+        if self.user is None:
+            return
+
+        certificate_name = self._submitted_certificate_name()
+        if self.user.certificate_name == certificate_name:
+            return
+
+        self.user.certificate_name = certificate_name
+        if commit:
+            self.user.save(update_fields=["certificate_name"])
+
+    def save(self, commit=True):
+        enrollment = self._save_enrollment(commit)
+        self._sync_user_certificate_name(commit)
         return enrollment
 
     def is_valid(self):
