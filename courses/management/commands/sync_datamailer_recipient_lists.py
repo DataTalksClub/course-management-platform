@@ -49,6 +49,25 @@ class ImportJobOptions:
     poll_interval: float
 
 
+@dataclass(frozen=True)
+class ImportUploadBody:
+    s3: object
+    bucket: str
+    key: str
+    body: bytes
+    metadata: dict
+
+
+@dataclass(frozen=True)
+class ImportJobData:
+    client: DatamailerClient
+    config: DatamailerConfig
+    kind: str
+    list_key: str
+    payload: dict
+    options: ImportJobOptions
+
+
 def add_member_to_batches(
     batches, list_key, source_object_key, payload
 ):
@@ -267,13 +286,13 @@ def import_file_metadata(config, list_key, content_sha256):
     }
 
 
-def upload_import_body(s3, bucket, key, body, metadata):
-    s3.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
+def upload_import_body(upload_body):
+    upload_body.s3.put_object(
+        Bucket=upload_body.bucket,
+        Key=upload_body.key,
+        Body=upload_body.body,
         ContentType="application/x-ndjson",
-        Metadata=metadata,
+        Metadata=upload_body.metadata,
     )
 
 
@@ -295,7 +314,14 @@ def upload_import_file(kind, config, list_key, payload):
     key = import_object_key(kind, config, list_key, content_sha256)
     s3 = import_s3_client()
     metadata = import_file_metadata(config, list_key, content_sha256)
-    upload_import_body(s3, bucket, key, body, metadata)
+    upload_body = ImportUploadBody(
+        s3=s3,
+        bucket=bucket,
+        key=key,
+        body=body,
+        metadata=metadata,
+    )
+    upload_import_body(upload_body)
     return {
         "source_url": presigned_import_url(s3, bucket, key),
         "s3_bucket": bucket,
@@ -535,14 +561,15 @@ class Command(BaseCommand):
                     timeout=import_timeout,
                     poll_interval=import_poll_interval,
                 )
-                self._create_import_job(
-                    client,
-                    config,
-                    kind,
-                    list_key,
-                    payload,
-                    import_options,
+                import_data = ImportJobData(
+                    client=client,
+                    config=config,
+                    kind=kind,
+                    list_key=list_key,
+                    payload=payload,
+                    options=import_options,
                 )
+                self._create_import_job(import_data)
                 continue
 
             response = self._sync_inline_batch(
@@ -586,80 +613,61 @@ class Command(BaseCommand):
             "active_member_count"
         )
 
-    def _create_import_job(
-        self,
-        client,
-        config,
-        kind,
-        list_key,
-        payload,
-        import_options,
-    ):
+    def _create_import_job(self, import_data):
         upload, response = self._safe_create_import_job_response(
-            client,
-            config,
-            kind,
-            list_key,
-            payload,
-            import_options,
+            import_data
         )
         job = (response or {}).get("import_job", {})
         job_id = job.get("id")
-        self._write_import_job_created(list_key, upload, job, job_id)
-        if import_options.wait_for_import:
+        self._write_import_job_created(
+            import_data.list_key,
+            upload,
+            job,
+            job_id,
+        )
+        if import_data.options.wait_for_import:
             self._wait_for_created_import_job(
-                client,
-                list_key,
+                import_data.client,
+                import_data.list_key,
                 job_id,
-                timeout=import_options.timeout,
-                poll_interval=import_options.poll_interval,
+                timeout=import_data.options.timeout,
+                poll_interval=import_data.options.poll_interval,
             )
 
-    def _safe_create_import_job_response(
-        self,
-        client,
-        config,
-        kind,
-        list_key,
-        payload,
-        import_options,
-    ):
+    def _safe_create_import_job_response(self, import_data):
         try:
-            return self._create_import_job_response(
-                client,
-                config,
-                kind,
-                list_key,
-                payload,
-                remove_absent=import_options.remove_absent,
-            )
+            return self._create_import_job_response(import_data)
         except (
             BotoCoreError,
             ClientError,
             requests.RequestException,
         ) as exc:
-            if config.strict:
+            if import_data.config.strict:
                 raise
             raise CommandError(
-                f"Datamailer import job creation failed for {list_key}: {exc}"
+                "Datamailer import job creation failed for "
+                f"{import_data.list_key}: {exc}"
             ) from exc
 
-    def _create_import_job_response(
-        self, client, config, kind, list_key, payload, *, remove_absent
-    ):
-        upload = upload_import_file(kind, config, list_key, payload)
-        response = client.create_recipient_list_import(
-            list_key,
+    def _create_import_job_response(self, import_data):
+        upload = upload_import_file(
+            import_data.kind,
+            import_data.config,
+            import_data.list_key,
+            import_data.payload,
+        )
+        response = import_data.client.create_recipient_list_import(
+            import_data.list_key,
             {
                 "source_url": upload["source_url"],
                 "idempotency_key": import_idempotency_key(
-                    kind,
-                    list_key,
+                    import_data.kind,
+                    import_data.list_key,
                     upload["content_sha256"],
-                    remove_absent=remove_absent,
+                    remove_absent=import_data.options.remove_absent,
                 ),
-                "list": payload["list"],
-                "remove_absent": remove_absent,
+                "list": import_data.payload["list"],
+                "remove_absent": import_data.options.remove_absent,
             },
         )
         return upload, response
