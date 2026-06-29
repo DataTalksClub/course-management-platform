@@ -993,19 +993,10 @@ def peer_review_assignment_recipient_list_payload(
 def peer_review_assignment_notification_members(
     project,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    list_data = {
-        "type": "project_submitters",
-        "name": f"{project.course.title} {project.title} submitters",
-        "metadata": {
-            "course_slug": project.course.slug,
-            "project_slug": project.slug,
-        },
-    }
+    list_data = peer_review_assignment_list_data(project)
     members = []
-    submissions = project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
     seen_students = set()
+    submissions = peer_review_assignment_submissions(project)
     for submission in submissions:
         if submission.student_id in seen_students:
             continue
@@ -1020,6 +1011,23 @@ def peer_review_assignment_notification_members(
         )
         members.append(member)
     return list_data, members
+
+
+def peer_review_assignment_list_data(project) -> dict[str, Any]:
+    return {
+        "type": "project_submitters",
+        "name": f"{project.course.title} {project.title} submitters",
+        "metadata": {
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+        },
+    }
+
+
+def peer_review_assignment_submissions(project):
+    return project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
 
 
 def _peer_review_assignment_urls(course, project) -> dict[str, str]:
@@ -1054,20 +1062,42 @@ def _peer_review_assignment_urls(course, project) -> dict[str, str]:
 
 def _peer_review_assignment_context(course, project) -> dict[str, Any]:
     urls = _peer_review_assignment_urls(course, project)
-    deadline = format_deadline_for_email(project.peer_review_due_date)
-    num_peers = project.number_of_peers_to_evaluate
+    return {
+        **_peer_review_assignment_project_context(course, project),
+        **urls,
+        **_peer_review_assignment_deadline_context(project),
+        **_peer_review_assignment_message_context(course, project, urls),
+    }
+
+
+def _peer_review_assignment_project_context(course, project) -> dict[str, Any]:
     return {
         "course_slug": course.slug,
         "course_title": course.title,
         "project_slug": project.slug,
         "project_title": project.title,
-        **urls,
-        "number_of_peers_to_evaluate": num_peers,
+        "number_of_peers_to_evaluate": project.number_of_peers_to_evaluate,
+    }
+
+
+def _peer_review_assignment_deadline_context(project) -> dict[str, Any]:
+    deadline = format_deadline_for_email(project.peer_review_due_date)
+    return {
         "peer_review_due_at": project.peer_review_due_date.isoformat(),
         "deadline_weekday": deadline["deadline_weekday"],
         "deadline_date": deadline["deadline_date"],
         "deadline_time": deadline["deadline_time"],
         "deadline_summary": deadline["deadline_summary"],
+    }
+
+
+def _peer_review_assignment_message_context(
+    course,
+    project,
+    urls,
+) -> dict[str, Any]:
+    num_peers = project.number_of_peers_to_evaluate
+    return {
         "email_subject": f"Peer review is open: {project.title}",
         "email_preview": (
             f"Time to evaluate {num_peers} projects for {project.title}."
