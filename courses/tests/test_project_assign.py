@@ -158,6 +158,25 @@ class ProjectActionsTestCase(TestCase):
             ],
         )
 
+    def delete_eval_url(self, peer_review_id):
+        return reverse(
+            "projects_eval_delete",
+            args=[
+                self.course.slug,
+                self.project.slug,
+                peer_review_id,
+            ],
+        )
+
+    def projects_eval_url(self):
+        return reverse(
+            "projects_eval",
+            args=[
+                self.course.slug,
+                self.project.slug,
+            ],
+        )
+
     def find_optional_eval_candidate_id(self):
         list_response = self.client.get(self.project_list_url())
         self.assertEqual(list_response.status_code, 200)
@@ -170,6 +189,13 @@ class ProjectActionsTestCase(TestCase):
         return PeerReview.objects.get(
             reviewer=reviewer,
             submission_under_evaluation=submission,
+        )
+
+    def create_peer_review(self, reviewer, submission, *, optional):
+        return PeerReview.objects.create(
+            reviewer=reviewer,
+            submission_under_evaluation=submission,
+            optional=optional,
         )
 
     def test_select_random_assignment(self):
@@ -339,51 +365,25 @@ class ProjectActionsTestCase(TestCase):
 
 
     def test_delete_optional_project_eval_non_optional(self):
-        my_submission = ProjectSubmission.objects.create(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-            github_link=f"https://github.com/{self.user.username}/project",
-        )
-
-        num_submissions = 5
-        other_submissions = self.generate_submissions(num_submissions)
-        other_submission = other_submissions[0]
-
-        peer_review = PeerReview.objects.create(
-            reviewer=my_submission,
-            submission_under_evaluation=other_submission,
+        my_submission = self.create_my_submission()
+        other_submission = self.generate_submissions(5)[0]
+        peer_review = self.create_peer_review(
+            my_submission,
+            other_submission,
             optional=False,
         )
 
         self.client.login(**credentials)
 
-        delete_url = reverse(
-            "projects_eval_delete",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                peer_review.id,
-            ],
-        )
-
-        response = self.client.get(delete_url)
+        response = self.client.get(self.delete_eval_url(peer_review.id))
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(
             response,
-            reverse(
-                "projects_eval",
-                args=[
-                    self.course.slug,
-                    self.project.slug,
-                ],
-            ),
+            self.projects_eval_url(),
             fetch_redirect_response=False,
         )
 
-        reviews = PeerReview.objects.filter(id=peer_review.id)
-
-        self.assertTrue(reviews.exists())
+        self.assertTrue(PeerReview.objects.filter(id=peer_review.id).exists())
 
     def test_delete_optional_project_eval_optional(self):
         my_submission = ProjectSubmission.objects.create(
