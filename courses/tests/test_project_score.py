@@ -41,27 +41,24 @@ credentials = dict(
 
 
 class ProjectEvaluationTestCase(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        self.user = User.objects.create_user(**credentials)
-
-        self.course = Course.objects.create(
+    def create_course(self):
+        course = Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test Course Description",
         )
+        course.project_passing_score = 70
+        course.save()
+        return course
 
-        self.enrollment = Enrollment.objects.create(
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.user,
             course=self.course,
         )
 
-        # Set the course's project passing score
-        self.course.project_passing_score = 70
-        self.course.save()
-
-        self.project = Project.objects.create(
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -74,7 +71,8 @@ class ProjectEvaluationTestCase(TestCase):
             number_of_peers_to_evaluate=3,
         )
 
-        self.submission = ProjectSubmission.objects.create(
+    def create_submission(self):
+        return ProjectSubmission.objects.create(
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
@@ -82,7 +80,8 @@ class ProjectEvaluationTestCase(TestCase):
             commit_id="1234567",
         )
 
-        self.criteria = ReviewCriteria.objects.create(
+    def create_review_criteria(self):
+        return ReviewCriteria.objects.create(
             course=self.course,
             description="Code quality",
             options=[
@@ -94,7 +93,16 @@ class ProjectEvaluationTestCase(TestCase):
             review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
 
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.project = self.create_project()
+        self.submission = self.create_submission()
+        self.criteria = self.create_review_criteria()
         self.peer_reviews = self.create_peer_reviews(3, optional=False)
+
 
     def create_peer_reviews(
         self, number_of_peer_reviews=3, optional=False
@@ -472,8 +480,8 @@ class ProjectEvaluationTestCase(TestCase):
         status, _ = score_project(self.project)
         self.assertEqual(status, ProjectActionStatus.FAIL)
 
-    def test_project_results_shows_review_option_vote_counts(self):
-        checkbox_criteria = ReviewCriteria.objects.create(
+    def create_checkbox_criteria(self):
+        return ReviewCriteria.objects.create(
             course=self.course,
             description="Project implementation",
             options=[
@@ -483,8 +491,9 @@ class ProjectEvaluationTestCase(TestCase):
             ],
             review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
         )
-        answers = ["1,3", "2,3", "3"]
 
+    def submit_checkbox_responses(self, checkbox_criteria):
+        answers = ["1,3", "2,3", "3"]
         for peer_review, answer in zip(self.peer_reviews, answers):
             CriteriaResponse.objects.create(
                 review=peer_review,
@@ -494,18 +503,16 @@ class ProjectEvaluationTestCase(TestCase):
             peer_review.state = PeerReviewState.SUBMITTED.value
             peer_review.save()
 
-        status, _ = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
+    def project_results_response(self):
         self.client.login(**credentials)
-        response = self.client.get(
+        return self.client.get(
             reverse(
                 "project_results",
                 args=[self.course.slug, self.project.slug],
             )
         )
 
-        self.assertEqual(response.status_code, 200)
+    def assert_option_vote_counts(self, response):
         score = response.context["scores"][0]
         option_votes = {
             option["criteria"]: option["votes"]
@@ -519,10 +526,25 @@ class ProjectEvaluationTestCase(TestCase):
                 "Model evaluation": 3,
             },
         )
+
+    def assert_option_vote_content(self, response):
         self.assertContains(response, "Data cleaning")
         self.assertContains(response, "Feature engineering")
         self.assertContains(response, "Model evaluation")
         self.assertContains(response, "3 votes")
+
+    def test_project_results_shows_review_option_vote_counts(self):
+        checkbox_criteria = self.create_checkbox_criteria()
+        self.submit_checkbox_responses(checkbox_criteria)
+
+        status, _ = score_project(self.project)
+        self.assertEqual(status, ProjectActionStatus.OK)
+
+        response = self.project_results_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_option_vote_counts(response)
+        self.assert_option_vote_content(response)
 
     def test_project_passed_with_optional(self):
         # 3 mandatory peers evaluated
