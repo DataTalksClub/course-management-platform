@@ -2538,45 +2538,20 @@ class DatamailerClientTest(TestCase):
         upsert_contact,
         upsert_member,
     ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user, course=course
-        )
-        homework = Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date="2026-01-01T00:00:00Z",
-        )
-        submission = Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
+        homework = self.create_homework()
+        submission = self.create_homework_submission(
+            homework,
+            self.create_user("student@example.com"),
         )
 
         sync_homework_submission_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
-        upsert_member.assert_called_once()
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            homework_submitters_list_key(homework),
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[1],
-            f"homework-submission:{submission.pk}",
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[2]["list"]["type"],
-            "homework_submitters",
+        self.assert_upserted_recipient_member(
+            upsert_member,
+            list_key=homework_submitters_list_key(homework),
+            source_object_key=f"homework-submission:{submission.pk}",
+            list_type="homework_submitters",
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
