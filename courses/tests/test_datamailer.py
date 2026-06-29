@@ -775,6 +775,10 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
+    def single_project_score_member(self, payload):
+        self.assertEqual(len(payload["members"]), 1)
+        return payload["members"][0]
+
     def configure_contact_bulk_import_counts(self, bulk_import):
         bulk_import.return_value = {
             "counts": {
@@ -841,6 +845,28 @@ class DatamailerClientTest(TestCase):
         )
         return homework, latest_submission
 
+    def create_duplicate_project_submissions(self):
+        project = self.create_project()
+        user = self.create_user("project-learner@example.com")
+        enrollment = self.create_enrollment(user, project.course)
+        ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/old",
+            submitted_at=timezone.now() - timedelta(days=1),
+            total_score=40,
+        )
+        latest_submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/new",
+            submitted_at=timezone.now(),
+            total_score=90,
+        )
+        return project, latest_submission
+
     def assert_project_score_member(self, member, submission):
         self.assertEqual(
             member["source_object_key"],
@@ -870,6 +896,13 @@ class DatamailerClientTest(TestCase):
         )
         self.assertTrue(member["metadata"]["reviewed_enough_peers"])
         self.assertTrue(member["metadata"]["passed"])
+
+    def assert_latest_project_score_member(self, member, submission):
+        self.assertEqual(
+            member["source_object_key"],
+            f"project-submission:{submission.pk}",
+        )
+        self.assertEqual(member["metadata"]["total_score"], 90)
 
     def assert_project_score_list_send(
         self,
@@ -2961,50 +2994,14 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_project_score_notification_dedupes_student_submissions(self):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="project-learner@example.com",
-            email="project-learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(student=user, course=course)
-        ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/old",
-            submitted_at=timezone.now() - timedelta(days=1),
-            total_score=40,
-        )
-        latest = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/new",
-            submitted_at=timezone.now(),
-            total_score=90,
-        )
+        project, latest = self.create_duplicate_project_submissions()
 
         _, payload = project_score_notification_payload(project)
 
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
-        self.assertEqual(
-            member["source_object_key"],
-            f"project-submission:{latest.pk}",
+        self.assert_latest_project_score_member(
+            self.single_project_score_member(payload),
+            latest,
         )
-        self.assertEqual(member["metadata"]["total_score"], 90)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
