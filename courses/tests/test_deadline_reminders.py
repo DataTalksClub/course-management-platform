@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone as datetime_timezone
 from io import StringIO
 from unittest.mock import patch
@@ -30,6 +31,38 @@ DATAMAILER_SETTINGS = {
     "DATAMAILER_CLIENT": "dtc-courses",
     "DATAMAILER_AUDIENCE": "dtc-courses",
 }
+
+
+@dataclass(frozen=True)
+class ProjectReminderData:
+    course: Course
+    now: datetime
+    slug: str
+    title: str
+    submission_delta: timedelta
+    state: str
+
+
+@dataclass(frozen=True)
+class ProjectSubmissionData:
+    project: Project
+    user: CustomUser
+    enrollment: Enrollment
+    label: str
+
+
+@dataclass(frozen=True)
+class HomeworkReminderFixture:
+    homework: Homework
+    eligible_enrollment: Enrollment
+    opted_out_enrollment: Enrollment
+
+
+@dataclass(frozen=True)
+class PeerReviewReminderFixture:
+    project: Project
+    reviewer_submission: ProjectSubmission
+    opted_out_submission: ProjectSubmission
 
 
 class DeadlineReminderCommandTest(TestCase):
@@ -70,24 +103,22 @@ class DeadlineReminderCommandTest(TestCase):
             due_date=now + timedelta(days=1, hours=14),
         )
 
-    def create_project(
-        self, course, now, slug, title, submission_delta, state
-    ):
+    def create_project(self, data):
         return Project.objects.create(
-            course=course,
-            slug=slug,
-            title=title,
-            submission_due_date=now + submission_delta,
-            peer_review_due_date=now + timedelta(days=10),
-            state=state,
+            course=data.course,
+            slug=data.slug,
+            title=data.title,
+            submission_due_date=data.now + data.submission_delta,
+            peer_review_due_date=data.now + timedelta(days=10),
+            state=data.state,
         )
 
-    def create_project_submission(self, project, user, enrollment, label):
+    def create_project_submission(self, data):
         return ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link=f"https://github.com/{label}/project",
+            project=data.project,
+            student=data.user,
+            enrollment=data.enrollment,
+            github_link=f"https://github.com/{data.label}/project",
             commit_id="1234567",
         )
 
@@ -133,11 +164,13 @@ class DeadlineReminderCommandTest(TestCase):
             student=submitted_user,
             enrollment=submitted_enrollment,
         )
-        return homework, eligible_enrollment, opted_out_enrollment
+        return HomeworkReminderFixture(
+            homework=homework,
+            eligible_enrollment=eligible_enrollment,
+            opted_out_enrollment=opted_out_enrollment,
+        )
 
-    def assert_homework_reminder_payload(
-        self, payload, homework, eligible_enrollment, opted_out_enrollment
-    ):
+    def assert_homework_reminder_payload(self, payload, expectation):
         self.assertEqual(
             payload["list"]["key"],
             "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
@@ -157,16 +190,16 @@ class DeadlineReminderCommandTest(TestCase):
         )
         self.assertEqual(
             members_by_email["eligible@example.com"]["source_object_key"],
-            f"enrollment:{eligible_enrollment.pk}",
+            f"enrollment:{expectation.eligible_enrollment.pk}",
         )
         self.assertEqual(
             members_by_email["opted-out@example.com"]["source_object_key"],
-            f"enrollment:{opted_out_enrollment.pk}",
+            f"enrollment:{expectation.opted_out_enrollment.pk}",
         )
         self.assert_homework_reminder_context(payload, members_by_email)
         self.assertEqual(
             payload["idempotency_key"],
-            f"deadline-reminder:homework:{homework.pk}:24h",
+            f"deadline-reminder:homework:{expectation.homework.pk}:24h",
         )
 
     def assert_homework_reminder_context(self, payload, members_by_email):
@@ -221,22 +254,24 @@ class DeadlineReminderCommandTest(TestCase):
         )
         self.create_enrollment(user, course)
         self.create_enrollment(opted_out_user, course)
-        self.create_project(
-            course,
-            now,
-            "project-week",
-            "Project Week",
-            timedelta(days=8, hours=2),
-            ProjectState.COLLECTING_SUBMISSIONS.value,
+        project_week = ProjectReminderData(
+            course=course,
+            now=now,
+            slug="project-week",
+            title="Project Week",
+            submission_delta=timedelta(days=8, hours=2),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
-        self.create_project(
-            course,
-            now,
-            "project-day",
-            "Project Day",
-            timedelta(days=1, hours=14),
-            ProjectState.COLLECTING_SUBMISSIONS.value,
+        self.create_project(project_week)
+        project_day = ProjectReminderData(
+            course=course,
+            now=now,
+            slug="project-day",
+            title="Project Day",
+            submission_delta=timedelta(days=1, hours=14),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
+        self.create_project(project_day)
 
     def assert_project_reminder_payloads(self, send_transient):
         self.assertEqual(send_transient.call_count, 2)
@@ -299,18 +334,40 @@ class DeadlineReminderCommandTest(TestCase):
             peer_review_due_date=now + timedelta(days=1, hours=14),
             state=ProjectState.PEER_REVIEWING.value,
         )
+        reviewer_submission_data = ProjectSubmissionData(
+            project=project,
+            user=reviewer,
+            enrollment=reviewer_enrollment,
+            label="reviewer",
+        )
         reviewer_submission = self.create_project_submission(
-            project, reviewer, reviewer_enrollment, "reviewer"
+            reviewer_submission_data
+        )
+        author_submission_data = ProjectSubmissionData(
+            project=project,
+            user=author,
+            enrollment=author_enrollment,
+            label="author",
         )
         author_submission = self.create_project_submission(
-            project, author, author_enrollment, "author"
+            author_submission_data
+        )
+        opted_out_submission_data = ProjectSubmissionData(
+            project=project,
+            user=opted_out_reviewer,
+            enrollment=opted_out_enrollment,
+            label="opted-out",
         )
         opted_out_submission = self.create_project_submission(
-            project, opted_out_reviewer, opted_out_enrollment, "opted-out"
+            opted_out_submission_data
         )
         self.create_pending_peer_review(author_submission, reviewer_submission)
         self.create_pending_peer_review(author_submission, opted_out_submission)
-        return project, reviewer_submission, opted_out_submission
+        return PeerReviewReminderFixture(
+            project=project,
+            reviewer_submission=reviewer_submission,
+            opted_out_submission=opted_out_submission,
+        )
 
     def create_pending_peer_review(self, author_submission, reviewer):
         return PeerReview.objects.create(
@@ -319,9 +376,7 @@ class DeadlineReminderCommandTest(TestCase):
             state=PeerReviewState.TO_REVIEW.value,
         )
 
-    def assert_peer_review_reminder_payload(
-        self, payload, project, reviewer_submission, opted_out_submission
-    ):
+    def assert_peer_review_reminder_payload(self, payload, expectation):
         self.assertEqual(
             payload["list"]["key"],
             "deadline-reminders:peer-review:ml-zoomcamp-2026:project-1:24h",
@@ -336,17 +391,17 @@ class DeadlineReminderCommandTest(TestCase):
         )
         self.assertEqual(
             members_by_email["reviewer@example.com"]["source_object_key"],
-            f"project-submission:{reviewer_submission.pk}",
+            f"project-submission:{expectation.reviewer_submission.pk}",
         )
         self.assertEqual(
             members_by_email["opted-out-reviewer@example.com"][
                 "source_object_key"
             ],
-            f"project-submission:{opted_out_submission.pk}",
+            f"project-submission:{expectation.opted_out_submission.pk}",
         )
         self.assertEqual(
             payload["idempotency_key"],
-            f"deadline-reminder:peer-review:{project.pk}:24h",
+            f"deadline-reminder:peer-review:{expectation.project.pk}:24h",
         )
         self.assertEqual(
             payload["context"]["action_url"],
@@ -366,9 +421,7 @@ class DeadlineReminderCommandTest(TestCase):
     ):
         now = self.reminder_run_time()
         send_transient.return_value = {"enqueued_count": 1}
-        homework, eligible_enrollment, opted_out_enrollment = (
-            self.create_homework_reminder_fixture(now)
-        )
+        fixture = self.create_homework_reminder_fixture(now)
 
         out = StringIO()
         self.run_deadline_reminders(now, stdout=out)
@@ -381,11 +434,9 @@ class DeadlineReminderCommandTest(TestCase):
         payload = send_transient.call_args.args[0]
         self.assert_homework_reminder_payload(
             payload,
-            homework,
-            eligible_enrollment,
-            opted_out_enrollment,
+            fixture,
         )
-        self.assert_homework_reminder_audit(homework)
+        self.assert_homework_reminder_audit(fixture.homework)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -419,9 +470,7 @@ class DeadlineReminderCommandTest(TestCase):
     ):
         now = self.reminder_run_time()
         send_transient.return_value = {"enqueued_count": 1}
-        project, reviewer_submission, opted_out_submission = (
-            self.create_peer_review_reminder_fixture(now)
-        )
+        fixture = self.create_peer_review_reminder_fixture(now)
 
         self.run_deadline_reminders(now)
 
@@ -429,9 +478,7 @@ class DeadlineReminderCommandTest(TestCase):
         payload = send_transient.call_args.args[0]
         self.assert_peer_review_reminder_payload(
             payload,
-            project,
-            reviewer_submission,
-            opted_out_submission,
+            fixture,
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
