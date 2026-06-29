@@ -8,11 +8,15 @@ from courses.models import (
     Course,
     Enrollment,
     Homework,
+    Project,
+    ProjectState,
+    ProjectSubmission,
     Question,
     QuestionTypes,
     Submission,
     User,
 )
+from courses.views.homework import find_duplicate_learning_in_public_links
 
 
 class HomeworkSubmissionIntegrationTest(TestCase):
@@ -97,6 +101,27 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         return Submission.objects.get(
             student=self.user,
             homework=self.homework,
+        )
+
+    def create_project(self):
+        return Project.objects.create(
+            course=self.course,
+            slug="project",
+            title="Project",
+            submission_due_date=timezone.now(),
+            peer_review_due_date=timezone.now(),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
+    def create_project_submission(self, learning_links):
+        project = self.create_project()
+        return ProjectSubmission.objects.create(
+            project=project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/test/repo",
+            commit_id="abc123",
+            learning_in_public_links=learning_links,
         )
 
     def assert_confirmation_payload_basics(
@@ -345,3 +370,25 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             ).exists()
         )
         send_email.assert_not_called()
+
+    def test_duplicate_learning_in_public_finder_checks_project_submissions(
+        self,
+    ):
+        self.create_project_submission(
+            ["https://example.com/project-post"]
+        )
+
+        duplicate_links = find_duplicate_learning_in_public_links(
+            user=self.user,
+            course=self.course,
+            links=[
+                "https://example.com/new-post",
+                "https://example.com/project-post",
+            ],
+            current_submission=None,
+        )
+
+        self.assertEqual(
+            duplicate_links,
+            ["https://example.com/project-post"],
+        )

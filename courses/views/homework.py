@@ -585,44 +585,77 @@ def find_duplicate_learning_in_public_links(
     if not links:
         return []
 
-    links_set = set(links)
-    duplicate_links = set()
+    candidate_links = set(links)
+    duplicate_links = _duplicate_homework_learning_links(
+        user=user,
+        course=course,
+        candidate_links=candidate_links,
+        current_submission=current_submission,
+    )
+    duplicate_links.update(
+        _duplicate_project_learning_links(
+            user=user,
+            course=course,
+            candidate_links=candidate_links,
+        )
+    )
 
-    homework_submissions = Submission.objects.filter(
+    return sorted(duplicate_links)
+
+
+def _duplicate_homework_learning_links(
+    *, user, course, candidate_links, current_submission
+):
+    submissions = _homework_submissions_with_learning_links(user, course)
+    submissions = _exclude_current_submission(submissions, current_submission)
+    return _duplicate_learning_links_from_submissions(
+        submissions,
+        candidate_links,
+    )
+
+
+def _homework_submissions_with_learning_links(user, course):
+    return Submission.objects.filter(
         student=user,
         homework__course=course,
         learning_in_public_links__isnull=False,
     )
+
+
+def _exclude_current_submission(submissions, current_submission):
     if current_submission and current_submission.pk:
-        homework_submissions = homework_submissions.exclude(
-            pk=current_submission.pk
-        )
+        return submissions.exclude(pk=current_submission.pk)
+    return submissions
 
-    for submitted_homework in homework_submissions:
-        duplicate_links.update(
-            link
-            for link in (
-                submitted_homework.learning_in_public_links or []
-            )
-            if link in links_set
-        )
 
-    project_submissions = ProjectSubmission.objects.filter(
+def _duplicate_project_learning_links(*, user, course, candidate_links):
+    submissions = ProjectSubmission.objects.filter(
         student=user,
         project__course=course,
         volunteer_review_only=False,
         learning_in_public_links__isnull=False,
     )
-    for submitted_project in project_submissions:
-        duplicate_links.update(
-            link
-            for link in (
-                submitted_project.learning_in_public_links or []
-            )
-            if link in links_set
-        )
+    return _duplicate_learning_links_from_submissions(
+        submissions,
+        candidate_links,
+    )
 
-    return sorted(duplicate_links)
+
+def _duplicate_learning_links_from_submissions(submissions, candidate_links):
+    duplicate_links = set()
+    for submission in submissions:
+        duplicate_links.update(
+            _matching_learning_links(submission, candidate_links)
+        )
+    return duplicate_links
+
+
+def _matching_learning_links(submission, candidate_links):
+    return {
+        link
+        for link in (submission.learning_in_public_links or [])
+        if link in candidate_links
+    }
 
 
 def send_homework_confirmation_email(
