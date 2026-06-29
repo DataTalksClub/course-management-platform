@@ -28,17 +28,21 @@ def in_2025(month=6, day=1):
 
 
 class CalculateWrappedStatisticsTest(TestCase):
-    def setUp(self):
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="wrapped-course", title="Wrapped Course"
         )
-        self.homework = Homework.objects.create(
+
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             slug="hw1",
             title="HW 1",
             due_date=in_2025(),
         )
-        self.project = Project.objects.create(
+
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="proj1",
             title="Project 1",
@@ -46,55 +50,86 @@ class CalculateWrappedStatisticsTest(TestCase):
             peer_review_due_date=in_2025(7, 8),
         )
 
-        # Alice: high scorer, certificate, homework + project activity
-        self.alice = User.objects.create_user(
-            username="alice@test.com", email="alice@test.com"
-        )
-        self.alice_enrollment = Enrollment.objects.create(
-            student=self.alice,
+    def create_user(self, email):
+        return User.objects.create_user(username=email, email=email)
+
+    def create_enrollment(
+        self, user, display_name, total_score, certificate_url=""
+    ):
+        return Enrollment.objects.create(
+            student=user,
             course=self.course,
-            display_name="Alice",
-            total_score=100,
-            certificate_url="https://certs.example.com/alice",
+            display_name=display_name,
+            total_score=total_score,
+            certificate_url=certificate_url,
         )
-        Submission.objects.create(
+
+    def create_homework_submission(
+        self,
+        user,
+        enrollment,
+        lecture_hours,
+        homework_hours,
+        learning_links=None,
+        faq_url="",
+    ):
+        return Submission.objects.create(
             homework=self.homework,
-            student=self.alice,
-            enrollment=self.alice_enrollment,
-            time_spent_lectures=2.0,
-            time_spent_homework=3.0,
-            learning_in_public_links=["https://x/1", "https://x/2"],
-            faq_contribution_url="https://faq/alice",
+            student=user,
+            enrollment=enrollment,
+            time_spent_lectures=lecture_hours,
+            time_spent_homework=homework_hours,
+            learning_in_public_links=learning_links or [],
+            faq_contribution_url=faq_url,
             submitted_at=in_2025(),
         )
-        ProjectSubmission.objects.create(
+
+    def create_project_submission(self, user, enrollment):
+        return ProjectSubmission.objects.create(
             project=self.project,
-            student=self.alice,
-            enrollment=self.alice_enrollment,
+            student=user,
+            enrollment=enrollment,
             time_spent=5.0,
             learning_in_public_links=["https://x/3"],
             submitted_at=in_2025(7, 2),
         )
 
-        # Bob: lower scorer, no certificate, homework only
-        self.bob = User.objects.create_user(
-            username="bob@test.com", email="bob@test.com"
+    def create_alice_activity(self):
+        self.alice = self.create_user("alice@test.com")
+        self.alice_enrollment = self.create_enrollment(
+            self.alice,
+            "Alice",
+            100,
+            certificate_url="https://certs.example.com/alice",
         )
-        self.bob_enrollment = Enrollment.objects.create(
-            student=self.bob,
-            course=self.course,
-            display_name="Bob",
-            total_score=50,
+        self.create_homework_submission(
+            self.alice,
+            self.alice_enrollment,
+            lecture_hours=2.0,
+            homework_hours=3.0,
+            learning_links=["https://x/1", "https://x/2"],
+            faq_url="https://faq/alice",
         )
-        Submission.objects.create(
-            homework=self.homework,
-            student=self.bob,
-            enrollment=self.bob_enrollment,
-            time_spent_lectures=1.0,
-            time_spent_homework=1.0,
-            submitted_at=in_2025(),
+        self.create_project_submission(self.alice, self.alice_enrollment)
+
+    def create_bob_activity(self):
+        self.bob = self.create_user("bob@test.com")
+        self.bob_enrollment = self.create_enrollment(
+            self.bob, "Bob", 50
+        )
+        self.create_homework_submission(
+            self.bob,
+            self.bob_enrollment,
+            lecture_hours=1.0,
+            homework_hours=1.0,
         )
 
+    def setUp(self):
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.project = self.create_project()
+        self.create_alice_activity()
+        self.create_bob_activity()
         self.stats = calculate_wrapped_statistics(year=2025, force=True)
 
     def test_platform_statistics(self):
