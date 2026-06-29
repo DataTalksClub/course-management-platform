@@ -531,6 +531,24 @@ class HomeworkDetailViewTests(TestCase):
         self.assert_scored_text_answer(question_answers[4][1], "3.141516")
         self.assert_sixth_scored_answer(question_answers[5])
 
+    def create_scored_submission_with_answers(self, answers_by_question):
+        self.create_enrollment()
+        self.create_submission()
+        self.create_answers(answers_by_question)
+        self.score_homework()
+
+    def assert_answer_present(self, question_answer, expected_question):
+        question, answer = question_answer
+        self.assertEqual(question, expected_question)
+        self.assertNotIn("no_answer_submitted", answer)
+        return answer
+
+    def assert_no_answer_submitted(self, question_answer, expected_question):
+        question, answer = question_answer
+        self.assertEqual(question, expected_question)
+        self.assertTrue(answer.get("no_answer_submitted", False))
+        return answer
+
     def test_homework_detail_unauthenticated(self):
         response = self.get_homework_response()
 
@@ -1297,213 +1315,58 @@ class HomeworkDetailViewTests(TestCase):
 
     def test_homework_detail_scored_with_unanswered_questions(self):
         """Test that unanswered questions in scored homework show appropriate indicators"""
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        self.submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=self.enrollment,
+        self.create_scored_submission_with_answers(
+            {
+                self.question1: "1",
+                self.question2: "Some explanation",
+                self.question5: "3.14",
+            }
         )
 
-        # Only answer questions 1, 2, and 5 - leaving 3, 4, and 6 unanswered
-        answer1 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question1,
-            answer_text="1",
-        )  # correct
-        answer1.save()
-
-        answer2 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question2,
-            answer_text="Some explanation",
-        )  # correct (ANY type with non-empty answer)
-        answer2.save()
-
-        answer5 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question5,
-            answer_text="3.14",
-        )  # correct
-        answer5.save()
-
-        # update homework's due date to be in the past
-        self.homework.due_date = timezone.now() - timezone.timedelta(
-            days=1
-        )
-        self.homework.save()
-
-        status, _ = score_homework_submissions(self.homework.id)
-        self.assertEqual(status, HomeworkScoringStatus.OK)
-
-        # make sure we have the latest version of the homework
-        self.homework = Homework.objects.get(id=self.homework.id)
-        self.assertEqual(
-            self.homework.state, HomeworkState.SCORED.value
-        )
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-
-        response = self.client.get(url)
+        response = self.get_homework_response(login=True)
         self.assertEqual(response.status_code, 200)
 
-        context = response.context
-        question_answers = context["question_answers"]
+        question_answers = response.context["question_answers"]
         self.assertEqual(len(question_answers), 6)
-
-        # Question 1 - answered correctly
-        question1, answer1_result = question_answers[0]
-        self.assertEqual(question1, self.question1)
-        self.assertNotIn("no_answer_submitted", answer1_result)
-
-        # Question 2 - answered (free form ANY type)
-        question2, answer2_result = question_answers[1]
-        self.assertEqual(question2, self.question2)
-        self.assertNotIn("no_answer_submitted", answer2_result)
-        self.assertEqual(answer2_result["text"], "Some explanation")
-
-        # Question 3 - not answered (checkboxes)
-        question3, answer3_result = question_answers[2]
-        self.assertEqual(question3, self.question3)
-        self.assertTrue(answer3_result.get("no_answer_submitted", False))
-
-        # Question 4 - not answered (multiple choice)
-        question4, answer4_result = question_answers[3]
-        self.assertEqual(question4, self.question4)
-        self.assertTrue(answer4_result.get("no_answer_submitted", False))
-
-        # Question 5 - answered correctly
-        question5, answer5_result = question_answers[4]
-        self.assertEqual(question5, self.question5)
-        self.assertNotIn("no_answer_submitted", answer5_result)
-
-        # Question 6 - not answered (checkboxes)
-        question6, answer6_result = question_answers[5]
-        self.assertEqual(question6, self.question6)
-        self.assertTrue(answer6_result.get("no_answer_submitted", False))
+        self.assert_answer_present(question_answers[0], self.question1)
+        answer2 = self.assert_answer_present(
+            question_answers[1], self.question2
+        )
+        self.assertEqual(answer2["text"], "Some explanation")
+        self.assert_no_answer_submitted(question_answers[2], self.question3)
+        self.assert_no_answer_submitted(question_answers[3], self.question4)
+        self.assert_answer_present(question_answers[4], self.question5)
+        self.assert_no_answer_submitted(question_answers[5], self.question6)
 
     def test_homework_detail_scored_with_empty_free_form_answer(self):
         """Test that empty free form answers in scored homework show appropriate indicators"""
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        self.submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=self.enrollment,
+        self.create_scored_submission_with_answers(
+            {
+                self.question2: "   ",
+            }
         )
 
-        # Create empty answer for free form question
-        answer2 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question2,
-            answer_text="   ",  # whitespace only
-        )
-        answer2.save()
-
-        # update homework's due date to be in the past
-        self.homework.due_date = timezone.now() - timezone.timedelta(
-            days=1
-        )
-        self.homework.save()
-
-        status, _ = score_homework_submissions(self.homework.id)
-        self.assertEqual(status, HomeworkScoringStatus.OK)
-
-        # make sure we have the latest version of the homework
-        self.homework = Homework.objects.get(id=self.homework.id)
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-
-        response = self.client.get(url)
+        response = self.get_homework_response(login=True)
         self.assertEqual(response.status_code, 200)
 
-        context = response.context
-        question_answers = context["question_answers"]
-
-        # Question 2 - empty free form answer
-        question2, answer2_result = question_answers[1]
-        self.assertEqual(question2, self.question2)
-        self.assertTrue(answer2_result.get("no_answer_submitted", False))
+        self.assert_no_answer_submitted(
+            response.context["question_answers"][1],
+            self.question2,
+        )
 
     def test_homework_detail_unauthenticated_scored_no_answer_warning(self):
         """
         Test that unauthenticated users viewing a scored homework
         don't see 'no answer submitted' warnings in the rendered HTML.
         """
-        # Create a submission with some answers
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        self.submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=enrollment,
+        self.create_scored_submission_with_answers(
+            {
+                self.question1: "1",
+                self.question4: "3",
+            }
         )
 
-        # Add answer for question 1 (Multiple Choice)
-        answer1 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question1,
-            answer_text="1",
-        )  # correct
-        answer1.save()
-
-        # Question 2 (Free Form) - deliberately NOT answered
-        # Question 3 (Checkboxes) - deliberately NOT answered
-        
-        # Add answer for question 4 (Multiple Choice)
-        answer4 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question4,
-            answer_text="3",
-        )  # correct
-        answer4.save()
-
-        # Question 5 (Free Form) - deliberately NOT answered
-        # Question 6 (Checkboxes) - deliberately NOT answered
-
-        # Mark homework as scored
-        self.homework.due_date = timezone.now() - timezone.timedelta(days=1)
-        self.homework.save()
-
-        status, _ = score_homework_submissions(self.homework.id)
-        self.assertEqual(status, HomeworkScoringStatus.OK)
-
-        # Refresh homework
-        self.homework = Homework.objects.get(id=self.homework.id)
-        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
-
-        # Make request as unauthenticated user
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.get(url)
-
+        response = self.get_homework_response()
         self.assertEqual(response.status_code, 200)
 
         content = response.content.decode("utf-8")
@@ -1526,55 +1389,16 @@ class HomeworkDetailViewTests(TestCase):
         Test that authenticated users viewing a scored homework with incomplete
         answers DO see 'no answer submitted' warnings for questions they didn't answer.
         """
-        # Create a submission with some answers but not all
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        self.submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=enrollment,
+        self.create_scored_submission_with_answers(
+            {
+                self.question1: "1",
+            }
         )
 
-        # Add answer for question 1 (Multiple Choice)
-        answer1 = Answer.objects.create(
-            submission=self.submission,
-            question=self.question1,
-            answer_text="1",
-        )  # correct
-        answer1.save()
-
-        # Question 2 (Free Form) - deliberately NOT answered
-        # Question 3 (Checkboxes) - deliberately NOT answered
-
-        # Mark homework as scored
-        self.homework.due_date = timezone.now() - timezone.timedelta(days=1)
-        self.homework.save()
-
-        status, _ = score_homework_submissions(self.homework.id)
-        self.assertEqual(status, HomeworkScoringStatus.OK)
-
-        # Refresh homework
-        self.homework = Homework.objects.get(id=self.homework.id)
-        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
-
-        # Make request as authenticated user
-        self.client.login(**credentials)
-        url = reverse(
-            "homework",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.get(url)
-
+        response = self.get_homework_response(login=True)
         self.assertEqual(response.status_code, 200)
-        
-        # Check the response content to ensure "No answer was submitted" IS present
-        # (since the user is authenticated and some questions were not answered)
-        content = response.content.decode('utf-8')
+
+        content = response.content.decode("utf-8")
         self.assertIn("No answer was submitted for this question", content)
 
 
