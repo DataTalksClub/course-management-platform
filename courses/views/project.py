@@ -149,8 +149,7 @@ def project_faq_contribution_submission_field(
     }
 
 
-def project_submission_fields(
-    project: Project,
+def project_required_submission_fields(
     submission: ProjectSubmission,
 ) -> list[dict]:
     fields = []
@@ -158,6 +157,14 @@ def project_submission_fields(
     fields.append(repository_field)
     commit_field = project_commit_submission_field(submission)
     fields.append(commit_field)
+    return fields
+
+
+def project_optional_submission_fields(
+    project: Project,
+    submission: ProjectSubmission,
+) -> list[dict | None]:
+    fields = []
     learning_in_public_field = project_learning_in_public_submission_field(
         project,
         submission,
@@ -175,12 +182,30 @@ def project_submission_fields(
         submission,
     )
     fields.append(faq_contribution_field)
+    return fields
 
+
+def visible_project_submission_fields(fields: list[dict | None]) -> list[dict]:
     visible_fields = []
     for field in fields:
         if field is not None:
             visible_fields.append(field)
     return visible_fields
+
+
+def project_submission_fields(
+    project: Project,
+    submission: ProjectSubmission,
+) -> list[dict]:
+    fields = []
+    required_fields = project_required_submission_fields(submission)
+    fields.extend(required_fields)
+    optional_fields = project_optional_submission_fields(
+        project,
+        submission,
+    )
+    fields.extend(optional_fields)
+    return visible_project_submission_fields(fields)
 
 
 def project_confirmation_metadata(
