@@ -86,6 +86,18 @@ class ProjectViewTestCase(TestCase):
             ),
         )
 
+    def project_delete_submission_data(self):
+        return self.project_submission_data(
+            github_link="https://github.com/existing/repo",
+            commit_id="123456e",
+            time_spent="3",
+            problems_comments="No issues encountered.",
+            faq_contribution_url=(
+                "https://github.com/DataTalksClub/faq/issues/266"
+            ),
+            action="delete",
+        )
+
     def post_project(self, data, execute_callbacks=False):
         self.client.login(**credentials)
         if not execute_callbacks:
@@ -597,48 +609,13 @@ class ProjectViewTestCase(TestCase):
         self.assert_project_submission_matches(submission, data)
 
     def test_remove_project_submission(self):
-        self.client.login(**credentials)
+        self.create_existing_project_submission()
+        self.assertEqual(self.project_submission_count(), 1)
 
-        # Create an initial submission
-        ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/existing/repo",
-            commit_id="123456a",
-        )
-
-        count_sumissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        ).count()
-
-        self.assertEqual(count_sumissions, 1)
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/existing/repo",
-            "commit_id": "123456e",
-            "time_spent": "3",
-            "problems_comments": "No issues encountered.",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/issues/266",
-            "action": "delete",
-        }
-
-        response = self.client.post(url, data)
+        response = self.post_project(self.project_delete_submission_data())
         self.assertEqual(response.status_code, 302)
 
-        count_sumissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        ).count()
-
-        self.assertEqual(count_sumissions, 0)
+        self.assertEqual(self.project_submission_count(), 0)
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
