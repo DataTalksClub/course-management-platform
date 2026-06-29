@@ -64,6 +64,21 @@ class ProjectScoringData:
 
 
 @dataclass(frozen=True)
+class ProjectScoringResult:
+    submissions_to_update: list
+    evaluation_scores: list
+    passed_count: int
+
+
+@dataclass(frozen=True)
+class ProjectScoringCalculation:
+    submissions: dict
+    submissions_to_update: list
+    evaluation_scores: list
+    passed_count: int
+
+
+@dataclass(frozen=True)
 class SubmissionScoringData:
     submission: ProjectSubmission
     project: Project
@@ -393,8 +408,7 @@ def _group_peer_reviews(peer_reviews):
     """Group submitted peer reviews by submission and by reviewer.
 
     Also attaches each submitted review's criteria responses as
-    ``review.responses``. Returns (submissions, reviews_by_submission,
-    reviews_by_reviewer).
+    ``review.responses``.
     """
     responses_by_review = _criteria_responses_by_review(peer_reviews)
     submissions = {}
@@ -418,7 +432,7 @@ def _group_peer_reviews(peer_reviews):
             group_data,
         )
 
-    return submissions, reviews_by_submission, reviews_by_reviewer
+    return group_data
 
 
 def _project_lip_score(submission, project) -> int:
@@ -548,7 +562,11 @@ def _score_project_submissions(data):
         if submission.passed:
             passed += 1
 
-    return submissions_to_update, all_scores, passed
+    return ProjectScoringResult(
+        submissions_to_update=submissions_to_update,
+        evaluation_scores=all_scores,
+        passed_count=passed,
+    )
 
 
 def _bulk_update_project_submissions(submissions_to_update):
@@ -587,9 +605,7 @@ def _replace_project_evaluation_scores(submission_ids, all_scores):
 
 
 def _calculate_project_scoring(project, peer_reviews):
-    submissions, reviews_by_submission, reviews_by_reviewer = (
-        _group_peer_reviews(peer_reviews)
-    )
+    group_data = _group_peer_reviews(peer_reviews)
 
     criteria = ReviewCriteria.objects.filter(
         course=project.course
@@ -597,29 +613,30 @@ def _calculate_project_scoring(project, peer_reviews):
 
     scoring_data = ProjectScoringData(
         project=project,
-        submissions=submissions,
-        reviews_by_submission=reviews_by_submission,
-        reviews_by_reviewer=reviews_by_reviewer,
+        submissions=group_data.submissions,
+        reviews_by_submission=group_data.reviews_by_submission,
+        reviews_by_reviewer=group_data.reviews_by_reviewer,
         criteria=criteria,
     )
-    submissions_to_update, all_scores, passed = (
-        _score_project_submissions(scoring_data)
-    )
+    result = _score_project_submissions(scoring_data)
 
-    return submissions, submissions_to_update, all_scores, passed
+    return ProjectScoringCalculation(
+        submissions=group_data.submissions,
+        submissions_to_update=result.submissions_to_update,
+        evaluation_scores=result.evaluation_scores,
+        passed_count=result.passed_count,
+    )
 
 
 def _complete_scored_project(
     project,
-    submissions,
-    submissions_to_update,
-    all_scores,
+    calculation,
 ):
-    _bulk_update_project_submissions(submissions_to_update)
-    _sync_project_submissions_after_commit(submissions_to_update)
+    _bulk_update_project_submissions(calculation.submissions_to_update)
+    _sync_project_submissions_after_commit(calculation.submissions_to_update)
     _replace_project_evaluation_scores(
-        submissions.keys(),
-        all_scores,
+        calculation.submissions.keys(),
+        calculation.evaluation_scores,
     )
 
     project.state = ProjectState.COMPLETED.value
@@ -648,19 +665,19 @@ def _project_scoreable_peer_reviews(project):
 
 
 def _score_project_with_reviews(project, peer_reviews):
-    submissions, submissions_to_update, all_scores, passed = (
-        _calculate_project_scoring(project, peer_reviews)
-    )
-    passed_ratio = passed / len(submissions)
+    calculation = _calculate_project_scoring(project, peer_reviews)
+    passed_ratio = calculation.passed_count / len(calculation.submissions)
 
     _complete_scored_project(
         project,
-        submissions,
-        submissions_to_update,
-        all_scores,
+        calculation,
     )
 
-    return _project_score_success_message(project, passed, passed_ratio)
+    return _project_score_success_message(
+        project,
+        calculation.passed_count,
+        passed_ratio,
+    )
 
 
 def score_project(project: Project) -> tuple[ProjectActionStatus, str]:

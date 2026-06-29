@@ -68,6 +68,27 @@ class UserWrappedMetrics:
 
 
 @dataclass(frozen=True)
+class HomeworkScoringBatch:
+    submissions: object
+    answers: object
+    answers_by_submission_id: dict
+
+
+@dataclass(frozen=True)
+class WrappedActiveEnrollmentData:
+    students_with_activity: set
+    enrollments: object
+    courses: set
+
+
+@dataclass(frozen=True)
+class WrappedActivityByStudent:
+    homework_by_student: dict
+    project_by_student: dict
+    enrollment_by_student: dict
+
+
+@dataclass(frozen=True)
 class WrappedActivity:
     year_start: datetime
     year_end: datetime
@@ -359,7 +380,11 @@ def _homework_scoring_batch(homework_id):
         submission__in=submissions
     ).select_related("question", "submission")
     answers_by_submission_id = _answers_by_submission(answers)
-    return submissions, answers, answers_by_submission_id
+    return HomeworkScoringBatch(
+        submissions=submissions,
+        answers=answers,
+        answers_by_submission_id=answers_by_submission_id,
+    )
 
 
 def _mark_homework_scored(homework):
@@ -384,25 +409,23 @@ def _homework_scoring_success(homework_id, started_at):
 
 
 def _score_and_persist_homework_submissions(homework_id):
-    submissions, answers, answers_by_submission_id = (
-        _homework_scoring_batch(homework_id)
-    )
+    batch = _homework_scoring_batch(homework_id)
     logger.info(
-        f"Scoring {len(answers_by_submission_id)} submissions for homework {homework_id}"
+        f"Scoring {len(batch.answers_by_submission_id)} submissions for homework {homework_id}"
     )
 
     _score_homework_submission_batch(
-        submissions,
-        answers_by_submission_id,
+        batch.submissions,
+        batch.answers_by_submission_id,
     )
     _persist_scored_homework_submissions(
         homework_id,
-        submissions,
-        answers,
+        batch.submissions,
+        batch.answers,
     )
 
     logger.info(
-        f"Scored {len(submissions)} submissions for homework {homework_id}"
+        f"Scored {len(batch.submissions)} submissions for homework {homework_id}"
     )
 
 
@@ -1022,7 +1045,11 @@ def _wrapped_active_students_and_enrollments(
     courses = set()
     for enrollment in enrollments:
         courses.add(enrollment.course)
-    return students_with_activity, enrollments, courses
+    return WrappedActiveEnrollmentData(
+        students_with_activity=students_with_activity,
+        enrollments=enrollments,
+        courses=courses,
+    )
 
 
 def _persist_wrapped_platform_statistics(stats, activity):
@@ -1071,7 +1098,11 @@ def _group_wrapped_activity_by_student(
     for enrollment in enrollments:
         enrollment_by_student[enrollment.student].append(enrollment)
 
-    return homework_by_student, project_by_student, enrollment_by_student
+    return WrappedActivityByStudent(
+        homework_by_student=homework_by_student,
+        project_by_student=project_by_student,
+        enrollment_by_student=enrollment_by_student,
+    )
 
 
 def _wrapped_peer_review_counts(students_with_activity, year_start, year_end):
@@ -1131,30 +1162,26 @@ def _wrapped_activity_context(year):
     homework_submissions, project_submissions = (
         _wrapped_activity_querysets(year_start, year_end)
     )
-    students_with_activity, enrollments, courses = (
-        _wrapped_active_students_and_enrollments(
-            homework_submissions,
-            project_submissions,
-        )
+    enrollment_data = _wrapped_active_students_and_enrollments(
+        homework_submissions,
+        project_submissions,
     )
     return WrappedActivity(
         year_start=year_start,
         year_end=year_end,
         homework_submissions=homework_submissions,
         project_submissions=project_submissions,
-        students_with_activity=students_with_activity,
-        enrollments=enrollments,
-        courses=courses,
+        students_with_activity=enrollment_data.students_with_activity,
+        enrollments=enrollment_data.enrollments,
+        courses=enrollment_data.courses,
     )
 
 
 def _persist_wrapped_user_statistics(stats, activity, leaderboard_data):
-    homework_by_student, project_by_student, enrollment_by_student = (
-        _group_wrapped_activity_by_student(
-            activity.homework_submissions,
-            activity.project_submissions,
-            activity.enrollments,
-        )
+    grouped_activity = _group_wrapped_activity_by_student(
+        activity.homework_submissions,
+        activity.project_submissions,
+        activity.enrollments,
     )
     peer_review_counts = _wrapped_peer_review_counts(
         activity.students_with_activity,
@@ -1164,9 +1191,9 @@ def _persist_wrapped_user_statistics(stats, activity, leaderboard_data):
     build_data = UserWrappedStatsBuildData(
         stats=stats,
         students_with_activity=activity.students_with_activity,
-        homework_by_student=homework_by_student,
-        project_by_student=project_by_student,
-        enrollment_by_student=enrollment_by_student,
+        homework_by_student=grouped_activity.homework_by_student,
+        project_by_student=grouped_activity.project_by_student,
+        enrollment_by_student=grouped_activity.enrollment_by_student,
         peer_review_counts=peer_review_counts,
         leaderboard_data=leaderboard_data,
     )
