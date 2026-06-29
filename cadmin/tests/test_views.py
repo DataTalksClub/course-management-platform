@@ -60,10 +60,12 @@ credentials = dict(
 class CadminViewTests(TestCase):
     def setUp(self):
         self.client = Client()
+        self.create_test_users()
+        self.create_course_work_items()
+        self.create_review_criteria()
 
+    def create_test_users(self):
         self.user = User.objects.create_user(**credentials)
-
-        # Create admin user
         self.admin_user = User.objects.create_user(
             username="admin@test.com",
             email="admin@test.com",
@@ -71,6 +73,7 @@ class CadminViewTests(TestCase):
             is_staff=True,
         )
 
+    def create_course_work_items(self):
         self.course = Course.objects.create(
             slug="test-course",
             title="Test Course",
@@ -94,7 +97,7 @@ class CadminViewTests(TestCase):
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
-        # Create review criteria for testing
+    def create_review_criteria(self):
         self.criteria1 = ReviewCriteria.objects.create(
             course=self.course,
             description="Problem Description",
