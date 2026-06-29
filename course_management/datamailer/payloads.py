@@ -1185,13 +1185,25 @@ def course_graduate_recipient_list_payload(
     return course_graduates_list_key(course), payload
 
 
+def _course_graduate_email(enrollment) -> str:
+    return (enrollment.student.email or "").strip().lower()
+
+
+def _course_graduate_certificate_url(enrollment) -> str:
+    return (enrollment.certificate_url or "").strip()
+
+
+def _course_graduate_source_object_key(enrollment) -> str:
+    return f"enrollment:{enrollment.pk}"
+
+
 def _course_graduate_member_data(enrollment):
-    email = (enrollment.student.email or "").strip().lower()
-    certificate_url = (enrollment.certificate_url or "").strip()
+    email = _course_graduate_email(enrollment)
+    certificate_url = _course_graduate_certificate_url(enrollment)
     if not email or not certificate_url:
         return None
 
-    source_object_key = f"enrollment:{enrollment.pk}"
+    source_object_key = _course_graduate_source_object_key(enrollment)
     member_payload = recipient_list_member_payload(
         list_type="custom",
         list_name=f"{enrollment.course.title} graduates",
