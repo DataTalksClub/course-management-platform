@@ -517,47 +517,77 @@ def project_build_context(
 ) -> dict:
     user = request.user
     is_authenticated = user.is_authenticated
-
-    accepting_submissions = (
-        project.state == ProjectState.COLLECTING_SUBMISSIONS.value
-    )
-
-    project_submission = None
-    enrollment = None
-    ceritificate_name = None
-
-    if is_authenticated:
-        project_submission = ProjectSubmission.objects.filter(
-            project=project,
-            student=user,
-            volunteer_review_only=False,
-        ).first()
-
-        enrollment, _ = Enrollment.objects.get_or_create(
-            student=user,
+    accepting_submissions = project_accepting_submissions(project)
+    project_submission, enrollment, ceritificate_name = (
+        project_context_user_details(
+            user=user,
             course=course,
+            project=project,
+            is_authenticated=is_authenticated,
         )
-
-        ceritificate_name = (
-            user.certificate_name or enrollment.display_name
-        )
-
-    disabled = not accepting_submissions
+    )
 
     return {
         "course": course,
         "project": project,
         "submission": project_submission,
         "is_authenticated": is_authenticated,
-        "disabled": disabled,
+        "disabled": not accepting_submissions,
         "accepting_submissions": accepting_submissions,
         "ceritificate_name": ceritificate_name,
-        "disable_learning_in_public": (
-            enrollment.disable_learning_in_public
-            if enrollment
-            else False
+        "disable_learning_in_public": project_learning_in_public_disabled(
+            enrollment
         ),
     }
+
+
+def project_accepting_submissions(project: Project) -> bool:
+    return project.state == ProjectState.COLLECTING_SUBMISSIONS.value
+
+
+def project_context_user_details(
+    user: User,
+    course: Course,
+    project: Project,
+    is_authenticated: bool,
+) -> tuple[Optional[ProjectSubmission], Optional[Enrollment], Optional[str]]:
+    if not is_authenticated:
+        return None, None, None
+
+    project_submission = project_context_submission(user, project)
+    enrollment, _ = Enrollment.objects.get_or_create(
+        student=user,
+        course=course,
+    )
+    return (
+        project_submission,
+        enrollment,
+        project_context_certificate_name(user, enrollment),
+    )
+
+
+def project_context_submission(
+    user: User,
+    project: Project,
+) -> Optional[ProjectSubmission]:
+    return ProjectSubmission.objects.filter(
+        project=project,
+        student=user,
+        volunteer_review_only=False,
+    ).first()
+
+
+def project_context_certificate_name(
+    user: User,
+    enrollment: Enrollment,
+) -> Optional[str]:
+    return user.certificate_name or enrollment.display_name
+
+
+def project_learning_in_public_disabled(
+    enrollment: Optional[Enrollment],
+) -> bool:
+    return enrollment.disable_learning_in_public if enrollment else False
 
 
 def project_redirect(course: Course, project: Project):
