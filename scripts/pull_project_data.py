@@ -53,6 +53,13 @@ class ProjectExportData:
     users: object
 
 
+@dataclass(frozen=True)
+class JsonlCollectionData:
+    record_type: str
+    items: object
+    extractor: object
+
+
 def serialize_datetime(obj):
     """Helper to serialize datetime objects"""
     if isinstance(obj, datetime):
@@ -353,44 +360,65 @@ def write_project_identity_records(file, export_data):
     )
 
 
-def write_project_related_records(file, export_data):
-    write_jsonl_collection(file, "user", export_data.users, extract_user_data)
-    write_jsonl_collection(
-        file,
+def project_participant_collections(export_data):
+    users = JsonlCollectionData("user", export_data.users, extract_user_data)
+    enrollments = JsonlCollectionData(
         "enrollment",
         export_data.enrollments,
         extract_enrollment_data,
     )
-    write_jsonl_collection(
-        file,
-        "review_criteria",
-        export_data.review_criteria,
-        extract_review_criteria_data,
-    )
-    write_jsonl_collection(
-        file,
+    submissions = JsonlCollectionData(
         "submission",
         export_data.submissions,
         extract_submission_data,
     )
-    write_jsonl_collection(
-        file,
+    return users, enrollments, submissions
+
+
+def project_review_collections(export_data):
+    review_criteria = JsonlCollectionData(
+        "review_criteria",
+        export_data.review_criteria,
+        extract_review_criteria_data,
+    )
+    peer_reviews = JsonlCollectionData(
         "peer_review",
         export_data.peer_reviews,
         extract_peer_review_data,
     )
-    write_jsonl_collection(
-        file,
+    criteria_responses = JsonlCollectionData(
         "criteria_response",
         export_data.criteria_responses,
         extract_criteria_response_data,
     )
-    write_jsonl_collection(
-        file,
+    evaluation_scores = JsonlCollectionData(
         "evaluation_score",
         export_data.evaluation_scores,
         extract_evaluation_score_data,
     )
+    return (
+        review_criteria,
+        peer_reviews,
+        criteria_responses,
+        evaluation_scores,
+    )
+
+
+def project_related_collections(export_data):
+    participant_collections = project_participant_collections(export_data)
+    review_collections = project_review_collections(export_data)
+    return participant_collections + review_collections
+
+
+def write_project_related_records(file, export_data):
+    collections = project_related_collections(export_data)
+    for collection in collections:
+        write_jsonl_collection(
+            file,
+            collection.record_type,
+            collection.items,
+            collection.extractor,
+        )
 
 
 def write_project_export_file(
