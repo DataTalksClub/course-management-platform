@@ -511,38 +511,61 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
     if list_payload is None:
         return None
 
+    list_key, payload = list_payload
     try:
-        list_key, payload = list_payload
-        if not _sync_members_before_recipient_list_send_or_audit(
-            config=config,
-            list_key=list_key,
-            payload=payload,
-            idempotency_key=f"{payload['idempotency_key']}:members",
-            ordering_key=list_key,
-            error="Datamailer metadata sync was not acknowledged",
-        ):
-            return None
-        if not _sync_project_passed_outcome_before_score_send(
+        return _send_project_score_notification_if_ready(
             config, project, list_key, payload
-        ):
-            return None
-        return _send_recipient_list_transactional_and_audit(
-            config, list_key, payload
         )
     except requests.RequestException as exc:
-        logger.exception(
-            "Datamailer project score notification failed for project_id=%s",
-            project.pk,
+        return _handle_project_score_notification_error(
+            config, project, list_key, payload, exc
         )
-        record_datamailer_send_audit(
-            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-            payload=payload,
-            list_key=list_key if "list_key" in locals() else "",
-            error=str(exc),
-        )
-        if config.strict:
-            raise
+
+
+def _send_project_score_notification_if_ready(
+    config,
+    project,
+    list_key,
+    payload,
+):
+    if not _sync_members_before_recipient_list_send_or_audit(
+        config=config,
+        list_key=list_key,
+        payload=payload,
+        idempotency_key=f"{payload['idempotency_key']}:members",
+        ordering_key=list_key,
+        error="Datamailer metadata sync was not acknowledged",
+    ):
         return None
+    if not _sync_project_passed_outcome_before_score_send(
+        config, project, list_key, payload
+    ):
+        return None
+    return _send_recipient_list_transactional_and_audit(
+        config, list_key, payload
+    )
+
+
+def _handle_project_score_notification_error(
+    config,
+    project,
+    list_key,
+    payload,
+    exc,
+):
+    logger.exception(
+        "Datamailer project score notification failed for project_id=%s",
+        project.pk,
+    )
+    record_datamailer_send_audit(
+        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+        payload=payload,
+        list_key=list_key,
+        error=str(exc),
+    )
+    if config.strict:
+        raise
+    return None
 
 
 def _sync_members_before_recipient_list_send_or_audit(
