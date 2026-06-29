@@ -13,7 +13,8 @@ class HomeworkSubmissionEditForm(forms.Form):
         self.submission = submission
         self.questions = list(questions)
 
-        for question in self.questions:
+        form_questions = self.questions
+        for question in form_questions:
             self.fields[f"answer_{question.id}"] = forms.CharField(
                 required=False
             )
@@ -26,20 +27,23 @@ class HomeworkSubmissionEditForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        cleaned_data["answers_by_question"] = [
-            (
+        answers_by_question = []
+        questions = self.questions
+        for question in questions:
+            answer = (
                 question,
                 cleaned_data.get(f"answer_{question.id}", ""),
             )
-            for question in self.questions
-        ]
+            answers_by_question.append(answer)
+        cleaned_data["answers_by_question"] = answers_by_question
 
         links_text = cleaned_data.get("learning_in_public_links", "")
-        links = [
-            link.strip()
-            for link in links_text.splitlines()
-            if link.strip()
-        ]
+        links = []
+        raw_links = links_text.splitlines()
+        for raw_link in raw_links:
+            link = raw_link.strip()
+            if link:
+                links.append(link)
         cleaned_data["learning_in_public_links_list"] = links or None
         return cleaned_data
 
@@ -56,7 +60,8 @@ class ProjectSubmissionEditForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.review_criteria = list(review_criteria)
 
-        for criteria in self.review_criteria:
+        review_criteria_items = self.review_criteria
+        for criteria in review_criteria_items:
             self.fields[f"criteria_score_{criteria.id}"] = (
                 forms.IntegerField(
                     min_value=0,
@@ -66,13 +71,15 @@ class ProjectSubmissionEditForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        cleaned_data["criteria_scores"] = [
-            (
+        criteria_scores = []
+        review_criteria_items = self.review_criteria
+        for criteria in review_criteria_items:
+            criteria_score = (
                 criteria,
                 cleaned_data.get(f"criteria_score_{criteria.id}", 0),
             )
-            for criteria in self.review_criteria
-        ]
+            criteria_scores.append(criteria_score)
+        cleaned_data["criteria_scores"] = criteria_scores
         return cleaned_data
 
 
@@ -127,7 +134,8 @@ class RegistrationCampaignForm(forms.ModelForm):
     def is_valid(self):
         valid = super().is_valid()
         if not valid:
-            for field_name in self.errors:
+            error_field_names = self.errors
+            for field_name in error_field_names:
                 if field_name in self.fields:
                     attrs = self.fields[field_name].widget.attrs
                     class_name = attrs.get("class", "")
