@@ -3840,6 +3840,104 @@ class DatamailerClientTest(TestCase):
             out=out,
         )
 
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_import"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+    )
+    @patch(
+        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+    )
+    def test_recipient_list_backfill_command_reports_import_failure(
+        self,
+        boto3_client,
+        create_import,
+        recipient_list_import,
+    ):
+        self.configure_import_by_reference(
+            boto3_client, create_import, job_id=19
+        )
+        recipient_list_import.return_value = {
+            "import_job": {
+                "id": 19,
+                "status": "failed",
+                "error": "bad jsonl",
+            }
+        }
+        enrollment = self.create_enrolled_student()
+
+        with self.assertRaisesMessage(
+            CommandError,
+            "Datamailer import job failed for "
+            f"{course_enrolled_list_key(enrollment.course)}: "
+            "job_id=19; error=bad jsonl",
+        ):
+            call_command(
+                "sync_datamailer_recipient_lists",
+                "enrollments",
+                "--course-slug",
+                enrollment.course.slug,
+                "--import-by-reference",
+                "--wait-for-import",
+                stdout=StringIO(),
+            )
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.recipient_list_import"
+    )
+    @patch(
+        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+    )
+    @patch(
+        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+    )
+    def test_recipient_list_backfill_command_times_out_waiting_for_import(
+        self,
+        boto3_client,
+        create_import,
+        recipient_list_import,
+    ):
+        self.configure_import_by_reference(
+            boto3_client, create_import, job_id=20
+        )
+        recipient_list_import.return_value = {
+            "import_job": {"id": 20, "status": "processing"}
+        }
+        enrollment = self.create_enrolled_student()
+
+        with patch(
+            "courses.management.commands.sync_datamailer_recipient_lists.time.monotonic",
+            side_effect=[0, 2],
+        ):
+            with self.assertRaisesMessage(
+                CommandError,
+                "Timed out waiting for Datamailer import job "
+                f"20 for {course_enrolled_list_key(enrollment.course)}; "
+                "last status=processing",
+            ):
+                call_command(
+                    "sync_datamailer_recipient_lists",
+                    "enrollments",
+                    "--course-slug",
+                    enrollment.course.slug,
+                    "--import-by-reference",
+                    "--wait-for-import",
+                    "--import-timeout",
+                    "1",
+                    "--import-poll-interval",
+                    "0.01",
+                    stdout=StringIO(),
+                )
+
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_import_by_reference_requires_s3_bucket(self):
         course = Course.objects.create(

@@ -697,27 +697,38 @@ class Command(BaseCommand):
     ):
         deadline = time.monotonic() + timeout
         while True:
-            response = client.recipient_list_import(list_key, job_id)
-            job = (response or {}).get("import_job", {})
-            status = job.get("status")
-            if status == "succeeded":
-                self.stdout.write(
-                    "Import job succeeded for "
-                    f"{list_key}: job_id={job_id}; "
-                    f"rows={job.get('row_count')}; "
-                    f"created={job.get('created_count')}; "
-                    f"updated={job.get('updated_count')}; "
-                    f"removed={job.get('removed_count')}"
-                )
+            job = self._import_job(client, list_key, job_id)
+            if self._handle_import_job_status(list_key, job_id, job):
                 return
-            if status == "failed":
-                raise CommandError(
-                    "Datamailer import job failed for "
-                    f"{list_key}: job_id={job_id}; error={job.get('error')}"
-                )
             if time.monotonic() >= deadline:
                 raise CommandError(
                     "Timed out waiting for Datamailer import job "
-                    f"{job_id} for {list_key}; last status={status}"
+                    f"{job_id} for {list_key}; last status={job.get('status')}"
                 )
             time.sleep(poll_interval)
+
+    def _import_job(self, client, list_key, job_id):
+        response = client.recipient_list_import(list_key, job_id)
+        return (response or {}).get("import_job", {})
+
+    def _handle_import_job_status(self, list_key, job_id, job):
+        status = job.get("status")
+        if status == "succeeded":
+            self._write_import_job_succeeded(list_key, job_id, job)
+            return True
+        if status == "failed":
+            raise CommandError(
+                "Datamailer import job failed for "
+                f"{list_key}: job_id={job_id}; error={job.get('error')}"
+            )
+        return False
+
+    def _write_import_job_succeeded(self, list_key, job_id, job):
+        self.stdout.write(
+            "Import job succeeded for "
+            f"{list_key}: job_id={job_id}; "
+            f"rows={job.get('row_count')}; "
+            f"created={job.get('created_count')}; "
+            f"updated={job.get('updated_count')}; "
+            f"removed={job.get('removed_count')}"
+        )
