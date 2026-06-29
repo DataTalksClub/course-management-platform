@@ -26,6 +26,7 @@ from courses.models import (
     Homework,
     HomeworkState,
     Question,
+    AnswerTypes,
     QuestionTypes,
     Submission,
     Answer,
@@ -115,6 +116,71 @@ class CadminViewTests(TestCase):
             ],
             review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
+
+    def login_admin(self):
+        self.client.login(username="admin@test.com", password="admin123")
+
+    def create_enrollment(self, student=None):
+        return Enrollment.objects.create(
+            student=student or self.user,
+            course=self.course,
+        )
+
+    def create_homework_submission(self, enrollment=None, **overrides):
+        defaults = {
+            "homework": self.homework,
+            "student": self.user,
+            "enrollment": enrollment or self.create_enrollment(),
+            "questions_score": 0,
+            "faq_score": 0,
+            "learning_in_public_score": 0,
+            "total_score": 0,
+        }
+        defaults.update(overrides)
+        return Submission.objects.create(**defaults)
+
+    def create_free_form_question(self, score=1):
+        return Question.objects.create(
+            homework=self.homework,
+            text="What is 2+2?",
+            question_type=QuestionTypes.FREE_FORM.value,
+            answer_type=AnswerTypes.INTEGER.value,
+            correct_answer="4",
+            scores_for_correct_answer=score,
+        )
+
+    def create_multiple_choice_question(self):
+        return Question.objects.create(
+            homework=self.homework,
+            text="What is the capital of France?",
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            possible_answers="London\nParis\nBerlin",
+            correct_answer="2",
+            scores_for_correct_answer=1,
+        )
+
+    def create_answer(self, submission, question, answer_text, is_correct):
+        return Answer.objects.create(
+            submission=submission,
+            question=question,
+            answer_text=answer_text,
+            is_correct=is_correct,
+        )
+
+    def homework_submission_edit_url(self, submission):
+        return reverse(
+            "cadmin_homework_submission_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+                "submission_id": submission.id,
+            },
+        )
+
+    def assert_answer_updated(self, submission, question, answer_text):
+        answer = Answer.objects.get(submission=submission, question=question)
+        self.assertEqual(answer.answer_text, answer_text)
+        self.assertTrue(answer.is_correct)
 
     def test_course_list_unauthenticated_redirects(self):
         """Test that unauthenticated users are redirected from course list"""
@@ -1981,75 +2047,21 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_get(self):
         """Test that staff users can access the homework submission edit page"""
-        from courses.models import (
-            Submission,
-            Question,
-            Answer,
-            QuestionTypes,
-            AnswerTypes,
-        )
-
-        # Create an enrollment and submission
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        # Create questions
-        question1 = Question.objects.create(
-            homework=self.homework,
-            text="What is 2+2?",
-            question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.INTEGER.value,
-            correct_answer="4",
-            scores_for_correct_answer=1,
-        )
-        question2 = Question.objects.create(
-            homework=self.homework,
-            text="What is the capital of France?",
-            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers="London\nParis\nBerlin",
-            correct_answer="2",
-            scores_for_correct_answer=1,
-        )
-
-        # Create a submission
-        submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
+        enrollment = self.create_enrollment()
+        question1 = self.create_free_form_question()
+        question2 = self.create_multiple_choice_question()
+        submission = self.create_homework_submission(
             enrollment=enrollment,
             learning_in_public_links=["https://example.com/post1"],
             questions_score=2,
-            faq_score=0,
             learning_in_public_score=1,
             total_score=3,
         )
+        self.create_answer(submission, question1, "4", True)
+        self.create_answer(submission, question2, "2", True)
 
-        # Create answers
-        Answer.objects.create(
-            submission=submission,
-            question=question1,
-            answer_text="4",
-            is_correct=True,
-        )
-        Answer.objects.create(
-            submission=submission,
-            question=question2,
-            answer_text="2",
-            is_correct=True,
-        )
-
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_submission_edit",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-                "submission_id": submission.id,
-            },
-        )
+        self.login_admin()
+        url = self.homework_submission_edit_url(submission)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit Homework Submission")
@@ -2071,82 +2083,24 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_post_updates_answers(self):
         """Test that editing homework answers updates the submission correctly"""
-        from courses.models import (
-            Submission,
-            Question,
-            Answer,
-            QuestionTypes,
-            AnswerTypes,
-        )
-
-        # Create an enrollment and submission
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        # Create questions
-        question1 = Question.objects.create(
-            homework=self.homework,
-            text="What is 2+2?",
-            question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.INTEGER.value,
-            correct_answer="4",
-            scores_for_correct_answer=1,
-        )
-        question2 = Question.objects.create(
-            homework=self.homework,
-            text="What is the capital of France?",
-            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers="London\nParis\nBerlin",
-            correct_answer="2",
-            scores_for_correct_answer=1,
-        )
-
-        # Create a submission with incorrect answers
-        submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
+        enrollment = self.create_enrollment()
+        question1 = self.create_free_form_question()
+        question2 = self.create_multiple_choice_question()
+        submission = self.create_homework_submission(
             enrollment=enrollment,
             learning_in_public_links=["https://example.com/post1"],
-            questions_score=0,
-            faq_score=0,
             learning_in_public_score=1,
             total_score=1,
         )
+        self.create_answer(submission, question1, "5", False)
+        self.create_answer(submission, question2, "1", False)
 
-        # Create answers - initially wrong
-        Answer.objects.create(
-            submission=submission,
-            question=question1,
-            answer_text="5",  # Wrong answer
-            is_correct=False,
-        )
-        Answer.objects.create(
-            submission=submission,
-            question=question2,
-            answer_text="1",  # Wrong answer
-            is_correct=False,
-        )
-
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_submission_edit",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-                "submission_id": submission.id,
-            },
-        )
-
-        # Post updated answers
+        self.login_admin()
         response = self.client.post(
-            url,
+            self.homework_submission_edit_url(submission),
             {
-                f"answer_{question1.id}": "4",  # Correct answer
-                f"answer_{question2.id}": "2",  # Correct answer
+                f"answer_{question1.id}": "4",
+                f"answer_{question2.id}": "2",
                 "learning_in_public_links": (
                     "https://example.com/post1\n"
                     "https://example.com/post2"
@@ -2154,35 +2108,13 @@ class CadminViewTests(TestCase):
             },
         )
 
-        # Should redirect back to submissions list
         self.assertEqual(response.status_code, 302)
-
-        # Refresh submission from database
         submission.refresh_from_db()
-
-        # Check that the score was recalculated
-        self.assertEqual(
-            submission.questions_score, 2
-        )  # Both questions correct now
-        self.assertEqual(
-            submission.learning_in_public_score, 2
-        )  # Two links
-        self.assertEqual(submission.total_score, 4)  # 2 + 0 + 2
-
-        # Verify answers were updated
-        answer1 = Answer.objects.get(
-            submission=submission, question=question1
-        )
-        self.assertEqual(answer1.answer_text, "4")
-        self.assertTrue(answer1.is_correct)
-
-        answer2 = Answer.objects.get(
-            submission=submission, question=question2
-        )
-        self.assertEqual(answer2.answer_text, "2")
-        self.assertTrue(answer2.is_correct)
-
-        # Verify learning in public links were updated
+        self.assertEqual(submission.questions_score, 2)
+        self.assertEqual(submission.learning_in_public_score, 2)
+        self.assertEqual(submission.total_score, 4)
+        self.assert_answer_updated(submission, question1, "4")
+        self.assert_answer_updated(submission, question2, "2")
         self.assertEqual(len(submission.learning_in_public_links), 2)
         self.assertIn(
             "https://example.com/post1",
@@ -2195,57 +2127,15 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_updates_faq_entry_and_score(self):
         """Test that staff can edit FAQ contribution fields."""
-        from courses.models import (
-            Submission,
-            Question,
-            Answer,
-            QuestionTypes,
-            AnswerTypes,
-        )
+        question = self.create_free_form_question(score=10)
+        submission = self.create_homework_submission()
+        self.create_answer(submission, question, "5", False)
 
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        question = Question.objects.create(
-            homework=self.homework,
-            text="What is 2+2?",
-            question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.INTEGER.value,
-            correct_answer="4",
-            scores_for_correct_answer=10,
-        )
-        submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
-            enrollment=enrollment,
-            questions_score=0,
-            faq_score=0,
-            learning_in_public_score=0,
-            total_score=0,
-        )
-        Answer.objects.create(
-            submission=submission,
-            question=question,
-            answer_text="5",
-            is_correct=False,
-        )
-
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_submission_edit",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-                "submission_id": submission.id,
-            },
-        )
+        self.login_admin()
         faq_entry = "https://gist.github.com/example/not-validated-here"
 
         response = self.client.post(
-            url,
+            self.homework_submission_edit_url(submission),
             {
                 f"answer_{question.id}": "4",
                 "learning_in_public_links": "",
@@ -2262,81 +2152,26 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_triggers_leaderboard_update(self):
         """Test that editing homework submission triggers leaderboard recalculation if score changes"""
-        from courses.models import (
-            Submission,
-            Question,
-            Answer,
-            QuestionTypes,
-            AnswerTypes,
-        )
-
-        # Create an enrollment
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        # Create a question
-        question = Question.objects.create(
-            homework=self.homework,
-            text="What is 2+2?",
-            question_type=QuestionTypes.FREE_FORM.value,
-            answer_type=AnswerTypes.INTEGER.value,
-            correct_answer="4",
-            scores_for_correct_answer=10,
-        )
-
-        # Create a submission with wrong answer
-        submission = Submission.objects.create(
-            homework=self.homework,
-            student=self.user,
+        enrollment = self.create_enrollment()
+        question = self.create_free_form_question(score=10)
+        submission = self.create_homework_submission(
             enrollment=enrollment,
-            questions_score=0,
-            faq_score=0,
-            learning_in_public_score=0,
-            total_score=0,
         )
+        self.create_answer(submission, question, "5", False)
 
-        Answer.objects.create(
-            submission=submission,
-            question=question,
-            answer_text="5",
-            is_correct=False,
-        )
-
-        # Set initial leaderboard position
         enrollment.total_score = 0
         enrollment.position_on_leaderboard = 999
         enrollment.save()
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_homework_submission_edit",
-            kwargs={
-                "course_slug": self.course.slug,
-                "homework_slug": self.homework.slug,
-                "submission_id": submission.id,
-            },
-        )
-
-        # Post correct answer to change the score
+        self.login_admin()
         response = self.client.post(
-            url,
+            self.homework_submission_edit_url(submission),
             {
-                f"answer_{question.id}": "4",  # Correct answer
+                f"answer_{question.id}": "4",
                 "learning_in_public_links": "",
             },
         )
 
         self.assertEqual(response.status_code, 302)
-
-        # Refresh enrollment from database
         enrollment.refresh_from_db()
-
-        # Check that leaderboard was updated (total_score should be updated)
-        # The update_leaderboard function should have been called and updated the enrollment
-        self.assertEqual(
-            enrollment.total_score, 10
-        )  # Score from the corrected answer
+        self.assertEqual(enrollment.total_score, 10)
