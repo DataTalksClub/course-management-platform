@@ -85,6 +85,218 @@ DATAMAILER_SETTINGS = {
 
 
 class DatamailerClientTest(TestCase):
+    def create_ml_course(self):
+        return Course.objects.create(
+            slug="ml-zoomcamp-2026",
+            title="ML Zoomcamp 2026",
+            description="Machine learning",
+        )
+
+    def create_homework(self, course=None):
+        return Homework.objects.create(
+            course=course or self.create_ml_course(),
+            slug="homework-1",
+            title="Homework 1",
+            due_date="2026-01-01T00:00:00Z",
+        )
+
+    def create_project(self, course=None, **overrides):
+        defaults = {
+            "course": course or self.create_ml_course(),
+            "slug": "project-1",
+            "title": "Project 1",
+            "submission_due_date": "2026-01-01T00:00:00Z",
+            "peer_review_due_date": "2026-01-08T00:00:00Z",
+        }
+        defaults.update(overrides)
+        return Project.objects.create(**defaults)
+
+    def create_user(self, email):
+        return CustomUser.objects.create_user(
+            username=email,
+            email=email,
+            password="test",
+        )
+
+    def create_enrollment(self, user, course):
+        return Enrollment.objects.create(student=user, course=course)
+
+    def create_homework_submission(self, homework, user, **overrides):
+        defaults = {
+            "homework": homework,
+            "student": user,
+            "enrollment": self.create_enrollment(user, homework.course),
+        }
+        defaults.update(overrides)
+        return Submission.objects.create(**defaults)
+
+    def create_project_submission(self, project, user, **overrides):
+        defaults = {
+            "project": project,
+            "student": user,
+            "enrollment": self.create_enrollment(user, project.course),
+            "github_link": "https://github.com/example/project",
+            "commit_id": "abc123",
+        }
+        defaults.update(overrides)
+        return ProjectSubmission.objects.create(**defaults)
+
+    def assert_score_payload_common(
+        self,
+        payload,
+        *,
+        template_key,
+        idempotency_key,
+        footer_text,
+        list_type,
+    ):
+        self.assertEqual(payload["template_key"], template_key)
+        self.assertEqual(payload["idempotency_key"], idempotency_key)
+        self.assertEqual(payload["from_email"], "courses")
+        self.assertEqual(
+            payload["context"]["profile_url"],
+            "https://courses.example.com/accounts/settings/",
+        )
+        self.assertIn(footer_text, payload["context"]["notification_footer"])
+        self.assertEqual(
+            payload["metadata"]["preference_key"],
+            "email_submission_confirmations",
+        )
+        self.assertEqual(payload["category_tag"], "submission-results")
+        self.assertNotIn("member_sync", payload)
+        self.assertNotIn("remove_absent_members", payload)
+        self.assertEqual(payload["list"]["type"], list_type)
+        self.assertEqual(len(payload["members"]), 1)
+        return payload["members"][0]
+
+    def assert_homework_score_member(self, member, submission):
+        self.assertEqual(
+            member["source_object_key"],
+            f"homework-submission:{submission.pk}",
+        )
+        self.assertEqual(member["email"], "learner@example.com")
+        self.assertEqual(member["metadata"]["questions_score"], 6)
+        self.assertEqual(
+            member["metadata"]["learning_in_public_score"], 2
+        )
+        self.assertEqual(member["metadata"]["faq_score"], 1)
+        self.assertEqual(member["metadata"]["total_score"], 9)
+        self.assertEqual(
+            member["metadata"]["homework_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
+        )
+
+    def assert_project_score_member(self, member, submission):
+        self.assertEqual(
+            member["source_object_key"],
+            f"project-submission:{submission.pk}",
+        )
+        self.assertEqual(member["email"], "project-learner@example.com")
+        self.assertEqual(member["metadata"]["project_score"], 70)
+        self.assertEqual(
+            member["metadata"]["project_learning_in_public_score"],
+            5,
+        )
+        self.assertEqual(member["metadata"]["project_faq_score"], 1)
+        self.assertEqual(member["metadata"]["peer_review_score"], 18)
+        self.assertEqual(
+            member["metadata"]["peer_review_learning_in_public_score"],
+            4,
+        )
+        self.assertEqual(member["metadata"]["total_score"], 98)
+        self.assertEqual(
+            member["metadata"]["github_link"],
+            "https://github.com/example/project",
+        )
+        self.assertEqual(member["metadata"]["commit_id"], "abc123")
+        self.assertEqual(
+            member["metadata"]["project_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
+        )
+        self.assertTrue(member["metadata"]["reviewed_enough_peers"])
+        self.assertTrue(member["metadata"]["passed"])
+
+    def create_peer_review_assignment_fixture(self):
+        project = self.create_project(
+            state=ProjectState.PEER_REVIEWING.value,
+            number_of_peers_to_evaluate=3,
+            # Summer instant: PT 15:00, Berlin 00:00 next day.
+            peer_review_due_date="2026-07-02T22:00:00Z",
+        )
+        submissions = []
+        for i in range(4):
+            user = self.create_user(f"learner-{i}@example.com")
+            if i == 0:
+                user.preferred_timezone = "Europe/Berlin"
+                user.save(update_fields=["preferred_timezone"])
+            submissions.append(
+                self.create_project_submission(
+                    project,
+                    user,
+                    github_link=f"https://github.com/example/p{i}",
+                )
+            )
+
+        reviewer = submissions[0]
+        targets = submissions[1:]
+        for target in targets:
+            PeerReview.objects.create(
+                reviewer=reviewer,
+                submission_under_evaluation=target,
+                note_to_peer="",
+                optional=False,
+            )
+        PeerReview.objects.create(
+            reviewer=reviewer,
+            submission_under_evaluation=targets[0],
+            note_to_peer="",
+            optional=True,
+        )
+        project.refresh_from_db()
+        return project
+
+    def assert_peer_review_assignment_payload(self, payload, project):
+        self.assertEqual(payload["template_key"], "peer-review-assignment")
+        self.assertEqual(payload["category_tag"], "submission-results")
+        self.assertEqual(
+            payload["idempotency_key"],
+            "peer-review-assignment:ml-zoomcamp-2026:project-1",
+        )
+        self.assertEqual(payload["metadata"]["event"], "peer_review_assignment")
+        context = payload["context"]
+        self.assertEqual(context["number_of_peers_to_evaluate"], 3)
+        self.assertEqual(
+            context["peer_review_due_at"],
+            project.peer_review_due_date.isoformat(),
+        )
+        self.assertEqual(context["deadline_weekday"], "Thursday")
+        self.assertEqual(context["deadline_time"], "22:00")
+        self.assertEqual(
+            context["deadline_summary"], "Thursday, 2 July 2026, 22:00 UTC"
+        )
+
+    def assert_berlin_reviewer_assignments(self, payload):
+        members_by_email = {m["email"]: m for m in payload["members"]}
+        self.assertEqual(len(members_by_email), 4)
+        reviewer_member = members_by_email["learner-0@example.com"]
+        self.assertEqual(
+            reviewer_member["metadata"]["deadline_summary"],
+            "Friday, 3 July 2026, 00:00 Europe/Berlin",
+        )
+        self.assertEqual(
+            reviewer_member["metadata"]["deadline_timezone"],
+            "Europe/Berlin",
+        )
+        assigned = reviewer_member["metadata"]["assigned_reviews"]
+        self.assertEqual(reviewer_member["metadata"]["assigned_reviews_count"], 3)
+        self.assertEqual(len(assigned), 3)
+        for item in assigned:
+            self.assertIn(
+                f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
+                item["eval_url"],
+            )
+            self.assertTrue(item["eval_url"].startswith("https://"))
+
     def test_missing_env_disables_datamailer(self):
         with override_settings(
             DATAMAILER_URL="",
@@ -1839,30 +2051,11 @@ class DatamailerClientTest(TestCase):
     def test_homework_score_notification_payload_targets_homework_submitters(
         self,
     ):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        homework = Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date="2026-01-01T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="learner@example.com",
-            email="learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        submission = Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
+        homework = self.create_homework()
+        user = self.create_user("learner@example.com")
+        submission = self.create_homework_submission(
+            homework,
+            user,
             questions_score=6,
             learning_in_public_score=2,
             faq_score=1,
@@ -1876,15 +2069,13 @@ class DatamailerClientTest(TestCase):
         self.assertEqual(
             list_key, homework_submitters_list_key(homework)
         )
-        self.assertEqual(
-            payload["template_key"],
-            "homework-score-notification",
+        member = self.assert_score_payload_common(
+            payload,
+            template_key="homework-score-notification",
+            idempotency_key="homework-score:ml-zoomcamp-2026:homework-1",
+            footer_text="you submitted Homework 1",
+            list_type="homework_submitters",
         )
-        self.assertEqual(
-            payload["idempotency_key"],
-            "homework-score:ml-zoomcamp-2026:homework-1",
-        )
-        self.assertEqual(payload["from_email"], "courses")
         self.assertEqual(
             payload["context"]["scores_url"],
             "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
@@ -1893,42 +2084,7 @@ class DatamailerClientTest(TestCase):
             payload["context"]["leaderboard_url"],
             "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
         )
-        self.assertEqual(
-            payload["context"]["profile_url"],
-            "https://courses.example.com/accounts/settings/",
-        )
-        self.assertIn(
-            "you submitted Homework 1",
-            payload["context"]["notification_footer"],
-        )
-        self.assertEqual(
-            payload["metadata"]["preference_key"],
-            "email_submission_confirmations",
-        )
-        self.assertEqual(payload["category_tag"], "submission-results")
-        self.assertNotIn("member_sync", payload)
-        self.assertNotIn("remove_absent_members", payload)
-        self.assertEqual(
-            payload["list"]["type"],
-            "homework_submitters",
-        )
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
-        self.assertEqual(
-            member["source_object_key"],
-            f"homework-submission:{submission.pk}",
-        )
-        self.assertEqual(member["email"], "learner@example.com")
-        self.assertEqual(member["metadata"]["questions_score"], 6)
-        self.assertEqual(
-            member["metadata"]["learning_in_public_score"], 2
-        )
-        self.assertEqual(member["metadata"]["faq_score"], 1)
-        self.assertEqual(member["metadata"]["total_score"], 9)
-        self.assertEqual(
-            member["metadata"]["homework_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
-        )
+        self.assert_homework_score_member(member, submission)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_homework_score_notification_payload_dedupes_student_submissions(
@@ -2133,33 +2289,11 @@ class DatamailerClientTest(TestCase):
     def test_project_score_notification_payload_targets_project_submitters(
         self,
     ):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="project-learner@example.com",
-            email="project-learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        submission = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/project",
-            commit_id="abc123",
+        project = self.create_project()
+        user = self.create_user("project-learner@example.com")
+        submission = self.create_project_submission(
+            project,
+            user,
             project_score=70,
             project_learning_in_public_score=5,
             project_faq_score=1,
@@ -2173,15 +2307,13 @@ class DatamailerClientTest(TestCase):
         list_key, payload = project_score_notification_payload(project)
 
         self.assertEqual(list_key, project_submitters_list_key(project))
-        self.assertEqual(
-            payload["template_key"],
-            "project-score-notification",
+        member = self.assert_score_payload_common(
+            payload,
+            template_key="project-score-notification",
+            idempotency_key="project-score:ml-zoomcamp-2026:project-1",
+            footer_text="you submitted Project 1",
+            list_type="project_submitters",
         )
-        self.assertEqual(
-            payload["idempotency_key"],
-            "project-score:ml-zoomcamp-2026:project-1",
-        )
-        self.assertEqual(payload["from_email"], "courses")
         self.assertEqual(
             payload["context"]["scores_url"],
             "https://courses.example.com/ml-zoomcamp-2026/project/project-1/results",
@@ -2194,52 +2326,7 @@ class DatamailerClientTest(TestCase):
             payload["context"]["leaderboard_url"],
             "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
         )
-        self.assertEqual(
-            payload["context"]["profile_url"],
-            "https://courses.example.com/accounts/settings/",
-        )
-        self.assertIn(
-            "you submitted Project 1",
-            payload["context"]["notification_footer"],
-        )
-        self.assertEqual(
-            payload["metadata"]["preference_key"],
-            "email_submission_confirmations",
-        )
-        self.assertEqual(payload["category_tag"], "submission-results")
-        self.assertNotIn("member_sync", payload)
-        self.assertNotIn("remove_absent_members", payload)
-        self.assertEqual(payload["list"]["type"], "project_submitters")
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
-        self.assertEqual(
-            member["source_object_key"],
-            f"project-submission:{submission.pk}",
-        )
-        self.assertEqual(member["email"], "project-learner@example.com")
-        self.assertEqual(member["metadata"]["project_score"], 70)
-        self.assertEqual(
-            member["metadata"]["project_learning_in_public_score"],
-            5,
-        )
-        self.assertEqual(member["metadata"]["project_faq_score"], 1)
-        self.assertEqual(member["metadata"]["peer_review_score"], 18)
-        self.assertEqual(
-            member["metadata"]["peer_review_learning_in_public_score"],
-            4,
-        )
-        self.assertEqual(member["metadata"]["total_score"], 98)
-        self.assertEqual(
-            member["metadata"]["github_link"],
-            "https://github.com/example/project",
-        )
-        self.assertEqual(member["metadata"]["commit_id"], "abc123")
-        self.assertEqual(
-            member["metadata"]["project_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/project/project-1",
-        )
-        self.assertTrue(member["metadata"]["reviewed_enough_peers"])
-        self.assertTrue(member["metadata"]["passed"])
+        self.assert_project_score_member(member, submission)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_project_score_notification_dedupes_student_submissions(self):
@@ -2365,111 +2452,14 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_peer_review_assignment_payload_includes_links_and_deadline(self):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            state=ProjectState.PEER_REVIEWING.value,
-            number_of_peers_to_evaluate=3,
-            submission_due_date="2026-01-01T00:00:00Z",
-            # Summer instant: PT 15:00, Berlin 00:00 next day.
-            peer_review_due_date="2026-07-02T22:00:00Z",
-        )
-
-        submissions = []
-        for i in range(4):
-            user = CustomUser.objects.create_user(
-                username=f"learner-{i}@example.com",
-                email=f"learner-{i}@example.com",
-                password="test",
-            )
-            if i == 0:
-                user.preferred_timezone = "Europe/Berlin"
-                user.save(update_fields=["preferred_timezone"])
-            enrollment = Enrollment.objects.create(
-                student=user, course=course
-            )
-            submissions.append(
-                ProjectSubmission.objects.create(
-                    project=project,
-                    student=user,
-                    enrollment=enrollment,
-                    github_link=f"https://github.com/example/p{i}",
-                )
-            )
-
-        reviewer = submissions[0]
-        targets = submissions[1:]
-        for target in targets:
-            PeerReview.objects.create(
-                reviewer=reviewer,
-                submission_under_evaluation=target,
-                note_to_peer="",
-                optional=False,
-            )
-        # An optional (volunteer) review must not appear in the email.
-        PeerReview.objects.create(
-            reviewer=reviewer,
-            submission_under_evaluation=targets[0],
-            note_to_peer="",
-            optional=True,
-        )
-
-        # Reload so the deadline is a real datetime (not the literal string).
-        project.refresh_from_db()
+        project = self.create_peer_review_assignment_fixture()
         list_key, payload = peer_review_assignment_notification_payload(
             project
         )
 
         self.assertEqual(list_key, project_submitters_list_key(project))
-        self.assertEqual(payload["template_key"], "peer-review-assignment")
-        self.assertEqual(payload["category_tag"], "submission-results")
-        self.assertEqual(
-            payload["idempotency_key"],
-            "peer-review-assignment:ml-zoomcamp-2026:project-1",
-        )
-        self.assertEqual(payload["metadata"]["event"], "peer_review_assignment")
-
-        context = payload["context"]
-        self.assertEqual(context["number_of_peers_to_evaluate"], 3)
-        self.assertEqual(
-            context["peer_review_due_at"],
-            project.peer_review_due_date.isoformat(),
-        )
-        # Shared context remains a UTC fallback.
-        self.assertEqual(context["deadline_weekday"], "Thursday")
-        self.assertEqual(context["deadline_time"], "22:00")
-        self.assertEqual(
-            context["deadline_summary"], "Thursday, 2 July 2026, 22:00 UTC"
-        )
-
-        members_by_email = {m["email"]: m for m in payload["members"]}
-        self.assertEqual(len(members_by_email), 4)
-
-        reviewer_member = members_by_email["learner-0@example.com"]
-        self.assertEqual(
-            reviewer_member["metadata"]["deadline_summary"],
-            "Friday, 3 July 2026, 00:00 Europe/Berlin",
-        )
-        self.assertEqual(
-            reviewer_member["metadata"]["deadline_timezone"],
-            "Europe/Berlin",
-        )
-        assigned = reviewer_member["metadata"]["assigned_reviews"]
-        # Only the 3 non-optional assignments.
-        self.assertEqual(reviewer_member["metadata"]["assigned_reviews_count"], 3)
-        self.assertEqual(len(assigned), 3)
-        for item in assigned:
-            self.assertIn(
-                f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
-                item["eval_url"],
-            )
-            self.assertTrue(item["eval_url"].startswith("https://"))
+        self.assert_peer_review_assignment_payload(payload, project)
+        self.assert_berlin_reviewer_assignments(payload)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_project_score_notification_includes_submitters(self):
