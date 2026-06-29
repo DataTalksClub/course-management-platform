@@ -73,7 +73,8 @@ def configure_sqlite_busy_timeout():
 
 
 def run_with_lock_retries(action, attempts=3):
-    for attempt in range(1, attempts + 1):
+    attempt_numbers = range(1, attempts + 1)
+    for attempt in attempt_numbers:
         try:
             return action()
         except OperationalError as exc:
@@ -371,7 +372,8 @@ def homework_question_specs(homework):
 
 
 def ensure_homework_questions(homework):
-    for question_spec in homework_question_specs(homework):
+    question_specs = homework_question_specs(homework)
+    for question_spec in question_specs:
         Question.objects.update_or_create(
             homework=homework,
             text=question_spec["text"],
@@ -393,7 +395,8 @@ def list_courses():
             f"{len(spec['homeworks'])} homeworks | "
             f"{len(spec['projects'])} projects | {selected}"
         )
-        for title, _due_date in spec["homeworks"]:
+        homework_specs = spec["homeworks"]
+        for title, _due_date in homework_specs:
             print(f"  - {title}")
 
 
@@ -408,10 +411,10 @@ def ensure_full_catalog():
 
 
 def hide_legacy_demo_duplicates():
-    production_titles = {
-        spec["title"]
-        for spec in COURSE_SPECS
-    }
+    production_titles = set()
+    for spec in COURSE_SPECS:
+        title = spec["title"]
+        production_titles.add(title)
     updated = Course.objects.filter(
         slug__startswith="demo-",
         title__in=production_titles,
@@ -422,10 +425,17 @@ def hide_legacy_demo_duplicates():
 
 
 def course_due_range(spec):
-    due_dates = [
-        parse_date(due_date)
-        for _, due_date in [*spec["homeworks"], *spec["projects"]]
-    ]
+    due_dates = []
+    assignment_specs = []
+    homework_specs = spec["homeworks"]
+    for homework_spec in homework_specs:
+        assignment_specs.append(homework_spec)
+    project_specs = spec["projects"]
+    for project_spec in project_specs:
+        assignment_specs.append(project_spec)
+    for _title, due_date in assignment_specs:
+        parsed_due_date = parse_date(due_date)
+        due_dates.append(parsed_due_date)
     return min(due_dates).date(), max(due_dates).date()
 
 
@@ -454,7 +464,8 @@ def ensure_course(spec):
 
 def ensure_homeworks(course, spec):
     homeworks = []
-    for index, (title, due_date) in enumerate(spec["homeworks"], start=1):
+    homework_specs = enumerate(spec["homeworks"], start=1)
+    for index, (title, due_date) in homework_specs:
         homework, _ = Homework.objects.update_or_create(
             course=course,
             slug=stable_slug("homework", title, index),
@@ -472,7 +483,8 @@ def ensure_homeworks(course, spec):
 
 def ensure_projects(course, spec):
     projects = []
-    for index, (title, due_date) in enumerate(spec["projects"], start=1):
+    project_specs = enumerate(spec["projects"], start=1)
+    for index, (title, due_date) in project_specs:
         project, _ = Project.objects.update_or_create(
             course=course,
             slug=stable_slug("project", title, index),
@@ -502,7 +514,9 @@ def score_for_student(student_index, count, assignment_index, max_score):
     completion_penalty = 0
     if student_index % (assignment_index + 7) == 0:
         completion_penalty = max_score // 3
-    return max(0, min(max_score, (base * max_score // count) + spread // 4 - completion_penalty))
+    raw_score = (base * max_score // count) + spread // 4 - completion_penalty
+    capped_score = min(max_score, raw_score)
+    return max(0, capped_score)
 
 
 def create_generated_enrollments(course, spec, count, username_prefix):
@@ -510,7 +524,8 @@ def create_generated_enrollments(course, spec, count, username_prefix):
     created_users = 0
     created_enrollments = 0
 
-    for student_index in range(1, count + 1):
+    student_indexes = range(1, count + 1)
+    for student_index in student_indexes:
         username = f"{username_prefix}{student_index:04d}"
         user, user_created = User.objects.get_or_create(
             username=username,
@@ -672,19 +687,30 @@ def build_project_submission(course, enrollment, student_index, project_index, p
 def build_generated_submissions(course, enrollments, homeworks, projects, count):
     homework_submissions = []
     project_submissions = []
-    for student_index, enrollment in enumerate(enrollments, start=1):
-        for homework_index, homework in enumerate(homeworks, start=1):
-            homework_submissions.append(
-                build_homework_submission(
-                    course, enrollment, student_index, homework_index, homework, count
-                )
+    student_enrollments = enumerate(enrollments, start=1)
+    for student_index, enrollment in student_enrollments:
+        indexed_homeworks = enumerate(homeworks, start=1)
+        for homework_index, homework in indexed_homeworks:
+            homework_submission = build_homework_submission(
+                course,
+                enrollment,
+                student_index,
+                homework_index,
+                homework,
+                count,
             )
-        for project_index, project in enumerate(projects, start=1):
-            project_submissions.append(
-                build_project_submission(
-                    course, enrollment, student_index, project_index, project, count
-                )
+            homework_submissions.append(homework_submission)
+        indexed_projects = enumerate(projects, start=1)
+        for project_index, project in indexed_projects:
+            project_submission = build_project_submission(
+                course,
+                enrollment,
+                student_index,
+                project_index,
+                project,
+                count,
             )
+            project_submissions.append(project_submission)
     return homework_submissions, project_submissions
 
 
@@ -754,6 +780,10 @@ def seed_course(spec, count):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    course_slugs = []
+    for spec in COURSE_SPECS:
+        slug = spec["slug"]
+        course_slugs.append(slug)
     parser.add_argument(
         "--list-courses",
         action="store_true",
@@ -762,7 +792,7 @@ def parse_args():
     parser.add_argument(
         "--course",
         action="append",
-        choices=[spec["slug"] for spec in COURSE_SPECS],
+        choices=course_slugs,
         help="Course slug to seed. Can be passed multiple times.",
     )
     parser.add_argument(
@@ -779,7 +809,10 @@ def parse_args():
 
 
 def seed_selected_courses(args):
-    specs_by_slug = {spec["slug"]: spec for spec in COURSE_SPECS}
+    specs_by_slug = {}
+    for spec in COURSE_SPECS:
+        slug = spec["slug"]
+        specs_by_slug[slug] = spec
     selected_slugs = args.course or list(DEFAULT_SELECTED_COURSES)
 
     for slug in selected_slugs:
