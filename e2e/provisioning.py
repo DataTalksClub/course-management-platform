@@ -51,6 +51,15 @@ class ProvisionedCourse:
     question_ids: list[int] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class AdminDeleteResultData:
+    slug: str
+    admin_session: object
+    detail: dict
+    deleted: list[str]
+    residual: list[str]
+
+
 def make_namespace(timestamp: int | None = None) -> str:
     ts = timestamp if timestamp is not None else int(time.time())
     return f"{NAMESPACE_PREFIX}{ts}"
@@ -218,24 +227,26 @@ class Provisioner:
 
     def _record_admin_delete_result(
         self,
-        slug: str,
-        admin_session,
-        detail: dict,
-        deleted: list[str],
-        residual: list[str],
+        data: AdminDeleteResultData,
     ) -> bool:
-        if admin_session is None:
-            residual.append(
-                f"course:{slug} (no admin session; parked hidden)"
+        if data.admin_session is None:
+            data.residual.append(
+                f"course:{data.slug} (no admin session; parked hidden)"
             )
             return False
 
-        if self._admin_delete_course(slug, detail, admin_session):
-            deleted.append(f"course:{slug} (admin-deleted, cascaded)")
+        if self._admin_delete_course(
+            data.slug,
+            data.detail,
+            data.admin_session,
+        ):
+            data.deleted.append(
+                f"course:{data.slug} (admin-deleted, cascaded)"
+            )
             return True
 
-        residual.append(
-            f"course:{slug} (admin delete failed; parked hidden)"
+        data.residual.append(
+            f"course:{data.slug} (admin delete failed; parked hidden)"
         )
         return False
 
@@ -285,9 +296,14 @@ class Provisioner:
         self._delete_child_objects(slug, deleted, residual)
 
         # Primary path: delete the course (and its cascade) via the admin UI.
-        if self._record_admin_delete_result(
-            slug, admin_session, detail, deleted, residual
-        ):
+        admin_delete_data = AdminDeleteResultData(
+            slug=slug,
+            admin_session=admin_session,
+            detail=detail,
+            deleted=deleted,
+            residual=residual,
+        )
+        if self._record_admin_delete_result(admin_delete_data):
             return self._teardown_report(slug, deleted, residual)
 
         # Fallback: park the course hidden so dev stays clean.
