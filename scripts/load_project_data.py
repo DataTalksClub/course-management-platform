@@ -213,68 +213,98 @@ def get_or_create_project(course, project_data, clear_existing):
     return project, False
 
 
-def create_users(users_data, maps: ImportMaps) -> None:
-    print(f"\nCreating {len(users_data)} users...")
-    existing_usernames = {
-        u.username: u for u in User.objects.filter(
-            username__in=[user_data["username"] for user_data in users_data]
-        )
-    }
-    users_to_create = []
+def existing_users_by_username(users_data):
+    usernames = [user_data["username"] for user_data in users_data]
+    return {u.username: u for u in User.objects.filter(username__in=usernames)}
 
+
+def build_user(user_data):
+    return User(
+        username=user_data["username"],
+        email=user_data["email"],
+        certificate_name=user_data.get("certificate_name", ""),
+        dark_mode=user_data.get("dark_mode", False),
+    )
+
+
+def pending_user_imports(users_data, existing_users, maps: ImportMaps):
+    users_to_create = []
     for user_data in tqdm(users_data, desc="Processing users", unit="users"):
         old_id = user_data["id"]
         username = user_data["username"]
-        if username in existing_usernames:
-            maps.user_id_map[old_id] = existing_usernames[username].id
+        if username in existing_users:
+            maps.user_id_map[old_id] = existing_users[username].id
             continue
+        users_to_create.append((old_id, build_user(user_data)))
+    return users_to_create
 
-        users_to_create.append((old_id, User(
-            username=username,
-            email=user_data["email"],
-            certificate_name=user_data.get("certificate_name", ""),
-            dark_mode=user_data.get("dark_mode", False),
-        )))
 
-    if users_to_create:
-        created_users = User.objects.bulk_create([u for _, u in users_to_create])
-        for (old_id, _), created_user in zip(users_to_create, created_users):
-            maps.user_id_map[old_id] = created_user.id
+def create_users(users_data, maps: ImportMaps) -> None:
+    print(f"\nCreating {len(users_data)} users...")
+    existing_users = existing_users_by_username(users_data)
+    users_to_create = pending_user_imports(users_data, existing_users, maps)
+    bulk_create_mapped(User, users_to_create, maps.user_id_map)
 
     print(
         "✓ Users ready "
-        f"({len(users_to_create)} created, {len(existing_usernames)} existing)"
+        f"({len(users_to_create)} created, {len(existing_users)} existing)"
     )
 
 
 def build_enrollment(enroll_data, course, student_id):
     return Enrollment(
-        student_id=student_id,
-        course=course,
-        enrollment_date=parse_datetime(enroll_data["enrollment_date"]),
-        display_name=enroll_data.get("display_name", ""),
-        display_on_leaderboard=enroll_data.get("display_on_leaderboard", True),
-        position_on_leaderboard=enroll_data.get("position_on_leaderboard"),
-        certificate_name=enroll_data.get("certificate_name"),
-        total_score=enroll_data.get("total_score", 0),
-        certificate_url=enroll_data.get("certificate_url"),
-        github_url=enroll_data.get("github_url"),
-        linkedin_url=enroll_data.get("linkedin_url"),
-        personal_website_url=enroll_data.get("personal_website_url"),
-        about_me=enroll_data.get("about_me"),
+        **valid_model_kwargs(
+            Enrollment,
+            {
+                "student_id": student_id,
+                "course": course,
+                "enrollment_date": parse_datetime(enroll_data["enrollment_date"]),
+                "display_name": enroll_data.get("display_name", ""),
+                "display_on_leaderboard": enroll_data.get(
+                    "display_on_leaderboard", True
+                ),
+                "position_on_leaderboard": enroll_data.get(
+                    "position_on_leaderboard"
+                ),
+                "certificate_name": enroll_data.get("certificate_name"),
+                "total_score": enroll_data.get("total_score", 0),
+                "certificate_url": enroll_data.get("certificate_url"),
+                "github_url": enroll_data.get("github_url"),
+                "linkedin_url": enroll_data.get("linkedin_url"),
+                "personal_website_url": enroll_data.get("personal_website_url"),
+                "about_me": enroll_data.get("about_me"),
+            },
+        )
     )
 
 
-def create_enrollments(enrollments_data, course, maps: ImportMaps) -> None:
-    print(f"Creating {len(enrollments_data)} enrollments...")
-    existing_enrollments = {
+def valid_model_kwargs(model, values):
+    field_names = {field.name for field in model._meta.fields}
+    attnames = {field.attname for field in model._meta.fields}
+    valid_names = field_names | attnames
+    return {
+        name: value
+        for name, value in values.items()
+        if name in valid_names
+    }
+
+
+def existing_enrollments_by_student(course, maps: ImportMaps):
+    return {
         e.student_id: e for e in Enrollment.objects.filter(
             course=course,
             student_id__in=list(maps.user_id_map.values()),
         )
     }
-    enrollments_to_create = []
 
+
+def pending_enrollment_imports(
+    enrollments_data,
+    course,
+    existing_enrollments,
+    maps: ImportMaps,
+):
+    enrollments_to_create = []
     for enroll_data in tqdm(
         enrollments_data, desc="Processing enrollments", unit="enrollments"
     ):
@@ -283,18 +313,25 @@ def create_enrollments(enrollments_data, course, maps: ImportMaps) -> None:
         if new_student_id in existing_enrollments:
             maps.enrollment_id_map[old_id] = existing_enrollments[new_student_id].id
             continue
-
         enrollment = build_enrollment(enroll_data, course, new_student_id)
         enrollments_to_create.append((old_id, enrollment))
+    return enrollments_to_create
 
-    if enrollments_to_create:
-        created_enrollments = Enrollment.objects.bulk_create(
-            [e for _, e in enrollments_to_create]
-        )
-        for (old_id, _), created_enrollment in zip(
-            enrollments_to_create, created_enrollments
-        ):
-            maps.enrollment_id_map[old_id] = created_enrollment.id
+
+def create_enrollments(enrollments_data, course, maps: ImportMaps) -> None:
+    print(f"Creating {len(enrollments_data)} enrollments...")
+    existing_enrollments = existing_enrollments_by_student(course, maps)
+    enrollments_to_create = pending_enrollment_imports(
+        enrollments_data,
+        course,
+        existing_enrollments,
+        maps,
+    )
+    bulk_create_mapped(
+        Enrollment,
+        enrollments_to_create,
+        maps.enrollment_id_map,
+    )
 
     print(
         "✓ Enrollments ready "
@@ -318,13 +355,17 @@ def create_review_criteria(criteria_records, course, maps: ImportMaps) -> None:
     print("✓ Review criteria created")
 
 
-def flush_mapped_batch(model, pending, target_map):
+def bulk_create_mapped(model, pending, target_map):
     if not pending:
         return []
     created = model.objects.bulk_create([obj for _, obj in pending])
     for (old_id, _), created_obj in zip(pending, created):
         target_map[old_id] = created_obj.id
     return []
+
+
+def flush_mapped_batch(model, pending, target_map):
+    return bulk_create_mapped(model, pending, target_map)
 
 
 def build_project_submission(sub_data, project, maps: ImportMaps):
