@@ -453,6 +453,29 @@ class CadminViewTests(TestCase):
             kwargs={"campaign_slug": campaign.slug},
         )
 
+    def campaign_edit_payload(self):
+        return {
+            "title": "LLM Zoomcamp 2026",
+            "slug": "llm-zoomcamp",
+            "edition_label": "",
+            "current_course": self.course.id,
+            "is_active": "on",
+            "hero_image_url": "",
+            "video_url": "",
+            "meta_description": "",
+            "marketing_markdown": "New copy",
+        }
+
+    def assert_campaign_edit_page(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit registration landing page")
+        self.assertContains(response, "/register/llm-zoomcamp/")
+
+    def assert_campaign_updated(self, campaign):
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.title, "LLM Zoomcamp 2026")
+        self.assertEqual(campaign.marketing_markdown, "New copy")
+
     def post_campaign_datamailer_action(self, campaign, payload):
         self.login_admin()
         return self.client.post(self.campaign_edit_url(campaign), payload)
@@ -996,45 +1019,20 @@ class CadminViewTests(TestCase):
         self.assertFalse(RegistrationCampaign.objects.exists())
 
     def test_campaign_edit_staff_allowed(self):
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            current_course=self.course,
+        campaign = self.create_llm_registration_campaign(
             marketing_markdown="Old copy",
         )
 
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
-        )
+        self.login_admin()
+        url = self.campaign_edit_url(campaign)
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Edit registration landing page")
-        self.assertContains(response, "/register/llm-zoomcamp/")
+        self.assert_campaign_edit_page(response)
 
-        response = self.client.post(
-            url,
-            {
-                "title": "LLM Zoomcamp 2026",
-                "slug": "llm-zoomcamp",
-                "edition_label": "",
-                "current_course": self.course.id,
-                "is_active": "on",
-                "hero_image_url": "",
-                "video_url": "",
-                "meta_description": "",
-                "marketing_markdown": "New copy",
-            },
-        )
+        response = self.client.post(url, self.campaign_edit_payload())
 
         self.assertRedirects(response, url)
-        campaign.refresh_from_db()
-        self.assertEqual(campaign.title, "LLM Zoomcamp 2026")
-        self.assertEqual(campaign.marketing_markdown, "New copy")
+        self.assert_campaign_updated(campaign)
 
     def test_campaign_edit_shows_datamailer_campaign_controls(self):
         campaign = RegistrationCampaign.objects.create(
