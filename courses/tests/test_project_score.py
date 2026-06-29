@@ -103,13 +103,13 @@ class ProjectEvaluationTestCase(TestCase):
         self.criteria = self.create_review_criteria()
         self.peer_reviews = self.create_peer_reviews(3, optional=False)
 
-
     def create_peer_reviews(
         self, number_of_peer_reviews=3, optional=False
     ):
         peer_reviews = []
 
-        for i in range(number_of_peer_reviews):
+        peer_review_indexes = range(number_of_peer_reviews)
+        for i in peer_review_indexes:
             rnd = random.randint(0, 1000000)
 
             other_user = User.objects.create_user(
@@ -141,9 +141,8 @@ class ProjectEvaluationTestCase(TestCase):
     def assert_evaluation_score(
         self, answers_and_scores, expected_project_score
     ):
-        for i, (answer, expected_score) in enumerate(
-            answers_and_scores
-        ):
+        indexed_answers = enumerate(answers_and_scores)
+        for i, (answer, expected_score) in indexed_answers:
             pr = self.peer_reviews[i]
 
             response = CriteriaResponse.objects.create(
@@ -259,7 +258,8 @@ class ProjectEvaluationTestCase(TestCase):
 
     def submit_peer_reviews(self, peer_reviews, answers):
         self.assertEqual(len(peer_reviews), len(answers))
-        for pr, answer in zip(peer_reviews, answers):
+        peer_review_answers = zip(peer_reviews, answers)
+        for pr, answer in peer_review_answers:
             self.submit_peer_review(pr, answer)
 
     def submit_reverse_peer_reviews(
@@ -461,7 +461,11 @@ class ProjectEvaluationTestCase(TestCase):
             self.assert_evaluation_score(answers_and_scores, 3)
 
         self.assertEqual(sync.call_count, 4)
-        synced_submission_ids = {call.args[0].pk for call in sync.call_args_list}
+        synced_submission_ids = set()
+        sync_calls = sync.call_args_list
+        for call in sync_calls:
+            submission_id = call.args[0].pk
+            synced_submission_ids.add(submission_id)
         self.assertIn(self.submission.pk, synced_submission_ids)
 
     def test_project_not_passed(self):
@@ -524,7 +528,8 @@ class ProjectEvaluationTestCase(TestCase):
 
     def submit_checkbox_responses(self, checkbox_criteria):
         answers = ["1,3", "2,3", "3"]
-        for peer_review, answer in zip(self.peer_reviews, answers):
+        peer_review_answers = zip(self.peer_reviews, answers)
+        for peer_review, answer in peer_review_answers:
             CriteriaResponse.objects.create(
                 review=peer_review,
                 criteria=checkbox_criteria,
@@ -544,10 +549,12 @@ class ProjectEvaluationTestCase(TestCase):
 
     def assert_option_vote_counts(self, response):
         score = response.context["scores"][0]
-        option_votes = {
-            option["criteria"]: option["votes"]
-            for option in score.option_vote_counts
-        }
+        option_votes = {}
+        option_vote_counts = score.option_vote_counts
+        for option in option_vote_counts:
+            criteria = option["criteria"]
+            votes = option["votes"]
+            option_votes[criteria] = votes
         self.assertEqual(
             option_votes,
             {
