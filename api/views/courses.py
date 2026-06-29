@@ -190,38 +190,70 @@ def _course_from_create_data(data):
     )
 
 
+def _course_create_data_from_request(request):
+    data, err = parse_json_body(request)
+    if err:
+        return None, err
+
+    data, err = _normalize_course_data(data)
+    if err:
+        return None, err
+
+    return data, None
+
+
+def _missing_course_create_fields_response(data):
+    if not _missing_course_create_fields(data):
+        return None
+
+    return error_response(
+        "title and slug are required",
+        "missing_required_fields",
+    )
+
+
+def _duplicate_course_slug_response(data):
+    slug = data.get("slug")
+    if not Course.objects.filter(slug=slug).exists():
+        return None
+
+    return error_response(
+        f"Course with slug '{slug}' already exists",
+        "course_slug_exists",
+        details={"slug": slug},
+    )
+
+
+def _course_create_validation_error(course):
+    try:
+        course.full_clean()
+    except ValidationError as exc:
+        return _validation_error_response(exc)
+
+    return None
+
+
 def _create_course_response(request):
     staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
-    data, err = parse_json_body(request)
+    data, err = _course_create_data_from_request(request)
     if err:
         return err
 
-    data, err = _normalize_course_data(data)
+    err = _missing_course_create_fields_response(data)
     if err:
         return err
 
-    if _missing_course_create_fields(data):
-        return error_response(
-            "title and slug are required",
-            "missing_required_fields",
-        )
-
-    slug = data.get("slug")
-    if Course.objects.filter(slug=slug).exists():
-        return error_response(
-            f"Course with slug '{slug}' already exists",
-            "course_slug_exists",
-            details={"slug": slug},
-        )
+    err = _duplicate_course_slug_response(data)
+    if err:
+        return err
 
     course = _course_from_create_data(data)
-    try:
-        course.full_clean()
-    except ValidationError as exc:
-        return _validation_error_response(exc)
+    err = _course_create_validation_error(course)
+    if err:
+        return err
 
     course.save()
     return JsonResponse(_course_to_dict(course), status=201)
