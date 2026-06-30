@@ -188,4 +188,5 @@ def build_openapi_spec():
 
 @token_required
 def openapi_json_view(request):
-    return JsonResponse(build_openapi_spec())
+    spec = build_openapi_spec()
+    return JsonResponse(spec)

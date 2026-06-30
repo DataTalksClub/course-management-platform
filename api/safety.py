@@ -82,7 +82,8 @@ def delete_object_or_error(data):
         return err
 
     data.instance.delete()
-    return JsonResponse({"deleted": True})
+    payload = {"deleted": True}
+    return JsonResponse(payload)
 
 
 def apply_patch_fields(

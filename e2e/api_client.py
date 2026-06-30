@@ -149,7 +149,9 @@ class CmpApiClient:
             expected=(200,),
         )
         resp = self._request(request_data)
-        return resp.json().get("courses", [])
+        body = resp.json()
+        courses = body.get("courses", [])
+        return courses
 
     def create_course(self, payload: dict) -> dict:
         request_data = ApiRequestData(
@@ -168,7 +170,10 @@ class CmpApiClient:
             expected=(200, 404),
         )
         resp = self._request(request_data)
-        return resp.json() if resp.status_code == 200 else None
+        if resp.status_code != 200:
+            return None
+        body = resp.json()
+        return body
 
     def update_course(self, slug: str, payload: dict) -> dict:
         request_data = ApiRequestData(
@@ -204,7 +209,9 @@ class CmpApiClient:
             expected=(200,),
         )
         resp = self._request(request_data)
-        return resp.json().get("homeworks", [])
+        body = resp.json()
+        homeworks = body.get("homeworks", [])
+        return homeworks
 
     def update_homework(self, course_slug: str, hw_id: int, payload: dict) -> dict:
         request_data = ApiRequestData(
@@ -267,7 +274,9 @@ class CmpApiClient:
             expected=(200,),
         )
         resp = self._request(request_data)
-        return resp.json().get("projects", [])
+        body = resp.json()
+        projects = body.get("projects", [])
+        return projects
 
     def update_project(self, course_slug: str, proj_id: int, payload: dict) -> dict:
         request_data = ApiRequestData(

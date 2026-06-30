@@ -17,7 +17,8 @@ def health_view(request):
     Returns:
         JSON response with version information.
     """
-    return JsonResponse({
+    payload = {
         "status": "ok",
         "version": settings.VERSION,
-    })
+    }
+    return JsonResponse(payload)

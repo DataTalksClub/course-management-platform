@@ -131,7 +131,8 @@ def toggle_dark_mode(request):
     user = request.user
     user.dark_mode = not user.dark_mode
     user.save(update_fields=['dark_mode'])
-    return JsonResponse({'dark_mode': user.dark_mode})
+    payload = {'dark_mode': user.dark_mode}
+    return JsonResponse(payload)
 
 
 @login_required
@@ -179,7 +180,8 @@ def _account_email_preferences_get_response(user):
     preferences = get_email_preferences_for_user(user)
     if preferences is None:
         return _email_preferences_unavailable_response()
-    return JsonResponse({"preferences": preferences})
+    payload = {"preferences": preferences}
+    return JsonResponse(payload)
 
 
 def _email_preference_update_payload(request):
@@ -274,11 +276,13 @@ def _save_timezone_preference(user, timezone_name):
 def update_timezone_preference(request):
     data, error = _parse_timezone_request(request)
     if error:
-        return JsonResponse({"error": error}, status=400)
+        payload = {"error": error}
+        return JsonResponse(payload, status=400)
 
     timezone_name, error = _validated_timezone_name(data)
     if error:
-        return JsonResponse({"error": error}, status=400)
+        payload = {"error": error}
+        return JsonResponse(payload, status=400)
 
     user = request.user
     if _should_keep_saved_timezone(data, user):

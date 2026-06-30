@@ -405,7 +405,8 @@ def _close_and_delete(data):
         # 400 -> blocked, typically by existing submissions.
         body = ""
         try:
-            body = resp.json().get("error", "")
+            response_body = resp.json()
+            body = response_body.get("error", "")
         except ValueError:
             body = resp.text[:120]
         data.residual.append(f"{label} (blocked: {body})")
