@@ -561,6 +561,8 @@ Steps:
   re-export imports.
 - [x] Wire course and homework URLs directly to split view modules and remove
   course/homework view re-export imports.
+- [x] Wire cadmin, API, and legacy data URLs directly to split view modules and
+  remove view package re-export imports.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -1,7 +1,18 @@
 from django.urls import path
 
 from .openapi import openapi_json_view
-from . import views
+from .views import course_exports
+from .views import courses
+from .views import enrollment_exports
+from .views import health
+from .views import homework_exports
+from .views import homeworks
+from .views import leaderboard_exports
+from .views import project_exports
+from .views import projects
+from .views import questions
+from .views import registration_campaigns
+from .views import webhooks
 
 urlpatterns = [
     path(
@@ -12,136 +23,136 @@ urlpatterns = [
     # Public/export endpoints
     path(
         "health/",
-        views.health_view,
+        health.health_view,
         name="api_health",
     ),
     path(
         "courses/<slug:course_slug>/course-criteria.yaml",
-        views.course_criteria_yaml_view,
+        course_exports.course_criteria_yaml_view,
         name="api_course_criteria_yaml",
     ),
     path(
         "courses/<slug:course_slug>/leaderboard.yaml",
-        views.leaderboard_data_view,
+        leaderboard_exports.leaderboard_data_view,
         name="api_course_leaderboard",
     ),
     path(
         "courses/<slug:course_slug>/homeworks/<slug:homework_slug>/submissions",
-        views.homework_data_view,
+        homework_exports.homework_data_view,
         name="api_homework_submissions_export",
     ),
     path(
         "courses/<slug:course_slug>/projects/<slug:project_slug>/submissions",
-        views.project_data_view,
+        project_exports.project_data_view,
         name="api_project_submissions_export",
     ),
     path(
         "courses/<slug:course_slug>/graduates",
-        views.graduates_data_view,
+        enrollment_exports.graduates_data_view,
         name="api_course_graduates",
     ),
     path(
         "courses/<slug:course_slug>/certificates",
-        views.bulk_update_enrollment_certificates_view,
+        enrollment_exports.bulk_update_enrollment_certificates_view,
         name="api_course_certificates",
     ),
     path(
         "datamailer/events",
-        views.datamailer_event_webhook,
+        webhooks.datamailer_event_webhook,
         name="api_datamailer_events",
     ),
     # Courses
     path(
         "courses/",
-        views.courses_list_view,
+        courses.courses_list_view,
         name="api_courses_list",
     ),
     path(
         "courses/<slug:course_slug>/",
-        views.course_detail_view,
+        courses.course_detail_view,
         name="api_course_detail",
     ),
     path(
         "registration-campaigns/",
-        views.registration_campaigns_view,
+        registration_campaigns.registration_campaigns_view,
         name="api_registration_campaigns",
     ),
     path(
         "registration-campaigns/<slug:campaign_slug>/",
-        views.registration_campaign_detail_view,
+        registration_campaigns.registration_campaign_detail_view,
         name="api_registration_campaign_detail",
     ),
     path(
         "registration-campaigns/<slug:campaign_slug>/registrations/",
-        views.registration_campaign_registrations_view,
+        registration_campaigns.registration_campaign_registrations_view,
         name="api_registration_campaign_registrations",
     ),
     # Homeworks
     path(
         "courses/<slug:course_slug>/homeworks/",
-        views.homeworks_view,
+        homeworks.homeworks_view,
         name="api_homeworks",
     ),
     path(
         "courses/<slug:course_slug>/homeworks/<int:homework_id>/",
-        views.homework_detail_view,
+        homeworks.homework_detail_view,
         name="api_homework_detail",
     ),
     path(
         "courses/<slug:course_slug>/homeworks/<int:homework_id>/score/",
-        views.homework_score_view,
+        homeworks.homework_score_view,
         name="api_homework_score",
     ),
     path(
         "courses/<slug:course_slug>/homeworks/by-slug/<slug:homework_slug>/",
-        views.homework_detail_by_slug_view,
+        homeworks.homework_detail_by_slug_view,
         name="api_homework_detail_by_slug",
     ),
     path(
         "courses/<slug:course_slug>/homeworks/by-slug/<slug:homework_slug>/score/",
-        views.homework_score_by_slug_view,
+        homeworks.homework_score_by_slug_view,
         name="api_homework_score_by_slug",
     ),
     # Projects
     path(
         "courses/<slug:course_slug>/projects/",
-        views.projects_view,
+        projects.projects_view,
         name="api_projects",
     ),
     path(
         "courses/<slug:course_slug>/projects/<int:project_id>/",
-        views.project_detail_view,
+        projects.project_detail_view,
         name="api_project_detail",
     ),
     path(
         "courses/<slug:course_slug>/projects/<int:project_id>/assign-reviews/",
-        views.project_assign_reviews_view,
+        projects.project_assign_reviews_view,
         name="api_project_assign_reviews",
     ),
     path(
         "courses/<slug:course_slug>/projects/<int:project_id>/score/",
-        views.project_score_view,
+        projects.project_score_view,
         name="api_project_score",
     ),
     path(
         "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/",
-        views.project_detail_by_slug_view,
+        projects.project_detail_by_slug_view,
         name="api_project_detail_by_slug",
     ),
     path(
         "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/assign-reviews/",
-        views.project_assign_reviews_by_slug_view,
+        projects.project_assign_reviews_by_slug_view,
         name="api_project_assign_reviews_by_slug",
     ),
     path(
         "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/score/",
-        views.project_score_by_slug_view,
+        projects.project_score_by_slug_view,
         name="api_project_score_by_slug",
     ),
     # Questions
     path(
         "courses/<slug:course_slug>/homeworks/<int:homework_id>/questions/",
-        views.questions_view,
+        questions.questions_view,
         name="api_questions",
     ),
     path(
@@ -149,7 +160,7 @@ urlpatterns = [
             "courses/<slug:course_slug>/homeworks/<int:homework_id>/"
             "questions/<int:question_id>/"
         ),
-        views.question_detail_view,
+        questions.question_detail_view,
         name="api_question_detail",
     ),
 ]

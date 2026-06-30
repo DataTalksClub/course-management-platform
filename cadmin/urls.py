@@ -1,98 +1,107 @@
 from django.urls import path
 
-from . import views
+from .views import campaigns
+from .views import course_admin
+from .views import datamailer
+from .views import enrollment
+from .views import homework
+from .views import projects
 
 urlpatterns = [
-    path("", views.course_list, name="cadmin_course_list"),
+    path("", course_admin.course_list, name="cadmin_course_list"),
     path(
         "campaigns/new/",
-        views.campaign_create,
+        campaigns.campaign_create,
         name="cadmin_campaign_create",
     ),
     path(
         "campaigns/<slug:campaign_slug>/edit/",
-        views.campaign_edit,
+        campaigns.campaign_edit,
         name="cadmin_campaign_edit",
     ),
     path(
         "registrations/<slug:campaign_slug>/",
-        views.campaign_registrations,
+        campaigns.campaign_registrations,
         name="cadmin_campaign_registrations",
     ),
     path(
         "datamailer/",
-        views.datamailer_operations,
+        datamailer.datamailer_operations,
         name="cadmin_datamailer_operations",
     ),
     path(
         "datamailer/events/",
-        views.datamailer_events,
+        datamailer.datamailer_events,
         name="cadmin_datamailer_events",
     ),
-    path("<slug:course_slug>/", views.course_admin, name="cadmin_course"),
+    path(
+        "<slug:course_slug>/",
+        course_admin.course_admin,
+        name="cadmin_course",
+    ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/score",
-        views.homework_score,
+        homework.homework_score,
         name="cadmin_homework_score",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/set-correct-answers",
-        views.homework_set_correct_answers,
+        homework.homework_set_correct_answers,
         name="cadmin_homework_set_correct_answers",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/clear-correct-answers",
-        views.homework_clear_correct_answers,
+        homework.homework_clear_correct_answers,
         name="cadmin_homework_clear_correct_answers",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/submissions",
-        views.homework_submissions,
+        homework.homework_submissions,
         name="cadmin_homework_submissions",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/submissions/<int:submission_id>/edit",
-        views.homework_submission_edit,
+        homework.homework_submission_edit,
         name="cadmin_homework_submission_edit",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/assign-reviews",
-        views.project_assign_reviews,
+        projects.project_assign_reviews,
         name="cadmin_project_assign_reviews",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/score",
-        views.project_score,
+        projects.project_score,
         name="cadmin_project_score",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/submissions",
-        views.project_submissions,
+        projects.project_submissions,
         name="cadmin_project_submissions",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/submissions/<int:submission_id>/edit",
-        views.project_submission_edit,
+        projects.project_submission_edit,
         name="cadmin_project_submission_edit",
     ),
     path(
         "<slug:course_slug>/enrollments/",
-        views.enrollments_list,
+        enrollment.enrollments_list,
         name="cadmin_enrollments",
     ),
     path(
         "<slug:course_slug>/leaderboard-complaints/",
-        views.leaderboard_complaints,
+        enrollment.leaderboard_complaints,
         name="cadmin_leaderboard_complaints",
     ),
     path(
         "<slug:course_slug>/leaderboard-complaints/<int:complaint_id>/resolve",
-        views.leaderboard_complaint_resolve,
+        enrollment.leaderboard_complaint_resolve,
         name="cadmin_leaderboard_complaint_resolve",
     ),
     path(
         "<slug:course_slug>/enrollment/<int:enrollment_id>/edit",
-        views.enrollment_edit,
+        enrollment.enrollment_edit,
         name="cadmin_enrollment_edit",
     ),
 ]

@@ -51,10 +51,6 @@ class MockInboxTimeout(AssertionError):
     """Raised when no matching message arrives within the timeout."""
 
 
-# Backwards-compatible alias (kept so older imports keep working).
-MockInboxNotConfigured = InboxNotConfigured
-
-
 @dataclass
 class InboxMessage:
     """A captured email, normalised across backends.
