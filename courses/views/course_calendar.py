@@ -46,9 +46,8 @@ def escape_ics_text(value: str) -> str:
 
 def format_ics_datetime(value) -> str:
     if timezone.is_naive(value):
-        value = timezone.make_aware(
-            value, timezone.get_current_timezone()
-        )
+        current_timezone = timezone.get_current_timezone()
+        value = timezone.make_aware(value, current_timezone)
 
     value = value.astimezone(datetime_timezone.utc)
     return value.strftime("%Y%m%dT%H%M%SZ")
@@ -56,16 +55,23 @@ def format_ics_datetime(value) -> str:
 
 def calendar_event(data: CalendarEventData) -> list[str]:
     end = data.start + timedelta(minutes=30)
+    uid = escape_ics_text(data.uid)
+    dtstamp = format_ics_datetime(data.dtstamp)
+    start = format_ics_datetime(data.start)
+    end_time = format_ics_datetime(end)
+    summary = escape_ics_text(data.summary)
+    description = escape_ics_text(data.description)
+    url = escape_ics_text(data.url)
 
     return [
         "BEGIN:VEVENT",
-        f"UID:{escape_ics_text(data.uid)}",
-        f"DTSTAMP:{format_ics_datetime(data.dtstamp)}",
-        f"DTSTART:{format_ics_datetime(data.start)}",
-        f"DTEND:{format_ics_datetime(end)}",
-        f"SUMMARY:{escape_ics_text(data.summary)}",
-        f"DESCRIPTION:{escape_ics_text(data.description)}",
-        f"URL:{escape_ics_text(data.url)}",
+        f"UID:{uid}",
+        f"DTSTAMP:{dtstamp}",
+        f"DTSTART:{start}",
+        f"DTEND:{end_time}",
+        f"SUMMARY:{summary}",
+        f"DESCRIPTION:{description}",
+        f"URL:{url}",
         "END:VEVENT",
     ]
 
@@ -74,15 +80,14 @@ def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
     homeworks = Homework.objects.filter(course=course).order_by("due_date")
     events = []
     for homework in homeworks:
-        url = request.build_absolute_uri(
-            reverse(
-                "homework",
-                kwargs={
-                    "course_slug": course.slug,
-                    "homework_slug": homework.slug,
-                },
-            )
+        homework_path = reverse(
+            "homework",
+            kwargs={
+                "course_slug": course.slug,
+                "homework_slug": homework.slug,
+            },
         )
+        url = request.build_absolute_uri(homework_path)
         event_data = CalendarEventData(
             uid=f"homework-{homework.id}@courses.datatalks.club",
             summary=f"{course.title}: {homework.title} deadline",
@@ -100,15 +105,14 @@ def _homework_calendar_events(request, course, dtstamp) -> list[list[str]]:
 
 
 def _project_detail_url(request, course, project) -> str:
-    return request.build_absolute_uri(
-        reverse(
-            "project",
-            kwargs={
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-            },
-        )
+    project_path = reverse(
+        "project",
+        kwargs={
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+        },
     )
+    return request.build_absolute_uri(project_path)
 
 
 def _project_deadline_calendar_event(
@@ -181,13 +185,14 @@ def _project_calendar_events(request, course, dtstamp) -> list[list[str]]:
 
 
 def _course_calendar_lines(course, events):
+    course_title = escape_ics_text(course.title)
     return [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//DataTalks.Club//Course Management Platform//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
-        f"X-WR-CALNAME:{escape_ics_text(course.title)} deadlines",
+        f"X-WR-CALNAME:{course_title} deadlines",
         *events,
         "END:VCALENDAR",
     ]
@@ -210,9 +215,10 @@ def course_calendar_view(
         for line in event_lines:
             events.append(line)
     calendar_lines = _course_calendar_lines(course, events)
+    response_body = "\r\n".join(calendar_lines) + "\r\n"
 
     response = HttpResponse(
-        "\r\n".join(calendar_lines) + "\r\n",
+        response_body,
         content_type="text/calendar; charset=utf-8",
     )
     response["Content-Disposition"] = (
