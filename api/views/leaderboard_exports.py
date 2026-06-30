@@ -109,39 +109,53 @@ def _leaderboard_project_entry(sub):
 
 
 def _leaderboard_submission_prefetches():
-    return (
-        Prefetch(
-            "submission_set",
-            queryset=Submission.objects.filter(
-                homework__state=HomeworkState.SCORED.value,
-            )
-            .select_related("homework")
-            .order_by("homework__id"),
-            to_attr="scored_submissions",
-        ),
-        Prefetch(
-            "projectsubmission_set",
-            queryset=ProjectSubmission.objects.filter(
-                project__state=ProjectState.COMPLETED.value,
-                volunteer_review_only=False,
-            )
-            .select_related("project")
-            .order_by("project__id"),
-            to_attr="completed_project_submissions",
+    scored_submissions = (
+        Submission.objects.filter(
+            homework__state=HomeworkState.SCORED.value,
         )
+        .select_related("homework")
+        .order_by("homework__id")
+    )
+    completed_project_submissions = (
+        ProjectSubmission.objects.filter(
+            project__state=ProjectState.COMPLETED.value,
+            volunteer_review_only=False,
+        )
+        .select_related("project")
+        .order_by("project__id")
+    )
+    homework_prefetch = Prefetch(
+        "submission_set",
+        queryset=scored_submissions,
+        to_attr="scored_submissions",
+    )
+    project_prefetch = Prefetch(
+        "projectsubmission_set",
+        queryset=completed_project_submissions,
+        to_attr="completed_project_submissions",
+    )
+    return (
+        homework_prefetch,
+        project_prefetch,
     )
 
 
 def _leaderboard_enrollments(course):
+    prefetches = _leaderboard_submission_prefetches()
+    empty_position = Value(999999)
+    leaderboard_position = Coalesce(
+        "position_on_leaderboard",
+        empty_position,
+    )
     return (
         Enrollment.objects.filter(
             course=course,
             display_on_leaderboard=True,
         )
         .select_related("student")
-        .prefetch_related(*_leaderboard_submission_prefetches())
+        .prefetch_related(*prefetches)
         .order_by(
-            Coalesce("position_on_leaderboard", Value(999999)),
+            leaderboard_position,
             "id",
         )
     )
@@ -211,8 +225,9 @@ def _leaderboard_data_cache_key(course, cache_version, page):
 
 def _build_leaderboard_data(course, page_number):
     """Build the full leaderboard JSON structure with score breakdowns."""
+    leaderboard_enrollments = _leaderboard_enrollments(course)
     paginator = Paginator(
-        _leaderboard_enrollments(course),
+        leaderboard_enrollments,
         LEADERBOARD_DATA_PAGE_SIZE,
     )
     page_obj = paginator.get_page(page_number)
@@ -222,14 +237,17 @@ def _build_leaderboard_data(course, page_number):
         enrollment_entry = _leaderboard_enrollment_entry(enrollment)
         results.append(enrollment_entry)
 
+    has_next = page_obj.has_next()
+    has_previous = page_obj.has_previous()
+    page_links = _leaderboard_page_links(course, page_obj)
     return {
         "course": course.slug,
         "page": page_obj.number,
         "total_pages": paginator.num_pages,
         "total_entries": paginator.count,
-        "has_next": page_obj.has_next(),
-        "has_previous": page_obj.has_previous(),
-        **_leaderboard_page_links(course, page_obj),
+        "has_next": has_next,
+        "has_previous": has_previous,
+        **page_links,
         "leaderboard": results,
     }
 
@@ -282,7 +300,8 @@ def _cached_leaderboard_yaml(course, page, cache_version):
 def leaderboard_data_view(request, course_slug: str):
     """Public endpoint returning the full leaderboard with score breakdowns."""
     course = get_object_or_404(Course, slug=course_slug)
-    page = _get_positive_int(request.GET.get("page"), 1)
+    page_value = request.GET.get("page")
+    page = _get_positive_int(page_value, 1)
     cache_version = _get_cache_version(course)
     yaml_content = _cached_leaderboard_yaml(course, page, cache_version)
     return HttpResponse(
