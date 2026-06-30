@@ -52,12 +52,13 @@ def _course_criteria_export_data(course):
 
 def _course_criteria_yaml(course):
     export_data = _course_criteria_export_data(course)
-    return yaml.dump(
+    yaml_content = yaml.safe_dump(
         export_data,
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False
     )
+    return yaml_content
 
 
 @require_GET

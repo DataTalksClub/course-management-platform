@@ -35,12 +35,6 @@ LEADERBOARD_YAML_CACHE_TTL = LEADERBOARD_DATA_CACHE_TTL
 LEADERBOARD_DATA_PAGE_SIZE = 100
 
 
-try:
-    YamlDumper = yaml.CSafeDumper
-except AttributeError:
-    YamlDumper = yaml.SafeDumper
-
-
 def _get_positive_int(value, default, maximum=None):
     try:
         result = int(value)
@@ -270,13 +264,13 @@ def _cached_leaderboard_data(course, page, cache_version):
 
 
 def _leaderboard_yaml_content(data):
-    return yaml.dump(
+    yaml_content = yaml.safe_dump(
         data,
-        Dumper=YamlDumper,
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False,
     )
+    return yaml_content
 
 
 def _cached_leaderboard_yaml(course, page, cache_version):
