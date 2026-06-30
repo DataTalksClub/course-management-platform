@@ -554,6 +554,7 @@ Steps:
   `courses/views/course.py`.
 - [x] Split project evaluation submit/review form workflow out of
   `courses/views/project_eval.py`.
+- [x] Split project peer-review assignment out of `courses/projects.py`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
