@@ -104,11 +104,12 @@ def _send_homework_score_notification_if_ready(config, list_key, payload):
 
 def _handle_recipient_list_notification_error(error_data):
     logger.exception(error_data.log_message, error_data.object_id)
+    error = str(error_data.exc)
     audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
         payload=error_data.payload,
         list_key=error_data.list_key,
-        error=str(error_data.exc),
+        error=error,
     )
     record_datamailer_send_audit(audit_data)
     if error_data.config.strict:
@@ -217,8 +218,9 @@ def _send_recipient_list_transactional_and_audit(
     config, list_key, payload
 ):
     client = DatamailerClient(config)
+    send_payload = recipient_list_send_payload(payload)
     response = client.send_recipient_list_transactional(
-        list_key, recipient_list_send_payload(payload)
+        list_key, send_payload
     )
     audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.RECIPIENT_LIST,
@@ -344,10 +346,11 @@ def _handle_certificate_availability_send_error(
         enrollment.pk,
     )
     if payload is not None:
+        error = str(exc)
         audit_data = DatamailerSendAuditData(
             send_type=DatamailerSendAuditType.TRANSACTIONAL,
             payload=payload,
-            error=str(exc),
+            error=error,
         )
         record_datamailer_send_audit(audit_data)
     if config.strict:
@@ -362,13 +365,14 @@ def _sync_graduate_outcome_before_certificate_send(
         return True
 
     list_key, list_payload = graduate_list_payload
+    idempotency_key = _certificate_graduate_outcome_idempotency_key(
+        payload, enrollment
+    )
     bulk_data = RecipientListBulkUpsertData(
         config=config,
         list_key=list_key,
         payload=list_payload,
-        idempotency_key=_certificate_graduate_outcome_idempotency_key(
-            payload, enrollment
-        ),
+        idempotency_key=idempotency_key,
         ordering_key=list_key,
     )
     synced = bulk_upsert_recipient_list_members_before_send(bulk_data)
@@ -429,10 +433,11 @@ def _transactional_payload_with_config_defaults(config, payload):
 
 def _handle_transactional_send_error(config, payload, exc):
     logger.exception("Datamailer transactional email failed")
+    error = str(exc)
     audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.TRANSACTIONAL,
         payload=payload,
-        error=str(exc),
+        error=error,
     )
     record_datamailer_send_audit(audit_data)
     if config.strict:
