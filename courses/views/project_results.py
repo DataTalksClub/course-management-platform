@@ -13,6 +13,7 @@ from courses.models import (
     ProjectSubmission,
 )
 
+
 def answer_option_indexes(answer: str) -> list[int]:
     if not answer:
         return []
@@ -87,12 +88,14 @@ def _project_results_context(course, project, user):
         return _anonymous_project_results_context(course, project)
 
     submission = _project_results_submission(project, user)
+    scores = _project_results_scores(submission)
+    feedback = _project_results_feedback(submission)
     return {
         "course": course,
         "project": project,
         "submission": submission,
-        "scores": _project_results_scores(submission),
-        "feedback": _project_results_feedback(submission),
+        "scores": scores,
+        "feedback": feedback,
         "is_authenticated": True,
     }
 
@@ -114,21 +117,19 @@ def _project_results_submission(project, user):
 
 
 def _project_results_scores(submission):
-    scores = list(
-        ProjectEvaluationScore.objects.filter(submission=submission)
-        .order_by("review_criteria__id")
-        .prefetch_related("review_criteria")
-    )
-    annotate_scores_with_option_votes(submission, scores)
-    return scores
+    scores = ProjectEvaluationScore.objects.filter(submission=submission)
+    scores = scores.order_by("review_criteria__id")
+    scores = scores.prefetch_related("review_criteria")
+    scores_list = list(scores)
+    annotate_scores_with_option_votes(submission, scores_list)
+    return scores_list
 
 
 def _project_results_feedback(submission):
-    return list(
-        PeerReview.objects.filter(
-            submission_under_evaluation=submission,
-            state=PeerReviewState.SUBMITTED.value,
-            note_to_peer__isnull=False,
-            note_to_peer__gt="",
-        )
+    feedback = PeerReview.objects.filter(
+        submission_under_evaluation=submission,
+        state=PeerReviewState.SUBMITTED.value,
+        note_to_peer__isnull=False,
+        note_to_peer__gt="",
     )
+    return list(feedback)

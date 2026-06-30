@@ -583,6 +583,8 @@ Steps:
   and display-score expression parts instead of nesting calls inline.
 - [x] Name project-submission voting request values, payload fields, and vote
   count query steps instead of nesting calls inline.
+- [x] Name project-result scores, feedback querysets, and context values instead
+  of nesting calls inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
