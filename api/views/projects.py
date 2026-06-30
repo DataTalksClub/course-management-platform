@@ -427,9 +427,10 @@ def _apply_project_data(project, data):
     if error:
         return error
 
+    patch_data = _project_generic_patch_data(data)
     return apply_patch_fields(
         project,
-        _project_generic_patch_data(data),
+        patch_data,
         PROJECT_PATCH_RULES,
     )
 
