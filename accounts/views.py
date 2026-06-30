@@ -298,11 +298,13 @@ def stop_impersonating(request):
 
 async def social_login_view(request):
     providers = await get_available_providers()
+    context = {"providers": providers}
+    render_async = sync_to_async(render)
 
-    return await sync_to_async(render)(
+    return await render_async(
         request,
         "accounts/login.html",
-        {"providers": providers},
+        context,
     )
 
 
