@@ -263,9 +263,11 @@ def expected_members(payload):
         if member.get("status", "active") == "removed":
             continue
         source_object_key = member["source_object_key"]
+        email = member["email"].strip().lower()
+        metadata = member.get("metadata") or {}
         member_record = {
-            "email": member["email"].strip().lower(),
-            "metadata": member.get("metadata") or {},
+            "email": email,
+            "metadata": metadata,
         }
         members[source_object_key] = member_record
     return members
@@ -278,9 +280,11 @@ def actual_members(response):
         if member.get("status", "active") == "removed":
             continue
         source_object_key = member["source_object_key"]
+        email = member["email"].strip().lower()
+        metadata = member.get("metadata") or {}
         member_record = {
-            "email": member["email"].strip().lower(),
-            "metadata": member.get("metadata") or {},
+            "email": email,
+            "metadata": metadata,
         }
         members[source_object_key] = member_record
     return members
@@ -328,15 +332,19 @@ def compare_members(expected, actual):
     expected_keys = set(expected)
     actual_keys = set(actual)
     shared_keys = expected_keys & actual_keys
+    missing_keys = sorted(expected_keys - actual_keys)
+    unexpected_keys = sorted(actual_keys - expected_keys)
+    email_mismatches = member_field_mismatches(
+        expected, actual, shared_keys, "email"
+    )
+    metadata_mismatches = member_field_mismatches(
+        expected, actual, shared_keys, "metadata"
+    )
     drift = {
-        "missing": sorted(expected_keys - actual_keys),
-        "unexpected": sorted(actual_keys - expected_keys),
-        "email_mismatches": member_field_mismatches(
-            expected, actual, shared_keys, "email"
-        ),
-        "metadata_mismatches": member_field_mismatches(
-            expected, actual, shared_keys, "metadata"
-        ),
+        "missing": missing_keys,
+        "unexpected": unexpected_keys,
+        "email_mismatches": email_mismatches,
+        "metadata_mismatches": metadata_mismatches,
     }
     drift["has_drift"] = has_member_drift(drift)
     return drift

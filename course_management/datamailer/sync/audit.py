@@ -71,13 +71,16 @@ def datamailer_send_audit_base_defaults(data) -> dict[str, Any]:
         data.payload,
         data.metadata,
     )
+    status = datamailer_audit_status(data.error)
+    source = data.metadata.get("source", "")
+    event = data.metadata.get("event", "")
     return {
-        "status": datamailer_audit_status(data.error),
+        "status": status,
         "template_key": template_key,
         "category_tag": category_tag,
         "list_key": list_key,
-        "source": data.metadata.get("source", ""),
-        "event": data.metadata.get("event", ""),
+        "source": source,
+        "event": event,
         "error": data.error,
         "response_payload": data.response,
     }
@@ -116,9 +119,10 @@ def record_datamailer_send_audit(data) -> DatamailerSendAudit | None:
         error=data.error,
         metadata=metadata,
     )
+    defaults = datamailer_send_audit_defaults(defaults_data)
     audit, _created = DatamailerSendAudit.objects.update_or_create(
         send_type=data.send_type,
         idempotency_key=idempotency_key,
-        defaults=datamailer_send_audit_defaults(defaults_data),
+        defaults=defaults,
     )
     return audit

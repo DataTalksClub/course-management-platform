@@ -77,6 +77,7 @@ def campaign_payload(options):
         "category_tag",
         "--category-tag is required.",
     )
+    metadata = parse_metadata(options["metadata"])
 
     payload = {
         "subject": subject,
@@ -86,9 +87,10 @@ def campaign_payload(options):
         "category_tag": category_tag,
         "include_tags": options["include_tag"],
         "exclude_tags": options["exclude_tag"],
-        "metadata": parse_metadata(options["metadata"]),
+        "metadata": metadata,
     }
-    payload.update(campaign_optional_fields(options))
+    optional_fields = campaign_optional_fields(options)
+    payload.update(optional_fields)
     return payload
 
 
@@ -230,15 +232,20 @@ class Command(BaseCommand):
         return config
 
     def run_campaign_requests(self, client, external_key, options):
-        responses = {
-            "upsert": client.upsert_campaign(
-                external_key,
-                campaign_payload(options),
-            )
-        }
-        responses.update(
-            self.run_campaign_actions(client, external_key, options)
+        payload = campaign_payload(options)
+        upsert_response = client.upsert_campaign(
+            external_key,
+            payload,
         )
+        responses = {
+            "upsert": upsert_response
+        }
+        action_responses = self.run_campaign_actions(
+            client,
+            external_key,
+            options,
+        )
+        responses.update(action_responses)
         return responses
 
     def run_campaign_actions(self, client, external_key, options):
@@ -263,7 +270,12 @@ class Command(BaseCommand):
 
     def write_responses(self, external_key, responses, *, raw_json):
         if raw_json:
-            self.stdout.write(json.dumps(responses, indent=2, sort_keys=True))
+            response_json = json.dumps(
+                responses,
+                indent=2,
+                sort_keys=True,
+            )
+            self.stdout.write(response_json)
             return
 
         self.write_summary(external_key, responses)
