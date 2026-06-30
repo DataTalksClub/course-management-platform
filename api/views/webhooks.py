@@ -50,7 +50,8 @@ def authenticate_webhook(request):
     expected = getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", "")
     if not expected:
         return False
-    return hmac.compare_digest(bearer_token(request), expected)
+    token = bearer_token(request)
+    return hmac.compare_digest(token, expected)
 
 
 def preference_key_from_payload(payload):
@@ -79,25 +80,31 @@ def payload_metadata(payload):
 
 
 def webhook_error(message, status):
-    return JsonResponse({"error": message}, status=status)
-
-
-def datamailer_webhook_configured() -> bool:
-    return bool(getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", ""))
+    payload = {"error": message}
+    return JsonResponse(payload, status=status)
 
 
 def json_payload_from_request(request):
     try:
-        return json.loads(request.body or b"{}"), None
+        body = request.body or b"{}"
+        payload = json.loads(body)
+        return payload, None
     except json.JSONDecodeError:
-        return None, webhook_error("Invalid JSON", 400)
+        error = webhook_error("Invalid JSON", 400)
+        return None, error
 
 
 def required_event_fields(payload):
+    event_id = payload.get("event_id") or ""
+    event_id = str(event_id).strip()
+    event_type = payload.get("event_type") or ""
+    event_type = str(event_type).strip()
+    email = payload.get("email") or ""
+    email = str(email).strip().lower()
     fields = DatamailerEventFields(
-        event_id=str(payload.get("event_id") or "").strip(),
-        event_type=str(payload.get("event_type") or "").strip(),
-        email=str(payload.get("email") or "").strip().lower(),
+        event_id=event_id,
+        event_type=event_type,
+        email=email,
     )
     return fields
 
@@ -105,54 +112,67 @@ def required_event_fields(payload):
 def validate_datamailer_payload(payload):
     fields = required_event_fields(payload)
     if not fields.event_id or not fields.event_type or not fields.email:
-        return None, webhook_error(
+        error = webhook_error(
             "event_id, event_type, and email are required",
             400,
         )
+        return None, error
     if fields.event_type not in SUPPORTED_EVENT_TYPES:
-        return None, webhook_error(
+        error = webhook_error(
             f"Unsupported event_type: {fields.event_type}",
             400,
         )
+        return None, error
     return fields, None
 
 
 def parsed_occurred_at(payload):
     occurred_at = payload.get("occurred_at")
     if isinstance(occurred_at, str):
-        return parse_datetime(occurred_at)
+        parsed = parse_datetime(occurred_at)
+        return parsed
     return None
 
 
 def datamailer_event_defaults(payload, event_type, email):
+    occurred_at = parsed_occurred_at(payload)
+    audience = payload.get("audience") or ""
+    audience = str(audience)
+    client = payload.get("client") or ""
+    client = str(client)
+    preference_key = preference_key_from_payload(payload)
+    last_seen_at = timezone.now()
     return {
         "event_type": event_type,
         "email": email,
-        "occurred_at": parsed_occurred_at(payload),
-        "audience": str(payload.get("audience") or ""),
-        "client": str(payload.get("client") or ""),
-        "preference_key": preference_key_from_payload(payload),
+        "occurred_at": occurred_at,
+        "audience": audience,
+        "client": client,
+        "preference_key": preference_key,
         "payload": payload,
-        "last_seen_at": timezone.now(),
+        "last_seen_at": last_seen_at,
     }
 
 
 def update_duplicate_datamailer_event(event):
+    duplicate_count = F("duplicate_count") + 1
+    last_seen_at = timezone.now()
     DatamailerContactEvent.objects.filter(pk=event.pk).update(
-        duplicate_count=F("duplicate_count") + 1,
-        last_seen_at=timezone.now(),
+        duplicate_count=duplicate_count,
+        last_seen_at=last_seen_at,
     )
     event.refresh_from_db(fields=["duplicate_count", "last_seen_at"])
 
 
 def record_datamailer_event(payload, fields):
+    defaults = datamailer_event_defaults(
+        payload,
+        fields.event_type,
+        fields.email,
+    )
     event, created = DatamailerContactEvent.objects.get_or_create(
         event_id=fields.event_id,
-        defaults=datamailer_event_defaults(
-            payload,
-            fields.event_type,
-            fields.email,
-        ),
+        defaults=defaults,
     )
     if not created:
         update_duplicate_datamailer_event(event)
@@ -160,20 +180,20 @@ def record_datamailer_event(payload, fields):
 
 
 def datamailer_event_response(event, created):
-    return JsonResponse(
-        {
-            "ok": True,
-            "created": created,
-            "duplicate_count": event.duplicate_count,
-            "preference_updated": False,
-        }
-    )
+    payload = {
+        "ok": True,
+        "created": created,
+        "duplicate_count": event.duplicate_count,
+        "preference_updated": False,
+    }
+    return JsonResponse(payload)
 
 
 @csrf_exempt
 @require_POST
 def datamailer_event_webhook(request):
-    if not datamailer_webhook_configured():
+    webhook_token = getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", "")
+    if not webhook_token:
         return webhook_error(
             "Datamailer webhook is not configured", 503
         )
