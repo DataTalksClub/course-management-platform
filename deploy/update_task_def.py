@@ -60,37 +60,34 @@ def write_task_definition(output_file, task_def):
         json.dump(task_def, file, indent=4)
 
 
+def update_task_definition_file(input_file, new_tag, output_file):
+    task_def = load_task_definition(input_file)
+    update_container_definitions(task_def, new_tag)
+    remove_register_task_definition_fields(task_def)
+    write_task_definition(output_file, task_def)
+
+
+def task_definition_error_message(error, input_file):
+    if isinstance(error, FileNotFoundError):
+        return f"File not found: {input_file}"
+    if isinstance(error, json.JSONDecodeError):
+        return "Invalid JSON input."
+    return "Invalid task definition structure."
+
+
 def update_task_definition(input_file, new_tag, output_file):
-    """
-    Update the image tag in the task definition and save to a new file.
-
-    :param input_file: Path to the file containing the task definition JSON.
-    :param new_tag: New tag to update the image with.
-    :param output_file: Path to the file where the updated task definition will be saved.
-    """
-
     print(
         f"Updating task definition from {input_file} with new tag {new_tag} "
         f"and saving to {output_file}"
     )
 
     try:
-        task_def = load_task_definition(input_file)
-        update_container_definitions(task_def, new_tag)
-        remove_register_task_definition_fields(task_def)
-        write_task_definition(output_file, task_def)
+        update_task_definition_file(input_file, new_tag, output_file)
+    except (FileNotFoundError, json.JSONDecodeError, KeyError) as error:
+        print(task_definition_error_message(error, input_file))
+        sys.exit(1)
 
-        print(f"Updated task definition saved to {output_file}")
-
-    except FileNotFoundError:
-        print(f"File not found: {input_file}")
-        sys.exit(1)
-    except json.JSONDecodeError:
-        print("Invalid JSON input.")
-        sys.exit(1)
-    except KeyError:
-        print("Invalid task definition structure.")
-        sys.exit(1)
+    print(f"Updated task definition saved to {output_file}")
 
 
 if __name__ == "__main__":
