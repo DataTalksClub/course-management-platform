@@ -613,6 +613,8 @@ Steps:
 - [x] Split Datamailer signal tests out of the oversized Datamailer test module.
 - [x] Split low-level Datamailer client endpoint tests out of the oversized
   Datamailer test module.
+- [x] Split Datamailer campaign command tests out of the oversized Datamailer
+  test module.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
