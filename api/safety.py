@@ -26,7 +26,8 @@ def error_response(message, code, status=400, details=None):
     data = {"error": message, "code": code}
     if details:
         data["details"] = details
-    return JsonResponse(data, status=status)
+    response = JsonResponse(data, status=status)
+    return response
 
 
 def require_staff_token(request):
@@ -83,7 +84,8 @@ def delete_object_or_error(data):
 
     data.instance.delete()
     payload = {"deleted": True}
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 def apply_patch_fields(

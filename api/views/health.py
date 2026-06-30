@@ -21,4 +21,5 @@ def health_view(request):
         "status": "ok",
         "version": settings.VERSION,
     }
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response

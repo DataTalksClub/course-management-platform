@@ -66,7 +66,8 @@ def bulk_create_response(data, create_item, *, name_field="name"):
         status = 201
     else:
         status = 400
-    return JsonResponse(result, status=status)
+    response = JsonResponse(result, status=status)
+    return response
 
 
 def get_course_child_or_404(model, course, *, object_id=None, slug=None):
@@ -86,7 +87,8 @@ def patch_instance_response(
 
     instance.save()
     response_data = config.to_dict(instance)
-    return JsonResponse(response_data)
+    response = JsonResponse(response_data)
+    return response
 
 
 def detail_response(
@@ -96,7 +98,8 @@ def detail_response(
 ):
     if request.method == "GET":
         response_data = config.patch.to_dict(instance)
-        return JsonResponse(response_data)
+        response = JsonResponse(response_data)
+        return response
 
     staff_error = require_staff_token(request)
     if staff_error:
