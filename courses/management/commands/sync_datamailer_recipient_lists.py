@@ -287,7 +287,8 @@ def import_member_jsonl(members):
 
 
 def safe_s3_key_part(value):
-    safe = re.sub(r"[^A-Za-z0-9._:@=-]+", "_", value.strip())
+    stripped_value = value.strip()
+    safe = re.sub(r"[^A-Za-z0-9._:@=-]+", "_", stripped_value)
     return safe.strip("._") or "recipient-list"
 
 
@@ -328,12 +329,12 @@ def import_s3_client():
 
 
 def import_file_metadata(config, list_key, content_sha256):
+    encoded_list_key = list_key.encode("utf-8")
+    list_key_sha256 = hashlib.sha256(encoded_list_key).hexdigest()
     return {
         "client": config.client,
         "audience": config.audience,
-        "list-key-sha256": hashlib.sha256(
-            list_key.encode("utf-8")
-        ).hexdigest(),
+        "list-key-sha256": list_key_sha256,
         "content-sha256": content_sha256,
     }
 
@@ -349,12 +350,14 @@ def upload_import_body(upload_body):
 
 
 def presigned_import_url(s3, bucket, key):
+    params = {"Bucket": bucket, "Key": key}
+    expires_in = getattr(
+        settings, "DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", 3600
+    )
     return s3.generate_presigned_url(
         "get_object",
-        Params={"Bucket": bucket, "Key": key},
-        ExpiresIn=getattr(
-            settings, "DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", 3600
-        ),
+        Params=params,
+        ExpiresIn=expires_in,
         HttpMethod="GET",
     )
 
@@ -374,12 +377,14 @@ def upload_import_file(kind, config, list_key, payload):
         metadata=metadata,
     )
     upload_import_body(upload_body)
+    source_url = presigned_import_url(s3, bucket, key)
+    row_count = len(payload["members"])
     return {
-        "source_url": presigned_import_url(s3, bucket, key),
+        "source_url": source_url,
         "s3_bucket": bucket,
         "s3_key": key,
         "content_sha256": content_sha256,
-        "row_count": len(payload["members"]),
+        "row_count": row_count,
     }
 
 
@@ -387,9 +392,8 @@ def import_idempotency_key(
     kind, list_key, content_sha256, *, remove_absent
 ):
     remove_absent_value = "true" if remove_absent else "false"
-    list_key_sha256 = hashlib.sha256(
-        list_key.encode("utf-8")
-    ).hexdigest()
+    encoded_list_key = list_key.encode("utf-8")
+    list_key_sha256 = hashlib.sha256(encoded_list_key).hexdigest()
     return (
         "cmp-recipient-list-import:"
         f"{kind}:{list_key_sha256}:{content_sha256}:"
@@ -713,19 +717,21 @@ class Command(BaseCommand):
             import_data.list_key,
             import_data.payload,
         )
+        idempotency_key = import_idempotency_key(
+            import_data.kind,
+            import_data.list_key,
+            upload["content_sha256"],
+            remove_absent=import_data.options.remove_absent,
+        )
+        import_payload = {
+            "source_url": upload["source_url"],
+            "idempotency_key": idempotency_key,
+            "list": import_data.payload["list"],
+            "remove_absent": import_data.options.remove_absent,
+        }
         response = import_data.client.create_recipient_list_import(
             import_data.list_key,
-            {
-                "source_url": upload["source_url"],
-                "idempotency_key": import_idempotency_key(
-                    import_data.kind,
-                    import_data.list_key,
-                    upload["content_sha256"],
-                    remove_absent=import_data.options.remove_absent,
-                ),
-                "list": import_data.payload["list"],
-                "remove_absent": import_data.options.remove_absent,
-            },
+            import_payload,
         )
         return upload, response
 

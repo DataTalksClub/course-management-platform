@@ -105,7 +105,10 @@ class Command(BaseCommand):
         payloads = contact_payloads(active_only=active_only)
         if not payloads:
             return [], 0
-        return list(batches(payloads, batch_size)), len(payloads)
+        contact_batch_iterator = batches(payloads, batch_size)
+        contact_batches = list(contact_batch_iterator)
+        total_contacts = len(payloads)
+        return contact_batches, total_contacts
 
     def write_batch_summary(self, contact_batches, total_contacts):
         self.stdout.write(
