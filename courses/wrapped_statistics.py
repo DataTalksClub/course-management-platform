@@ -127,8 +127,9 @@ def _wrapped_leaderboard_scores(enrollments):
 
 
 def _top_wrapped_leaderboard_scores(user_scores):
+    user_score_values = user_scores.values()
     sorted_scores = sorted(
-        user_scores.values(),
+        user_score_values,
         key=attrgetter("total_score"),
         reverse=True,
     )
@@ -303,11 +304,11 @@ def _build_user_wrapped_stat(data):
 
 
 def _wrapped_year_window(year):
-    year_start = timezone.make_aware(datetime(year, 1, 1))
+    first_year_second = datetime(year, 1, 1)
+    year_start = timezone.make_aware(first_year_second)
     next_year_start = datetime(year + 1, 1, 1)
-    year_end = timezone.make_aware(
-        next_year_start - timedelta(seconds=1)
-    )
+    last_year_second = next_year_start - timedelta(seconds=1)
+    year_end = timezone.make_aware(last_year_second)
     return year_start, year_end
 
 
