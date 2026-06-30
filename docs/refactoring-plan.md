@@ -549,6 +549,8 @@ Steps:
   registration out of `courses/views/homework.py`.
 - [x] Split project submission confirmation payload and email helpers out of
   `courses/views/project.py`.
+- [x] Split course-list homepage presentation and registration badges out of
+  `courses/views/course.py`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
