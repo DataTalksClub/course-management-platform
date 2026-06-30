@@ -17,7 +17,6 @@ from data.models import (
     DatamailerSendAuditType,
 )
 from course_management.datamailer.keys import (
-    course_enrolled_list_key,
     course_graduates_list_key,
     homework_submitters_list_key,
     project_passed_list_key,
@@ -26,24 +25,16 @@ from course_management.datamailer.keys import (
 from course_management.datamailer.payloads import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
-    enrollment_recipient_list_payload,
     homework_score_notification_payload,
     peer_review_assignment_notification_payload,
     project_passed_recipient_list_payload,
     project_score_notification_payload,
 )
 from course_management.datamailer.sync import (
-    remove_enrollment_from_datamailer,
-    remove_homework_submission_from_datamailer,
-    remove_project_submission_from_datamailer,
     send_certificate_availability_notification,
     send_homework_score_notification,
     send_peer_review_assignment_notification,
     send_project_score_notification,
-    sync_enrollment_to_datamailer,
-    sync_homework_submission_to_datamailer,
-    sync_project_passed_outcome_to_datamailer,
-    sync_project_submission_to_datamailer,
 )
 from courses.models import (
     Course,
@@ -63,14 +54,6 @@ DATAMAILER_SETTINGS = {
     "DATAMAILER_CLIENT": "dtc-courses",
     "DATAMAILER_AUDIENCE": "dtc-courses",
 }
-
-
-@dataclass(frozen=True)
-class UpsertedRecipientMemberExpectation:
-    upsert_member: Mock
-    list_key: str
-    source_object_key: str
-    list_type: str
 
 
 @dataclass(frozen=True)
@@ -138,13 +121,6 @@ class DatamailerWorkflowTest(TestCase):
         defaults.update(overrides)
         return Enrollment.objects.create(**defaults)
 
-    def create_student_enrollment_for_ml_course(self):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        return self.create_enrollment(user, self.create_ml_course())
-
     def create_certificate_enrollment(self):
         user = CustomUser.objects.create(
             email="student@example.com",
@@ -179,76 +155,6 @@ class DatamailerWorkflowTest(TestCase):
         }
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
-
-    def assert_upserted_recipient_member(self, expectation):
-        expectation.upsert_member.assert_called_once()
-        self.assertEqual(
-            expectation.upsert_member.call_args.args[0],
-            expectation.list_key,
-        )
-        self.assertEqual(
-            expectation.upsert_member.call_args.args[1],
-            expectation.source_object_key,
-        )
-        self.assertEqual(
-            expectation.upsert_member.call_args.args[2]["list"]["type"],
-            expectation.list_type,
-        )
-
-    def assert_project_passed_member_upserted(self, upsert_member, project):
-        upsert_member.assert_called_once()
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            project_passed_list_key(project),
-        )
-        payload = upsert_member.call_args.args[2]
-        self.assertEqual(payload["member"]["status"], "active")
-        self.assertEqual(
-            payload["member"]["metadata"]["outcome"],
-            "project_passed",
-        )
-
-    def create_failed_project_submission_for_passed_outcome(self):
-        project = self.create_project()
-        submission = self.create_project_submission(
-            project,
-            self.create_user("student@example.com"),
-            total_score=50,
-            passed=False,
-        )
-        return project, submission
-
-    def assert_project_passed_member_removed(
-        self,
-        remove_member,
-        project,
-        submission,
-    ):
-        remove_member.assert_called_once()
-        self.assertEqual(
-            remove_member.call_args.args[0],
-            project_passed_list_key(project),
-        )
-        self.assertEqual(
-            remove_member.call_args.args[1],
-            f"project-submission:{submission.pk}",
-        )
-
-    def assert_homework_submission_member_removed(
-        self,
-        remove_member,
-        homework,
-        submission,
-    ):
-        remove_member.assert_called_once()
-        self.assertEqual(
-            remove_member.call_args.args[0],
-            homework_submitters_list_key(homework),
-        )
-        self.assertEqual(
-            remove_member.call_args.args[1],
-            f"homework-submission:{submission.pk}",
-        )
 
     def assert_score_payload_common(self, expectation):
         payload = expectation.payload
@@ -294,35 +200,6 @@ class DatamailerWorkflowTest(TestCase):
             passed=False,
         )
         return project, passed_submission
-
-    def create_project_submission_removal_fixture(self):
-        project = self.create_project()
-        submission = self.create_project_submission(
-            project,
-            self.create_user("student@example.com"),
-            total_score=98,
-            passed=True,
-        )
-        return project, submission
-
-    def assert_project_submission_members_removed(
-        self,
-        remove_member,
-        project,
-        submission,
-    ):
-        self.assertEqual(remove_member.call_count, 2)
-        list_keys = []
-        remove_calls = remove_member.call_args_list
-        for call in remove_calls:
-            list_key = call.args[0]
-            list_keys.append(list_key)
-        self.assertEqual(
-            list_keys,
-            [project_submitters_list_key(project), project_passed_list_key(project)],
-        )
-        for call in remove_calls:
-            self.assertEqual(call.args[1], f"project-submission:{submission.pk}")
 
     def assert_certificate_availability_payload(self, payload, enrollment):
         self.assertEqual(payload["email"], "student@example.com")
@@ -644,232 +521,6 @@ class DatamailerWorkflowTest(TestCase):
                 item["eval_url"],
             )
             self.assertTrue(item["eval_url"].startswith("https://"))
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    def test_enrollment_recipient_list_payload_targets_course_enrolled(
-        self,
-    ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="Student@Example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-
-        member_payload = enrollment_recipient_list_payload(enrollment)
-
-        self.assertEqual(
-            member_payload.list_key,
-            course_enrolled_list_key(course),
-        )
-        self.assertEqual(member_payload.source_object_key, f"user:{user.pk}")
-        payload = member_payload.payload
-        self.assertEqual(payload["list"]["type"], "custom")
-        self.assertEqual(
-            payload["list"]["name"],
-            "ML Zoomcamp 2026 enrolled learners",
-        )
-        self.assertEqual(
-            payload["member"]["email"],
-            "student@example.com",
-        )
-        self.assertEqual(
-            payload["member"]["metadata"]["enrollment_id"],
-            enrollment.pk,
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_sync_enrollment_adds_contact_and_enrolled_member(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-
-        sync_enrollment_to_datamailer(enrollment)
-
-        upsert_contact.assert_called_once()
-        upsert_member.assert_called_once()
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            course_enrolled_list_key(course),
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[1],
-            f"user:{user.pk}",
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_sync_homework_submission_adds_submitter_member(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        homework = self.create_homework()
-        submission = self.create_homework_submission(
-            homework,
-            self.create_user("student@example.com"),
-        )
-
-        sync_homework_submission_to_datamailer(submission)
-
-        upsert_contact.assert_called_once()
-        expectation = UpsertedRecipientMemberExpectation(
-            upsert_member=upsert_member,
-            list_key=homework_submitters_list_key(homework),
-            source_object_key=f"homework-submission:{submission.pk}",
-            list_type="homework_submitters",
-        )
-        self.assert_upserted_recipient_member(expectation)
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_sync_project_submission_adds_submitter_member(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        user = self.create_user("student@example.com")
-        project = self.create_project()
-        submission = self.create_project_submission(
-            project,
-            user,
-            commit_id="a" * 40,
-        )
-
-        sync_project_submission_to_datamailer(submission)
-
-        upsert_contact.assert_called_once()
-        expectation = UpsertedRecipientMemberExpectation(
-            upsert_member=upsert_member,
-            list_key=project_submitters_list_key(project),
-            source_object_key=f"project-submission:{submission.pk}",
-            list_type="project_submitters",
-        )
-        self.assert_upserted_recipient_member(expectation)
-
-    @override_settings(
-        **DATAMAILER_SETTINGS,
-        PUBLIC_BASE_URL="https://courses.example.com",
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
-    )
-    def test_remove_enrollment_removes_enrolled_and_graduate_members(
-        self,
-        remove_member,
-    ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-            certificate_url="/certificates/student.pdf",
-        )
-
-        remove_enrollment_from_datamailer(enrollment)
-
-        self.assertEqual(remove_member.call_count, 2)
-        list_keys = []
-        remove_calls = remove_member.call_args_list
-        for call in remove_calls:
-            list_key = call.args[0]
-            list_keys.append(list_key)
-        self.assertEqual(
-            list_keys,
-            [course_enrolled_list_key(course), course_graduates_list_key(course)],
-        )
-        source_object_keys = []
-        for call in remove_calls:
-            source_object_key = call.args[1]
-            source_object_keys.append(source_object_key)
-        self.assertEqual(
-            source_object_keys,
-            [f"user:{user.pk}", f"enrollment:{enrollment.pk}"],
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
-    )
-    def test_remove_homework_submission_deletes_submitter_member(
-        self,
-        remove_member,
-    ):
-        homework = self.create_homework()
-        submission = self.create_homework_submission(
-            homework,
-            self.create_user("student@example.com"),
-        )
-
-        remove_homework_submission_from_datamailer(submission)
-
-        self.assert_homework_submission_member_removed(
-            remove_member,
-            homework,
-            submission,
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
-    )
-    def test_remove_project_submission_removes_submitter_and_passed_members(
-        self,
-        remove_member,
-    ):
-        project, submission = self.create_project_submission_removal_fixture()
-
-        remove_project_submission_from_datamailer(submission)
-
-        self.assert_project_submission_members_removed(
-            remove_member,
-            project,
-            submission,
-        )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -1233,49 +884,6 @@ class DatamailerWorkflowTest(TestCase):
             submission=submission,
         )
         self.assert_project_score_list_send(expectation)
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch("course_management.datamailer.client.DatamailerClient.upsert_contact")
-    def test_sync_project_passed_outcome_upserts_passed_member(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        project = self.create_project()
-        submission = self.create_project_submission(
-            project=project,
-            user=self.create_user("student@example.com"),
-            total_score=98,
-            passed=True,
-        )
-
-        sync_project_passed_outcome_to_datamailer(submission)
-
-        upsert_contact.assert_called_once()
-        self.assert_project_passed_member_upserted(upsert_member, project)
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
-    )
-    def test_sync_project_passed_outcome_removes_failed_member(
-        self,
-        remove_member,
-    ):
-        project, submission = (
-            self.create_failed_project_submission_for_passed_outcome()
-        )
-
-        sync_project_passed_outcome_to_datamailer(submission)
-
-        self.assert_project_passed_member_removed(
-            remove_member,
-            project,
-            submission,
-        )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
