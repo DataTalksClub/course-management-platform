@@ -428,19 +428,18 @@ def _group_wrapped_activity_by_student(
 ):
     homework_by_student = defaultdict(list)
     for homework_submission in homework_submissions:
-        homework_by_student[homework_submission.student].append(
-            homework_submission
-        )
+        student = homework_submission.student
+        homework_by_student[student].append(homework_submission)
 
     project_by_student = defaultdict(list)
     for project_submission in project_submissions:
-        project_by_student[project_submission.student].append(
-            project_submission
-        )
+        student = project_submission.student
+        project_by_student[student].append(project_submission)
 
     enrollment_by_student = defaultdict(list)
     for enrollment in enrollments:
-        enrollment_by_student[enrollment.student].append(enrollment)
+        student = enrollment.student
+        enrollment_by_student[student].append(enrollment)
 
     return WrappedActivityByStudent(
         homework_by_student=homework_by_student,

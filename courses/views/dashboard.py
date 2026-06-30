@@ -250,9 +250,8 @@ def _dashboard_homework_stat(homework, hw_submissions, total_enrollments):
 def _dashboard_homework_submissions_by_homework(all_hw_submissions):
     hw_submissions_by_homework = defaultdict(list)
     for submission in all_hw_submissions:
-        hw_submissions_by_homework[submission["homework_id"]].append(
-            submission
-        )
+        homework_id = submission["homework_id"]
+        hw_submissions_by_homework[homework_id].append(submission)
     return hw_submissions_by_homework
 
 

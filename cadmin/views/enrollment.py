@@ -87,9 +87,8 @@ def complaints_grouped_by_enrollment(course):
         .order_by("resolved", "-created_at")
     )
     for complaint in complaints:
-        complaints_by_enrollment[complaint.enrollment_id].append(
-            complaint
-        )
+        enrollment_id = complaint.enrollment_id
+        complaints_by_enrollment[enrollment_id].append(complaint)
     return complaints_by_enrollment
 
 
