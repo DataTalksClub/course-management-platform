@@ -12,14 +12,14 @@ from django.db import transaction
 
 from . import assignment_statistics, leaderboard
 
-from .models import (
+from .models.homework import (
+    Answer,
     Homework,
     HomeworkState,
-    Submission,
     Question,
-    Answer,
-    QuestionTypes,
     AnswerTypes,
+    QuestionTypes,
+    Submission,
 )
 
 
@@ -88,7 +88,8 @@ def is_checkbox_answer_correct(
     question: Question, answer: Answer
 ) -> bool:
     user_answer = answer.answer_text
-    selected_options = set(safe_split_to_int(user_answer))
+    selected_option_values = safe_split_to_int(user_answer)
+    selected_options = set(selected_option_values)
     correct_answer = question.get_correct_answer_indices()
     return selected_options == correct_answer
 
@@ -149,9 +150,8 @@ def is_free_form_answer_correct(
         return False
 
     user_answer = normalized_free_form_answer(answer.answer_text)
-    correct_answer = normalized_free_form_answer(
-        question.get_correct_answer()
-    )
+    raw_correct_answer = question.get_correct_answer()
+    correct_answer = normalized_free_form_answer(raw_correct_answer)
     return answer_check(user_answer, correct_answer)
 
 

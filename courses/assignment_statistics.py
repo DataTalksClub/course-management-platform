@@ -1,12 +1,14 @@
 import statistics
 
-from .models import (
+from .models.homework import (
     HomeworkState,
     HomeworkStatistics,
+    Submission,
+)
+from .models.project import (
     ProjectState,
     ProjectStatistics,
     ProjectSubmission,
-    Submission,
 )
 
 
@@ -91,11 +93,10 @@ def _persist_field_stats(stats, calculated_stats, fields):
 
 def calculate_raw_homework_statistics(homework):
     # Single query to get all the fields we need, avoiding the N+1 problem
-    submissions_data = list(
-        Submission.objects.filter(homework=homework).values(
-            *HOMEWORK_STAT_FIELDS
-        )
+    submission_rows = Submission.objects.filter(homework=homework).values(
+        *HOMEWORK_STAT_FIELDS
     )
+    submissions_data = list(submission_rows)
     return _calculate_field_distributions(
         submissions_data, HOMEWORK_STAT_FIELDS
     )
@@ -123,11 +124,12 @@ def calculate_homework_statistics(homework, force=False):
 
 def calculate_raw_project_statistics(project):
     # Single query to get all the fields we need, avoiding the N+1 problem
-    submissions_data = list(
-        ProjectSubmission.objects.filter(project=project).values(
-            *PROJECT_STAT_FIELDS
-        )
+    submission_rows = ProjectSubmission.objects.filter(
+        project=project
+    ).values(
+        *PROJECT_STAT_FIELDS
     )
+    submissions_data = list(submission_rows)
     return _calculate_field_distributions(
         submissions_data, PROJECT_STAT_FIELDS
     )
