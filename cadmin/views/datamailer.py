@@ -73,27 +73,39 @@ DATAMAILER_OPERATOR_COMMANDS = (
 
 
 def send_audit_totals():
+    total_count = Count("id")
+    intended_count_sum = Sum("intended_count")
+    created_count_sum = Sum("created_count")
+    enqueued_count_sum = Sum("enqueued_count")
+    skipped_count_sum = Sum("skipped_count")
+    idempotent_replay_count_sum = Sum("idempotent_replay_count")
+
     return DatamailerSendAudit.objects.aggregate(
-        total=Count("id"),
-        intended_count=Sum("intended_count"),
-        created_count=Sum("created_count"),
-        enqueued_count=Sum("enqueued_count"),
-        skipped_count=Sum("skipped_count"),
-        idempotent_replay_count=Sum("idempotent_replay_count"),
+        total=total_count,
+        intended_count=intended_count_sum,
+        created_count=created_count_sum,
+        enqueued_count=enqueued_count_sum,
+        skipped_count=skipped_count_sum,
+        idempotent_replay_count=idempotent_replay_count_sum,
     )
 
 
 def send_audit_grouped(field):
-    return list(
+    group_count = Count("id")
+    intended_count_sum = Sum("intended_count")
+    enqueued_count_sum = Sum("enqueued_count")
+    skipped_count_sum = Sum("skipped_count")
+    rows = (
         DatamailerSendAudit.objects.values(field)
         .annotate(
-            count=Count("id"),
-            intended_count=Sum("intended_count"),
-            enqueued_count=Sum("enqueued_count"),
-            skipped_count=Sum("skipped_count"),
+            count=group_count,
+            intended_count=intended_count_sum,
+            enqueued_count=enqueued_count_sum,
+            skipped_count=skipped_count_sum,
         )
         .order_by(field)
     )
+    return list(rows)
 
 
 def requeue_datamailer_outbox_events():
@@ -139,10 +151,6 @@ def recent_failed_datamailer_sends():
     )[:10]
 
 
-def _send_total_count(send_totals, key):
-    return send_totals[key] or 0
-
-
 def failed_datamailer_send_count():
     return DatamailerSendAudit.objects.filter(
         status=DatamailerSendAuditStatus.FAILED,
@@ -150,27 +158,22 @@ def failed_datamailer_send_count():
 
 
 def normalized_send_totals(send_totals):
+    total = send_totals["total"] or 0
+    intended_count = send_totals["intended_count"] or 0
+    created_count = send_totals["created_count"] or 0
+    enqueued_count = send_totals["enqueued_count"] or 0
+    skipped_count = send_totals["skipped_count"] or 0
+    idempotent_replay_count = send_totals["idempotent_replay_count"] or 0
+    failed = failed_datamailer_send_count()
+
     return {
-        "total": _send_total_count(send_totals, "total"),
-        "intended_count": _send_total_count(
-            send_totals,
-            "intended_count",
-        ),
-        "created_count": _send_total_count(
-            send_totals, "created_count"
-        ),
-        "enqueued_count": _send_total_count(
-            send_totals,
-            "enqueued_count",
-        ),
-        "skipped_count": _send_total_count(
-            send_totals, "skipped_count"
-        ),
-        "idempotent_replay_count": _send_total_count(
-            send_totals,
-            "idempotent_replay_count",
-        ),
-        "failed": failed_datamailer_send_count(),
+        "total": total,
+        "intended_count": intended_count,
+        "created_count": created_count,
+        "enqueued_count": enqueued_count,
+        "skipped_count": skipped_count,
+        "idempotent_replay_count": idempotent_replay_count,
+        "failed": failed,
     }
 
 
@@ -188,16 +191,22 @@ def datamailer_outbox_status_rows(outbox_summary):
 
 def datamailer_operations_context():
     outbox_summary = datamailer_outbox_status_summary()
+    outbox_statuses = datamailer_outbox_status_rows(outbox_summary)
+    recent_failed_events = recent_failed_datamailer_outbox_events()
+    send_totals = send_audit_totals()
+    normalized_totals = normalized_send_totals(send_totals)
+    send_by_status = send_audit_grouped("status")
+    send_by_type = send_audit_grouped("send_type")
+    recent_failed_sends = recent_failed_datamailer_sends()
+
     return {
         "outbox_summary": outbox_summary,
-        "outbox_statuses": datamailer_outbox_status_rows(
-            outbox_summary
-        ),
-        "recent_failed_events": recent_failed_datamailer_outbox_events(),
-        "send_totals": normalized_send_totals(send_audit_totals()),
-        "send_by_status": send_audit_grouped("status"),
-        "send_by_type": send_audit_grouped("send_type"),
-        "recent_failed_sends": recent_failed_datamailer_sends(),
+        "outbox_statuses": outbox_statuses,
+        "recent_failed_events": recent_failed_events,
+        "send_totals": normalized_totals,
+        "send_by_status": send_by_status,
+        "send_by_type": send_by_type,
+        "recent_failed_sends": recent_failed_sends,
         "operator_commands": DATAMAILER_OPERATOR_COMMANDS,
         "recipient_list_kinds": DATAMAILER_RECIPIENT_LIST_KINDS,
     }
@@ -244,18 +253,23 @@ def filtered_datamailer_events(event_type, search_query):
 
 def datamailer_events_metrics():
     since = timezone.now() - timedelta(hours=24)
+    total = DatamailerContactEvent.objects.count()
+    last_24h = DatamailerContactEvent.objects.filter(
+        created_at__gte=since
+    ).count()
+    duplicate_count_sum = Sum("duplicate_count")
+    duplicate_aggregate = DatamailerContactEvent.objects.aggregate(
+        total=duplicate_count_sum
+    )
+    duplicates = duplicate_aggregate["total"] or 0
+    events = DatamailerContactEvent.objects.all()
+    by_type = count_by(events, "event_type")
+
     return {
-        "total": DatamailerContactEvent.objects.count(),
-        "last_24h": DatamailerContactEvent.objects.filter(
-            created_at__gte=since
-        ).count(),
-        "duplicates": DatamailerContactEvent.objects.aggregate(
-            total=Sum("duplicate_count")
-        )["total"]
-        or 0,
-        "by_type": count_by(
-            DatamailerContactEvent.objects.all(), "event_type"
-        ),
+        "total": total,
+        "last_24h": last_24h,
+        "duplicates": duplicates,
+        "by_type": by_type,
     }
 
 
@@ -263,21 +277,26 @@ def datamailer_events_context(
     request, events, event_type, search_query
 ):
     events_page = paginate_queryset(request, events, per_page=50)
-    event_types = list(
+    event_type_values = (
         DatamailerContactEvent.objects.order_by("event_type")
         .values_list("event_type", flat=True)
         .distinct()
     )
+    event_types = list(event_type_values)
+    metrics = datamailer_events_metrics()
+    page_range = events_page.paginator.get_elided_page_range(
+        events_page.number
+    )
+    querystring = pagination_querystring(request)
+
     return {
         "events_page": events_page,
         "event_types": event_types,
         "selected_event_type": event_type,
         "search_query": search_query,
-        "metrics": datamailer_events_metrics(),
-        "page_range": events_page.paginator.get_elided_page_range(
-            events_page.number
-        ),
-        "pagination_querystring": pagination_querystring(request),
+        "metrics": metrics,
+        "page_range": page_range,
+        "pagination_querystring": querystring,
     }
 
 
