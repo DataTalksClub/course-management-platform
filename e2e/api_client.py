@@ -95,10 +95,13 @@ class CmpApiClient:
         url: str,
         json_body: Any,
     ) -> requests.Response:
+        data = None
+        if json_body is not None:
+            data = json.dumps(json_body)
         return self.session.request(
             method,
             url,
-            data=json.dumps(json_body) if json_body is not None else None,
+            data=data,
             timeout=self.timeout,
         )
 

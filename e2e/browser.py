@@ -37,8 +37,15 @@ class ProjectSubmissionData:
 
 
 def course_row_matches(row_text: str, slug: str, title: str | None = None) -> bool:
-    needle = title or slug
-    return needle in row_text or slug in row_text
+    if title:
+        needle = title
+    else:
+        needle = slug
+    needle_matches = needle in row_text
+    slug_matches = slug in row_text
+    if needle_matches:
+        return True
+    return slug_matches
 
 
 def course_pk_from_href(href: str) -> int | None:

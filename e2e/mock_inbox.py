@@ -76,7 +76,9 @@ class InboxMessage:
     def detail_loaded(self) -> bool:
         has_body = bool(self.html_body or self.text_body)
         has_context = bool(self.context)
-        return has_body or has_context
+        if has_body:
+            return True
+        return has_context
 
     def body_contains(self, needle: str) -> bool:
         """True if ``needle`` appears in the rendered bodies or the context.
@@ -670,10 +672,14 @@ class RealInboxClient(InboxBackend):
     @staticmethod
     def _summary_to_message(item: dict, address: str) -> InboxMessage:
         to = item.get("to") or []
+        if isinstance(to, list) and to:
+            recipient = to[0]
+        else:
+            recipient = address
         return InboxMessage(
             # The s3_key is this backend's stable per-message identifier.
             id=item.get("s3_key"),
-            to=(to[0] if isinstance(to, list) and to else address),
+            to=recipient,
             subject=item.get("subject", ""),
             # Real MIME has no template_key -- callers match on subject/body.
             template_key="",
