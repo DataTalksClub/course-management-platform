@@ -148,15 +148,17 @@ def _homework_submissions_data(submissions):
 
 
 def _homework_submissions_context(data):
+    submissions_data = _homework_submissions_data(
+        data.submissions_page.object_list
+    )
+    querystring = pagination_querystring(data.request)
     return {
         "course": data.course,
         "homework": data.homework,
-        "submissions_data": _homework_submissions_data(
-            data.submissions_page.object_list
-        ),
+        "submissions_data": submissions_data,
         "submissions_page": data.submissions_page,
         "search_query": data.search_query,
-        "pagination_querystring": pagination_querystring(data.request),
+        "pagination_querystring": querystring,
     }
 
 
@@ -235,9 +237,10 @@ def _handle_homework_submission_edit_post(data):
     )
 
     if not form.is_valid():
+        error_message = first_form_error(form)
         return _homework_submission_edit_failed(
             data,
-            first_form_error(form),
+            error_message,
         )
 
     try:
@@ -270,9 +273,13 @@ def _homework_submission_edit_objects(
 
 def _homework_submission_faq_data(request, submission):
     if request.method == "POST":
+        faq_contribution_url = request.POST.get(
+            "faq_contribution_url", ""
+        ).strip()
+        faq_score = request.POST.get("faq_score", submission.faq_score)
         return (
-            request.POST.get("faq_contribution_url", "").strip(),
-            request.POST.get("faq_score", submission.faq_score),
+            faq_contribution_url,
+            faq_score,
         )
 
     return submission.faq_contribution_url or "", submission.faq_score
@@ -283,14 +290,14 @@ def _homework_submission_edit_context(data):
         data.request,
         data.submission,
     )
+    learning_in_public_links = data.submission.learning_in_public_links or []
+    learning_in_public_links_text = "\n".join(learning_in_public_links)
     return {
         "course": data.course,
         "homework": data.homework,
         "submission": data.submission,
         "questions_with_answers": data.questions_with_answers,
-        "learning_in_public_links_text": "\n".join(
-            data.submission.learning_in_public_links or []
-        ),
+        "learning_in_public_links_text": learning_in_public_links_text,
         "faq_contribution_url": faq_contribution_url,
         "faq_score": faq_score,
     }
