@@ -94,6 +94,11 @@ def get_error_message(status_code, url):
 # Cap how long we wait on the remote server so a slow or hanging URL
 # cannot tie up a worker process indefinitely.
 URL_VALIDATION_TIMEOUT = 3
+URL_VALIDATION_ERRORS = (
+    requests.RequestException,
+    UnicodeError,
+    ValueError,
+)
 
 
 def _url_validation_method(get_method):
@@ -130,7 +135,7 @@ def validate_url_200(url, get_method=None, code=None, params=None):
         _raise_url_status_error(status_code, url, code, params)
     except ValidationError:
         raise
-    except Exception as e:
+    except URL_VALIDATION_ERRORS as e:
         # Not just requests.exceptions.RequestException: malformed-but-
         # valid-looking URLs can raise UnicodeError / LocationParseError,
         # which would otherwise escape as an uncaught 500.

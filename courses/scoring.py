@@ -276,16 +276,8 @@ def update_faq_score(submission: Submission) -> int:
     return faq_score
 
 
-def _answer_correctness(submission: Submission, answer: Answer) -> bool:
-    try:
-        return is_answer_correct(answer.question, answer)
-    except Exception:
-        logger.exception(f"Error while scoring submission {submission.id}")
-        raise
-
-
 def _score_answer(submission: Submission, answer: Answer, save: bool) -> int:
-    is_correct = _answer_correctness(submission, answer)
+    is_correct = is_answer_correct(answer.question, answer)
     answer.is_correct = is_correct
     if save:
         answer.save()
