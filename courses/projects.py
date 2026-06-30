@@ -3,8 +3,7 @@ import logging
 from dataclasses import dataclass
 from time import time
 from collections import defaultdict
-
-from typing import List, Tuple, Iterable
+from collections.abc import Iterable
 
 import math
 import statistics
@@ -78,8 +77,8 @@ class SubmissionScoringData:
 
 def calculate_median_score(
     submission: ProjectSubmission,
-    evaluation_criteria: List[ReviewCriteria],
-) -> Tuple[int, List[ProjectEvaluationScore]]:
+    evaluation_criteria: list[ReviewCriteria],
+) -> tuple[int, list[ProjectEvaluationScore]]:
     scores = []
     total_score = 0
 
@@ -100,13 +99,13 @@ def calculate_median_score(
 def calculate_project_score(
     submission: ProjectSubmission,
     evaluation_criteria: Iterable[ReviewCriteria],
-    reviews: List[PeerReview],
-) -> Tuple[int, List[ProjectEvaluationScore]]:
+    reviews: list[PeerReview],
+) -> tuple[int, list[ProjectEvaluationScore]]:
     if len(reviews) == 0:
         logger.info(f"No reviews found for submission {submission.id}")
         return calculate_median_score(submission, evaluation_criteria)
 
-    new_evaluations: List[ProjectEvaluationScore] = []
+    new_evaluations: list[ProjectEvaluationScore] = []
 
     project_score = 0
     responses_by_criteria = responses_grouped_by_criteria(reviews)
@@ -122,7 +121,7 @@ def calculate_project_score(
     return project_score, new_evaluations
 
 
-def responses_grouped_by_criteria(reviews: List[PeerReview]):
+def responses_grouped_by_criteria(reviews: list[PeerReview]):
     responses_by_criteria = defaultdict(list)
     for review in reviews:
         responses = review.responses
