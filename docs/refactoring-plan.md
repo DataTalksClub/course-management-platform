@@ -606,6 +606,8 @@ Steps:
   building context objects.
 - [x] Name homework-submission posted time and FAQ URL values before parsing or
   validating them.
+- [x] Name project-evaluation target submissions before creating optional peer
+  reviews.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -179,9 +179,13 @@ def projects_eval_add(
     if student_submission.id == submission_id:
         return project_list_response
 
+    submission_under_evaluation = _submission_under_project_evaluation(
+        project,
+        submission_id,
+    )
     _create_optional_peer_review(
         student_submission,
-        _submission_under_project_evaluation(project, submission_id),
+        submission_under_evaluation,
     )
 
     return project_list_response
