@@ -78,6 +78,14 @@ class HomeworkPostData:
 
 
 @dataclass(frozen=True)
+class HomeworkRequestData:
+    request: HttpRequest
+    course: Course
+    homework: Homework
+    questions: List[Question]
+
+
+@dataclass(frozen=True)
 class HomeworkConfirmationEmailData:
     user: User
     course: Course
@@ -1172,31 +1180,36 @@ def authenticated_homework_context(
     )
 
 
-def authenticated_homework_response(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-    questions: List[Question],
-):
+def authenticated_homework_response(data: HomeworkRequestData):
     authenticated_context = authenticated_homework_context(
-        user=request.user,
-        course=course,
-        homework=homework,
-        questions=questions,
+        user=data.request.user,
+        course=data.course,
+        homework=data.homework,
+        questions=data.questions,
     )
 
-    if request.method != "POST":
+    if data.request.method != "POST":
         return render(
-            request,
+            data.request,
             "homework/homework.html",
             authenticated_context.context,
         )
 
+    return authenticated_homework_post_response(
+        data,
+        authenticated_context,
+    )
+
+
+def authenticated_homework_post_response(
+    data: HomeworkRequestData,
+    authenticated_context: AuthenticatedHomeworkContext,
+):
     post_data = HomeworkPostData(
-        request=request,
-        course=course,
-        homework=homework,
-        questions=questions,
+        request=data.request,
+        course=data.course,
+        homework=data.homework,
+        questions=data.questions,
         submission=authenticated_context.submission,
         enrollment=authenticated_context.enrollment,
     )
@@ -1204,7 +1217,7 @@ def authenticated_homework_response(
     if not isinstance(post_result, dict):
         return post_result
 
-    return render(request, "homework/homework.html", post_result)
+    return render(data.request, "homework/homework.html", post_result)
 
 
 def homework_view(
@@ -1225,12 +1238,13 @@ def homework_view(
         )
         return render(request, "homework/homework.html", context)
 
-    return authenticated_homework_response(
-        request,
-        course,
-        homework,
-        questions,
+    request_data = HomeworkRequestData(
+        request=request,
+        course=course,
+        homework=homework,
+        questions=questions,
     )
+    return authenticated_homework_response(request_data)
 
 
 def homework_statistics(request, course_slug, homework_slug):
