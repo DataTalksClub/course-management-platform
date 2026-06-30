@@ -1,10 +1,12 @@
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import bleach
 import mistune
 
 COUNTRIES_CONFIG_PATH = Path(__file__).with_name("countries.txt")
 TOP_COUNTRIES_SECTION = "Top Countries"
+YOUTUBE_EMBED_BASE_URL = "https://www.youtube.com/embed"
 
 
 def _countries_config_lines():
@@ -38,6 +40,7 @@ def _build_countries_config():
 
 
 COUNTRIES_BY_REGION, TOP_COUNTRIES = _build_countries_config()
+
 
 def _build_country_region_map():
     country_region = {}
@@ -121,16 +124,46 @@ def render_markdown(markdown_text):
     )
 
 
+def _youtube_watch_video_id(url):
+    parsed_url = urlparse(url)
+    if "youtube.com" not in parsed_url.netloc:
+        return None
+    if parsed_url.path != "/watch":
+        return None
+
+    query = parse_qs(parsed_url.query)
+    video_ids = query.get("v", [])
+    if not video_ids:
+        return None
+
+    video_id = video_ids[0]
+    return video_id
+
+
+def _youtu_be_video_id(url):
+    parsed_url = urlparse(url)
+    if "youtu.be" not in parsed_url.netloc:
+        return None
+
+    video_id = parsed_url.path.lstrip("/")
+    if not video_id:
+        return None
+
+    return video_id
+
+
 def youtube_embed_url(url):
     if not url:
         return ""
 
-    if "youtube.com/watch" in url and "v=" in url:
-        video_id = url.split("v=", 1)[1].split("&", 1)[0]
-        return f"https://www.youtube.com/embed/{video_id}"
+    video_id = _youtube_watch_video_id(url)
+    if video_id:
+        embed_url = f"{YOUTUBE_EMBED_BASE_URL}/{video_id}"
+        return embed_url
 
-    if "youtu.be/" in url:
-        video_id = url.rsplit("/", 1)[-1].split("?", 1)[0]
-        return f"https://www.youtube.com/embed/{video_id}"
+    video_id = _youtu_be_video_id(url)
+    if video_id:
+        embed_url = f"{YOUTUBE_EMBED_BASE_URL}/{video_id}"
+        return embed_url
 
     return url
