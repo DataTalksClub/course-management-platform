@@ -35,8 +35,9 @@ class DatamailerConfig:
             return None
 
         strict = getattr(settings, "DATAMAILER_STRICT", False)
+        normalized_url = url.rstrip("/")
         return cls(
-            url=url.rstrip("/"),
+            url=normalized_url,
             api_key=api_key,
             client=client,
             audience=audience,
@@ -174,6 +175,7 @@ class DatamailerClient:
         *,
         category_tags: list[str],
     ) -> dict[str, Any] | None:
+        category_tags_param = ",".join(category_tags)
         request_data = DatamailerRequestData(
             method="GET",
             path="/api/contacts/preferences",
@@ -181,7 +183,7 @@ class DatamailerClient:
                 "email": email,
                 "audience": self.config.audience,
                 "client": self.config.client,
-                "category_tags": ",".join(category_tags),
+                "category_tags": category_tags_param,
             },
         )
         return self.request(request_data)
@@ -423,4 +425,6 @@ def public_url(path: str) -> str:
     base_url = getattr(settings, "PUBLIC_BASE_URL", "")
     if not base_url:
         return path
-    return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
+    normalized_base_url = f"{base_url.rstrip('/')}/"
+    normalized_path = path.lstrip("/")
+    return urljoin(normalized_base_url, normalized_path)

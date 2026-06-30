@@ -93,10 +93,13 @@ def _response_categories_by_tag(response):
 
 def _enabled_preference_value(category, by_tag):
     item = by_tag.get(category["tag"])
-    if item is None or not isinstance(item.get("enabled"), bool):
+    enabled = None
+    if item is not None:
+        enabled = item.get("enabled")
+    if not isinstance(enabled, bool):
         return None
 
-    return item["enabled"]
+    return enabled
 
 
 def email_preference_values_from_response(
@@ -120,10 +123,11 @@ def _email_preference_payload(
     category = EMAIL_PREFERENCE_CATEGORIES.get(data.field)
     if category is None:
         return None
+    enabled = bool(data.enabled)
     return {
         "tag": category["tag"],
         "label": category["label"],
-        "enabled": bool(data.enabled),
+        "enabled": enabled,
     }
 
 
@@ -142,9 +146,10 @@ def _email_preference_payloads(
 def _contact_preferences_response(user, email, config):
     client = DatamailerClient(config)
     try:
+        category_tags = email_preference_category_tags()
         return client.contact_preferences(
             email,
-            category_tags=email_preference_category_tags(),
+            category_tags=category_tags,
         )
     except requests.RequestException:
         logger.exception(
