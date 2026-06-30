@@ -77,11 +77,11 @@ testable service functions.
 
 ## Current Findings
 
-### `data/` is live API code
+### API owns public/export routes
 
-`course_management/urls.py` mounts both `api.urls` and `data.urls` under
-`/api/`. The `data/views/*` modules are therefore not dead code. They currently
-own public/export/webhook endpoints:
+`course_management/urls.py` mounts `api.urls` under `/api/`. The old
+`data.urls` and `data.views` compatibility modules have been removed; public,
+export, and webhook endpoints are owned by focused modules under `api/views/`:
 
 - `GET /api/health/`
 - `GET /api/courses/<course_slug>/course-criteria.yaml`
@@ -240,8 +240,8 @@ Steps:
 - [x] Update imports in `data/urls.py`, or replace the `data.urls` include with
   equivalent paths in `api/urls.py`.
 - [x] Keep all route names and paths stable during the move.
-- [x] Leave a short compatibility comment if `data/urls.py` remains
-  temporarily.
+- [x] Remove the temporary `data/urls.py` and `data/views` compatibility
+  modules after `api.urls` owns the routes directly.
 
 Verification:
 
@@ -563,6 +563,8 @@ Steps:
   course/homework view re-export imports.
 - [x] Wire cadmin, API, and legacy data URLs directly to split view modules and
   remove view package re-export imports.
+- [x] Remove unused `data.urls` and `data.views` compatibility modules after
+  confirming no internal code imports them.
 - [x] Replace root `course_management.datamailer` imports with concrete
   Datamailer module imports and remove the root package re-export shim.
 - [x] Replace wildcard admin/validator imports with direct module imports and
