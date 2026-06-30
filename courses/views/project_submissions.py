@@ -54,7 +54,8 @@ class SubmissionReviewGroupData:
 
 def paginate_project_submissions(request, submissions):
     paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
-    return paginator.get_page(request.GET.get("page"))
+    page_number = request.GET.get("page")
+    return paginator.get_page(page_number)
 
 
 def _project_vote_response(request, course, project):
@@ -63,16 +64,21 @@ def _project_vote_response(request, course, project):
         return redirect("login")
 
     submission = _project_vote_submission(request, project)
+    vote_action = request.POST.get("action", "vote")
     update_project_vote(
         request.user,
         submission,
-        action=request.POST.get("action", "vote"),
+        action=vote_action,
     )
 
     if _is_ajax_request(request):
-        return JsonResponse(
-            _project_vote_payload(request.user, course, project, submission)
+        payload = _project_vote_payload(
+            request.user,
+            course,
+            project,
+            submission,
         )
+        return JsonResponse(payload)
 
     return redirect(
         "project_list",
@@ -86,21 +92,22 @@ def _is_ajax_request(request):
 
 
 def _project_vote_submission(request, project):
+    submissions = ProjectSubmission.objects.select_related("project")
+    submission_id = request.POST.get("submission_id")
     return get_object_or_404(
-        ProjectSubmission.objects.select_related("project"),
-        id=request.POST.get("submission_id"),
+        submissions,
+        id=submission_id,
         project=project,
         volunteer_review_only=False,
     )
 
 
 def _project_submission_vote_count(submission):
-    return (
-        ProjectSubmission.objects.filter(id=submission.id)
-        .annotate(vote_count=Count("votes"))
-        .values_list("vote_count", flat=True)
-        .get()
-    )
+    submissions = ProjectSubmission.objects.filter(id=submission.id)
+    vote_count_annotation = Count("votes")
+    submissions = submissions.annotate(vote_count=vote_count_annotation)
+    vote_counts = submissions.values_list("vote_count", flat=True)
+    return vote_counts.get()
 
 
 def _project_vote_payload(user, course, project, submission):
@@ -108,16 +115,17 @@ def _project_vote_payload(user, course, project, submission):
     project_vote_counts = get_project_vote_counts(user, course)
     project_vote_count = project_vote_counts.get(project.id, 0)
     votes_left = max(PROJECT_VOTES_PER_PROJECT - project_vote_count, 0)
-
+    vote_limit_reached = project_vote_count >= PROJECT_VOTES_PER_PROJECT
+    vote_count = _project_submission_vote_count(submission)
+    voted = submission.id in voted_submission_ids
+    voted_submission_id_list = list(voted_submission_ids)
     return {
         "submission_id": submission.id,
-        "vote_count": _project_submission_vote_count(submission),
-        "voted": submission.id in voted_submission_ids,
-        "voted_submission_ids": list(voted_submission_ids),
+        "vote_count": vote_count,
+        "voted": voted,
+        "voted_submission_ids": voted_submission_id_list,
         "votes_left": votes_left,
-        "vote_limit_reached": (
-            project_vote_count >= PROJECT_VOTES_PER_PROJECT
-        ),
+        "vote_limit_reached": vote_limit_reached,
     }
 
 
@@ -183,14 +191,13 @@ def _decorate_submission_review_group(data):
 
 
 def _project_submissions_queryset(project):
-    submissions = (
-        ProjectSubmission.objects.filter(
-            project=project,
-            volunteer_review_only=False,
-        )
-        .select_related("enrollment")
-        .annotate(vote_count=Count("votes"))
+    submissions = ProjectSubmission.objects.filter(
+        project=project,
+        volunteer_review_only=False,
     )
+    submissions = submissions.select_related("enrollment")
+    vote_count_annotation = Count("votes")
+    submissions = submissions.annotate(vote_count=vote_count_annotation)
 
     if project.state == ProjectState.COMPLETED.value:
         return submissions.order_by("-project_score")
@@ -199,9 +206,8 @@ def _project_submissions_queryset(project):
 
 
 def _project_viewer_state(project, course, user):
-    state = _base_project_viewer_state(
-        _project_viewer_vote_state(project, course, user)
-    )
+    vote_state = _project_viewer_vote_state(project, course, user)
+    state = _base_project_viewer_state(vote_state)
 
     if not user.is_authenticated:
         return state
@@ -258,7 +264,8 @@ def _project_viewer_student_submissions(project, user):
     project_submissions = student_submissions.filter(
         volunteer_review_only=False,
     )
-    own_submissions = set(project_submissions.values_list("id", flat=True))
+    own_submission_ids = project_submissions.values_list("id", flat=True)
+    own_submissions = set(own_submission_ids)
     return student_submissions, own_submissions
 
 
@@ -335,7 +342,8 @@ def projects_list_view(request, course_slug, project_slug):
 
 
 def _project_submissions_page(request, project, viewer_state):
-    submissions_list = list(_project_submissions_queryset(project))
+    submissions = _project_submissions_queryset(project)
+    submissions_list = list(submissions)
     decoration_data = ProjectSubmissionsDecorationData(
         submissions_list=submissions_list,
         project=project,
@@ -361,14 +369,16 @@ def _project_submissions_page(request, project, viewer_state):
 
 
 def _projects_list_context(course, project, submissions_page, viewer_state):
+    page_range = submissions_page.paginator.get_elided_page_range(
+        submissions_page.number
+    )
+
     return {
         "course": course,
         "project": project,
         "submissions": submissions_page.object_list,
         "submissions_page": submissions_page,
-        "page_range": submissions_page.paginator.get_elided_page_range(
-            submissions_page.number
-        ),
+        "page_range": page_range,
         "is_authenticated": viewer_state["is_authenticated"],
         "has_submission": viewer_state["has_submission"],
         "voted_submission_ids": viewer_state["voted_submission_ids"],
