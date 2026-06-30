@@ -51,8 +51,9 @@ def _course_criteria_export_data(course):
 
 
 def _course_criteria_yaml(course):
+    export_data = _course_criteria_export_data(course)
     return yaml.dump(
-        _course_criteria_export_data(course),
+        export_data,
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False
@@ -63,7 +64,8 @@ def _course_criteria_yaml(course):
 def course_criteria_yaml_view(request, course_slug: str):
     """Return project criteria for a course in YAML format."""
     course = get_object_or_404(Course, slug=course_slug)
+    criteria_yaml = _course_criteria_yaml(course)
     return HttpResponse(
-        _course_criteria_yaml(course),
+        criteria_yaml,
         content_type='text/plain; charset=utf-8',
     )
