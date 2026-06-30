@@ -227,6 +227,9 @@ def project_build_context(
         user_details = project_context_user_details(user, course, project)
     else:
         user_details = ProjectContextUserDetails(None, None, None)
+    disable_learning_in_public = project_learning_in_public_disabled(
+        user_details.enrollment
+    )
 
     return {
         "course": course,
@@ -236,9 +239,7 @@ def project_build_context(
         "disabled": not accepting_submissions,
         "accepting_submissions": accepting_submissions,
         "certificate_name": user_details.certificate_name,
-        "disable_learning_in_public": project_learning_in_public_disabled(
-            user_details.enrollment
-        ),
+        "disable_learning_in_public": disable_learning_in_public,
     }
 
 
@@ -256,10 +257,11 @@ def project_context_user_details(
         student=user,
         course=course,
     )
+    certificate_name = project_context_certificate_name(user, enrollment)
     return ProjectContextUserDetails(
         submission=project_submission,
         enrollment=enrollment,
-        certificate_name=project_context_certificate_name(user, enrollment),
+        certificate_name=certificate_name,
     )
 
 

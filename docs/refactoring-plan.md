@@ -602,6 +602,8 @@ Steps:
   chaining them inline.
 - [x] Name registration email normalization and context presentation values
   instead of nesting calls inline.
+- [x] Name project context certificate and learning-in-public flags before
+  building context objects.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
