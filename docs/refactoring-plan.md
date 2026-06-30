@@ -611,6 +611,8 @@ Steps:
 - [x] Name dashboard homework queryset and max-score annotation before applying
   them.
 - [x] Split Datamailer signal tests out of the oversized Datamailer test module.
+- [x] Split homework submissions view tests out of the oversized homework test
+  module.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
