@@ -585,6 +585,8 @@ Steps:
   count query steps instead of nesting calls inline.
 - [x] Name project-result scores, feedback querysets, and context values instead
   of nesting calls inline.
+- [x] Name all-project-submission count filters, annotations, and queryset
+  ordering steps instead of nesting calls inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

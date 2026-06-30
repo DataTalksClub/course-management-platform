@@ -23,35 +23,33 @@ def list_all_project_submissions_view(request, course_slug: str):
 
 
 def _projects_with_submission_counts(course):
-    return (
-        Project.objects.filter(course=course)
-        .annotate(
-            submissions_count=Count(
-                "projectsubmission",
-                filter=Q(projectsubmission__volunteer_review_only=False),
-            )
-        )
-        .order_by("id")
+    projects = Project.objects.filter(course=course)
+    counted_submissions = Q(projectsubmission__volunteer_review_only=False)
+    submissions_count = Count(
+        "projectsubmission",
+        filter=counted_submissions,
     )
+    projects = projects.annotate(submissions_count=submissions_count)
+    return projects.order_by("id")
 
 
 def _all_project_submissions(course):
-    return (
-        ProjectSubmission.objects.filter(
-            project__course=course,
-            volunteer_review_only=False,
-        )
-        .select_related("project", "enrollment")
-        .annotate(
-            vote_count=Count("votes"),
-            display_score=_project_submission_display_score(),
-        )
-        .order_by(
-            "-vote_count",
-            "-display_score",
-            "project__id",
-            "submitted_at",
-        )
+    submissions = ProjectSubmission.objects.filter(
+        project__course=course,
+        volunteer_review_only=False,
+    )
+    submissions = submissions.select_related("project", "enrollment")
+    vote_count = Count("votes")
+    display_score = _project_submission_display_score()
+    submissions = submissions.annotate(
+        vote_count=vote_count,
+        display_score=display_score,
+    )
+    return submissions.order_by(
+        "-vote_count",
+        "-display_score",
+        "project__id",
+        "submitted_at",
     )
 
 
