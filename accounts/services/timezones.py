@@ -100,7 +100,12 @@ def format_user_datetime(
     timezone_name = user_timezone_name(user, browser_timezone)
     timezone_info = ZoneInfo(timezone_name)
     localized = value.astimezone(timezone_info)
-    return localized.strftime(fmt or DEFAULT_USER_DATETIME_FORMAT)
+    if fmt:
+        date_format = fmt
+    else:
+        date_format = DEFAULT_USER_DATETIME_FORMAT
+    formatted_value = localized.strftime(date_format)
+    return formatted_value
 
 
 def format_deadline_for_user(value: datetime, user=None) -> dict:
@@ -129,7 +134,10 @@ def format_deadline_for_user(value: datetime, user=None) -> dict:
 
 
 def _format_offset(offset_minutes: int) -> str:
-    sign = "+" if offset_minutes >= 0 else "-"
+    if offset_minutes >= 0:
+        sign = "+"
+    else:
+        sign = "-"
     absolute_minutes = abs(offset_minutes)
     hours, minutes = divmod(absolute_minutes, 60)
     return f"GMT{sign}{hours:02d}:{minutes:02d}"

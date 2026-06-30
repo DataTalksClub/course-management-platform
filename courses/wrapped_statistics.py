@@ -152,10 +152,12 @@ def _wrapped_leaderboard_entries(user_scores):
 
 
 def _has_faq_contribution(submission):
-    return bool(
-        submission.faq_contribution_url
-        and submission.faq_contribution_url.strip()
-    )
+    if not submission.faq_contribution_url:
+        return False
+    stripped_url = submission.faq_contribution_url.strip()
+    if stripped_url:
+        return True
+    return False
 
 
 def _wrapped_courses(enrollments):
@@ -180,7 +182,12 @@ def _wrapped_certificates_count(enrollments):
 
 
 def _capped_hours(value):
-    return min(value or 0, 100.0)
+    if value:
+        hours = value
+    else:
+        hours = 0
+    capped_hours = min(hours, 100.0)
+    return capped_hours
 
 
 def _wrapped_homework_hours(submission):
@@ -357,10 +364,12 @@ def _wrapped_enrollment_ids(homework_submissions, project_submissions):
 
 
 def _wrapped_enrollments(enrollment_ids):
-    return Enrollment.objects.filter(id__in=enrollment_ids).select_related(
+    enrollments = Enrollment.objects.filter(id__in=enrollment_ids)
+    enrollments_with_related = enrollments.select_related(
         "course",
         "student",
     )
+    return enrollments_with_related
 
 
 def _wrapped_active_students_and_enrollments(

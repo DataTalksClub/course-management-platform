@@ -16,7 +16,9 @@ def read_body(*, inline="", file_path=""):
             "Provide either inline body text or a body file, not both."
         )
     if file_path:
-        return Path(file_path).read_text(encoding="utf-8")
+        path = Path(file_path)
+        body_text = path.read_text(encoding="utf-8")
+        return body_text
     return inline
 
 

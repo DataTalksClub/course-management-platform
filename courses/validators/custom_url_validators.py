@@ -102,7 +102,9 @@ URL_VALIDATION_ERRORS = (
 
 
 def _url_validation_method(get_method):
-    return get_method or requests.head
+    if get_method:
+        return get_method
+    return requests.head
 
 
 def _should_retry_with_get(status_code):

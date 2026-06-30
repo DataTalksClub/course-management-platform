@@ -165,7 +165,9 @@ class Question(models.Model):
         if self.has_choice_answers():
             return self.get_choice_correct_answer()
 
-        return self.correct_answer or ""
+        if self.correct_answer:
+            return self.correct_answer
+        return ""
 
     def get_correct_answer_indices(self):
         if not self.correct_answer:
