@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from operator import attrgetter
 from time import time
 
 from django.db.models import Count, Q, Sum
@@ -41,6 +42,13 @@ class UserWrappedMetrics:
     courses: list
     rank: int | None
     display_name: str
+
+
+@dataclass
+class WrappedLeaderboardUserScore:
+    student: object
+    display_name: str
+    total_score: int = 0
 
 
 @dataclass(frozen=True)
@@ -97,31 +105,44 @@ def _wrapped_course_stats(enrollments, courses):
 
 def _wrapped_leaderboard(enrollments):
     """Top-100 leaderboard, summing each student's score across courses."""
-    user_scores = {}
+    user_scores = _wrapped_leaderboard_scores(enrollments)
+    top_scores = _top_wrapped_leaderboard_scores(user_scores)
+    return _wrapped_leaderboard_entries(top_scores)
+
+
+def _wrapped_leaderboard_scores(enrollments):
+    user_scores_by_student_id = {}
     for enrollment in enrollments:
-        entry = user_scores.setdefault(
-            enrollment.student_id,
-            {
-                "student": enrollment.student,
-                "total_score": 0,
-                "display_name": enrollment.display_name,
-            },
-        )
-        entry["total_score"] += enrollment.total_score or 0
+        user_score = user_scores_by_student_id.get(enrollment.student_id)
+        if user_score is None:
+            user_score = WrappedLeaderboardUserScore(
+                student=enrollment.student,
+                display_name=enrollment.display_name,
+            )
+            user_scores_by_student_id[enrollment.student_id] = user_score
 
-    sorted_users = sorted(
+        user_score.total_score += enrollment.total_score or 0
+
+    return user_scores_by_student_id
+
+
+def _top_wrapped_leaderboard_scores(user_scores):
+    sorted_scores = sorted(
         user_scores.values(),
-        key=lambda x: x["total_score"],
+        key=attrgetter("total_score"),
         reverse=True,
-    )[:100]
+    )
+    return sorted_scores[:100]
 
+
+def _wrapped_leaderboard_entries(user_scores):
     leaderboard = []
-    for idx, user_data in enumerate(sorted_users, start=1):
+    for rank, user_score in enumerate(user_scores, start=1):
         leaderboard_entry = {
-            "rank": idx,
-            "display_name": user_data["display_name"],
-            "total_score": user_data["total_score"],
-            "student_id": user_data["student"].id,
+            "rank": rank,
+            "display_name": user_score.display_name,
+            "total_score": user_score.total_score,
+            "student_id": user_score.student.id,
         }
         leaderboard.append(leaderboard_entry)
     return leaderboard
