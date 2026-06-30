@@ -35,7 +35,8 @@ def _questions_via_api(api, run_state, hw_id) -> dict[str, int]:
         expected=(200,),
     )
     resp = api._request(request_data)  # internal helper reuse, read-only GET
-    questions = resp.json().get("questions", [])
+    body = resp.json()
+    questions = body.get("questions", [])
     mapping: dict[str, int] = {}
     for q in questions:
         text = q.get("text", "").lower()
