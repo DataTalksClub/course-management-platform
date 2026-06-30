@@ -303,9 +303,10 @@ def campaign_create(request):
             messages.success(
                 request, "Registration landing page created."
             )
-            return redirect(
+            response = redirect(
                 "cadmin_campaign_edit", campaign_slug=campaign.slug
             )
+            return response
     else:
         initial = campaign_form_initial(request)
         form = RegistrationCampaignForm(initial=initial)
@@ -318,7 +319,8 @@ def campaign_create(request):
         "page_title": "Create registration landing page",
         "submit_label": "Create landing page",
     }
-    return render(request, "cadmin/campaign_form.html", context)
+    response = render(request, "cadmin/campaign_form.html", context)
+    return response
 
 
 def _handle_campaign_datamailer_post(request, campaign):
@@ -406,7 +408,8 @@ def campaign_edit(request, campaign_slug):
         form,
         datamailer_preview,
     )
-    return render(request, "cadmin/campaign_form.html", context)
+    response = render(request, "cadmin/campaign_form.html", context)
+    return response
 
 
 def _campaign_registration_queryset(campaign):
@@ -485,6 +488,7 @@ def campaign_registrations(request, campaign_slug):
         search_query=search_query,
     )
     context = _campaign_registrations_context(context_data)
-    return render(
+    response = render(
         request, "cadmin/campaign_registrations.html", context
     )
+    return response
