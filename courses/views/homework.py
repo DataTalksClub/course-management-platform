@@ -340,14 +340,6 @@ def homework_error_fields(error: ValidationError) -> set[str]:
     return fields
 
 
-def redirect_to_homework(course: Course, homework: Homework):
-    return redirect(
-        "homework",
-        course_slug=course.slug,
-        homework_slug=homework.slug,
-    )
-
-
 def closed_homework_submission_response(
     request: HttpRequest,
     course: Course,
@@ -358,7 +350,12 @@ def closed_homework_submission_response(
         "This homework is not open for submissions.",
         extra_tags="homework",
     )
-    return redirect_to_homework(course, homework)
+    response = redirect(
+        "homework",
+        course_slug=course.slug,
+        homework_slug=homework.slug,
+    )
+    return response
 
 
 def homework_validation_context(

@@ -293,14 +293,6 @@ def project_learning_in_public_disabled(
     return enrollment.disable_learning_in_public
 
 
-def project_redirect(course: Course, project: Project):
-    return redirect(
-        "project",
-        course_slug=course.slug,
-        project_slug=project.slug,
-    )
-
-
 def project_login_required_response(
     request: HttpRequest, course: Course, project: Project
 ):
@@ -309,7 +301,12 @@ def project_login_required_response(
         "You need to be logged in to submit a project",
         extra_tags="homework",
     )
-    return project_redirect(course, project)
+    response = redirect(
+        "project",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+    return response
 
 
 def closed_project_submission_response(
@@ -370,7 +367,12 @@ def handle_project_post(
                 request, course, project, error
             )
 
-    return project_redirect(course, project)
+    response = redirect(
+        "project",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+    return response
 
 
 def project_view(request, course_slug, project_slug):
