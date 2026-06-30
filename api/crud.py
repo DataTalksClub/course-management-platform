@@ -46,8 +46,9 @@ def bulk_create_response(data, create_item, *, name_field="name"):
     for item in items:
         item_dict, error = create_item(item)
         if error:
+            item_name = item.get(name_field, "unknown")
             error_record = {
-                "name": item.get(name_field, "unknown"),
+                "name": item_name,
                 "error": error,
             }
             errors.append(error_record)
@@ -58,7 +59,8 @@ def bulk_create_response(data, create_item, *, name_field="name"):
     if errors:
         result["errors"] = errors
 
-    return JsonResponse(result, status=201 if created else 400)
+    status = 201 if created else 400
+    return JsonResponse(result, status=status)
 
 
 def get_course_child_or_404(model, course, *, object_id=None, slug=None):
@@ -77,7 +79,8 @@ def patch_instance_response(
         return error
 
     instance.save()
-    return JsonResponse(config.to_dict(instance))
+    response_data = config.to_dict(instance)
+    return JsonResponse(response_data)
 
 
 def detail_response(
@@ -86,7 +89,8 @@ def detail_response(
     config,
 ):
     if request.method == "GET":
-        return detail_get_response(instance, config.patch)
+        response_data = config.patch.to_dict(instance)
+        return JsonResponse(response_data)
 
     staff_error = require_staff_token(request)
     if staff_error:
@@ -103,11 +107,6 @@ def detail_response(
         instance,
         config.patch,
     )
-
-
-def detail_get_response(instance, config):
-    return JsonResponse(config.to_dict(instance))
-
 
 def detail_delete_response(
     instance,

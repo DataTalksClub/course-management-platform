@@ -146,10 +146,12 @@ def parse_patch_field_value(field, value, rules):
 
     parsed_value = parse_date(value)
     if parsed_value is None:
-        return None, error_response(
+        details = {"field": field}
+        error = error_response(
             f"Invalid date format for {field}",
             "invalid_date_format",
-            details={"field": field},
+            details=details,
         )
+        return None, error
 
     return parsed_value, None
