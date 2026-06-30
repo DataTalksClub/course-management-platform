@@ -33,6 +33,23 @@ class RecipientListMemberPayload:
     payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class RegistrationConfirmationPayloadData:
+    config: DatamailerConfig
+    registration: object
+    campaign: object
+    course: object
+    urls: dict[str, str]
+    email: str
+
+
+@dataclass(frozen=True)
+class RegistrationCampaignPayloadData:
+    campaign: object
+    body_text: str
+    registration_url: str
+
+
 def contact_base_custom_fields(user) -> dict[str, str]:
     return {
         "course_platform_user_id": str(user.pk),
@@ -88,20 +105,44 @@ def contact_payload_for_user(
 
 
 def registration_campaign_datamailer_payload(campaign) -> dict[str, Any]:
-    public_path = reverse(
-        "registration_campaign",
-        kwargs={"campaign_slug": campaign.slug},
-    )
+    payload_data = registration_campaign_payload_data(campaign)
+    payload: dict[str, Any] = registration_campaign_base_payload(payload_data)
+    if campaign.current_course_id:
+        payload["recipient_list_key"] = campaign.current_course.slug
+        metadata = payload["metadata"]
+        metadata["course_slug"] = campaign.current_course.slug
+        metadata["course_title"] = campaign.current_course.title
+    return payload
+
+
+def registration_campaign_payload_data(
+    campaign,
+) -> RegistrationCampaignPayloadData:
     body_text = (
         campaign.marketing_markdown.strip()
         or campaign.meta_description.strip()
         or campaign.title
     )
-    payload: dict[str, Any] = {
+    public_path = reverse(
+        "registration_campaign",
+        kwargs={"campaign_slug": campaign.slug},
+    )
+    return RegistrationCampaignPayloadData(
+        campaign=campaign,
+        body_text=body_text,
+        registration_url=public_url(public_path),
+    )
+
+
+def registration_campaign_base_payload(
+    data: RegistrationCampaignPayloadData,
+) -> dict[str, Any]:
+    campaign = data.campaign
+    return {
         "subject": campaign.title,
         "preview_text": campaign.meta_description[:255],
-        "html_body": render_markdown(body_text),
-        "text_body": body_text,
+        "html_body": render_markdown(data.body_text),
+        "text_body": data.body_text,
         "category_tag": EMAIL_PREFERENCE_CATEGORIES[
             "email_course_updates"
         ]["tag"],
@@ -109,16 +150,9 @@ def registration_campaign_datamailer_payload(campaign) -> dict[str, Any]:
         "exclude_tags": [],
         "metadata": {
             "cmp_registration_campaign_slug": campaign.slug,
-            "registration_url": public_url(public_path),
+            "registration_url": data.registration_url,
         },
     }
-    if campaign.current_course_id:
-        payload["recipient_list_key"] = campaign.current_course.slug
-        payload["metadata"] |= {
-            "course_slug": campaign.current_course.slug,
-            "course_title": campaign.current_course.title,
-        }
-    return payload
 
 
 def _registration_email(registration) -> str:
@@ -197,26 +231,41 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
     campaign = registration.campaign
     course = registration.course
     urls = _registration_confirmation_urls(campaign, course)
+    payload_data = RegistrationConfirmationPayloadData(
+        config=config,
+        registration=registration,
+        campaign=campaign,
+        course=course,
+        urls=urls,
+        email=email,
+    )
+    return _registration_confirmation_payload(payload_data)
 
+
+def _registration_confirmation_payload(
+    data: RegistrationConfirmationPayloadData,
+) -> dict[str, Any]:
     return {
-        "audience": config.audience,
-        "client": config.client,
-        "email": email,
+        "audience": data.config.audience,
+        "client": data.config.client,
+        "email": data.email,
         "template_key": email_templates.REGISTRATION_CONFIRMATION,
         "category_tag": EMAIL_PREFERENCE_CATEGORIES[
             "email_course_updates"
         ]["tag"],
-        "idempotency_key": f"registration-confirmation:{registration.pk}",
+        "idempotency_key": (
+            f"registration-confirmation:{data.registration.pk}"
+        ),
         "context": _registration_confirmation_context(
-            registration,
-            campaign,
-            course,
-            urls,
+            data.registration,
+            data.campaign,
+            data.course,
+            data.urls,
         ),
         "metadata": _registration_confirmation_metadata(
-            registration,
-            campaign,
-            course,
+            data.registration,
+            data.campaign,
+            data.course,
         ),
     }
 
@@ -331,6 +380,15 @@ def registration_recipient_metadata(registration) -> dict[str, Any]:
     }
 
 
+def enrollment_recipient_metadata(enrollment) -> dict[str, Any]:
+    return {
+        "enrollment_id": enrollment.pk,
+        "user_id": enrollment.student_id,
+        "course_slug": enrollment.course.slug,
+        "display_name": enrollment.display_name,
+    }
+
+
 def enrollment_recipient_list_payload(
     enrollment,
 ) -> RecipientListMemberPayload | None:
@@ -341,18 +399,12 @@ def enrollment_recipient_list_payload(
     course = enrollment.course
     list_key = course_enrolled_list_key(course)
     source_object_key = f"user:{enrollment.student_id}"
-    metadata = {
-        "enrollment_id": enrollment.pk,
-        "user_id": enrollment.student_id,
-        "course_slug": course.slug,
-        "display_name": enrollment.display_name,
-    }
     payload_data = RecipientListMemberPayloadData(
         list_type="custom",
         list_name=f"{course.title} enrolled learners",
         email=email,
         source_object_key=source_object_key,
-        metadata=metadata,
+        metadata=enrollment_recipient_metadata(enrollment),
     )
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
