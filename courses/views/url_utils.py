@@ -29,7 +29,9 @@ def absolute_url_with_fallback(
 def absolute_public_base_url(path):
     if not settings.PUBLIC_BASE_URL:
         return ""
-    return urljoin(f"{settings.PUBLIC_BASE_URL}/", path.lstrip("/"))
+    base_url = f"{settings.PUBLIC_BASE_URL}/"
+    normalized_path = path.lstrip("/")
+    return urljoin(base_url, normalized_path)
 
 
 def concrete_allowed_host():
@@ -48,4 +50,5 @@ def fallback_absolute_url(request, path, *, label):
         label,
         fallback_host,
     )
-    return urljoin(f"{request.scheme}://{fallback_host}", path)
+    fallback_base_url = f"{request.scheme}://{fallback_host}"
+    return urljoin(fallback_base_url, path)

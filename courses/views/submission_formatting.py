@@ -10,7 +10,8 @@ from courses.views.homework_answers import format_submitted_value
 def format_submission_lines(items: List[dict[str, Any]]) -> str:
     lines = []
     for item in items:
-        line = f"{item['label']}: {format_submitted_value(item['value'])}"
+        submitted_value = format_submitted_value(item["value"])
+        line = f"{item['label']}: {submitted_value}"
         lines.append(line)
     return "\n".join(lines)
 
@@ -18,9 +19,10 @@ def format_submission_lines(items: List[dict[str, Any]]) -> str:
 def format_answer_lines(answers: List[dict[str, Any]]) -> str:
     lines = []
     for answer in answers:
+        submitted_answer = format_submitted_value(answer["answer"])
         line = (
             f"{answer['question']}: "
-            f"{format_submitted_value(answer['answer'])}"
+            f"{submitted_answer}"
         )
         lines.append(line)
     return "\n".join(lines)
@@ -56,7 +58,8 @@ def parse_time_spent_hours(
     if not value:
         return None
 
-    parsed = tryparsefloat(value.replace(",", "."))
+    normalized_value = value.replace(",", ".")
+    parsed = tryparsefloat(normalized_value)
     if parsed is None:
         raise ValidationError(
             f"Please enter a valid number of hours for {field_label} "
@@ -75,5 +78,7 @@ def request_base_url(url: str) -> str:
 def build_account_settings_url(base_url: str) -> str:
     path = reverse("account_settings")
     if base_url:
-        return urljoin(f"{base_url}/", path.lstrip("/"))
+        base_url_with_slash = f"{base_url}/"
+        normalized_path = path.lstrip("/")
+        return urljoin(base_url_with_slash, normalized_path)
     return path
