@@ -33,8 +33,10 @@ def redirect_after_action(request, default_view_name, **kwargs):
         allowed_hosts=allowed_hosts,
         require_https=require_https,
     ):
-        return redirect(next_url)
-    return redirect(default_view_name, **kwargs)
+        response = redirect(next_url)
+        return response
+    response = redirect(default_view_name, **kwargs)
+    return response
 
 
 def first_form_error(form):
