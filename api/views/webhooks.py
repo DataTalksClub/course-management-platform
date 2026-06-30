@@ -63,11 +63,12 @@ def preference_key_from_payload(payload):
 
 def preference_key_candidates(payload):
     metadata = payload_metadata(payload)
-    return (
+    candidates = [
         payload.get("preference_key"),
         metadata.get("preference_key"),
         metadata.get("cmp_preference_key"),
-    )
+    ]
+    return candidates
 
 
 def payload_metadata(payload):

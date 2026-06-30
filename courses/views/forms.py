@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django import forms
 
 from courses.models import (
@@ -7,6 +9,12 @@ from courses.models import (
     LeaderboardComplaint,
 )
 from courses.registration import region_for_country
+
+
+@dataclass(frozen=True)
+class RegistrationProfileValue:
+    field_name: str
+    value: object
 
 
 class AnswerForm(forms.ModelForm):
@@ -271,18 +279,33 @@ def _can_update_registration_user_profile(user):
 def _update_user_profile_from_registration(user, registration):
     update_fields = []
     profile_values = _registration_profile_values(registration)
-    for field_name, value in profile_values:
-        _update_user_profile_field(user, update_fields, field_name, value)
+    for profile_value in profile_values:
+        _update_user_profile_field(
+            user,
+            update_fields,
+            profile_value.field_name,
+            profile_value.value,
+        )
     return update_fields
 
 
 def _registration_profile_values(registration):
-    return (
-        ("certificate_name", registration.name.strip()),
-        ("country", registration.country),
-        ("region", registration.region),
-        ("registration_role", registration.role),
+    profile_values = []
+    certificate_name = RegistrationProfileValue(
+        "certificate_name",
+        registration.name.strip(),
     )
+    country = RegistrationProfileValue("country", registration.country)
+    region = RegistrationProfileValue("region", registration.region)
+    registration_role = RegistrationProfileValue(
+        "registration_role",
+        registration.role,
+    )
+    profile_values.append(certificate_name)
+    profile_values.append(country)
+    profile_values.append(region)
+    profile_values.append(registration_role)
+    return profile_values
 
 
 def _update_user_profile_field(user, update_fields, field_name, value):
