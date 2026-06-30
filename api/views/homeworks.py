@@ -207,22 +207,29 @@ def _create_homework(course, hw_data):
         **attrs,
     )
 
-    _create_questions(homework, hw_data.get("questions", []))
+    questions_data = hw_data.get("questions", [])
+    _create_questions(homework, questions_data)
 
     return _homework_to_dict(homework), None
 
 
 def _create_question(homework, q_data):
+    text = q_data.get("text", "")
+    question_type = q_data.get("question_type", "FF")
+    answer_type = q_data.get("answer_type")
+    possible_answers_data = q_data.get("possible_answers", [])
+    possible_answers = "\n".join(possible_answers_data)
+    correct_answer = q_data.get("correct_answer", "")
+    score = q_data.get("scores_for_correct_answer", 1)
+
     Question.objects.create(
         homework=homework,
-        text=q_data.get("text", ""),
-        question_type=q_data.get("question_type", "FF"),
-        answer_type=q_data.get("answer_type"),
-        possible_answers="\n".join(q_data.get("possible_answers", [])),
-        correct_answer=q_data.get("correct_answer", ""),
-        scores_for_correct_answer=q_data.get(
-            "scores_for_correct_answer", 1
-        ),
+        text=text,
+        question_type=question_type,
+        answer_type=answer_type,
+        possible_answers=possible_answers,
+        correct_answer=correct_answer,
+        scores_for_correct_answer=score,
     )
 
 
@@ -326,10 +333,11 @@ def _invalid_due_date_response():
 
 
 def _invalid_homework_state_response():
+    valid_states = sorted(VALID_HOMEWORK_STATES)
     return error_response(
-        f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
+        f"Invalid state. Must be one of: {valid_states}",
         "invalid_homework_state",
-        details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
+        details={"valid_states": valid_states},
     )
 
 
@@ -468,7 +476,8 @@ def _validate_homework_upsert(data, homework, created):
 
 def _validate_created_homework_fields(data, created):
     title = _homework_title_from_data(data)
-    if created and (not title or not data.get("due_date")):
+    due_date = data.get("due_date")
+    if created and (not title or not due_date):
         return error_response(
             "title/name and due_date are required",
             "missing_required_fields",
@@ -488,7 +497,11 @@ def _validate_homework_instructions_url(data):
 
 
 def _validate_homework_due_date(data):
-    if "due_date" in data and parse_date(data["due_date"]) is None:
+    if "due_date" not in data:
+        return None
+
+    due_date = parse_date(data["due_date"])
+    if due_date is None:
         return _invalid_due_date_response()
     return None
 
@@ -514,13 +527,17 @@ def _homework_by_slug(course, homework_slug):
 
 def _create_homework_for_upsert(upsert):
     title = _homework_title_from_data(upsert.data)
+    description = upsert.data.get("description", "")
+    instructions_url = upsert.data.get("instructions_url")
+    due_date = parse_date(upsert.data["due_date"])
+
     return Homework.objects.create(
         course=upsert.course,
         slug=upsert.homework_slug,
         title=title,
-        description=upsert.data.get("description", ""),
-        instructions_url=upsert.data.get("instructions_url"),
-        due_date=parse_date(upsert.data["due_date"]),
+        description=description,
+        instructions_url=instructions_url,
+        due_date=due_date,
         state=HomeworkState.CLOSED.value,
     )
 
@@ -577,8 +594,10 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
     if error:
         return error
 
+    homework_data = _homework_to_dict(homework)
+    response_status = 201 if created else 200
     return JsonResponse(
-        _homework_to_dict(homework), status=201 if created else 200
+        homework_data, status=response_status
     )
 
 
