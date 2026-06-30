@@ -91,10 +91,11 @@ def _wrapped_course_stats(enrollments, courses):
     """Per-course enrollment counts, sorted most-popular first."""
     course_stats_list = []
     for course in courses:
+        enrollment_count = enrollments.filter(course=course).count()
         course_stats = {
             "title": course.title,
             "slug": course.slug,
-            "enrollment_count": enrollments.filter(course=course).count(),
+            "enrollment_count": enrollment_count,
         }
         course_stats_list.append(course_stats)
     course_stats_list.sort(
@@ -128,9 +129,10 @@ def _wrapped_leaderboard_scores(enrollments):
 
 def _top_wrapped_leaderboard_scores(user_scores):
     user_score_values = user_scores.values()
+    total_score_key = attrgetter("total_score")
     sorted_scores = sorted(
         user_score_values,
-        key=attrgetter("total_score"),
+        key=total_score_key,
         reverse=True,
     )
     return sorted_scores[:100]
@@ -285,14 +287,16 @@ def _user_wrapped_metrics(data):
 def _build_user_wrapped_stat(data):
     """Build an (unsaved) UserWrappedStatistics row for one student."""
     metrics = _user_wrapped_metrics(data)
+    homework_count = len(data.homework_submissions)
+    project_count = len(data.project_submissions)
 
     return UserWrappedStatistics(
         wrapped=data.stats,
         user=data.student,
         total_points=metrics.total_points,
         total_hours=metrics.total_hours,
-        homework_count=len(data.homework_submissions),
-        project_count=len(data.project_submissions),
+        homework_count=homework_count,
+        project_count=project_count,
         peer_reviews_given=data.peer_reviews_count,
         learning_in_public_count=metrics.learning_in_public_count,
         faq_contributions_count=metrics.faq_contributions_count,
@@ -388,15 +392,17 @@ def _persist_wrapped_platform_statistics(stats, activity):
         activity.homework_submissions,
         activity.project_submissions,
     )
+    missing_certificate_url = Q(certificate_url__isnull=True)
+    empty_certificate_url = Q(certificate_url="")
+    no_certificate_url = missing_certificate_url | empty_certificate_url
     stats.total_certificates = activity.enrollments.exclude(
-        Q(certificate_url__isnull=True) | Q(certificate_url="")
+        no_certificate_url
     ).count()
-    stats.total_points = (
-        activity.enrollments.aggregate(total_score=Sum("total_score"))[
-            "total_score"
-        ]
-        or 0
+    total_score_annotation = Sum("total_score")
+    score_totals = activity.enrollments.aggregate(
+        total_score=total_score_annotation
     )
+    stats.total_points = score_totals["total_score"] or 0
     stats.course_stats = _wrapped_course_stats(
         activity.enrollments,
         activity.courses,
@@ -436,6 +442,7 @@ def _group_wrapped_activity_by_student(
 
 def _wrapped_peer_review_counts(students_with_activity, year_start, year_end):
     peer_review_counts = {}
+    review_count_annotation = Count("id")
     peer_reviews = (
         PeerReview.objects.filter(
             reviewer__student__in=students_with_activity,
@@ -443,7 +450,7 @@ def _wrapped_peer_review_counts(students_with_activity, year_start, year_end):
             submitted_at__lte=year_end,
         )
         .values("reviewer__student")
-        .annotate(count=Count("id"))
+        .annotate(count=review_count_annotation)
     )
     for peer_review in peer_reviews:
         peer_review_counts[peer_review["reviewer__student"]] = peer_review[
@@ -455,13 +462,17 @@ def _wrapped_peer_review_counts(students_with_activity, year_start, year_end):
 def _build_user_wrapped_stats(data):
     user_stats = []
     for student in data.students_with_activity:
+        homework_submissions = data.homework_by_student.get(student, [])
+        project_submissions = data.project_by_student.get(student, [])
+        enrollments = data.enrollment_by_student.get(student, [])
+        peer_reviews_count = data.peer_review_counts.get(student.id, 0)
         stat_data = UserWrappedStatData(
             stats=data.stats,
             student=student,
-            homework_submissions=data.homework_by_student.get(student, []),
-            project_submissions=data.project_by_student.get(student, []),
-            enrollments=data.enrollment_by_student.get(student, []),
-            peer_reviews_count=data.peer_review_counts.get(student.id, 0),
+            homework_submissions=homework_submissions,
+            project_submissions=project_submissions,
+            enrollments=enrollments,
+            peer_reviews_count=peer_reviews_count,
             leaderboard_data=data.leaderboard_data,
         )
         user_stat = _build_user_wrapped_stat(stat_data)
