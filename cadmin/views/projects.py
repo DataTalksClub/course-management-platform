@@ -122,25 +122,29 @@ def _apply_project_action_flags(project):
 
 
 def _project_submissions_context(data):
+    page_range = data.submissions_page.paginator.get_elided_page_range(
+        data.submissions_page.number
+    )
+    querystring = pagination_querystring(data.request)
     return {
         "course": data.course,
         "project": data.project,
         "submissions": data.submissions_page.object_list,
         "submissions_page": data.submissions_page,
-        "page_range": data.submissions_page.paginator.get_elided_page_range(
-            data.submissions_page.number
-        ),
+        "page_range": page_range,
         "project_filter_counts": data.project_filter_counts,
         "search_query": data.search_query,
         "status_filter": data.status_filter,
-        "pagination_querystring": pagination_querystring(data.request),
+        "pagination_querystring": querystring,
     }
 
 
 def _project_submissions_request_filters(request):
+    search_query = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "all")
     return (
-        request.GET.get("q", "").strip(),
-        request.GET.get("status", "all"),
+        search_query,
+        status_filter,
     )
 
 

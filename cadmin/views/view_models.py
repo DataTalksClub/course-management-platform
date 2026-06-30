@@ -65,7 +65,11 @@ def project_submission_list_data(project, search_query, status_filter):
         PROJECT_SUBMISSION_FILTER_COUNTS,
     )
 
-    return _filter_project_submissions(submissions, status_filter), filter_counts
+    filtered_submissions = _filter_project_submissions(
+        submissions,
+        status_filter,
+    )
+    return filtered_submissions, filter_counts
 
 
 def _attach_project_review_counts(project, submissions):
@@ -127,12 +131,14 @@ ENROLLMENT_FILTER_COUNTS = {
 
 
 def enrollment_list_data(course, search_query, status_filter):
+    homework_count_annotation = Count("submission", distinct=True)
+    project_count_annotation = Count("projectsubmission", distinct=True)
     enrollments = (
         Enrollment.objects.filter(course=course)
         .select_related("student")
         .annotate(
-            homework_count=Count("submission", distinct=True),
-            project_count=Count("projectsubmission", distinct=True),
+            homework_count=homework_count_annotation,
+            project_count=project_count_annotation,
         )
         .order_by("position_on_leaderboard", "id")
     )
@@ -151,7 +157,8 @@ def enrollment_list_data(course, search_query, status_filter):
         ENROLLMENT_FILTER_COUNTS,
     )
 
-    return _filter_enrollments(enrollments, status_filter), filter_counts
+    filtered_enrollments = _filter_enrollments(enrollments, status_filter)
+    return filtered_enrollments, filter_counts
 
 
 def _attach_enrollment_support_flags(enrollments):
@@ -176,7 +183,8 @@ def _filter_enrollments(enrollments, status_filter):
 
 
 def _status_filter_counts(items, count_predicates):
-    counts = {"all": len(items)}
+    total_count = len(items)
+    counts = {"all": total_count}
     for key, predicate in count_predicates.items():
         count = 0
         for item in items:

@@ -10,7 +10,8 @@ CADMIN_PAGE_SIZE = 25
 
 def paginate_queryset(request, queryset, per_page=CADMIN_PAGE_SIZE):
     paginator = Paginator(queryset, per_page)
-    return paginator.get_page(request.GET.get("page"))
+    page_number = request.GET.get("page")
+    return paginator.get_page(page_number)
 
 
 def pagination_querystring(request):
@@ -22,10 +23,12 @@ def pagination_querystring(request):
 
 def redirect_after_action(request, default_view_name, **kwargs):
     next_url = request.POST.get("next")
+    allowed_hosts = {request.get_host()}
+    require_https = request.is_secure()
     if next_url and url_has_allowed_host_and_scheme(
         next_url,
-        allowed_hosts={request.get_host()},
-        require_https=request.is_secure(),
+        allowed_hosts=allowed_hosts,
+        require_https=require_https,
     ):
         return redirect(next_url)
     return redirect(default_view_name, **kwargs)
@@ -49,8 +52,10 @@ def staff_required(function):
 
 
 def count_by(queryset, field):
-    return list(
+    count_annotation = Count("id")
+    rows = (
         queryset.values(field)
-        .annotate(count=Count("id"))
+        .annotate(count=count_annotation)
         .order_by("-count", field)
     )
+    return list(rows)
