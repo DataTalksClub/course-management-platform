@@ -249,16 +249,17 @@ def mark_enrolled_courses(courses, user) -> None:
 
 
 def visible_course_list_queryset():
-    return (
-        Course.objects.filter(visible=True)
-        .annotate(
-            homework_count=Count("homework", distinct=True),
-            project_count=Count("project", distinct=True),
-            learner_count=Count("enrollment", distinct=True),
-        )
-        .prefetch_related("homework_set", "project_set")
-        .order_by("-id")
+    courses = Course.objects.filter(visible=True)
+    homework_count = Count("homework", distinct=True)
+    project_count = Count("project", distinct=True)
+    learner_count = Count("enrollment", distinct=True)
+    courses = courses.annotate(
+        homework_count=homework_count,
+        project_count=project_count,
+        learner_count=learner_count,
     )
+    courses = courses.prefetch_related("homework_set", "project_set")
+    return courses.order_by("-id")
 
 
 def split_courses_by_status(courses, now):
