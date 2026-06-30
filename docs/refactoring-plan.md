@@ -531,6 +531,8 @@ Steps:
 - [x] Move OpenAPI modules into `api/openapi/`.
 - [x] Move registration country and top-country data into
   `courses/countries.txt`.
+- [x] Split `courses/views/course.py` into focused course, calendar,
+  leaderboard, enrollment, and project-submission modules.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
