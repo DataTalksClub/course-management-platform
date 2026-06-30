@@ -79,6 +79,14 @@ class ProjectScoringCalculation:
 
 
 @dataclass(frozen=True)
+class PeerReviewAssignmentData:
+    project: Project
+    submissions: object
+    num_evaluations: int
+    started_at: float
+
+
+@dataclass(frozen=True)
 class SubmissionScoringData:
     submission: ProjectSubmission
     project: Project
@@ -244,6 +252,7 @@ def _assignment_precondition_failure(
 
 
 def _open_peer_review_window(project: Project) -> None:
+    # Closing submissions deterministically starts a fresh seven-day review window.
     project.peer_review_due_date = ceil_to_next_hour(
         timezone.now() + PEER_REVIEW_WINDOW
     )
@@ -251,33 +260,50 @@ def _open_peer_review_window(project: Project) -> None:
     project.save()
 
 
+def _peer_review_assignment_data(project: Project) -> PeerReviewAssignmentData:
+    submissions = ProjectSubmission.objects.filter(
+        project=project
+    ).select_related("enrollment")
+    return PeerReviewAssignmentData(
+        project=project,
+        submissions=submissions,
+        num_evaluations=project.number_of_peers_to_evaluate,
+        started_at=time(),
+    )
+
+
+def _assign_peer_reviews(data: PeerReviewAssignmentData) -> None:
+    assignments = select_random_assignment(
+        data.submissions,
+        data.num_evaluations,
+        seed=42,
+    )
+    PeerReview.objects.bulk_create(assignments)
+    _open_peer_review_window(data.project)
+
+
+def _log_peer_review_assignment(data: PeerReviewAssignmentData) -> None:
+    duration = time() - data.started_at
+    logger.info(
+        f"Peer reviews assigned for project {data.project.id} in {duration:.2f} seconds."
+    )
+
+
 def assign_peer_reviews_for_project(
     project: Project,
 ) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
-        t0 = time()
-        submissions = ProjectSubmission.objects.filter(
-            project=project
-        ).select_related("enrollment")
-        num_evaluations = project.number_of_peers_to_evaluate
+        data = _peer_review_assignment_data(project)
         failure = _assignment_precondition_failure(
-            project, submissions.count(), num_evaluations
+            project,
+            data.submissions.count(),
+            data.num_evaluations,
         )
         if failure is not None:
             return failure
 
-        assignments = select_random_assignment(
-            submissions, num_evaluations, seed=42
-        )
-        PeerReview.objects.bulk_create(assignments)
-        # Open the peer-review window for 7 days from now, rounded up to the
-        # next whole hour. This always overwrites any previously set deadline
-        # so closing submissions deterministically (re)starts the review clock.
-        _open_peer_review_window(project)
-        t_end = time()
-        logger.info(
-            f"Peer reviews assigned for project {project.id} in {t_end - t0:.2f} seconds."
-        )
+        _assign_peer_reviews(data)
+        _log_peer_review_assignment(data)
 
     return (
         ProjectActionStatus.OK,
