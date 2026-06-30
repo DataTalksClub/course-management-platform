@@ -187,7 +187,7 @@ class LeaderboardDataViewTestCase(TestCase):
         data = yaml.safe_load(response.content)
         self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
 
-    def test_leaderboard_is_paginated(self):
+    def create_paginated_leaderboard_entries(self):
         for i in range(3, 106):
             user = CustomUser.objects.create(
                 username=f"user{i}", email=f"user{i}@example.com"
@@ -200,9 +200,14 @@ class LeaderboardDataViewTestCase(TestCase):
                 position_on_leaderboard=i,
             )
 
-        response = self.client.get(self.url)
+    def leaderboard_data(self, params=None):
+        if params is None:
+            params = {}
+        response = self.client.get(self.url, params)
         data = yaml.safe_load(response.content)
+        return data
 
+    def assert_first_leaderboard_page(self, data):
         self.assertEqual(data["page"], 1)
         self.assertNotIn("page_size", data)
         self.assertEqual(data["total_entries"], 105)
@@ -217,9 +222,7 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
         self.assertEqual(data["leaderboard"][-1]["display_name"], "User 100")
 
-        response = self.client.get(self.url, {"page": 2})
-        data = yaml.safe_load(response.content)
-
+    def assert_second_leaderboard_page(self, data):
         self.assertEqual(data["page"], 2)
         self.assertEqual(len(data["leaderboard"]), 5)
         self.assertFalse(data["has_next"])
@@ -231,6 +234,15 @@ class LeaderboardDataViewTestCase(TestCase):
         )
         self.assertEqual(data["previous_page_number"], 1)
         self.assertEqual(data["leaderboard"][0]["display_name"], "User 101")
+
+    def test_leaderboard_is_paginated(self):
+        self.create_paginated_leaderboard_entries()
+
+        first_page_data = self.leaderboard_data()
+        self.assert_first_leaderboard_page(first_page_data)
+
+        second_page_data = self.leaderboard_data({"page": 2})
+        self.assert_second_leaderboard_page(second_page_data)
 
     def test_rendered_yaml_response_is_cached(self):
         self.client.get(self.url)
