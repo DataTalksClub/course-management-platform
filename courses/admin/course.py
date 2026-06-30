@@ -126,8 +126,9 @@ def _course_duplicate_fields(course, current_year):
 
 def _year_rollover_value(value, current_year, separator):
     previous_year = str(current_year - 1)
+    current_year_text = str(current_year)
     if previous_year in value:
-        return value.replace(previous_year, str(current_year))
+        return value.replace(previous_year, current_year_text)
     return f"{value}{separator}{current_year}"
 
 
