@@ -27,7 +27,11 @@ User = get_user_model()
 
 def generate_password(length=16):
     alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
+    characters = []
+    for _ in range(length):
+        character = secrets.choice(alphabet)
+        characters.append(character)
+    return "".join(characters)
 
 
 def choose_user(matches, email):
@@ -35,15 +39,19 @@ def choose_user(matches, email):
 
 
 def unique_username_match(matches, email):
-    return unique_match(user for user in matches if user.username == email)
+    username_matches = []
+    for user in matches:
+        if user.username == email:
+            username_matches.append(user)
+    return unique_match(username_matches)
 
 
 def unique_active_admin(matches):
-    return unique_match(
-        user
-        for user in matches
-        if user.is_superuser and user.is_staff and user.is_active
-    )
+    active_admins = []
+    for user in matches:
+        if user.is_superuser and user.is_staff and user.is_active:
+            active_admins.append(user)
+    return unique_match(active_admins)
 
 
 def unique_match(items):

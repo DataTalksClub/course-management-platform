@@ -62,6 +62,17 @@ class ConfigError(RuntimeError):
     """Raised when a required configuration value is missing."""
 
 
+def _address_label(label: str) -> str:
+    characters = []
+    for character in label:
+        if character.isalnum() or character in "-._":
+            safe_character = character
+        else:
+            safe_character = "-"
+        characters.append(safe_character)
+    return "".join(characters)
+
+
 @dataclass(frozen=True)
 class Settings:
     base_url: str
@@ -93,7 +104,7 @@ class Settings:
         The unique ``+<label>`` isolates this run, since real capture is scoped
         only to the recipient address.
         """
-        clean = "".join(c if (c.isalnum() or c in "-._") else "-" for c in label)
+        clean = _address_label(label)
         return f"{self.real_inbox_tag}+{clean}@{self.real_inbox_domain}"
 
     def mock_address(self, label: str) -> str:
@@ -104,7 +115,7 @@ class Settings:
         ``MOCK_INBOX_DOMAIN`` *or* its local part carries ``MOCK_INBOX_PLUS_TAG``.
         Using both keeps it a mock address regardless of which check fires.
         """
-        clean = "".join(c if (c.isalnum() or c in "-._") else "-" for c in label)
+        clean = _address_label(label)
         return f"{self.mock_inbox_tag}+{clean}@{self.mock_inbox_domain}"
 
     def require_api_token(self) -> str:
