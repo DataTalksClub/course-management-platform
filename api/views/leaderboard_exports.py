@@ -181,24 +181,24 @@ def _leaderboard_enrollment_entry(enrollment):
 
 
 def _leaderboard_page_links(course, page_obj):
-    next_page_number = (
-        page_obj.next_page_number() if page_obj.has_next() else None
-    )
-    previous_page_number = (
-        page_obj.previous_page_number() if page_obj.has_previous() else None
-    )
+    next_page_number = None
+    if page_obj.has_next():
+        next_page_number = page_obj.next_page_number()
+    previous_page_number = None
+    if page_obj.has_previous():
+        previous_page_number = page_obj.previous_page_number()
+
+    next_page = None
+    if next_page_number:
+        next_page = _leaderboard_yaml_page_url(course, next_page_number)
+    previous_page = None
+    if previous_page_number:
+        previous_page = _leaderboard_yaml_page_url(course, previous_page_number)
+
     return {
-        "next_page": (
-            _leaderboard_yaml_page_url(course, next_page_number)
-            if next_page_number
-            else None
-        ),
+        "next_page": next_page,
         "next_page_number": next_page_number,
-        "previous_page": (
-            _leaderboard_yaml_page_url(course, previous_page_number)
-            if previous_page_number
-            else None
-        ),
+        "previous_page": previous_page,
         "previous_page_number": previous_page_number,
     }
 

@@ -240,13 +240,17 @@ class DatamailerClient:
         include_removed: bool = False,
         limit: int = 10000,
     ) -> dict[str, Any] | None:
+        if include_removed:
+            include_removed_value = "true"
+        else:
+            include_removed_value = "false"
         request_data = DatamailerRequestData(
             method="GET",
             path=f"/api/recipient-lists/{list_key}/members",
             params={
                 "audience": self.config.audience,
                 "client": self.config.client,
-                "include_removed": "true" if include_removed else "false",
+                "include_removed": include_removed_value,
                 "limit": limit,
             },
         )

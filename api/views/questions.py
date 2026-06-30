@@ -17,6 +17,9 @@ from api.utils import parse_json_body, require_methods
 def _question_to_dict(q):
     answers_count = q.answer_set.count()
     possible_answers = q.get_possible_answers()
+    delete_blockers = []
+    if answers_count:
+        delete_blockers.append("has_answers")
     return {
         "id": q.id,
         "text": q.text,
@@ -27,7 +30,7 @@ def _question_to_dict(q):
         "scores_for_correct_answer": q.scores_for_correct_answer,
         "answers_count": answers_count,
         "can_delete": answers_count == 0,
-        "delete_blockers": ["has_answers"] if answers_count else [],
+        "delete_blockers": delete_blockers,
     }
 
 
@@ -79,7 +82,10 @@ def _questions_list_response(homework):
 
 
 def _question_create_items(data):
-    return data if isinstance(data, list) else [data]
+    if isinstance(data, list):
+        return data
+    item_list = [data]
+    return item_list
 
 
 def _question_create_error(item, error):

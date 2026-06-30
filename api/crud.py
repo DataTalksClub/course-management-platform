@@ -36,7 +36,10 @@ class DetailResponseConfig:
 
 
 def single_or_list(data):
-    return data if isinstance(data, list) else [data]
+    if isinstance(data, list):
+        return data
+    item_list = [data]
+    return item_list
 
 
 def bulk_create_response(data, create_item, *, name_field="name"):
