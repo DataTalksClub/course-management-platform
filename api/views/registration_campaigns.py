@@ -125,9 +125,9 @@ def _campaigns_list_response():
         campaign_record = _campaign_to_dict(campaign)
         campaign_records.append(campaign_record)
 
-    return JsonResponse(
-        {"registration_campaigns": campaign_records}
-    )
+    payload = {"registration_campaigns": campaign_records}
+    response = JsonResponse(payload)
+    return response
 
 
 def _clean_campaign_payload(request, *, action):
@@ -169,7 +169,8 @@ def _campaign_create_response(request):
         return err
 
     campaign_data = _campaign_to_dict(campaign)
-    return JsonResponse(campaign_data, status=201)
+    response = JsonResponse(campaign_data, status=201)
+    return response
 
 
 @token_required
@@ -199,7 +200,8 @@ def _campaign_patch_response(request, campaign):
         return err
 
     campaign_data = _campaign_to_dict(campaign)
-    return JsonResponse(campaign_data)
+    response = JsonResponse(campaign_data)
+    return response
 
 
 @token_required
@@ -220,7 +222,8 @@ def registration_campaign_detail_view(request, campaign_slug):
         return _campaign_patch_response(request, campaign)
 
     campaign_data = _campaign_to_dict(campaign)
-    return JsonResponse(campaign_data)
+    response = JsonResponse(campaign_data)
+    return response
 
 
 def _count_by(queryset, field):
@@ -324,4 +327,5 @@ def registration_campaign_registrations_view(request, campaign_slug):
         return err
 
     payload = _registration_list_payload(campaign, registrations, stats, limit)
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
