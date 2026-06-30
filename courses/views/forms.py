@@ -215,7 +215,8 @@ class CourseRegistrationForm(forms.ModelForm):
 
         self.configure_authenticated_email_field()
         if not self.is_bound:
-            self.initial.update(self.authenticated_user_initial_values())
+            initial_values = self.authenticated_user_initial_values()
+            self.initial.update(initial_values)
 
     def clean_email(self):
         if self.user is not None and self.user.is_authenticated:
@@ -291,9 +292,10 @@ def _update_user_profile_from_registration(user, registration):
 
 def _registration_profile_values(registration):
     profile_values = []
+    certificate_name_value = registration.name.strip()
     certificate_name = RegistrationProfileValue(
         "certificate_name",
-        registration.name.strip(),
+        certificate_name_value,
     )
     country = RegistrationProfileValue("country", registration.country)
     region = RegistrationProfileValue("region", registration.region)

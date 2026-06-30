@@ -64,19 +64,19 @@ def homework_detail_build_context_not_authenticated(
     homework: Homework,
     questions: List[Question],
 ) -> dict:
+    question_answers = question_answers_for_submission(
+        homework,
+        questions,
+        None,
+    )
+    accepting_submissions = homework.state == HomeworkState.OPEN.value
     context = {
         "course": course,
         "homework": homework,
-        "question_answers": question_answers_for_submission(
-            homework,
-            questions,
-            None,
-        ),
+        "question_answers": question_answers,
         "is_authenticated": False,
         "disabled": True,
-        "accepting_submissions": (
-            homework.state == HomeworkState.OPEN.value
-        ),
+        "accepting_submissions": accepting_submissions,
     }
 
     return context
@@ -127,21 +127,24 @@ def learning_in_public_disabled(
 
 
 def homework_detail_build_context_authenticated(data) -> dict:
+    question_answers = question_answers_for_submission(
+        data.homework,
+        data.questions,
+        data.submission,
+    )
+    disable_learning_in_public = learning_in_public_disabled(
+        data.enrollment
+    )
+    state_context = homework_state_context(data.homework)
     context = {
         "course": data.course,
         "homework": data.homework,
-        "question_answers": question_answers_for_submission(
-            data.homework,
-            data.questions,
-            data.submission,
-        ),
+        "question_answers": question_answers,
         "submission": data.submission,
         "is_authenticated": True,
-        "disable_learning_in_public": learning_in_public_disabled(
-            data.enrollment
-        ),
+        "disable_learning_in_public": disable_learning_in_public,
     }
-    context.update(homework_state_context(data.homework))
+    context.update(state_context)
     return context
 
 
@@ -296,21 +299,22 @@ def homework_detail_build_context_from_post(
     data: HomeworkPostData,
 ) -> dict:
     bound_submission = bound_homework_submission_from_post(data)
+    question_answers = question_answers_from_post(
+        data.request,
+        data.homework,
+        data.questions,
+    )
+    disable_learning_in_public = data.enrollment.disable_learning_in_public
+    state_context = homework_state_context(data.homework)
     context = {
         "course": data.course,
         "homework": data.homework,
-        "question_answers": question_answers_from_post(
-            data.request,
-            data.homework,
-            data.questions,
-        ),
+        "question_answers": question_answers,
         "submission": bound_submission,
         "is_authenticated": True,
-        "disable_learning_in_public": (
-            data.enrollment.disable_learning_in_public
-        ),
+        "disable_learning_in_public": disable_learning_in_public,
     }
-    context.update(homework_state_context(data.homework))
+    context.update(state_context)
     return context
 
 
