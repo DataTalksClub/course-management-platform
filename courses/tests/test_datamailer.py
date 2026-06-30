@@ -23,7 +23,6 @@ from data.models import (
 from course_management.datamailer.keys import (
     course_enrolled_list_key,
     course_graduates_list_key,
-    contact_tags_for_course,
     homework_submitters_list_key,
     project_passed_list_key,
     project_submitters_list_key,
@@ -32,9 +31,7 @@ from course_management.datamailer.keys import (
 from course_management.datamailer.payloads import (
     RecipientListMemberPayload,
     certificate_availability_notification_payload,
-    contact_payload_for_user,
     course_graduate_recipient_list_payload,
-    datamailer_send_counts,
     enrollment_recipient_list_payload,
     homework_score_notification_payload,
     peer_review_assignment_notification_payload,
@@ -53,8 +50,6 @@ from course_management.datamailer.sync import (
     send_peer_review_assignment_notification,
     send_project_score_notification,
     send_registration_confirmation_email,
-    send_transactional_email,
-    sync_contact,
     sync_enrollment_to_datamailer,
     sync_homework_submission_to_datamailer,
     sync_project_passed_outcome_to_datamailer,
@@ -858,43 +853,6 @@ class DatamailerWorkflowTest(TestCase):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
-    def create_contact_payload_fixture(self):
-        user = CustomUser.objects.create(
-            email="Student@Example.com",
-            username="student",
-        )
-        return user, self.create_ml_course()
-
-    def assert_course_subscription_contact_payload(self, payload):
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(payload["client"], "dtc-courses")
-        self.assertEqual(payload["audience"], "dtc-courses")
-        self.assertEqual(payload["status"], "subscribed")
-        self.assertTrue(payload["verified"])
-        self.assertEqual(
-            payload["email_validation"]["status"],
-            "externally_validated",
-        )
-        self.assertEqual(
-            payload["tags"],
-            [
-                "course-ml-zoomcamp",
-                "course-cohort-ml-zoomcamp-2026",
-            ],
-        )
-        self.assertEqual(
-            payload["custom_fields"]["course_slug"],
-            "ml-zoomcamp-2026",
-        )
-        self.assertEqual(
-            payload["custom_fields"]["course_family_slug"],
-            "ml-zoomcamp",
-        )
-        self.assertEqual(
-            payload["custom_fields"]["course_cohort_slug"],
-            "ml-zoomcamp-2026",
-        )
-
     def configure_contact_bulk_import_counts(self, bulk_import):
         bulk_import.return_value = {
             "counts": {
@@ -1114,52 +1072,6 @@ class DatamailerWorkflowTest(TestCase):
             homework_submitters_list_key(expectation.homework),
         )
 
-    def transactional_email_payload(self):
-        return {
-            "template_key": "welcome",
-            "email": "student@example.com",
-            "idempotency_key": "welcome:student",
-            "category_tag": "course-updates",
-            "metadata": {
-                "source": "course-management-platform",
-                "event": "welcome",
-            },
-        }
-
-    def configure_transactional_send_success(self, send):
-        send.return_value = {
-            "message": {
-                "id": "message-id",
-                "status": "queued",
-                "template_key": "welcome",
-            },
-            "enqueued": True,
-            "idempotent_replay": False,
-        }
-
-    def assert_transactional_send_called(self, send):
-        expected_payload = self.transactional_email_payload()
-        expected_payload.update(
-            {
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-            }
-        )
-        send.assert_called_once_with(expected_payload)
-
-    def assert_transactional_send_audit(self):
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.idempotency_key, "welcome:student")
-        self.assertEqual(audit.template_key, "welcome")
-        self.assertEqual(audit.category_tag, "course-updates")
-        self.assertEqual(audit.source, "course-management-platform")
-        self.assertEqual(audit.event, "welcome")
-        self.assertEqual(audit.intended_count, 1)
-        self.assertEqual(audit.enqueued_count, 1)
-        self.assertEqual(audit.skipped_count, 0)
-
     def create_peer_review_assignment_fixture(self):
         project = self.create_project(
             state=ProjectState.PEER_REVIEWING.value,
@@ -1243,194 +1155,6 @@ class DatamailerWorkflowTest(TestCase):
                 item["eval_url"],
             )
             self.assertTrue(item["eval_url"].startswith("https://"))
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    def test_contact_payload_includes_course_subscription_data(self):
-        user, course = self.create_contact_payload_fixture()
-
-        payload = contact_payload_for_user(user, course=course)
-
-        self.assert_course_subscription_contact_payload(payload)
-
-    def test_contact_tags_for_course_without_trailing_year(self):
-        course = Course(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            description="Machine learning",
-        )
-
-        self.assertEqual(
-            contact_tags_for_course(course),
-            [
-                "course-ml-zoomcamp",
-                "course-cohort-ml-zoomcamp",
-            ],
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_sync_contact_logs_and_continues_on_api_failure(
-        self, upsert
-    ):
-        upsert.side_effect = requests.RequestException("network error")
-        user = CustomUser.objects.create(email="student@example.com")
-
-        sync_contact(user)
-
-        upsert.assert_called_once()
-
-    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_STRICT=True)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_sync_contact_can_be_strict(self, upsert):
-        upsert.side_effect = requests.RequestException("network error")
-        user = CustomUser.objects.create(email="student@example.com")
-
-        with self.assertRaises(requests.RequestException):
-            sync_contact(user)
-
-    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
-    )
-    def test_send_transactional_email_uses_datamailer_client(
-        self, send
-    ):
-        self.configure_transactional_send_success(send)
-
-        result = send_transactional_email(self.transactional_email_payload())
-
-        self.assertEqual(result["message"]["id"], "message-id")
-        self.assert_transactional_send_called(send)
-        self.assert_transactional_send_audit()
-
-    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
-    )
-    def test_send_transactional_email_audits_api_failure(self, send):
-        send.side_effect = requests.RequestException("network error")
-
-        result = send_transactional_email(self.transactional_email_payload())
-
-        self.assertIsNone(result)
-        self.assert_transactional_send_called(send)
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.FAILED)
-        self.assertEqual(audit.idempotency_key, "welcome:student")
-        self.assertEqual(audit.error, "network error")
-
-    def test_datamailer_send_counts_marks_transactional_replay(self):
-        counts = datamailer_send_counts(
-            DatamailerSendAuditType.TRANSACTIONAL,
-            {},
-            {
-                "idempotent_replay": True,
-                "enqueued": False,
-                "message": {"status": "skipped"},
-            },
-        )
-
-        self.assertEqual(counts["intended_count"], 1)
-        self.assertEqual(counts["created_count"], 0)
-        self.assertEqual(counts["enqueued_count"], 0)
-        self.assertEqual(counts["skipped_count"], 1)
-        self.assertEqual(counts["idempotent_replay_count"], 1)
-
-    def test_datamailer_send_counts_uses_recipient_list_response(self):
-        counts = datamailer_send_counts(
-            DatamailerSendAuditType.RECIPIENT_LIST,
-            {},
-            {
-                "recipient_list": {"active_member_count": 3},
-                "created_count": 2,
-                "enqueued_count": 1,
-                "skipped_count": 1,
-            },
-        )
-
-        self.assertEqual(counts["intended_count"], 3)
-        self.assertEqual(counts["created_count"], 2)
-        self.assertEqual(counts["enqueued_count"], 1)
-        self.assertEqual(counts["skipped_count"], 1)
-
-    def test_datamailer_send_counts_falls_back_to_transient_members(self):
-        counts = datamailer_send_counts(
-            DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-            {
-                "members": [
-                    {"email": "active@example.com"},
-                    {"email": "removed@example.com", "status": "removed"},
-                ],
-            },
-            {"transient_recipient_list": {}, "enqueued_count": 1},
-        )
-
-        self.assertEqual(counts["intended_count"], 1)
-        self.assertEqual(counts["enqueued_count"], 1)
-
-    @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
-    )
-    def test_send_transactional_email_adds_configured_from_email(
-        self, send
-    ):
-        send.return_value = {"id": "message-id"}
-
-        send_transactional_email(
-            {
-                "template_key": "welcome",
-                "email": "student@example.com",
-            }
-        )
-
-        send.assert_called_once_with(
-            {
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "from_email": "courses",
-            }
-        )
-
-    @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
-    )
-    def test_send_transactional_email_keeps_explicit_from_email(
-        self, send
-    ):
-        send.return_value = {"id": "message-id"}
-
-        send_transactional_email(
-            {
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "from_email": "no-reply",
-            }
-        )
-
-        send.assert_called_once_with(
-            {
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "from_email": "no-reply",
-            }
-        )
 
     @override_settings(
         **DATAMAILER_SETTINGS,
