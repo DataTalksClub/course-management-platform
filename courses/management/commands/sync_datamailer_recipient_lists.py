@@ -449,7 +449,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         self.add_source_arguments(parser)
         self.add_filter_arguments(parser)
-        self.add_import_arguments(parser)
+        self.add_import_job_arguments(parser)
         self.add_execution_arguments(parser)
 
     def add_source_arguments(self, parser):
@@ -476,12 +476,7 @@ class Command(BaseCommand):
             help="Limit project sync to one project slug.",
         )
 
-    def add_import_arguments(self, parser):
-        parser.add_argument(
-            "--reconcile",
-            action="store_true",
-            help="Mark existing Datamailer members absent from CMP as removed.",
-        )
+    def add_import_job_arguments(self, parser):
         parser.add_argument(
             "--import-by-reference",
             action="store_true",
@@ -509,6 +504,11 @@ class Command(BaseCommand):
         )
 
     def add_execution_arguments(self, parser):
+        parser.add_argument(
+            "--reconcile",
+            action="store_true",
+            help="Mark existing Datamailer members absent from CMP as removed.",
+        )
         parser.add_argument(
             "--dry-run",
             action="store_true",
