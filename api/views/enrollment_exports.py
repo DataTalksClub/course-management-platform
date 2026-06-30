@@ -144,19 +144,22 @@ def _missing_certificate_update_fields_error(index, email):
 
 def _validate_certificate_update_item(index, update):
     if not isinstance(update, dict):
-        return None, _invalid_certificate_update_item_error(index)
+        error = _invalid_certificate_update_item_error(index)
+        return None, error
 
     email = update.get("email")
     certificate_path = update.get("certificate_path")
 
     if not email or not certificate_path:
-        return None, _missing_certificate_update_fields_error(index, email)
+        error = _missing_certificate_update_fields_error(index, email)
+        return None, error
 
-    return {
+    valid_update = {
         "index": index,
         "email": email,
         "certificate_path": certificate_path,
-    }, None
+    }
+    return valid_update, None
 
 
 def _validate_certificate_update_items(certificate_updates):
@@ -211,8 +214,12 @@ def _certificate_update_result(update, enrollment):
 
 
 def _should_notify_certificate_available(enrollment, certificate_path):
-    had_certificate = bool((enrollment.certificate_url or "").strip())
-    return not had_certificate and bool(certificate_path.strip())
+    existing_certificate_url = enrollment.certificate_url or ""
+    stripped_existing_certificate_url = existing_certificate_url.strip()
+    stripped_certificate_path = certificate_path.strip()
+    had_certificate = bool(stripped_existing_certificate_url)
+    has_new_certificate = bool(stripped_certificate_path)
+    return not had_certificate and has_new_certificate
 
 
 def _apply_certificate_update(
@@ -225,12 +232,14 @@ def _apply_certificate_update(
     certificate_path = update["certificate_path"]
 
     if email not in users_by_email:
-        return CertificateApplyResult(error=_user_not_found_error(update))
+        error = _user_not_found_error(update)
+        return CertificateApplyResult(error=error)
 
     enrollment = enrollments_by_email.get(email)
     if enrollment is None:
+        error = _not_enrolled_error(update, course_slug)
         return CertificateApplyResult(
-            error=_not_enrolled_error(update, course_slug)
+            error=error
         )
 
     notify = _should_notify_certificate_available(
@@ -238,10 +247,11 @@ def _apply_certificate_update(
         certificate_path,
     )
     enrollment.certificate_url = certificate_path
+    updated = _certificate_update_result(update, enrollment)
     return CertificateApplyResult(
         enrollment=enrollment,
         notify=notify,
-        updated=_certificate_update_result(update, enrollment),
+        updated=updated,
     )
 
 
@@ -276,20 +286,22 @@ def _certificate_request_updates(request):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return None, JsonResponse({"error": "Invalid JSON"}, status=400)
+        error_payload = {"error": "Invalid JSON"}
+        error_response = JsonResponse(error_payload, status=400)
+        return None, error_response
 
     certificate_updates = _extract_certificate_updates(data)
     if not isinstance(certificate_updates, list):
-        return None, JsonResponse(
-            {"error": "Expected a certificates array"},
-            status=400,
-        )
+        error_payload = {"error": "Expected a certificates array"}
+        error_response = JsonResponse(error_payload, status=400)
+        return None, error_response
 
     if not certificate_updates:
-        return None, JsonResponse(
-            {"error": "At least one certificate update is required"},
-            status=400,
-        )
+        error_payload = {
+            "error": "At least one certificate update is required"
+        }
+        error_response = JsonResponse(error_payload, status=400)
+        return None, error_response
 
     return certificate_updates, None
 
@@ -317,8 +329,9 @@ def _certificate_update_lookups(course, valid_updates):
 
 def _persist_certificate_updates(enrollments_to_update):
     if enrollments_to_update:
+        enrollments = enrollments_to_update.values()
         Enrollment.objects.bulk_update(
-            enrollments_to_update.values(),
+            enrollments,
             ["certificate_url"],
         )
 
@@ -334,15 +347,17 @@ def _queue_certificate_notifications(enrollments_to_notify):
 
 
 def _certificate_update_response(updated, errors):
-    return JsonResponse(
-        {
-            "success": len(errors) == 0,
-            "updated_count": len(updated),
-            "error_count": len(errors),
-            "updated": updated,
-            "errors": errors,
-        }
-    )
+    success = len(errors) == 0
+    updated_count = len(updated)
+    error_count = len(errors)
+    payload = {
+        "success": success,
+        "updated_count": updated_count,
+        "error_count": error_count,
+        "updated": updated,
+        "errors": errors,
+    }
+    return JsonResponse(payload)
 
 
 def _process_certificate_updates(course, course_slug, certificate_updates):
