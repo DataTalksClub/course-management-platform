@@ -152,21 +152,40 @@ def _save_campaign(campaign):
     return None
 
 
+def _campaign_required_fields_error(data):
+    title = data.get("title")
+    slug = data.get("slug")
+    if title and slug:
+        return None
+
+    error = error_response(
+        "title and slug are required",
+        "missing_required_fields",
+    )
+    return error
+
+
+def _created_campaign(data):
+    error = _campaign_required_fields_error(data)
+    if error:
+        return None, error
+
+    campaign = RegistrationCampaign(**data)
+    error = _save_campaign(campaign)
+    if error:
+        return None, error
+
+    return campaign, None
+
+
 def _campaign_create_response(request):
     data, err = _clean_campaign_payload(request, action="set")
     if err:
         return err
 
-    if not data.get("title") or not data.get("slug"):
-        return error_response(
-            "title and slug are required",
-            "missing_required_fields",
-        )
-
-    campaign = RegistrationCampaign(**data)
-    err = _save_campaign(campaign)
-    if err:
-        return err
+    campaign, error = _created_campaign(data)
+    if error:
+        return error
 
     campaign_data = _campaign_to_dict(campaign)
     response = JsonResponse(campaign_data, status=201)
