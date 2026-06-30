@@ -523,34 +523,40 @@ def campaign_create(request):
     return render(request, "cadmin/campaign_form.html", context)
 
 
-def _campaign_edit_redirect(campaign):
-    return redirect("cadmin_campaign_edit", campaign_slug=campaign.slug)
-
-
-def _handle_campaign_edit_post(request, campaign):
-    if request.POST.get("datamailer_action"):
-        datamailer_preview, should_redirect = (
-            handle_datamailer_campaign_action(request, campaign)
+def _handle_campaign_datamailer_post(request, campaign):
+    datamailer_preview, should_redirect = (
+        handle_datamailer_campaign_action(request, campaign)
+    )
+    if should_redirect:
+        response = redirect(
+            "cadmin_campaign_edit",
+            campaign_slug=campaign.slug,
         )
-        if should_redirect:
-            return CampaignEditPostResult(
-                response=_campaign_edit_redirect(campaign),
-                form=None,
-                datamailer_preview=None,
-            )
-        form = RegistrationCampaignForm(instance=campaign)
         return CampaignEditPostResult(
-            response=None,
-            form=form,
-            datamailer_preview=datamailer_preview,
+            response=response,
+            form=None,
+            datamailer_preview=None,
         )
 
+    form = RegistrationCampaignForm(instance=campaign)
+    return CampaignEditPostResult(
+        response=None,
+        form=form,
+        datamailer_preview=datamailer_preview,
+    )
+
+
+def _handle_campaign_form_post(request, campaign):
     form = RegistrationCampaignForm(request.POST, instance=campaign)
     if form.is_valid():
         campaign = form.save()
         messages.success(request, "Registration landing page saved.")
+        response = redirect(
+            "cadmin_campaign_edit",
+            campaign_slug=campaign.slug,
+        )
         return CampaignEditPostResult(
-            response=_campaign_edit_redirect(campaign),
+            response=response,
             form=None,
             datamailer_preview=None,
         )
@@ -581,9 +587,13 @@ def campaign_edit(request, campaign_slug):
     )
 
     if request.method == "POST":
-        post_result = _handle_campaign_edit_post(
-            request, campaign
-        )
+        if request.POST.get("datamailer_action"):
+            post_result = _handle_campaign_datamailer_post(
+                request,
+                campaign,
+            )
+        else:
+            post_result = _handle_campaign_form_post(request, campaign)
         if post_result.response:
             return post_result.response
         form = post_result.form
@@ -831,29 +841,12 @@ def _questions_with_submission_answers(homework, submission):
     )
 
 
-def _handle_homework_submission_edit_post(data):
-    form = HomeworkSubmissionEditForm(
-        data.request.POST,
-        submission=data.submission,
-        questions=data.questions,
-    )
+def _homework_submission_edit_failed(data, message):
+    messages.error(data.request, f"Error updating submission: {message}")
+    return None
 
-    if not form.is_valid():
-        messages.error(
-            data.request,
-            f"Error updating submission: {first_form_error(form)}",
-        )
-        return None
 
-    try:
-        update_homework_submission_from_admin(
-            data.submission,
-            form.cleaned_data,
-        )
-    except Exception as e:
-        messages.error(data.request, f"Error updating submission: {e}")
-        return None
-
+def _homework_submission_edit_success(data):
     messages.success(
         data.request,
         f"Homework submission for {data.submission.student.username} updated successfully",
@@ -863,6 +856,30 @@ def _handle_homework_submission_edit_post(data):
         course_slug=data.course.slug,
         homework_slug=data.homework.slug,
     )
+
+
+def _handle_homework_submission_edit_post(data):
+    form = HomeworkSubmissionEditForm(
+        data.request.POST,
+        submission=data.submission,
+        questions=data.questions,
+    )
+
+    if not form.is_valid():
+        return _homework_submission_edit_failed(
+            data,
+            first_form_error(form),
+        )
+
+    try:
+        update_homework_submission_from_admin(
+            data.submission,
+            form.cleaned_data,
+        )
+    except Exception as e:
+        return _homework_submission_edit_failed(data, e)
+
+    return _homework_submission_edit_success(data)
 
 
 def _homework_submission_edit_objects(
@@ -1018,16 +1035,17 @@ def _project_submissions_context(data):
     }
 
 
-@staff_required
-def project_submissions(request, course_slug, project_slug):
-    """View all submissions for a project"""
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
+def _project_submissions_request_filters(request):
+    return (
+        request.GET.get("q", "").strip(),
+        request.GET.get("status", "all"),
     )
-    _apply_project_action_flags(project)
-    search_query = request.GET.get("q", "").strip()
-    status_filter = request.GET.get("status", "all")
+
+
+def _project_submissions_page_data(request, course, project):
+    search_query, status_filter = _project_submissions_request_filters(
+        request
+    )
     submissions, project_filter_counts = project_submission_list_data(
         project,
         search_query,
@@ -1038,7 +1056,7 @@ def project_submissions(request, course_slug, project_slug):
         submissions,
         per_page=CADMIN_PROJECT_SUBMISSIONS_PAGE_SIZE,
     )
-    context_data = ProjectSubmissionsContextData(
+    return ProjectSubmissionsContextData(
         request=request,
         course=course,
         project=project,
@@ -1046,6 +1064,21 @@ def project_submissions(request, course_slug, project_slug):
         project_filter_counts=project_filter_counts,
         search_query=search_query,
         status_filter=status_filter,
+    )
+
+
+@staff_required
+def project_submissions(request, course_slug, project_slug):
+    """View all submissions for a project"""
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    _apply_project_action_flags(project)
+    context_data = _project_submissions_page_data(
+        request,
+        course,
+        project,
     )
     context = _project_submissions_context(context_data)
     return render(request, "cadmin/project_submissions.html", context)
@@ -1144,6 +1177,22 @@ def _project_submission_edit_response(data):
     )
 
 
+def _project_submission_edit_page_data(request, edit_objects):
+    review_criteria = _project_review_criteria(edit_objects.course)
+    criteria_with_scores = _criteria_with_project_scores(
+        review_criteria,
+        edit_objects.submission,
+    )
+    return ProjectSubmissionEditPageData(
+        request=request,
+        course=edit_objects.course,
+        project=edit_objects.project,
+        submission=edit_objects.submission,
+        review_criteria=review_criteria,
+        criteria_with_scores=criteria_with_scores,
+    )
+
+
 @staff_required
 def project_submission_edit(
     request, course_slug, project_slug, submission_id
@@ -1154,20 +1203,7 @@ def project_submission_edit(
         project_slug,
         submission_id,
     )
-
-    review_criteria = _project_review_criteria(edit_objects.course)
-    criteria_with_scores = _criteria_with_project_scores(
-        review_criteria,
-        edit_objects.submission,
-    )
-    edit_data = ProjectSubmissionEditPageData(
-        request=request,
-        course=edit_objects.course,
-        project=edit_objects.project,
-        submission=edit_objects.submission,
-        review_criteria=review_criteria,
-        criteria_with_scores=criteria_with_scores,
-    )
+    edit_data = _project_submission_edit_page_data(request, edit_objects)
 
     if request.method == "POST":
         response = _handle_project_submission_edit_post(edit_data)
