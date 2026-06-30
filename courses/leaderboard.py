@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def _scores_by_enrollment(submissions):
+    total_score_annotation = Sum("total_score")
     aggregated_scores = submissions.values("enrollment").annotate(
-        total_score=Sum("total_score")
+        total_score=total_score_annotation
     )
     scores_by_enrollment = {}
     for score in aggregated_scores:
@@ -43,7 +44,8 @@ def _update_enrollment_totals(course):
         volunteer_review_only=False,
     )
     project_scores = _scores_by_enrollment(project_submissions)
-    enrollments = list(Enrollment.objects.filter(course=course))
+    enrollment_queryset = Enrollment.objects.filter(course=course)
+    enrollments = list(enrollment_queryset)
 
     for enrollment in enrollments:
         enrollment.total_score = (

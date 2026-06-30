@@ -55,10 +55,13 @@ def _field_distribution(values):
         return _empty_field_distribution()
 
     quantiles = statistics.quantiles(values, n=4, method="inclusive")
+    min_value = min(values)
+    max_value = max(values)
+    avg_value = statistics.mean(values)
     return {
-        "min": min(values),
-        "max": max(values),
-        "avg": statistics.mean(values),
+        "min": min_value,
+        "max": max_value,
+        "avg": avg_value,
         "q1": quantiles[0],
         "median": quantiles[1],
         "q3": quantiles[2],
@@ -67,7 +70,8 @@ def _field_distribution(values):
 
 def _calculate_field_distributions(submissions_data, fields):
     """Compute min/max/avg/quantiles per field from prefetched submission rows."""
-    stats = {"total_submissions": len(submissions_data)}
+    total_submissions = len(submissions_data)
+    stats = {"total_submissions": total_submissions}
 
     for field in fields:
         field_values = _field_values(submissions_data, field)

@@ -50,13 +50,14 @@ def get_project_vote_counts(user, course) -> dict[int, int]:
         return {}
 
     project_vote_counts = {}
+    vote_count_annotation = Count("id")
     rows = (
         ProjectVote.objects.filter(
             voter=user,
             submission__project__course=course,
         )
         .values("submission__project_id")
-        .annotate(count=Count("id"))
+        .annotate(count=vote_count_annotation)
     )
     for row in rows:
         project_id = row["submission__project_id"]
