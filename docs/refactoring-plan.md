@@ -596,6 +596,8 @@ Steps:
   nesting calls inline.
 - [x] Name shared URL and submission-formatting normalization values instead of
   nesting calls inline.
+- [x] Name learning-in-public project duplicate links before updating the
+  duplicate-link set.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

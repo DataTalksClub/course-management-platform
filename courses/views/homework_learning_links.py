@@ -58,13 +58,12 @@ def find_duplicate_learning_in_public_links(
         candidate_links=candidate_links,
         current_submission=current_submission,
     )
-    duplicate_links.update(
-        _duplicate_project_learning_links(
-            user=user,
-            course=course,
-            candidate_links=candidate_links,
-        )
+    project_duplicate_links = _duplicate_project_learning_links(
+        user=user,
+        course=course,
+        candidate_links=candidate_links,
     )
+    duplicate_links.update(project_duplicate_links)
 
     return sorted(duplicate_links)
 
