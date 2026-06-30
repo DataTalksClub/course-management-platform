@@ -16,9 +16,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         result = process_due_datamailer_outbox(limit=options["limit"])
-        self.stdout.write(
+        message = (
             "Processed {processed} Datamailer outbox event(s): "
-            "{acked} acked, {retrying} retrying, {failed} failed.".format(
-                **result
-            )
+            "{acked} acked, {retrying} retrying, {failed} failed."
+        ).format(
+            **result
         )
+        self.stdout.write(message)

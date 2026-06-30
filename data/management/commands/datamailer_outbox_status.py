@@ -9,8 +9,7 @@ class Command(BaseCommand):
     help = "Show Datamailer outbox health and recent dispatcher state."
 
     def write_event_counts(self, counts):
-        statuses = DatamailerOutboxStatus.values
-        for status in statuses:
+        for status in DatamailerOutboxStatus.values:
             self.stdout.write(f"{status}: {counts.get(status, 0)}")
 
     def write_due_status(self, summary):
@@ -19,9 +18,12 @@ class Command(BaseCommand):
         if oldest_due is None:
             self.stdout.write("oldest_due_age: none")
         else:
-            age = timezone.now() - oldest_due.next_attempt_at
+            now = timezone.now()
+            age = now - oldest_due.next_attempt_at
+            total_seconds = age.total_seconds()
+            age_seconds = int(total_seconds)
             self.stdout.write(
-                f"oldest_due_age: {int(age.total_seconds())} seconds "
+                f"oldest_due_age: {age_seconds} seconds "
                 f"({oldest_due.event_id})"
             )
 

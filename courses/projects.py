@@ -142,11 +142,12 @@ def score_project_criteria(
         scores.append(score)
     median_score = statistics.median(scores)
     criteria_score = math.ceil(median_score)
-    return criteria_score, ProjectEvaluationScore(
+    evaluation_score = ProjectEvaluationScore(
         submission=submission,
         review_criteria=criteria,
         score=criteria_score,
     )
+    return criteria_score, evaluation_score
 
 
 def _validate_project_scoreable(project: Project) -> str | None:

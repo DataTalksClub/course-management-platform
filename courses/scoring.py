@@ -372,6 +372,7 @@ def fill_most_common_answer_as_correct(question: Question) -> None:
         logger.info(f"Correct answer for {question} is already set")
         return
 
+    answer_count = Count("answer_text")
     most_common_answer = (
         Answer.objects.filter(
             question=question,
@@ -379,7 +380,7 @@ def fill_most_common_answer_as_correct(question: Question) -> None:
             answer_text__gt="",
         )
         .values("answer_text")
-        .annotate(count=Count("answer_text"))
+        .annotate(count=answer_count)
         .order_by("-count")
         .first()
     )

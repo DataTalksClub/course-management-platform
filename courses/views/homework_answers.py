@@ -123,12 +123,13 @@ def process_choice_option(data: ChoiceOptionData):
             selected=is_selected,
             correct=is_correct,
         )
+        correctly_selected_class = determine_answer_class(
+            answer_class_state
+        )
         processed_answer.update(
             {
                 "is_correct": is_correct,
-                "correctly_selected_class": determine_answer_class(
-                    answer_class_state
-                ),
+                "correctly_selected_class": correctly_selected_class,
             }
         )
 
