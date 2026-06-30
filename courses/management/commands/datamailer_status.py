@@ -41,8 +41,9 @@ class Command(BaseCommand):
             )
 
         if options["message_id"]:
+            result = self.message_status_result(options["message_id"])
             self.print_message_status(
-                self.message_status_result(options["message_id"]),
+                result,
                 raw_json=options["json"],
             )
             return
@@ -50,8 +51,9 @@ class Command(BaseCommand):
         if not options["email"]:
             raise CommandError("Provide an email or --message-id.")
 
+        result = self.email_status_result(options)
         self.print_email_status(
-            self.email_status_result(options),
+            result,
             raw_json=options["json"],
         )
 
@@ -68,7 +70,8 @@ class Command(BaseCommand):
         return result
 
     def write_raw_json(self, result):
-        self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
+        result_json = json.dumps(result, indent=2, sort_keys=True)
+        self.stdout.write(result_json)
 
     def print_email_status(self, result, *, raw_json):
         if raw_json:
@@ -83,14 +86,16 @@ class Command(BaseCommand):
         if not status.get("contact_id"):
             return
 
+        transactional_messages = history.get("transactional_messages", [])
         self.write_history_section(
             "Recent transactional messages:",
-            history.get("transactional_messages", []),
+            transactional_messages,
             self.transactional_message_line,
         )
+        campaign_recipients = history.get("campaign_recipients", [])
         self.write_history_section(
             "Recent campaign recipients:",
-            history.get("campaign_recipients", []),
+            campaign_recipients,
             self.campaign_recipient_line,
         )
 
@@ -116,24 +121,31 @@ class Command(BaseCommand):
             self.stdout.write("  none")
             return
         for item in items:
-            self.stdout.write(line_formatter(item))
+            line = line_formatter(item)
+            self.stdout.write(line)
 
     def transactional_message_line(self, message):
+        sent_at = message["sent_at"] or "-"
+        delivered_at = message["delivered_at"] or "-"
+        last_error = message["last_error"] or "-"
         return (
             "  "
             f"{message['id']} {message['template_key']} "
-            f"{message['status']} sent={message['sent_at'] or '-'} "
-            f"delivered={message['delivered_at'] or '-'} "
-            f"error={message['last_error'] or '-'}"
+            f"{message['status']} sent={sent_at} "
+            f"delivered={delivered_at} "
+            f"error={last_error}"
         )
 
     def campaign_recipient_line(self, recipient):
+        sent_at = recipient["sent_at"] or "-"
+        delivered_at = recipient["delivered_at"] or "-"
+        last_error = recipient["last_error"] or "-"
         return (
             "  "
             f"{recipient['id']} {recipient['campaign']['subject']} "
-            f"{recipient['status']} sent={recipient['sent_at'] or '-'} "
-            f"delivered={recipient['delivered_at'] or '-'} "
-            f"error={recipient['last_error'] or '-'}"
+            f"{recipient['status']} sent={sent_at} "
+            f"delivered={delivered_at} "
+            f"error={last_error}"
         )
 
     def print_message_status(self, result, *, raw_json):
@@ -143,7 +155,8 @@ class Command(BaseCommand):
 
         message = result["message"]
         self.write_message_status(message)
-        self.write_message_events(result.get("events", []))
+        events = result.get("events", [])
+        self.write_message_events(events)
 
     def display_value(self, value):
         return value or "-"
@@ -174,8 +187,9 @@ class Command(BaseCommand):
             self.stdout.write("  none")
             return
         for event in events:
-            self.stdout.write(
+            line = (
                 "  "
                 f"{event['id']} {event['event_type']} "
                 f"at={event['created_at']}"
             )
+            self.stdout.write(line)
