@@ -1,18 +1,16 @@
 import logging
 import re
 
-from collections import defaultdict
 from dataclasses import dataclass
 
 import requests
 from django.core.exceptions import ValidationError
 from django.core.paginator import Page
 from django.core.validators import validate_email
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.utils import timezone
 
 from course_management.datamailer import (
     DatamailerClient,
@@ -33,7 +31,6 @@ from .services import (
     update_project_submission_from_admin,
 )
 from .view_models import (
-    enrollment_list_data,
     project_submission_list_data,
 )
 from courses.models import (
@@ -59,9 +56,6 @@ from courses.scoring import (
     fill_correct_answers,
     clear_correct_answers,
 )
-from courses.services.enrollment_flags import (
-    set_learning_in_public_disabled,
-)
 from courses.projects import (
     assign_peer_reviews_for_project,
     score_project,
@@ -70,6 +64,12 @@ from courses.projects import (
 from .datamailer_views import (
     datamailer_events as datamailer_events,
     datamailer_operations as datamailer_operations,
+)
+from .enrollment_views import (
+    enrollment_edit as enrollment_edit,
+    enrollments_list as enrollments_list,
+    leaderboard_complaint_resolve as leaderboard_complaint_resolve,
+    leaderboard_complaints as leaderboard_complaints,
 )
 from .view_helpers import (
     count_by,
@@ -1175,241 +1175,3 @@ def project_submission_edit(
             return response
 
     return _project_submission_edit_response(edit_data)
-
-
-@staff_required
-def enrollments_list(request, course_slug):
-    """List all enrollments for a course"""
-    course = get_object_or_404(Course, slug=course_slug)
-    search_query = request.GET.get("q", "").strip()
-    status_filter = request.GET.get("status", "all")
-    enrollments, enrollment_filter_counts = enrollment_list_data(
-        course,
-        search_query,
-        status_filter,
-    )
-
-    enrollments_page = paginate_queryset(request, enrollments)
-
-    context = {
-        "course": course,
-        "enrollments": enrollments_page.object_list,
-        "enrollments_page": enrollments_page,
-        "total_enrollments": len(enrollments),
-        "enrollment_filter_counts": enrollment_filter_counts,
-        "search_query": search_query,
-        "status_filter": status_filter,
-        "pagination_querystring": pagination_querystring(request),
-    }
-
-    return render(request, "cadmin/enrollments.html", context)
-
-
-def complaint_enrollments(course):
-    return (
-        Enrollment.objects.filter(course=course)
-        .select_related("student")
-        .annotate(
-            open_complaints=Count(
-                "complaints",
-                filter=Q(complaints__resolved=False),
-            ),
-            total_complaints=Count("complaints"),
-        )
-        .filter(total_complaints__gt=0)
-        .order_by(
-            "-open_complaints",
-            "-total_complaints",
-            "position_on_leaderboard",
-        )
-    )
-
-
-def complaints_grouped_by_enrollment(course):
-    complaints_by_enrollment = defaultdict(list)
-    complaints = (
-        LeaderboardComplaint.objects.filter(enrollment__course=course)
-        .select_related("enrollment", "reporter", "resolved_by")
-        .order_by("resolved", "-created_at")
-    )
-    for complaint in complaints:
-        complaints_by_enrollment[complaint.enrollment_id].append(
-            complaint
-        )
-    return complaints_by_enrollment
-
-
-def complaint_enrollment_rows(course):
-    complaints_by_enrollment = complaints_grouped_by_enrollment(course)
-    enrollment_rows = []
-    enrollments = complaint_enrollments(course)
-    for enrollment in enrollments:
-        record = {
-            "enrollment": enrollment,
-            "complaints": complaints_by_enrollment[enrollment.id],
-        }
-        enrollment_rows.append(record)
-    return enrollment_rows
-
-
-def leaderboard_complaint_counts(course):
-    complaints = LeaderboardComplaint.objects.filter(
-        enrollment__course=course,
-    )
-    return {
-        "open_complaints_count": complaints.filter(
-            resolved=False,
-        ).count(),
-        "total_complaints_count": complaints.count(),
-    }
-
-
-def leaderboard_complaints_context(course):
-    context = leaderboard_complaint_counts(course)
-    context.update(
-        {
-            "course": course,
-            "enrollment_rows": complaint_enrollment_rows(course),
-        }
-    )
-    return context
-
-
-@staff_required
-def leaderboard_complaints(request, course_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    return render(
-        request,
-        "cadmin/leaderboard_complaints.html",
-        leaderboard_complaints_context(course),
-    )
-
-
-@staff_required
-def leaderboard_complaint_resolve(request, course_slug, complaint_id):
-    if request.method != "POST":
-        return redirect(
-            "cadmin_leaderboard_complaints", course_slug=course_slug
-        )
-
-    course = get_object_or_404(Course, slug=course_slug)
-    complaint = get_object_or_404(
-        LeaderboardComplaint,
-        id=complaint_id,
-        enrollment__course=course,
-    )
-    complaint.resolved = True
-    complaint.resolved_at = timezone.now()
-    complaint.resolved_by = request.user
-    complaint.save(
-        update_fields=["resolved", "resolved_at", "resolved_by"]
-    )
-
-    messages.success(request, "Flag marked as resolved.")
-    return redirect(
-        "cadmin_leaderboard_complaints", course_slug=course_slug
-    )
-
-
-def toggle_learning_in_public_response(
-    request,
-    enrollment,
-    course_slug,
-    enrollment_id,
-):
-    disabled = not enrollment.disable_learning_in_public
-    set_learning_in_public_disabled(enrollment, disabled)
-    enrollment.disable_learning_in_public = disabled
-
-    if enrollment.disable_learning_in_public:
-        messages.success(
-            request,
-            f"Learning in public disabled for {enrollment.student.username}. All scores zeroed out.",
-        )
-    else:
-        messages.success(
-            request,
-            f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects.",
-        )
-
-    return redirect(
-        "cadmin_enrollment_edit",
-        course_slug=course_slug,
-        enrollment_id=enrollment_id,
-    )
-
-
-def enrollment_homework_submissions(enrollment):
-    return (
-        Submission.objects.filter(enrollment=enrollment)
-        .select_related("homework")
-        .order_by("-submitted_at")
-    )
-
-
-def enrollment_project_submissions(enrollment):
-    return (
-        ProjectSubmission.objects.filter(enrollment=enrollment)
-        .select_related("project")
-        .order_by("-submitted_at")
-    )
-
-
-def total_project_lip_score(project_submissions):
-    total_score = 0
-    for submission in project_submissions:
-        project_score = submission.project_learning_in_public_score
-        peer_review_score = submission.peer_review_learning_in_public_score
-        total_score += project_score + peer_review_score
-    return total_score
-
-
-def total_homework_lip_score(homework_submissions):
-    total_score = 0
-    for submission in homework_submissions:
-        total_score += submission.learning_in_public_score
-    return total_score
-
-
-def enrollment_edit_context(course, enrollment):
-    homework_submissions = enrollment_homework_submissions(enrollment)
-    project_submissions = enrollment_project_submissions(enrollment)
-    return {
-        "course": course,
-        "enrollment": enrollment,
-        "homework_submissions": homework_submissions,
-        "homework_submissions_count": homework_submissions.count(),
-        "project_submissions": project_submissions,
-        "project_submissions_count": project_submissions.count(),
-        "total_homework_lip_score": total_homework_lip_score(
-            homework_submissions
-        ),
-        "total_project_lip_score": total_project_lip_score(
-            project_submissions
-        ),
-    }
-
-
-@staff_required
-def enrollment_edit(request, course_slug, enrollment_id):
-    """Edit an enrollment - mainly to disable learning in public"""
-    course = get_object_or_404(Course, slug=course_slug)
-    enrollment = get_object_or_404(
-        Enrollment, id=enrollment_id, course=course
-    )
-
-    if request.method == "POST":
-        action = request.POST.get("action")
-        if action == "toggle_learning_in_public":
-            return toggle_learning_in_public_response(
-                request,
-                enrollment,
-                course_slug,
-                enrollment_id,
-            )
-
-    return render(
-        request,
-        "cadmin/enrollment_edit.html",
-        enrollment_edit_context(course, enrollment),
-    )
