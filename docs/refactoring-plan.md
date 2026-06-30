@@ -627,6 +627,8 @@ Steps:
   command test module.
 - [x] Split Datamailer outbox, erase-contact, and status command tests out of
   the oversized Datamailer workflow test module.
+- [x] Split Datamailer registration confirmation and registrant membership
+  tests out of the oversized Datamailer workflow test module.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
