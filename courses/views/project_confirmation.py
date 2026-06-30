@@ -61,10 +61,11 @@ def project_learning_in_public_submission_field(
         return None
 
     links = submission.learning_in_public_links or []
+    value = "\n".join(links)
     return {
         "key": "learning_in_public_links",
         "label": "Learning in public links",
-        "value": "\n".join(links),
+        "value": value,
         "values": links,
     }
 
@@ -76,10 +77,11 @@ def project_time_submission_field(
     if not project.time_spent_project_field:
         return None
 
+    value = format_hours(submission.time_spent)
     return {
         "key": "time_spent",
         "label": "Time spent on project",
-        "value": format_hours(submission.time_spent),
+        "value": value,
     }
 
 
@@ -173,14 +175,16 @@ def project_submission_fields(
 def project_confirmation_metadata(
     data: ProjectConfirmationData,
 ) -> dict:
+    project_due_at = data.project.submission_due_date.isoformat()
+    submitted_at = data.submission.submitted_at.isoformat()
     return {
         "course_slug": data.course.slug,
         "course_title": data.course.title,
         "project_slug": data.project.slug,
         "project_title": data.project.title,
-        "project_due_at": data.project.submission_due_date.isoformat(),
+        "project_due_at": project_due_at,
         "submission_id": data.submission.id,
-        "submitted_at": data.submission.submitted_at.isoformat(),
+        "submitted_at": submitted_at,
         "update_url": data.update_url,
         "profile_url": data.profile_url,
         "update_link_text": "Update your submission",
@@ -230,11 +234,16 @@ def project_confirmation_context(
         data.submission,
     )
     submitted_fields_text = format_submission_lines(submission_fields)
+    metadata = project_confirmation_metadata(data)
+    notification_context = project_confirmation_notification_context(
+        data.profile_url
+    )
+    message_context = project_confirmation_message_context(data)
 
     return {
-        **project_confirmation_metadata(data),
-        **project_confirmation_notification_context(data.profile_url),
-        **project_confirmation_message_context(data),
+        **metadata,
+        **notification_context,
+        **message_context,
         "submission_fields": submission_fields,
         "submitted_fields_text": submitted_fields_text,
         "submission_summary_text": submitted_fields_text,
@@ -265,15 +274,16 @@ def send_project_confirmation_email(data: ProjectConfirmationEmailData) -> None:
 
 
 def project_confirmation_payload(data: ProjectConfirmationEmailData) -> dict:
+    idempotency_key = project_confirmation_idempotency_key(data.submission)
+    context = project_confirmation_payload_context(data)
+    metadata = project_confirmation_email_metadata(data)
     return {
         "email": data.user.email,
         "template_key": email_templates.PROJECT_SUBMISSION_CONFIRMATION,
         "category_tag": "submission-results",
-        "idempotency_key": project_confirmation_idempotency_key(
-            data.submission
-        ),
-        "context": project_confirmation_payload_context(data),
-        "metadata": project_confirmation_email_metadata(data),
+        "idempotency_key": idempotency_key,
+        "context": context,
+        "metadata": metadata,
     }
 
 

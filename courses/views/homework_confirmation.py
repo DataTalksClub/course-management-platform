@@ -38,14 +38,16 @@ class HomeworkConfirmationData:
 def homework_confirmation_metadata(
     data: HomeworkConfirmationData,
 ) -> dict[str, Any]:
+    homework_due_at = data.homework.due_date.isoformat()
+    submitted_at = data.submission.submitted_at.isoformat()
     return {
         "course_slug": data.course.slug,
         "course_title": data.course.title,
         "homework_slug": data.homework.slug,
         "homework_title": data.homework.title,
-        "homework_due_at": data.homework.due_date.isoformat(),
+        "homework_due_at": homework_due_at,
         "submission_id": data.submission.id,
-        "submitted_at": data.submission.submitted_at.isoformat(),
+        "submitted_at": submitted_at,
         "update_url": data.update_url,
         "profile_url": data.profile_url,
         "update_link_text": "Update your submission",
@@ -100,12 +102,18 @@ def homework_confirmation_context(
         data.homework,
         data.submission,
     )
+    metadata = homework_confirmation_metadata(data)
+    notification_context = homework_confirmation_notification_context(
+        data.profile_url
+    )
+    message_context = homework_confirmation_message_context(data)
+    submitted_context = submitted_content.context()
 
     return {
-        **homework_confirmation_metadata(data),
-        **homework_confirmation_notification_context(data.profile_url),
-        **homework_confirmation_message_context(data),
-        **submitted_content.context(),
+        **metadata,
+        **notification_context,
+        **message_context,
+        **submitted_context,
     }
 
 
@@ -133,15 +141,18 @@ def send_homework_confirmation_email(data: HomeworkConfirmationEmailData) -> Non
 
 
 def homework_confirmation_payload(data: HomeworkConfirmationEmailData) -> dict:
+    idempotency_key = homework_confirmation_idempotency_key(
+        data.submission
+    )
+    context = homework_confirmation_payload_context(data)
+    metadata = homework_confirmation_email_metadata(data)
     return {
         "email": data.user.email,
         "template_key": email_templates.HOMEWORK_SUBMISSION_CONFIRMATION,
         "category_tag": "submission-results",
-        "idempotency_key": homework_confirmation_idempotency_key(
-            data.submission
-        ),
-        "context": homework_confirmation_payload_context(data),
-        "metadata": homework_confirmation_email_metadata(data),
+        "idempotency_key": idempotency_key,
+        "context": context,
+        "metadata": metadata,
     }
 
 
