@@ -1,4 +1,5 @@
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 from django.contrib import admin
@@ -6,6 +7,14 @@ from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
 from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
+
+
+@dataclass(frozen=True)
+class RequeueEventsFixture:
+    failed: DatamailerOutboxEvent
+    dead: DatamailerOutboxEvent
+    acked: DatamailerOutboxEvent
+    original_acked_next_attempt_at: datetime
 
 
 class DatamailerOutboxAdminTest(TestCase):
@@ -21,9 +30,7 @@ class DatamailerOutboxAdminTest(TestCase):
             last_error=last_error,
         )
 
-    def test_requeue_selected_events_only_requeues_failed_and_dead_events(
-        self,
-    ):
+    def create_requeue_events_fixture(self):
         failed = self.create_outbox_event(
             status=DatamailerOutboxStatus.FAILED,
             event_id="failed-event",
@@ -39,7 +46,14 @@ class DatamailerOutboxAdminTest(TestCase):
             event_id="acked-event",
         )
         original_acked_next_attempt_at = acked.next_attempt_at
+        return RequeueEventsFixture(
+            failed=failed,
+            dead=dead,
+            acked=acked,
+            original_acked_next_attempt_at=original_acked_next_attempt_at,
+        )
 
+    def run_requeue_selected_events_action(self):
         model_admin = admin.site._registry[DatamailerOutboxEvent]
         original_message_user = model_admin.message_user
         model_admin.message_user = Mock()
@@ -54,20 +68,41 @@ class DatamailerOutboxAdminTest(TestCase):
             message_user = model_admin.message_user
             model_admin.message_user = original_message_user
 
-        failed.refresh_from_db()
-        dead.refresh_from_db()
-        acked.refresh_from_db()
-        self.assertEqual(failed.status, DatamailerOutboxStatus.RETRYING)
-        self.assertEqual(dead.status, DatamailerOutboxStatus.RETRYING)
-        self.assertEqual(failed.last_error, "")
-        self.assertEqual(dead.last_error, "")
-        self.assertLess(failed.next_attempt_at, original_acked_next_attempt_at)
-        self.assertLess(dead.next_attempt_at, original_acked_next_attempt_at)
-        self.assertEqual(acked.status, DatamailerOutboxStatus.ACKED)
+        return message_user
+
+    def assert_event_was_requeued(self, event, next_attempt_before_requeue):
+        event.refresh_from_db()
+        self.assertEqual(event.status, DatamailerOutboxStatus.RETRYING)
+        self.assertEqual(event.last_error, "")
+        self.assertLess(event.next_attempt_at, next_attempt_before_requeue)
+
+    def assert_acked_event_was_unchanged(self, fixture):
+        fixture.acked.refresh_from_db()
+        self.assertEqual(fixture.acked.status, DatamailerOutboxStatus.ACKED)
         self.assertEqual(
-            acked.next_attempt_at,
-            original_acked_next_attempt_at,
+            fixture.acked.next_attempt_at,
+            fixture.original_acked_next_attempt_at,
         )
+
+    def assert_requeue_message(self, message_user):
         message_user.assert_called_once()
         message = message_user.call_args.args[1]
         self.assertEqual(message, "Requeued 2 Datamailer outbox event(s).")
+
+    def test_requeue_selected_events_only_requeues_failed_and_dead_events(
+        self,
+    ):
+        fixture = self.create_requeue_events_fixture()
+
+        message_user = self.run_requeue_selected_events_action()
+
+        self.assert_event_was_requeued(
+            fixture.failed,
+            fixture.original_acked_next_attempt_at,
+        )
+        self.assert_event_was_requeued(
+            fixture.dead,
+            fixture.original_acked_next_attempt_at,
+        )
+        self.assert_acked_event_was_unchanged(fixture)
+        self.assert_requeue_message(message_user)
