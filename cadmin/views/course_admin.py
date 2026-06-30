@@ -29,9 +29,10 @@ def course_list(request):
 
 
 def course_homeworks_for_admin(course):
-    homeworks = list(
-        Homework.objects.filter(course=course).order_by("due_date")
+    homework_queryset = Homework.objects.filter(course=course).order_by(
+        "due_date"
     )
+    homeworks = list(homework_queryset)
     for homework in homeworks:
         homework.submissions_count = Submission.objects.filter(
             homework=homework
@@ -44,7 +45,8 @@ def course_homeworks_for_admin(course):
 
 
 def course_projects_for_admin(course):
-    projects = list(Project.objects.filter(course=course).order_by("id"))
+    project_queryset = Project.objects.filter(course=course).order_by("id")
+    projects = list(project_queryset)
     for project in projects:
         project.submissions_count = ProjectSubmission.objects.filter(
             project=project
@@ -60,18 +62,22 @@ def course_projects_for_admin(course):
 
 def course_support_metrics(course):
     enrollments = Enrollment.objects.filter(course=course)
+    disabled_lip = enrollments.filter(
+        disable_learning_in_public=True
+    ).count()
+    zero_score = enrollments.filter(total_score=0).count()
+    hidden_leaderboard = enrollments.filter(
+        display_on_leaderboard=False
+    ).count()
+    open_complaints = LeaderboardComplaint.objects.filter(
+        enrollment__course=course,
+        resolved=False,
+    ).count()
     return {
-        "disabled_lip": enrollments.filter(
-            disable_learning_in_public=True
-        ).count(),
-        "zero_score": enrollments.filter(total_score=0).count(),
-        "hidden_leaderboard": enrollments.filter(
-            display_on_leaderboard=False
-        ).count(),
-        "open_complaints": LeaderboardComplaint.objects.filter(
-            enrollment__course=course,
-            resolved=False,
-        ).count(),
+        "disabled_lip": disabled_lip,
+        "zero_score": zero_score,
+        "hidden_leaderboard": hidden_leaderboard,
+        "open_complaints": open_complaints,
     }
 
 
@@ -97,13 +103,17 @@ def course_registration_metrics(course):
 
 def course_admin_context(course):
     context = course_registration_metrics(course)
+    homeworks = course_homeworks_for_admin(course)
+    projects = course_projects_for_admin(course)
+    total_enrollments = course.enrollment_set.count()
+    support_metrics = course_support_metrics(course)
     context.update(
         {
             "course": course,
-            "homeworks": course_homeworks_for_admin(course),
-            "projects": course_projects_for_admin(course),
-            "total_enrollments": course.enrollment_set.count(),
-            "support_metrics": course_support_metrics(course),
+            "homeworks": homeworks,
+            "projects": projects,
+            "total_enrollments": total_enrollments,
+            "support_metrics": support_metrics,
         }
     )
     return context
