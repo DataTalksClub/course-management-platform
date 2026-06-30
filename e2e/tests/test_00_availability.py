@@ -5,8 +5,6 @@
 * Unauthenticated access to a protected page redirects to login.
 """
 
-from __future__ import annotations
-
 import re
 
 import pytest

@@ -29,8 +29,6 @@ When the mock inbox is disabled on the deployment, every route returns
 ``404 {"error": {"code": "mock_inbox_disabled"}}``.
 """
 
-from __future__ import annotations
-
 import time
 from dataclasses import dataclass, field
 

@@ -8,8 +8,6 @@ codes so failures point straight at the broken step.
 Auth: ``Authorization: Token <token>`` (staff token). See endpoints.md.
 """
 
-from __future__ import annotations
-
 import json
 import time
 from dataclasses import dataclass

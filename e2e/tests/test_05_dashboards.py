@@ -5,8 +5,6 @@ authenticated from the admin session) and assert they return 200 with the
 provisioned course present, rather than 500/empty.
 """
 
-from __future__ import annotations
-
 import pytest
 
 pytestmark = pytest.mark.dashboards

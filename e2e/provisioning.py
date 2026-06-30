@@ -31,8 +31,6 @@ When the admin delete succeeds there is no residual and the course is fully
 purged.
 """
 
-from __future__ import annotations
-
 import time
 from dataclasses import dataclass, field
 

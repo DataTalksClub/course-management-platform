@@ -6,8 +6,6 @@ single ``RunState`` object threads data between test modules. Each test file
 maps to a numbered scenario from issue #194 and is named to sort in order.
 """
 
-from __future__ import annotations
-
 import sys
 import time
 from dataclasses import dataclass, field

@@ -17,8 +17,6 @@ not configured (API-only subset), teardown falls back to parking the course
 hidden and the full-purge assertion is skipped.
 """
 
-from __future__ import annotations
-
 import pytest
 
 pytestmark = pytest.mark.teardown

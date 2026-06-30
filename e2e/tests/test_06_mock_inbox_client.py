@@ -7,8 +7,6 @@ shapes, poll/timeout/clear behaviour). The *live* email assertions
 (``test_03/04``) still need the mock inbox deployed to dev + creds.
 """
 
-from __future__ import annotations
-
 import json
 import os
 

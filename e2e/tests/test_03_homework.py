@@ -8,8 +8,6 @@
 * Leaderboard reflects the score.
 """
 
-from __future__ import annotations
-
 import pytest
 
 from e2e.api_client import ApiRequestData

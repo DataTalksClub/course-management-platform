@@ -3,8 +3,6 @@
 Also performs the pre-run sweep of stale ``e2e-smoke-*`` data (scenario 8).
 """
 
-from __future__ import annotations
-
 import pytest
 
 from e2e.provisioning import ProjectProvisionData

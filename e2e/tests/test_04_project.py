@@ -12,8 +12,6 @@ student smoke run exercises the assign/score endpoints and asserts they
 succeed and return sane counts, rather than requiring assigned reviews.
 """
 
-from __future__ import annotations
-
 import pytest
 
 from e2e.browser import ProjectSubmissionData

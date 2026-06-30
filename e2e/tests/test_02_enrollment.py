@@ -10,8 +10,6 @@ submission (``Enrollment.objects.get_or_create``), so the explicit
 establish identity + impersonation and confirm the profile renders.
 """
 
-from __future__ import annotations
-
 import pytest
 
 pytestmark = pytest.mark.enrollment

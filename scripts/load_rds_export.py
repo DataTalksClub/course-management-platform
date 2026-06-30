@@ -8,8 +8,6 @@ script creates a fresh migrated Django SQLite database, copies rows from
 the export into that schema, validates it, and swaps it into db/db.sqlite3.
 """
 
-from __future__ import annotations
-
 import argparse
 import os
 import shutil

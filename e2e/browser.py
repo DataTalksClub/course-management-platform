@@ -8,8 +8,6 @@ All selectors use stable ``name``/``id`` attributes confirmed from the Django
 views and templates, not brittle text matching.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 
