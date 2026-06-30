@@ -14,6 +14,28 @@ def _countries_config_lines():
     return content.splitlines()
 
 
+def _country_config_section(line):
+    if not line.startswith("["):
+        return None
+    if not line.endswith("]"):
+        return None
+
+    section = line[1:-1].strip()
+    return section
+
+
+def _add_country_to_config(countries_by_region, top_countries, section, country):
+    if section is None:
+        return
+
+    if section == TOP_COUNTRIES_SECTION:
+        top_countries.append(country)
+        return
+
+    region_countries = countries_by_region.setdefault(section, [])
+    region_countries.append(country)
+
+
 def _build_countries_config():
     top_countries = []
     countries_by_region = {}
@@ -25,16 +47,14 @@ def _build_countries_config():
         if not line or line.startswith("#"):
             continue
 
-        if line.startswith("[") and line.endswith("]"):
-            section = line[1:-1].strip()
+        section_name = _country_config_section(line)
+        if section_name:
+            section = section_name
             if section != TOP_COUNTRIES_SECTION:
                 countries_by_region[section] = []
             continue
 
-        if section == TOP_COUNTRIES_SECTION:
-            top_countries.append(line)
-        elif section is not None:
-            countries_by_region[section].append(line)
+        _add_country_to_config(countries_by_region, top_countries, section, line)
 
     return countries_by_region, top_countries
 
