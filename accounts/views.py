@@ -245,18 +245,38 @@ def _parse_timezone_request(request):
         return None, "Invalid JSON"
 
 
-def _validated_timezone_name(data):
+def _timezone_field_value(data):
     timezone_name = data.get("timezone")
     if timezone_name is None:
         return None, "timezone field is required"
-    if not isinstance(timezone_name, str):
+    return timezone_name, None
+
+
+def _validated_timezone_value(timezone_value):
+    if not isinstance(timezone_value, str):
         return None, "timezone must be a string"
 
-    timezone_name = timezone_name.strip()
-    if timezone_name and not is_valid_timezone(timezone_name):
-        return None, "Invalid timezone"
+    timezone_name = timezone_value.strip()
+    error = _timezone_name_error(timezone_name)
+    if error:
+        return None, error
 
     return timezone_name, None
+
+
+def _timezone_name_error(timezone_name):
+    if timezone_name and not is_valid_timezone(timezone_name):
+        return "Invalid timezone"
+    return None
+
+
+def _validated_timezone_name(data):
+    timezone_value, error = _timezone_field_value(data)
+    if error:
+        return None, error
+
+    timezone_name, error = _validated_timezone_value(timezone_value)
+    return timezone_name, error
 
 
 def _timezone_preference_response(timezone_name):

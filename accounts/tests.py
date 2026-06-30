@@ -427,6 +427,36 @@ class AccountSettingsTestCase(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_update_timezone_preference_requires_timezone_field(self):
+        self.client.force_login(self.user)
+        payload = {}
+        request_body = json.dumps(payload)
+
+        response = self.client.post(
+            reverse("update_timezone_preference"),
+            data=request_body,
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        error = response.json()["error"]
+        self.assertEqual(error, "timezone field is required")
+
+    def test_update_timezone_preference_rejects_non_string_timezone(self):
+        self.client.force_login(self.user)
+        payload = {"timezone": 10}
+        request_body = json.dumps(payload)
+
+        response = self.client.post(
+            reverse("update_timezone_preference"),
+            data=request_body,
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        error = response.json()["error"]
+        self.assertEqual(error, "timezone must be a string")
+
     def test_account_settings_certificate_name_shows_in_enrollment_form(self):
         self.client.force_login(self.user)
 
