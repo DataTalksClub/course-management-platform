@@ -1271,28 +1271,43 @@ def update_enrollment_toggle(request, course_slug):
         course=course,
     )
 
-    field = request.POST.get("field", "")
-    value = request.POST.get("value", "")
-    if field not in ENROLLMENT_TOGGLE_FIELDS:
+    toggle_update = enrollment_toggle_update_from_post(
+        request,
+        course,
+        enrollment,
+    )
+    if toggle_update is None:
         return JsonResponse(
             {"error": "Unsupported enrollment setting."},
             status=400,
         )
 
-    enabled = value.lower() in {"1", "true", "yes", "on"}
-    toggle_update = EnrollmentToggleUpdate(
-        enrollment=enrollment,
-        course=course,
-        field=field,
-        enabled=enabled,
-    )
     update_enrollment_toggle_value(toggle_update)
 
     return JsonResponse(
         {
-            "field": field,
-            "value": enabled,
+            "field": toggle_update.field,
+            "value": toggle_update.enabled,
         }
+    )
+
+
+def enrollment_toggle_update_from_post(
+    request,
+    course,
+    enrollment,
+) -> EnrollmentToggleUpdate | None:
+    field = request.POST.get("field", "")
+    if field not in ENROLLMENT_TOGGLE_FIELDS:
+        return None
+
+    value = request.POST.get("value", "")
+    enabled = value.lower() in {"1", "true", "yes", "on"}
+    return EnrollmentToggleUpdate(
+        enrollment=enrollment,
+        course=course,
+        field=field,
+        enabled=enabled,
     )
 
 
