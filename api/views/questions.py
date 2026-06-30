@@ -16,12 +16,13 @@ from api.utils import parse_json_body, require_methods
 
 def _question_to_dict(q):
     answers_count = q.answer_set.count()
+    possible_answers = q.get_possible_answers()
     return {
         "id": q.id,
         "text": q.text,
         "question_type": q.question_type,
         "answer_type": q.answer_type,
-        "possible_answers": q.get_possible_answers(),
+        "possible_answers": possible_answers,
         "correct_answer": q.correct_answer,
         "scores_for_correct_answer": q.scores_for_correct_answer,
         "answers_count": answers_count,
@@ -42,17 +43,24 @@ def _create_question(homework, q_data):
     if not text:
         return None, "text is required"
 
+    question_type = q_data.get("question_type", "FF")
+    answer_type = q_data.get("answer_type")
+    possible_answer_values = q_data.get("possible_answers", [])
+    possible_answers = "\n".join(possible_answer_values)
+    correct_answer = q_data.get("correct_answer", "")
+    scores_for_correct_answer = q_data.get("scores_for_correct_answer", 1)
     question = Question.objects.create(
         homework=homework,
         text=text,
-        question_type=q_data.get("question_type", "FF"),
-        answer_type=q_data.get("answer_type"),
-        possible_answers="\n".join(q_data.get("possible_answers", [])),
-        correct_answer=q_data.get("correct_answer", ""),
-        scores_for_correct_answer=q_data.get("scores_for_correct_answer", 1),
+        question_type=question_type,
+        answer_type=answer_type,
+        possible_answers=possible_answers,
+        correct_answer=correct_answer,
+        scores_for_correct_answer=scores_for_correct_answer,
     )
 
-    return _question_to_dict(question), None
+    question_record = _question_to_dict(question)
+    return question_record, None
 
 
 def _questions_list_response(homework):
@@ -62,11 +70,12 @@ def _questions_list_response(homework):
         question_record = _question_to_dict(question)
         question_records.append(question_record)
 
-    return JsonResponse({
+    payload = {
         "homework_id": homework.id,
         "homework_title": homework.title,
         "questions": question_records,
-    })
+    }
+    return JsonResponse(payload)
 
 
 def _question_create_items(data):
@@ -74,7 +83,8 @@ def _question_create_items(data):
 
 
 def _question_create_error(item, error):
-    return {"text": item.get("text", "unknown"), "error": error}
+    text = item.get("text", "unknown")
+    return {"text": text, "error": error}
 
 
 def _questions_create_response(homework, data):
@@ -129,14 +139,16 @@ QUESTION_PATCH_FIELDS = {
 
 
 def _question_delete_response(question):
+    answer_records = question.answer_set.all()
     error_response_result = ensure_no_related_records_for_delete(
-        question.answer_set.all(), "answers", "question"
+        answer_records, "answers", "question"
     )
     if error_response_result:
         return error_response_result
 
     question.delete()
-    return JsonResponse({"deleted": True})
+    payload = {"deleted": True}
+    return JsonResponse(payload)
 
 
 def _question_patch_value(field, value):
@@ -146,10 +158,11 @@ def _question_patch_value(field, value):
 
 
 def _question_invalid_field_response(field):
+    details = {"field": field}
     return error_response(
         f"Cannot update field: {field}",
         "invalid_field",
-        details={"field": field},
+        details=details,
     )
 
 
@@ -158,7 +171,8 @@ def _apply_question_patch(question, data):
         if field not in QUESTION_PATCH_FIELDS:
             return _question_invalid_field_response(field)
 
-        setattr(question, field, _question_patch_value(field, value))
+        patch_value = _question_patch_value(field, value)
+        setattr(question, field, patch_value)
 
     return None
 
@@ -173,7 +187,8 @@ def _question_patch_response(question, request):
         return error
 
     question.save()
-    return JsonResponse(_question_to_dict(question))
+    question_record = _question_to_dict(question)
+    return JsonResponse(question_record)
 
 
 @token_required
@@ -189,7 +204,8 @@ def question_detail_view(request, course_slug, homework_id, question_id):
     question = get_object_or_404(Question, homework=homework, id=question_id)
 
     if request.method == "GET":
-        return JsonResponse(_question_to_dict(question))
+        question_record = _question_to_dict(question)
+        return JsonResponse(question_record)
 
     staff_error = require_staff_token(request)
     if staff_error:
