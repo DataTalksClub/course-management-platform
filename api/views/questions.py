@@ -104,7 +104,10 @@ def _questions_create_response(homework, data):
     if errors:
         result["errors"] = errors
 
-    status = 201 if created else 400
+    if created:
+        status = 201
+    else:
+        status = 400
     return JsonResponse(result, status=status)
 
 

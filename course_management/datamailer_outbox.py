@@ -55,7 +55,10 @@ def enqueue_datamailer_outbox_event(
 
 def process_due_datamailer_outbox(*, limit=100, record_run=True) -> dict[str, int]:
     started_at = timezone.now()
-    run = _create_dispatch_run(started_at) if record_run else None
+    if record_run:
+        run = _create_dispatch_run(started_at)
+    else:
+        run = None
     event_ids = _due_outbox_event_ids(limit)
     counts = _initial_outbox_counts()
 
@@ -364,7 +367,11 @@ def _is_non_retryable_http_error(exc):
         return False
 
     status_code = _http_error_status_code(exc)
-    return bool(status_code and status_code < 500 and status_code != 429)
+    if not status_code:
+        return False
+    is_server_error = status_code >= 500
+    is_rate_limited = status_code == 429
+    return not is_server_error and not is_rate_limited
 
 
 def _status_for_error(exc, event):

@@ -187,12 +187,15 @@ def _registration_confirmation_urls(campaign, course) -> dict[str, str]:
 
 
 def _registration_confirmation_metadata(registration, campaign, course):
+    course_slug = ""
+    if course is not None:
+        course_slug = course.slug
     return {
         "source": "course-management-platform",
         "event": "course_registration",
         "registration_id": registration.pk,
         "campaign_slug": campaign.slug,
-        "course_slug": course.slug if course is not None else "",
+        "course_slug": course_slug,
         "preference_key": "email_course_updates",
         "cmp_preference_key": "email_course_updates",
     }
@@ -200,12 +203,17 @@ def _registration_confirmation_metadata(registration, campaign, course):
 
 def _registration_confirmation_context(registration, campaign, course, urls):
     profile_url = urls["profile_url"]
+    course_title = ""
+    course_slug = ""
+    if course is not None:
+        course_title = course.title
+        course_slug = course.slug
     return {
         "email_subject": f"Registration confirmed: {campaign.title}",
         "campaign_title": campaign.title,
         "campaign_slug": campaign.slug,
-        "course_title": course.title if course is not None else "",
-        "course_slug": course.slug if course is not None else "",
+        "course_title": course_title,
+        "course_slug": course_slug,
         "registration_id": registration.pk,
         "registration_url": urls["registration_url"],
         "course_url": urls["course_url"],
@@ -366,20 +374,27 @@ def registration_recipient_list_payload(
 
 def registration_recipient_list_name(registration) -> str:
     course = registration.course
-    title = course.title if course is not None else registration.campaign.title
+    if course is not None:
+        title = course.title
+    else:
+        title = registration.campaign.title
     return f"{title} registrants"
 
 
 def registration_recipient_metadata(registration) -> dict[str, Any]:
     course = registration.course
+    course_slug = ""
+    if course is not None:
+        course_slug = course.slug
+    registered_at = ""
+    if registration.created_at:
+        registered_at = registration.created_at.isoformat()
     return {
         "registration_id": registration.pk,
         "campaign_slug": registration.campaign.slug,
-        "course_slug": course.slug if course is not None else "",
+        "course_slug": course_slug,
         "user_id": registration.user_id,
-        "registered_at": registration.created_at.isoformat()
-        if registration.created_at
-        else "",
+        "registered_at": registered_at,
         "country": registration.country,
         "region": registration.region,
         "role": registration.role,

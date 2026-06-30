@@ -30,13 +30,15 @@ def _datetime_to_iso(value):
 
 
 def _campaign_to_dict(campaign):
+    current_course = campaign.current_course
+    current_course_slug = None
+    if current_course:
+        current_course_slug = current_course.slug
     return {
         "slug": campaign.slug,
         "title": campaign.title,
         "edition_label": campaign.edition_label,
-        "current_course": (
-            campaign.current_course.slug if campaign.current_course else None
-        ),
+        "current_course": current_course_slug,
         "is_active": campaign.is_active,
         "marketing_markdown": campaign.marketing_markdown,
         "meta_description": campaign.meta_description,
@@ -46,12 +48,16 @@ def _campaign_to_dict(campaign):
 
 
 def _registration_to_dict(registration):
+    course = registration.course
+    course_slug = None
+    if course:
+        course_slug = course.slug
     return {
         "id": registration.id,
         "email": registration.email_normalized,
         "name": registration.name,
         "campaign": registration.campaign.slug,
-        "course": registration.course.slug if registration.course else None,
+        "course": course_slug,
         "country": registration.country,
         "region": registration.region,
         "role": registration.role,

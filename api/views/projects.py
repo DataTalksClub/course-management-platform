@@ -114,20 +114,22 @@ def _project_assign_reviews_response(project):
     after_count = PeerReview.objects.filter(
         submission_under_evaluation__project=project,
     ).count()
+    if status == ProjectActionStatus.OK:
+        assigned_peer_reviews_count = after_count - before_count
+        response_status = 200
+    else:
+        assigned_peer_reviews_count = 0
+        response_status = 400
     data = _project_action_base(project, status, message)
     data.update(
         {
             "peer_reviews_count": after_count,
-            "assigned_peer_reviews_count": (
-                after_count - before_count
-                if status == ProjectActionStatus.OK
-                else 0
-            ),
+            "assigned_peer_reviews_count": assigned_peer_reviews_count,
         }
     )
     return JsonResponse(
         data,
-        status=200 if status == ProjectActionStatus.OK else 400,
+        status=response_status,
     )
 
 
@@ -219,7 +221,11 @@ def _parse_project_due_dates(submission_due_str, peer_review_due_str):
 
 
 def _project_slug(proj_data, name):
-    return proj_data.get("slug") or slugify(name)
+    slug = proj_data.get("slug")
+    if slug:
+        return slug
+    generated_slug = slugify(name)
+    return generated_slug
 
 
 def _project_duplicate_error(course, slug):
@@ -542,7 +548,10 @@ def _save_project_upsert(project, data, created):
 
     project.save()
     project_data = _project_to_dict(project)
-    response_status = 201 if created else 200
+    if created:
+        response_status = 201
+    else:
+        response_status = 200
     return JsonResponse(
         project_data, status=response_status
     )

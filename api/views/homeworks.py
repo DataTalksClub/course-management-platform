@@ -95,7 +95,10 @@ def _homework_score_response(homework):
     status, message = score_homework_submissions(homework.id)
     homework.refresh_from_db()
     submissions_count = homework.submission_set.count()
-    response_status = 200 if status == HomeworkScoringStatus.OK else 400
+    if status == HomeworkScoringStatus.OK:
+        response_status = 200
+    else:
+        response_status = 400
     return JsonResponse(
         {
             "status": status.name,
@@ -597,7 +600,10 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
         return error
 
     homework_data = _homework_to_dict(homework)
-    response_status = 201 if created else 200
+    if created:
+        response_status = 201
+    else:
+        response_status = 200
     return JsonResponse(
         homework_data, status=response_status
     )
