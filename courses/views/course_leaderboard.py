@@ -196,7 +196,8 @@ def leaderboard_view(request, course_slug: str):
     page_number = request.GET.get("page")
     context = leaderboard_context(course, request.user, page_number)
 
-    return render(request, "courses/leaderboard.html", context)
+    response = render(request, "courses/leaderboard.html", context)
+    return response
 
 
 def invalidate_leaderboard_cache(course_id: int) -> None:
@@ -218,9 +219,10 @@ def leaderboard_score_breakdown_view(
     )
     context = _leaderboard_score_breakdown_context(enrollment, request.user)
 
-    return render(
+    response = render(
         request, "courses/leaderboard_score_breakdown.html", context
     )
+    return response
 
 
 def _leaderboard_score_breakdown_context(enrollment, user):
@@ -306,11 +308,12 @@ def _leaderboard_complaint_post_response(
         request,
         "Thanks. The course team will review this leaderboard record.",
     )
-    return redirect(
+    response = redirect(
         "leaderboard_score_breakdown",
         course_slug=course_slug,
         enrollment_id=enrollment.id,
     )
+    return response
 
 
 @login_required
@@ -342,4 +345,7 @@ def leaderboard_complaint_view(
         "course": enrollment.course,
         "form": form,
     }
-    return render(request, "courses/leaderboard_complaint.html", context)
+    response = render(
+        request, "courses/leaderboard_complaint.html", context
+    )
+    return response

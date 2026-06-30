@@ -308,10 +308,11 @@ def course_registration_redirect_response(data: CoursePageData):
         projects=data.projects,
         user=data.user,
     ):
-        return redirect(
+        response = redirect(
             "registration_campaign",
             campaign_slug=data.registration_campaign.slug,
         )
+        return response
     return None
 
 
@@ -322,8 +323,9 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         return redirect_response
 
     context = course_page_context(data)
-    return render(
+    response = render(
         request,
         "courses/course.html",
         context,
     )
+    return response

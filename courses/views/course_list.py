@@ -387,8 +387,9 @@ def course_list_context(user):
 
 def course_list(request):
     context = course_list_context(request.user)
-    return render(
+    response = render(
         request,
         "courses/course_list.html",
         context,
     )
+    return response

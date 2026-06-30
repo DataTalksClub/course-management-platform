@@ -82,7 +82,8 @@ def project_results(request, course_slug, project_slug):
     )
     context = _project_results_context(course, project, request.user)
 
-    return render(request, "projects/results.html", context)
+    response = render(request, "projects/results.html", context)
+    return response
 
 
 def _project_results_context(course, project, user):

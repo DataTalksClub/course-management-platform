@@ -61,7 +61,8 @@ def paginate_project_submissions(request, submissions):
 def _project_vote_response(request, course, project):
     """Handle a POST vote on a project submission (HTML redirect or AJAX JSON)."""
     if not request.user.is_authenticated:
-        return redirect("login")
+        response = redirect("login")
+        return response
 
     submission = _project_vote_submission(request, project)
     vote_action = request.POST.get("action", "vote")
@@ -78,13 +79,15 @@ def _project_vote_response(request, course, project):
             project,
             submission,
         )
-        return JsonResponse(payload)
+        response = JsonResponse(payload)
+        return response
 
-    return redirect(
+    response = redirect(
         "project_list",
         course_slug=course.slug,
         project_slug=project.slug,
     )
+    return response
 
 
 def _is_ajax_request(request):
@@ -340,7 +343,8 @@ def projects_list_view(request, course_slug, project_slug):
         course, project, submissions_page, viewer_state
     )
 
-    return render(request, "projects/list.html", context)
+    response = render(request, "projects/list.html", context)
+    return response
 
 
 def _project_submissions_page(request, project, viewer_state):
@@ -396,14 +400,16 @@ def project_submissions(request, course_slug, project_slug):
             "You do not have permission to view this page.",
             extra_tags="project",
         )
-        return redirect(
+        response = redirect(
             "project",
             course_slug=course_slug,
             project_slug=project_slug,
         )
+        return response
 
-    return redirect(
+    response = redirect(
         "cadmin_project_submissions",
         course_slug=course_slug,
         project_slug=project_slug,
     )
+    return response

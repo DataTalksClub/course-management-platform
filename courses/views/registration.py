@@ -143,4 +143,5 @@ def registration_campaign_view(
         form,
         registration or existing_registration,
     )
-    return render(request, "courses/register.html", context)
+    response = render(request, "courses/register.html", context)
+    return response

@@ -24,11 +24,12 @@ def homework_statistics(
             "This homework is not scored yet, so there are no available statistics.",
             extra_tags="homework",
         )
-        return redirect(
+        response = redirect(
             "homework",
             course_slug=course.slug,
             homework_slug=homework.slug,
         )
+        return response
 
     stats = calculate_homework_statistics(homework, force=False)
     context = {
@@ -37,4 +38,5 @@ def homework_statistics(
         "stats": stats,
     }
 
-    return render(request, "homework/stats.html", context)
+    response = render(request, "homework/stats.html", context)
+    return response

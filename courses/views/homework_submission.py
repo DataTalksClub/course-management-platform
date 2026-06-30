@@ -228,11 +228,12 @@ def homework_submission_success_response(request, course, homework):
         success_message,
         extra_tags="homework",
     )
-    return redirect(
+    response = redirect(
         "homework",
         course_slug=course.slug,
         homework_slug=homework.slug,
     )
+    return response
 
 
 def save_homework_submission_data(data):

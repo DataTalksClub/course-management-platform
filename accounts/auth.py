@@ -186,25 +186,25 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
             default=None,
         )
 
-
-
-
 def token_required(f):
     @wraps(f)
     def decorated(request, *args, **kwargs):
-        token_key = request.headers.get('Authorization')
+        token_key = request.headers.get("Authorization")
         if token_key:
-            token_key = token_key.replace('Token ', '', 1)  # Assuming the token is sent as "Token <token_key>"
+            token_key = token_key.replace("Token ", "", 1)
             try:
                 token = Token.objects.get(key=token_key)
                 request.user = token.user
             except Token.DoesNotExist:
-                payload = {'error': 'Invalid token'}
-                return JsonResponse(payload, status=401)
+                payload = {"error": "Invalid token"}
+                response = JsonResponse(payload, status=401)
+                return response
         else:
-            payload = {'error': 'Authentication token required'}
-            return JsonResponse(payload, status=401)
+            payload = {"error": "Authentication token required"}
+            response = JsonResponse(payload, status=401)
+            return response
 
         return f(request, *args, **kwargs)
+
     decorated.requires_token_auth = True
     return decorated

@@ -440,11 +440,12 @@ def authenticated_homework_response(data: HomeworkRequestData):
     )
 
     if data.request.method != "POST":
-        return render(
+        response = render(
             data.request,
             "homework/homework.html",
             authenticated_context.context,
         )
+        return response
 
     return authenticated_homework_post_response(
         data,
@@ -468,7 +469,8 @@ def authenticated_homework_post_response(
     if not isinstance(post_result, dict):
         return post_result
 
-    return render(data.request, "homework/homework.html", post_result)
+    response = render(data.request, "homework/homework.html", post_result)
+    return response
 
 
 def homework_view(
@@ -487,7 +489,8 @@ def homework_view(
         context = homework_detail_build_context_not_authenticated(
             course=course, homework=homework, questions=questions
         )
-        return render(request, "homework/homework.html", context)
+        response = render(request, "homework/homework.html", context)
+        return response
 
     request_data = HomeworkRequestData(
         request=request,

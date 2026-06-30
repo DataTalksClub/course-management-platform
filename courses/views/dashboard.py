@@ -381,11 +381,13 @@ def _dashboard_context(course):
 def dashboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
     if not course.first_homework_scored:
-        return redirect("course", course_slug=course.slug)
+        response = redirect("course", course_slug=course.slug)
+        return response
 
     context = _dashboard_context(course)
-    return render(
+    response = render(
         request,
         "courses/dashboard.html",
         context,
     )
+    return response

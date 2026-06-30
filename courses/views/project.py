@@ -317,7 +317,8 @@ def closed_project_submission_response(
         extra_tags="homework",
     )
     context = project_build_context(request, course, project)
-    return render(request, "projects/project.html", context)
+    response = render(request, "projects/project.html", context)
+    return response
 
 
 def is_delete_project_submission_request(request: HttpRequest) -> bool:
@@ -339,7 +340,8 @@ def project_validation_error_response(
         )
     context = project_build_context(request, course, project)
     context["submission"] = project_submission_from_post(request, project)
-    return render(request, "projects/project.html", context)
+    response = render(request, "projects/project.html", context)
+    return response
 
 
 def handle_project_post(
@@ -394,4 +396,5 @@ def project_view(request, course_slug, project_slug):
 
     context = project_build_context(request, course, project)
 
-    return render(request, "projects/project.html", context)
+    response = render(request, "projects/project.html", context)
+    return response

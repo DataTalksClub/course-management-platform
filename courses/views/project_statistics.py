@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from courses.assignment_statistics import calculate_project_statistics
 from courses.models import Course, Project, ProjectState
 
+
 def project_statistics(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
@@ -16,11 +17,12 @@ def project_statistics(request, course_slug, project_slug):
             "This project is not completed yet, so there are no available statistics.",
             extra_tags="project",
         )
-        return redirect(
+        response = redirect(
             "project",
             course_slug=course.slug,
             project_slug=project.slug,
         )
+        return response
 
     stats = calculate_project_statistics(project, force=False)
 
@@ -30,4 +32,5 @@ def project_statistics(request, course_slug, project_slug):
         "stats": stats,
     }
 
-    return render(request, "projects/stats.html", context)
+    response = render(request, "projects/stats.html", context)
+    return response

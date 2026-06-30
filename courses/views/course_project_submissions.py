@@ -19,7 +19,8 @@ def list_all_project_submissions_view(request, course_slug: str):
         request.user,
     )
 
-    return render(request, "projects/list_all.html", context)
+    response = render(request, "projects/list_all.html", context)
+    return response
 
 
 def _projects_with_submission_counts(course):

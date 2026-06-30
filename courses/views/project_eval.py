@@ -106,7 +106,8 @@ def projects_eval_view(request, course_slug, project_slug):
             eval_closed,
         )
 
-    return render(request, "projects/eval.html", context)
+    response = render(request, "projects/eval.html", context)
+    return response
 
 
 def _project_eval_student_submission(course, project, user):
@@ -212,8 +213,9 @@ def projects_eval_delete(request, course_slug, project_slug, review_id):
         optional=True,
     ).delete()
 
-    return redirect(
+    response = redirect(
         "projects_eval",
         course_slug=course_slug,
         project_slug=project_slug,
     )
+    return response

@@ -39,19 +39,18 @@ def update_enrollment_toggle(request, course_slug):
         enrollment,
     )
     if toggle_update is None:
-        return JsonResponse(
-            {"error": "Unsupported enrollment setting."},
-            status=400,
-        )
+        payload = {"error": "Unsupported enrollment setting."}
+        response = JsonResponse(payload, status=400)
+        return response
 
     update_enrollment_toggle_value(toggle_update)
 
-    return JsonResponse(
-        {
-            "field": toggle_update.field,
-            "value": toggle_update.enabled,
-        }
-    )
+    payload = {
+        "field": toggle_update.field,
+        "value": toggle_update.enabled,
+    }
+    response = JsonResponse(payload)
+    return response
 
 
 def enrollment_toggle_update_from_post(
@@ -97,11 +96,12 @@ def _enrollment_context(course, enrollment, form):
 
 def _render_enrollment_form(request, course, enrollment, form):
     context = _enrollment_context(course, enrollment, form)
-    return render(
+    response = render(
         request,
         "courses/enrollment.html",
         context,
     )
+    return response
 
 
 def _save_enrollment_form(form, course, enrollment) -> None:
@@ -119,7 +119,8 @@ def _handle_enrollment_post(request, course, enrollment, course_slug):
     )
     if form.is_valid():
         _save_enrollment_form(form, course, enrollment)
-        return redirect("course", course_slug=course_slug)
+        response = redirect("course", course_slug=course_slug)
+        return response
 
     return _render_enrollment_form(request, course, enrollment, form)
 

@@ -16,14 +16,16 @@ def homework_submissions(
             "You do not have permission to view this page.",
             extra_tags="homework",
         )
-        return redirect(
+        response = redirect(
             "homework",
             course_slug=course_slug,
             homework_slug=homework_slug,
         )
+        return response
 
-    return redirect(
+    response = redirect(
         "cadmin_homework_submissions",
         course_slug=course_slug,
         homework_slug=homework_slug,
     )
+    return response
