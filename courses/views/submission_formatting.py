@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 from django.core.exceptions import ValidationError
@@ -7,7 +7,7 @@ from django.urls import reverse
 from courses.views.homework_answers import format_submitted_value
 
 
-def format_submission_lines(items: List[dict[str, Any]]) -> str:
+def format_submission_lines(items: list[dict[str, Any]]) -> str:
     lines = []
     for item in items:
         submitted_value = format_submitted_value(item["value"])
@@ -16,7 +16,7 @@ def format_submission_lines(items: List[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def format_answer_lines(answers: List[dict[str, Any]]) -> str:
+def format_answer_lines(answers: list[dict[str, Any]]) -> str:
     lines = []
     for answer in answers:
         submitted_answer = format_submitted_value(answer["answer"])
@@ -40,7 +40,7 @@ def submission_summary_text(
     return "\n\n".join(summary_sections)
 
 
-def tryparsefloat(value: str) -> Optional[float]:
+def tryparsefloat(value: str) -> float | None:
     try:
         return float(value)
     except ValueError:
@@ -48,9 +48,9 @@ def tryparsefloat(value: str) -> Optional[float]:
 
 
 def parse_time_spent_hours(
-    value: Optional[str],
+    value: str | None,
     field_label: str,
-) -> Optional[float]:
+) -> float | None:
     if value is None:
         return None
 

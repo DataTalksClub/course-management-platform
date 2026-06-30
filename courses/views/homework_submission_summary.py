@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any
 
 from courses.models import Answer, Course, Homework, Question, Submission
 from courses.views.homework_answers import (
@@ -127,7 +127,7 @@ def optional_homework_submission_fields(
     course: Course,
     homework: Homework,
     submission: Submission,
-) -> List[dict[str, Any] | None]:
+) -> list[dict[str, Any] | None]:
     fields = []
     homework_url_field = homework_url_submission_field(homework, submission)
     fields.append(homework_url_field)
@@ -154,8 +154,8 @@ def optional_homework_submission_fields(
 
 
 def visible_homework_submission_fields(
-    fields: List[dict[str, Any] | None],
-) -> List[dict[str, Any]]:
+    fields: list[dict[str, Any] | None],
+) -> list[dict[str, Any]]:
     visible_fields = []
     for field in fields:
         if field is not None:
@@ -167,7 +167,7 @@ def homework_submission_fields(
     course: Course,
     homework: Homework,
     submission: Submission,
-) -> List[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     fields = optional_homework_submission_fields(
         course,
         homework,
@@ -178,7 +178,7 @@ def homework_submission_fields(
 
 def homework_submitted_answers(
     submission: Submission,
-) -> List[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     answer_payloads = []
     answers = submitted_homework_answers(submission)
     for answer in answers:
@@ -216,7 +216,7 @@ def submitted_answer_payload(answer: Answer) -> dict[str, Any]:
 def submitted_answer_display(
     question: Question,
     raw_answer: str,
-) -> tuple[str, List[dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]]]:
     if question.question_type not in CHOICE_QUESTION_TYPES:
         return raw_answer, []
 
@@ -228,7 +228,7 @@ def submitted_answer_display(
 def submitted_selected_options(
     question: Question,
     raw_answer: str,
-) -> List[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     possible_answers = question.get_possible_answers()
     selected_options = []
     selected_indexes = extract_selected_option_indexes(raw_answer)

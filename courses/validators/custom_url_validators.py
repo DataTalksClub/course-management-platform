@@ -1,4 +1,3 @@
-from typing import Optional
 from urllib.parse import urlparse
 
 import requests
@@ -19,7 +18,7 @@ FAQ_URL_REPOSITORY_ERROR = (
 FAQ_URL_VALIDATOR = URLValidator(schemes=["https"])
 
 
-def clean_faq_contribution_url(url: Optional[str]) -> str:
+def clean_faq_contribution_url(url: str | None) -> str:
     url = (url or "").strip()
     if not url:
         return ""

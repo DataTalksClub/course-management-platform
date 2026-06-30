@@ -1,12 +1,10 @@
-from typing import List
-
 from django.db.models import Prefetch
 from django.utils import timezone
 
 from courses.models import Course, Homework, Submission
 
 
-def get_homeworks_for_course(course: Course, user) -> List[Homework]:
+def get_homeworks_for_course(course: Course, user) -> list[Homework]:
     if user.is_authenticated:
         queryset = Submission.objects.filter(student=user)
     else:

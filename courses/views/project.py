@@ -1,6 +1,5 @@
 import logging
 
-from typing import Optional
 from dataclasses import dataclass
 
 from django.http import HttpRequest
@@ -37,9 +36,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ProjectContextUserDetails:
-    submission: Optional[ProjectSubmission]
-    enrollment: Optional[Enrollment]
-    certificate_name: Optional[str]
+    submission: ProjectSubmission | None
+    enrollment: Enrollment | None
+    certificate_name: str | None
 
 
 def project_submission_from_post(
@@ -268,7 +267,7 @@ def project_context_user_details(
 def project_context_submission(
     user: User,
     project: Project,
-) -> Optional[ProjectSubmission]:
+) -> ProjectSubmission | None:
     return ProjectSubmission.objects.filter(
         project=project,
         student=user,
@@ -279,14 +278,14 @@ def project_context_submission(
 def project_context_certificate_name(
     user: User,
     enrollment: Enrollment,
-) -> Optional[str]:
+) -> str | None:
     if user.certificate_name:
         return user.certificate_name
     return enrollment.display_name
 
 
 def project_learning_in_public_disabled(
-    enrollment: Optional[Enrollment],
+    enrollment: Enrollment | None,
 ) -> bool:
     if enrollment is None:
         return False

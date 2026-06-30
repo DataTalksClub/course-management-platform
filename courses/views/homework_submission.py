@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List, Optional
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -40,8 +39,8 @@ class HomeworkPostData:
     request: HttpRequest
     course: Course
     homework: Homework
-    questions: List[Question]
-    submission: Optional[Submission]
+    questions: list[Question]
+    submission: Submission | None
     enrollment: Enrollment
 
 

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List, Optional
 
 from django.http import HttpRequest
 
@@ -33,36 +32,36 @@ class HomeworkRequestData:
     request: HttpRequest
     course: Course
     homework: Homework
-    questions: List[Question]
+    questions: list[Question]
 
 
 @dataclass(frozen=True)
 class HomeworkDetailContextData:
     course: Course
     homework: Homework
-    questions: List[Question]
-    submission: Optional[Submission]
-    enrollment: Optional[Enrollment]
+    questions: list[Question]
+    submission: Submission | None
+    enrollment: Enrollment | None
 
 
 @dataclass(frozen=True)
 class HomeworkDetailObjects:
     course: Course
     homework: Homework
-    questions: List[Question]
+    questions: list[Question]
 
 
 @dataclass(frozen=True)
 class AuthenticatedHomeworkContext:
     context: dict
-    submission: Optional[Submission]
+    submission: Submission | None
     enrollment: Enrollment
 
 
 def homework_detail_build_context_not_authenticated(
     course: Course,
     homework: Homework,
-    questions: List[Question],
+    questions: list[Question],
 ) -> dict:
     question_answers = question_answers_for_submission(
         homework,
@@ -83,7 +82,7 @@ def homework_detail_build_context_not_authenticated(
 
 
 def submission_answer_map(
-    submission: Optional[Submission],
+    submission: Submission | None,
 ) -> dict[int, Answer]:
     if not submission:
         return {}
@@ -99,8 +98,8 @@ def submission_answer_map(
 
 def question_answers_for_submission(
     homework: Homework,
-    questions: List[Question],
-    submission: Optional[Submission],
+    questions: list[Question],
+    submission: Submission | None,
 ) -> list[tuple[Question, dict]]:
     question_answers_map = submission_answer_map(submission)
     question_answers = []
@@ -119,7 +118,7 @@ def question_answers_for_submission(
 
 
 def learning_in_public_disabled(
-    enrollment: Optional["Enrollment"],
+    enrollment: Enrollment | None,
 ) -> bool:
     if enrollment is None:
         return False
@@ -280,7 +279,7 @@ def apply_homework_post_preview_fields(
 def question_answers_from_post(
     request: HttpRequest,
     homework: Homework,
-    questions: List[Question],
+    questions: list[Question],
 ) -> list[tuple[Question, dict]]:
     question_answers = []
     for question in questions:
@@ -407,7 +406,7 @@ def authenticated_homework_context(
     user: User,
     course: Course,
     homework: Homework,
-    questions: List[Question],
+    questions: list[Question],
 ):
     submission = Submission.objects.filter(
         homework=homework,

@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
@@ -28,8 +26,8 @@ def _is_blank_or_duplicate_link(link, cleaned_links):
 
 
 def clean_learning_in_public_links(
-    links: List[str], cap: int
-) -> List[str]:
+    links: list[str], cap: int
+) -> list[str]:
     url_validator = URLValidator(schemes=["http", "https"])
     cleaned_links = []
 
@@ -49,9 +47,9 @@ def clean_learning_in_public_links(
 def find_duplicate_learning_in_public_links(
     user: User,
     course: Course,
-    links: List[str],
-    current_submission: Optional[Submission],
-) -> List[str]:
+    links: list[str],
+    current_submission: Submission | None,
+) -> list[str]:
     if not links:
         return []
 

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List, Optional
 
 from courses.models import Answer, Homework, HomeworkState, Question
 from courses.models import QuestionTypes
@@ -31,14 +30,14 @@ class AnswerClassState:
     correct: bool
 
 
-def process_unscored_free_form_answer(answer: Optional[Answer]):
+def process_unscored_free_form_answer(answer: Answer | None):
     if not answer:
         return {"text": ""}
 
     return {"text": answer.answer_text}
 
 
-def free_form_answer_missing(answer: Optional[Answer]) -> bool:
+def free_form_answer_missing(answer: Answer | None) -> bool:
     return (
         not answer
         or not answer.answer_text
@@ -54,7 +53,7 @@ def process_missing_scored_free_form_answer(question: Question):
 
 
 def process_scored_free_form_answer(
-    question: Question, answer: Optional[Answer]
+    question: Question, answer: Answer | None
 ):
     if free_form_answer_missing(answer):
         return process_missing_scored_free_form_answer(question)
@@ -71,7 +70,7 @@ def process_scored_free_form_answer(
 
 
 def process_question_free_form(
-    homework: Homework, question: Question, answer: Optional[Answer]
+    homework: Homework, question: Question, answer: Answer | None
 ):
     if not homework.is_scored():
         return process_unscored_free_form_answer(answer)
@@ -80,7 +79,7 @@ def process_question_free_form(
 
 
 def process_question_options_multiple_choice_or_checkboxes(
-    homework: Homework, question: Question, answer: Optional[Answer]
+    homework: Homework, question: Question, answer: Answer | None
 ):
     selected_options = extract_selected_options(answer)
     possible_answers = question.get_possible_answers()
@@ -152,7 +151,7 @@ def extract_selected_options(answer):
     return extract_selected_option_indexes(answer.answer_text)
 
 
-def _selected_option_index(option: str) -> Optional[int]:
+def _selected_option_index(option: str) -> int | None:
     option = option.strip()
     if not option:
         return None
@@ -163,7 +162,7 @@ def _selected_option_index(option: str) -> Optional[int]:
         return None
 
 
-def _selected_option_indexes(answer_text: Optional[str]):
+def _selected_option_indexes(answer_text: str | None):
     options = (answer_text or "").strip().split(",")
     for option in options:
         index = _selected_option_index(option)
@@ -172,8 +171,8 @@ def _selected_option_indexes(answer_text: Optional[str]):
 
 
 def extract_selected_option_indexes(
-    answer_text: Optional[str],
-) -> List[int]:
+    answer_text: str | None,
+) -> list[int]:
     indexes = []
     selected_option_indexes = _selected_option_indexes(answer_text)
     for index in selected_option_indexes:
@@ -181,7 +180,7 @@ def extract_selected_option_indexes(
     return indexes
 
 
-def format_hours(value: Optional[float]) -> str:
+def format_hours(value: float | None) -> str:
     if value is None:
         return ""
 
@@ -196,7 +195,7 @@ def format_submitted_value(value: str) -> str:
 
 def format_selected_answer(
     question: Question,
-    answer_text: Optional[str],
+    answer_text: str | None,
 ) -> str:
     selected_indexes = extract_selected_option_indexes(answer_text)
     possible_answers = question.get_possible_answers()
@@ -208,7 +207,7 @@ def format_selected_answer(
 
 
 def selected_option_value(
-    possible_answers: List[str],
+    possible_answers: list[str],
     index: int,
 ) -> str:
     if 1 <= index <= len(possible_answers):
@@ -217,7 +216,7 @@ def selected_option_value(
 
 
 def selected_option_label(
-    possible_answers: List[str],
+    possible_answers: list[str],
     index: int,
 ) -> str:
     value = selected_option_value(possible_answers, index)

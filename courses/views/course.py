@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 from django.http import HttpRequest, HttpResponse
 
@@ -47,7 +46,7 @@ class CoursePageData:
 
 def get_projects_for_course(
     course: Course, user: User
-) -> List[Project]:
+) -> list[Project]:
     if user.is_authenticated:
         queryset = ProjectSubmission.objects.filter(student=user)
     else:
