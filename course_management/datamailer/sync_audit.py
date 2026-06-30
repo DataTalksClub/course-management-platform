@@ -50,36 +50,51 @@ def datamailer_audit_category_tag(payload, metadata) -> str:
 
 
 def datamailer_send_audit_defaults(data) -> dict[str, Any]:
+    defaults = datamailer_send_audit_base_defaults(data)
+    count_defaults = datamailer_send_audit_count_defaults(data)
+    defaults.update(count_defaults)
+    return defaults
+
+
+def datamailer_send_audit_base_defaults(data) -> dict[str, Any]:
+    list_key = datamailer_send_list_key(
+        data.send_type,
+        explicit_list_key=data.list_key,
+        payload=data.payload,
+        response=data.response,
+    )
+    template_key = datamailer_audit_template_key(
+        data.payload,
+        data.response,
+    )
+    category_tag = datamailer_audit_category_tag(
+        data.payload,
+        data.metadata,
+    )
+    return {
+        "status": datamailer_audit_status(data.error),
+        "template_key": template_key,
+        "category_tag": category_tag,
+        "list_key": list_key,
+        "source": data.metadata.get("source", ""),
+        "event": data.metadata.get("event", ""),
+        "error": data.error,
+        "response_payload": data.response,
+    }
+
+
+def datamailer_send_audit_count_defaults(data) -> dict[str, int]:
     counts = datamailer_send_counts(
         data.send_type,
         data.payload,
         data.response,
     )
     return {
-        "status": datamailer_audit_status(data.error),
-        "template_key": datamailer_audit_template_key(
-            data.payload,
-            data.response,
-        ),
-        "category_tag": datamailer_audit_category_tag(
-            data.payload,
-            data.metadata,
-        ),
-        "list_key": datamailer_send_list_key(
-            data.send_type,
-            explicit_list_key=data.list_key,
-            payload=data.payload,
-            response=data.response,
-        ),
-        "source": data.metadata.get("source", ""),
-        "event": data.metadata.get("event", ""),
         "intended_count": counts["intended_count"],
         "created_count": counts["created_count"],
         "enqueued_count": counts["enqueued_count"],
         "skipped_count": counts["skipped_count"],
         "idempotent_replay_count": counts["idempotent_replay_count"],
-        "error": data.error,
-        "response_payload": data.response,
     }
 
 
