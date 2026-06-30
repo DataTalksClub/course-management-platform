@@ -10,8 +10,6 @@ from django.utils import timezone
 
 from accounts.models import CustomUser
 from data.models import (
-    DatamailerOutboxDispatchRun,
-    DatamailerOutboxDispatchRunStatus,
     DatamailerOutboxEvent,
     DatamailerOutboxStatus,
     DatamailerSendAudit,
@@ -37,7 +35,6 @@ from course_management.datamailer.payloads import (
     registration_confirmation_payload,
 )
 from course_management.datamailer.sync import (
-    erase_contact_from_datamailer,
     remove_enrollment_from_datamailer,
     remove_homework_submission_from_datamailer,
     remove_project_submission_from_datamailer,
@@ -53,7 +50,6 @@ from course_management.datamailer.sync import (
     sync_project_submission_to_datamailer,
     sync_registration_to_datamailer,
 )
-from course_management.datamailer_outbox import _status_for_error
 from courses.models import (
     Course,
     CourseRegistration,
@@ -111,37 +107,6 @@ class HomeworkScoreListSendExpectation:
 
 
 class DatamailerWorkflowTest(TestCase):
-    def http_error(self, status_code):
-        exc = requests.HTTPError("request failed")
-        exc.response = Mock(status_code=status_code)
-        return exc
-
-    def outbox_attempt(self, attempt_count=1, max_attempts=3):
-        return Mock(attempt_count=attempt_count, max_attempts=max_attempts)
-
-    def test_outbox_status_for_error_classifies_retryable_errors(self):
-        self.assertEqual(
-            _status_for_error(self.http_error(429), self.outbox_attempt()),
-            DatamailerOutboxStatus.RETRYING,
-        )
-        self.assertEqual(
-            _status_for_error(self.http_error(503), self.outbox_attempt()),
-            DatamailerOutboxStatus.RETRYING,
-        )
-
-    def test_outbox_status_for_error_classifies_failed_errors(self):
-        self.assertEqual(
-            _status_for_error(self.http_error(400), self.outbox_attempt()),
-            DatamailerOutboxStatus.FAILED,
-        )
-        self.assertEqual(
-            _status_for_error(
-                requests.RequestException("network error"),
-                self.outbox_attempt(attempt_count=3, max_attempts=3),
-            ),
-            DatamailerOutboxStatus.FAILED,
-        )
-
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -510,21 +475,6 @@ class DatamailerWorkflowTest(TestCase):
             "removed",
         )
 
-    def mark_outbox_event_due(self):
-        event = DatamailerOutboxEvent.objects.get()
-        event.next_attempt_at = timezone.now() - timedelta(seconds=1)
-        event.save(update_fields=["next_attempt_at"])
-        return event
-
-    def assert_successful_outbox_dispatch_run(self):
-        run = DatamailerOutboxDispatchRun.objects.get()
-        self.assertEqual(run.status, DatamailerOutboxDispatchRunStatus.SUCCESS)
-        self.assertIsNotNone(run.finished_at)
-        self.assertEqual(run.processed_count, 1)
-        self.assertEqual(run.acked_count, 1)
-        self.assertEqual(run.retrying_count, 0)
-        self.assertEqual(run.failed_count, 0)
-
     def assert_certificate_availability_payload(self, payload, enrollment):
         self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(payload["audience"], "dtc-courses")
@@ -881,61 +831,6 @@ class DatamailerWorkflowTest(TestCase):
         self.assert_registration_confirmation_audit()
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.client.DatamailerClient.erase_contact")
-    def test_erase_contact_enqueues_outbox_event(self, erase_contact):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="Student@Example.com",
-        )
-
-        erase_contact_from_datamailer(user)
-
-        erase_contact.assert_called_once_with("student@example.com")
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(event.event_type, "contact.erase")
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(event.ordering_key, f"user:{user.pk}")
-        self.assertEqual(
-            event.idempotency_key,
-            f"contact.erase:user:{user.pk}:student@example.com",
-        )
-        self.assertEqual(
-            event.payload,
-            {
-                "email": "student@example.com",
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "user_id": user.pk,
-            },
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.client.DatamailerClient.erase_contact")
-    def test_erase_contact_enqueues_outbox_event_for_email(
-        self, erase_contact
-    ):
-        erase_contact_from_datamailer(email=" Student@Example.com ")
-
-        erase_contact.assert_called_once_with("student@example.com")
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(event.event_type, "contact.erase")
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(event.ordering_key, "email:student@example.com")
-        self.assertEqual(
-            event.idempotency_key,
-            "contact.erase:email:student@example.com:student@example.com",
-        )
-        self.assertEqual(
-            event.payload,
-            {
-                "email": "student@example.com",
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "user_id": None,
-            },
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
@@ -954,157 +849,6 @@ class DatamailerWorkflowTest(TestCase):
         self.assert_registration_contact_synced(upsert_contact)
         self.assert_registration_member_synced(upsert_member, registration)
         self.assert_registration_outbox_event(registration)
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_membership_sync_failure_records_retryable_outbox_event(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        upsert_member.side_effect = requests.RequestException("network error")
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-
-        sync_enrollment_to_datamailer(enrollment)
-
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(
-            event.event_type,
-            "recipient_list.member_upsert",
-        )
-        self.assertEqual(event.status, DatamailerOutboxStatus.RETRYING)
-        self.assertEqual(event.attempt_count, 1)
-        self.assertIn("network error", event.last_error)
-        self.assertEqual(event.ordering_key, f"user:{user.pk}")
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_process_datamailer_outbox_retries_due_events(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        upsert_member.side_effect = [
-            requests.RequestException("network error"),
-            {"ok": True},
-        ]
-        enrollment = self.create_student_enrollment_for_ml_course()
-        sync_enrollment_to_datamailer(enrollment)
-        event = self.mark_outbox_event_due()
-
-        out = StringIO()
-        call_command("process_datamailer_outbox", stdout=out)
-
-        event.refresh_from_db()
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(event.attempt_count, 2)
-        self.assertEqual(upsert_contact.call_count, 2)
-        self.assertEqual(upsert_member.call_count, 2)
-        self.assertIn("1 acked", out.getvalue())
-        self.assert_successful_outbox_dispatch_run()
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
-    )
-    def test_datamailer_outbox_status_reports_counts_and_last_error(
-        self,
-        upsert_contact,
-        upsert_member,
-    ):
-        upsert_member.side_effect = requests.RequestException("network error")
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        sync_enrollment_to_datamailer(enrollment)
-        event = DatamailerOutboxEvent.objects.get()
-        event.next_attempt_at = timezone.now() - timedelta(seconds=1)
-        event.save(update_fields=["next_attempt_at"])
-
-        out = StringIO()
-        call_command("datamailer_outbox_status", stdout=out)
-
-        output = out.getvalue()
-        self.assertIn("retrying: 1", output)
-        self.assertIn("due: 1", output)
-        self.assertIn(event.event_id, output)
-        self.assertIn("last_successful_run: none", output)
-        self.assertIn("last_datamailer_error:", output)
-        self.assertIn("network error", output)
-
-    def test_datamailer_send_status_reports_counts_and_failures(self):
-        DatamailerSendAudit.objects.create(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            status=DatamailerSendAuditStatus.SUCCEEDED,
-            idempotency_key="registration:1",
-            template_key="registration-confirmation",
-            category_tag="course-updates",
-            event="registration",
-            intended_count=1,
-            created_count=1,
-            enqueued_count=1,
-        )
-        DatamailerSendAudit.objects.create(
-            send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-            status=DatamailerSendAuditStatus.FAILED,
-            idempotency_key="deadline-reminder:homework:1:24h",
-            template_key="deadline-reminder",
-            category_tag="deadline-reminders",
-            event="deadline_reminder",
-            list_key="deadline-reminders:homework:ml-zoomcamp:hw1:24h",
-            intended_count=3,
-            error="network error",
-        )
-
-        out = StringIO()
-        call_command("datamailer_send_status", stdout=out)
-
-        output = out.getvalue()
-        self.assertIn("Datamailer send status", output)
-        self.assertIn("total_sends: 2", output)
-        self.assertIn("succeeded: 1", output)
-        self.assertIn("failed: 1", output)
-        self.assertIn("intended: 4", output)
-        self.assertIn("enqueued: 1", output)
-        self.assertIn("deadline-reminders: 1", output)
-        self.assertIn("recent_failures:", output)
-        self.assertIn("deadline-reminder:homework:1:24h", output)
-        self.assertIn("network error", output)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_enrollment_recipient_list_payload_targets_course_enrolled(

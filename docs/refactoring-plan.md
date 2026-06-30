@@ -625,6 +625,8 @@ Steps:
   out of the oversized Datamailer test module.
 - [x] Split Datamailer recipient-list audit tests out of the recipient-list
   command test module.
+- [x] Split Datamailer outbox, erase-contact, and status command tests out of
+  the oversized Datamailer workflow test module.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
