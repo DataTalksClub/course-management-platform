@@ -78,7 +78,8 @@ def _questions_list_response(homework):
         "homework_title": homework.title,
         "questions": question_records,
     }
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 def _question_create_items(data):
@@ -114,7 +115,8 @@ def _questions_create_response(homework, data):
         status = 201
     else:
         status = 400
-    return JsonResponse(result, status=status)
+    response = JsonResponse(result, status=status)
+    return response
 
 
 @token_required
@@ -157,7 +159,8 @@ def _question_delete_response(question):
 
     question.delete()
     payload = {"deleted": True}
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 def _question_patch_value(field, value):
@@ -197,7 +200,8 @@ def _question_patch_response(question, request):
 
     question.save()
     question_record = _question_to_dict(question)
-    return JsonResponse(question_record)
+    response = JsonResponse(question_record)
+    return response
 
 
 @token_required
@@ -214,7 +218,8 @@ def question_detail_view(request, course_slug, homework_id, question_id):
 
     if request.method == "GET":
         question_record = _question_to_dict(question)
-        return JsonResponse(question_record)
+        response = JsonResponse(question_record)
+        return response
 
     staff_error = require_staff_token(request)
     if staff_error:
