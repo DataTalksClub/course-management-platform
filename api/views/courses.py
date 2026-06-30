@@ -275,7 +275,8 @@ def _create_course_response(request):
         return err
 
     course.save()
-    return JsonResponse(_course_to_dict(course), status=201)
+    course_data = _course_to_dict(course)
+    return JsonResponse(course_data, status=201)
 
 
 @token_required
@@ -352,7 +353,8 @@ def _patch_course_response(request, course):
         return err
 
     course.save()
-    return JsonResponse(_course_to_dict(course))
+    course_data = _course_to_dict(course)
+    return JsonResponse(course_data)
 
 
 @token_required
@@ -368,4 +370,5 @@ def course_detail_view(request, course_slug):
     if request.method == "PATCH":
         return _patch_course_response(request, course)
 
-    return JsonResponse(_course_detail_to_dict(course))
+    course_data = _course_detail_to_dict(course)
+    return JsonResponse(course_data)
