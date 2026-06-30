@@ -24,7 +24,8 @@ def is_valid_timezone(timezone_name: str) -> bool:
     if not timezone_name:
         return False
     try:
-        ZoneInfo(str(timezone_name))
+        normalized_timezone_name = str(timezone_name)
+        ZoneInfo(normalized_timezone_name)
     except (ZoneInfoNotFoundError, ValueError):
         return False
     return True
@@ -51,9 +52,10 @@ def build_timezone_options() -> list[TimezoneOption]:
         if offset is None:
             continue
         offset_minutes = int(offset.total_seconds() // 60)
+        offset_label = _format_offset(offset_minutes)
         option = TimezoneOption(
             value=timezone_name,
-            label=f"{_format_offset(offset_minutes)} {timezone_name}",
+            label=f"{offset_label} {timezone_name}",
             offset_minutes=offset_minutes,
         )
         options.append(option)
@@ -65,10 +67,14 @@ def get_timezone_label(timezone_name: str) -> str:
     if not is_valid_timezone(timezone_name):
         return ""
     now_utc = timezone.now().astimezone(UTC)
-    offset = now_utc.astimezone(ZoneInfo(timezone_name)).utcoffset()
+    timezone_info = ZoneInfo(timezone_name)
+    localized_now = now_utc.astimezone(timezone_info)
+    offset = localized_now.utcoffset()
     if offset is None:
         return timezone_name
-    return f"{_format_offset(int(offset.total_seconds() // 60))} {timezone_name}"
+    offset_minutes = int(offset.total_seconds() // 60)
+    offset_label = _format_offset(offset_minutes)
+    return f"{offset_label} {timezone_name}"
 
 
 def format_user_datetime(
@@ -88,10 +94,12 @@ def format_user_datetime(
     browser_timezone = ""
     cookies = getattr(viewer, "COOKIES", None)
     if cookies is not None:
-        browser_timezone = unquote(cookies.get("browser_timezone", ""))
+        browser_timezone_cookie = cookies.get("browser_timezone", "")
+        browser_timezone = unquote(browser_timezone_cookie)
 
     timezone_name = user_timezone_name(user, browser_timezone)
-    localized = value.astimezone(ZoneInfo(timezone_name))
+    timezone_info = ZoneInfo(timezone_name)
+    localized = value.astimezone(timezone_info)
     return localized.strftime(fmt or DEFAULT_USER_DATETIME_FORMAT)
 
 
@@ -101,17 +109,22 @@ def format_deadline_for_user(value: datetime, user=None) -> dict:
         value = value.replace(tzinfo=UTC)
 
     timezone_name = user_timezone_name(user)
-    local = value.astimezone(ZoneInfo(timezone_name))
-    weekday = local.strftime("%A")
-    date = local.strftime("%-d %B %Y")
-    time = local.strftime("%H:%M")
+    timezone_info = ZoneInfo(timezone_name)
+    local = value.astimezone(timezone_info)
+    deadline_weekday = local.strftime("%A")
+    deadline_date = local.strftime("%-d %B %Y")
+    deadline_time = local.strftime("%H:%M")
+    deadline_iso = value.isoformat()
     return {
-        "deadline_iso": value.isoformat(),
-        "deadline_weekday": weekday,
-        "deadline_date": date,
-        "deadline_time": time,
+        "deadline_iso": deadline_iso,
+        "deadline_weekday": deadline_weekday,
+        "deadline_date": deadline_date,
+        "deadline_time": deadline_time,
         "deadline_timezone": timezone_name,
-        "deadline_summary": f"{weekday}, {date}, {time} {timezone_name}",
+        "deadline_summary": (
+            f"{deadline_weekday}, {deadline_date}, "
+            f"{deadline_time} {timezone_name}"
+        ),
     }
 
 
