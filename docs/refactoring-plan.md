@@ -604,6 +604,8 @@ Steps:
   instead of nesting calls inline.
 - [x] Name project context certificate and learning-in-public flags before
   building context objects.
+- [x] Name homework-submission posted time and FAQ URL values before parsing or
+  validating them.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

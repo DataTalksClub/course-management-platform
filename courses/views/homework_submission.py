@@ -128,8 +128,9 @@ def apply_time_spent_field(data):
     if not data.enabled:
         return
 
+    posted_time_spent = data.request.POST.get(data.post_key)
     time_spent = parse_time_spent_hours(
-        data.request.POST.get(data.post_key),
+        posted_time_spent,
         data.field_label,
     )
     if time_spent is not None:
@@ -148,10 +149,10 @@ def apply_problems_comments_field(field_data):
 
 def apply_faq_contribution_field(field_data):
     if field_data.homework.faq_contribution_field:
+        posted_url = field_data.request.POST.get("faq_contribution_url", "")
+        faq_contribution_url = clean_faq_contribution_url(posted_url)
         field_data.submission.faq_contribution_url = (
-            clean_faq_contribution_url(
-                field_data.request.POST.get("faq_contribution_url", "")
-            ).strip()
+            faq_contribution_url.strip()
         )
 
 
