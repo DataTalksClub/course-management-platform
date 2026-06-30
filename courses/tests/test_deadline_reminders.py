@@ -52,6 +52,27 @@ class ProjectSubmissionData:
 
 
 @dataclass(frozen=True)
+class PeerReviewReminderUsers:
+    reviewer: CustomUser
+    opted_out_reviewer: CustomUser
+    author: CustomUser
+
+
+@dataclass(frozen=True)
+class PeerReviewReminderEnrollments:
+    reviewer: Enrollment
+    opted_out_reviewer: Enrollment
+    author: Enrollment
+
+
+@dataclass(frozen=True)
+class PeerReviewReminderSubmissions:
+    reviewer: ProjectSubmission
+    opted_out_reviewer: ProjectSubmission
+    author: ProjectSubmission
+
+
+@dataclass(frozen=True)
 class HomeworkReminderFixture:
     homework: Homework
     eligible_enrollment: Enrollment
@@ -120,6 +141,88 @@ class DeadlineReminderCommandTest(TestCase):
             enrollment=data.enrollment,
             github_link=f"https://github.com/{data.label}/project",
             commit_id="1234567",
+        )
+
+    def create_peer_review_reminder_users(self):
+        reviewer = self.create_user("reviewer", "reviewer@example.com")
+        opted_out_reviewer = self.create_user(
+            "opted-out-reviewer",
+            "opted-out-reviewer@example.com",
+        )
+        author = self.create_user("author", "author@example.com")
+        return PeerReviewReminderUsers(
+            reviewer=reviewer,
+            opted_out_reviewer=opted_out_reviewer,
+            author=author,
+        )
+
+    def create_peer_review_reminder_enrollments(self, course, users):
+        reviewer = self.create_enrollment(users.reviewer, course)
+        opted_out_reviewer = self.create_enrollment(
+            users.opted_out_reviewer,
+            course,
+        )
+        author = self.create_enrollment(users.author, course)
+        return PeerReviewReminderEnrollments(
+            reviewer=reviewer,
+            opted_out_reviewer=opted_out_reviewer,
+            author=author,
+        )
+
+    def create_peer_review_project(self, course, now):
+        return Project.objects.create(
+            course=course,
+            slug="project-1",
+            title="Project 1",
+            submission_due_date=now - timedelta(days=1),
+            peer_review_due_date=now + timedelta(days=1, hours=14),
+            state=ProjectState.PEER_REVIEWING.value,
+        )
+
+    def create_peer_review_reminder_submissions(
+        self,
+        project,
+        users,
+        enrollments,
+    ):
+        reviewer_data = ProjectSubmissionData(
+            project=project,
+            user=users.reviewer,
+            enrollment=enrollments.reviewer,
+            label="reviewer",
+        )
+        reviewer = self.create_project_submission(reviewer_data)
+
+        author_data = ProjectSubmissionData(
+            project=project,
+            user=users.author,
+            enrollment=enrollments.author,
+            label="author",
+        )
+        author = self.create_project_submission(author_data)
+
+        opted_out_data = ProjectSubmissionData(
+            project=project,
+            user=users.opted_out_reviewer,
+            enrollment=enrollments.opted_out_reviewer,
+            label="opted-out",
+        )
+        opted_out_reviewer = self.create_project_submission(opted_out_data)
+
+        return PeerReviewReminderSubmissions(
+            reviewer=reviewer,
+            opted_out_reviewer=opted_out_reviewer,
+            author=author,
+        )
+
+    def create_pending_peer_reviews(self, submissions):
+        self.create_pending_peer_review(
+            submissions.author,
+            submissions.reviewer,
+        )
+        self.create_pending_peer_review(
+            submissions.author,
+            submissions.opted_out_reviewer,
         )
 
     def run_deadline_reminders(self, now, stdout=None, dry_run=False):
@@ -314,59 +417,22 @@ class DeadlineReminderCommandTest(TestCase):
 
     def create_peer_review_reminder_fixture(self, now):
         course = self.create_course()
-        reviewer = self.create_user("reviewer", "reviewer@example.com")
-        opted_out_reviewer = self.create_user(
-            "opted-out-reviewer",
-            "opted-out-reviewer@example.com",
-        )
-        author = self.create_user("author", "author@example.com")
-        reviewer_enrollment = self.create_enrollment(reviewer, course)
-        opted_out_enrollment = self.create_enrollment(
-            opted_out_reviewer,
+        users = self.create_peer_review_reminder_users()
+        enrollments = self.create_peer_review_reminder_enrollments(
             course,
+            users,
         )
-        author_enrollment = self.create_enrollment(author, course)
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date=now - timedelta(days=1),
-            peer_review_due_date=now + timedelta(days=1, hours=14),
-            state=ProjectState.PEER_REVIEWING.value,
+        project = self.create_peer_review_project(course, now)
+        submissions = self.create_peer_review_reminder_submissions(
+            project,
+            users,
+            enrollments,
         )
-        reviewer_submission_data = ProjectSubmissionData(
-            project=project,
-            user=reviewer,
-            enrollment=reviewer_enrollment,
-            label="reviewer",
-        )
-        reviewer_submission = self.create_project_submission(
-            reviewer_submission_data
-        )
-        author_submission_data = ProjectSubmissionData(
-            project=project,
-            user=author,
-            enrollment=author_enrollment,
-            label="author",
-        )
-        author_submission = self.create_project_submission(
-            author_submission_data
-        )
-        opted_out_submission_data = ProjectSubmissionData(
-            project=project,
-            user=opted_out_reviewer,
-            enrollment=opted_out_enrollment,
-            label="opted-out",
-        )
-        opted_out_submission = self.create_project_submission(
-            opted_out_submission_data
-        )
-        self.create_pending_peer_review(author_submission, reviewer_submission)
-        self.create_pending_peer_review(author_submission, opted_out_submission)
+        self.create_pending_peer_reviews(submissions)
         return PeerReviewReminderFixture(
             project=project,
-            reviewer_submission=reviewer_submission,
-            opted_out_submission=opted_out_submission,
+            reviewer_submission=submissions.reviewer,
+            opted_out_submission=submissions.opted_out_reviewer,
         )
 
     def create_pending_peer_review(self, author_submission, reviewer):
