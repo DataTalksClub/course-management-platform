@@ -99,22 +99,23 @@ def _homework_score_response(homework):
         response_status = 200
     else:
         response_status = 400
-    return JsonResponse(
-        {
-            "status": status.name,
-            "message": message,
-            "homework_id": homework.id,
-            "homework_slug": homework.slug,
-            "state": homework.state,
-            "submissions_count": submissions_count,
-            "rescored_submissions_count": (
-                submissions_count
-                if status == HomeworkScoringStatus.OK
-                else 0
-            ),
-        },
-        status=response_status,
-    )
+
+    if status == HomeworkScoringStatus.OK:
+        rescored_submissions_count = submissions_count
+    else:
+        rescored_submissions_count = 0
+
+    payload = {
+        "status": status.name,
+        "message": message,
+        "homework_id": homework.id,
+        "homework_slug": homework.slug,
+        "state": homework.state,
+        "submissions_count": submissions_count,
+        "rescored_submissions_count": rescored_submissions_count,
+    }
+    response = JsonResponse(payload, status=response_status)
+    return response
 
 
 def _homework_create_defaults(hw_data, values):
@@ -243,11 +244,11 @@ def _homeworks_list_response(course):
         homework_record = _homework_to_dict(homework)
         homework_records.append(homework_record)
 
-    return JsonResponse(
-        {
-            "homeworks": homework_records,
-        }
-    )
+    payload = {
+        "homeworks": homework_records,
+    }
+    response = JsonResponse(payload)
+    return response
 
 
 def _homeworks_create_response(request, course):
@@ -604,9 +605,8 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
         response_status = 201
     else:
         response_status = 200
-    return JsonResponse(
-        homework_data, status=response_status
-    )
+    response = JsonResponse(homework_data, status=response_status)
+    return response
 
 
 def _homework_detail_config(homework):
