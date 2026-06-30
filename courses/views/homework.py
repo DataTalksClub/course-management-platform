@@ -121,9 +121,9 @@ def question_answers_for_submission(
 def learning_in_public_disabled(
     enrollment: Optional["Enrollment"],
 ) -> bool:
-    return (
-        enrollment.disable_learning_in_public if enrollment else False
-    )
+    if enrollment is None:
+        return False
+    return enrollment.disable_learning_in_public
 
 
 def homework_detail_build_context_authenticated(data) -> dict:

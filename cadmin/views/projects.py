@@ -210,7 +210,9 @@ def _project_submission_edit_objects(
 
 
 def _project_review_criteria(course):
-    return ReviewCriteria.objects.filter(course=course).order_by("id")
+    criteria = ReviewCriteria.objects.filter(course=course)
+    ordered_criteria = criteria.order_by("id")
+    return ordered_criteria
 
 
 def _project_evaluation_score_map(submission):

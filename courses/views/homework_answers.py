@@ -140,7 +140,9 @@ def no_choice_answer_submitted(
     homework: Homework,
     selected_options: list[int],
 ) -> bool:
-    return homework.is_scored() and len(selected_options) == 0
+    homework_is_scored = homework.is_scored()
+    no_options_selected = len(selected_options) == 0
+    return homework_is_scored and no_options_selected
 
 
 def extract_selected_options(answer):
@@ -187,7 +189,9 @@ def format_hours(value: Optional[float]) -> str:
 
 
 def format_submitted_value(value: str) -> str:
-    return value if value else "Not submitted"
+    if value:
+        return value
+    return "Not submitted"
 
 
 def format_selected_answer(

@@ -78,11 +78,15 @@ def _split_trailing_year(text):
     Returns ``(base, year)`` where ``base`` has the year (and any joining
     separator) removed. ``year`` is an empty string when none is found.
     """
-    match = _TRAILING_YEAR_RE.search(text or "")
+    text_value = text or ""
+    match = _TRAILING_YEAR_RE.search(text_value)
     if not match:
-        return (text or "").strip(), ""
-    base = (text[: match.start()]).strip().rstrip("-_ ").strip()
-    return base, match.group(1)
+        base = text_value.strip()
+        return base, ""
+    base = text_value[: match.start()]
+    stripped_base = base.strip().rstrip("-_ ").strip()
+    year = match.group(1)
+    return stripped_base, year
 
 
 def campaign_initial_course(request):
@@ -90,7 +94,9 @@ def campaign_initial_course(request):
     if not course_slug:
         return None
 
-    return Course.objects.filter(slug=course_slug).first()
+    courses = Course.objects.filter(slug=course_slug)
+    course = courses.first()
+    return course
 
 
 def campaign_initial_from_course(course):
@@ -125,11 +131,16 @@ def campaign_form_course(form):
     if course is not None:
         return course
 
-    course_id = form.data.get("current_course") if form.is_bound else ""
+    if form.is_bound:
+        course_id = form.data.get("current_course")
+    else:
+        course_id = ""
     if not course_id:
         return None
 
-    return Course.objects.filter(pk=course_id).first()
+    courses = Course.objects.filter(pk=course_id)
+    course = courses.first()
+    return course
 
 
 def _test_recipient_emails(value):

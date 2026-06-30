@@ -282,7 +282,9 @@ def _homework_submission_faq_data(request, submission):
             faq_score,
         )
 
-    return submission.faq_contribution_url or "", submission.faq_score
+    faq_contribution_url = submission.faq_contribution_url or ""
+    faq_score = submission.faq_score
+    return faq_contribution_url, faq_score
 
 
 def _homework_submission_edit_context(data):

@@ -280,13 +280,17 @@ def project_context_certificate_name(
     user: User,
     enrollment: Enrollment,
 ) -> Optional[str]:
-    return user.certificate_name or enrollment.display_name
+    if user.certificate_name:
+        return user.certificate_name
+    return enrollment.display_name
 
 
 def project_learning_in_public_disabled(
     enrollment: Optional[Enrollment],
 ) -> bool:
-    return enrollment.disable_learning_in_public if enrollment else False
+    if enrollment is None:
+        return False
+    return enrollment.disable_learning_in_public
 
 
 def project_redirect(course: Course, project: Project):
