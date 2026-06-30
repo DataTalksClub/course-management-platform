@@ -575,6 +575,8 @@ Steps:
   intermediates instead of nesting conversions inline.
 - [x] Name project scoring link counts and submission ids instead of nesting
   length/key conversions inline.
+- [x] Name dashboard querysets, quartile inputs, counts, percentages, and
+  context fragments instead of nesting view calculations inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

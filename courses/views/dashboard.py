@@ -6,13 +6,15 @@ from dataclasses import dataclass
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models import (
+from courses.models.course import (
     Course,
     Enrollment,
+)
+from courses.models.homework import (
     Homework,
-    ProjectSubmission,
     Submission,
 )
+from courses.models.project import ProjectSubmission
 
 
 @dataclass(frozen=True)
@@ -84,22 +86,21 @@ def _dashboard_project_stats(course, total_enrollments):
 
 
 def _dashboard_project_submission_rows(course):
-    return list(
+    submission_rows = (
         ProjectSubmission.objects.filter(project__course=course)
         .select_related("project", "enrollment")
         .values("enrollment_id", "time_spent", "total_score", "passed")
     )
+    return list(submission_rows)
 
 
 def _project_completion_rate(project_submissions, total_enrollments):
     if total_enrollments <= 0:
         return 0
 
-    return (
-        len(_project_submission_enrollment_ids(project_submissions))
-        / total_enrollments
-        * 100
-    )
+    enrollment_ids = _project_submission_enrollment_ids(project_submissions)
+    completed_enrollments_count = len(enrollment_ids)
+    return completed_enrollments_count / total_enrollments * 100
 
 
 def _project_submission_enrollment_ids(project_submissions):
@@ -166,24 +167,23 @@ def _quartile_fields(prefix, values):
 
 def _dashboard_homework_time_stats(hw_submissions):
     stats = {}
-    stats.update(
-        _quartile_fields(
-            "time_lecture",
-            _submission_values(hw_submissions, "time_spent_lectures"),
-        )
+    lecture_times = _submission_values(
+        hw_submissions,
+        "time_spent_lectures",
     )
-    stats.update(
-        _quartile_fields(
-            "time_homework",
-            _submission_values(hw_submissions, "time_spent_homework"),
-        )
+    lecture_time_stats = _quartile_fields("time_lecture", lecture_times)
+    stats.update(lecture_time_stats)
+
+    homework_times = _submission_values(
+        hw_submissions,
+        "time_spent_homework",
     )
-    stats.update(
-        _quartile_fields(
-            "time_total",
-            _dashboard_total_homework_times(hw_submissions),
-        )
-    )
+    homework_time_stats = _quartile_fields("time_homework", homework_times)
+    stats.update(homework_time_stats)
+
+    total_times = _dashboard_total_homework_times(hw_submissions)
+    total_time_stats = _quartile_fields("time_total", total_times)
+    stats.update(total_time_stats)
     return stats
 
 
@@ -205,13 +205,16 @@ def _dashboard_homework_score_ratio(homework, hw_submissions):
 
 
 def _dashboard_homework_score_stats(homework, hw_submissions):
-    score_quartiles = _safe_quartiles(
-        _submission_values(hw_submissions, "total_score")
-    )
+    total_scores = _submission_values(hw_submissions, "total_score")
+    score_quartiles = _safe_quartiles(total_scores)
     score_ratio_data = _dashboard_homework_score_ratio(
         homework,
         hw_submissions,
     )
+    score_ratio_pct = None
+    if score_ratio_data.score_ratio is not None:
+        score_ratio_pct = round(score_ratio_data.score_ratio * 100, 1)
+
     return {
         "score_q25": score_quartiles.q25,
         "score_median": score_quartiles.median,
@@ -219,11 +222,7 @@ def _dashboard_homework_score_stats(homework, hw_submissions):
         "questions_score_median": score_ratio_data.questions_score_median,
         "max_questions_score": score_ratio_data.max_questions_score,
         "score_ratio": score_ratio_data.score_ratio,
-        "score_ratio_pct": (
-            round(score_ratio_data.score_ratio * 100, 1)
-            if score_ratio_data.score_ratio is not None
-            else None
-        ),
+        "score_ratio_pct": score_ratio_pct,
     }
 
 
@@ -231,14 +230,16 @@ def _dashboard_homework_stat(homework, hw_submissions, total_enrollments):
     """Per-homework statistics row for the dashboard."""
     time_stats = _dashboard_homework_time_stats(hw_submissions)
     score_stats = _dashboard_homework_score_stats(homework, hw_submissions)
+    submissions_count = len(hw_submissions)
+    completion_rate = _dashboard_completion_rate(
+        submissions_count,
+        total_enrollments,
+    )
 
     return {
         "homework": homework,
-        "submissions_count": len(hw_submissions),
-        "completion_rate": _dashboard_completion_rate(
-            len(hw_submissions),
-            total_enrollments,
-        ),
+        "submissions_count": submissions_count,
+        "completion_rate": completion_rate,
         **time_stats,
         **score_stats,
     }
@@ -352,21 +353,27 @@ def _dashboard_graduates_count(course):
 
 def _dashboard_context(course):
     total_enrollments = Enrollment.objects.filter(course=course).count()
+    homeworks = _dashboard_homeworks(course)
+    homework_submissions = _dashboard_homework_submissions(course)
     homework_stats, homework_difficulty_stats = _dashboard_homework_stats(
-        _dashboard_homeworks(course),
-        _dashboard_homework_submissions(course),
+        homeworks,
+        homework_submissions,
         total_enrollments,
     )
+    raw_avg_total_score = _dashboard_avg_total_score(course)
+    avg_total_score = round(raw_avg_total_score, 1)
+    graduates_count = _dashboard_graduates_count(course)
+    project_stats = _dashboard_project_stats(course, total_enrollments)
 
     return {
         "course": course,
         "total_enrollments": total_enrollments,
-        "avg_total_score": round(_dashboard_avg_total_score(course), 1),
+        "avg_total_score": avg_total_score,
         "project_passing_score": course.project_passing_score,
-        "graduates_count": _dashboard_graduates_count(course),
+        "graduates_count": graduates_count,
         "homework_stats": homework_stats,
         "homework_difficulty_stats": homework_difficulty_stats,
-        **_dashboard_project_stats(course, total_enrollments),
+        **project_stats,
     }
 
 
