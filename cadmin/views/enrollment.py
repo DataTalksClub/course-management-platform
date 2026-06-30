@@ -51,7 +51,8 @@ def enrollments_list(request, course_slug):
         "pagination_querystring": querystring,
     }
 
-    return render(request, "cadmin/enrollments.html", context)
+    response = render(request, "cadmin/enrollments.html", context)
+    return response
 
 
 def complaint_enrollments(course):
@@ -134,19 +135,21 @@ def leaderboard_complaints_context(course):
 def leaderboard_complaints(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
     context = leaderboard_complaints_context(course)
-    return render(
+    response = render(
         request,
         "cadmin/leaderboard_complaints.html",
         context,
     )
+    return response
 
 
 @staff_required
 def leaderboard_complaint_resolve(request, course_slug, complaint_id):
     if request.method != "POST":
-        return redirect(
+        response = redirect(
             "cadmin_leaderboard_complaints", course_slug=course_slug
         )
+        return response
 
     course = get_object_or_404(Course, slug=course_slug)
     complaint = get_object_or_404(
@@ -162,9 +165,10 @@ def leaderboard_complaint_resolve(request, course_slug, complaint_id):
     )
 
     messages.success(request, "Flag marked as resolved.")
-    return redirect(
+    response = redirect(
         "cadmin_leaderboard_complaints", course_slug=course_slug
     )
+    return response
 
 
 def toggle_learning_in_public_response(
@@ -188,11 +192,12 @@ def toggle_learning_in_public_response(
             f"Learning in public re-enabled for {enrollment.student.username}. You may need to re-score homework and projects.",
         )
 
-    return redirect(
+    response = redirect(
         "cadmin_enrollment_edit",
         course_slug=course_slug,
         enrollment_id=enrollment_id,
     )
+    return response
 
 
 def enrollment_homework_submissions(enrollment):
@@ -265,8 +270,9 @@ def enrollment_edit(request, course_slug, enrollment_id):
             )
 
     context = enrollment_edit_context(course, enrollment)
-    return render(
+    response = render(
         request,
         "cadmin/enrollment_edit.html",
         context,
     )
+    return response
