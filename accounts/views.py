@@ -68,8 +68,9 @@ def _account_settings_form(request, user):
     if request.method != "POST":
         return AccountSettingsForm(instance=user)
 
+    post_data = _account_settings_post_data(request, user)
     return AccountSettingsForm(
-        _account_settings_post_data(request, user),
+        post_data,
         instance=user,
     )
 
@@ -91,13 +92,15 @@ def _preserve_local_account_toggles(data, user):
 
 
 def _account_settings_context(request, user, form):
+    enrollments = _account_settings_enrollments(user)
+    preferred_timezone_label = get_timezone_label(user.preferred_timezone)
+    browser_timezone_label = _browser_timezone_label(request, user)
+
     return {
         "form": form,
-        "enrollments": _account_settings_enrollments(user),
-        "preferred_timezone_label": get_timezone_label(
-            user.preferred_timezone
-        ),
-        "browser_timezone_label": _browser_timezone_label(request, user),
+        "enrollments": enrollments,
+        "preferred_timezone_label": preferred_timezone_label,
+        "browser_timezone_label": browser_timezone_label,
         "email_preference_categories": EMAIL_PREFERENCE_CATEGORIES,
     }
 
@@ -115,7 +118,8 @@ def _browser_timezone_label(request, user):
     if user.preferred_timezone:
         return ""
 
-    browser_timezone = unquote(request.COOKIES.get("browser_timezone", ""))
+    browser_timezone_cookie = request.COOKIES.get("browser_timezone", "")
+    browser_timezone = unquote(browser_timezone_cookie)
     if not is_valid_timezone(browser_timezone):
         return ""
     return get_timezone_label(browser_timezone)
@@ -225,7 +229,8 @@ def _email_preference_update_success_response(update):
 
 def _parse_timezone_request(request):
     try:
-        return json.loads(request.body), None
+        data = json.loads(request.body)
+        return data, None
     except (json.JSONDecodeError, ValueError):
         return None, "Invalid JSON"
 
@@ -245,11 +250,12 @@ def _validated_timezone_name(data):
 
 
 def _timezone_preference_response(timezone_name):
+    timezone_label = get_timezone_label(timezone_name)
     return JsonResponse(
         {
             "status": "ok",
             "timezone": timezone_name,
-            "label": get_timezone_label(timezone_name),
+            "label": timezone_label,
         }
     )
 
