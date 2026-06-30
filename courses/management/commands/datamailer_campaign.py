@@ -95,7 +95,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("external_key", help="Stable external campaign key.")
         self.add_content_arguments(parser)
-        self.add_targeting_arguments(parser)
+        self.add_tag_filter_arguments(parser)
+        self.add_campaign_metadata_arguments(parser)
         self.add_action_arguments(parser)
         self.add_output_arguments(parser)
 
@@ -119,7 +120,7 @@ class Command(BaseCommand):
             help="Path to a text body file.",
         )
 
-    def add_targeting_arguments(self, parser):
+    def add_tag_filter_arguments(self, parser):
         parser.add_argument(
             "--include-tag",
             action="append",
@@ -132,6 +133,8 @@ class Command(BaseCommand):
             default=[],
             help="Datamailer tag to exclude. May be used more than once.",
         )
+
+    def add_campaign_metadata_arguments(self, parser):
         parser.add_argument(
             "--category-tag",
             default="course-updates",
