@@ -49,14 +49,15 @@ def _current_student_leaderboard_enrollment(course, user):
 
 
 def _completed_project_submissions_prefetch():
+    submissions = ProjectSubmission.objects.filter(
+        project__state=ProjectState.COMPLETED.value,
+        volunteer_review_only=False,
+    )
+    submissions = submissions.select_related("project")
+    submissions = submissions.order_by("project__id")
     return Prefetch(
         "projectsubmission_set",
-        queryset=ProjectSubmission.objects.filter(
-            project__state=ProjectState.COMPLETED.value,
-            volunteer_review_only=False,
-        )
-        .select_related("project")
-        .order_by("project__id"),
+        queryset=submissions,
         to_attr="completed_project_submissions",
     )
 
@@ -86,18 +87,19 @@ def _serialize_leaderboard_enrollment(enrollment):
 
 def _build_leaderboard_data(course, cache_key):
     logger.info(f"Cache miss for leaderboard of course {course.slug}")
-    enrollments = (
-        Enrollment.objects.filter(
-            course=course,
-            display_on_leaderboard=True,
-        )
-        .select_related("student")
-        .prefetch_related(_completed_project_submissions_prefetch())
-        .order_by(
-            Coalesce("position_on_leaderboard", Value(999999)),
-            "id",
-        )
+    enrollments = Enrollment.objects.filter(
+        course=course,
+        display_on_leaderboard=True,
     )
+    enrollments = enrollments.select_related("student")
+    completed_submissions = _completed_project_submissions_prefetch()
+    enrollments = enrollments.prefetch_related(completed_submissions)
+    unranked_position = Value(999999)
+    leaderboard_position = Coalesce(
+        "position_on_leaderboard",
+        unranked_position,
+    )
+    enrollments = enrollments.order_by(leaderboard_position, "id")
     # Store dictionaries in cache to avoid stale model instances.
     enrollments_data = []
     for enrollment in enrollments:
@@ -170,6 +172,7 @@ def leaderboard_context(course, user, page_number):
     paginator = Paginator(enrollments_data, LEADERBOARD_PAGE_SIZE)
     page_obj = paginator.get_page(page_number)
     enrollments_page = page_obj.object_list
+    page_range = paginator.get_elided_page_range(page_obj.number)
 
     current_student_page_number = _current_student_page_number(
         enrollments_data,
@@ -179,7 +182,7 @@ def leaderboard_context(course, user, page_number):
     return {
         "enrollments": enrollments_page,
         "page_obj": page_obj,
-        "page_range": paginator.get_elided_page_range(page_obj.number),
+        "page_range": page_range,
         "total_enrollments": paginator.count,
         "course": course,
         "current_student_enrollment": current_student.enrollment,
@@ -190,7 +193,8 @@ def leaderboard_context(course, user, page_number):
 
 def leaderboard_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
-    context = leaderboard_context(course, request.user, request.GET.get("page"))
+    page_number = request.GET.get("page")
+    context = leaderboard_context(course, request.user, page_number)
 
     return render(request, "courses/leaderboard.html", context)
 
@@ -198,14 +202,17 @@ def leaderboard_view(request, course_slug: str):
 def invalidate_leaderboard_cache(course_id: int) -> None:
     cache.delete(f"leaderboard:{course_id}")
     version_key = f"leaderboard_cache_version:{course_id}"
-    cache.set(version_key, cache.get(version_key, 1) + 1, None)
+    current_version = cache.get(version_key, 1)
+    next_version = current_version + 1
+    cache.set(version_key, next_version, None)
 
 
 def leaderboard_score_breakdown_view(
     request, course_slug: str, enrollment_id: int
 ):
+    enrollments = Enrollment.objects.select_related("student", "course")
     enrollment = get_object_or_404(
-        Enrollment.objects.select_related("student", "course"),
+        enrollments,
         id=enrollment_id,
         course__slug=course_slug,
     )
@@ -223,32 +230,52 @@ def _leaderboard_score_breakdown_context(enrollment, user):
     public_profile = (
         enrollment.student if enrollment.display_public_profile else None
     )
+    show_public_profile_settings_link = (
+        is_own_record and public_profile is None
+    )
+    submissions = _leaderboard_homework_submissions(enrollment)
+    project_submissions = _leaderboard_project_submissions(enrollment)
 
     return {
         "enrollment": enrollment,
         "public_profile": public_profile,
-        "show_public_profile_settings_link": (
-            is_own_record and public_profile is None
-        ),
-        "submissions": _leaderboard_homework_submissions(enrollment),
-        "project_submissions": _leaderboard_project_submissions(enrollment),
+        "show_public_profile_settings_link": show_public_profile_settings_link,
+        "submissions": submissions,
+        "project_submissions": project_submissions,
     }
 
 
 def _leaderboard_homework_state_order():
+    scored_homework = Value(0)
+    open_homework = Value(1)
+    closed_homework = Value(2)
+    other_homework = Value(3)
+    scored_state = When(
+        homework__state=HomeworkState.SCORED.value,
+        then=scored_homework,
+    )
+    open_state = When(
+        homework__state=HomeworkState.OPEN.value,
+        then=open_homework,
+    )
+    closed_state = When(
+        homework__state=HomeworkState.CLOSED.value,
+        then=closed_homework,
+    )
+    output_field = IntegerField()
     return Case(
-        When(homework__state=HomeworkState.SCORED.value, then=Value(0)),
-        When(homework__state=HomeworkState.OPEN.value, then=Value(1)),
-        When(homework__state=HomeworkState.CLOSED.value, then=Value(2)),
-        default=Value(3),
-        output_field=IntegerField(),
+        scored_state,
+        open_state,
+        closed_state,
+        default=other_homework,
+        output_field=output_field,
     )
 
 
 def _leaderboard_homework_submissions(enrollment):
-    return Submission.objects.filter(
-        enrollment=enrollment
-    ).order_by(_leaderboard_homework_state_order(), "homework__id")
+    submissions = Submission.objects.filter(enrollment=enrollment)
+    state_order = _leaderboard_homework_state_order()
+    return submissions.order_by(state_order, "homework__id")
 
 
 def _leaderboard_project_submissions(enrollment):
@@ -290,8 +317,9 @@ def _leaderboard_complaint_post_response(
 def leaderboard_complaint_view(
     request, course_slug: str, enrollment_id: int
 ):
+    enrollments = Enrollment.objects.select_related("course", "student")
     enrollment = get_object_or_404(
-        Enrollment.objects.select_related("course", "student"),
+        enrollments,
         id=enrollment_id,
         course__slug=course_slug,
     )

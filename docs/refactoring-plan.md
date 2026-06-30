@@ -589,6 +589,9 @@ Steps:
   ordering steps instead of nesting calls inline.
 - [x] Name course-calendar timezone, URL, escaped text, and response-body
   values instead of nesting calls inline.
+- [x] Name leaderboard prefetch, ordering, cache-version, context, and homework
+  state-order values instead of nesting calls inline.
+- [x] Name project-result answer option parsing values before appending them.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

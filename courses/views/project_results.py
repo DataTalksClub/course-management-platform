@@ -23,7 +23,9 @@ def answer_option_indexes(answer: str) -> list[int]:
     for value in values:
         value = value.strip()
         if value:
-            indexes.append(int(value) - 1)
+            option_number = int(value)
+            option_index = option_number - 1
+            indexes.append(option_index)
     return indexes
 
 
