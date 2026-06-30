@@ -1114,7 +1114,7 @@ class CadminViewTests(TestCase):
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
-    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.upsert_campaign")
     def test_campaign_edit_syncs_datamailer_campaign_draft(
         self, upsert_campaign
     ):
@@ -1133,8 +1133,8 @@ class CadminViewTests(TestCase):
         self.assert_campaign_draft_upserted(upsert_campaign)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("cadmin.views.DatamailerClient.preview_campaign")
-    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.preview_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.upsert_campaign")
     def test_campaign_edit_previews_datamailer_campaign(
         self, upsert_campaign, preview_campaign
     ):
@@ -1171,8 +1171,8 @@ class CadminViewTests(TestCase):
         self.assertContains(response, "Preview text")
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("cadmin.views.DatamailerClient.test_send_campaign")
-    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.test_send_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.upsert_campaign")
     def test_campaign_edit_sends_datamailer_campaign_test(
         self, upsert_campaign, test_send_campaign
     ):
@@ -1206,8 +1206,8 @@ class CadminViewTests(TestCase):
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("cadmin.views.DatamailerClient.queue_campaign")
-    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.queue_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.upsert_campaign")
     def test_campaign_edit_queues_datamailer_campaign(
         self, upsert_campaign, queue_campaign
     ):
@@ -1238,8 +1238,8 @@ class CadminViewTests(TestCase):
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("cadmin.views.DatamailerClient.cancel_campaign")
-    @patch("cadmin.views.DatamailerClient.upsert_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.cancel_campaign")
+    @patch("cadmin.views.campaigns.DatamailerClient.upsert_campaign")
     def test_campaign_edit_cancels_datamailer_campaign_without_upsert(
         self, upsert_campaign, cancel_campaign
     ):
@@ -1690,7 +1690,7 @@ class CadminViewTests(TestCase):
         self.assertTrue(submission.reviewed_enough_peers)
         self.assertTrue(submission.passed)
 
-    @patch("cadmin.views.send_homework_score_notification")
+    @patch("cadmin.views.homework.send_homework_score_notification")
     def test_homework_score_shows_message(
         self, send_score_notification
     ):
@@ -1786,8 +1786,8 @@ class CadminViewTests(TestCase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
 
-    @patch("cadmin.views.send_project_score_notification")
-    @patch("cadmin.views.score_project")
+    @patch("cadmin.views.projects.send_project_score_notification")
+    @patch("cadmin.views.projects.score_project")
     def test_project_score_shows_message(
         self,
         score_project_mock,
@@ -1826,8 +1826,8 @@ class CadminViewTests(TestCase):
         self.assertEqual(len(messages), 1)
         send_score_notification.assert_called_once_with(self.project)
 
-    @patch("cadmin.views.send_project_score_notification")
-    @patch("cadmin.views.score_project")
+    @patch("cadmin.views.projects.send_project_score_notification")
+    @patch("cadmin.views.projects.score_project")
     def test_project_score_can_redirect_back_to_project_submissions(
         self,
         score_project_mock,
@@ -1865,7 +1865,7 @@ class CadminViewTests(TestCase):
         self.assertRedirects(response, next_url)
         send_score_notification.assert_called_once_with(self.project)
 
-    @patch("cadmin.views.send_project_score_notification")
+    @patch("cadmin.views.projects.send_project_score_notification")
     def test_project_assign_reviews_shows_message(
         self,
         send_score_notification,
@@ -1897,7 +1897,9 @@ class CadminViewTests(TestCase):
         self.assertEqual(len(messages), 1)
         send_score_notification.assert_not_called()
 
-    @patch("cadmin.views.send_peer_review_assignment_notification")
+    @patch(
+        "cadmin.views.projects.send_peer_review_assignment_notification"
+    )
     def test_project_assign_reviews_can_redirect_back_to_project_submissions(
         self,
         send_assignment_notification,

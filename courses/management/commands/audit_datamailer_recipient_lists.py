@@ -285,10 +285,13 @@ def actual_members(response):
 
 def option_validation_errors(options):
     kind = options["kind"]
+    homework_error = invalid_homework_filter(kind, options)
+    project_error = invalid_project_filter(kind, options)
+    limit_error = invalid_limit(options)
     checks = (
-        invalid_homework_filter(kind, options),
-        invalid_project_filter(kind, options),
-        invalid_limit(options),
+        homework_error,
+        project_error,
+        limit_error,
     )
     errors = []
     for error in checks:

@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from cadmin.view_models import (
+from cadmin.views.view_models import (
     enrollment_list_data,
     project_submission_list_data,
 )

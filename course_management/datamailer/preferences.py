@@ -8,6 +8,14 @@ from .client import DatamailerClient, DatamailerConfig
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "EMAIL_PREFERENCE_CATEGORIES",
+    "email_preference_category_tags",
+    "email_preference_values_from_response",
+    "get_email_preferences_for_user",
+    "update_email_preferences_for_user",
+]
+
 EMAIL_PREFERENCE_CATEGORIES = {
     "email_submission_confirmations": {
         "tag": "submission-results",

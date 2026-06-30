@@ -10,9 +10,9 @@ from course_management.datamailer_outbox import (
 )
 from data.models import DatamailerOutboxStatus
 
-from .client import DatamailerClient, DatamailerConfig
-from .keys import datamailer_ordering_key
-from .payloads import (
+from ..client import DatamailerClient, DatamailerConfig
+from ..keys import datamailer_ordering_key
+from ..payloads import (
     contact_payload_for_user,
     course_graduate_recipient_list_member_payload,
     enrollment_recipient_list_payload,
@@ -359,9 +359,11 @@ def remove_homework_submission_from_datamailer(submission) -> None:
     if config is None:
         return
 
+    list_payload = homework_submission_recipient_list_payload(submission)
+    list_payloads = [list_payload]
     remove_data = RecipientListMembershipRemoveData(
         config=config,
-        list_payloads=[homework_submission_recipient_list_payload(submission)],
+        list_payloads=list_payloads,
         label="homework submission",
         obj=submission,
     )
@@ -373,9 +375,8 @@ def remove_project_submission_from_datamailer(submission) -> None:
     if config is None:
         return
 
-    list_payloads = [
-        project_submission_recipient_list_payload(submission)
-    ]
+    list_payload = project_submission_recipient_list_payload(submission)
+    list_payloads = [list_payload]
     if submission.passed:
         passed_payload = project_passed_recipient_list_member_payload(
             submission

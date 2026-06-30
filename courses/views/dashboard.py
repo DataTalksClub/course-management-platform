@@ -375,8 +375,9 @@ def dashboard_view(request, course_slug: str):
     if not course.first_homework_scored:
         return redirect("course", course_slug=course.slug)
 
+    context = _dashboard_context(course)
     return render(
         request,
         "courses/dashboard.html",
-        _dashboard_context(course),
+        context,
     )

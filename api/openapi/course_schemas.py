@@ -4,7 +4,7 @@ from courses.models import (
     RegistrationCampaign,
 )
 
-from api.openapi_primitives import (
+from .primitives import (
     JSON,
     array_of,
     model_object_schema,

@@ -164,6 +164,26 @@ def copy_source_criteria(data: CriteriaCopyBatchData) -> list[ReviewCriteria]:
     return created
 
 
+def build_criteria_copy_batch(
+    source_course: Course,
+    dest_course: Course,
+    dry_run: bool,
+    delete_from_source: bool,
+) -> CriteriaCopyBatchData:
+    source_criteria = list_criteria(source_course)
+    dest_existing = list_criteria(dest_course)
+    existing_keys = existing_criteria_keys(dest_existing)
+    to_delete = []
+    return CriteriaCopyBatchData(
+        source_criteria=source_criteria,
+        dest_course=dest_course,
+        existing_keys=existing_keys,
+        dry_run=dry_run,
+        delete_from_source=delete_from_source,
+        to_delete=to_delete,
+    )
+
+
 def copy_criteria(
     source_course: Course,
     dest_course: Course,
@@ -177,25 +197,18 @@ def copy_criteria(
 
     Returns a tuple of (created_criteria, deleted_criteria).
     """
-    source_criteria = list_criteria(source_course)
-    dest_existing = list_criteria(dest_course)
-    existing_keys = existing_criteria_keys(dest_existing)
-
-    to_delete = []
-    batch_data = CriteriaCopyBatchData(
-        source_criteria=source_criteria,
+    batch_data = build_criteria_copy_batch(
+        source_course=source_course,
         dest_course=dest_course,
-        existing_keys=existing_keys,
         dry_run=dry_run,
         delete_from_source=delete_from_source,
-        to_delete=to_delete,
     )
     created = copy_source_criteria(batch_data)
 
     if delete_from_source:
-        delete_source_criteria(to_delete, dry_run)
+        delete_source_criteria(batch_data.to_delete, dry_run)
 
-    return created, to_delete
+    return created, batch_data.to_delete
 
 
 def parse_args():

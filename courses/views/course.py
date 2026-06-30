@@ -741,10 +741,11 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     if redirect_response is not None:
         return redirect_response
 
+    context = course_page_context(data)
     return render(
         request,
         "courses/course.html",
-        course_page_context(data),
+        context,
     )
 
 
@@ -850,17 +851,19 @@ def _project_deadline_calendar_event(
 def _project_deadline_calendar_events(
     course, project, url, dtstamp
 ) -> list[list[str]]:
+    submission_deadline = ProjectDeadlineEventSpec(
+        uid_suffix="submission",
+        event_type="submission",
+        deadline=project.submission_due_date,
+    )
+    peer_review_deadline = ProjectDeadlineEventSpec(
+        uid_suffix="peer-review",
+        event_type="peer review",
+        deadline=project.peer_review_due_date,
+    )
     deadlines = (
-        ProjectDeadlineEventSpec(
-            uid_suffix="submission",
-            event_type="submission",
-            deadline=project.submission_due_date,
-        ),
-        ProjectDeadlineEventSpec(
-            uid_suffix="peer-review",
-            event_type="peer review",
-            deadline=project.peer_review_due_date,
-        ),
+        submission_deadline,
+        peer_review_deadline,
     )
     events = []
     for deadline in deadlines:
@@ -1334,10 +1337,11 @@ def _enrollment_context(course, enrollment, form):
 
 
 def _render_enrollment_form(request, course, enrollment, form):
+    context = _enrollment_context(course, enrollment, form)
     return render(
         request,
         "courses/enrollment.html",
-        _enrollment_context(course, enrollment, form),
+        context,
     )
 
 

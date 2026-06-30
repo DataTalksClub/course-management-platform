@@ -56,10 +56,11 @@ def account_settings(request):
         form.save()
         return redirect("account_settings")
 
+    context = _account_settings_context(request, user, form)
     return render(
         request,
         "accounts/account_settings.html",
-        _account_settings_context(request, user, form),
+        context,
     )
 
 

@@ -4,15 +4,15 @@ from django.urls import reverse
 
 from course_management import email_templates
 
-from .client import DatamailerConfig, public_url
-from .keys import course_graduates_list_key
-from .payloads_base import (
+from ..client import DatamailerConfig, public_url
+from ..keys import course_graduates_list_key
+from .base import (
     RecipientListMemberPayload,
     RecipientListMemberPayloadData,
     recipient_list_member_payload,
     recipient_list_send_member_payload,
 )
-from .payloads_scores import _bulk_recipient_list_payload
+from .scores import _bulk_recipient_list_payload
 
 def _certificate_availability_urls(enrollment):
     course = enrollment.course

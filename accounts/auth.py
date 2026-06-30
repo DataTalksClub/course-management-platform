@@ -63,10 +63,13 @@ def notification_email(response_data):
 
 
 def extract_email(response_data, sociallogin=None):
+    response_email_value = response_email(response_data)
+    sociallogin_email_value = sociallogin_email(sociallogin)
+    notification_email_value = notification_email(response_data)
     email_candidates = (
-        response_email(response_data),
-        sociallogin_email(sociallogin),
-        notification_email(response_data),
+        response_email_value,
+        sociallogin_email_value,
+        notification_email_value,
     )
     for email in email_candidates:
         if email:

@@ -2,10 +2,24 @@ import re
 
 from django.utils.text import slugify
 
+__all__ = [
+    "contact_tags_for_course",
+    "course_enrolled_list_key",
+    "course_family_slug",
+    "course_graduates_list_key",
+    "datamailer_ordering_key",
+    "homework_submitters_list_key",
+    "project_passed_list_key",
+    "project_submitters_list_key",
+    "registration_campaign_external_key",
+    "registration_list_key",
+]
+
 
 def course_family_slug(course) -> str:
     slug = course.slug
     return re.sub(r"[-_ ]?\d{4}$", "", slug).strip("-_ ") or slug
+
 
 def contact_tags_for_course(course) -> list[str]:
     family_slug = course_family_slug(course)
@@ -14,25 +28,32 @@ def contact_tags_for_course(course) -> list[str]:
         f"course-cohort-{course.slug}",
     ]
 
+
 def registration_list_key(registration) -> str:
     if registration.course_id:
         return registration.course.slug
     return registration.campaign.slug
 
+
 def course_enrolled_list_key(course) -> str:
     return f"{course.slug}:@e"
+
 
 def homework_submitters_list_key(homework) -> str:
     return f"{homework.course.slug}:@e:@homework:{homework.slug}"
 
+
 def project_submitters_list_key(project) -> str:
     return f"{project.course.slug}:@e:@project:{project.slug}"
+
 
 def project_passed_list_key(project) -> str:
     return f"{project_submitters_list_key(project)}:@passed"
 
+
 def course_graduates_list_key(course) -> str:
     return f"{course.slug}:@e:@graduated"
+
 
 def registration_campaign_external_key(campaign) -> str:
     return f"cmp-registration-{slugify(campaign.slug)}"

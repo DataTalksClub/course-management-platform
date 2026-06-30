@@ -1,4 +1,4 @@
-from .payloads_base import (
+from .base import (
     RecipientListMemberPayload,
     RecipientListMemberPayloadData,
     contact_base_custom_fields,
@@ -26,12 +26,12 @@ from .payloads_base import (
     registration_recipient_metadata,
     removed_recipient_list_member_payload,
 )
-from .payloads_certificates import (
+from .certificates import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_member_payload,
     course_graduate_recipient_list_payload,
 )
-from .payloads_peer_review import (
+from .peer_review import (
     _assigned_review_links,
     assigned_review_eval_url,
     assigned_review_link_item,
@@ -46,7 +46,7 @@ from .payloads_peer_review import (
     peer_review_assignment_review_metadata,
     peer_review_assignment_submissions,
 )
-from .payloads_scores import (
+from .scores import (
     homework_score_notification_list_data,
     homework_score_notification_members,
     homework_score_notification_payload,
@@ -58,7 +58,7 @@ from .payloads_scores import (
     project_score_notification_payload,
     project_score_notification_submissions,
 )
-from .payloads_send import (
+from .send import (
     datamailer_send_counts,
     datamailer_send_list_key,
     recipient_list_member_sync_payload,

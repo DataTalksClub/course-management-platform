@@ -4,13 +4,13 @@ from django.urls import reverse
 
 from course_management import email_templates
 
-from .client import DatamailerConfig, public_url
-from .keys import (
+from ..client import DatamailerConfig, public_url
+from ..keys import (
     homework_submitters_list_key,
     project_passed_list_key,
     project_submitters_list_key,
 )
-from .payloads_base import (
+from .base import (
     RecipientListMemberPayload,
     homework_submission_recipient_list_payload,
     project_submission_recipient_list_payload,

@@ -5,9 +5,9 @@ from django.http import JsonResponse
 from django.urls import reverse
 
 from accounts.auth import token_required
-from api.openapi_paths import PATHS_BY_URL_NAME
-from api.openapi_primitives import auth_required
-from api.openapi_schemas import SCHEMAS
+from .paths import PATHS_BY_URL_NAME
+from .primitives import auth_required
+from .schemas import SCHEMAS
 
 def documented_urlpatterns():
     from api.urls import urlpatterns as api_urlpatterns

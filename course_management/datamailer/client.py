@@ -5,6 +5,14 @@ from urllib.parse import urljoin
 import requests
 from django.conf import settings
 
+__all__ = [
+    "DatamailerClient",
+    "DatamailerConfig",
+    "DatamailerRequestData",
+    "datamailer_enabled",
+    "public_url",
+]
+
 
 @dataclass(frozen=True)
 class DatamailerConfig:

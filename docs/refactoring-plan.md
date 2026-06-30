@@ -29,7 +29,9 @@ testable service functions.
 - Use direct `range(...)`, `zip(...)`, `enumerate(...)`, and `.items()` in `for`
   loops when they are the clearest Python expression. Do not create one-off
   aliases such as `indexes = range(...)` or `pairs = zip(...)` just to satisfy
-  a cleanup rule.
+  a cleanup rule. The same applies to simple enum/class/queryset attributes
+  used only by the next loop, such as `statuses = DatamailerOutboxStatus.values`;
+  use `for status in DatamailerOutboxStatus.values:` directly.
 - Tuple unpacking with one or two values is fine. When a loop unpacks three or
   more positional values, prefer a named structure such as a dataclass, named
   tuple, small object, or explicit dictionary keys so field meaning is visible
@@ -53,6 +55,17 @@ testable service functions.
 - Do not inline meaningful function calls inside dataclass, model, or dictionary
   construction. Assign the result to a named local first, then pass the local
   into the constructor or record.
+- Do not inline meaningful function calls inside tuple/list record construction.
+  Assign the value to a named local first, then build the tuple/list record.
+- Do not inline context-builder calls inside `render(...)`. Assign
+  `context = some_context_builder(...)` first, then pass `context` to `render`.
+- When a set of related flat modules shares a strong prefix and one public
+  entry point, prefer a package. For example, move `openapi_*` modules under
+  `openapi/`, or `payloads_*` modules under `payloads/`, while keeping the
+  public import path stable through `__init__.py`.
+- Move large static data tables out of Python modules into readable config/data
+  files when the Python code only needs to parse and consume the data. Keep the
+  parser explicit and covered by focused tests.
 - After extracting helpers or value objects, do a cleanup pass for leftovers.
   Remove wrappers that now only forward to another function, add a one-line
   guard, or group only one or two obvious arguments without naming a durable
@@ -154,16 +167,47 @@ courses/
 
 cadmin/
   forms.py
-  views.py
-  view_models.py
+  views/
+    __init__.py
+    campaigns.py
+    course_admin.py
+    datamailer.py
+    enrollment.py
+    helpers.py
+    homework.py
+    projects.py
+    view_models.py
 
 course_management/
   datamailer/
     client.py
-    payloads.py
-    recipient_lists.py
-    sync.py
+    payloads/
+      __init__.py
+      base.py
+      certificates.py
+      peer_review.py
+      scores.py
+      send.py
+    sync/
+      __init__.py
+      audit.py
+      memberships.py
+      notifications.py
+      status.py
     preferences.py
+
+api/
+  openapi/
+    __init__.py
+    content_paths.py
+    content_schemas.py
+    course_paths.py
+    course_schemas.py
+    data_paths.py
+    integration_schemas.py
+    paths.py
+    primitives.py
+    schemas.py
 ```
 
 Rules of thumb:
@@ -472,16 +516,53 @@ Acceptance checks:
   `WrappedStatistics` and `UserWrappedStatistics` records.
 - [x] Existing leaderboard and course stats JSON shapes remain unchanged.
 
+## Current Cleanup Batch
+
+Status: In progress
+
+Steps:
+
+- [x] Split the large `cadmin/views.py` module into a `cadmin/views/` package
+  by admin workflow ownership.
+- [x] Move `cadmin/view_helpers.py` and `cadmin/view_models.py` into the
+  `cadmin/views/` package.
+- [x] Move Datamailer payload modules into `course_management/datamailer/payloads/`.
+- [x] Move Datamailer sync modules into `course_management/datamailer/sync/`.
+- [x] Move OpenAPI modules into `api/openapi/`.
+- [x] Move registration country and top-country data into
+  `courses/countries.txt`.
+- [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
+- [x] Run the full Django test suite before committing.
+
+Verification:
+
+```bash
+uv run python manage.py check
+uv run python manage.py test cadmin.tests.test_views cadmin.tests.test_view_models
+uv run python manage.py test courses.tests.test_datamailer api.tests.test_openapi
+uv run python manage.py test courses.tests.test_registration_campaigns
+uv run python manage.py test
+git diff --check
+```
+
 ## Optional Later Cleanup
 
 These are lower priority than the phases above.
 
+- [ ] Continue splitting long files by ownership when a file accumulates several
+  related groups behind a common prefix or feature area.
 - [ ] Split very large test classes into scenario-focused files after production
   code stabilizes.
 - [ ] Move one-time root scripts into `scripts/` or `.tmp/` if they are not
   intended as maintained commands.
 - [ ] Audit `courses/static/courses.css` for component grouping after backend
   refactors, but only when UI work is planned.
+- [ ] Replace cleanup-introduced one-off loop aliases with direct loop iterables
+  when the alias adds no domain meaning.
+- [ ] Replace tuple/list record construction that still inlines meaningful
+  function calls with named local variables.
+- [ ] Move remaining large static lookup tables out of Python modules when they
+  are easier to maintain as data/config files.
 - [ ] Fix typos discovered during refactors only when touching the relevant code
   anyway, unless the typo affects API or template behavior.
 

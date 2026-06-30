@@ -1,227 +1,42 @@
+from pathlib import Path
+
 import bleach
 import mistune
 
-COUNTRIES_BY_REGION = {
-    "Africa": [
-        "Algeria",
-        "Angola",
-        "Benin",
-        "Botswana",
-        "Burkina Faso",
-        "Burundi",
-        "Cabo Verde",
-        "Cameroon",
-        "Central African Republic",
-        "Chad",
-        "Comoros",
-        "Congo",
-        "Democratic Republic of the Congo",
-        "Cote d'Ivoire",
-        "Djibouti",
-        "Egypt",
-        "Equatorial Guinea",
-        "Eritrea",
-        "Eswatini",
-        "Ethiopia",
-        "Gabon",
-        "Gambia",
-        "Ghana",
-        "Guinea",
-        "Guinea-Bissau",
-        "Kenya",
-        "Lesotho",
-        "Liberia",
-        "Libya",
-        "Madagascar",
-        "Malawi",
-        "Mali",
-        "Mauritania",
-        "Mauritius",
-        "Morocco",
-        "Mozambique",
-        "Namibia",
-        "Niger",
-        "Nigeria",
-        "Rwanda",
-        "Sao Tome and Principe",
-        "Senegal",
-        "Seychelles",
-        "Sierra Leone",
-        "Somalia",
-        "South Africa",
-        "South Sudan",
-        "Sudan",
-        "Tanzania",
-        "Togo",
-        "Tunisia",
-        "Uganda",
-        "Zambia",
-        "Zimbabwe",
-    ],
-    "North America": [
-        "Canada",
-        "United States",
-        "United States of America",
-        "Mexico",
-        "Bermuda",
-        "Greenland",
-        "Saint Pierre and Miquelon",
-        "Belize",
-        "Costa Rica",
-        "El Salvador",
-        "Guatemala",
-        "Honduras",
-        "Nicaragua",
-        "Panama",
-        "Cuba",
-        "Dominican Republic",
-        "Haiti",
-        "Jamaica",
-        "Trinidad and Tobago",
-        "Barbados",
-        "Bahamas",
-        "Grenada",
-        "Saint Lucia",
-        "Saint Vincent and the Grenadines",
-        "Dominica",
-        "Antigua and Barbuda",
-        "Saint Kitts and Nevis",
-        "Puerto Rico",
-        "Curacao",
-        "Aruba",
-        "Cayman Islands",
-    ],
-    "South America": [
-        "Argentina",
-        "Bolivia",
-        "Brazil",
-        "Chile",
-        "Colombia",
-        "Ecuador",
-        "Guyana",
-        "Paraguay",
-        "Peru",
-        "Suriname",
-        "Uruguay",
-        "Venezuela",
-        "French Guiana",
-        "Falkland Islands",
-    ],
-    "Asia": [
-        "Afghanistan",
-        "Armenia",
-        "Azerbaijan",
-        "Bahrain",
-        "Bangladesh",
-        "Bhutan",
-        "Brunei",
-        "Cambodia",
-        "China",
-        "Georgia",
-        "India",
-        "Indonesia",
-        "Iran",
-        "Iraq",
-        "Israel",
-        "Japan",
-        "Jordan",
-        "Kazakhstan",
-        "Kuwait",
-        "Kyrgyzstan",
-        "Laos",
-        "Lebanon",
-        "Malaysia",
-        "Maldives",
-        "Mongolia",
-        "Myanmar",
-        "Nepal",
-        "North Korea",
-        "Oman",
-        "Pakistan",
-        "Palestine",
-        "Philippines",
-        "Qatar",
-        "Saudi Arabia",
-        "Singapore",
-        "South Korea",
-        "Sri Lanka",
-        "Syria",
-        "Tajikistan",
-        "Thailand",
-        "Timor-Leste",
-        "Turkey",
-        "Turkmenistan",
-        "United Arab Emirates",
-        "Uzbekistan",
-        "Vietnam",
-        "Yemen",
-    ],
-    "Europe": [
-        "Albania",
-        "Andorra",
-        "Austria",
-        "Belarus",
-        "Belgium",
-        "Bosnia and Herzegovina",
-        "Bulgaria",
-        "Croatia",
-        "Cyprus",
-        "Czechia",
-        "Denmark",
-        "Estonia",
-        "Finland",
-        "France",
-        "Germany",
-        "Greece",
-        "Hungary",
-        "Iceland",
-        "Ireland",
-        "Italy",
-        "Kosovo",
-        "Latvia",
-        "Liechtenstein",
-        "Lithuania",
-        "Luxembourg",
-        "Malta",
-        "Moldova",
-        "Monaco",
-        "Montenegro",
-        "Netherlands",
-        "North Macedonia",
-        "Norway",
-        "Poland",
-        "Portugal",
-        "Romania",
-        "Russia",
-        "San Marino",
-        "Serbia",
-        "Slovakia",
-        "Slovenia",
-        "Spain",
-        "Sweden",
-        "Switzerland",
-        "Ukraine",
-        "United Kingdom",
-        "Vatican City",
-    ],
-    "Oceania": [
-        "Australia",
-        "New Zealand",
-        "Fiji",
-        "Papua New Guinea",
-        "Solomon Islands",
-        "Vanuatu",
-        "Samoa",
-        "Tonga",
-        "Kiribati",
-        "Tuvalu",
-        "Nauru",
-        "Micronesia",
-        "Palau",
-        "Marshall Islands",
-        "New Caledonia",
-    ],
-}
+COUNTRIES_CONFIG_PATH = Path(__file__).with_name("countries.txt")
+TOP_COUNTRIES_SECTION = "Top Countries"
+
+
+def _countries_config_lines():
+    content = COUNTRIES_CONFIG_PATH.read_text(encoding="utf-8")
+    return content.splitlines()
+
+
+def _build_countries_config():
+    top_countries = []
+    countries_by_region = {}
+    section = None
+
+    for raw_line in _countries_config_lines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            if section != TOP_COUNTRIES_SECTION:
+                countries_by_region[section] = []
+            continue
+
+        if section == TOP_COUNTRIES_SECTION:
+            top_countries.append(line)
+        elif section is not None:
+            countries_by_region[section].append(line)
+
+    return countries_by_region, top_countries
+
+
+COUNTRIES_BY_REGION, TOP_COUNTRIES = _build_countries_config()
 
 def _build_country_region_map():
     country_region = {}
@@ -232,29 +47,6 @@ def _build_country_region_map():
 
 
 COUNTRY_REGION = _build_country_region_map()
-
-TOP_COUNTRIES = [
-    "United States",
-    "Canada",
-    "Germany",
-    "United Kingdom",
-    "France",
-    "Spain",
-    "Poland",
-    "India",
-    "Egypt",
-    "Tunisia",
-    "Nigeria",
-    "Brazil",
-    "Pakistan",
-    "Indonesia",
-    "Kenya",
-    "Australia",
-    "Morocco",
-    "Singapore",
-    "Argentina",
-    "Algeria",
-]
 
 
 def ordered_countries():

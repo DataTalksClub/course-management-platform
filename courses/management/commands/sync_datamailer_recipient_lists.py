@@ -290,12 +290,14 @@ def safe_s3_key_part(value):
 
 
 def import_object_key(kind, config, list_key, content_sha256):
+    import_prefix = getattr(settings, "DATAMAILER_IMPORT_S3_PREFIX", "")
+    safe_list_key = safe_s3_key_part(list_key)
     parts = [
-        getattr(settings, "DATAMAILER_IMPORT_S3_PREFIX", ""),
+        import_prefix,
         config.client,
         config.audience,
         kind,
-        safe_s3_key_part(list_key),
+        safe_list_key,
         f"{content_sha256}.jsonl",
     ]
     key_parts = []

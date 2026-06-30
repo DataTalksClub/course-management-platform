@@ -16,7 +16,7 @@ from courses.services.enrollment_flags import (
     set_learning_in_public_disabled,
 )
 
-from .view_helpers import (
+from .helpers import (
     paginate_queryset,
     pagination_querystring,
     staff_required,
@@ -125,10 +125,11 @@ def leaderboard_complaints_context(course):
 @staff_required
 def leaderboard_complaints(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
+    context = leaderboard_complaints_context(course)
     return render(
         request,
         "cadmin/leaderboard_complaints.html",
-        leaderboard_complaints_context(course),
+        context,
     )
 
 
@@ -255,8 +256,9 @@ def enrollment_edit(request, course_slug, enrollment_id):
                 enrollment_id,
             )
 
+    context = enrollment_edit_context(course, enrollment)
     return render(
         request,
         "cadmin/enrollment_edit.html",
-        enrollment_edit_context(course, enrollment),
+        context,
     )

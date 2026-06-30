@@ -5,9 +5,9 @@ from django.urls import reverse
 from course_management import email_templates
 from course_management.deadlines import format_deadline_for_email
 
-from .client import DatamailerConfig, public_url
-from .keys import project_submitters_list_key
-from .payloads_base import (
+from ..client import DatamailerConfig, public_url
+from ..keys import project_submitters_list_key
+from .base import (
     RecipientListMemberPayload,
     RecipientListMemberPayloadData,
     recipient_list_member_payload,

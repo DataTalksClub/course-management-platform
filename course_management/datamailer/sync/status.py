@@ -3,7 +3,7 @@ from typing import Any
 
 import requests
 
-from .client import DatamailerClient, DatamailerConfig
+from ..client import DatamailerClient, DatamailerConfig
 
 logger = logging.getLogger(__name__)
 

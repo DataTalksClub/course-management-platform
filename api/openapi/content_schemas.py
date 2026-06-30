@@ -2,7 +2,7 @@ from courses.models import Homework, Project, Question
 from courses.models.homework import AnswerTypes, HomeworkState
 from courses.models.project import ProjectState
 
-from api.openapi_primitives import (
+from .primitives import (
     JSON,
     array_of,
     choices_schema,

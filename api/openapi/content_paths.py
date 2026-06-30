@@ -1,4 +1,4 @@
-from api.openapi_primitives import (
+from .primitives import (
     OperationData,
     operation,
     ref,

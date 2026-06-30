@@ -1,4 +1,4 @@
-from .sync_audit import (
+from .audit import (
     DatamailerSendAuditData,
     DatamailerSendAuditDefaultsData,
     datamailer_audit_category_tag,
@@ -7,7 +7,7 @@ from .sync_audit import (
     datamailer_send_audit_defaults,
     record_datamailer_send_audit,
 )
-from .sync_memberships import (
+from .memberships import (
     ContactMembershipSyncData,
     RecipientListBulkUpsertData,
     RecipientListMembershipRemoveData,
@@ -27,7 +27,7 @@ from .sync_memberships import (
     sync_project_submission_to_datamailer,
     sync_registration_to_datamailer,
 )
-from .sync_notifications import (
+from .notifications import (
     DatamailerNotificationErrorData,
     RecipientListSendSyncData,
     send_certificate_availability_notification,
@@ -37,7 +37,7 @@ from .sync_notifications import (
     send_registration_confirmation_email,
     send_transactional_email,
 )
-from .sync_status import (
+from .status import (
     get_contact_history,
     get_contact_status,
     get_email_status,

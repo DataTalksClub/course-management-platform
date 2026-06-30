@@ -1,4 +1,4 @@
-from api.openapi_primitives import (
+from .primitives import (
     JSON,
     OperationData,
     content_response,

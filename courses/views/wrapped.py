@@ -92,16 +92,18 @@ def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
     """
     wrapped_stats = visible_wrapped_statistics(year)
     if wrapped_stats is None:
+        context = wrapped_no_data_context(year)
         return render(
             request,
             "courses/wrapped.html",
-            wrapped_no_data_context(year),
+            context,
         )
 
+    context = wrapped_page_context(request, year, wrapped_stats)
     return render(
         request,
         "courses/wrapped.html",
-        wrapped_page_context(request, year, wrapped_stats),
+        context,
     )
 
 
@@ -178,14 +180,16 @@ def user_wrapped_view(
 
     user_wrapped = get_user_wrapped_statistics(year, user)
     if user_wrapped is None:
+        context = user_wrapped_no_activity_context(year, user)
         return render(
             request,
             "courses/user_wrapped.html",
-            user_wrapped_no_activity_context(year, user),
+            context,
         )
 
+    context = shareable_user_wrapped_context(year, user, user_wrapped)
     return render(
         request,
         "courses/user_wrapped.html",
-        shareable_user_wrapped_context(year, user, user_wrapped),
+        context,
     )

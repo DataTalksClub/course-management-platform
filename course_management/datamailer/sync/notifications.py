@@ -6,8 +6,8 @@ import requests
 
 from data.models import DatamailerSendAuditType
 
-from .client import DatamailerClient, DatamailerConfig
-from .payloads import (
+from ..client import DatamailerClient, DatamailerConfig
+from ..payloads import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
     homework_score_notification_payload,
@@ -17,8 +17,8 @@ from .payloads import (
     recipient_list_send_payload,
     registration_confirmation_payload,
 )
-from .sync_audit import DatamailerSendAuditData, record_datamailer_send_audit
-from .sync_memberships import (
+from .audit import DatamailerSendAuditData, record_datamailer_send_audit
+from .memberships import (
     RecipientListBulkUpsertData,
     bulk_upsert_recipient_list_members_before_send,
 )

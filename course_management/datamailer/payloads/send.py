@@ -2,7 +2,7 @@ from typing import Any
 
 from data.models import DatamailerSendAuditType
 
-from .client import DatamailerConfig
+from ..client import DatamailerConfig
 
 def recipient_list_member_sync_payload(
     config: DatamailerConfig,

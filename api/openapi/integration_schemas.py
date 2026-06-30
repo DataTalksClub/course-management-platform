@@ -1,4 +1,4 @@
-from api.openapi_primitives import JSON, array_of, ref
+from .primitives import JSON, array_of, ref
 
 INTEGRATION_SCHEMAS = {
     "Graduates": {

@@ -16,7 +16,7 @@ from data.models import (
     DatamailerSendAuditStatus,
 )
 
-from .view_helpers import (
+from .helpers import (
     count_by,
     paginate_queryset,
     pagination_querystring,
@@ -156,12 +156,16 @@ def normalized_send_totals(send_totals):
             send_totals,
             "intended_count",
         ),
-        "created_count": _send_total_count(send_totals, "created_count"),
+        "created_count": _send_total_count(
+            send_totals, "created_count"
+        ),
         "enqueued_count": _send_total_count(
             send_totals,
             "enqueued_count",
         ),
-        "skipped_count": _send_total_count(send_totals, "skipped_count"),
+        "skipped_count": _send_total_count(
+            send_totals, "skipped_count"
+        ),
         "idempotent_replay_count": _send_total_count(
             send_totals,
             "idempotent_replay_count",
@@ -172,8 +176,8 @@ def normalized_send_totals(send_totals):
 
 def datamailer_outbox_status_rows(outbox_summary):
     rows = []
-    statuses = DatamailerOutboxStatus.values
-    for status in statuses:
+
+    for status in DatamailerOutboxStatus.values:
         row = {
             "status": status,
             "count": outbox_summary["event_counts"].get(status, 0),
@@ -206,10 +210,11 @@ def datamailer_operations(request):
         if response is not None:
             return response
 
+    context = datamailer_operations_context()
     return render(
         request,
         "cadmin/datamailer_operations.html",
-        datamailer_operations_context(),
+        context,
     )
 
 
@@ -254,7 +259,9 @@ def datamailer_events_metrics():
     }
 
 
-def datamailer_events_context(request, events, event_type, search_query):
+def datamailer_events_context(
+    request, events, event_type, search_query
+):
     events_page = paginate_queryset(request, events, per_page=50)
     event_types = list(
         DatamailerContactEvent.objects.order_by("event_type")
@@ -278,11 +285,12 @@ def datamailer_events_context(request, events, event_type, search_query):
 def datamailer_events(request):
     event_type, search_query = datamailer_event_filters(request)
     events = filtered_datamailer_events(event_type, search_query)
+    context = datamailer_events_context(
+        request, events, event_type, search_query
+    )
 
     return render(
         request,
         "cadmin/datamailer_events.html",
-        datamailer_events_context(
-            request, events, event_type, search_query
-        ),
+        context,
     )

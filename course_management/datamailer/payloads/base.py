@@ -6,8 +6,8 @@ from django.urls import reverse
 from course_management import email_templates
 from courses.registration import render_markdown
 
-from .client import DatamailerConfig, public_url
-from .keys import (
+from ..client import DatamailerConfig, public_url
+from ..keys import (
     contact_tags_for_course,
     course_enrolled_list_key,
     course_family_slug,
@@ -15,7 +15,7 @@ from .keys import (
     project_submitters_list_key,
     registration_list_key,
 )
-from .preferences import EMAIL_PREFERENCE_CATEGORIES
+from ..preferences import EMAIL_PREFERENCE_CATEGORIES
 
 @dataclass(frozen=True)
 class RecipientListMemberPayloadData:

@@ -32,9 +32,10 @@ class HomeworkSubmissionEditForm(forms.Form):
         answers_by_question = []
         questions = self.questions
         for question in questions:
+            answer_text = cleaned_data.get(f"answer_{question.id}", "")
             answer = (
                 question,
-                cleaned_data.get(f"answer_{question.id}", ""),
+                answer_text,
             )
             answers_by_question.append(answer)
         cleaned_data["answers_by_question"] = answers_by_question
@@ -76,9 +77,10 @@ class ProjectSubmissionEditForm(forms.Form):
         criteria_scores = []
         review_criteria_items = self.review_criteria
         for criteria in review_criteria_items:
+            score = cleaned_data.get(f"criteria_score_{criteria.id}", 0)
             criteria_score = (
                 criteria,
-                cleaned_data.get(f"criteria_score_{criteria.id}", 0),
+                score,
             )
             criteria_scores.append(criteria_score)
         cleaned_data["criteria_scores"] = criteria_scores

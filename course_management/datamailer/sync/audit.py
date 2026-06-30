@@ -6,7 +6,7 @@ from data.models import (
     DatamailerSendAuditStatus,
 )
 
-from .payloads import (
+from ..payloads import (
     datamailer_send_counts,
     datamailer_send_list_key,
 )
