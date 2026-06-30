@@ -382,7 +382,8 @@ PROJECT_PATCH_RULES = PatchFieldRules(
 
 
 def _apply_project_title(project, data):
-    title = data.get("title", data.get("name"))
+    name = data.get("name")
+    title = data.get("title", name)
     if title is not None:
         project.title = title
 
@@ -396,7 +397,8 @@ def _apply_project_instructions_url(project, data):
     if "instructions_url" not in data:
         return None
 
-    error = instructions_url_error(data["instructions_url"])
+    instructions_url = data["instructions_url"]
+    error = instructions_url_error(instructions_url)
     if error:
         return error_response(
             error,
@@ -404,7 +406,7 @@ def _apply_project_instructions_url(project, data):
             details={"field": "instructions_url"},
         )
 
-    project.instructions_url = data["instructions_url"]
+    project.instructions_url = instructions_url
     return None
 
 
@@ -439,7 +441,8 @@ PROJECT_UPSERT_REQUIRED_DATES = (
 
 
 def _project_upsert_title(data):
-    return data.get("title", data.get("name"))
+    name = data.get("name")
+    return data.get("title", name)
 
 
 def _project_upsert_missing_create_fields(data):
@@ -455,7 +458,8 @@ def _project_upsert_instructions_error(data):
     if "instructions_url" not in data:
         return None
 
-    error = instructions_url_error(data.get("instructions_url"))
+    instructions_url = data.get("instructions_url")
+    error = instructions_url_error(instructions_url)
     if not error:
         return None
 
@@ -481,10 +485,11 @@ def _project_upsert_state_error(data):
     if "state" not in data or data["state"] in VALID_PROJECT_STATES:
         return None
 
+    valid_states = sorted(VALID_PROJECT_STATES)
     return error_response(
-        f"Invalid state. Must be one of: {sorted(VALID_PROJECT_STATES)}",
+        f"Invalid state. Must be one of: {valid_states}",
         "invalid_project_state",
-        details={"valid_states": sorted(VALID_PROJECT_STATES)},
+        details={"valid_states": valid_states},
     )
 
 
@@ -511,14 +516,20 @@ def _project_by_slug(course, project_slug):
 
 
 def _create_project_from_upsert(course, project_slug, data):
+    title = _project_upsert_title(data)
+    description = data.get("description", "")
+    instructions_url = data.get("instructions_url")
+    submission_due_date = parse_date(data["submission_due_date"])
+    peer_review_due_date = parse_date(data["peer_review_due_date"])
+
     return Project.objects.create(
         course=course,
         slug=project_slug,
-        title=_project_upsert_title(data),
-        description=data.get("description", ""),
-        instructions_url=data.get("instructions_url"),
-        submission_due_date=parse_date(data["submission_due_date"]),
-        peer_review_due_date=parse_date(data["peer_review_due_date"]),
+        title=title,
+        description=description,
+        instructions_url=instructions_url,
+        submission_due_date=submission_due_date,
+        peer_review_due_date=peer_review_due_date,
         state=ProjectState.CLOSED.value,
     )
 
@@ -529,8 +540,10 @@ def _save_project_upsert(project, data, created):
         return error
 
     project.save()
+    project_data = _project_to_dict(project)
+    response_status = 201 if created else 200
     return JsonResponse(
-        _project_to_dict(project), status=201 if created else 200
+        project_data, status=response_status
     )
 
 

@@ -313,7 +313,8 @@ HOMEWORK_DIRECT_UPDATE_FIELDS = (
 
 
 def _homework_title_from_data(data):
-    return data.get("title", data.get("name"))
+    name = data.get("name")
+    return data.get("title", name)
 
 
 def _invalid_instructions_url_response(error):
@@ -489,7 +490,8 @@ def _validate_homework_instructions_url(data):
     if "instructions_url" not in data:
         return None
 
-    error = instructions_url_error(data.get("instructions_url"))
+    instructions_url = data.get("instructions_url")
+    error = instructions_url_error(instructions_url)
     if error:
         return _invalid_instructions_url_response(error)
 
