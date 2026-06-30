@@ -42,16 +42,21 @@ def is_float_equal(
     value1: str, value2: str, tolerance: float = 0.01
 ) -> bool:
     try:
-        return abs(float(value1) - float(value2)) <= tolerance
+        number1 = float(value1)
+        number2 = float(value2)
     except ValueError:
         return False
+    difference = abs(number1 - number2)
+    return difference <= tolerance
 
 
 def is_integer_equal(value1: str, value2: str) -> bool:
     try:
-        return int(value1) == int(value2)
+        number1 = int(value1)
+        number2 = int(value2)
     except ValueError:
         return False
+    return number1 == number2
 
 
 def safe_split(value: str, delimiter: str = ","):
@@ -109,14 +114,18 @@ def is_exact_string_answer_correct(
     user_answer: str,
     correct_answer: str,
 ) -> bool:
-    return user_answer.lower() == correct_answer.lower()
+    normalized_user_answer = user_answer.lower()
+    normalized_correct_answer = correct_answer.lower()
+    return normalized_user_answer == normalized_correct_answer
 
 
 def is_contains_string_answer_correct(
     user_answer: str,
     correct_answer: str,
 ) -> bool:
-    return correct_answer.lower() in user_answer.lower()
+    normalized_user_answer = user_answer.lower()
+    normalized_correct_answer = correct_answer.lower()
+    return normalized_correct_answer in normalized_user_answer
 
 
 def is_float_answer_correct(
@@ -440,4 +449,6 @@ def fill_correct_answers(homework: Homework) -> None:
 
 
 def clear_correct_answers(homework: Homework) -> int:
-    return Question.objects.filter(homework=homework).update(correct_answer="")
+    questions = Question.objects.filter(homework=homework)
+    updated_count = questions.update(correct_answer="")
+    return updated_count

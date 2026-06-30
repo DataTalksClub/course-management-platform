@@ -259,14 +259,20 @@ class Provisioner:
         detail: dict,
         admin_session,
     ) -> bool:
-        course_pk = detail.get("id") if isinstance(detail, dict) else None
+        if isinstance(detail, dict):
+            course_pk = detail.get("id")
+        else:
+            course_pk = None
 
         try:
             purged = admin_session.delete_course_via_admin(slug, course_pk=course_pk)
         except Exception:
             purged = False
 
-        return bool(purged and self.api.get_course(slug) is None)
+        course_absent = self.api.get_course(slug) is None
+        if not purged:
+            return False
+        return course_absent
 
     def _record_admin_delete_result(
         self,

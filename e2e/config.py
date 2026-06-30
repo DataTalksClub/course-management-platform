@@ -43,7 +43,11 @@ def _dotenv_key_value(raw: str) -> tuple[str, str]:
     if not line or line.startswith("#") or "=" not in line:
         return "", ""
     key, _separator, value = line.partition("=")
-    return key.strip(), value.strip().strip('"').strip("'")
+    stripped_key = key.strip()
+    stripped_value = value.strip()
+    without_double_quotes = stripped_value.strip('"')
+    without_quotes = without_double_quotes.strip("'")
+    return stripped_key, without_quotes
 
 
 def _set_env_default(key: str, value: str) -> None:

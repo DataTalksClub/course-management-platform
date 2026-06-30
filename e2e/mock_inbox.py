@@ -443,7 +443,9 @@ class MockInboxClient(InboxBackend):
             body = resp.json()
         except ValueError:
             return False
-        return (body.get("error") or {}).get("code") == "mock_inbox_disabled"
+        error = body.get("error") or {}
+        error_code = error.get("code")
+        return error_code == "mock_inbox_disabled"
 
     def list_messages(self, address: str, *, limit: int = 25) -> list[InboxMessage]:
         resp = self._request(
@@ -451,7 +453,10 @@ class MockInboxClient(InboxBackend):
         )
         resp.raise_for_status()
         payload = resp.json()
-        items = payload.get("messages", []) if isinstance(payload, dict) else []
+        if isinstance(payload, dict):
+            items = payload.get("messages", [])
+        else:
+            items = []
         messages = []
         for item in items:
             message = self._summary_to_message(item, address)
@@ -462,7 +467,10 @@ class MockInboxClient(InboxBackend):
         resp = self._request("GET", f"{self.messages_url}/{message_id}")
         resp.raise_for_status()
         payload = resp.json()
-        item = payload.get("message", payload) if isinstance(payload, dict) else {}
+        if isinstance(payload, dict):
+            item = payload.get("message", payload)
+        else:
+            item = {}
         return self._detail_to_message(item)
 
     def clear(self, address: str | None = None) -> int:
@@ -590,7 +598,9 @@ class RealInboxClient(InboxBackend):
             body = resp.json()
         except ValueError:
             return False
-        return (body.get("error") or {}).get("code") == "real_inbox_disabled"
+        error = body.get("error") or {}
+        error_code = error.get("code")
+        return error_code == "real_inbox_disabled"
 
     def list_messages(self, address: str, *, limit: int = 25) -> list[InboxMessage]:
         # requests urlencodes the params, turning the address '+' into '%2B'
@@ -600,7 +610,10 @@ class RealInboxClient(InboxBackend):
         )
         resp.raise_for_status()
         payload = resp.json()
-        items = payload.get("messages", []) if isinstance(payload, dict) else []
+        if isinstance(payload, dict):
+            items = payload.get("messages", [])
+        else:
+            items = []
         messages = []
         for item in items:
             message = self._summary_to_message(item, address)
@@ -620,7 +633,10 @@ class RealInboxClient(InboxBackend):
         )
         resp.raise_for_status()
         payload = resp.json()
-        item = payload.get("message", payload) if isinstance(payload, dict) else {}
+        if isinstance(payload, dict):
+            item = payload.get("message", payload)
+        else:
+            item = {}
         return self._detail_to_message(item, address)
 
     def clear(self, address: str | None = None) -> int:
