@@ -286,7 +286,7 @@ Steps:
 Verification:
 
 ```bash
-uv run python manage.py test cadmin.tests.test_views
+uv run python manage.py test cadmin.tests
 uv run python manage.py test courses.tests.test_homework courses.tests.test_project_score
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
@@ -326,7 +326,7 @@ Verification:
 
 ```bash
 uv run python manage.py test courses.tests.test_disable_learning_in_public
-uv run python manage.py test cadmin.tests.test_views
+uv run python manage.py test cadmin.tests
 uv run python manage.py test courses.tests.test_leaderboard
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
@@ -361,7 +361,7 @@ Steps:
 Verification:
 
 ```bash
-uv run python manage.py test cadmin.tests.test_views
+uv run python manage.py test cadmin.tests
 uv run python manage.py test courses.tests.test_project_submissions_view
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
@@ -474,7 +474,7 @@ Verification:
 ```bash
 uv run python manage.py test courses.tests.test_datamailer
 uv run python manage.py test data.tests.test_datamailer_webhook
-uv run python manage.py test cadmin.tests.test_views
+uv run python manage.py test cadmin.tests
 uv run python manage.py test courses.tests.test_deadline_reminders
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
@@ -626,6 +626,8 @@ Steps:
   cadmin view test module.
 - [x] Split project submission and project action cadmin view tests out of the
   oversized cadmin view test module.
+- [x] Rename the remaining homework cadmin view tests from the generic
+  `test_views.py` module to focused homework ownership.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
@@ -633,7 +635,7 @@ Verification:
 
 ```bash
 uv run python manage.py check
-uv run python manage.py test cadmin.tests.test_views cadmin.tests.test_view_models
+uv run python manage.py test cadmin.tests
 uv run python manage.py test courses.tests.test_datamailer api.tests.test_openapi
 uv run python manage.py test courses.tests.test_registration_campaigns
 uvx pyrefly check

@@ -62,7 +62,7 @@ credentials = dict(
 )
 
 
-class CadminViewTests(TestCase):
+class HomeworkCadminViewTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.create_test_users()
