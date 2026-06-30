@@ -46,6 +46,13 @@ class HomeworkUpsertData:
 
 
 @dataclass(frozen=True)
+class HomeworkUpsertValidationData:
+    data: dict
+    homework: Homework | None
+    created: bool
+
+
+@dataclass(frozen=True)
 class HomeworkCreateRequiredValues:
     name: str
     due_date_str: str
@@ -460,29 +467,30 @@ def _replace_homework_questions(homework, questions_data):
 
 def _validate_homework_upsert(data, homework, created):
     """Validate an upsert payload. Returns an error response, or None if ok."""
-    error = _validate_created_homework_fields(data, created)
-    if error:
-        return error
+    validation_data = HomeworkUpsertValidationData(
+        data=data,
+        homework=homework,
+        created=created,
+    )
+    validators = (
+        _validate_created_homework_fields,
+        _validate_homework_instructions_url,
+        _validate_homework_due_date,
+        _validate_homework_state,
+        _validate_homework_questions,
+    )
+    for validator in validators:
+        error = validator(validation_data)
+        if error:
+            return error
 
-    error = _validate_homework_instructions_url(data)
-    if error:
-        return error
-
-    error = _validate_homework_due_date(data)
-    if error:
-        return error
-
-    error = _validate_homework_state(data)
-    if error:
-        return error
-
-    return _validate_homework_questions(data, homework)
+    return None
 
 
-def _validate_created_homework_fields(data, created):
-    title = _homework_title_from_data(data)
-    due_date = data.get("due_date")
-    if created and (not title or not due_date):
+def _validate_created_homework_fields(validation_data):
+    title = _homework_title_from_data(validation_data.data)
+    due_date = validation_data.data.get("due_date")
+    if validation_data.created and (not title or not due_date):
         return error_response(
             "title/name and due_date are required",
             "missing_required_fields",
@@ -490,11 +498,11 @@ def _validate_created_homework_fields(data, created):
     return None
 
 
-def _validate_homework_instructions_url(data):
-    if "instructions_url" not in data:
+def _validate_homework_instructions_url(validation_data):
+    if "instructions_url" not in validation_data.data:
         return None
 
-    instructions_url = data.get("instructions_url")
+    instructions_url = validation_data.data.get("instructions_url")
     error = instructions_url_error(instructions_url)
     if error:
         return _invalid_instructions_url_response(error)
@@ -502,26 +510,31 @@ def _validate_homework_instructions_url(data):
     return None
 
 
-def _validate_homework_due_date(data):
-    if "due_date" not in data:
+def _validate_homework_due_date(validation_data):
+    if "due_date" not in validation_data.data:
         return None
 
-    due_date = parse_date(data["due_date"])
+    due_date = parse_date(validation_data.data["due_date"])
     if due_date is None:
         return _invalid_due_date_response()
     return None
 
 
-def _validate_homework_state(data):
+def _validate_homework_state(validation_data):
+    data = validation_data.data
     if "state" in data and data["state"] not in VALID_HOMEWORK_STATES:
         return _invalid_homework_state_response()
     return None
 
 
-def _validate_homework_questions(data, homework):
-    if homework is None or "questions" not in data:
+def _validate_homework_questions(validation_data):
+    if (
+        validation_data.homework is None
+        or "questions" not in validation_data.data
+    ):
         return None
-    return _homework_questions_replace_error(homework)
+    error = _homework_questions_replace_error(validation_data.homework)
+    return error
 
 
 def _homework_by_slug(course, homework_slug):
