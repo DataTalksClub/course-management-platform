@@ -61,7 +61,8 @@ class HomeworkSubmissionQuestions:
 def homework_score(request, course_slug, homework_slug):
     """Score a homework"""
     if request.method != "POST":
-        return redirect("cadmin_course", course_slug=course_slug)
+        response = redirect("cadmin_course", course_slug=course_slug)
+        return response
     course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
@@ -84,7 +85,8 @@ def homework_score(request, course_slug, homework_slug):
 def homework_set_correct_answers(request, course_slug, homework_slug):
     """Set correct answers to most popular for a homework"""
     if request.method != "POST":
-        return redirect("cadmin_course", course_slug=course_slug)
+        response = redirect("cadmin_course", course_slug=course_slug)
+        return response
     course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
@@ -106,7 +108,8 @@ def homework_set_correct_answers(request, course_slug, homework_slug):
 def homework_clear_correct_answers(request, course_slug, homework_slug):
     """Clear correct answers for a homework"""
     if request.method != "POST":
-        return redirect("cadmin_course", course_slug=course_slug)
+        response = redirect("cadmin_course", course_slug=course_slug)
+        return response
     course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
@@ -180,7 +183,8 @@ def homework_submissions(request, course_slug, homework_slug):
         search_query=search_query,
     )
     context = _homework_submissions_context(context_data)
-    return render(request, "cadmin/homework_submissions.html", context)
+    response = render(request, "cadmin/homework_submissions.html", context)
+    return response
 
 
 def _questions_with_submission_answers(homework, submission):
@@ -222,11 +226,12 @@ def _homework_submission_edit_success(data):
         data.request,
         f"Homework submission for {data.submission.student.username} updated successfully",
     )
-    return redirect(
+    response = redirect(
         "cadmin_homework_submissions",
         course_slug=data.course.slug,
         homework_slug=data.homework.slug,
     )
+    return response
 
 
 def _handle_homework_submission_edit_post(data):
@@ -307,9 +312,10 @@ def _homework_submission_edit_context(data):
 
 def _homework_submission_edit_response(data):
     context = _homework_submission_edit_context(data)
-    return render(
+    response = render(
         data.request, "cadmin/homework_submission_edit.html", context
     )
+    return response
 
 
 @staff_required
