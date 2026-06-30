@@ -1,7 +1,8 @@
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone as datetime_timezone
-from typing import Any, Callable
+from typing import Any
 
 import requests
 from django.core.management.base import BaseCommand, CommandError
