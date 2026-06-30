@@ -41,10 +41,11 @@ def wrapped_hours_label(total_hours: float):
 
 
 def user_stats_context(user_wrapped: UserWrappedStatistics) -> dict:
+    total_hours = wrapped_hours_label(user_wrapped.total_hours)
     return {
         "total_points": user_wrapped.total_points,
         "courses_enrolled": user_wrapped.courses,
-        "total_hours": wrapped_hours_label(user_wrapped.total_hours),
+        "total_hours": total_hours,
         "certificates_earned": user_wrapped.certificates_earned,
     }
 
@@ -71,13 +72,18 @@ def current_user_wrapped_context(request, wrapped_stats) -> dict:
 
 
 def wrapped_page_context(request, year: int, wrapped_stats) -> dict:
+    platform_stats = platform_stats_context(wrapped_stats)
     context = {
         "year": year,
-        "platform_stats": platform_stats_context(wrapped_stats),
+        "platform_stats": platform_stats,
         "leaderboard": wrapped_stats.leaderboard,
         "no_data": False,
     }
-    context.update(current_user_wrapped_context(request, wrapped_stats))
+    current_user_context = current_user_wrapped_context(
+        request,
+        wrapped_stats,
+    )
+    context.update(current_user_context)
     return context
 
 
@@ -108,11 +114,12 @@ def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
 
 
 def user_wrapped_no_activity_context(year: int, user) -> dict:
+    display_name = user.get_username()
     return {
         "year": year,
         "user": user,
         "viewed_user": user,
-        "display_name": user.get_username(),
+        "display_name": display_name,
         "no_activity": True,
     }
 
@@ -133,10 +140,11 @@ def get_user_wrapped_statistics(year: int, user):
 def shareable_user_stats_context(
     user_wrapped: UserWrappedStatistics,
 ) -> dict:
+    total_hours = wrapped_hours_label(user_wrapped.total_hours)
     return {
         "total_points": user_wrapped.total_points,
         "courses": user_wrapped.courses,
-        "total_hours": wrapped_hours_label(user_wrapped.total_hours),
+        "total_hours": total_hours,
         "homework_count": user_wrapped.homework_count,
         "project_count": user_wrapped.project_count,
         "peer_reviews_given": user_wrapped.peer_reviews_given,
@@ -160,13 +168,15 @@ def wrapped_twitter_text(year: int, user_wrapped) -> str:
 def shareable_user_wrapped_context(
     year: int, user, user_wrapped
 ) -> dict:
+    user_stats = shareable_user_stats_context(user_wrapped)
+    twitter_text = wrapped_twitter_text(year, user_wrapped)
     return {
         "year": year,
         "viewed_user": user,
         "display_name": user_wrapped.display_name,
-        "user_stats": shareable_user_stats_context(user_wrapped),
+        "user_stats": user_stats,
         "user_rank": user_wrapped.rank,
-        "twitter_text": wrapped_twitter_text(year, user_wrapped),
+        "twitter_text": twitter_text,
         "no_activity": False,
     }
 
