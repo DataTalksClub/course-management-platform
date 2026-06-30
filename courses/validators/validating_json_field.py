@@ -8,10 +8,11 @@ class ValidatingJSONField(models.JSONField):
     def validate(self, value, model_instance):
         super().validate(value, model_instance)
 
+        url_validator = validators.URLValidator()
         for link in value:
             # Validate each URL in the JSON array data
             try:
-                validators.URLValidator()(link)
+                url_validator(link)
                 validate_url_200(link)
             except ValidationError as e:
                 raise ValidationError(e.message)
