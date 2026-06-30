@@ -620,6 +620,8 @@ Steps:
   view test module.
 - [x] Split registration campaign cadmin view tests out of the oversized cadmin
   view test module.
+- [x] Split course-list and course-admin cadmin view tests out of the oversized
+  cadmin view test module.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -140,40 +140,6 @@ class CadminViewTests(TestCase):
             course=self.course,
         )
 
-    def create_course(self, slug, title, *, finished=False):
-        return Course.objects.create(
-            slug=slug,
-            title=title,
-            description=f"{title} Description",
-            finished=finished,
-        )
-
-    def cadmin_course_list_url(self):
-        return reverse("cadmin_course_list")
-
-    def assert_course_list_order(self, response, active_course, finished_course):
-        courses = list(response.context["courses"])
-        self.assertEqual(courses[:2], [active_course, self.course])
-        self.assertEqual(courses[-1], finished_course)
-
-    def assert_course_list_links(self, response):
-        self.assertContains(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
-        self.assertContains(
-            response,
-            reverse("course", kwargs={"course_slug": self.course.slug}),
-        )
-        self.assertContains(
-            response,
-            f"/admin/courses/course/{self.course.id}/change/",
-        )
-        self.assertContains(response, reverse("cadmin_datamailer_operations"))
-
     def create_homework_submission(self, enrollment=None, **overrides):
         defaults = {
             "homework": self.homework,
@@ -615,69 +581,6 @@ class CadminViewTests(TestCase):
         )
         self.assertEqual(criteria1_score.score, 2)
         self.assertEqual(criteria2_score.score, 4)
-
-    def test_course_list_unauthenticated_redirects(self):
-        """Test that unauthenticated users are redirected from course list"""
-        response = self.client.get(self.cadmin_course_list_url())
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/accounts/login/", response.url)
-
-    def test_course_list_non_staff_denied(self):
-        """Test that non-staff users cannot access course list"""
-        self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(self.cadmin_course_list_url())
-        self.assertEqual(response.status_code, 302)
-
-    def test_course_list_staff_allowed(self):
-        """Test that staff users can access course list"""
-        finished_course = self.create_course(
-            slug="finished-course",
-            title="Finished Course",
-            finished=True,
-        )
-        active_course = self.create_course(
-            slug="active-course",
-            title="Active Course",
-        )
-
-        self.login_admin()
-        response = self.client.get(self.cadmin_course_list_url())
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Course admin")
-        self.assertNotContains(response, 'aria-label="Breadcrumb"')
-        self.assert_course_list_order(response, active_course, finished_course)
-        self.assert_course_list_links(response)
-        self.assertNotContains(response, "> Manage <")
-        self.assertNotContains(response, "> View <")
-
-    def test_course_admin_staff_allowed(self):
-        """Test that staff users can access course admin page"""
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_course", kwargs={"course_slug": self.course.slug}
-        )
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.course.title)
-        self.assertContains(response, "Course admin")
-        self.assertContains(response, 'aria-label="Breadcrumb"')
-        self.assertContains(response, "Course Admin")
-        self.assertContains(
-            response,
-            reverse("course", kwargs={"course_slug": self.course.slug}),
-        )
-        self.assertContains(
-            response, f"/admin/courses/course/{self.course.id}/change/"
-        )
-        self.assertContains(response, 'title="View public course page"')
-        self.assertContains(response, 'title="Edit in Django Admin"')
-        self.assertContains(response, "cadmin-actions-menu")
-        self.assertNotContains(response, "Needs attention")
-        self.assertNotContains(response, "Course Page")
-        self.assertNotContains(response, "Dashboard")
 
     def test_homework_submissions_redirect_from_courses(self):
         """Test that homework submissions view redirects to cadmin"""
