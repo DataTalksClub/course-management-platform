@@ -90,14 +90,22 @@ def email_backend(request):
     backend = getattr(request, "param", None)
     if backend is None:
         marker = request.node.get_closest_marker("mock_inbox")
-        backend = "mock" if marker else "real"
-    fixture_name = "real_inbox" if backend == "real" else "mock_inbox"
+        if marker:
+            backend = "mock"
+        else:
+            backend = "real"
+    if backend == "real":
+        fixture_name = "real_inbox"
+    else:
+        fixture_name = "mock_inbox"
     return request.getfixturevalue(fixture_name)
 
 
 @pytest.fixture(scope="session")
 def run_state() -> RunState:
-    return RunState(namespace=make_namespace(int(time.time())))
+    timestamp = int(time.time())
+    namespace = make_namespace(timestamp)
+    return RunState(namespace=namespace)
 
 
 @pytest.fixture(scope="session")
@@ -118,7 +126,8 @@ def due_dates() -> dict:
 # build our own session-scoped page from the sync API.
 @pytest.fixture(scope="session")
 def admin_page(settings: Settings):
-    headless_env = __import__("os").environ.get("E2E_HEADLESS", "1")
+    os_module = __import__("os")
+    headless_env = os_module.environ.get("E2E_HEADLESS", "1")
     headless = headless_env not in ("0", "false", "False")
 
     with sync_playwright() as p:

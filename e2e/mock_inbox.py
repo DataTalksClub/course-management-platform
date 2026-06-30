@@ -74,7 +74,9 @@ class InboxMessage:
 
     @property
     def detail_loaded(self) -> bool:
-        return bool(self.html_body or self.text_body or self.context)
+        has_body = bool(self.html_body or self.text_body)
+        has_context = bool(self.context)
+        return has_body or has_context
 
     def body_contains(self, needle: str) -> bool:
         """True if ``needle`` appears in the rendered bodies or the context.
@@ -202,7 +204,11 @@ class InboxBackend:
         raise NotImplementedError
 
     def _set_http_client_config(self, config: InboxClientConfig) -> None:
-        self.base_url = config.base_url.rstrip("/") if config.base_url else None
+        if config.base_url:
+            base_url = config.base_url.rstrip("/")
+        else:
+            base_url = None
+        self.base_url = base_url
         self.api_key = config.api_key
         self.timeout = config.retry.timeout
         self.max_retries = config.retry.max_retries
@@ -404,7 +410,9 @@ class MockInboxClient(InboxBackend):
 
     @property
     def configured(self) -> bool:
-        return bool(self.base_url and self.api_key)
+        has_base_url = bool(self.base_url)
+        has_api_key = bool(self.api_key)
+        return has_base_url and has_api_key
 
     @property
     def messages_url(self) -> str:
@@ -559,7 +567,9 @@ class RealInboxClient(InboxBackend):
 
     @property
     def configured(self) -> bool:
-        return bool(self.base_url and self.api_key)
+        has_base_url = bool(self.base_url)
+        has_api_key = bool(self.api_key)
+        return has_base_url and has_api_key
 
     @property
     def messages_url(self) -> str:

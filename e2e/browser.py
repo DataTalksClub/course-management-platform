@@ -44,7 +44,9 @@ def course_row_matches(row_text: str, slug: str, title: str | None = None) -> bo
 def course_pk_from_href(href: str) -> int | None:
     match = re.search(r"/admin/courses/course/(\d+)/change/", href)
     if match:
-        return int(match.group(1))
+        pk_text = match.group(1)
+        course_pk = int(pk_text)
+        return course_pk
     return None
 
 
@@ -52,7 +54,9 @@ def course_pk_from_row(row) -> int | None:
     link = row.locator("a[href*='/admin/courses/course/']").first
     if link.count() == 0:
         return None
-    return course_pk_from_href(link.get_attribute("href") or "")
+    href = link.get_attribute("href") or ""
+    course_pk = course_pk_from_href(href)
+    return course_pk
 
 
 def indexed_values(values, limit):
@@ -217,7 +221,9 @@ class AdminSession:
             href = link.nth(i).get_attribute("href") or ""
             m = re.search(r"/admin/accounts/customuser/(\d+)/change/", href)
             if m:
-                return int(m.group(1))
+                user_id_text = m.group(1)
+                user_id = int(user_id_text)
+                return user_id
         return None
 
     def create_student(self, email: str, password: str) -> int:
@@ -430,7 +436,9 @@ class AdminSession:
         self._fill_learning_in_public_links(data.learning_in_public_links)
 
     def homework_confirmation_text(self) -> str:
-        return self.page.locator("body").inner_text()
+        body = self.page.locator("body")
+        body_text = body.inner_text()
+        return body_text
 
     # -- project flow ----------------------------------------------------
     def submit_project(self, data: ProjectSubmissionData) -> None:
@@ -505,7 +513,9 @@ class AdminSession:
     def open(self, path: str) -> str:
         self.page.goto(self.url(path))
         self.page.wait_for_load_state("networkidle")
-        return self.page.locator("body").inner_text()
+        body = self.page.locator("body")
+        body_text = body.inner_text()
+        return body_text
 
     def expect_redirect_to_login(self, path: str) -> None:
         self.page.goto(self.url(path))
