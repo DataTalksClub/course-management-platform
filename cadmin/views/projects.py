@@ -70,7 +70,8 @@ class ProjectSubmissionEditObjects:
 def project_assign_reviews(request, course_slug, project_slug):
     """Assign peer reviews for a project"""
     if request.method != "POST":
-        return redirect("cadmin_course", course_slug=course_slug)
+        response = redirect("cadmin_course", course_slug=course_slug)
+        return response
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
@@ -93,7 +94,8 @@ def project_assign_reviews(request, course_slug, project_slug):
 def project_score(request, course_slug, project_slug):
     """Score a project"""
     if request.method != "POST":
-        return redirect("cadmin_course", course_slug=course_slug)
+        response = redirect("cadmin_course", course_slug=course_slug)
+        return response
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
         Project, course=course, slug=project_slug
@@ -187,7 +189,8 @@ def project_submissions(request, course_slug, project_slug):
         project,
     )
     context = _project_submissions_context(context_data)
-    return render(request, "cadmin/project_submissions.html", context)
+    response = render(request, "cadmin/project_submissions.html", context)
+    return response
 
 
 def _project_submission_edit_objects(
@@ -262,11 +265,12 @@ def _handle_project_submission_edit_post(data):
         data.request,
         f"Project submission for {data.submission.student.username} updated successfully",
     )
-    return redirect(
+    response = redirect(
         "cadmin_project_submissions",
         course_slug=data.course.slug,
         project_slug=data.project.slug,
     )
+    return response
 
 
 def _project_submission_edit_context(data):
@@ -280,9 +284,10 @@ def _project_submission_edit_context(data):
 
 def _project_submission_edit_response(data):
     context = _project_submission_edit_context(data)
-    return render(
+    response = render(
         data.request, "cadmin/project_submission_edit.html", context
     )
+    return response
 
 
 def _project_submission_edit_page_data(request, edit_objects):
