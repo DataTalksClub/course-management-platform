@@ -15,7 +15,11 @@ User = get_user_model()
 
 def generate_password(length=12):
     characters = string.ascii_letters + string.digits
-    return "".join(random.choice(characters) for _ in range(length))
+    password_characters = []
+    for _ in range(length):
+        password_character = random.choice(characters)
+        password_characters.append(password_character)
+    return "".join(password_characters)
 
 
 def create_user():

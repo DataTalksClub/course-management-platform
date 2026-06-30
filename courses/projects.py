@@ -345,9 +345,12 @@ def score_project_criteria(
     responses: list[CriteriaResponse],
 ) -> tuple[int, ProjectEvaluationScore]:
     criteria = responses[0].criteria
-    criteria_score = math.ceil(
-        statistics.median(response.get_score() for response in responses)
-    )
+    scores = []
+    for response in responses:
+        score = response.get_score()
+        scores.append(score)
+    median_score = statistics.median(scores)
+    criteria_score = math.ceil(median_score)
     return criteria_score, ProjectEvaluationScore(
         submission=submission,
         review_criteria=criteria,

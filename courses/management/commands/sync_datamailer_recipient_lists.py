@@ -298,7 +298,13 @@ def import_object_key(kind, config, list_key, content_sha256):
         safe_s3_key_part(list_key),
         f"{content_sha256}.jsonl",
     ]
-    return "/".join(part.strip("/") for part in parts if part)
+    key_parts = []
+    for part in parts:
+        if not part:
+            continue
+        key_part = part.strip("/")
+        key_parts.append(key_part)
+    return "/".join(key_parts)
 
 
 def import_s3_bucket():

@@ -1230,10 +1230,12 @@ def homework_detail_build_context_authenticated(data) -> dict:
 def answer_from_post(
     request: HttpRequest, question: Question
 ) -> Answer:
-    answer_text = ",".join(
-        value.strip()
-        for value in request.POST.getlist(f"answer_{question.id}")
-    )
+    answer_values = []
+    post_values = request.POST.getlist(f"answer_{question.id}")
+    for value in post_values:
+        answer_value = value.strip()
+        answer_values.append(answer_value)
+    answer_text = ",".join(answer_values)
     return Answer(question=question, answer_text=answer_text)
 
 

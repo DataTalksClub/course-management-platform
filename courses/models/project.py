@@ -257,7 +257,11 @@ class CriteriaResponse(models.Model):
         return scores
 
     def get_score(self):
-        return sum(self.get_scores())
+        total_score = 0
+        scores = self.get_scores()
+        for score in scores:
+            total_score += score
+        return total_score
 
     def __str__(self):
         return f"{self.criteria.description}: {self.answer}"

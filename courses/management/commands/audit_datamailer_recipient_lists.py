@@ -290,7 +290,11 @@ def option_validation_errors(options):
         invalid_project_filter(kind, options),
         invalid_limit(options),
     )
-    return (error for error in checks if error)
+    errors = []
+    for error in checks:
+        if error:
+            errors.append(error)
+    return errors
 
 
 def invalid_homework_filter(kind, options):
@@ -333,9 +337,12 @@ def compare_members(expected, actual):
 
 
 def member_field_mismatches(expected, actual, shared_keys, field):
-    return sorted(
-        key for key in shared_keys if expected[key][field] != actual[key][field]
-    )
+    mismatches = []
+    for key in shared_keys:
+        if expected[key][field] == actual[key][field]:
+            continue
+        mismatches.append(key)
+    return sorted(mismatches)
 
 
 def has_member_drift(drift):
