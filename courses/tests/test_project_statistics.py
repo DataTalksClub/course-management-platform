@@ -458,7 +458,7 @@ class ProjectStatisticsViewTestCase(TestCase):
         self.create_project_statistics_submission()
 
         with patch(
-            "courses.views.project.calculate_project_statistics"
+            "courses.views.project_statistics.calculate_project_statistics"
         ) as mock_calc:
             self.mock_project_statistics(mock_calc)
             response = self.client.get(self.project_statistics_url())
@@ -514,7 +514,7 @@ class ProjectStatisticsViewTestCase(TestCase):
         self.create_project_statistics_submission()
 
         with patch(
-            "courses.views.project.calculate_project_statistics"
+            "courses.views.project_statistics.calculate_project_statistics"
         ) as mock_calc:
             self.mock_project_statistics(mock_calc)
             response = self.client.get(self.project_statistics_url())

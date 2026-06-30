@@ -533,6 +533,8 @@ Steps:
   `courses/countries.txt`.
 - [x] Split `courses/views/course.py` into focused course, calendar,
   leaderboard, enrollment, and project-submission modules.
+- [x] Split `courses/views/project.py` project-eval, project-results, and
+  project-statistics route groups into focused modules.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
