@@ -26,14 +26,14 @@ def homework_export_course_data(course):
 
 
 def homework_export_submission_answers(submission):
-    return list(
-        submission.answer_set.values(
-            "question_id", "answer_text", "is_correct"
-        )
+    answer_values = submission.answer_set.values(
+        "question_id", "answer_text", "is_correct"
     )
+    return list(answer_values)
 
 
 def homework_export_submission_data(submission):
+    answers = homework_export_submission_answers(submission)
     return {
         "student_id": submission.student_id,
         "homework_link": submission.homework_link,
@@ -46,13 +46,14 @@ def homework_export_submission_data(submission):
         "faq_score": submission.faq_score,
         "learning_in_public_score": submission.learning_in_public_score,
         "total_score": submission.total_score,
-        "answers": homework_export_submission_answers(submission),
+        "answers": answers,
     }
 
 
 def homework_export_submissions(homework):
+    answers_queryset = Answer.objects.all()
     answers_prefetch = Prefetch(
-        "answer_set", queryset=Answer.objects.all()
+        "answer_set", queryset=answers_queryset
     )
     return homework.submission_set.prefetch_related(answers_prefetch).all()
 
@@ -63,9 +64,11 @@ def homework_export_payload(course, homework, submissions):
         submission_record = homework_export_submission_data(submission)
         submission_records.append(submission_record)
 
+    course_data = homework_export_course_data(course)
+    homework_data = model_to_dict(homework)
     return {
-        "course": homework_export_course_data(course),
-        "homework": model_to_dict(homework),
+        "course": course_data,
+        "homework": homework_data,
         "submissions": submission_records,
     }
 
@@ -81,4 +84,5 @@ def homework_data_view(request, course_slug: str, homework_slug: str):
     )
     submissions = homework_export_submissions(homework)
 
-    return JsonResponse(homework_export_payload(course, homework, submissions))
+    payload = homework_export_payload(course, homework, submissions)
+    return JsonResponse(payload)

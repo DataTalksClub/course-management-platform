@@ -61,9 +61,11 @@ def project_export_payload(course, project, submissions):
         submission_record = project_export_submission_data(submission)
         submission_records.append(submission_record)
 
+    course_data = project_export_course_data(course)
+    project_data = project_export_project_data(project)
     return {
-        "course": project_export_course_data(course),
-        "project": project_export_project_data(project),
+        "course": course_data,
+        "project": project_data,
         "submissions": submission_records,
     }
 
@@ -83,4 +85,5 @@ def project_data_view(request, course_slug: str, project_slug: str):
         .all()
     )
 
-    return JsonResponse(project_export_payload(course, project, submissions))
+    payload = project_export_payload(course, project, submissions)
+    return JsonResponse(payload)
