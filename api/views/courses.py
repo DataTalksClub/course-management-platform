@@ -164,11 +164,11 @@ def _courses_list_response():
         course_record = _course_summary_to_dict(course)
         course_records.append(course_record)
 
-    return JsonResponse(
-        {
-            "courses": course_records,
-        }
-    )
+    payload = {
+        "courses": course_records,
+    }
+    response = JsonResponse(payload)
+    return response
 
 
 def _missing_course_create_fields(data):
@@ -276,7 +276,8 @@ def _create_course_response(request):
 
     course.save()
     course_data = _course_to_dict(course)
-    return JsonResponse(course_data, status=201)
+    response = JsonResponse(course_data, status=201)
+    return response
 
 
 @token_required
@@ -354,7 +355,8 @@ def _patch_course_response(request, course):
 
     course.save()
     course_data = _course_to_dict(course)
-    return JsonResponse(course_data)
+    response = JsonResponse(course_data)
+    return response
 
 
 @token_required
@@ -371,4 +373,5 @@ def course_detail_view(request, course_slug):
         return _patch_course_response(request, course)
 
     course_data = _course_detail_to_dict(course)
-    return JsonResponse(course_data)
+    response = JsonResponse(course_data)
+    return response
