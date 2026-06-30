@@ -535,6 +535,8 @@ Steps:
   leaderboard, enrollment, and project-submission modules.
 - [x] Split `courses/views/project.py` project-eval, project-results, and
   project-statistics route groups into focused modules.
+- [x] Split `courses/views/homework.py` reporting routes into homework
+  statistics and submissions modules.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

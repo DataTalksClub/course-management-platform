@@ -29,8 +29,13 @@ from courses.models import (
     User,
 )
 
-from courses.scoring import calculate_homework_statistics
 from courses.validators import clean_faq_contribution_url
+from courses.views.homework_statistics import (
+    homework_statistics as homework_statistics,
+)
+from courses.views.homework_submissions import (
+    homework_submissions as homework_submissions,
+)
 from courses.views.homework_answers import (
     CHOICE_QUESTION_TYPES,
     extract_selected_option_indexes,
@@ -1245,54 +1250,3 @@ def homework_view(
         questions=questions,
     )
     return authenticated_homework_response(request_data)
-
-
-def homework_statistics(request, course_slug, homework_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
-    )
-
-    if not homework.is_scored():
-        messages.error(
-            request,
-            "This homework is not scored yet, so there are no available statistics.",
-            extra_tags="homework",
-        )
-        return redirect(
-            "homework",
-            course_slug=course.slug,
-            homework_slug=homework.slug,
-        )
-
-    stats = calculate_homework_statistics(homework, force=False)
-
-    context = {
-        "course": course,
-        "homework": homework,
-        "stats": stats,
-    }
-
-    return render(request, "homework/stats.html", context)
-
-
-def homework_submissions(request, course_slug, homework_slug):
-    # Check if user is staff - if not, redirect to homework view with error
-    if not request.user.is_authenticated or not request.user.is_staff:
-        messages.error(
-            request,
-            "You do not have permission to view this page.",
-            extra_tags="homework",
-        )
-        return redirect(
-            "homework",
-            course_slug=course_slug,
-            homework_slug=homework_slug,
-        )
-
-    # Staff users: redirect to cadmin view
-    return redirect(
-        "cadmin_homework_submissions",
-        course_slug=course_slug,
-        homework_slug=homework_slug,
-    )
