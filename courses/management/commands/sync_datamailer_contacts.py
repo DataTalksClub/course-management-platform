@@ -4,9 +4,11 @@ import requests
 from django.core.management.base import BaseCommand, CommandError
 
 from accounts.models import CustomUser
-from course_management.datamailer import (
+from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
+)
+from course_management.datamailer.payloads import (
     contact_payload_for_user,
 )
 

@@ -12,7 +12,7 @@ import json
 
 from django.core.management.base import BaseCommand, CommandError
 
-from course_management.datamailer import (
+from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
     DatamailerRequestData,

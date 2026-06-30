@@ -11,11 +11,15 @@ from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
-from course_management.datamailer import (
+from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
-    registration_campaign_datamailer_payload,
+)
+from course_management.datamailer.keys import (
     registration_campaign_external_key,
+)
+from course_management.datamailer.payloads import (
+    registration_campaign_datamailer_payload,
 )
 from courses.models import (
     Course,

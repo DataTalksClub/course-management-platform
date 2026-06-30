@@ -11,9 +11,11 @@ import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from course_management.datamailer import (
+from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
+)
+from course_management.datamailer.payloads import (
     RecipientListMemberPayload,
     course_graduate_recipient_list_payload,
     enrollment_recipient_list_payload,

@@ -3,7 +3,10 @@ from dataclasses import dataclass
 import requests
 from django.core.management.base import BaseCommand, CommandError
 
-from course_management.datamailer import DatamailerClient, DatamailerConfig
+from course_management.datamailer.client import (
+    DatamailerClient,
+    DatamailerConfig,
+)
 from courses.management.commands.sync_datamailer_recipient_lists import (
     build_batches,
 )

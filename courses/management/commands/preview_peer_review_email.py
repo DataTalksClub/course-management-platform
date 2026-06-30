@@ -14,8 +14,10 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 
 from courses.models import Course, Project
-from course_management import datamailer
-from course_management.datamailer.payloads import _assigned_review_links
+from course_management.datamailer.payloads import (
+    _assigned_review_links,
+    peer_review_assignment_notification_payload,
+)
 from course_management.deadlines import format_deadline_for_email
 
 
@@ -99,9 +101,7 @@ class Command(BaseCommand):
     def write_json_payload(self, project):
         out = self.stdout
         out.write("")
-        list_payload = datamailer.peer_review_assignment_notification_payload(
-            project
-        )
+        list_payload = peer_review_assignment_notification_payload(project)
         if list_payload is None:
             out.write(
                 self.style.WARNING(

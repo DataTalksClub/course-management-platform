@@ -8,7 +8,9 @@ from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.utils import timezone
 
-from course_management.datamailer import sync_homework_submission_to_datamailer
+from course_management.datamailer.sync import (
+    sync_homework_submission_to_datamailer,
+)
 from courses.models import (
     Answer,
     Course,

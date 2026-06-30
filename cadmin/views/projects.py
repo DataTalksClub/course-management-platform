@@ -5,7 +5,7 @@ from django.core.paginator import Page
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
-from course_management.datamailer import (
+from course_management.datamailer.sync import (
     send_peer_review_assignment_notification,
     send_project_score_notification,
 )

@@ -12,7 +12,7 @@ import statistics
 from django.db import transaction
 from django.utils import timezone
 
-from course_management.datamailer import (
+from course_management.datamailer.sync import (
     sync_project_passed_outcome_to_datamailer,
     sync_project_submission_to_datamailer,
 )

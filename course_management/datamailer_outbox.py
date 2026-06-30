@@ -218,7 +218,7 @@ def dispatch_datamailer_outbox_event(event: DatamailerOutboxEvent) -> None:
 
 
 def _outbox_datamailer_config(event):
-    from course_management.datamailer import DatamailerConfig
+    from course_management.datamailer.client import DatamailerConfig
 
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -250,7 +250,7 @@ def _mark_processing(event):
 
 
 def _dispatch_claimed_outbox_event(event, config):
-    from course_management.datamailer import DatamailerClient
+    from course_management.datamailer.client import DatamailerClient
 
     client = DatamailerClient(config)
     try:

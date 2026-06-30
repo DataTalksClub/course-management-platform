@@ -413,7 +413,7 @@ class DeadlineReminderCommandTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_homework_deadline_reminder_sends_transient_eligible_learners(
         self,
@@ -443,7 +443,7 @@ class DeadlineReminderCommandTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_project_deadline_reminders_use_7d_and_24h_windows(
         self,
@@ -462,7 +462,7 @@ class DeadlineReminderCommandTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_peer_review_deadline_reminder_targets_unfinished_reviewers(
         self,
@@ -483,7 +483,7 @@ class DeadlineReminderCommandTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transient_recipient_list_transactional"
     )
     def test_deadline_reminder_dry_run_does_not_call_datamailer(
         self,

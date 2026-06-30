@@ -4,7 +4,10 @@ from pathlib import Path
 import requests
 from django.core.management.base import BaseCommand, CommandError
 
-from course_management.datamailer import DatamailerClient, DatamailerConfig
+from course_management.datamailer.client import (
+    DatamailerClient,
+    DatamailerConfig,
+)
 
 
 def read_body(*, inline="", file_path=""):

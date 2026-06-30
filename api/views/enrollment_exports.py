@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.auth import token_required
-from course_management.datamailer import (
+from course_management.datamailer.sync import (
     send_certificate_availability_notification,
 )
 

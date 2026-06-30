@@ -4,7 +4,7 @@ from django.http import HttpRequest
 from django.urls import reverse
 
 from course_management import email_templates
-from course_management.datamailer import send_transactional_email
+from course_management.datamailer.sync import send_transactional_email
 from courses.models import Course, Project, ProjectSubmission, User
 from courses.views.homework_answers import format_hours
 from courses.views.submission_formatting import (

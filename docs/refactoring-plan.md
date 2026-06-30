@@ -563,6 +563,8 @@ Steps:
   course/homework view re-export imports.
 - [x] Wire cadmin, API, and legacy data URLs directly to split view modules and
   remove view package re-export imports.
+- [x] Replace root `course_management.datamailer` imports with concrete
+  Datamailer module imports and remove the root package re-export shim.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

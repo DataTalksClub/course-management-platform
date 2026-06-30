@@ -11,7 +11,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from course_management.datamailer import sync_project_submission_to_datamailer
+from course_management.datamailer.sync import (
+    sync_project_submission_to_datamailer,
+)
 from courses.models import (
     Course,
     Enrollment,

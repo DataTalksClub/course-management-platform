@@ -4,7 +4,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from accounts.models import CustomUser
-from course_management.datamailer import (
+from course_management.datamailer.sync import (
     erase_contact_from_datamailer,
     remove_enrollment_from_datamailer as remove_enrollment_recipient_list,
     remove_homework_submission_from_datamailer as remove_homework_submission_recipient_list,

@@ -11,11 +11,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from course_management import email_templates
-from course_management.datamailer import (
-    DatamailerSendAuditData,
+from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
     public_url,
+)
+from course_management.datamailer.sync import (
+    DatamailerSendAuditData,
     record_datamailer_send_audit,
 )
 from data.models import DatamailerSendAuditType

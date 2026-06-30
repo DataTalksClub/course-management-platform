@@ -20,34 +20,43 @@ from data.models import (
     DatamailerSendAuditStatus,
     DatamailerSendAuditType,
 )
-from course_management.datamailer import (
-    certificate_availability_notification_payload,
-    course_graduate_recipient_list_payload,
-    course_enrolled_list_key,
-    course_graduates_list_key,
+from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
-    contact_tags_for_course,
-    contact_payload_for_user,
     datamailer_enabled,
+)
+from course_management.datamailer.keys import (
+    course_enrolled_list_key,
+    course_graduates_list_key,
+    contact_tags_for_course,
+    homework_submitters_list_key,
+    project_passed_list_key,
+    project_submitters_list_key,
+    registration_list_key,
+)
+from course_management.datamailer.payloads import (
+    RecipientListMemberPayload,
+    certificate_availability_notification_payload,
+    contact_payload_for_user,
+    course_graduate_recipient_list_payload,
     datamailer_send_counts,
-    erase_contact_from_datamailer,
     enrollment_recipient_list_payload,
+    homework_score_notification_payload,
+    peer_review_assignment_notification_payload,
+    project_passed_recipient_list_payload,
+    project_score_notification_payload,
+    registration_confirmation_payload,
+)
+from course_management.datamailer.preferences import (
+    get_email_preferences_for_user,
+    update_email_preferences_for_user,
+)
+from course_management.datamailer.sync import (
+    erase_contact_from_datamailer,
     get_contact_history,
     get_contact_status,
     get_email_status,
-    get_email_preferences_for_user,
     get_transactional_message_status,
-    homework_score_notification_payload,
-    homework_submitters_list_key,
-    peer_review_assignment_notification_payload,
-    project_passed_list_key,
-    project_passed_recipient_list_payload,
-    project_score_notification_payload,
-    project_submitters_list_key,
-    RecipientListMemberPayload,
-    registration_confirmation_payload,
-    registration_list_key,
     remove_enrollment_from_datamailer,
     remove_homework_submission_from_datamailer,
     remove_project_submission_from_datamailer,
@@ -64,7 +73,6 @@ from course_management.datamailer import (
     sync_project_passed_outcome_to_datamailer,
     sync_project_submission_to_datamailer,
     sync_registration_to_datamailer,
-    update_email_preferences_for_user,
 )
 from course_management.datamailer_outbox import _status_for_error
 from courses.models import (
@@ -1931,16 +1939,16 @@ class DatamailerClientTest(TestCase):
     def test_datamailer_campaign_command_upserts_and_runs_actions(self):
         with (
             patch(
-                "course_management.datamailer.DatamailerClient.upsert_campaign"
+                "course_management.datamailer.client.DatamailerClient.upsert_campaign"
             ) as upsert_campaign,
             patch(
-                "course_management.datamailer.DatamailerClient.preview_campaign"
+                "course_management.datamailer.client.DatamailerClient.preview_campaign"
             ) as preview_campaign,
             patch(
-                "course_management.datamailer.DatamailerClient.test_send_campaign"
+                "course_management.datamailer.client.DatamailerClient.test_send_campaign"
             ) as test_send_campaign,
             patch(
-                "course_management.datamailer.DatamailerClient.queue_campaign"
+                "course_management.datamailer.client.DatamailerClient.queue_campaign"
             ) as queue_campaign,
         ):
             mocks = CampaignCommandMocks(
@@ -2005,7 +2013,7 @@ class DatamailerClientTest(TestCase):
             )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.upsert_campaign")
+    @patch("course_management.datamailer.client.DatamailerClient.upsert_campaign")
     def test_datamailer_campaign_command_wraps_request_errors(
         self,
         upsert_campaign,
@@ -2050,7 +2058,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_sync_contact_logs_and_continues_on_api_failure(
         self, upsert
@@ -2064,7 +2072,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_STRICT=True)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_sync_contact_can_be_strict(self, upsert):
         upsert.side_effect = requests.RequestException("network error")
@@ -2075,7 +2083,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     def test_send_transactional_email_uses_datamailer_client(
         self, send
@@ -2090,7 +2098,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     def test_send_transactional_email_audits_api_failure(self, send):
         send.side_effect = requests.RequestException("network error")
@@ -2159,7 +2167,7 @@ class DatamailerClientTest(TestCase):
         DATAMAILER_FROM_EMAIL="courses",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     def test_send_transactional_email_adds_configured_from_email(
         self, send
@@ -2188,7 +2196,7 @@ class DatamailerClientTest(TestCase):
         DATAMAILER_FROM_EMAIL="courses",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     def test_send_transactional_email_keeps_explicit_from_email(
         self, send
@@ -2229,7 +2237,7 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     def test_send_registration_confirmation_email_uses_transactional_send(
         self, send
@@ -2249,7 +2257,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.contact_status"
+        "course_management.datamailer.client.DatamailerClient.contact_status"
     )
     def test_get_contact_status_uses_datamailer_client(
         self, contact_status
@@ -2263,7 +2271,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.contact_history"
+        "course_management.datamailer.client.DatamailerClient.contact_history"
     )
     def test_get_contact_history_uses_datamailer_client(
         self, contact_history
@@ -2276,8 +2284,8 @@ class DatamailerClientTest(TestCase):
         contact_history.assert_called_once_with(42, limit=5)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.get_contact_history")
-    @patch("course_management.datamailer.get_contact_status")
+    @patch("course_management.datamailer.sync.status.get_contact_history")
+    @patch("course_management.datamailer.sync.status.get_contact_status")
     def test_get_email_status_combines_status_and_history(
         self,
         contact_status,
@@ -2306,7 +2314,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.contact_preferences"
+        "course_management.datamailer.client.DatamailerClient.contact_preferences"
     )
     def test_get_email_preferences_for_user_reads_datamailer_categories(
         self,
@@ -2345,7 +2353,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.update_contact_preferences"
+        "course_management.datamailer.client.DatamailerClient.update_contact_preferences"
     )
     def test_update_email_preferences_for_user_writes_datamailer_categories(
         self,
@@ -2383,7 +2391,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.transactional_message_status"
+        "course_management.datamailer.client.DatamailerClient.transactional_message_status"
     )
     def test_get_transactional_message_status_uses_datamailer_client(
         self,
@@ -2479,7 +2487,7 @@ class DatamailerClientTest(TestCase):
         get_message_status.assert_called_once_with(42)
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.erase_contact")
+    @patch("course_management.datamailer.client.DatamailerClient.erase_contact")
     def test_erase_contact_enqueues_outbox_event(self, erase_contact):
         user = CustomUser.objects.create_user(
             username="student",
@@ -2508,7 +2516,7 @@ class DatamailerClientTest(TestCase):
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.DatamailerClient.erase_contact")
+    @patch("course_management.datamailer.client.DatamailerClient.erase_contact")
     def test_erase_contact_enqueues_outbox_event_for_email(
         self, erase_contact
     ):
@@ -2535,10 +2543,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_sync_registration_adds_contact_and_registrant_member(
         self,
@@ -2555,10 +2563,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_membership_sync_failure_records_retryable_outbox_event(
         self,
@@ -2594,10 +2602,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_process_datamailer_outbox_retries_due_events(
         self,
@@ -2625,10 +2633,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_datamailer_outbox_status_reports_counts_and_last_error(
         self,
@@ -2746,10 +2754,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_sync_enrollment_adds_contact_and_enrolled_member(
         self,
@@ -2785,10 +2793,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_sync_homework_submission_adds_submitter_member(
         self,
@@ -2814,10 +2822,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client.DatamailerClient.upsert_contact"
     )
     def test_sync_project_submission_adds_submitter_member(
         self,
@@ -2845,7 +2853,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
     )
     def test_remove_registration_deletes_registrant_member(
         self,
@@ -2862,7 +2870,7 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
     )
     def test_remove_enrollment_removes_enrolled_and_graduate_members(
         self,
@@ -2906,7 +2914,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
     )
     def test_remove_homework_submission_deletes_submitter_member(
         self,
@@ -2928,7 +2936,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
     )
     def test_remove_project_submission_removes_submitter_and_passed_members(
         self,
@@ -3018,10 +3026,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_recipient_list_transactional"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_send_homework_score_notification_uses_list_send(
         self,
@@ -3055,10 +3063,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_recipient_list_transactional"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_score_notification_does_not_send_without_metadata_ack(
         self,
@@ -3195,10 +3203,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_recipient_list_transactional"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_send_peer_review_assignment_notification_uses_list_send(
         self,
@@ -3276,10 +3284,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_recipient_list_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_recipient_list_transactional"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_send_project_score_notification_bulk_upserts_passed_outcome_before_send(
         self,
@@ -3309,9 +3317,9 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
     )
-    @patch("course_management.datamailer.DatamailerClient.upsert_contact")
+    @patch("course_management.datamailer.client.DatamailerClient.upsert_contact")
     def test_sync_project_passed_outcome_upserts_passed_member(
         self,
         upsert_contact,
@@ -3332,7 +3340,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
     )
     def test_sync_project_passed_outcome_removes_failed_member(
         self,
@@ -3409,10 +3417,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_certificate_availability_notification_uses_datamailer_preference_category(
         self,
@@ -3437,10 +3445,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.send_transactional"
+        "course_management.datamailer.client.DatamailerClient.send_transactional"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_send_certificate_availability_notification_uses_transactional_send(
         self,
@@ -3468,7 +3476,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_import_contacts"
+        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
     )
     def test_contact_backfill_command_bulk_imports_users(
         self,
@@ -3490,7 +3498,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_import_contacts"
+        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
     )
     def test_contact_backfill_command_dry_run_does_not_call_datamailer(
         self,
@@ -3510,7 +3518,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_import_contacts"
+        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
     )
     def test_contact_backfill_command_can_limit_to_active_users(
         self,
@@ -3537,7 +3545,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_recipient_list_backfill_command_bulk_upserts_registrations(
         self,
@@ -3567,7 +3575,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_recipient_list_backfill_command_bulk_upserts_enrollments(
         self,
@@ -3597,10 +3605,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
     )
     def test_recipient_list_audit_reports_no_drift(
         self,
@@ -3628,10 +3636,10 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
     )
     def test_recipient_list_audit_can_repair_drift(
         self,
@@ -3660,7 +3668,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
     )
     def test_recipient_list_audit_rejects_truncated_member_listing(
         self,
@@ -3682,7 +3690,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
     )
     def test_recipient_list_audit_wraps_member_listing_errors(
         self,
@@ -3728,7 +3736,7 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
     )
     def test_recipient_list_backfill_command_reconciles_project_passed_outcomes(
         self,
@@ -3774,7 +3782,7 @@ class DatamailerClientTest(TestCase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_recipient_list_backfill_command_bulk_upserts_graduates(
         self,
@@ -3803,7 +3811,7 @@ class DatamailerClientTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
     )
     def test_recipient_list_backfill_command_dry_run_does_not_call_datamailer(
         self,
@@ -3881,7 +3889,7 @@ class DatamailerClientTest(TestCase):
         DATAMAILER_IMPORT_URL_EXPIRES_SECONDS=900,
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
         "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
@@ -3920,10 +3928,10 @@ class DatamailerClientTest(TestCase):
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_import"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
         "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
@@ -3968,10 +3976,10 @@ class DatamailerClientTest(TestCase):
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_import"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
         "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
@@ -4015,10 +4023,10 @@ class DatamailerClientTest(TestCase):
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.recipient_list_import"
     )
     @patch(
-        "course_management.datamailer.DatamailerClient.create_recipient_list_import"
+        "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
         "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"

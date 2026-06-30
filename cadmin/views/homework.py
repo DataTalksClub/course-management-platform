@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
-from course_management.datamailer import send_homework_score_notification
+from course_management.datamailer.sync import send_homework_score_notification
 from courses.models import Answer, Course, Homework, Question, Submission
 from courses.scoring import (
     HomeworkScoringStatus,

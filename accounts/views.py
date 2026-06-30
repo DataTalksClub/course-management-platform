@@ -19,7 +19,7 @@ from loginas.utils import restore_original_login
 
 from accounts.forms import AccountSettingsForm
 from accounts.services.timezones import get_timezone_label, is_valid_timezone
-from course_management.datamailer import (
+from course_management.datamailer.preferences import (
     EMAIL_PREFERENCE_CATEGORIES,
     get_email_preferences_for_user,
     update_email_preferences_for_user,
