@@ -458,7 +458,11 @@ def _project_upsert_missing_create_fields(data):
     for field in PROJECT_UPSERT_REQUIRED_DATES:
         if not data.get(field):
             missing_dates.append(field)
-    return not title or bool(missing_dates)
+    missing_title = not title
+    has_missing_dates = bool(missing_dates)
+    if missing_title:
+        return True
+    return has_missing_dates
 
 
 def _project_upsert_instructions_error(data):

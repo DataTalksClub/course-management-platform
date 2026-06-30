@@ -20,7 +20,11 @@ def _validate_learning_in_public_link(url_validator, link):
 
 
 def _is_blank_or_duplicate_link(link, cleaned_links):
-    return len(link) == 0 or link in cleaned_links
+    is_blank = len(link) == 0
+    is_duplicate = link in cleaned_links
+    if is_blank:
+        return True
+    return is_duplicate
 
 
 def clean_learning_in_public_links(

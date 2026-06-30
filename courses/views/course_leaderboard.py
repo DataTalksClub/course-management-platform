@@ -227,9 +227,9 @@ def _leaderboard_score_breakdown_context(enrollment, user):
     is_own_record = (
         user.is_authenticated and user.id == enrollment.student_id
     )
-    public_profile = (
-        enrollment.student if enrollment.display_public_profile else None
-    )
+    public_profile = None
+    if enrollment.display_public_profile:
+        public_profile = enrollment.student
     show_public_profile_settings_link = (
         is_own_record and public_profile is None
     )

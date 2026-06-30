@@ -55,7 +55,9 @@ def homework_export_submissions(homework):
     answers_prefetch = Prefetch(
         "answer_set", queryset=answers_queryset
     )
-    return homework.submission_set.prefetch_related(answers_prefetch).all()
+    submissions = homework.submission_set.prefetch_related(answers_prefetch)
+    all_submissions = submissions.all()
+    return all_submissions
 
 
 def homework_export_payload(course, homework, submissions):

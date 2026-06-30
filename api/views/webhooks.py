@@ -42,8 +42,12 @@ def bearer_token(request):
     authorization = request.headers.get("Authorization", "")
     prefix = "Bearer "
     if authorization.startswith(prefix):
-        return authorization[len(prefix) :].strip()
-    return request.headers.get("X-Datamailer-Webhook-Token", "").strip()
+        token = authorization[len(prefix) :]
+        stripped_token = token.strip()
+        return stripped_token
+    header_token = request.headers.get("X-Datamailer-Webhook-Token", "")
+    stripped_header_token = header_token.strip()
+    return stripped_header_token
 
 
 def authenticate_webhook(request):
@@ -76,7 +80,10 @@ def preference_key_candidates(payload):
 
 
 def payload_metadata(payload):
-    return payload.get("metadata") or {}
+    metadata = payload.get("metadata")
+    if metadata:
+        return metadata
+    return {}
 
 
 def webhook_error(message, status):

@@ -73,7 +73,10 @@ class EnrollmentForm(forms.ModelForm):
         return enrollment
 
     def _submitted_certificate_name(self):
-        return self.cleaned_data.get("certificate_name") or None
+        certificate_name = self.cleaned_data.get("certificate_name")
+        if certificate_name:
+            return certificate_name
+        return None
 
     def _sync_user_certificate_name(self, commit):
         if self.user is None:

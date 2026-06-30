@@ -108,9 +108,13 @@ def _peer_review_project_badge(project, submission):
 def _completed_project_badge(submission):
     score = submission.total_score
     if submission.passed:
-        return ProjectBadgeData(f"Passed ({score})", "bg-success", score)
+        label = f"Passed ({score})"
+        badge = ProjectBadgeData(label, "bg-success", score)
+        return badge
 
-    return ProjectBadgeData(f"Failed ({score})", "bg-secondary", score)
+    label = f"Failed ({score})"
+    badge = ProjectBadgeData(label, "bg-secondary", score)
+    return badge
 
 
 def _submitted_project_badge(project, submission):
