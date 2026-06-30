@@ -298,7 +298,8 @@ def leaderboard_data_view(request, course_slug: str):
     page = _get_positive_int(page_value, 1)
     cache_version = _get_cache_version(course)
     yaml_content = _cached_leaderboard_yaml(course, page, cache_version)
-    return HttpResponse(
+    response = HttpResponse(
         yaml_content,
         content_type="text/plain; charset=utf-8",
     )
+    return response

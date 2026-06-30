@@ -66,7 +66,8 @@ def course_criteria_yaml_view(request, course_slug: str):
     """Return project criteria for a course in YAML format."""
     course = get_object_or_404(Course, slug=course_slug)
     criteria_yaml = _course_criteria_yaml(course)
-    return HttpResponse(
+    response = HttpResponse(
         criteria_yaml,
         content_type='text/plain; charset=utf-8',
     )
+    return response
