@@ -315,12 +315,11 @@ def _dashboard_avg_total_score(course):
 
 
 def _dashboard_homeworks(course):
-    return (
-        Homework.objects.filter(course=course)
-        .order_by("id")
-        .annotate(
-            max_questions_score=Sum("question__scores_for_correct_answer")
-        )
+    homeworks = Homework.objects.filter(course=course)
+    homeworks = homeworks.order_by("id")
+    max_questions_score = Sum("question__scores_for_correct_answer")
+    return homeworks.annotate(
+        max_questions_score=max_questions_score,
     )
 
 

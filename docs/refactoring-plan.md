@@ -608,6 +608,8 @@ Steps:
   validating them.
 - [x] Name project-evaluation target submissions before creating optional peer
   reviews.
+- [x] Name dashboard homework queryset and max-score annotation before applying
+  them.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
