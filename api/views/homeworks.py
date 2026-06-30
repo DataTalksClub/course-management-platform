@@ -65,6 +65,16 @@ class HomeworkCreateValues:
     instructions_url: str | None
 
 
+@dataclass
+class HomeworkCreateData:
+    course: Course
+    hw_data: dict
+    required_values: HomeworkCreateRequiredValues | None = None
+    instructions_url: str | None = None
+    due_date: date | None = None
+    slug: str | None = None
+
+
 def _homework_delete_blockers(hw):
     blockers = []
     submissions_count = hw.submission_set.count()
@@ -177,33 +187,99 @@ def _homework_create_slug(course, hw_data, name):
     return slug, None
 
 
-def _homework_create_attrs(course, hw_data):
-    required_values, error = _homework_create_required_values(hw_data)
+def _load_homework_create_required_values(create_data):
+    required_values, error = _homework_create_required_values(
+        create_data.hw_data
+    )
     if error:
-        return None, error
+        return error
+    create_data.required_values = required_values
+    return None
 
-    instructions_url, error = _homework_create_instructions_url(hw_data)
+
+def _load_homework_create_instructions_url(create_data):
+    instructions_url, error = _homework_create_instructions_url(
+        create_data.hw_data
+    )
     if error:
-        return None, error
+        return error
+    create_data.instructions_url = instructions_url
+    return None
 
+
+def _load_homework_create_due_date(create_data):
+    required_values = create_data.required_values
+    if required_values is None:
+        return "name and due_date are required"
     due_date, error = _homework_create_due_date(
         required_values.due_date_str
     )
     if error:
-        return None, error
+        return error
+    create_data.due_date = due_date
+    return None
 
+
+def _load_homework_create_slug(create_data):
+    required_values = create_data.required_values
+    if required_values is None:
+        return "name and due_date are required"
+    slug, error = _homework_create_slug(
+        create_data.course,
+        create_data.hw_data,
+        required_values.name,
+    )
+    if error:
+        return error
+    create_data.slug = slug
+    return None
+
+
+def _homework_create_data(course, hw_data):
+    create_data = HomeworkCreateData(
+        course=course,
+        hw_data=hw_data,
+    )
+    steps = (
+        _load_homework_create_required_values,
+        _load_homework_create_instructions_url,
+        _load_homework_create_due_date,
+        _load_homework_create_slug,
+    )
+    for step in steps:
+        error = step(create_data)
+        if error:
+            return None, error
+
+    return create_data, None
+
+
+def _homework_create_values(create_data):
+    required_values = create_data.required_values
+    if required_values is None:
+        return None
+    due_date = create_data.due_date
+    if due_date is None:
+        return None
     values = HomeworkCreateValues(
         name=required_values.name,
         due_date=due_date,
-        instructions_url=instructions_url,
+        instructions_url=create_data.instructions_url,
     )
+    return values
 
-    slug, error = _homework_create_slug(course, hw_data, values.name)
+
+def _homework_create_attrs(course, hw_data):
+    create_data, error = _homework_create_data(course, hw_data)
     if error:
         return None, error
 
+    values = _homework_create_values(create_data)
+    if values is None:
+        return None, "name and due_date are required"
+
     attrs = _homework_create_defaults(hw_data, values)
-    attrs["slug"] = slug
+    attrs["slug"] = create_data.slug
     return attrs, None
 
 
