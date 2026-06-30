@@ -132,7 +132,8 @@ def handle_datamailer_operations_post(request):
         request,
         f"Requeued {requeued} Datamailer outbox event(s).",
     )
-    return redirect("cadmin_datamailer_operations")
+    response = redirect("cadmin_datamailer_operations")
+    return response
 
 
 def recent_failed_datamailer_outbox_events():
@@ -220,11 +221,12 @@ def datamailer_operations(request):
             return response
 
     context = datamailer_operations_context()
-    return render(
+    response = render(
         request,
         "cadmin/datamailer_operations.html",
         context,
     )
+    return response
 
 
 def datamailer_event_filters(request):
@@ -308,8 +310,9 @@ def datamailer_events(request):
         request, events, event_type, search_query
     )
 
-    return render(
+    response = render(
         request,
         "cadmin/datamailer_events.html",
         context,
     )
+    return response
