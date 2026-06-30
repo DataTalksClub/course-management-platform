@@ -25,9 +25,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         summary = datamailer_send_audit_summary(limit=options["limit"])
         if options["json"]:
-            self.stdout.write(
-                json.dumps(summary, default=str, indent=2, sort_keys=True)
+            summary_json = json.dumps(
+                summary, default=str, indent=2, sort_keys=True
             )
+            self.stdout.write(summary_json)
             return
 
         self._print_totals(summary["totals"])
@@ -41,7 +42,8 @@ class Command(BaseCommand):
         self.stdout.write(f"total_sends: {totals['total']}")
         self.stdout.write(f"succeeded: {totals['succeeded']}")
         self.stdout.write(f"failed: {totals['failed']}")
-        self.stdout.write(f"last_send_at: {totals['last_send_at'] or 'none'}")
+        last_send_at = totals["last_send_at"] or "none"
+        self.stdout.write(f"last_send_at: {last_send_at}")
         self.stdout.write(f"intended: {totals['intended_count']}")
         self.stdout.write(f"enqueued: {totals['enqueued_count']}")
         self.stdout.write(f"skipped: {totals['skipped_count']}")
@@ -55,10 +57,11 @@ class Command(BaseCommand):
             self.stdout.write("  none")
             return
         for item in recent_failures:
+            error = item["error"] or "-"
             self.stdout.write(
                 "  "
                 f"{item['occurred_at']} {item['send_type']} "
-                f"{item['idempotency_key']} {item['error'] or '-'}"
+                f"{item['idempotency_key']} {error}"
             )
 
     def _print_group(self, label, rows):
@@ -67,32 +70,46 @@ class Command(BaseCommand):
             self.stdout.write("  none")
             return
         for row in rows:
+            key = row["key"] or "-"
             self.stdout.write(
                 "  "
-                f"{row['key'] or '-'}: {row['count']} "
+                f"{key}: {row['count']} "
                 f"enqueued={row['enqueued_count']} "
                 f"skipped={row['skipped_count']}"
             )
 
 
 def datamailer_send_audit_summary(*, limit):
+    totals = send_audit_totals()
+    by_status = grouped_counts("status")
+    by_type = grouped_counts("send_type")
+    by_category = grouped_counts("category_tag")
+    recent_failures = recent_failed_sends(limit)
+
     return {
-        "totals": send_audit_totals(),
-        "by_status": grouped_counts("status"),
-        "by_type": grouped_counts("send_type"),
-        "by_category": grouped_counts("category_tag"),
-        "recent_failures": recent_failed_sends(limit),
+        "totals": totals,
+        "by_status": by_status,
+        "by_type": by_type,
+        "by_category": by_category,
+        "recent_failures": recent_failures,
     }
 
 
 def send_audit_aggregate():
+    total_count = Count("id")
+    intended_count_sum = Sum("intended_count")
+    enqueued_count_sum = Sum("enqueued_count")
+    skipped_count_sum = Sum("skipped_count")
+    idempotent_replay_count_sum = Sum("idempotent_replay_count")
+    last_send_at = Max("occurred_at")
+
     return DatamailerSendAudit.objects.aggregate(
-        total=Count("id"),
-        intended_count=Sum("intended_count"),
-        enqueued_count=Sum("enqueued_count"),
-        skipped_count=Sum("skipped_count"),
-        idempotent_replay_count=Sum("idempotent_replay_count"),
-        last_send_at=Max("occurred_at"),
+        total=total_count,
+        intended_count=intended_count_sum,
+        enqueued_count=enqueued_count_sum,
+        skipped_count=skipped_count_sum,
+        idempotent_replay_count=idempotent_replay_count_sum,
+        last_send_at=last_send_at,
     )
 
 
@@ -100,23 +117,23 @@ def send_status_count(status):
     return DatamailerSendAudit.objects.filter(status=status).count()
 
 
-def aggregate_count(aggregate, key):
-    return aggregate[key] or 0
-
-
 def send_audit_totals():
     aggregate = send_audit_aggregate()
+    total = aggregate["total"] or 0
+    intended_count = aggregate["intended_count"] or 0
+    enqueued_count = aggregate["enqueued_count"] or 0
+    skipped_count = aggregate["skipped_count"] or 0
+    idempotent_replay_count = aggregate["idempotent_replay_count"] or 0
+
     return {
-        "total": aggregate_count(aggregate, "total"),
+        "total": total,
         "succeeded": send_status_count("succeeded"),
         "failed": send_status_count("failed"),
         "last_send_at": aggregate["last_send_at"],
-        "intended_count": aggregate_count(aggregate, "intended_count"),
-        "enqueued_count": aggregate_count(aggregate, "enqueued_count"),
-        "skipped_count": aggregate_count(aggregate, "skipped_count"),
-        "idempotent_replay_count": aggregate_count(
-            aggregate, "idempotent_replay_count"
-        ),
+        "intended_count": intended_count,
+        "enqueued_count": enqueued_count,
+        "skipped_count": skipped_count,
+        "idempotent_replay_count": idempotent_replay_count,
     }
 
 
@@ -138,12 +155,15 @@ def recent_failed_sends(limit):
 
 def grouped_counts(field):
     counts = []
+    group_count = Count("id")
+    enqueued_count_sum = Sum("enqueued_count")
+    skipped_count_sum = Sum("skipped_count")
     rows = (
         DatamailerSendAudit.objects.values(field)
         .annotate(
-            count=Count("id"),
-            enqueued_count=Sum("enqueued_count"),
-            skipped_count=Sum("skipped_count"),
+            count=group_count,
+            enqueued_count=enqueued_count_sum,
+            skipped_count=skipped_count_sum,
         )
         .order_by(field)
     )
