@@ -25,7 +25,8 @@ def course_list(request):
         "courses": courses,
     }
 
-    return render(request, "cadmin/course_list.html", context)
+    response = render(request, "cadmin/course_list.html", context)
+    return response
 
 
 def course_homeworks_for_admin(course):
@@ -124,8 +125,9 @@ def course_admin(request, course_slug):
     """Admin panel for a specific course"""
     course = get_object_or_404(Course, slug=course_slug)
     context = course_admin_context(course)
-    return render(
+    response = render(
         request,
         "cadmin/course_admin.html",
         context,
     )
+    return response
