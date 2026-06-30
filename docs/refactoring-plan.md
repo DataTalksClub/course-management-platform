@@ -577,6 +577,8 @@ Steps:
   length/key conversions inline.
 - [x] Name dashboard querysets, quartile inputs, counts, percentages, and
   context fragments instead of nesting view calculations inline.
+- [x] Name project-submission list querysets, paginator values, context ranges,
+  and display-score expression parts instead of nesting calls inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

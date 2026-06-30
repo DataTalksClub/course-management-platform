@@ -2,7 +2,8 @@ from django.core.paginator import Paginator
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.shortcuts import get_object_or_404, render
 
-from courses.models import Course, Project, ProjectState, ProjectSubmission
+from courses.models.course import Course
+from courses.models.project import Project, ProjectState, ProjectSubmission
 
 PROJECT_SUBMISSIONS_PAGE_SIZE = 25
 
@@ -10,9 +11,10 @@ PROJECT_SUBMISSIONS_PAGE_SIZE = 25
 def list_all_project_submissions_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
     submissions_page = _all_project_submissions_page(course, request)
+    projects = _projects_with_submission_counts(course)
     context = _all_project_submissions_context(
         course,
-        _projects_with_submission_counts(course),
+        projects,
         submissions_page,
         request.user,
     )
@@ -54,20 +56,24 @@ def _all_project_submissions(course):
 
 
 def _project_submission_display_score():
+    completed_project_score = When(
+        project__state=ProjectState.COMPLETED.value,
+        then="project_score",
+    )
+    unscored_project_score = Value(-1)
+    output_field = IntegerField()
     return Case(
-        When(
-            project__state=ProjectState.COMPLETED.value,
-            then="project_score",
-        ),
-        default=Value(-1),
-        output_field=IntegerField(),
+        completed_project_score,
+        default=unscored_project_score,
+        output_field=output_field,
     )
 
 
 def _all_project_submissions_page(course, request):
-    return Paginator(
-        _all_project_submissions(course), PROJECT_SUBMISSIONS_PAGE_SIZE
-    ).get_page(request.GET.get("page"))
+    submissions = _all_project_submissions(course)
+    paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
+    page_number = request.GET.get("page")
+    return paginator.get_page(page_number)
 
 
 def _all_project_submissions_context(
@@ -76,13 +82,14 @@ def _all_project_submissions_context(
     submissions_page,
     user,
 ):
+    page_range = submissions_page.paginator.get_elided_page_range(
+        submissions_page.number
+    )
     return {
         "course": course,
         "projects": projects,
         "submissions": submissions_page.object_list,
         "submissions_page": submissions_page,
-        "page_range": submissions_page.paginator.get_elided_page_range(
-            submissions_page.number
-        ),
+        "page_range": page_range,
         "is_authenticated": user.is_authenticated,
     }
