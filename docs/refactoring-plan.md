@@ -542,6 +542,8 @@ Steps:
 - [x] Split homework submission summary and confirmation-email helpers out of
   `courses/views/homework.py`, and move shared formatting helpers away from
   homework-specific modules.
+- [x] Split homework submission persistence, validation, and callback
+  registration out of `courses/views/homework.py`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
