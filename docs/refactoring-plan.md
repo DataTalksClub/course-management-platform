@@ -18,8 +18,7 @@ testable service functions.
   touches templates or form behavior.
 - Do not introduce list/dict/set comprehensions during cleanup. Prefer explicit
   loops so filtering, appending, and early exits stay easy to inspect.
-- Use Pyrefly as a scoped check for touched Python files until the repository
-  has a committed `pyrefly.toml` and the whole-repo check is green.
+- Use Pyrefly as a whole-repo Python type check during cleanup.
 - Do not add trivial pass-through functions. Extract helpers only when they
   name a real concept, isolate non-trivial branching, or make repeated behavior
   safer.
@@ -565,7 +564,7 @@ uv run python manage.py check
 uv run python manage.py test cadmin.tests.test_views cadmin.tests.test_view_models
 uv run python manage.py test courses.tests.test_datamailer api.tests.test_openapi
 uv run python manage.py test courses.tests.test_registration_campaigns
-uvx pyrefly check path/to/touched_file.py path/to/other_touched_file.py
+uvx pyrefly check
 uv run python manage.py test
 git diff --check
 ```
@@ -588,8 +587,8 @@ These are lower priority than the phases above.
   function calls with named local variables.
 - [ ] Move remaining large static lookup tables out of Python modules when they
   are easier to maintain as data/config files.
-- [ ] Add a committed Pyrefly configuration and fix or exclude current
-  whole-repo blockers so `uvx pyrefly check .` can become a reliable gate.
+- [x] Add a committed Pyrefly configuration and fix or exclude current
+  whole-repo blockers so `uvx pyrefly check` can become a reliable gate.
 - [ ] Fix typos discovered during refactors only when touching the relevant code
   anyway, unless the typo affects API or template behavior.
 
@@ -599,7 +598,7 @@ Run the focused tests for the phase, then:
 
 ```bash
 uv run python manage.py test
-uvx pyrefly check path/to/touched_file.py path/to/other_touched_file.py
+uvx pyrefly check
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
 ```
