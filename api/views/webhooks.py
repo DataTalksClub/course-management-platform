@@ -88,7 +88,8 @@ def payload_metadata(payload):
 
 def webhook_error(message, status):
     payload = {"error": message}
-    return JsonResponse(payload, status=status)
+    response = JsonResponse(payload, status=status)
+    return response
 
 
 def json_payload_from_request(request):
@@ -193,7 +194,8 @@ def datamailer_event_response(event, created):
         "duplicate_count": event.duplicate_count,
         "preference_updated": False,
     }
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 @csrf_exempt

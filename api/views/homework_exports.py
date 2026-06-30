@@ -87,4 +87,5 @@ def homework_data_view(request, course_slug: str, homework_slug: str):
     submissions = homework_export_submissions(homework)
 
     payload = homework_export_payload(course, homework, submissions)
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response

@@ -86,4 +86,5 @@ def project_data_view(request, course_slug: str, project_slug: str):
     )
 
     payload = project_export_payload(course, project, submissions)
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response

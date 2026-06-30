@@ -113,7 +113,8 @@ def graduates_data_view(request, course_slug: str):
         graduates.append(graduate_record)
 
     response = {"graduates": graduates}
-    return JsonResponse(response)
+    json_response = JsonResponse(response)
+    return json_response
 
 
 def _extract_certificate_updates(data):
@@ -357,7 +358,8 @@ def _certificate_update_response(updated, errors):
         "updated": updated,
         "errors": errors,
     }
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 def _process_certificate_updates(course, course_slug, certificate_updates):
