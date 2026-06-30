@@ -204,9 +204,8 @@ def preview_datamailer_campaign_action(request, client, external_key):
 
 
 def test_send_datamailer_campaign_action(request, client, external_key):
-    recipients = parse_test_recipients(
-        request.POST.get("test_recipients", "")
-    )
+    raw_recipients = request.POST.get("test_recipients", "")
+    recipients = parse_test_recipients(raw_recipients)
     client.test_send_campaign(external_key, recipients)
     messages.success(
         request,
@@ -274,7 +273,8 @@ def handle_datamailer_campaign_action(request, campaign):
             external_key,
         )
     except ValidationError as exc:
-        messages.error(request, "; ".join(exc.messages))
+        message = "; ".join(exc.messages)
+        messages.error(request, message)
         return None, False
     except requests.RequestException as exc:
         messages.error(
@@ -296,14 +296,14 @@ def campaign_create(request):
                 "cadmin_campaign_edit", campaign_slug=campaign.slug
             )
     else:
-        form = RegistrationCampaignForm(
-            initial=campaign_form_initial(request)
-        )
+        initial = campaign_form_initial(request)
+        form = RegistrationCampaignForm(initial=initial)
 
+    course = campaign_form_course(form)
     context = {
         "form": form,
         "campaign": None,
-        "course": campaign_form_course(form),
+        "course": course,
         "page_title": "Create registration landing page",
         "submit_label": "Create landing page",
     }
@@ -368,8 +368,9 @@ def _campaign_edit_context(campaign, form, datamailer_preview):
 
 @staff_required
 def campaign_edit(request, campaign_slug):
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
     campaign = get_object_or_404(
-        RegistrationCampaign.objects.select_related("current_course"),
+        campaigns,
         slug=campaign_slug,
     )
 
@@ -429,26 +430,29 @@ def _apply_campaign_registration_search(registrations, search_query):
 
 
 def _campaign_registrations_context(data):
+    page_range = data.registrations_page.paginator.get_elided_page_range(
+        data.registrations_page.number
+    )
+    metrics = registration_campaign_metrics(data.campaign)
+    querystring = pagination_querystring(data.request)
+
     return {
         "campaign": data.campaign,
         "course": data.campaign.current_course,
         "registrations_page": data.registrations_page,
-        "page_range": (
-            data.registrations_page.paginator.get_elided_page_range(
-                data.registrations_page.number
-            )
-        ),
-        "metrics": registration_campaign_metrics(data.campaign),
+        "page_range": page_range,
+        "metrics": metrics,
         "filters": data.filters,
         "search_query": data.search_query,
-        "pagination_querystring": pagination_querystring(data.request),
+        "pagination_querystring": querystring,
     }
 
 
 @staff_required
 def campaign_registrations(request, campaign_slug):
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
     campaign = get_object_or_404(
-        RegistrationCampaign.objects.select_related("current_course"),
+        campaigns,
         slug=campaign_slug,
     )
     filters = _campaign_registration_filters(request)
