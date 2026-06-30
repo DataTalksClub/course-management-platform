@@ -10,9 +10,6 @@ from django.utils import timezone
 from courses.models import (
     User,
     Course,
-    Project,
-    ProjectSubmission,
-    ProjectState,
     Enrollment,
     Homework,
     HomeworkState,
@@ -21,9 +18,6 @@ from courses.models import (
     QuestionTypes,
     Submission,
     Answer,
-    ReviewCriteria,
-    ReviewCriteriaTypes,
-    ProjectEvaluationScore,
 )
 
 
@@ -73,7 +67,6 @@ class CadminViewTests(TestCase):
         self.client = Client()
         self.create_test_users()
         self.create_course_work_items()
-        self.create_review_criteria()
 
     def create_test_users(self):
         self.user = User.objects.create_user(**credentials)
@@ -97,38 +90,6 @@ class CadminViewTests(TestCase):
             title="Test Homework",
             due_date=timezone.now() + timedelta(days=7),
             state=HomeworkState.OPEN.value,
-        )
-
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=timezone.now() + timedelta(days=7),
-            peer_review_due_date=timezone.now() + timedelta(days=14),
-            state=ProjectState.COLLECTING_SUBMISSIONS.value,
-        )
-
-    def create_review_criteria(self):
-        self.criteria1 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Problem Description",
-            options=[
-                {"criteria": "Poor", "score": 0},
-                {"criteria": "Good", "score": 1},
-                {"criteria": "Excellent", "score": 2},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
-
-        self.criteria2 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Code Quality",
-            options=[
-                {"criteria": "Poor", "score": 0},
-                {"criteria": "Good", "score": 2},
-                {"criteria": "Excellent", "score": 4},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
 
     def login_admin(self):
@@ -373,15 +334,6 @@ class CadminViewTests(TestCase):
             },
         )
 
-    def cadmin_project_submissions_url(self):
-        return reverse(
-            "cadmin_project_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-
     def homework_action_url(self, name):
         return reverse(
             name,
@@ -406,15 +358,6 @@ class CadminViewTests(TestCase):
     def cadmin_course_response(self):
         self.login_admin()
         return self.client.get(self.cadmin_course_url())
-
-    def project_action_url(self, name):
-        return reverse(
-            name,
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
 
     def assert_homework_submission_actions(self, response):
         self.assertContains(response, self.homework_url())
@@ -447,141 +390,6 @@ class CadminViewTests(TestCase):
             },
         )
 
-    def project_url(self):
-        return reverse(
-            "project",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-
-    def assert_project_submission_actions(self, response):
-        self.assertContains(response, self.project_url())
-        self.assertContains(
-            response,
-            f"/admin/courses/project/{self.project.id}/change/",
-        )
-        self.assertContains(response, "Assign peer reviews")
-        self.assertContains(
-            response,
-            self.project_action_url("cadmin_project_assign_reviews"),
-        )
-
-    def assert_project_scoring_action(self, response):
-        self.assertContains(response, "Score projects")
-        self.assertContains(
-            response,
-            self.project_action_url("cadmin_project_score"),
-        )
-
-    def create_project_submission(self, enrollment=None, **overrides):
-        defaults = {
-            "project": self.project,
-            "student": self.user,
-            "enrollment": enrollment or self.create_enrollment(),
-            "github_link": "https://github.com/test/repo",
-            "commit_id": "abc123",
-            "project_score": 0,
-            "project_faq_score": 0,
-            "project_learning_in_public_score": 0,
-            "peer_review_score": 0,
-            "peer_review_learning_in_public_score": 0,
-            "total_score": 0,
-        }
-        defaults.update(overrides)
-        return ProjectSubmission.objects.create(**defaults)
-
-    def create_project_page_submission(self, index):
-        user = User.objects.create_user(
-            username=f"project-page-student-{index:02d}",
-            email=f"project-page-student-{index:02d}@example.com",
-            password="test",
-        )
-        enrollment = self.create_enrollment(student=user)
-        return ProjectSubmission.objects.create(
-            project=self.project,
-            student=user,
-            enrollment=enrollment,
-            total_score=index,
-        )
-
-    def create_project_page_submissions(self, count):
-        for index in range(count):
-            self.create_project_page_submission(index)
-
-    def assert_first_project_submissions_page(self, response):
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["submissions"]), 50)
-        self.assertContains(response, 'href="?page=2"')
-        self.assertContains(response, 'aria-label="Next page"')
-        self.assertNotContains(response, "First")
-        self.assertNotContains(response, "Last")
-
-    def assert_second_project_submissions_page(self, response):
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["submissions"]), 5)
-        self.assertContains(response, 'href="?page=1"')
-        self.assertContains(response, 'aria-label="Previous page"')
-
-    def create_project_evaluation_scores(self, submission):
-        ProjectEvaluationScore.objects.create(
-            submission=submission,
-            review_criteria=self.criteria1,
-            score=2,
-        )
-        ProjectEvaluationScore.objects.create(
-            submission=submission,
-            review_criteria=self.criteria2,
-            score=4,
-        )
-
-    def project_submission_edit_url(self, submission):
-        return reverse(
-            "cadmin_project_submission_edit",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-                "submission_id": submission.id,
-            },
-        )
-
-    def project_score_payload(self, **overrides):
-        payload = {
-            f"criteria_score_{self.criteria1.id}": 2,
-            f"criteria_score_{self.criteria2.id}": 4,
-            "project_faq_score": 5,
-            "project_learning_in_public_score": 3,
-            "peer_review_score": 7,
-            "peer_review_learning_in_public_score": 2,
-        }
-        payload.update(overrides)
-        return payload
-
-    def assert_project_scores(self, submission):
-        self.assertEqual(submission.project_score, 6)
-        self.assertEqual(submission.project_faq_score, 5)
-        self.assertEqual(submission.project_learning_in_public_score, 3)
-        self.assertEqual(submission.peer_review_score, 7)
-        self.assertEqual(
-            submission.peer_review_learning_in_public_score, 2
-        )
-        self.assertEqual(submission.total_score, 23)
-
-    def assert_project_evaluation_scores(self, submission):
-        eval_scores = ProjectEvaluationScore.objects.filter(
-            submission=submission
-        )
-        self.assertEqual(eval_scores.count(), 2)
-        criteria1_score = ProjectEvaluationScore.objects.get(
-            submission=submission, review_criteria=self.criteria1
-        )
-        criteria2_score = ProjectEvaluationScore.objects.get(
-            submission=submission, review_criteria=self.criteria2
-        )
-        self.assertEqual(criteria1_score.score, 2)
-        self.assertEqual(criteria2_score.score, 4)
-
     def test_homework_submissions_redirect_from_courses(self):
         """Test that homework submissions view redirects to cadmin"""
         self.client.login(
@@ -592,22 +400,6 @@ class CadminViewTests(TestCase):
             kwargs={
                 "course_slug": self.course.slug,
                 "homework_slug": self.homework.slug,
-            },
-        )
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("cadmin", response.url)
-
-    def test_project_submissions_redirect_from_courses(self):
-        """Test that project submissions view redirects to cadmin"""
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "project_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
             },
         )
         response = self.client.get(url)
@@ -698,78 +490,6 @@ class CadminViewTests(TestCase):
             ),
         )
 
-    def test_cadmin_project_submissions_staff_allowed(self):
-        """Test that staff users can view project submissions in cadmin"""
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_project_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.project.title)
-
-    def test_cadmin_project_submissions_shows_project_actions(self):
-        """Project submissions page exposes project actions."""
-        self.login_admin()
-        url = self.cadmin_project_submissions_url()
-
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assert_project_submission_actions(response)
-
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save(update_fields=["state"])
-
-        response = self.client.get(url)
-
-        self.assert_project_scoring_action(response)
-
-    def test_project_submission_email_links_to_leaderboard_record(self):
-        """Project submission email links to the student's leaderboard record."""
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-            display_name="Test Student",
-        )
-        ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=enrollment,
-            total_score=10,
-        )
-
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        response = self.client.get(
-            reverse(
-                "cadmin_project_submissions",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.project.slug,
-                },
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            reverse(
-                "leaderboard_score_breakdown",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "enrollment_id": enrollment.id,
-                },
-            ),
-        )
-
     def test_enrollments_search_finds_records_beyond_first_page(self):
         """Enrollment search is server-side, not limited to the visible page."""
         for index in range(30):
@@ -838,121 +558,6 @@ class CadminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "hw-student-29@example.com")
         self.assertNotContains(response, "hw-student-00@example.com")
-
-    def test_project_submission_search_finds_records_beyond_first_page(
-        self,
-    ):
-        """Project submission search is server-side across all submissions."""
-        for index in range(30):
-            user = User.objects.create_user(
-                username=f"project-student-{index:02d}",
-                email=f"project-student-{index:02d}@example.com",
-                password="test",
-            )
-            enrollment = Enrollment.objects.create(
-                student=user, course=self.course
-            )
-            ProjectSubmission.objects.create(
-                project=self.project,
-                student=user,
-                enrollment=enrollment,
-                total_score=index,
-            )
-
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        response = self.client.get(
-            reverse(
-                "cadmin_project_submissions",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.project.slug,
-                },
-            ),
-            {"q": "project-student-29"},
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "project-student-29@example.com")
-        self.assertNotContains(
-            response, "project-student-00@example.com"
-        )
-
-    def test_project_submissions_paginated_by_50(self):
-        self.create_project_page_submissions(55)
-        self.login_admin()
-        url = self.cadmin_project_submissions_url()
-
-        response = self.client.get(url)
-        self.assert_first_project_submissions_page(response)
-
-        response = self.client.get(url, {"page": 2})
-        self.assert_second_project_submissions_page(response)
-
-    def test_project_submission_edit_get(self):
-        """Test that staff users can access the project submission edit page"""
-        submission = self.create_project_submission(
-            project_score=6,
-            project_faq_score=5,
-            project_learning_in_public_score=3,
-            peer_review_score=7,
-            peer_review_learning_in_public_score=2,
-            total_score=23,
-        )
-        self.create_project_evaluation_scores(submission)
-
-        self.login_admin()
-        response = self.client.get(self.project_submission_edit_url(submission))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Edit Project Submission")
-        self.assertContains(response, self.user.username)
-        self.assertContains(response, "Problem Description")
-        self.assertContains(response, "Code Quality")
-        self.assertContains(response, 'value="6"')
-        self.assertContains(response, 'value="23"')
-
-    def test_project_submission_edit_post_calculates_total(self):
-        """Test that editing individual criteria scores automatically calculates the total"""
-        submission = self.create_project_submission()
-
-        self.login_admin()
-        response = self.client.post(
-            self.project_submission_edit_url(submission),
-            self.project_score_payload(),
-        )
-
-        self.assertEqual(response.status_code, 302)
-        submission.refresh_from_db()
-        self.assert_project_scores(submission)
-        self.assert_project_evaluation_scores(submission)
-
-    def test_project_submission_edit_post_with_checkboxes(self):
-        """Test that editing submission with checkboxes works correctly"""
-        submission = self.create_project_submission(
-            project_score=6,
-            project_faq_score=5,
-            project_learning_in_public_score=3,
-            peer_review_score=7,
-            peer_review_learning_in_public_score=2,
-            total_score=23,
-            reviewed_enough_peers=False,
-            passed=False,
-        )
-
-        self.login_admin()
-        response = self.client.post(
-            self.project_submission_edit_url(submission),
-            self.project_score_payload(
-                reviewed_enough_peers="on",
-                passed="on",
-            ),
-        )
-        self.assertEqual(response.status_code, 302)
-
-        submission.refresh_from_db()
-        self.assertTrue(submission.reviewed_enough_peers)
-        self.assertTrue(submission.passed)
 
     @patch("cadmin.views.homework.send_homework_score_notification")
     def test_homework_score_shows_message(
@@ -1049,150 +654,6 @@ class CadminViewTests(TestCase):
         self.assertEqual(second_question.correct_answer, "")
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
-
-    @patch("cadmin.views.projects.send_project_score_notification")
-    @patch("cadmin.views.projects.score_project")
-    def test_project_score_shows_message(
-        self,
-        score_project_mock,
-        send_score_notification,
-    ):
-        """Test that scoring project shows a message on the course admin page"""
-        from courses.project_assignment import ProjectActionStatus
-
-        score_project_mock.return_value = (
-            ProjectActionStatus.OK,
-            "Project scored",
-        )
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_project_score",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-        response = self.client.post(url, follow=True)
-
-        # Should redirect to course admin page
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
-
-        # Check that a message was added
-        messages = list(response.context["messages"])
-        self.assertEqual(len(messages), 1)
-        send_score_notification.assert_called_once_with(self.project)
-
-    @patch("cadmin.views.projects.send_project_score_notification")
-    @patch("cadmin.views.projects.score_project")
-    def test_project_score_can_redirect_back_to_project_submissions(
-        self,
-        score_project_mock,
-        send_score_notification,
-    ):
-        """Scoring from project submissions returns to that page."""
-        from courses.project_assignment import ProjectActionStatus
-
-        score_project_mock.return_value = (
-            ProjectActionStatus.OK,
-            "Project scored",
-        )
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        next_url = reverse(
-            "cadmin_project_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-        url = reverse(
-            "cadmin_project_score",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-
-        response = self.client.post(
-            url, {"next": next_url}, follow=True
-        )
-
-        self.assertRedirects(response, next_url)
-        send_score_notification.assert_called_once_with(self.project)
-
-    @patch("cadmin.views.projects.send_project_score_notification")
-    def test_project_assign_reviews_shows_message(
-        self,
-        send_score_notification,
-    ):
-        """Test that assigning peer reviews shows a message on the course admin page"""
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        url = reverse(
-            "cadmin_project_assign_reviews",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-        response = self.client.post(url, follow=True)
-
-        # Should redirect to course admin page
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
-
-        # Check that a message was added
-        messages = list(response.context["messages"])
-        self.assertEqual(len(messages), 1)
-        send_score_notification.assert_not_called()
-
-    @patch(
-        "cadmin.views.projects.send_peer_review_assignment_notification"
-    )
-    def test_project_assign_reviews_can_redirect_back_to_project_submissions(
-        self,
-        send_assignment_notification,
-    ):
-        """Assigning reviews from project submissions returns to that page."""
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        next_url = reverse(
-            "cadmin_project_submissions",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-        url = reverse(
-            "cadmin_project_assign_reviews",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": self.project.slug,
-            },
-        )
-
-        response = self.client.post(
-            url, {"next": next_url}, follow=True
-        )
-
-        self.assertRedirects(response, next_url)
-        send_assignment_notification.assert_not_called()
 
     def test_homework_submission_edit_get(self):
         """Test that staff users can access the homework submission edit page"""

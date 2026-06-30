@@ -624,6 +624,8 @@ Steps:
   cadmin view test module.
 - [x] Split impersonation and login-as cadmin view tests out of the oversized
   cadmin view test module.
+- [x] Split project submission and project action cadmin view tests out of the
+  oversized cadmin view test module.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
