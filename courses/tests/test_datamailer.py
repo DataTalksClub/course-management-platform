@@ -17,21 +17,17 @@ from data.models import (
     DatamailerSendAuditType,
 )
 from course_management.datamailer.keys import (
-    course_graduates_list_key,
     homework_submitters_list_key,
     project_passed_list_key,
     project_submitters_list_key,
 )
 from course_management.datamailer.payloads import (
-    certificate_availability_notification_payload,
-    course_graduate_recipient_list_payload,
     homework_score_notification_payload,
     peer_review_assignment_notification_payload,
     project_passed_recipient_list_payload,
     project_score_notification_payload,
 )
 from course_management.datamailer.sync import (
-    send_certificate_availability_notification,
     send_homework_score_notification,
     send_peer_review_assignment_notification,
     send_project_score_notification,
@@ -121,18 +117,6 @@ class DatamailerWorkflowTest(TestCase):
         defaults.update(overrides)
         return Enrollment.objects.create(**defaults)
 
-    def create_certificate_enrollment(self):
-        user = CustomUser.objects.create(
-            email="student@example.com",
-            username="student",
-        )
-        course = self.create_ml_course()
-        return self.create_enrollment(
-            user,
-            course,
-            certificate_url="/certificates/student.pdf",
-        )
-
     def create_homework_submission(self, homework, user, **overrides):
         enrollment = overrides.pop("enrollment", None)
         if enrollment is None:
@@ -200,45 +184,6 @@ class DatamailerWorkflowTest(TestCase):
             passed=False,
         )
         return project, passed_submission
-
-    def assert_certificate_availability_payload(self, payload, enrollment):
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(payload["audience"], "dtc-courses")
-        self.assertEqual(payload["client"], "dtc-courses")
-        self.assertEqual(
-            payload["template_key"],
-            "certificate-availability-notification",
-        )
-        self.assertEqual(
-            payload["idempotency_key"],
-            f"certificate-available:{enrollment.pk}",
-        )
-        self.assertEqual(payload["from_email"], "courses")
-        self.assertEqual(
-            payload["context"]["certificate_url"],
-            "https://courses.example.com/certificates/student.pdf",
-        )
-        self.assertEqual(
-            payload["context"]["course_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/",
-        )
-        self.assertEqual(
-            payload["metadata"]["event"],
-            "certificate_availability",
-        )
-        self.assertEqual(payload["category_tag"], "course-updates")
-        self.assertEqual(
-            payload["metadata"]["preference_key"],
-            "email_course_updates",
-        )
-        self.assertIn(
-            "Congratulations",
-            payload["context"]["intro_text"],
-        )
-        self.assertEqual(
-            payload["context"]["notification_category"],
-            "course-related emails",
-        )
 
     def assert_homework_score_member(self, member, submission):
         self.assertEqual(
@@ -884,119 +829,3 @@ class DatamailerWorkflowTest(TestCase):
             submission=submission,
         )
         self.assert_project_score_list_send(expectation)
-
-    @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
-        PUBLIC_BASE_URL="https://courses.example.com",
-    )
-    def test_certificate_availability_notification_payload(self):
-        enrollment = self.create_certificate_enrollment()
-
-        payload = certificate_availability_notification_payload(
-            enrollment
-        )
-
-        self.assert_certificate_availability_payload(payload, enrollment)
-
-    @override_settings(
-        **DATAMAILER_SETTINGS,
-        PUBLIC_BASE_URL="https://courses.example.com",
-    )
-    def test_course_graduate_recipient_list_payload_targets_graduated_outcome(
-        self,
-    ):
-        user = CustomUser.objects.create(
-            email="student@example.com",
-            username="student",
-        )
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-            total_score=91,
-            certificate_url="/certificates/student.pdf",
-        )
-
-        list_key, payload = course_graduate_recipient_list_payload(
-            enrollment
-        )
-
-        self.assertEqual(list_key, course_graduates_list_key(course))
-        self.assertEqual(payload["list"]["type"], "custom")
-        self.assertEqual(payload["list"]["metadata"]["outcome"], "course_graduated")
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
-        self.assertEqual(member["email"], "student@example.com")
-        self.assertEqual(
-            member["source_object_key"], f"enrollment:{enrollment.pk}"
-        )
-        self.assertEqual(member["metadata"]["outcome"], "course_graduated")
-        self.assertEqual(member["metadata"]["total_score"], 91)
-        self.assertEqual(
-            member["metadata"]["certificate_url"],
-            "https://courses.example.com/certificates/student.pdf",
-        )
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
-    )
-    def test_certificate_availability_notification_uses_datamailer_preference_category(
-        self,
-        bulk_upsert,
-        send,
-    ):
-        bulk_upsert.return_value = {"updated_count": 1}
-        send.return_value = {"id": 123}
-        enrollment = self.create_certificate_enrollment()
-
-        payload = certificate_availability_notification_payload(
-            enrollment
-        )
-        result = send_certificate_availability_notification(enrollment)
-
-        self.assertIsNotNone(payload)
-        self.assertEqual(payload["category_tag"], "course-updates")
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(result, {"id": 123})
-        bulk_upsert.assert_called_once()
-        send.assert_called_once()
-
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
-    )
-    @patch(
-        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
-    )
-    def test_send_certificate_availability_notification_uses_transactional_send(
-        self,
-        bulk_upsert,
-        send,
-    ):
-        bulk_upsert.return_value = {"updated_count": 1}
-        send.return_value = {"id": 123}
-        enrollment = self.create_certificate_enrollment()
-
-        result = send_certificate_availability_notification(enrollment)
-
-        self.assertEqual(result, {"id": 123})
-        bulk_upsert.assert_called_once()
-        self.assertEqual(
-            bulk_upsert.call_args.args[0],
-            course_graduates_list_key(enrollment.course),
-        )
-        send.assert_called_once()
-        payload = send.call_args.args[0]
-        self.assertEqual(
-            payload["template_key"],
-            "certificate-availability-notification",
-        )
