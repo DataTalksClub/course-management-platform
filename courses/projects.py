@@ -235,10 +235,8 @@ def _project_lip_score(submission, project) -> int:
         return 0
     if not submission.learning_in_public_links:
         return 0
-    return min(
-        len(submission.learning_in_public_links),
-        project.learning_in_public_cap_project,
-    )
+    links_count = len(submission.learning_in_public_links)
+    return min(links_count, project.learning_in_public_cap_project)
 
 
 def _peer_review_lip_score(submission, project, reviewed) -> int:
@@ -250,7 +248,8 @@ def _peer_review_lip_score(submission, project, reviewed) -> int:
     for review in reviewed:
         if not review.learning_in_public_links:
             continue
-        total += min(len(review.learning_in_public_links), cap)
+        links_count = len(review.learning_in_public_links)
+        total += min(links_count, cap)
     return total
 
 
@@ -428,8 +427,9 @@ def _complete_scored_project(
 ):
     _bulk_update_project_submissions(calculation.submissions_to_update)
     _sync_project_submissions_after_commit(calculation.submissions_to_update)
+    submission_ids = calculation.submissions.keys()
     _replace_project_evaluation_scores(
-        calculation.submissions.keys(),
+        submission_ids,
         calculation.evaluation_scores,
     )
 

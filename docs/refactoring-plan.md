@@ -573,6 +573,8 @@ Steps:
   review-window boundaries instead of nesting calls inline.
 - [x] Name assignment-statistics query rows and scoring answer normalization
   intermediates instead of nesting conversions inline.
+- [x] Name project scoring link counts and submission ids instead of nesting
+  length/key conversions inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
