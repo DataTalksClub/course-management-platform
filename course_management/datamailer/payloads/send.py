@@ -69,13 +69,22 @@ def _response_count(response: dict[str, Any], key: str) -> int:
 
 
 def _transactional_send_counts(response: dict[str, Any]) -> dict[str, int]:
-    idempotent_replay_count = int(bool(response.get("idempotent_replay")))
+    idempotent_replay_value = response.get("idempotent_replay")
+    idempotent_replay = bool(idempotent_replay_value)
+    idempotent_replay_count = int(idempotent_replay)
     message = response.get("message") or {}
+    created = bool(response) and not idempotent_replay_count
+    enqueued_value = response.get("enqueued")
+    enqueued = bool(enqueued_value)
+    skipped = message.get("status") == "skipped"
+    created_count = int(created)
+    enqueued_count = int(enqueued)
+    skipped_count = int(skipped)
     return {
         "intended_count": 1,
-        "created_count": int(bool(response) and not idempotent_replay_count),
-        "enqueued_count": int(bool(response.get("enqueued"))),
-        "skipped_count": int(message.get("status") == "skipped"),
+        "created_count": created_count,
+        "enqueued_count": enqueued_count,
+        "skipped_count": skipped_count,
         "idempotent_replay_count": idempotent_replay_count,
     }
 
@@ -111,15 +120,19 @@ def _recipient_send_counts(
     intended_count: int,
     response: dict[str, Any],
 ) -> dict[str, int]:
+    created_count = _response_count(response, "created_count")
+    enqueued_count = _response_count(response, "enqueued_count")
+    skipped_count = _response_count(response, "skipped_count")
+    idempotent_replay_count = _response_count(
+        response,
+        "idempotent_replay_count",
+    )
     return {
         "intended_count": intended_count,
-        "created_count": _response_count(response, "created_count"),
-        "enqueued_count": _response_count(response, "enqueued_count"),
-        "skipped_count": _response_count(response, "skipped_count"),
-        "idempotent_replay_count": _response_count(
-            response,
-            "idempotent_replay_count",
-        ),
+        "created_count": created_count,
+        "enqueued_count": enqueued_count,
+        "skipped_count": skipped_count,
+        "idempotent_replay_count": idempotent_replay_count,
     }
 
 
