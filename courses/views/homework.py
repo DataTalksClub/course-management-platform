@@ -150,6 +150,12 @@ class AuthenticatedHomeworkContext:
     enrollment: Enrollment
 
 
+@dataclass(frozen=True)
+class AnswerClassState:
+    selected: bool
+    correct: bool
+
+
 def process_unscored_free_form_answer(answer: Optional[Answer]):
     if not answer:
         return {"text": ""}
@@ -172,24 +178,20 @@ def process_missing_scored_free_form_answer(question: Question):
     }
 
 
-def free_form_answer_class(is_correct: bool) -> str:
-    if is_correct:
-        return "option-answer-correct"
-
-    return "option-answer-incorrect"
-
-
 def process_scored_free_form_answer(
     question: Question, answer: Optional[Answer]
 ):
     if free_form_answer_missing(answer):
         return process_missing_scored_free_form_answer(question)
 
+    answer_is_correct = is_free_form_answer_correct(question, answer)
+    correctly_selected_class = "option-answer-correct"
+    if not answer_is_correct:
+        correctly_selected_class = "option-answer-incorrect"
+
     return {
         "text": answer.answer_text,
-        "correctly_selected_class": free_form_answer_class(
-            is_free_form_answer_correct(question, answer)
-        ),
+        "correctly_selected_class": correctly_selected_class,
     }
 
 
@@ -242,11 +244,15 @@ def process_choice_option(data: ChoiceOptionData):
 
     if data.homework.state == HomeworkState.SCORED.value:
         is_correct = data.index in data.correct_indices
+        answer_class_state = AnswerClassState(
+            selected=is_selected,
+            correct=is_correct,
+        )
         processed_answer.update(
             {
                 "is_correct": is_correct,
                 "correctly_selected_class": determine_answer_class(
-                    is_selected, is_correct
+                    answer_class_state
                 ),
             }
         )
@@ -691,10 +697,10 @@ def build_homework_update_url(
     return absolute_url_with_fallback(request, path, label="homework")
 
 
-def determine_answer_class(is_selected: bool, is_correct: bool) -> str:
-    if is_correct:
+def determine_answer_class(state: AnswerClassState) -> str:
+    if state.correct:
         return "option-answer-correct"
-    if is_selected:
+    if state.selected:
         return "option-answer-incorrect"
     return "option-answer-none"
 

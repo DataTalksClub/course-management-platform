@@ -51,6 +51,14 @@ ENROLLMENT_TOGGLE_FIELDS = {
 
 
 @dataclass(frozen=True)
+class EnrollmentToggleUpdate:
+    enrollment: Enrollment
+    course: Course
+    field: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
 class ProjectDeadlineEventSpec:
     uid_suffix: str
     event_type: str
@@ -1287,7 +1295,13 @@ def update_enrollment_toggle(request, course_slug):
         )
 
     enabled = value.lower() in {"1", "true", "yes", "on"}
-    update_enrollment_toggle_value(enrollment, course, field, enabled)
+    toggle_update = EnrollmentToggleUpdate(
+        enrollment=enrollment,
+        course=course,
+        field=field,
+        enabled=enabled,
+    )
+    update_enrollment_toggle_value(toggle_update)
 
     return JsonResponse(
         {
@@ -1297,17 +1311,18 @@ def update_enrollment_toggle(request, course_slug):
     )
 
 
-def update_enrollment_toggle_value(enrollment, course, field, enabled):
+def update_enrollment_toggle_value(toggle_update):
+    enrollment = toggle_update.enrollment
     previous_display_on_leaderboard = enrollment.display_on_leaderboard
-    setattr(enrollment, field, enabled)
-    enrollment.save(update_fields=[field])
+    setattr(enrollment, toggle_update.field, toggle_update.enabled)
+    enrollment.save(update_fields=[toggle_update.field])
 
-    if field != "display_on_leaderboard":
+    if toggle_update.field != "display_on_leaderboard":
         return
-    if previous_display_on_leaderboard == enabled:
+    if previous_display_on_leaderboard == toggle_update.enabled:
         return
 
-    invalidate_leaderboard_cache(course.id)
+    invalidate_leaderboard_cache(toggle_update.course.id)
 
 
 def _enrollment_context(course, enrollment, form):

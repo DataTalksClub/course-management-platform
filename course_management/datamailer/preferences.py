@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -39,6 +40,12 @@ EMAIL_PREFERENCE_CATEGORIES = {
         ),
     },
 }
+
+
+@dataclass(frozen=True)
+class EmailPreferencePayloadData:
+    field: str
+    enabled: bool
 
 
 def email_preference_category_tags() -> list[str]:
@@ -100,16 +107,15 @@ def email_preference_values_from_response(
 
 
 def _email_preference_payload(
-    field: str,
-    enabled: bool,
+    data: EmailPreferencePayloadData,
 ) -> dict[str, Any] | None:
-    category = EMAIL_PREFERENCE_CATEGORIES.get(field)
+    category = EMAIL_PREFERENCE_CATEGORIES.get(data.field)
     if category is None:
         return None
     return {
         "tag": category["tag"],
         "label": category["label"],
-        "enabled": bool(enabled),
+        "enabled": bool(data.enabled),
     }
 
 
@@ -118,7 +124,8 @@ def _email_preference_payloads(
 ) -> list[dict[str, Any]]:
     payloads = []
     for field, enabled in values.items():
-        payload = _email_preference_payload(field, enabled)
+        payload_data = EmailPreferencePayloadData(field, enabled)
+        payload = _email_preference_payload(payload_data)
         if payload is not None:
             payloads.append(payload)
     return payloads

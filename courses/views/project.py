@@ -106,6 +106,13 @@ class SubmissionViewerStateData:
 
 
 @dataclass(frozen=True)
+class SubmissionReviewGroupData:
+    submission: ProjectSubmission
+    in_peer_review: bool
+    has_assigned_reviews: bool
+
+
+@dataclass(frozen=True)
 class ProjectContextUserDetails:
     submission: Optional[ProjectSubmission]
     enrollment: Optional[Enrollment]
@@ -584,12 +591,10 @@ def project_build_context(
     user = request.user
     is_authenticated = user.is_authenticated
     accepting_submissions = project_accepting_submissions(project)
-    user_details = project_context_user_details(
-        user=user,
-        course=course,
-        project=project,
-        is_authenticated=is_authenticated,
-    )
+    if is_authenticated:
+        user_details = project_context_user_details(user, course, project)
+    else:
+        user_details = ProjectContextUserDetails(None, None, None)
 
     return {
         "course": course,
@@ -598,7 +603,7 @@ def project_build_context(
         "is_authenticated": is_authenticated,
         "disabled": not accepting_submissions,
         "accepting_submissions": accepting_submissions,
-        "ceritificate_name": user_details.certificate_name,
+        "certificate_name": user_details.certificate_name,
         "disable_learning_in_public": project_learning_in_public_disabled(
             user_details.enrollment
         ),
@@ -613,11 +618,7 @@ def project_context_user_details(
     user: User,
     course: Course,
     project: Project,
-    is_authenticated: bool,
 ) -> ProjectContextUserDetails:
-    if not is_authenticated:
-        return ProjectContextUserDetails(None, None, None)
-
     project_submission = project_context_submission(user, project)
     enrollment, _ = Enrollment.objects.get_or_create(
         student=user,
@@ -1465,11 +1466,12 @@ def _decorate_project_submissions(data):
             project_vote_counts=data.project_vote_counts,
         )
         _decorate_submission_viewer_state(viewer_data)
-        _decorate_submission_review_group(
+        review_group_data = SubmissionReviewGroupData(
             submission,
             in_peer_review=in_peer_review,
             has_assigned_reviews=data.has_assigned_reviews,
         )
+        _decorate_submission_review_group(review_group_data)
 
 
 def _decorate_submission_review_state(submission, review_ids):
@@ -1490,16 +1492,12 @@ def _decorate_submission_viewer_state(data):
     )
 
 
-def _decorate_submission_review_group(
-    submission,
-    *,
-    in_peer_review,
-    has_assigned_reviews,
-):
+def _decorate_submission_review_group(data):
+    submission = data.submission
     submission.group_order = 1
     submission.group_label = None
 
-    if not in_peer_review:
+    if not data.in_peer_review:
         return
 
     if submission.to_evaluate and not submission.review.optional:
@@ -1507,7 +1505,7 @@ def _decorate_submission_review_group(
         submission.group_label = "Assigned reviews"
         return
 
-    if has_assigned_reviews:
+    if data.has_assigned_reviews:
         submission.group_label = "Other submissions"
 
 
@@ -1528,15 +1526,14 @@ def _project_submissions_queryset(project):
 
 
 def _project_viewer_state(project, course, user):
-    is_authenticated = user.is_authenticated
     state = _base_project_viewer_state(
-        is_authenticated,
-        _project_viewer_vote_state(project, course, user),
+        _project_viewer_vote_state(project, course, user)
     )
 
-    if not is_authenticated:
+    if not user.is_authenticated:
         return state
 
+    state["is_authenticated"] = True
     student_submissions, own_submissions = (
         _project_viewer_student_submissions(project, user)
     )
@@ -1570,9 +1567,9 @@ def _project_viewer_vote_state(project, course, user):
     }
 
 
-def _base_project_viewer_state(is_authenticated, vote_state):
+def _base_project_viewer_state(vote_state):
     return {
-        "is_authenticated": is_authenticated,
+        "is_authenticated": False,
         "review_ids": {},
         "own_submissions": set(),
         "has_submission": False,
@@ -1612,18 +1609,22 @@ def _sort_project_submissions_for_view(
     submissions_list,
     *,
     project,
-    is_authenticated,
+    viewer_state,
 ):
-    if (
-        is_authenticated
-        and project.state == ProjectState.PEER_REVIEWING.value
-    ):
+    if _project_submissions_use_review_group_sort(project, viewer_state):
         submissions_list.sort(
             key=lambda submission: (
                 submission.group_order,
                 submission.list_order,
             )
         )
+
+
+def _project_submissions_use_review_group_sort(project, viewer_state):
+    return (
+        viewer_state["is_authenticated"]
+        and project.state == ProjectState.PEER_REVIEWING.value
+    )
 
 
 def _apply_project_group_headings(submissions_page):
@@ -1676,7 +1677,7 @@ def _project_submissions_page(request, project, viewer_state):
     _sort_project_submissions_for_view(
         submissions_list,
         project=project,
-        is_authenticated=viewer_state["is_authenticated"],
+        viewer_state=viewer_state,
     )
 
     submissions_page = paginate_project_submissions(

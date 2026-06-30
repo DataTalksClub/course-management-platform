@@ -351,9 +351,9 @@ class ProjectViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
         context = response.context
-        ceritificate_name = context["ceritificate_name"]
+        certificate_name = context["certificate_name"]
 
-        self.assertEqual(ceritificate_name, "Certificate Name")
+        self.assertEqual(certificate_name, "Certificate Name")
 
     def test_project_detail_authenticated_without_submission(self):
         self.project.learning_in_public_cap_project = 7

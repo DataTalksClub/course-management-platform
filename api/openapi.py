@@ -60,9 +60,9 @@ def content_response(description, content):
     }
 
 
-def request_body(schema, required=True):
+def request_body(schema):
     return {
-        "required": required,
+        "required": True,
         "content": json_content(schema),
     }
 
@@ -134,7 +134,7 @@ def model_properties(model, fields):
 
 
 def model_object_schema(
-    model, fields, *, required=None, extra_properties=None
+    model, fields, *, required_fields=None, extra_properties=None
 ):
     properties = model_properties(model, fields)
     if extra_properties:
@@ -144,8 +144,8 @@ def model_object_schema(
         "type": "object",
         "properties": properties,
     }
-    if required:
-        schema["required"] = required
+    if required_fields:
+        schema["required"] = required_fields
     return schema
 
 
@@ -362,7 +362,7 @@ SCHEMAS = {
             "finished",
             "visible",
         ],
-        required=["slug", "title", "description", "finished"],
+        required_fields=["slug", "title", "description", "finished"],
     ),
     "CoursesList": {
         "type": "object",
@@ -387,7 +387,7 @@ SCHEMAS = {
             "finished",
             "visible",
         ],
-        required=["slug", "title"],
+        required_fields=["slug", "title"],
     ),
     "CoursePatch": {
         "type": "object",
