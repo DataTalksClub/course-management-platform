@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from course_management.deadlines import ceil_to_next_hour
 
-from courses.models import (
+from courses.models.project import (
     PeerReview,
     PeerReviewState,
     Project,
@@ -43,13 +43,16 @@ def select_random_assignment(
     num_projects_to_review: int,
     seed: int = 1,
 ) -> list[PeerReview]:
-    n = len(submissions)
-    _validate_peer_review_assignment_size(n, num_projects_to_review)
+    num_submissions = len(submissions)
+    _validate_peer_review_assignment_size(
+        num_submissions,
+        num_projects_to_review,
+    )
     random.seed(seed)
 
     submissions_list = list(submissions)
     projects_pool = _review_slot_project_pools(
-        n, num_projects_to_review
+        num_submissions, num_projects_to_review
     )
 
     all_assignments = []
@@ -97,18 +100,20 @@ def _select_reviewer_assignments(
 ) -> list[PeerReview]:
     selected = {reviewer_idx}
     assignments = []
+    num_submissions = len(submissions)
 
     for projects in projects_pool:
         selected_project_idx = _select_project_for_review(
             projects,
             selected,
-            len(submissions),
+            num_submissions,
         )
         selected.add(selected_project_idx)
         _remove_project_from_slot_pool(selected_project_idx, projects)
+        selected_project = submissions[selected_project_idx]
         assignment = _peer_review_assignment(
             reviewer_submission,
-            submissions[selected_project_idx],
+            selected_project,
         )
         assignments.append(assignment)
 
@@ -196,9 +201,8 @@ def _assignment_precondition_failure(
 
 def _open_peer_review_window(project: Project) -> None:
     # Closing submissions deterministically starts a fresh seven-day review window.
-    project.peer_review_due_date = ceil_to_next_hour(
-        timezone.now() + PEER_REVIEW_WINDOW
-    )
+    review_window_end = timezone.now() + PEER_REVIEW_WINDOW
+    project.peer_review_due_date = ceil_to_next_hour(review_window_end)
     project.state = ProjectState.PEER_REVIEWING.value
     project.save()
 
@@ -207,11 +211,12 @@ def _peer_review_assignment_data(project: Project) -> PeerReviewAssignmentData:
     submissions = ProjectSubmission.objects.filter(
         project=project
     ).select_related("enrollment")
+    started_at = time()
     return PeerReviewAssignmentData(
         project=project,
         submissions=submissions,
         num_evaluations=project.number_of_peers_to_evaluate,
-        started_at=time(),
+        started_at=started_at,
     )
 
 
@@ -237,9 +242,10 @@ def assign_peer_reviews_for_project(
 ) -> tuple[ProjectActionStatus, str]:
     with transaction.atomic():
         data = _peer_review_assignment_data(project)
+        submissions_count = data.submissions.count()
         failure = _assignment_precondition_failure(
             project,
-            data.submissions.count(),
+            submissions_count,
             data.num_evaluations,
         )
         if failure is not None:

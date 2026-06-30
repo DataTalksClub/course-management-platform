@@ -569,6 +569,8 @@ Steps:
   explicit admin module registration imports.
 - [x] Remove remaining nested meaningful calls from wrapped-statistics helpers.
 - [x] Remove nested queryset-to-set construction from project voting helpers.
+- [x] Name peer-review assignment counts, selected submissions, timestamps, and
+  review-window boundaries instead of nesting calls inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
