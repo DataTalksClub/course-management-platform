@@ -124,7 +124,10 @@ def _contact_erase_user_id(user, user_id):
 def _contact_erase_email(user, email):
     if email is None and user is not None:
         email = user.email
-    return (email or "").strip().lower()
+    email_value = email or ""
+    stripped_email = email_value.strip()
+    normalized_email = stripped_email.lower()
+    return normalized_email
 
 
 def _contact_erase_ordering_key(user_id, email):

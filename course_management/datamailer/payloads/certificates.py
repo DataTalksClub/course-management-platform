@@ -70,9 +70,12 @@ def _certificate_availability_metadata(enrollment):
 
 
 def _certificate_availability_recipient(enrollment) -> str | None:
-    email = (enrollment.student.email or "").strip().lower()
-    certificate_url = (enrollment.certificate_url or "").strip()
-    if not email or not certificate_url:
+    email_value = enrollment.student.email or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
+    certificate_url = enrollment.certificate_url or ""
+    stripped_certificate_url = certificate_url.strip()
+    if not email or not stripped_certificate_url:
         return None
 
     return email
@@ -151,11 +154,16 @@ def course_graduate_recipient_list_payload(
 
 
 def _course_graduate_email(enrollment) -> str:
-    return (enrollment.student.email or "").strip().lower()
+    email = enrollment.student.email or ""
+    stripped_email = email.strip()
+    normalized_email = stripped_email.lower()
+    return normalized_email
 
 
 def _course_graduate_certificate_url(enrollment) -> str:
-    return (enrollment.certificate_url or "").strip()
+    certificate_url = enrollment.certificate_url or ""
+    stripped_certificate_url = certificate_url.strip()
+    return stripped_certificate_url
 
 
 def _course_graduate_source_object_key(enrollment) -> str:

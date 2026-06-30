@@ -83,7 +83,9 @@ def contact_payload_tags_and_fields(user, course):
 def contact_payload_for_user(
     user, course=None
 ) -> dict[str, Any] | None:
-    email = (user.email or "").strip().lower()
+    email_value = user.email or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
     if not email:
         return None
 
@@ -413,7 +415,9 @@ def enrollment_recipient_metadata(enrollment) -> dict[str, Any]:
 def enrollment_recipient_list_payload(
     enrollment,
 ) -> RecipientListMemberPayload | None:
-    email = (enrollment.student.email or "").strip().lower()
+    email_value = enrollment.student.email or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
     if not email:
         return None
 
@@ -439,7 +443,9 @@ def enrollment_recipient_list_payload(
 def homework_submission_recipient_list_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
-    email = (submission.student.email or "").strip().lower()
+    email_value = submission.student.email or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
     if not email:
         return None
 
@@ -564,7 +570,9 @@ def project_public_url(project):
 def project_submission_recipient_list_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
-    email = (submission.student.email or "").strip().lower()
+    email_value = submission.student.email or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
     if not email:
         return None
 

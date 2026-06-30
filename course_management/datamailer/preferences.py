@@ -65,7 +65,10 @@ def email_preference_category_tags() -> list[str]:
 
 
 def _normalized_user_email(user) -> str:
-    return (user.email or "").strip().lower()
+    email = user.email or ""
+    stripped_email = email.strip()
+    normalized_email = stripped_email.lower()
+    return normalized_email
 
 
 def _datamailer_user_context(user):

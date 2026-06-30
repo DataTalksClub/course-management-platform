@@ -118,7 +118,9 @@ def peer_review_assignment_deadline_metadata(
 def peer_review_assignment_recipient_list_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
-    email = (submission.student.email or "").strip().lower()
+    email_value = submission.student.email or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
     if not email:
         return None
 

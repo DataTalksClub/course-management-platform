@@ -42,13 +42,19 @@ def datamailer_audit_template_key(payload, response) -> str:
     message = response.get("message") or {}
     message_template_key = message.get("template_key", "")
     payload_template_key = payload.get("template_key", "")
-    return response_template_key or message_template_key or payload_template_key
+    if response_template_key:
+        return response_template_key
+    if message_template_key:
+        return message_template_key
+    return payload_template_key
 
 
 def datamailer_audit_category_tag(payload, metadata) -> str:
     payload_category_tag = payload.get("category_tag", "")
     metadata_category_tag = metadata.get("category_tag", "")
-    return payload_category_tag or metadata_category_tag
+    if payload_category_tag:
+        return payload_category_tag
+    return metadata_category_tag
 
 
 def datamailer_send_audit_defaults(data) -> dict[str, Any]:

@@ -100,7 +100,9 @@ def is_checkbox_answer_correct(
 
 
 def normalized_free_form_answer(answer_text: str | None) -> str:
-    return (answer_text or "").strip()
+    answer_value = answer_text or ""
+    normalized_answer = answer_value.strip()
+    return normalized_answer
 
 
 def is_any_free_form_answer_correct(
