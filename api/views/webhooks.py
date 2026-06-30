@@ -38,6 +38,13 @@ class DatamailerEventFields:
     email: str
 
 
+@dataclass
+class DatamailerWebhookData:
+    request: object
+    payload: dict | None = None
+    fields: DatamailerEventFields | None = None
+
+
 def bearer_token(request):
     authorization = request.headers.get("Authorization", "")
     prefix = "Bearer "
@@ -200,24 +207,71 @@ def datamailer_event_response(event, created):
     return response
 
 
-@csrf_exempt
-@require_POST
-def datamailer_event_webhook(request):
-    webhook_token = getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", "")
-    if not webhook_token:
-        return webhook_error(
-            "Datamailer webhook is not configured", 503
-        )
-    if not authenticate_webhook(request):
-        return webhook_error("Unauthorized", 401)
-
-    payload, error = json_payload_from_request(request)
+def load_webhook_payload(data):
+    payload, error = json_payload_from_request(data.request)
     if error is not None:
         return error
+
+    data.payload = payload
+    return None
+
+
+def load_webhook_fields(data):
+    payload = data.payload
+    if payload is None:
+        return webhook_error("Invalid JSON", 400)
 
     fields, error = validate_datamailer_payload(payload)
     if error is not None:
         return error
 
+    data.fields = fields
+    return None
+
+
+def validate_webhook_configuration(data):
+    webhook_token = getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", "")
+    if webhook_token:
+        return None
+    error = webhook_error(
+        "Datamailer webhook is not configured", 503
+    )
+    return error
+
+
+def validate_webhook_authentication(data):
+    if authenticate_webhook(data.request):
+        return None
+    error = webhook_error("Unauthorized", 401)
+    return error
+
+
+def datamailer_webhook_data(request):
+    data = DatamailerWebhookData(request=request)
+    steps = (
+        validate_webhook_configuration,
+        validate_webhook_authentication,
+        load_webhook_payload,
+        load_webhook_fields,
+    )
+    for step in steps:
+        error = step(data)
+        if error is not None:
+            return None, error
+
+    return data, None
+
+
+@csrf_exempt
+@require_POST
+def datamailer_event_webhook(request):
+    data, error = datamailer_webhook_data(request)
+    if error is not None:
+        return error
+
+    payload = data.payload
+    fields = data.fields
+
     event, created = record_datamailer_event(payload, fields)
-    return datamailer_event_response(event, created)
+    response = datamailer_event_response(event, created)
+    return response
