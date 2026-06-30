@@ -18,7 +18,10 @@ def pagination_querystring(request):
     params = request.GET.copy()
     params.pop("page", None)
     encoded = params.urlencode()
-    return f"&{encoded}" if encoded else ""
+    if encoded:
+        querystring = f"&{encoded}"
+        return querystring
+    return ""
 
 
 def redirect_after_action(request, default_view_name, **kwargs):
