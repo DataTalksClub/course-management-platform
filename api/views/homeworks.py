@@ -665,18 +665,13 @@ def _save_homework_upsert(upsert):
     return homework, None
 
 
-def _upsert_homework_by_slug(request, course_slug, homework_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
+def _homework_upsert_data(course, homework_slug, data):
     homework = _homework_by_slug(course, homework_slug)
     created = homework is None
 
     error = _validate_homework_upsert(data, homework, created)
     if error:
-        return error
+        return None, error
 
     upsert = HomeworkUpsertData(
         course=course,
@@ -685,12 +680,38 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
         homework=homework,
         created=created,
     )
+    return upsert, None
+
+
+def _saved_homework_upsert(course, homework_slug, data):
+    upsert, error = _homework_upsert_data(course, homework_slug, data)
+    if error:
+        return None, error
+
     homework, error = _save_homework_upsert(upsert)
+    if error:
+        return None, error
+
+    save_result = (upsert, homework)
+    return save_result, None
+
+
+def _upsert_homework_by_slug(request, course_slug, homework_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    data, err = parse_json_body(request)
+    if err:
+        return err
+
+    save_result, error = _saved_homework_upsert(
+        course, homework_slug, data
+    )
     if error:
         return error
 
+    upsert, homework = save_result
+
     homework_data = _homework_to_dict(homework)
-    if created:
+    if upsert.created:
         response_status = 201
     else:
         response_status = 200
