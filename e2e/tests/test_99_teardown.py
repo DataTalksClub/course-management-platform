@@ -52,17 +52,29 @@ def test_teardown_deletes_provisioned_resources(
         # Prefer full admin deletion, but accept the documented parked-hidden
         # fallback so cleanup still keeps dev invisible if admin deletion is
         # unavailable in the target environment.
-        assert any(
-            item.startswith("course:") and "admin-deleted" in item
-            for item in report["deleted"]
-        ) or any(
-            "parked hidden" in item for item in report["residual"]
-        ), f"Course was neither admin-deleted nor parked hidden: {report}"
+        assert _course_admin_deleted(report) or _course_parked_hidden(report), (
+            f"Course was neither admin-deleted nor parked hidden: {report}"
+        )
     else:
         # API-only subset: no admin session, so the course is parked hidden.
-        assert any(
-            "parked hidden" in item for item in report["residual"]
-        ), f"Expected parked-hidden fallback without admin session: {report}"
+        assert _course_parked_hidden(report), (
+            f"Expected parked-hidden fallback without admin session: {report}"
+        )
+
+
+def _course_admin_deleted(report):
+    for item in report["deleted"]:
+        if item.startswith("course:") and "admin-deleted" in item:
+            return True
+    return False
+
+
+def _course_parked_hidden(report):
+    residual_items = report.get("residual", [])
+    for item in residual_items:
+        if "parked hidden" in item:
+            return True
+    return False
 
 
 def test_no_visible_namespaced_data_remains(provisioner, run_state):
@@ -88,7 +100,7 @@ def test_namespaced_course_fully_purged(
             "No admin session (E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD unset); "
             "course is parked hidden rather than deleted."
         )
-    if any("parked hidden" in item for item in run_state.teardown_report.get("residual", [])):
+    if _course_parked_hidden(run_state.teardown_report):
         pytest.skip("Admin delete unavailable; course was parked hidden.")
     assert provisioner.api.get_course(run_state.namespace) is None, (
         f"Course {run_state.namespace} still exists after admin delete. "

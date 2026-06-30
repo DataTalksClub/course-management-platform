@@ -50,9 +50,16 @@ def test_project_submission_recorded_in_api(api, run_state):
         run_state.course.slug, run_state.course.project_slug
     )
     submissions = data.get("submissions", [])
-    assert any(
-        run_state.student_email in str(s) for s in submissions
-    ), f"No project submission for {run_state.student_email}: {submissions!r}"
+    assert _has_project_submission(submissions, run_state.student_email), (
+        f"No project submission for {run_state.student_email}: {submissions!r}"
+    )
+
+
+def _has_project_submission(submissions, student_email):
+    for submission in submissions:
+        if student_email in str(submission):
+            return True
+    return False
 
 
 # Confirmation-email contract (from courses/views/project.py, read-only):
@@ -142,10 +149,16 @@ def test_score_project(api, run_state):
     assert submissions, "No project submissions to score."
     sample = str(submissions[0]).lower()
     # The export documents project/faq/learning-in-public/peer-review scores.
-    assert any(
-        token in sample
-        for token in ("score", "peer", "passed")
-    ), f"Score components not present in submission export: {submissions[0]!r}"
+    assert _sample_has_score_components(sample), (
+        f"Score components not present in submission export: {submissions[0]!r}"
+    )
+
+
+def _sample_has_score_components(sample):
+    for token in ("score", "peer", "passed"):
+        if token in sample:
+            return True
+    return False
 
 
 def test_leaderboard_and_project_stats_update(api, run_state):

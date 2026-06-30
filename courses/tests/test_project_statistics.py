@@ -486,9 +486,12 @@ class ProjectStatisticsViewTestCase(TestCase):
 
         # Should show error message
         messages = list(response.context["messages"])
-        self.assertTrue(
-            any("not completed yet" in str(m) for m in messages)
-        )
+        has_incomplete_project_message = False
+        for message in messages:
+            if "not completed yet" in str(message):
+                has_incomplete_project_message = True
+                break
+        self.assertTrue(has_incomplete_project_message)
 
     def test_project_statistics_view_nonexistent_project(self):
         """Test project statistics view with non-existent project"""

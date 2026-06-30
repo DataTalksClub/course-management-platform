@@ -94,12 +94,25 @@ def test_homework_submission_recorded_in_api(api, run_state):
         run_state.course.slug, run_state.course.homework_slug
     )
     submissions = data.get("submissions", [])
-    assert any(
-        s.get("student_id") == run_state.student_user_id
-        or s.get("student", {}).get("email") == run_state.student_email
-        or run_state.student_email in str(s)
-        for s in submissions
-    ), f"No submission found for {run_state.student_email}: {submissions!r}"
+    assert _has_homework_submission(submissions, run_state), (
+        f"No submission found for {run_state.student_email}: {submissions!r}"
+    )
+
+
+def _has_homework_submission(submissions, run_state):
+    for submission in submissions:
+        if _homework_submission_matches_student(submission, run_state):
+            return True
+    return False
+
+
+def _homework_submission_matches_student(submission, run_state):
+    if submission.get("student_id") == run_state.student_user_id:
+        return True
+    student = submission.get("student", {})
+    if student.get("email") == run_state.student_email:
+        return True
+    return run_state.student_email in str(submission)
 
 
 # Confirmation-email contract (from courses/views/homework.py, read-only):
@@ -179,9 +192,16 @@ def test_score_homework(api, run_state):
     submissions = data.get("submissions", [])
     assert submissions, "No submissions to score."
     # At least one submission now has a numeric score.
-    assert any(
-        _has_score(s) for s in submissions
-    ), f"No scored submission after scoring: {submissions!r}"
+    assert _has_scored_submission(submissions), (
+        f"No scored submission after scoring: {submissions!r}"
+    )
+
+
+def _has_scored_submission(submissions):
+    for submission in submissions:
+        if _has_score(submission):
+            return True
+    return False
 
 
 def test_leaderboard_reflects_score(api, run_state):
@@ -198,9 +218,11 @@ def _has_score(submission: dict) -> bool:
             return True
     # Nested under a homework_submission object in some exports.
     nested = submission.get("homework_submission") or {}
-    return any(
-        isinstance(nested.get(k), (int, float)) for k in ("total_score", "score")
-    )
+    for key in ("total_score", "score"):
+        value = nested.get(key)
+        if isinstance(value, (int, float)):
+            return True
+    return False
 
 
 def require_submitted(run_state):
