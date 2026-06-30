@@ -18,7 +18,9 @@ from courses.models import (
     ReviewCriteria,
 )
 from courses.leaderboard import update_leaderboard
-from courses.validators import validate_review_criteria_options
+from courses.validators.criteria_validators import (
+    validate_review_criteria_options,
+)
 
 
 class CriteriaForm(forms.ModelForm):

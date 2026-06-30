@@ -1,7 +1,7 @@
 from django.core import validators
 from django.core.exceptions import ValidationError
 from django.db import models
-from courses.validators import validate_url_200
+from courses.validators.custom_url_validators import validate_url_200
 
 
 class ValidatingJSONField(models.JSONField):

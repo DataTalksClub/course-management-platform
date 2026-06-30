@@ -20,7 +20,9 @@ from courses.models import (
     Submission,
     User,
 )
-from courses.validators import clean_faq_contribution_url
+from courses.validators.custom_url_validators import (
+    clean_faq_contribution_url,
+)
 from courses.views.homework_confirmation import (
     HomeworkConfirmationEmailData,
     build_homework_update_url,

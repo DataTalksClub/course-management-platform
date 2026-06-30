@@ -9,7 +9,10 @@ from django.utils import timezone
 
 from .course import Course, Enrollment
 from .stat_display import StatSection, build_stat_fields
-from courses.validators import validate_url_200, validate_review_criteria_options
+from courses.validators.criteria_validators import (
+    validate_review_criteria_options,
+)
+from courses.validators.custom_url_validators import validate_url_200
 
 User = get_user_model()
 

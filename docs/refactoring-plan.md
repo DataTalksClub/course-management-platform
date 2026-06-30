@@ -565,6 +565,8 @@ Steps:
   remove view package re-export imports.
 - [x] Replace root `course_management.datamailer` imports with concrete
   Datamailer module imports and remove the root package re-export shim.
+- [x] Replace wildcard admin/validator imports with direct module imports and
+  explicit admin module registration imports.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
