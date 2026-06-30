@@ -67,6 +67,7 @@ def student_project_eval_context(course, project, user, eval_closed):
     )
     reviews = project_eval_reviews(project, student_submissions)
     review_groups = split_project_eval_reviews(reviews)
+    has_submission = project_submissions.exists()
 
     return {
         "course": course,
@@ -76,7 +77,7 @@ def student_project_eval_context(course, project, user, eval_closed):
         "selected_reviews": review_groups.selected_reviews,
         "is_authenticated": True,
         "number_of_completed_evaluation": review_groups.completed_count,
-        "has_submission": project_submissions.exists(),
+        "has_submission": has_submission,
         "eval_closed": eval_closed,
     }
 

@@ -41,11 +41,12 @@ def apply_homework_submission_admin_fields(submission, cleaned_data):
 
 
 def rescore_homework_submission(submission):
-    updated_answers = list(
-        Answer.objects.filter(submission=submission).select_related(
-            "question"
-        )
+    answer_records = Answer.objects.filter(
+        submission=submission
+    ).select_related(
+        "question"
     )
+    updated_answers = list(answer_records)
     update_score(submission, updated_answers, save=True)
 
 

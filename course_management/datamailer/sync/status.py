@@ -54,7 +54,8 @@ def get_email_status(
     contact_id = status.get("contact_id")
     history = None
     if contact_id:
-        history = get_contact_history(int(contact_id), limit=limit)
+        contact_id_value = int(contact_id)
+        history = get_contact_history(contact_id_value, limit=limit)
 
     return {
         "status": status,
