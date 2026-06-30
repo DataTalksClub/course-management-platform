@@ -50,6 +50,13 @@ testable service functions.
   cleanup. Prefer named intermediate variables for constructed records,
   counters, querysets with filtering/annotations, and other values whose purpose
   is not obvious from the immediate expression.
+- Do not inline meaningful function calls inside dataclass, model, or dictionary
+  construction. Assign the result to a named local first, then pass the local
+  into the constructor or record.
+- After extracting helpers or value objects, do a cleanup pass for leftovers.
+  Remove wrappers that now only forward to another function, add a one-line
+  guard, or group only one or two obvious arguments without naming a durable
+  domain concept.
 
 ## Current Findings
 
