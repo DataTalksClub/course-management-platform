@@ -623,6 +623,8 @@ Steps:
   module.
 - [x] Split Datamailer recipient-list backfill, audit, and import command tests
   out of the oversized Datamailer test module.
+- [x] Split Datamailer recipient-list audit tests out of the recipient-list
+  command test module.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
