@@ -616,6 +616,8 @@ Steps:
 - [x] Split course-list tests out of the oversized course-detail test module.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
+- [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin
+  view test module.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

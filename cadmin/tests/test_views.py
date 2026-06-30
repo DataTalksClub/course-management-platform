@@ -24,7 +24,6 @@ from courses.models import (
     ReviewCriteria,
     ReviewCriteriaTypes,
     ProjectEvaluationScore,
-    LeaderboardComplaint,
     RegistrationCampaign,
     CourseRegistration,
 )
@@ -39,22 +38,6 @@ DATAMAILER_SETTINGS = {
     "DATAMAILER_CLIENT": "dtc-courses",
     "DATAMAILER_AUDIENCE": "dtc-courses",
 }
-
-
-@dataclass(frozen=True)
-class LeaderboardEnrollmentData:
-    username: str
-    display_name: str
-    total_score: int
-    position: int
-
-
-@dataclass(frozen=True)
-class LeaderboardComplaintData:
-    enrollment: Enrollment
-    reporter: User
-    issue_type: str
-    description: str
 
 
 @dataclass(frozen=True)
@@ -167,73 +150,6 @@ class CadminViewTests(TestCase):
             course=self.course,
         )
 
-    def create_leaderboard_enrollment(self, data):
-        return Enrollment.objects.create(
-            student=User.objects.create_user(username=data.username),
-            course=self.course,
-            display_name=data.display_name,
-            total_score=data.total_score,
-            position_on_leaderboard=data.position,
-        )
-
-    def create_leaderboard_complaint(self, data):
-        return LeaderboardComplaint.objects.create(
-            enrollment=data.enrollment,
-            reporter=data.reporter,
-            issue_type=data.issue_type,
-            description=data.description,
-        )
-
-    def create_complaint_reporter(self):
-        return User.objects.create_user(
-            username="reporter@test.com",
-            email="reporter@test.com",
-            password="12345",
-        )
-
-    def create_complaint_sorting_target(self, reporter):
-        first_enrollment = LeaderboardEnrollmentData(
-            username="first@test.com",
-            display_name="First Student",
-            total_score=10,
-            position=2,
-        )
-        first = self.create_leaderboard_enrollment(first_enrollment)
-        second_enrollment = LeaderboardEnrollmentData(
-            username="second@test.com",
-            display_name="Second Student",
-            total_score=20,
-            position=1,
-        )
-        second = self.create_leaderboard_enrollment(second_enrollment)
-        first_complaint = LeaderboardComplaintData(
-            enrollment=first,
-            reporter=reporter,
-            issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
-            description="Incorrect homework.",
-        )
-        self.create_leaderboard_complaint(first_complaint)
-        second_project_complaint = LeaderboardComplaintData(
-            enrollment=second,
-            reporter=reporter,
-            issue_type=LeaderboardComplaint.IssueType.PROJECT,
-            description="Incorrect project.",
-        )
-        self.create_leaderboard_complaint(second_project_complaint)
-        second_learning_complaint = LeaderboardComplaintData(
-            enrollment=second,
-            reporter=reporter,
-            issue_type=LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
-            description="Incorrect learning links.",
-        )
-        self.create_leaderboard_complaint(second_learning_complaint)
-        return second
-
-    def assert_most_complained_enrollment_first(self, response, enrollment):
-        rows = response.context["enrollment_rows"]
-        self.assertEqual(rows[0]["enrollment"], enrollment)
-        self.assertEqual(rows[0]["enrollment"].open_complaints, 2)
-
     def create_course(self, slug, title, *, finished=False):
         return Course.objects.create(
             slug=slug,
@@ -267,12 +183,6 @@ class CadminViewTests(TestCase):
             f"/admin/courses/course/{self.course.id}/change/",
         )
         self.assertContains(response, reverse("cadmin_datamailer_operations"))
-
-    def leaderboard_complaints_url(self):
-        return reverse(
-            "cadmin_leaderboard_complaints",
-            kwargs={"course_slug": self.course.slug},
-        )
 
     def create_homework_submission(self, enrollment=None, **overrides):
         defaults = {
@@ -1118,56 +1028,6 @@ class CadminViewTests(TestCase):
         cancel_campaign.assert_called_once_with(
             "cmp-registration-llm-zoomcamp"
         )
-
-    def test_leaderboard_complaints_sorted_by_open_count(self):
-        self.login_admin()
-        second = self.create_complaint_sorting_target(
-            self.create_complaint_reporter()
-        )
-
-        response = self.client.get(self.leaderboard_complaints_url())
-
-        self.assertEqual(response.status_code, 200)
-        self.assert_most_complained_enrollment_first(response, second)
-        self.assertContains(response, "Second Student")
-
-    def test_staff_can_resolve_leaderboard_complaint(self):
-        self.client.login(
-            username="admin@test.com", password="admin123"
-        )
-        enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-            display_name="Reported Student",
-            total_score=10,
-        )
-        complaint = LeaderboardComplaint.objects.create(
-            enrollment=enrollment,
-            reporter=self.user,
-            issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
-            description="Incorrect homework.",
-        )
-
-        response = self.client.post(
-            reverse(
-                "cadmin_leaderboard_complaint_resolve",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "complaint_id": complaint.id,
-                },
-            )
-        )
-
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_leaderboard_complaints",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
-        complaint.refresh_from_db()
-        self.assertTrue(complaint.resolved)
-        self.assertEqual(complaint.resolved_by, self.admin_user)
 
     def test_homework_submissions_redirect_from_courses(self):
         """Test that homework submissions view redirects to cadmin"""
