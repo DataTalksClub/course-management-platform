@@ -1,6 +1,6 @@
 from django.db.models import Count
 
-from courses.models import ProjectVote
+from courses.models.project import ProjectVote
 
 
 PROJECT_VOTES_PER_PROJECT = 3
@@ -37,12 +37,12 @@ def get_voted_submission_ids(user, course) -> set[int]:
     if not user.is_authenticated:
         return set()
 
-    return set(
-        ProjectVote.objects.filter(
-            voter=user,
-            submission__project__course=course,
-        ).values_list("submission_id", flat=True)
+    votes = ProjectVote.objects.filter(
+        voter=user,
+        submission__project__course=course,
     )
+    submission_ids = votes.values_list("submission_id", flat=True)
+    return set(submission_ids)
 
 
 def get_project_vote_counts(user, course) -> dict[int, int]:

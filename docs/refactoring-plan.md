@@ -568,6 +568,7 @@ Steps:
 - [x] Replace wildcard admin/validator imports with direct module imports and
   explicit admin module registration imports.
 - [x] Remove remaining nested meaningful calls from wrapped-statistics helpers.
+- [x] Remove nested queryset-to-set construction from project voting helpers.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
