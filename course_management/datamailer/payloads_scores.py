@@ -174,6 +174,27 @@ def _bulk_recipient_list_payload(config, list_data, members):
     }
 
 
+def _project_passed_member_payload(project, payload) -> dict[str, Any]:
+    return {
+        **payload,
+        "list": _project_passed_list_data(project),
+        "member": _project_passed_member_payload_data(payload),
+    }
+
+
+def _project_passed_member_payload_data(payload) -> dict[str, Any]:
+    return {
+        **payload["member"],
+        "metadata": _project_passed_member_metadata(payload),
+    }
+
+
+def _project_passed_member_metadata(payload) -> dict[str, Any]:
+    return payload["member"]["metadata"] | {
+        "outcome": "project_passed",
+    }
+
+
 def project_passed_recipient_list_member_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
@@ -182,28 +203,8 @@ def project_passed_recipient_list_member_payload(
         return None
 
     project = submission.project
-    course = project.course
     payload = item.payload
-    member_payload = {
-        **payload,
-        "list": {
-            "type": "custom",
-            "name": f"{course.title} {project.title} passed learners",
-            "metadata": {
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-                "project_id": project.pk,
-                "outcome": "project_passed",
-            },
-        },
-        "member": {
-            **payload["member"],
-            "metadata": payload["member"]["metadata"]
-            | {
-                "outcome": "project_passed",
-            },
-        },
-    }
+    member_payload = _project_passed_member_payload(project, payload)
     return RecipientListMemberPayload(
         list_key=project_passed_list_key(project),
         source_object_key=item.source_object_key,

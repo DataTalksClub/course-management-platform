@@ -42,6 +42,17 @@ class CertificateApplyBatch:
     updated: list
     errors: list
 
+    def record(self, result):
+        if result.error:
+            self.errors.append(result.error)
+            return
+
+        enrollment = result.enrollment
+        self.enrollments_to_update[enrollment.id] = enrollment
+        if result.notify:
+            self.enrollments_to_notify[enrollment.id] = enrollment
+        self.updated.append(result.updated)
+
 
 def get_passed_enrollments(passed_project_submissions, min_projects):
     """
@@ -242,10 +253,12 @@ def _apply_certificate_updates(
     The notify batch holds enrollments that gained a certificate they did not
     have before. Mutates the enrollment objects' certificate_url in place.
     """
-    enrollments_to_update = {}
-    enrollments_to_notify = {}
-    updated = []
-    errors = []
+    batch = CertificateApplyBatch(
+        enrollments_to_update={},
+        enrollments_to_notify={},
+        updated=[],
+        errors=[],
+    )
 
     for update in valid_updates:
         result = _apply_certificate_update(
@@ -254,21 +267,9 @@ def _apply_certificate_updates(
             users_by_email,
             enrollments_by_email,
         )
-        if result.error:
-            errors.append(result.error)
-            continue
+        batch.record(result)
 
-        enrollments_to_update[result.enrollment.id] = result.enrollment
-        if result.notify:
-            enrollments_to_notify[result.enrollment.id] = result.enrollment
-        updated.append(result.updated)
-
-    return CertificateApplyBatch(
-        enrollments_to_update=enrollments_to_update,
-        enrollments_to_notify=enrollments_to_notify,
-        updated=updated,
-        errors=errors,
-    )
+    return batch
 
 
 def _certificate_request_updates(request):
