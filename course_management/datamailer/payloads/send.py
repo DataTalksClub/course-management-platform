@@ -65,7 +65,9 @@ def datamailer_send_list_key(
 
 
 def _response_count(response: dict[str, Any], key: str) -> int:
-    return int(response.get(key) or 0)
+    raw_count = response.get(key) or 0
+    count = int(raw_count)
+    return count
 
 
 def _transactional_send_counts(response: dict[str, Any]) -> dict[str, int]:
@@ -91,7 +93,9 @@ def _transactional_send_counts(response: dict[str, Any]) -> dict[str, int]:
 
 def _recipient_list_intended_count(response: dict[str, Any]) -> int:
     recipient_list = response.get("recipient_list") or {}
-    return int(recipient_list.get("active_member_count") or 0)
+    raw_count = recipient_list.get("active_member_count") or 0
+    intended_count = int(raw_count)
+    return intended_count
 
 
 def _active_payload_member_count(payload: dict[str, Any]) -> int:
@@ -110,10 +114,12 @@ def _transient_recipient_list_intended_count(
     response: dict[str, Any],
 ) -> int:
     transient_list = response.get("transient_recipient_list") or {}
-    response_count = int(transient_list.get("active_member_count") or 0)
+    raw_count = transient_list.get("active_member_count") or 0
+    response_count = int(raw_count)
     if response_count:
         return response_count
-    return _active_payload_member_count(payload)
+    payload_member_count = _active_payload_member_count(payload)
+    return payload_member_count
 
 
 def _recipient_send_counts(

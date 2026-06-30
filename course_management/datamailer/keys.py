@@ -18,7 +18,11 @@ __all__ = [
 
 def course_family_slug(course) -> str:
     slug = course.slug
-    return re.sub(r"[-_ ]?\d{4}$", "", slug).strip("-_ ") or slug
+    without_year = re.sub(r"[-_ ]?\d{4}$", "", slug)
+    family_slug = without_year.strip("-_ ")
+    if family_slug:
+        return family_slug
+    return slug
 
 
 def contact_tags_for_course(course) -> list[str]:

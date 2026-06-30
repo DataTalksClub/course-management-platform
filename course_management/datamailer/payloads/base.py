@@ -130,10 +130,11 @@ def registration_campaign_payload_data(
         "registration_campaign",
         kwargs={"campaign_slug": campaign.slug},
     )
+    registration_url = public_url(public_path)
     return RegistrationCampaignPayloadData(
         campaign=campaign,
         body_text=body_text,
-        registration_url=public_url(public_path),
+        registration_url=registration_url,
     )
 
 

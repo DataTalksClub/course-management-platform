@@ -724,7 +724,9 @@ def build_reminder_events(config, now, course_slug=""):
 
     for event in reminder_events:
         events[event.list_key] = event
-    return list(events.values())
+    event_values = events.values()
+    unique_events = list(event_values)
+    return unique_events
 
 
 def reminder_event_member_count(events):

@@ -38,15 +38,17 @@ def datamailer_audit_status(error: str) -> str:
 
 
 def datamailer_audit_template_key(payload, response) -> str:
-    return (
-        response.get("template_key")
-        or response.get("message", {}).get("template_key", "")
-        or payload.get("template_key", "")
-    )
+    response_template_key = response.get("template_key")
+    message = response.get("message") or {}
+    message_template_key = message.get("template_key", "")
+    payload_template_key = payload.get("template_key", "")
+    return response_template_key or message_template_key or payload_template_key
 
 
 def datamailer_audit_category_tag(payload, metadata) -> str:
-    return payload.get("category_tag", "") or metadata.get("category_tag", "")
+    payload_category_tag = payload.get("category_tag", "")
+    metadata_category_tag = metadata.get("category_tag", "")
+    return payload_category_tag or metadata_category_tag
 
 
 def datamailer_send_audit_defaults(data) -> dict[str, Any]:
