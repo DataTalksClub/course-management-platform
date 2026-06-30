@@ -1,6 +1,8 @@
+from io import StringIO
 from unittest.mock import patch
 
 import requests
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from accounts.models import CustomUser
@@ -118,6 +120,52 @@ class DatamailerContactTest(TestCase):
         self.assertEqual(audit.enqueued_count, 1)
         self.assertEqual(audit.skipped_count, 0)
 
+    def configure_contact_bulk_import_counts(self, bulk_import):
+        bulk_import.return_value = {
+            "counts": {
+                "created": 1,
+                "updated": 1,
+                "unchanged": 0,
+                "skipped": 0,
+                "invalid": 0,
+            },
+        }
+
+    def create_contact_backfill_users(self):
+        CustomUser.objects.create_user(
+            username="student-1",
+            email="Student1@Example.com",
+        )
+        CustomUser.objects.create_user(
+            username="student-2",
+            email="student2@example.com",
+        )
+
+    def assert_first_contact_import_payload(self, bulk_import):
+        self.assertEqual(bulk_import.call_count, 2)
+        first_payload = bulk_import.call_args_list[0].args[0]
+        self.assertEqual(first_payload["audience"], "dtc-courses")
+        self.assertEqual(first_payload["client"], "dtc-courses")
+        self.assertEqual(
+            first_payload["idempotency_key"],
+            "cmp-contact-bootstrap:1",
+        )
+        self.assertEqual(
+            first_payload["contacts"][0]["email"],
+            "student1@example.com",
+        )
+        self.assertEqual(
+            first_payload["contacts"][0]["email_validation"]["status"],
+            "externally_validated",
+        )
+
+    def assert_contact_import_output(self, out):
+        self.assertIn(
+            "Prepared 2 contact batch(es), 2 contact(s).",
+            out.getvalue(),
+        )
+        self.assertIn("Synced batch 1: 1 contact(s); created=1", out.getvalue())
+
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
         user, course = self.create_contact_payload_fixture()
@@ -199,14 +247,17 @@ class DatamailerContactTest(TestCase):
         self.assertEqual(audit.error, "network error")
 
     def test_datamailer_send_counts_marks_transactional_replay(self):
+        payload = {}
+        result = {
+            "idempotent_replay": True,
+            "enqueued": False,
+            "message": {"status": "skipped"},
+        }
+
         counts = datamailer_send_counts(
             DatamailerSendAuditType.TRANSACTIONAL,
-            {},
-            {
-                "idempotent_replay": True,
-                "enqueued": False,
-                "message": {"status": "skipped"},
-            },
+            payload,
+            result,
         )
 
         self.assertEqual(counts["intended_count"], 1)
@@ -216,15 +267,18 @@ class DatamailerContactTest(TestCase):
         self.assertEqual(counts["idempotent_replay_count"], 1)
 
     def test_datamailer_send_counts_uses_recipient_list_response(self):
+        payload = {}
+        result = {
+            "recipient_list": {"active_member_count": 3},
+            "created_count": 2,
+            "enqueued_count": 1,
+            "skipped_count": 1,
+        }
+
         counts = datamailer_send_counts(
             DatamailerSendAuditType.RECIPIENT_LIST,
-            {},
-            {
-                "recipient_list": {"active_member_count": 3},
-                "created_count": 2,
-                "enqueued_count": 1,
-                "skipped_count": 1,
-            },
+            payload,
+            result,
         )
 
         self.assertEqual(counts["intended_count"], 3)
@@ -233,15 +287,18 @@ class DatamailerContactTest(TestCase):
         self.assertEqual(counts["skipped_count"], 1)
 
     def test_datamailer_send_counts_falls_back_to_transient_members(self):
+        payload = {
+            "members": [
+                {"email": "active@example.com"},
+                {"email": "removed@example.com", "status": "removed"},
+            ],
+        }
+        result = {"transient_recipient_list": {}, "enqueued_count": 1}
+
         counts = datamailer_send_counts(
             DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-            {
-                "members": [
-                    {"email": "active@example.com"},
-                    {"email": "removed@example.com", "status": "removed"},
-                ],
-            },
-            {"transient_recipient_list": {}, "enqueued_count": 1},
+            payload,
+            result,
         )
 
         self.assertEqual(counts["intended_count"], 1)
@@ -258,23 +315,21 @@ class DatamailerContactTest(TestCase):
         self, send
     ):
         send.return_value = {"id": "message-id"}
+        payload = {
+            "template_key": "welcome",
+            "email": "student@example.com",
+        }
 
-        send_transactional_email(
-            {
-                "template_key": "welcome",
-                "email": "student@example.com",
-            }
-        )
+        send_transactional_email(payload)
 
-        send.assert_called_once_with(
-            {
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "from_email": "courses",
-            }
-        )
+        expected_payload = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+            "template_key": "welcome",
+            "email": "student@example.com",
+            "from_email": "courses",
+        }
+        send.assert_called_once_with(expected_payload)
 
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -287,21 +342,88 @@ class DatamailerContactTest(TestCase):
         self, send
     ):
         send.return_value = {"id": "message-id"}
+        payload = {
+            "template_key": "welcome",
+            "email": "student@example.com",
+            "from_email": "no-reply",
+        }
 
-        send_transactional_email(
-            {
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "from_email": "no-reply",
-            }
+        send_transactional_email(payload)
+
+        expected_payload = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+            "template_key": "welcome",
+            "email": "student@example.com",
+            "from_email": "no-reply",
+        }
+        send.assert_called_once_with(expected_payload)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
+    )
+    def test_contact_backfill_command_bulk_imports_users(
+        self,
+        bulk_import,
+    ):
+        self.configure_contact_bulk_import_counts(bulk_import)
+        self.create_contact_backfill_users()
+
+        out = StringIO()
+        call_command(
+            "sync_datamailer_contacts",
+            "--batch-size",
+            "1",
+            stdout=out,
         )
 
-        send.assert_called_once_with(
-            {
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "template_key": "welcome",
-                "email": "student@example.com",
-                "from_email": "no-reply",
-            }
+        self.assert_first_contact_import_payload(bulk_import)
+        self.assert_contact_import_output(out)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
+    )
+    def test_contact_backfill_command_dry_run_does_not_call_datamailer(
+        self,
+        bulk_import,
+    ):
+        CustomUser.objects.create_user(
+            username="student",
+            email="student@example.com",
         )
+
+        out = StringIO()
+        call_command("sync_datamailer_contacts", "--dry-run", stdout=out)
+
+        bulk_import.assert_not_called()
+        self.assertIn("Prepared 1 contact batch(es), 1 contact(s).", out.getvalue())
+        self.assertIn("batch 1: 1 contact(s)", out.getvalue())
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch(
+        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
+    )
+    def test_contact_backfill_command_can_limit_to_active_users(
+        self,
+        bulk_import,
+    ):
+        bulk_import.return_value = {"counts": {"created": 1}}
+        CustomUser.objects.create_user(
+            username="active",
+            email="active@example.com",
+        )
+        CustomUser.objects.create_user(
+            username="inactive",
+            email="inactive@example.com",
+            is_active=False,
+        )
+
+        out = StringIO()
+        call_command("sync_datamailer_contacts", "--active-only", stdout=out)
+
+        bulk_import.assert_called_once()
+        payload = bulk_import.call_args.args[0]
+        self.assertEqual(len(payload["contacts"]), 1)
+        self.assertEqual(payload["contacts"][0]["email"], "active@example.com")
