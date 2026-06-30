@@ -51,9 +51,11 @@ def _existing_user_registration(
     if not request.user.is_authenticated:
         return None
 
+    email = request.user.email or ""
+    email_normalized = email.strip().lower()
     return CourseRegistration.objects.filter(
         campaign=campaign,
-        email_normalized=(request.user.email or "").strip().lower(),
+        email_normalized=email_normalized,
     ).first()
 
 
@@ -102,18 +104,23 @@ def _registration_context(
     form: CourseRegistrationForm,
     registration: CourseRegistration | None,
 ) -> dict:
+    marketing_content = render_markdown(campaign.marketing_markdown)
+    marketing_html = mark_safe(marketing_content)
+    video_embed_url = youtube_embed_url(campaign.video_url)
+    start_course_url = _start_course_url(campaign)
+    country_options = ordered_countries()
+    course_is_open = campaign_course_is_open(campaign)
+
     return {
         "campaign": campaign,
         "course": campaign.current_course,
-        "course_is_open": campaign_course_is_open(campaign),
+        "course_is_open": course_is_open,
         "form": form,
         "registration": registration,
-        "marketing_html": mark_safe(
-            render_markdown(campaign.marketing_markdown)
-        ),
-        "video_embed_url": youtube_embed_url(campaign.video_url),
-        "start_course_url": _start_course_url(campaign),
-        "country_options": ordered_countries(),
+        "marketing_html": marketing_html,
+        "video_embed_url": video_embed_url,
+        "start_course_url": start_course_url,
+        "country_options": country_options,
     }
 
 

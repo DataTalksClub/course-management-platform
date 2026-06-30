@@ -600,6 +600,8 @@ Steps:
   duplicate-link set.
 - [x] Name course-list queryset annotations and prefetch/order steps instead of
   chaining them inline.
+- [x] Name registration email normalization and context presentation values
+  instead of nesting calls inline.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
