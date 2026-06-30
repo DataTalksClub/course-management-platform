@@ -23,27 +23,10 @@ from courses.models import (
 
 from .course_list import (
     add_course_homepage_info,
-    course_list as course_list,
-)
-from .course_calendar import course_calendar_view as course_calendar_view
-from .course_enrollment import (
-    enrollment_view as enrollment_view,
-    update_enrollment_toggle as update_enrollment_toggle,
 )
 from .course_homeworks import (
-    get_homeworks_for_course as get_homeworks_for_course,
-    update_homework_with_additional_info as update_homework_with_additional_info,
+    get_homeworks_for_course,
 )
-from .course_leaderboard import (
-    invalidate_leaderboard_cache as invalidate_leaderboard_cache,
-    leaderboard_complaint_view as leaderboard_complaint_view,
-    leaderboard_score_breakdown_view as leaderboard_score_breakdown_view,
-    leaderboard_view as leaderboard_view,
-)
-from .course_project_submissions import (
-    list_all_project_submissions_view as list_all_project_submissions_view,
-)
-from .dashboard import dashboard_view as dashboard_view
 
 
 @dataclass(frozen=True)

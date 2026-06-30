@@ -559,6 +559,8 @@ Steps:
   compatibility imports for moved scoring/project helpers.
 - [x] Wire project URLs directly to split view modules and remove project view
   re-export imports.
+- [x] Wire course and homework URLs directly to split view modules and remove
+  course/homework view re-export imports.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -19,12 +19,6 @@ from courses.models import (
     User,
 )
 
-from courses.views.homework_statistics import (
-    homework_statistics as homework_statistics,
-)
-from courses.views.homework_submissions import (
-    homework_submissions as homework_submissions,
-)
 from courses.views.homework_answers import (
     process_question_options,
 )
