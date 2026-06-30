@@ -94,25 +94,26 @@ class Command(BaseCommand):
     def write_recipient_count(self, recipients):
         out = self.stdout
         out.write("")
-        out.write(
-            self.style.SUCCESS(f"{recipients} recipient(s) would be emailed.")
+        message = self.style.SUCCESS(
+            f"{recipients} recipient(s) would be emailed."
         )
+        out.write(message)
 
     def write_json_payload(self, project):
         out = self.stdout
         out.write("")
         list_payload = peer_review_assignment_notification_payload(project)
         if list_payload is None:
-            out.write(
-                self.style.WARNING(
-                    "Datamailer not configured - no payload to show."
-                )
+            message = self.style.WARNING(
+                "Datamailer not configured - no payload to show."
             )
+            out.write(message)
             return
 
         list_key, payload = list_payload
         out.write(f"list_key: {list_key}")
-        out.write(json.dumps(payload, indent=2, sort_keys=True))
+        payload_json = json.dumps(payload, indent=2, sort_keys=True)
+        out.write(payload_json)
 
 
 def ordered_project_submissions(project):

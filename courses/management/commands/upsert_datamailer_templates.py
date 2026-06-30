@@ -48,9 +48,10 @@ class Command(BaseCommand):
     help = "Create or update CMP's transactional templates in Datamailer."
 
     def add_arguments(self, parser):
+        template_choices = sorted(TEMPLATES)
         parser.add_argument(
             "--template-key",
-            choices=sorted(TEMPLATES),
+            choices=template_choices,
             default="",
             help="Only upsert this template (default: all CMP templates).",
         )
@@ -82,9 +83,11 @@ class Command(BaseCommand):
     def write_upsert_results(self, config, results):
         for result in results:
             template_key = result["template_key"]
-            self.stdout.write(
-                self.style.SUCCESS(f"upserted {template_key} -> {config.url}")
+            message = self.style.SUCCESS(
+                f"upserted {template_key} -> {config.url}"
             )
+            self.stdout.write(message)
 
     def write_json_results(self, results):
-        self.stdout.write(json.dumps(results, indent=2, default=str))
+        results_json = json.dumps(results, indent=2, default=str)
+        self.stdout.write(results_json)
