@@ -54,14 +54,16 @@ def account_settings(request):
 
     if request.method == "POST" and form.is_valid():
         form.save()
-        return redirect("account_settings")
+        response = redirect("account_settings")
+        return response
 
     context = _account_settings_context(request, user, form)
-    return render(
+    response = render(
         request,
         "accounts/account_settings.html",
         context,
     )
+    return response
 
 
 def _account_settings_form(request, user):
@@ -132,7 +134,8 @@ def toggle_dark_mode(request):
     user.dark_mode = not user.dark_mode
     user.save(update_fields=['dark_mode'])
     payload = {'dark_mode': user.dark_mode}
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 @login_required
@@ -142,10 +145,11 @@ def update_account_toggle(request):
     value = request.POST.get("value", "")
 
     if field not in LOCAL_ACCOUNT_TOGGLE_FIELDS:
-        return JsonResponse(
+        response = JsonResponse(
             {"error": "Unsupported account setting."},
             status=400,
         )
+        return response
 
     enabled = value.lower() in {"1", "true", "yes", "on"}
     setattr(request.user, field, enabled)
@@ -157,7 +161,8 @@ def update_account_toggle(request):
     }
     if field == "dark_mode":
         response["dark_mode"] = enabled
-    return JsonResponse(response)
+    json_response = JsonResponse(response)
+    return json_response
 
 
 @login_required
@@ -170,10 +175,11 @@ def account_email_preferences(request):
 
 
 def _email_preferences_unavailable_response():
-    return JsonResponse(
+    response = JsonResponse(
         {"error": "Email preferences are unavailable."},
         status=503,
     )
+    return response
 
 
 def _account_email_preferences_get_response(user):
@@ -181,7 +187,8 @@ def _account_email_preferences_get_response(user):
     if preferences is None:
         return _email_preferences_unavailable_response()
     payload = {"preferences": preferences}
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    return response
 
 
 def _email_preference_update_payload(request):
@@ -220,13 +227,14 @@ def _account_email_preferences_update_response(request):
 
 
 def _email_preference_update_success_response(update):
-    return JsonResponse(
+    response = JsonResponse(
         {
             "field": update.field,
             "value": update.enabled,
             "datamailer_synced": True,
         }
     )
+    return response
 
 
 def _parse_timezone_request(request):
@@ -253,13 +261,14 @@ def _validated_timezone_name(data):
 
 def _timezone_preference_response(timezone_name):
     timezone_label = get_timezone_label(timezone_name)
-    return JsonResponse(
+    response = JsonResponse(
         {
             "status": "ok",
             "timezone": timezone_name,
             "label": timezone_label,
         }
     )
+    return response
 
 
 def _should_keep_saved_timezone(data, user):
@@ -277,12 +286,14 @@ def update_timezone_preference(request):
     data, error = _parse_timezone_request(request)
     if error:
         payload = {"error": error}
-        return JsonResponse(payload, status=400)
+        response = JsonResponse(payload, status=400)
+        return response
 
     timezone_name, error = _validated_timezone_name(data)
     if error:
         payload = {"error": error}
-        return JsonResponse(payload, status=400)
+        response = JsonResponse(payload, status=400)
+        return response
 
     user = request.user
     if _should_keep_saved_timezone(data, user):
@@ -297,7 +308,8 @@ def update_timezone_preference(request):
 @require_POST
 def stop_impersonating(request):
     restore_original_login(request)
-    return redirect("cadmin_course_list")
+    response = redirect("cadmin_course_list")
+    return response
 
 
 async def social_login_view(request):
@@ -305,11 +317,12 @@ async def social_login_view(request):
     context = {"providers": providers}
     render_async = sync_to_async(render)
 
-    return await render_async(
+    response = await render_async(
         request,
         "accounts/login.html",
         context,
     )
+    return response
 
 
 @sync_to_async
