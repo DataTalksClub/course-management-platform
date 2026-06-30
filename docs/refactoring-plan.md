@@ -57,6 +57,9 @@ testable service functions.
   into the constructor or record.
 - Do not inline meaningful function calls inside tuple/list record construction.
   Assign the value to a named local first, then build the tuple/list record.
+- Do not nest meaningful function calls as arguments to other function calls.
+  Assign the inner result to a named local first so each step has a visible
+  purpose.
 - Do not inline context-builder calls inside `render(...)`. Assign
   `context = some_context_builder(...)` first, then pass `context` to `render`.
 - When a set of related flat modules shares a strong prefix and one public
@@ -544,6 +547,8 @@ Steps:
   homework-specific modules.
 - [x] Split homework submission persistence, validation, and callback
   registration out of `courses/views/homework.py`.
+- [x] Split project submission confirmation payload and email helpers out of
+  `courses/views/project.py`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

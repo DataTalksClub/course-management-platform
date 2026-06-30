@@ -148,7 +148,8 @@ def homework_confirmation_payload(data: HomeworkConfirmationEmailData) -> dict:
 def homework_confirmation_payload_context(
     data: HomeworkConfirmationEmailData,
 ) -> dict[str, Any]:
-    profile_url = build_account_settings_url(request_base_url(data.update_url))
+    base_url = request_base_url(data.update_url)
+    profile_url = build_account_settings_url(base_url)
     context_data = HomeworkConfirmationData(
         course=data.course,
         homework=data.homework,

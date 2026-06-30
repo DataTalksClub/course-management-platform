@@ -496,7 +496,7 @@ class ProjectViewTestCase(TestCase):
                 "courses.views.project.sync_project_submission_to_datamailer"
             ) as sync_submission,
             mock.patch(
-                "courses.views.project.send_transactional_email"
+                "courses.views.project_confirmation.send_transactional_email"
             ) as send_email,
         ):
             self.mock_url_check_status(mock_get, mock_head, 200)
@@ -528,7 +528,7 @@ class ProjectViewTestCase(TestCase):
                 "courses.views.project.sync_project_submission_to_datamailer"
             ) as sync_submission,
             mock.patch(
-                "courses.views.project.send_transactional_email"
+                "courses.views.project_confirmation.send_transactional_email"
             ) as send_email,
         ):
             self.mock_url_check_status(mock_get, mock_head, 200)
