@@ -142,7 +142,8 @@ def _project_submissions_context(data):
 
 
 def _project_submissions_request_filters(request):
-    search_query = request.GET.get("q", "").strip()
+    raw_search_query = request.GET.get("q", "")
+    search_query = raw_search_query.strip()
     status_filter = request.GET.get("status", "all")
     return (
         search_query,

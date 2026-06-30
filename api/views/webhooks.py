@@ -107,8 +107,10 @@ def required_event_fields(payload):
     event_id = str(event_id).strip()
     event_type = payload.get("event_type") or ""
     event_type = str(event_type).strip()
-    email = payload.get("email") or ""
-    email = str(email).strip().lower()
+    raw_email = payload.get("email") or ""
+    email = str(raw_email)
+    email = email.strip()
+    email = email.lower()
     fields = DatamailerEventFields(
         event_id=event_id,
         event_type=event_type,

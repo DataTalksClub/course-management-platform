@@ -28,7 +28,8 @@ from .view_models import enrollment_list_data
 def enrollments_list(request, course_slug):
     """List all enrollments for a course"""
     course = get_object_or_404(Course, slug=course_slug)
-    search_query = request.GET.get("q", "").strip()
+    raw_search_query = request.GET.get("q", "")
+    search_query = raw_search_query.strip()
     status_filter = request.GET.get("status", "all")
     enrollments, enrollment_filter_counts = enrollment_list_data(
         course,

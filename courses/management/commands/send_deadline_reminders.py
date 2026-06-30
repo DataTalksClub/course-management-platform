@@ -151,7 +151,9 @@ def deadline_metadata(deadline, user):
 
 
 def member_from_enrollment(enrollment, metadata, *, deadline=None):
-    email = (enrollment.student.email or "").strip().lower()
+    raw_email = enrollment.student.email or ""
+    email_stripped = raw_email.strip()
+    email = email_stripped.lower()
     if not email:
         return None
     member_metadata = metadata
@@ -173,7 +175,9 @@ def member_from_enrollment(enrollment, metadata, *, deadline=None):
 
 
 def member_from_project_submission(submission, metadata, *, deadline=None):
-    email = (submission.student.email or "").strip().lower()
+    raw_email = submission.student.email or ""
+    email_stripped = raw_email.strip()
+    email = email_stripped.lower()
     if not email:
         return None
     source_object_key = f"project-submission:{submission.pk}"

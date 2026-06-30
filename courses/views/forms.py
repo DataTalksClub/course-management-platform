@@ -227,7 +227,9 @@ class CourseRegistrationForm(forms.ModelForm):
         else:
             email = self.cleaned_data["email"]
 
-        email_normalized = (email or "").strip().lower()
+        raw_email = email or ""
+        email_stripped = raw_email.strip()
+        email_normalized = email_stripped.lower()
         if CourseRegistration.objects.filter(
             campaign=self.campaign,
             email_normalized=email_normalized,

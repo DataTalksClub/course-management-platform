@@ -263,7 +263,8 @@ def expected_members(payload):
         if member.get("status", "active") == "removed":
             continue
         source_object_key = member["source_object_key"]
-        email = member["email"].strip().lower()
+        email_stripped = member["email"].strip()
+        email = email_stripped.lower()
         metadata = member.get("metadata") or {}
         member_record = {
             "email": email,
@@ -280,7 +281,8 @@ def actual_members(response):
         if member.get("status", "active") == "removed":
             continue
         source_object_key = member["source_object_key"]
-        email = member["email"].strip().lower()
+        email_stripped = member["email"].strip()
+        email = email_stripped.lower()
         metadata = member.get("metadata") or {}
         member_record = {
             "email": email,

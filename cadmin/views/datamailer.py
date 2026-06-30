@@ -230,9 +230,13 @@ def datamailer_operations(request):
 
 
 def datamailer_event_filters(request):
+    raw_event_type = request.GET.get("event_type", "")
+    raw_search_query = request.GET.get("q", "")
+    event_type = raw_event_type.strip()
+    search_query = raw_search_query.strip()
     return (
-        request.GET.get("event_type", "").strip(),
-        request.GET.get("q", "").strip(),
+        event_type,
+        search_query,
     )
 
 

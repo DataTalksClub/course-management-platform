@@ -86,7 +86,8 @@ def update_user_certificate_name_from_post(
     request: HttpRequest,
     user: User,
 ) -> None:
-    certificate_name = request.POST.get("certificate_name", "").strip()
+    raw_certificate_name = request.POST.get("certificate_name", "")
+    certificate_name = raw_certificate_name.strip()
     if not certificate_name:
         return
 

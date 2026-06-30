@@ -52,7 +52,8 @@ def _existing_user_registration(
         return None
 
     email = request.user.email or ""
-    email_normalized = email.strip().lower()
+    email_stripped = email.strip()
+    email_normalized = email_stripped.lower()
     return CourseRegistration.objects.filter(
         campaign=campaign,
         email_normalized=email_normalized,

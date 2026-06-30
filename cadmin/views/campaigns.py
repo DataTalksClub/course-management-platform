@@ -84,13 +84,16 @@ def _split_trailing_year(text):
         base = text_value.strip()
         return base, ""
     base = text_value[: match.start()]
-    stripped_base = base.strip().rstrip("-_ ").strip()
+    stripped_base = base.strip()
+    stripped_base = stripped_base.rstrip("-_ ")
+    stripped_base = stripped_base.strip()
     year = match.group(1)
     return stripped_base, year
 
 
 def campaign_initial_course(request):
-    course_slug = request.GET.get("course", "").strip()
+    raw_course_slug = request.GET.get("course", "")
+    course_slug = raw_course_slug.strip()
     if not course_slug:
         return None
 
@@ -265,7 +268,8 @@ def run_datamailer_campaign_action(
 
 
 def handle_datamailer_campaign_action(request, campaign):
-    action = request.POST.get("datamailer_action", "").strip()
+    raw_action = request.POST.get("datamailer_action", "")
+    action = raw_action.strip()
     client = datamailer_campaign_client_or_message(request)
     if client is None:
         return None, True
@@ -419,10 +423,16 @@ def _campaign_registration_queryset(campaign):
 
 
 def _campaign_registration_filters(request):
+    raw_role = request.GET.get("role", "")
+    raw_country = request.GET.get("country", "")
+    raw_region = request.GET.get("region", "")
+    role = raw_role.strip()
+    country = raw_country.strip()
+    region = raw_region.strip()
     return {
-        "role": request.GET.get("role", "").strip(),
-        "country": request.GET.get("country", "").strip(),
-        "region": request.GET.get("region", "").strip(),
+        "role": role,
+        "country": country,
+        "region": region,
     }
 
 
@@ -470,7 +480,8 @@ def campaign_registrations(request, campaign_slug):
         slug=campaign_slug,
     )
     filters = _campaign_registration_filters(request)
-    search_query = request.GET.get("q", "").strip()
+    raw_search_query = request.GET.get("q", "")
+    search_query = raw_search_query.strip()
 
     registrations = _campaign_registration_queryset(campaign)
     registrations = _apply_campaign_registration_filters(

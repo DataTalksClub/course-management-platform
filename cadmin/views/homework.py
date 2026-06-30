@@ -172,7 +172,8 @@ def homework_submissions(request, course_slug, homework_slug):
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
     )
-    search_query = request.GET.get("q", "").strip()
+    raw_search_query = request.GET.get("q", "")
+    search_query = raw_search_query.strip()
     submissions = _homework_submissions_queryset(homework, search_query)
     submissions_page = paginate_queryset(request, submissions)
     context_data = HomeworkSubmissionsContextData(
