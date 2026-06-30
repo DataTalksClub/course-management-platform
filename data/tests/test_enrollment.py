@@ -49,6 +49,12 @@ class CertificateUpdateExpectation:
     error_count: int | None = None
 
 
+@dataclass(frozen=True)
+class CertificateNotificationScenario:
+    data: dict
+    second_enrollment: Enrollment
+
+
 class EnrollmentDataAPITestCase(TestCase):
     """Tests for enrollment-related data API endpoints."""
 
@@ -362,6 +368,61 @@ class EnrollmentDataAPITestCase(TestCase):
         enrollment.refresh_from_db()
         self.assertEqual(enrollment.certificate_url, certificate_url)
 
+    def certificate_notification_scenario(self):
+        second_user, second_enrollment = self.create_enrolled_user(
+            "seconduser",
+            "second@example.com",
+            certificate_url="/certificates/old.pdf",
+        )
+        data = self.certificate_payload(
+            [
+                {
+                    "email": self.user.email,
+                    "certificate_path": "/certificates/first.pdf",
+                },
+                {
+                    "email": second_user.email,
+                    "certificate_path": "/certificates/second.pdf",
+                },
+            ]
+        )
+        return CertificateNotificationScenario(
+            data=data,
+            second_enrollment=second_enrollment,
+        )
+
+    def post_certificates_with_callbacks(self, data):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.post_certificates(data)
+        return response
+
+    def assert_successful_certificate_notification_result(self, response):
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        expectation = CertificateUpdateExpectation(
+            result=result,
+            success=True,
+            updated_count=2,
+        )
+        self.assert_certificate_update_result(expectation)
+
+    def assert_certificate_notification_urls(self, second_enrollment):
+        self.assert_certificate_url(
+            self.enrollment, "/certificates/first.pdf"
+        )
+        self.assert_certificate_url(
+            second_enrollment, "/certificates/second.pdf"
+        )
+
+    def assert_certificate_notification_sent(self, send_notification):
+        send_notification.assert_called_once()
+        notified_enrollment = send_notification.call_args.args[0]
+        self.assertEqual(notified_enrollment.id, self.enrollment.id)
+        self.assertEqual(
+            notified_enrollment.certificate_url,
+            "/certificates/first.pdf",
+        )
+
     def test_bulk_update_enrollment_certificates_view(self):
         """Test bulk updating enrollment certificate URLs."""
         second_user, second_enrollment = self.create_enrolled_user(
@@ -436,45 +497,12 @@ class EnrollmentDataAPITestCase(TestCase):
         self,
         send_notification,
     ):
-        second_user, second_enrollment = self.create_enrolled_user(
-            "seconduser",
-            "second@example.com",
-            certificate_url="/certificates/old.pdf",
-        )
-        data = self.certificate_payload(
-            [
-                {
-                    "email": self.user.email,
-                    "certificate_path": "/certificates/first.pdf",
-                },
-                {
-                    "email": second_user.email,
-                    "certificate_path": "/certificates/second.pdf",
-                },
-            ]
-        )
+        scenario = self.certificate_notification_scenario()
 
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.post_certificates(data)
+        response = self.post_certificates_with_callbacks(scenario.data)
 
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        expectation = CertificateUpdateExpectation(
-            result=result,
-            success=True,
-            updated_count=2,
+        self.assert_successful_certificate_notification_result(response)
+        self.assert_certificate_notification_urls(
+            scenario.second_enrollment
         )
-        self.assert_certificate_update_result(expectation)
-        self.assert_certificate_url(
-            self.enrollment, "/certificates/first.pdf"
-        )
-        self.assert_certificate_url(
-            second_enrollment, "/certificates/second.pdf"
-        )
-        send_notification.assert_called_once()
-        notified_enrollment = send_notification.call_args.args[0]
-        self.assertEqual(notified_enrollment.id, self.enrollment.id)
-        self.assertEqual(
-            notified_enrollment.certificate_url,
-            "/certificates/first.pdf",
-        )
+        self.assert_certificate_notification_sent(send_notification)
