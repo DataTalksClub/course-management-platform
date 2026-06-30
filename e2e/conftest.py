@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+from playwright.sync_api import sync_playwright
 
 # Allow ``import e2e.<module>`` when pytest is invoked from inside e2e/.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -117,11 +118,6 @@ def due_dates() -> dict:
 # build our own session-scoped page from the sync API.
 @pytest.fixture(scope="session")
 def admin_page(settings: Settings):
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:  # pragma: no cover
-        pytest.skip("Playwright is not installed")
-
     headless_env = __import__("os").environ.get("E2E_HEADLESS", "1")
     headless = headless_env not in ("0", "false", "False")
 
