@@ -37,31 +37,36 @@ def enrollments_list(request, course_slug):
     )
 
     enrollments_page = paginate_queryset(request, enrollments)
+    total_enrollments = len(enrollments)
+    querystring = pagination_querystring(request)
 
     context = {
         "course": course,
         "enrollments": enrollments_page.object_list,
         "enrollments_page": enrollments_page,
-        "total_enrollments": len(enrollments),
+        "total_enrollments": total_enrollments,
         "enrollment_filter_counts": enrollment_filter_counts,
         "search_query": search_query,
         "status_filter": status_filter,
-        "pagination_querystring": pagination_querystring(request),
+        "pagination_querystring": querystring,
     }
 
     return render(request, "cadmin/enrollments.html", context)
 
 
 def complaint_enrollments(course):
+    unresolved_complaints = Q(complaints__resolved=False)
+    open_complaint_count = Count(
+        "complaints",
+        filter=unresolved_complaints,
+    )
+    total_complaint_count = Count("complaints")
     return (
         Enrollment.objects.filter(course=course)
         .select_related("student")
         .annotate(
-            open_complaints=Count(
-                "complaints",
-                filter=Q(complaints__resolved=False),
-            ),
-            total_complaints=Count("complaints"),
+            open_complaints=open_complaint_count,
+            total_complaints=total_complaint_count,
         )
         .filter(total_complaints__gt=0)
         .order_by(
@@ -103,20 +108,23 @@ def leaderboard_complaint_counts(course):
     complaints = LeaderboardComplaint.objects.filter(
         enrollment__course=course,
     )
+    open_complaints_count = complaints.filter(
+        resolved=False,
+    ).count()
+    total_complaints_count = complaints.count()
     return {
-        "open_complaints_count": complaints.filter(
-            resolved=False,
-        ).count(),
-        "total_complaints_count": complaints.count(),
+        "open_complaints_count": open_complaints_count,
+        "total_complaints_count": total_complaints_count,
     }
 
 
 def leaderboard_complaints_context(course):
     context = leaderboard_complaint_counts(course)
+    enrollment_rows = complaint_enrollment_rows(course)
     context.update(
         {
             "course": course,
-            "enrollment_rows": complaint_enrollment_rows(course),
+            "enrollment_rows": enrollment_rows,
         }
     )
     return context
@@ -222,19 +230,19 @@ def total_homework_lip_score(homework_submissions):
 def enrollment_edit_context(course, enrollment):
     homework_submissions = enrollment_homework_submissions(enrollment)
     project_submissions = enrollment_project_submissions(enrollment)
+    homework_submissions_count = homework_submissions.count()
+    project_submissions_count = project_submissions.count()
+    total_homework_score = total_homework_lip_score(homework_submissions)
+    total_project_score = total_project_lip_score(project_submissions)
     return {
         "course": course,
         "enrollment": enrollment,
         "homework_submissions": homework_submissions,
-        "homework_submissions_count": homework_submissions.count(),
+        "homework_submissions_count": homework_submissions_count,
         "project_submissions": project_submissions,
-        "project_submissions_count": project_submissions.count(),
-        "total_homework_lip_score": total_homework_lip_score(
-            homework_submissions
-        ),
-        "total_project_lip_score": total_project_lip_score(
-            project_submissions
-        ),
+        "project_submissions_count": project_submissions_count,
+        "total_homework_lip_score": total_homework_score,
+        "total_project_lip_score": total_project_score,
     }
 
 
