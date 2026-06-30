@@ -20,6 +20,30 @@ from course_management.datamailer import (
 from course_management.datamailer_templates import TEMPLATES
 
 
+def selected_template_keys(template_key):
+    if template_key:
+        return [template_key]
+    return sorted(TEMPLATES)
+
+
+def template_upsert_request_data(key):
+    return DatamailerRequestData(
+        method="PUT",
+        path=f"/api/transactional/templates/{key}",
+        json=TEMPLATES[key],
+    )
+
+
+def upsert_datamailer_templates(client, keys):
+    results = []
+    for key in keys:
+        request_data = template_upsert_request_data(key)
+        response = client.request(request_data)
+        result = {"template_key": key, "response": response}
+        results.append(result)
+    return results
+
+
 class Command(BaseCommand):
     help = "Create or update CMP's transactional templates in Datamailer."
 
@@ -37,33 +61,30 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        config = self.get_datamailer_config()
+        client = DatamailerClient(config)
+        keys = selected_template_keys(options["template_key"])
+        results = upsert_datamailer_templates(client, keys)
+
+        self.write_upsert_results(config, results)
+        if options["json"]:
+            self.write_json_results(results)
+
+    def get_datamailer_config(self):
         config = DatamailerConfig.from_settings()
         if config is None:
             raise CommandError(
                 "Datamailer is not configured. Set DATAMAILER_URL, "
                 "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
             )
+        return config
 
-        client = DatamailerClient(config)
-        keys = (
-            [options["template_key"]]
-            if options["template_key"]
-            else sorted(TEMPLATES)
-        )
-
-        results = []
-        for key in keys:
-            request_data = DatamailerRequestData(
-                method="PUT",
-                path=f"/api/transactional/templates/{key}",
-                json=TEMPLATES[key],
-            )
-            response = client.request(request_data)
-            result = {"template_key": key, "response": response}
-            results.append(result)
+    def write_upsert_results(self, config, results):
+        for result in results:
+            template_key = result["template_key"]
             self.stdout.write(
-                self.style.SUCCESS(f"upserted {key} -> {config.url}")
+                self.style.SUCCESS(f"upserted {template_key} -> {config.url}")
             )
 
-        if options["json"]:
-            self.stdout.write(json.dumps(results, indent=2, default=str))
+    def write_json_results(self, results):
+        self.stdout.write(json.dumps(results, indent=2, default=str))
