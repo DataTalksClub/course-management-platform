@@ -127,10 +127,11 @@ def _project_assign_reviews_response(project):
             "assigned_peer_reviews_count": assigned_peer_reviews_count,
         }
     )
-    return JsonResponse(
+    response = JsonResponse(
         data,
         status=response_status,
     )
+    return response
 
 
 def _project_scorable_submissions_count(project):
@@ -164,10 +165,11 @@ def _project_score_response(project):
             "passed_submissions_count": passed_count,
         }
     )
-    return JsonResponse(
+    response = JsonResponse(
         data,
         status=response_status,
     )
+    return response
 
 
 def _project_create_required_values(proj_data):
@@ -321,11 +323,11 @@ def _projects_list_response(course):
         project_record = _project_to_dict(project)
         project_records.append(project_record)
 
-    return JsonResponse(
-        {
-            "projects": project_records,
-        }
-    )
+    payload = {
+        "projects": project_records,
+    }
+    response = JsonResponse(payload)
+    return response
 
 
 def _projects_create_response(request, course):
@@ -556,9 +558,10 @@ def _save_project_upsert(project, data, created):
         response_status = 201
     else:
         response_status = 200
-    return JsonResponse(
+    response = JsonResponse(
         project_data, status=response_status
     )
+    return response
 
 
 def _upsert_project_by_slug(request, course_slug, project_slug):
