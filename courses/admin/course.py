@@ -17,7 +17,7 @@ from courses.models import (
     RegistrationCampaign,
     ReviewCriteria,
 )
-from courses.scoring import update_leaderboard
+from courses.leaderboard import update_leaderboard
 from courses.validators import validate_review_criteria_options
 
 

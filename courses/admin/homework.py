@@ -9,11 +9,11 @@ from django.contrib import messages
 
 from courses.models import Homework, Question, HomeworkState
 
+from courses.assignment_statistics import calculate_homework_statistics
 from courses.scoring import (
     score_homework_submissions,
     fill_correct_answers,
     clear_correct_answers,
-    calculate_homework_statistics,
 )
 
 

@@ -2,8 +2,8 @@ from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
+from courses.assignment_statistics import calculate_homework_statistics
 from courses.models import Course, Homework
-from courses.scoring import calculate_homework_statistics
 
 
 def homework_statistics(

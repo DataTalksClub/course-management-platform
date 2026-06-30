@@ -17,7 +17,7 @@ from courses.models import (
     ProjectState,
 )
 
-from courses.scoring import (
+from courses.assignment_statistics import (
     calculate_raw_project_statistics,
     calculate_project_statistics,
 )

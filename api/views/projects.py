@@ -9,9 +9,11 @@ from django.utils.text import slugify
 from accounts.auth import token_required
 from courses.models import Course, Project, PeerReview
 from courses.models.project import ProjectState
-from courses.projects import (
+from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
+)
+from courses.projects import (
     score_project,
 )
 

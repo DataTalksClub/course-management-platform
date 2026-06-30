@@ -18,7 +18,7 @@ from courses.models import (
     PeerReviewState,
 )
 
-from courses.projects import (
+from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
 )

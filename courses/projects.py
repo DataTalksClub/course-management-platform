@@ -28,12 +28,8 @@ from courses.models import (
     ReviewCriteria,
 )
 
-from .scoring import update_leaderboard
-from .project_assignment import (
-    ProjectActionStatus,
-    assign_peer_reviews_for_project as assign_peer_reviews_for_project,
-    select_random_assignment as select_random_assignment,
-)
+from . import project_assignment
+from .leaderboard import update_leaderboard
 
 
 logger = logging.getLogger(__name__)
@@ -478,13 +474,15 @@ def _score_project_with_reviews(project, peer_reviews):
     )
 
 
-def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
+def score_project(
+    project: Project,
+) -> tuple[project_assignment.ProjectActionStatus, str]:
     with transaction.atomic():
         t0 = time()
 
         peer_reviews, error = _project_scoreable_peer_reviews(project)
         if error is not None:
-            return (ProjectActionStatus.FAIL, error)
+            return (project_assignment.ProjectActionStatus.FAIL, error)
 
         success_message = _score_project_with_reviews(project, peer_reviews)
 
@@ -494,4 +492,4 @@ def score_project(project: Project) -> tuple[ProjectActionStatus, str]:
             f"Project {project.id} scored in {t_end - t0:.2f} seconds."
         )
 
-    return (ProjectActionStatus.OK, success_message)
+    return (project_assignment.ProjectActionStatus.OK, success_message)

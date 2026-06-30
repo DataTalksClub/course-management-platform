@@ -1,8 +1,8 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
+from courses.assignment_statistics import calculate_project_statistics
 from courses.models import Course, Project, ProjectState
-from courses.scoring import calculate_project_statistics
 
 def project_statistics(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)

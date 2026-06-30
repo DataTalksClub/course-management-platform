@@ -47,11 +47,11 @@ from courses.models import (
     Submission,
     User,
 )
-from courses.scoring import (
+from courses.assignment_statistics import (
     calculate_homework_statistics,
     calculate_project_statistics,
-    update_leaderboard,
 )
+from courses.leaderboard import update_leaderboard
 
 
 USER_PREFIX = "production-like-user"

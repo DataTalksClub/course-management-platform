@@ -1,7 +1,7 @@
 from django.db import transaction
 
 from courses.models import ProjectSubmission, Submission
-from courses.scoring import update_leaderboard
+from courses.leaderboard import update_leaderboard
 
 
 @transaction.atomic

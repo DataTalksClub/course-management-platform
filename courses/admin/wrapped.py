@@ -5,7 +5,7 @@ from unfold.admin import ModelAdmin
 from courses.models.wrapped import (
     WrappedStatistics,
 )
-from courses.scoring import calculate_wrapped_statistics
+from courses.wrapped_statistics import calculate_wrapped_statistics
 
 
 @admin.action(description="Recalculate statistics")

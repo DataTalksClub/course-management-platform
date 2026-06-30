@@ -6,20 +6,11 @@ from dataclasses import dataclass
 from collections import defaultdict
 
 from django.utils import timezone
-from django.db.models import Sum, Count
+from django.db.models import Count
 
 from django.db import transaction
-from django.core.cache import cache
 
-from .assignment_statistics import (
-    calculate_homework_statistics as calculate_homework_statistics,
-    calculate_project_statistics as calculate_project_statistics,
-    calculate_raw_homework_statistics as calculate_raw_homework_statistics,
-    calculate_raw_project_statistics as calculate_raw_project_statistics,
-)
-from .wrapped_statistics import (
-    calculate_wrapped_statistics as calculate_wrapped_statistics,
-)
+from . import assignment_statistics, leaderboard
 
 from .models import (
     Homework,
@@ -27,12 +18,8 @@ from .models import (
     Submission,
     Question,
     Answer,
-    Course,
     QuestionTypes,
     AnswerTypes,
-    Enrollment,
-    Project,
-    ProjectSubmission,
 )
 
 
@@ -325,12 +312,12 @@ def _mark_homework_scored(homework):
     homework.save()
 
     course = homework.course
-    update_leaderboard(course)
+    leaderboard.update_leaderboard(course)
 
     course.first_homework_scored = True
     course.save()
 
-    calculate_homework_statistics(homework, force=True)
+    assignment_statistics.calculate_homework_statistics(homework, force=True)
 
 
 def _homework_scoring_success(homework_id, started_at):
@@ -378,84 +365,6 @@ def score_homework_submissions(
         _mark_homework_scored(homework)
 
         return _homework_scoring_success(homework_id, t0)
-
-
-def _homework_scores_by_enrollment(course):
-    homeworks = Homework.objects.filter(course=course)
-    aggregated_homework_scores = (
-        Submission.objects.filter(homework__in=homeworks)
-        .values("enrollment")
-        .annotate(total_score=Sum("total_score"))
-    )
-    scores_by_enrollment = {}
-    for score in aggregated_homework_scores:
-        enrollment_id = score["enrollment"]
-        scores_by_enrollment[enrollment_id] = score["total_score"]
-    return scores_by_enrollment
-
-
-def _project_scores_by_enrollment(course):
-    projects = Project.objects.filter(course=course)
-    aggregated_project_scores = (
-        ProjectSubmission.objects.filter(
-            project__in=projects,
-            volunteer_review_only=False,
-        )
-        .values("enrollment")
-        .annotate(total_score=Sum("total_score"))
-    )
-    scores_by_enrollment = {}
-    for score in aggregated_project_scores:
-        enrollment_id = score["enrollment"]
-        scores_by_enrollment[enrollment_id] = score["total_score"]
-    return scores_by_enrollment
-
-
-def _rank_enrollments(enrollments):
-    enrollments = sorted(
-        enrollments,
-        key=lambda x: (-(x.total_score or 0), x.id),
-    )
-    for rank, enrollment in enumerate(enrollments, 1):
-        enrollment.position_on_leaderboard = rank
-    return enrollments
-
-
-def _update_enrollment_totals(course):
-    homework_scores = _homework_scores_by_enrollment(course)
-    project_scores = _project_scores_by_enrollment(course)
-    enrollments = list(Enrollment.objects.filter(course=course))
-
-    for enrollment in enrollments:
-        enrollment.total_score = (
-            homework_scores.get(enrollment.id, 0)
-            + project_scores.get(enrollment.id, 0)
-        )
-
-    enrollments = _rank_enrollments(enrollments)
-
-    Enrollment.objects.bulk_update(
-        enrollments,
-        ["total_score", "position_on_leaderboard"],
-    )
-
-
-def _invalidate_leaderboard_caches(course):
-    cache.delete(f"leaderboard:{course.id}")
-    cache.delete(f"leaderboard_data:{course.id}")
-    cache.delete(f"leaderboard_yaml:{course.id}")
-    version_key = f"leaderboard_cache_version:{course.id}"
-    cache.set(version_key, cache.get(version_key, 1) + 1, None)
-    logger.info(f"Invalidated cache for leaderboard of course {course.id}")
-
-
-def update_leaderboard(course: Course):
-    t0 = time()
-    logger.info(f"Updating leaderboard for course {course.id}")
-    _update_enrollment_totals(course)
-    _invalidate_leaderboard_caches(course)
-    t1 = time()
-    logger.info(f"Updated leaderboard in {(t1 - t0):.2f} seconds")
 
 
 def fill_most_common_answer_as_correct(question: Question) -> None:

@@ -24,7 +24,8 @@ from courses.models import (
 )
 
 
-from courses.projects import score_project, ProjectActionStatus
+from courses.project_assignment import ProjectActionStatus
+from courses.projects import score_project
 
 logger = logging.getLogger(__name__)
 

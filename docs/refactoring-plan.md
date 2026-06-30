@@ -555,6 +555,8 @@ Steps:
 - [x] Split project evaluation submit/review form workflow out of
   `courses/views/project_eval.py`.
 - [x] Split project peer-review assignment out of `courses/projects.py`.
+- [x] Split leaderboard updates out of `courses/scoring.py` and remove
+  compatibility imports for moved scoring/project helpers.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

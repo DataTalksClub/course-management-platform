@@ -17,9 +17,11 @@ from courses.models import (
     ProjectSubmission,
     ReviewCriteria,
 )
-from courses.projects import (
+from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
+)
+from courses.projects import (
     score_project,
 )
 from cadmin.forms import ProjectSubmissionEditForm

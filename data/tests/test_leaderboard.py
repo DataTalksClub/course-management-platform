@@ -19,7 +19,7 @@ from courses.models import (
 )
 from courses.models.homework import HomeworkState
 from courses.models.project import ProjectState
-from courses.scoring import update_leaderboard
+from courses.leaderboard import update_leaderboard
 
 
 class LeaderboardDataViewTestCase(TestCase):

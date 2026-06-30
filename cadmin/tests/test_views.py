@@ -1794,7 +1794,7 @@ class CadminViewTests(TestCase):
         send_score_notification,
     ):
         """Test that scoring project shows a message on the course admin page"""
-        from courses.projects import ProjectActionStatus
+        from courses.project_assignment import ProjectActionStatus
 
         score_project_mock.return_value = (
             ProjectActionStatus.OK,
@@ -1834,7 +1834,7 @@ class CadminViewTests(TestCase):
         send_score_notification,
     ):
         """Scoring from project submissions returns to that page."""
-        from courses.projects import ProjectActionStatus
+        from courses.project_assignment import ProjectActionStatus
 
         score_project_mock.return_value = (
             ProjectActionStatus.OK,

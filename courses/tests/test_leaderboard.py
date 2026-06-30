@@ -16,7 +16,7 @@ from courses.models import (
     Project,
     ProjectSubmission,
 )
-from courses.scoring import update_leaderboard
+from courses.leaderboard import update_leaderboard
 
 
 logger = logging.getLogger(__name__)
