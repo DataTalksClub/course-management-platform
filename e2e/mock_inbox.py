@@ -83,7 +83,8 @@ class InboxMessage:
         the rendered HTML, so we check both.
         """
         haystacks = [self.html_body or "", self.text_body or ""]
-        haystacks.extend(self._context_strings())
+        context_strings = self._context_strings()
+        haystacks.extend(context_strings)
         for haystack in haystacks:
             if needle in haystack:
                 return True
@@ -93,7 +94,8 @@ class InboxMessage:
         strings = []
         context_values = (self.context or {}).values()
         for value in context_values:
-            strings.extend(context_value_strings(value))
+            value_strings = context_value_strings(value)
+            strings.extend(value_strings)
         return strings
 
 
@@ -211,7 +213,8 @@ class InboxBackend:
         """Issue a request with retries on transient transport/5xx errors."""
         self._require_configured()
         request_kwargs = data.request_kwargs.copy()
-        request_kwargs.setdefault("headers", self._headers())
+        headers = self._headers()
+        request_kwargs.setdefault("headers", headers)
         request_kwargs.setdefault("timeout", self.timeout)
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -475,7 +478,9 @@ class MockInboxClient(InboxBackend):
         if resp.status_code >= 400:
             return 0
         try:
-            return int(resp.json().get("deleted_count", 0))
+            response_body = resp.json()
+            deleted_count = response_body.get("deleted_count", 0)
+            return int(deleted_count)
         except (ValueError, AttributeError, TypeError):
             return 0
 
@@ -495,7 +500,8 @@ class MockInboxClient(InboxBackend):
 
     @classmethod
     def _detail_to_message(cls, item: dict) -> InboxMessage:
-        message = cls._summary_to_message(item, item.get("email", ""))
+        fallback_address = item.get("email", "")
+        message = cls._summary_to_message(item, fallback_address)
         message.html_body = item.get("html_body", "") or ""
         message.text_body = item.get("text_body", "") or ""
         message.context = item.get("context") or {}
@@ -629,7 +635,9 @@ class RealInboxClient(InboxBackend):
         if resp.status_code >= 400:
             return 0
         try:
-            return int(resp.json().get("deleted_count", 0))
+            response_body = resp.json()
+            deleted_count = response_body.get("deleted_count", 0)
+            return int(deleted_count)
         except (ValueError, AttributeError, TypeError):
             return 0
 
