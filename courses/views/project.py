@@ -30,19 +30,6 @@ from .project_confirmation import (
     build_project_update_url,
     send_project_confirmation_email,
 )
-from .project_eval import (
-    projects_eval_add as projects_eval_add,
-    projects_eval_delete as projects_eval_delete,
-    projects_eval_submit as projects_eval_submit,
-    projects_eval_view as projects_eval_view,
-)
-from .project_results import project_results as project_results
-from .project_statistics import project_statistics as project_statistics
-from .project_submissions import (
-    project_submissions as project_submissions,
-    projects_list_view as projects_list_view,
-)
-
 logger = logging.getLogger(__name__)
 
 

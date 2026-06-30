@@ -557,6 +557,8 @@ Steps:
 - [x] Split project peer-review assignment out of `courses/projects.py`.
 - [x] Split leaderboard updates out of `courses/scoring.py` and remove
   compatibility imports for moved scoring/project helpers.
+- [x] Wire project URLs directly to split view modules and remove project view
+  re-export imports.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

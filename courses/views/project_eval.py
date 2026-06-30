@@ -13,11 +13,6 @@ from courses.models import (
     ProjectSubmission,
 )
 
-from .project_eval_submit import (
-    projects_eval_submit as projects_eval_submit,
-)
-
-
 @dataclass(frozen=True)
 class ProjectEvalReviewGroups:
     assigned_reviews: list
@@ -113,14 +108,6 @@ def projects_eval_view(request, course_slug, project_slug):
     return render(request, "projects/eval.html", context)
 
 
-def _redirect_to_project_list(course, project):
-    return redirect(
-        "project_list",
-        course_slug=course.slug,
-        project_slug=project.slug,
-    )
-
-
 def _project_eval_student_submission(course, project, user):
     student_submission = ProjectSubmission.objects.filter(
         project=project,
@@ -178,6 +165,11 @@ def projects_eval_add(
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
+    project_list_response = redirect(
+        "project_list",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
     student_submission = _project_eval_student_submission(
         course,
         project,
@@ -185,14 +177,14 @@ def projects_eval_add(
     )
 
     if student_submission.id == submission_id:
-        return _redirect_to_project_list(course, project)
+        return project_list_response
 
     _create_optional_peer_review(
         student_submission,
         _submission_under_project_evaluation(project, submission_id),
     )
 
-    return _redirect_to_project_list(course, project)
+    return project_list_response
 
 
 @login_required

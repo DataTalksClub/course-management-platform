@@ -3,6 +3,11 @@ from django.urls import path
 from .views import course
 from .views import homework
 from .views import project
+from .views import project_eval
+from .views import project_eval_submit
+from .views import project_results
+from .views import project_statistics
+from .views import project_submissions
 from .views import registration
 from .views import wrapped
 
@@ -70,42 +75,42 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/list",
-        project.projects_list_view,
+        project_submissions.projects_list_view,
         name="project_list",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval",
-        project.projects_eval_view,
+        project_eval.projects_eval_view,
         name="projects_eval",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/results",
-        project.project_results,
+        project_results.project_results,
         name="project_results",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/stats",
-        project.project_statistics,
+        project_statistics.project_statistics,
         name="project_statistics",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/submissions",
-        project.project_submissions,
+        project_submissions.project_submissions,
         name="project_submissions",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/<int:review_id>",
-        project.projects_eval_submit,
+        project_eval_submit.projects_eval_submit,
         name="projects_eval_submit",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/add/<int:submission_id>",
-        project.projects_eval_add,
+        project_eval.projects_eval_add,
         name="projects_eval_add",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/delete/<int:review_id>",
-        project.projects_eval_delete,
+        project_eval.projects_eval_delete,
         name="projects_eval_delete",
     ),
 
