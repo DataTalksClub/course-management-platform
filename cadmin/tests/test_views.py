@@ -83,6 +83,14 @@ class HomeworkSubmissionEditFixture:
 
 
 @dataclass(frozen=True)
+class HomeworkSubmissionEditPageFixture:
+    enrollment: Enrollment
+    submission: Submission
+    question1: Question
+    question2: Question
+
+
+@dataclass(frozen=True)
 class HomeworkSubmissionScoreExpectation:
     submission: Submission
     questions_score: int
@@ -379,6 +387,38 @@ class CadminViewTests(TestCase):
         self.assertEqual(answer.answer_text, answer_text)
         self.assertTrue(answer.is_correct)
 
+    def create_homework_submission_edit_page_fixture(self):
+        enrollment = self.create_enrollment()
+        question1 = self.create_free_form_question()
+        question2 = self.create_multiple_choice_question()
+        submission = self.create_homework_submission(
+            enrollment=enrollment,
+            learning_in_public_links=["https://example.com/post1"],
+            questions_score=2,
+            learning_in_public_score=1,
+            total_score=3,
+        )
+        first_answer = AnswerData(
+            submission=submission,
+            question=question1,
+            answer_text="4",
+            is_correct=True,
+        )
+        self.create_answer(first_answer)
+        second_answer = AnswerData(
+            submission=submission,
+            question=question2,
+            answer_text="2",
+            is_correct=True,
+        )
+        self.create_answer(second_answer)
+        return HomeworkSubmissionEditPageFixture(
+            enrollment=enrollment,
+            submission=submission,
+            question1=question1,
+            question2=question2,
+        )
+
     def create_homework_submission_edit_fixture(self):
         enrollment = self.create_enrollment()
         question1 = self.create_free_form_question()
@@ -422,6 +462,29 @@ class CadminViewTests(TestCase):
                 ),
             },
         )
+
+    def homework_submission_edit_response(self, submission):
+        self.login_admin()
+        url = self.homework_submission_edit_url(submission)
+        response = self.client.get(url)
+        return response
+
+    def assert_homework_submission_edit_page(self, response, fixture):
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit Homework Submission")
+        self.assertContains(response, self.user.username)
+        self.assertContains(response, fixture.question1.text)
+        self.assertContains(response, fixture.question2.text)
+        self.assertContains(response, 'value="3"')
+        self.assertContains(response, "Manage enrollment")
+        enrollment_url = reverse(
+            "cadmin_enrollment_edit",
+            kwargs={
+                "course_slug": self.course.slug,
+                "enrollment_id": fixture.enrollment.id,
+            },
+        )
+        self.assertContains(response, enrollment_url)
 
     def assert_homework_submission_scores(self, expectation):
         self.assertEqual(
@@ -2098,51 +2161,11 @@ class CadminViewTests(TestCase):
 
     def test_homework_submission_edit_get(self):
         """Test that staff users can access the homework submission edit page"""
-        enrollment = self.create_enrollment()
-        question1 = self.create_free_form_question()
-        question2 = self.create_multiple_choice_question()
-        submission = self.create_homework_submission(
-            enrollment=enrollment,
-            learning_in_public_links=["https://example.com/post1"],
-            questions_score=2,
-            learning_in_public_score=1,
-            total_score=3,
-        )
-        first_answer = AnswerData(
-            submission=submission,
-            question=question1,
-            answer_text="4",
-            is_correct=True,
-        )
-        self.create_answer(first_answer)
-        second_answer = AnswerData(
-            submission=submission,
-            question=question2,
-            answer_text="2",
-            is_correct=True,
-        )
-        self.create_answer(second_answer)
+        fixture = self.create_homework_submission_edit_page_fixture()
 
-        self.login_admin()
-        url = self.homework_submission_edit_url(submission)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Edit Homework Submission")
-        self.assertContains(response, self.user.username)
-        self.assertContains(response, "What is 2+2?")
-        self.assertContains(response, "What is the capital of France?")
-        self.assertContains(response, 'value="3"')  # total_score
-        self.assertContains(response, "Manage enrollment")
-        self.assertContains(
-            response,
-            reverse(
-                "cadmin_enrollment_edit",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "enrollment_id": enrollment.id,
-                },
-            ),
-        )
+        response = self.homework_submission_edit_response(fixture.submission)
+
+        self.assert_homework_submission_edit_page(response, fixture)
 
     def test_homework_submission_edit_post_updates_answers(self):
         """Test that editing homework answers updates the submission correctly"""
