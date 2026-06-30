@@ -132,10 +132,11 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         logger.info(
             f"No existing user found with email {email}, creating a new one"
         )
+        password = generate_random_password()
         user = User.objects.create_user(
             username=email,
             email=email,
-            password=generate_random_password(),
+            password=password,
         )
         user.save()
 
@@ -198,9 +199,11 @@ def token_required(f):
                 token = Token.objects.get(key=token_key)
                 request.user = token.user
             except Token.DoesNotExist:
-                return JsonResponse({'error': 'Invalid token'}, status=401)
+                payload = {'error': 'Invalid token'}
+                return JsonResponse(payload, status=401)
         else:
-            return JsonResponse({'error': 'Authentication token required'}, status=401)
+            payload = {'error': 'Authentication token required'}
+            return JsonResponse(payload, status=401)
 
         return f(request, *args, **kwargs)
     decorated.requires_token_auth = True
