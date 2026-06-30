@@ -162,7 +162,8 @@ def _campaign_create_response(request):
     if err:
         return err
 
-    return JsonResponse(_campaign_to_dict(campaign), status=201)
+    campaign_data = _campaign_to_dict(campaign)
+    return JsonResponse(campaign_data, status=201)
 
 
 @token_required
@@ -191,15 +192,17 @@ def _campaign_patch_response(request, campaign):
     if err:
         return err
 
-    return JsonResponse(_campaign_to_dict(campaign))
+    campaign_data = _campaign_to_dict(campaign)
+    return JsonResponse(campaign_data)
 
 
 @token_required
 @csrf_exempt
 @require_methods("GET", "PATCH")
 def registration_campaign_detail_view(request, campaign_slug):
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
     campaign = get_object_or_404(
-        RegistrationCampaign.objects.select_related("current_course"),
+        campaigns,
         slug=campaign_slug,
     )
 
@@ -210,12 +213,14 @@ def registration_campaign_detail_view(request, campaign_slug):
 
         return _campaign_patch_response(request, campaign)
 
-    return JsonResponse(_campaign_to_dict(campaign))
+    campaign_data = _campaign_to_dict(campaign)
+    return JsonResponse(campaign_data)
 
 
 def _count_by(queryset, field):
     counts = []
-    grouped_values = queryset.values(field).annotate(count=Count("id")).order_by(
+    group_count = Count("id")
+    grouped_values = queryset.values(field).annotate(count=group_count).order_by(
         "-count",
         field,
     )
@@ -252,9 +257,10 @@ def _apply_registration_exact_filters(queryset, params):
 
 def _filtered_registrations(campaign, params):
     registrations = _campaign_registrations_queryset(campaign)
+    search_query = params.get("q", "")
     registrations = _apply_registration_search(
         registrations,
-        params.get("q", ""),
+        search_query,
     )
     return _apply_registration_exact_filters(registrations, params)
 
@@ -271,7 +277,9 @@ def _registration_campaign_stats(campaign):
 
 def _registration_limit(params):
     try:
-        return min(int(params.get("limit", 100)), 500), None
+        raw_limit = params.get("limit", 100)
+        limit = int(raw_limit)
+        return min(limit, 500), None
     except ValueError:
         return None, error_response(
             "limit must be an integer",
@@ -287,8 +295,9 @@ def _registration_list_payload(campaign, registrations, stats, limit):
         registration_record = _registration_to_dict(registration)
         registration_records.append(registration_record)
 
+    campaign_data = _campaign_to_dict(campaign)
     return {
-        "campaign": _campaign_to_dict(campaign),
+        "campaign": campaign_data,
         "stats": stats,
         "registrations": registration_records,
     }
@@ -308,6 +317,5 @@ def registration_campaign_registrations_view(request, campaign_slug):
     if err:
         return err
 
-    return JsonResponse(
-        _registration_list_payload(campaign, registrations, stats, limit)
-    )
+    payload = _registration_list_payload(campaign, registrations, stats, limit)
+    return JsonResponse(payload)
