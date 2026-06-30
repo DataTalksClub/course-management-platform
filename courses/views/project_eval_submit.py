@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -93,7 +92,7 @@ def project_eval_build_context(
     project: Project,
     review: PeerReview,
     review_criteria: Iterable[ReviewCriteria],
-    enrollment: Optional["Enrollment"] = None,
+    enrollment: Enrollment | None = None,
 ):
     submission = review.submission_under_evaluation
     accepting_submissions = project_eval_accepting_submissions(project)
@@ -246,12 +245,13 @@ def project_eval_vote_response(request, course_slug, project_slug, review):
         review.submission_under_evaluation,
         action=action,
     )
-    return redirect(
+    response = redirect(
         "projects_eval_submit",
         course_slug=course_slug,
         project_slug=project_slug,
         review_id=review.id,
     )
+    return response
 
 
 def closed_project_eval_response(
@@ -264,7 +264,8 @@ def closed_project_eval_response(
         extra_tags="homework",
     )
     context = project_eval_submit_context(request, page)
-    return render(request, "projects/eval_submit.html", context)
+    response = render(request, "projects/eval_submit.html", context)
+    return response
 
 
 def projects_eval_submit_post_response(
@@ -291,11 +292,12 @@ def projects_eval_submit_post_response(
         page.review,
         page.review_criteria,
     )
-    return redirect(
+    response = redirect(
         "projects_eval",
         course_slug=page.course.slug,
         project_slug=page.project.slug,
     )
+    return response
 
 
 def project_eval_submit_page(
@@ -328,11 +330,12 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
             "You are not allowed to evaluate this submission, choose a different one.",
             extra_tags="homework",
         )
-        return redirect(
+        response = redirect(
             "projects_eval",
             course_slug=course_slug,
             project_slug=project_slug,
         )
+        return response
 
     page = project_eval_submit_page(course_slug, project_slug, review)
 
@@ -347,4 +350,5 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
         page,
     )
 
-    return render(request, "projects/eval_submit.html", context)
+    response = render(request, "projects/eval_submit.html", context)
+    return response
