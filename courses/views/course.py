@@ -11,8 +11,6 @@ from django.db.models import Count, Prefetch
 
 from courses.models import (
     Course,
-    Homework,
-    Submission,
     Enrollment,
     Project,
     ProjectSubmission,
@@ -28,6 +26,10 @@ from .course_calendar import course_calendar_view as course_calendar_view
 from .course_enrollment import (
     enrollment_view as enrollment_view,
     update_enrollment_toggle as update_enrollment_toggle,
+)
+from .course_homeworks import (
+    get_homeworks_for_course as get_homeworks_for_course,
+    update_homework_with_additional_info as update_homework_with_additional_info,
 )
 from .course_leaderboard import (
     invalidate_leaderboard_cache as invalidate_leaderboard_cache,
@@ -699,47 +701,3 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         "courses/course.html",
         context,
     )
-
-
-def get_homeworks_for_course(course: Course, user) -> List[Homework]:
-    if user.is_authenticated:
-        queryset = Submission.objects.filter(student=user)
-    else:
-        queryset = Submission.objects.none()
-
-    submissions_prefetch = Prefetch(
-        "submission_set", queryset=queryset, to_attr="submissions"
-    )
-
-    homeworks = (
-        Homework.objects.filter(course=course)
-        .prefetch_related(submissions_prefetch)
-        .order_by("due_date")
-    )
-
-    for hw in homeworks:
-        update_homework_with_additional_info(hw)
-
-    return list(homeworks)
-
-
-def update_homework_with_additional_info(homework: Homework) -> None:
-    days_until_due = 0
-
-    if homework.due_date > timezone.now():
-        days_until_due = (homework.due_date - timezone.now()).days + 1
-
-    homework.days_until_due = days_until_due
-    homework.submitted = False
-    homework.score = None
-
-    if not homework.submissions:
-        return
-
-    submission = homework.submissions[0]
-
-    homework.submitted = True
-    if homework.is_scored():
-        homework.score = submission.total_score
-    else:
-        homework.submitted_at = submission.submitted_at

@@ -537,6 +537,8 @@ Steps:
   project-statistics route groups into focused modules.
 - [x] Split `courses/views/homework.py` reporting routes into homework
   statistics and submissions modules.
+- [x] Split `courses/views/course.py` homework listing/enrichment into a
+  focused course-homeworks module.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
