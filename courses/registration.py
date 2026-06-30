@@ -17,7 +17,8 @@ def _build_countries_config():
     countries_by_region = {}
     section = None
 
-    for raw_line in _countries_config_lines():
+    config_lines = _countries_config_lines()
+    for raw_line in config_lines:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
