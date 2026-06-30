@@ -26,7 +26,7 @@ from courses.votes import (
     update_project_vote,
 )
 
-from .homework import clean_learning_in_public_links
+from .homework_learning_links import clean_learning_in_public_links
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,7 @@
 import logging
 
 from dataclasses import dataclass
-from typing import Any, List, Optional
-from urllib.parse import urljoin, urlparse
+from typing import List, Optional
 
 from django.http import HttpRequest
 
@@ -11,13 +10,8 @@ from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.urls import reverse
 
-from course_management.datamailer import (
-    send_transactional_email,
-    sync_homework_submission_to_datamailer,
-)
-from course_management import email_templates
+from course_management.datamailer import sync_homework_submission_to_datamailer
 from courses.models import (
     Course,
     Homework,
@@ -30,6 +24,11 @@ from courses.models import (
 )
 
 from courses.validators import clean_faq_contribution_url
+from courses.views.homework_confirmation import (
+    HomeworkConfirmationEmailData,
+    build_homework_update_url,
+    send_homework_confirmation_email,
+)
 from courses.views.homework_statistics import (
     homework_statistics as homework_statistics,
 )
@@ -37,39 +36,15 @@ from courses.views.homework_submissions import (
     homework_submissions as homework_submissions,
 )
 from courses.views.homework_answers import (
-    CHOICE_QUESTION_TYPES,
-    extract_selected_option_indexes,
-    format_hours,
-    format_selected_answer,
-    format_submitted_value,
     process_question_options,
-    selected_option_value,
 )
 from courses.views.homework_learning_links import (
     clean_learning_in_public_links,
     find_duplicate_learning_in_public_links,
 )
-from courses.views.url_utils import absolute_url_with_fallback
+from courses.views.submission_formatting import parse_time_spent_hours
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class HomeworkSubmittedContent:
-    fields: list[dict[str, Any]]
-    answers: list[dict[str, Any]]
-    fields_text: str
-    answers_text: str
-    summary_text: str
-
-    def context(self) -> dict[str, Any]:
-        return {
-            "submission_fields": self.fields,
-            "submitted_answers": self.answers,
-            "submitted_fields_text": self.fields_text,
-            "submitted_answers_text": self.answers_text,
-            "submission_summary_text": self.summary_text,
-        }
 
 
 @dataclass(frozen=True)
@@ -88,24 +63,6 @@ class HomeworkRequestData:
     course: Course
     homework: Homework
     questions: List[Question]
-
-
-@dataclass(frozen=True)
-class HomeworkConfirmationEmailData:
-    user: User
-    course: Course
-    homework: Homework
-    submission: Submission
-    update_url: str
-
-
-@dataclass(frozen=True)
-class HomeworkConfirmationData:
-    course: Course
-    homework: Homework
-    submission: Submission
-    update_url: str
-    profile_url: str
 
 
 @dataclass(frozen=True)
@@ -148,458 +105,6 @@ class AuthenticatedHomeworkContext:
     context: dict
     submission: Optional[Submission]
     enrollment: Enrollment
-
-
-def homework_url_submission_field(
-    homework: Homework,
-    submission: Submission,
-) -> dict[str, Any] | None:
-    if not homework.homework_url_field:
-        return None
-
-    return {
-        "key": "homework_url",
-        "label": "Homework URL",
-        "value": submission.homework_link or "",
-    }
-
-
-def learning_in_public_submission_field(
-    homework: Homework,
-    submission: Submission,
-) -> dict[str, Any] | None:
-    if homework.learning_in_public_cap <= 0:
-        return None
-
-    links = submission.learning_in_public_links or []
-    return {
-        "key": "learning_in_public_links",
-        "label": "Learning in public links",
-        "value": "\n".join(links),
-        "values": links,
-    }
-
-
-def lecture_time_submission_field(
-    homework: Homework,
-    submission: Submission,
-) -> dict[str, Any] | None:
-    if not homework.time_spent_lectures_field:
-        return None
-
-    return {
-        "key": "time_spent_lectures",
-        "label": "Time spent on lectures",
-        "value": format_hours(submission.time_spent_lectures),
-    }
-
-
-def homework_time_submission_field(
-    homework: Homework,
-    submission: Submission,
-) -> dict[str, Any] | None:
-    if not homework.time_spent_homework_field:
-        return None
-
-    return {
-        "key": "time_spent_homework",
-        "label": "Time spent on homework",
-        "value": format_hours(submission.time_spent_homework),
-    }
-
-
-def problems_comments_submission_field(
-    course: Course,
-    submission: Submission,
-) -> dict[str, Any] | None:
-    if not course.homework_problems_comments_field:
-        return None
-
-    return {
-        "key": "problems_comments",
-        "label": "Problems, comments, or feedback",
-        "value": submission.problems_comments or "",
-    }
-
-
-def faq_contribution_submission_field(
-    homework: Homework,
-    submission: Submission,
-) -> dict[str, Any] | None:
-    if not homework.faq_contribution_field:
-        return None
-
-    return {
-        "key": "faq_contribution_url",
-        "label": "FAQ contribution URL",
-        "value": submission.faq_contribution_url or "",
-    }
-
-
-def optional_homework_submission_fields(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-) -> List[dict[str, Any] | None]:
-    fields = []
-    homework_url_field = homework_url_submission_field(homework, submission)
-    fields.append(homework_url_field)
-    learning_in_public_field = learning_in_public_submission_field(
-        homework,
-        submission,
-    )
-    fields.append(learning_in_public_field)
-    lecture_time_field = lecture_time_submission_field(homework, submission)
-    fields.append(lecture_time_field)
-    homework_time_field = homework_time_submission_field(homework, submission)
-    fields.append(homework_time_field)
-    problems_comments_field = problems_comments_submission_field(
-        course,
-        submission,
-    )
-    fields.append(problems_comments_field)
-    faq_contribution_field = faq_contribution_submission_field(
-        homework,
-        submission,
-    )
-    fields.append(faq_contribution_field)
-    return fields
-
-
-def visible_homework_submission_fields(
-    fields: List[dict[str, Any] | None],
-) -> List[dict[str, Any]]:
-    visible_fields = []
-    for field in fields:
-        if field is not None:
-            visible_fields.append(field)
-    return visible_fields
-
-
-def homework_submission_fields(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-) -> List[dict[str, Any]]:
-    fields = optional_homework_submission_fields(
-        course,
-        homework,
-        submission,
-    )
-    return visible_homework_submission_fields(fields)
-
-
-def homework_submitted_answers(
-    submission: Submission,
-) -> List[dict[str, Any]]:
-    answer_payloads = []
-    answers = submitted_homework_answers(submission)
-    for answer in answers:
-        payload = submitted_answer_payload(answer)
-        answer_payloads.append(payload)
-    return answer_payloads
-
-
-def submitted_homework_answers(submission: Submission):
-    return (
-        Answer.objects.filter(submission=submission)
-        .select_related("question")
-        .order_by("question_id")
-    )
-
-
-def submitted_answer_payload(answer: Answer) -> dict[str, Any]:
-    question = answer.question
-    raw_answer = answer.answer_text or ""
-    display_answer, selected_options = submitted_answer_display(
-        question,
-        raw_answer,
-    )
-
-    return {
-        "question_id": question.id,
-        "question": question.text,
-        "question_type": question.question_type,
-        "answer": display_answer,
-        "raw_answer": raw_answer,
-        "selected_options": selected_options,
-    }
-
-
-def submitted_answer_display(
-    question: Question,
-    raw_answer: str,
-) -> tuple[str, List[dict[str, Any]]]:
-    if question.question_type not in CHOICE_QUESTION_TYPES:
-        return raw_answer, []
-
-    selected_options = submitted_selected_options(question, raw_answer)
-    display_answer = format_selected_answer(question, raw_answer)
-    return display_answer, selected_options
-
-
-def submitted_selected_options(
-    question: Question,
-    raw_answer: str,
-) -> List[dict[str, Any]]:
-    possible_answers = question.get_possible_answers()
-    selected_options = []
-    selected_indexes = extract_selected_option_indexes(raw_answer)
-    for index in selected_indexes:
-        option = {
-            "index": index,
-            "value": selected_option_value(possible_answers, index),
-        }
-        selected_options.append(option)
-    return selected_options
-
-
-def format_submission_lines(items: List[dict[str, Any]]) -> str:
-    lines = []
-    for item in items:
-        lines.append(
-            f"{item['label']}: {format_submitted_value(item['value'])}"
-        )
-    return "\n".join(lines)
-
-
-def format_answer_lines(answers: List[dict[str, Any]]) -> str:
-    lines = []
-    for answer in answers:
-        lines.append(
-            f"{answer['question']}: "
-            f"{format_submitted_value(answer['answer'])}"
-        )
-    return "\n".join(lines)
-
-
-def homework_submission_summary_text(
-    submitted_fields_text: str,
-    submitted_answers_text: str,
-) -> str:
-    summary_sections = []
-    if submitted_fields_text:
-        summary_sections.append(submitted_fields_text)
-    if submitted_answers_text:
-        summary_sections.append(submitted_answers_text)
-    return "\n\n".join(summary_sections)
-
-
-def homework_confirmation_metadata(
-    data: HomeworkConfirmationData,
-) -> dict[str, Any]:
-    return {
-        "course_slug": data.course.slug,
-        "course_title": data.course.title,
-        "homework_slug": data.homework.slug,
-        "homework_title": data.homework.title,
-        "homework_due_at": data.homework.due_date.isoformat(),
-        "submission_id": data.submission.id,
-        "submitted_at": data.submission.submitted_at.isoformat(),
-        "update_url": data.update_url,
-        "profile_url": data.profile_url,
-        "update_link_text": "Update your submission",
-    }
-
-
-def homework_confirmation_notification_context(
-    profile_url: str,
-) -> dict[str, str]:
-    return {
-        "notification_category": "homework and project submissions",
-        "notification_footer": (
-            "You are receiving this because homework and project "
-            "submission emails are enabled in your profile."
-        ),
-        "notification_footer_text": (
-            "If you don't want to receive these emails, you can turn "
-            "off homework and project submission emails in your "
-            f"profile: {profile_url}"
-        ),
-    }
-
-
-def homework_confirmation_message_context(
-    data: HomeworkConfirmationData,
-) -> dict[str, str]:
-    return {
-        "email_subject": (
-            f"Homework submission saved: {data.homework.title}"
-        ),
-        "email_preview": (
-            "Your homework submission was saved. "
-            "Review what you submitted and update it while the "
-            "homework is open."
-        ),
-        "intro_text": (
-            f"Your homework submission for {data.homework.title} in "
-            f"{data.course.title} was saved."
-        ),
-        "update_text": (
-            "You can update your submission while the homework "
-            f"is open: {data.update_url}"
-        ),
-    }
-
-
-def homework_submitted_content(
-    course: Course,
-    homework: Homework,
-    submission: Submission,
-) -> HomeworkSubmittedContent:
-    submission_fields = homework_submission_fields(
-        course,
-        homework,
-        submission,
-    )
-    submitted_answers = homework_submitted_answers(submission)
-    submitted_fields_text = format_submission_lines(submission_fields)
-    submitted_answers_text = format_answer_lines(submitted_answers)
-    summary_text = homework_submission_summary_text(
-        submitted_fields_text,
-        submitted_answers_text,
-    )
-
-    return HomeworkSubmittedContent(
-        fields=submission_fields,
-        answers=submitted_answers,
-        fields_text=submitted_fields_text,
-        answers_text=submitted_answers_text,
-        summary_text=summary_text,
-    )
-
-
-def homework_confirmation_context(
-    data: HomeworkConfirmationData,
-) -> dict[str, Any]:
-    submitted_content = homework_submitted_content(
-        data.course,
-        data.homework,
-        data.submission,
-    )
-
-    return {
-        **homework_confirmation_metadata(data),
-        **homework_confirmation_notification_context(data.profile_url),
-        **homework_confirmation_message_context(data),
-        **submitted_content.context(),
-    }
-
-
-def build_homework_update_url(
-    request: HttpRequest,
-    course: Course,
-    homework: Homework,
-) -> str:
-    path = reverse(
-        "homework",
-        kwargs={
-            "course_slug": course.slug,
-            "homework_slug": homework.slug,
-        },
-    )
-    return absolute_url_with_fallback(request, path, label="homework")
-
-
-def tryparsefloat(value: str) -> Optional[float]:
-    try:
-        return float(value)
-    except ValueError:
-        return None
-
-
-def parse_time_spent_hours(
-    value: Optional[str], field_label: str
-) -> Optional[float]:
-    """Parse a user-entered "hours spent" value.
-
-    Returns None when nothing was provided (field left untouched).
-    Accepts comma decimal separators ("2,5"), which mobile and many
-    locale keyboards submit. Raises ValidationError on non-numeric input
-    instead of letting float() raise an uncaught ValueError (a 500).
-    """
-    if value is None:
-        return None
-
-    value = value.strip()
-    if not value:
-        return None
-
-    parsed = tryparsefloat(value.replace(",", "."))
-    if parsed is None:
-        raise ValidationError(
-            f"Please enter a valid number of hours for {field_label} "
-            "(for example, 2 or 2.5)."
-        )
-    return parsed
-
-
-def send_homework_confirmation_email(data: HomeworkConfirmationEmailData) -> None:
-    if not data.user.email:
-        return
-
-    payload = homework_confirmation_payload(data)
-    send_transactional_email(payload)
-
-
-def homework_confirmation_payload(data: HomeworkConfirmationEmailData) -> dict:
-    return {
-        "email": data.user.email,
-        "template_key": email_templates.HOMEWORK_SUBMISSION_CONFIRMATION,
-        "category_tag": "submission-results",
-        "idempotency_key": homework_confirmation_idempotency_key(
-            data.submission
-        ),
-        "context": homework_confirmation_payload_context(data),
-        "metadata": homework_confirmation_email_metadata(data),
-    }
-
-
-def homework_confirmation_payload_context(
-    data: HomeworkConfirmationEmailData,
-) -> dict[str, Any]:
-    profile_url = build_account_settings_url(request_base_url(data.update_url))
-    context_data = HomeworkConfirmationData(
-        course=data.course,
-        homework=data.homework,
-        submission=data.submission,
-        update_url=data.update_url,
-        profile_url=profile_url,
-    )
-    return homework_confirmation_context(context_data)
-
-
-def homework_confirmation_idempotency_key(submission: Submission) -> str:
-    return (
-        f"homework-submission:{submission.id}:"
-        f"{submission.submitted_at.isoformat()}"
-    )
-
-
-def homework_confirmation_email_metadata(
-    data: HomeworkConfirmationEmailData,
-) -> dict:
-    return {
-        "source": "course-management-platform",
-        "event": "homework_submission",
-        "course_slug": data.course.slug,
-        "homework_slug": data.homework.slug,
-        "submission_id": data.submission.id,
-    }
-
-
-def request_base_url(url: str) -> str:
-    parsed = urlparse(url)
-    if not parsed.scheme or not parsed.netloc:
-        return ""
-    return f"{parsed.scheme}://{parsed.netloc}"
-
-
-def build_account_settings_url(base_url: str) -> str:
-    path = reverse("account_settings")
-    if base_url:
-        return urljoin(f"{base_url}/", path.lstrip("/"))
-    return path
 
 
 def _apply_homework_submission_fields(field_data):

@@ -28,10 +28,10 @@ from courses.models import (
 
 from courses.views.url_utils import absolute_url_with_fallback
 
-from .homework import (
+from .homework_answers import format_hours
+from .homework_learning_links import clean_learning_in_public_links
+from .submission_formatting import (
     build_account_settings_url,
-    clean_learning_in_public_links,
-    format_hours,
     format_submission_lines,
     request_base_url,
     tryparsefloat,

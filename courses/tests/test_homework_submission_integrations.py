@@ -16,7 +16,9 @@ from courses.models import (
     Submission,
     User,
 )
-from courses.views.homework import find_duplicate_learning_in_public_links
+from courses.views.homework_learning_links import (
+    find_duplicate_learning_in_public_links,
+)
 
 
 class HomeworkSubmissionIntegrationTest(TestCase):
@@ -271,7 +273,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
 
     @override_settings(PUBLIC_BASE_URL="")
-    @patch("courses.views.homework.send_transactional_email")
+    @patch("courses.views.homework_confirmation.send_transactional_email")
     def test_homework_submission_sends_confirmation_email(
         self,
         send_email,
@@ -289,7 +291,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self.assert_submitted_answers(payload)
         self.assert_confirmation_summary(payload)
 
-    @patch("courses.views.homework.send_transactional_email")
+    @patch("courses.views.homework_confirmation.send_transactional_email")
     def test_homework_submission_uses_datamailer_without_local_preference(
         self,
         send_email,
@@ -322,7 +324,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self.assertEqual(payload["category_tag"], "submission-results")
 
     @override_settings(PUBLIC_BASE_URL="https://dev.courses.datatalks.club")
-    @patch("courses.views.homework.send_transactional_email")
+    @patch("courses.views.homework_confirmation.send_transactional_email")
     def test_homework_confirmation_uses_public_base_url(
         self,
         send_email,
@@ -349,7 +351,7 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             "https://dev.courses.datatalks.club/course/homework/hw1",
         )
 
-    @patch("courses.views.homework.send_transactional_email")
+    @patch("courses.views.homework_confirmation.send_transactional_email")
     def test_reused_learning_in_public_link_is_rejected(
         self,
         send_email,

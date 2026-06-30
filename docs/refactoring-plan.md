@@ -539,6 +539,9 @@ Steps:
   statistics and submissions modules.
 - [x] Split `courses/views/course.py` homework listing/enrichment into a
   focused course-homeworks module.
+- [x] Split homework submission summary and confirmation-email helpers out of
+  `courses/views/homework.py`, and move shared formatting helpers away from
+  homework-specific modules.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
