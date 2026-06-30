@@ -213,24 +213,29 @@ def project_passed_recipient_list_member_payload(
 
 
 def _score_notification_urls(course, assignment, route_name, slug_kwarg):
-    assignment_url = public_url(
-        reverse(
-            route_name,
-            kwargs={
-                "course_slug": course.slug,
-                slug_kwarg: assignment.slug,
-            },
-        )
+    assignment_path = reverse(
+        route_name,
+        kwargs={
+            "course_slug": course.slug,
+            slug_kwarg: assignment.slug,
+        },
     )
+    assignment_url = public_url(assignment_path)
+
+    course_path = reverse("course", kwargs={"course_slug": course.slug})
+    course_url = public_url(course_path)
+
+    leaderboard_path = reverse("leaderboard", kwargs={"course_slug": course.slug})
+    leaderboard_url = public_url(leaderboard_path)
+
+    profile_path = reverse("account_settings")
+    profile_url = public_url(profile_path)
+
     return {
-        "course_url": public_url(
-            reverse("course", kwargs={"course_slug": course.slug})
-        ),
+        "course_url": course_url,
         "assignment_url": assignment_url,
-        "leaderboard_url": public_url(
-            reverse("leaderboard", kwargs={"course_slug": course.slug})
-        ),
-        "profile_url": public_url(reverse("account_settings")),
+        "leaderboard_url": leaderboard_url,
+        "profile_url": profile_url,
     }
 
 
@@ -297,20 +302,27 @@ def _project_score_notification_urls(course, project):
         "course_slug": course.slug,
         "project_slug": project.slug,
     }
+    course_path = reverse("course", kwargs={"course_slug": course.slug})
+    course_url = public_url(course_path)
+
+    project_path = reverse("project", kwargs=project_kwargs)
+    project_url = public_url(project_path)
+
+    project_results_path = reverse("project_results", kwargs=project_kwargs)
+    project_results_url = public_url(project_results_path)
+
+    leaderboard_path = reverse("leaderboard", kwargs={"course_slug": course.slug})
+    leaderboard_url = public_url(leaderboard_path)
+
+    profile_path = reverse("account_settings")
+    profile_url = public_url(profile_path)
+
     return {
-        "course_url": public_url(
-            reverse("course", kwargs={"course_slug": course.slug})
-        ),
-        "project_url": public_url(
-            reverse("project", kwargs=project_kwargs)
-        ),
-        "project_results_url": public_url(
-            reverse("project_results", kwargs=project_kwargs)
-        ),
-        "leaderboard_url": public_url(
-            reverse("leaderboard", kwargs={"course_slug": course.slug})
-        ),
-        "profile_url": public_url(reverse("account_settings")),
+        "course_url": course_url,
+        "project_url": project_url,
+        "project_results_url": project_results_url,
+        "leaderboard_url": leaderboard_url,
+        "profile_url": profile_url,
     }
 
 

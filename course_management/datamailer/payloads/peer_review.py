@@ -41,16 +41,16 @@ def assigned_review_link_item(review, course, project) -> dict[str, Any]:
 
 
 def assigned_review_eval_url(review, course, project) -> str:
-    return public_url(
-        reverse(
-            "projects_eval_submit",
-            kwargs={
-                "course_slug": course.slug,
-                "project_slug": project.slug,
-                "review_id": review.id,
-            },
-        )
+    eval_path = reverse(
+        "projects_eval_submit",
+        kwargs={
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+            "review_id": review.id,
+        },
     )
+    eval_url = public_url(eval_path)
+    return eval_url
 
 
 def peer_review_assignment_metadata(submission) -> dict[str, Any]:
@@ -87,15 +87,15 @@ def peer_review_assignment_review_metadata(submission) -> dict[str, Any]:
 
 
 def peer_review_assignment_evaluations_url(project) -> str:
-    return public_url(
-        reverse(
-            "projects_eval",
-            kwargs={
-                "course_slug": project.course.slug,
-                "project_slug": project.slug,
-            },
-        )
+    evaluations_path = reverse(
+        "projects_eval",
+        kwargs={
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+        },
     )
+    evaluations_url = public_url(evaluations_path)
+    return evaluations_url
 
 
 def peer_review_assignment_deadline_metadata(
@@ -183,32 +183,39 @@ def peer_review_assignment_submissions(project):
 
 
 def _peer_review_assignment_urls(course, project) -> dict[str, str]:
+    course_path = reverse("course", kwargs={"course_slug": course.slug})
+    course_url = public_url(course_path)
+
+    project_path = reverse(
+        "project",
+        kwargs={
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+        },
+    )
+    project_url = public_url(project_path)
+
+    evaluations_path = reverse(
+        "projects_eval",
+        kwargs={
+            "course_slug": course.slug,
+            "project_slug": project.slug,
+        },
+    )
+    evaluations_url = public_url(evaluations_path)
+
+    leaderboard_path = reverse("leaderboard", kwargs={"course_slug": course.slug})
+    leaderboard_url = public_url(leaderboard_path)
+
+    profile_path = reverse("account_settings")
+    profile_url = public_url(profile_path)
+
     return {
-        "course_url": public_url(
-            reverse("course", kwargs={"course_slug": course.slug})
-        ),
-        "project_url": public_url(
-            reverse(
-                "project",
-                kwargs={
-                    "course_slug": course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        ),
-        "evaluations_url": public_url(
-            reverse(
-                "projects_eval",
-                kwargs={
-                    "course_slug": course.slug,
-                    "project_slug": project.slug,
-                },
-            )
-        ),
-        "leaderboard_url": public_url(
-            reverse("leaderboard", kwargs={"course_slug": course.slug})
-        ),
-        "profile_url": public_url(reverse("account_settings")),
+        "course_url": course_url,
+        "project_url": project_url,
+        "evaluations_url": evaluations_url,
+        "leaderboard_url": leaderboard_url,
+        "profile_url": profile_url,
     }
 
 

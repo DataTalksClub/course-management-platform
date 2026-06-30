@@ -233,6 +233,11 @@ def transient_recipient_list_send_payload(event):
 
 
 def base_context(data):
+    formatted_deadline = format_deadline_for_email(data.item.deadline)
+    deadline_summary = formatted_deadline["deadline_summary"]
+    profile_path = reverse("account_settings")
+    profile_url = public_url(profile_path)
+
     return {
         "course_slug": data.item.course.slug,
         "course_title": data.item.course.title,
@@ -240,12 +245,10 @@ def base_context(data):
         "item_type": data.spec.item_type,
         "item_slug": data.item.item_slug,
         "item_title": data.item.item_title,
-        "deadline_at": format_deadline_for_email(data.item.deadline)[
-            "deadline_summary"
-        ],
+        "deadline_at": deadline_summary,
         "deadline_iso": data.item.deadline.isoformat(),
         "action_url": data.action_url,
-        "profile_url": public_url(reverse("account_settings")),
+        "profile_url": profile_url,
         "notification_category": "deadline reminders",
         "notification_footer": (
             "You are receiving this because deadline reminders are "
@@ -265,15 +268,15 @@ def reminder_metadata(spec, item):
 
 
 def deadline_action_url(spec, item):
-    return public_url(
-        reverse(
-            spec.route_name,
-            kwargs={
-                "course_slug": item.course.slug,
-                spec.route_slug_kwarg: item.item_slug,
-            },
-        )
+    action_path = reverse(
+        spec.route_name,
+        kwargs={
+            "course_slug": item.course.slug,
+            spec.route_slug_kwarg: item.item_slug,
+        },
     )
+    action_url = public_url(action_path)
+    return action_url
 
 
 def deadline_context(data):

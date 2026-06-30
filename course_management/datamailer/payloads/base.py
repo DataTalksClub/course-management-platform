@@ -71,8 +71,11 @@ def contact_payload_tags_and_fields(user, course):
     custom_fields = contact_base_custom_fields(user)
 
     if course is not None:
-        tags.extend(contact_tags_for_course(course))
-        custom_fields.update(contact_course_custom_fields(course))
+        course_tags = contact_tags_for_course(course)
+        tags.extend(course_tags)
+
+        course_custom_fields = contact_course_custom_fields(course)
+        custom_fields.update(course_custom_fields)
 
     return tags, custom_fields
 
@@ -170,13 +173,15 @@ def _registration_confirmation_urls(campaign, course) -> dict[str, str]:
     )
     course_url = ""
     if course is not None:
-        course_url = public_url(
-            reverse("course", kwargs={"course_slug": course.slug})
-        )
+        course_path = reverse("course", kwargs={"course_slug": course.slug})
+        course_url = public_url(course_path)
+    registration_url = public_url(registration_path)
+    profile_path = reverse("account_settings")
+    profile_url = public_url(profile_path)
     return {
-        "registration_url": public_url(registration_path),
+        "registration_url": registration_url,
         "course_url": course_url,
-        "profile_url": public_url(reverse("account_settings")),
+        "profile_url": profile_url,
     }
 
 
@@ -463,15 +468,15 @@ def homework_submission_metadata(submission) -> dict[str, Any]:
 
 
 def homework_public_url(homework):
-    return public_url(
-        reverse(
-            "homework",
-            kwargs={
-                "course_slug": homework.course.slug,
-                "homework_slug": homework.slug,
-            },
-        )
+    homework_path = reverse(
+        "homework",
+        kwargs={
+            "course_slug": homework.course.slug,
+            "homework_slug": homework.slug,
+        },
     )
+    homework_url = public_url(homework_path)
+    return homework_url
 
 
 def project_submission_metadata(submission) -> dict[str, Any]:
@@ -529,15 +534,15 @@ def project_submission_status_metadata(submission) -> dict[str, Any]:
 
 
 def project_public_url(project):
-    return public_url(
-        reverse(
-            "project",
-            kwargs={
-                "course_slug": project.course.slug,
-                "project_slug": project.slug,
-            },
-        )
+    project_path = reverse(
+        "project",
+        kwargs={
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+        },
     )
+    project_url = public_url(project_path)
+    return project_url
 
 
 def project_submission_recipient_list_payload(
