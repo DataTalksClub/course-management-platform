@@ -262,11 +262,12 @@ def course_user_context(
 
 
 def course_page_context(data: CoursePageData) -> dict:
+    has_completed_course_projects = has_completed_projects(data.projects)
     context = {
         "course": data.course,
         "homeworks": data.homeworks,
         "projects": data.projects,
-        "has_completed_projects": has_completed_projects(data.projects),
+        "has_completed_projects": has_completed_course_projects,
         "is_authenticated": data.user.is_authenticated,
         "registration_campaign": data.registration_campaign,
     }

@@ -70,9 +70,10 @@ def _dashboard_project_stats(course, total_enrollments):
     pass_count, fail_count = _project_pass_fail_counts(project_submissions)
     time_quartiles = _safe_quartiles(time_spent)
     score_quartiles = _safe_quartiles(scores)
+    rounded_completion_rate = round(completion_rate, 1)
 
     return {
-        "project_completion_rate": round(completion_rate, 1),
+        "project_completion_rate": rounded_completion_rate,
         "project_time_q25": time_quartiles.q25,
         "project_time_median": time_quartiles.median,
         "project_time_q75": time_quartiles.q75,
@@ -157,11 +158,12 @@ def _dashboard_total_homework_times(hw_submissions):
 
 def _quartile_fields(prefix, values):
     quartiles = _safe_quartiles(values)
+    formatted_median = _format_median(quartiles.median)
     return {
         f"{prefix}_q25": quartiles.q25,
         f"{prefix}_median": quartiles.median,
         f"{prefix}_q75": quartiles.q75,
-        f"{prefix}_median_formatted": _format_median(quartiles.median),
+        f"{prefix}_median_formatted": formatted_median,
     }
 
 

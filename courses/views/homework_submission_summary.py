@@ -56,10 +56,11 @@ def learning_in_public_submission_field(
         return None
 
     links = submission.learning_in_public_links or []
+    value = "\n".join(links)
     return {
         "key": "learning_in_public_links",
         "label": "Learning in public links",
-        "value": "\n".join(links),
+        "value": value,
         "values": links,
     }
 
@@ -71,10 +72,11 @@ def lecture_time_submission_field(
     if not homework.time_spent_lectures_field:
         return None
 
+    value = format_hours(submission.time_spent_lectures)
     return {
         "key": "time_spent_lectures",
         "label": "Time spent on lectures",
-        "value": format_hours(submission.time_spent_lectures),
+        "value": value,
     }
 
 
@@ -85,10 +87,11 @@ def homework_time_submission_field(
     if not homework.time_spent_homework_field:
         return None
 
+    value = format_hours(submission.time_spent_homework)
     return {
         "key": "time_spent_homework",
         "label": "Time spent on homework",
-        "value": format_hours(submission.time_spent_homework),
+        "value": value,
     }
 
 
@@ -230,9 +233,10 @@ def submitted_selected_options(
     selected_options = []
     selected_indexes = extract_selected_option_indexes(raw_answer)
     for index in selected_indexes:
+        selected_value = selected_option_value(possible_answers, index)
         option = {
             "index": index,
-            "value": selected_option_value(possible_answers, index),
+            "value": selected_value,
         }
         selected_options.append(option)
     return selected_options

@@ -236,21 +236,23 @@ def _project_viewer_vote_state(project, course, user):
     voted_submission_ids = get_voted_submission_ids(user, course)
     project_vote_counts = get_project_vote_counts(user, course)
     project_vote_count = project_vote_counts.get(project.id, 0)
+    project_votes_left = max(
+        PROJECT_VOTES_PER_PROJECT - project_vote_count,
+        0,
+    )
     return {
         "voted_submission_ids": voted_submission_ids,
         "project_vote_counts": project_vote_counts,
-        "project_votes_left": max(
-            PROJECT_VOTES_PER_PROJECT - project_vote_count,
-            0,
-        ),
+        "project_votes_left": project_votes_left,
     }
 
 
 def _base_project_viewer_state(vote_state):
+    own_submissions = set()
     return {
         "is_authenticated": False,
         "review_ids": {},
-        "own_submissions": set(),
+        "own_submissions": own_submissions,
         "has_submission": False,
         **vote_state,
         "has_assigned_reviews": False,

@@ -328,9 +328,11 @@ def course_home_stats(courses, active_courses, finished_courses):
         homework_count += course.homework_count
         project_count += course.project_count
 
+    active_course_count = len(active_courses)
+    archive_course_count = len(finished_courses)
     return {
-        "active_courses": len(active_courses),
-        "archive_courses": len(finished_courses),
+        "active_courses": active_course_count,
+        "archive_courses": archive_course_count,
         "homeworks": homework_count,
         "projects": project_count,
     }
