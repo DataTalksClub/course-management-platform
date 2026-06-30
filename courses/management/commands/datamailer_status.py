@@ -159,7 +159,9 @@ class Command(BaseCommand):
         self.write_message_events(events)
 
     def display_value(self, value):
-        return value or "-"
+        if value:
+            return value
+        return "-"
 
     def message_status_fields(self, message):
         return [

@@ -154,13 +154,18 @@ class Command(BaseCommand):
 
     def write_sync_result(self, index, batch, response):
         summary = self.sync_count_summary(response)
-        suffix = f"; {summary}" if summary else ""
+        suffix = ""
+        if summary:
+            suffix = f"; {summary}"
         self.stdout.write(
             f"Synced batch {index}: {len(batch)} contact(s){suffix}"
         )
 
     def sync_count_summary(self, response):
-        counts = response.get("counts", {}) if response else {}
+        if response:
+            counts = response.get("counts", {})
+        else:
+            counts = {}
         summary_parts = []
         count_keys = (
             "created",

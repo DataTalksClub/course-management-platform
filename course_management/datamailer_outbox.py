@@ -166,7 +166,9 @@ def _due_outbox_events(now):
 
 
 def _oldest_due_outbox_event(due_events):
-    return due_events.order_by("next_attempt_at", "created_at", "id").first()
+    ordered_events = due_events.order_by("next_attempt_at", "created_at", "id")
+    oldest_event = ordered_events.first()
+    return oldest_event
 
 
 def _outbox_dispatch_runs():
@@ -359,7 +361,10 @@ def _mark_failed(event, message):
 
 def _http_error_status_code(exc):
     response = getattr(exc, "response", None)
-    return getattr(response, "status_code", 0) or 0
+    status_code = getattr(response, "status_code", 0)
+    if status_code:
+        return status_code
+    return 0
 
 
 def _is_non_retryable_http_error(exc):

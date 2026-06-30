@@ -289,7 +289,10 @@ def import_member_jsonl(members):
 def safe_s3_key_part(value):
     stripped_value = value.strip()
     safe = re.sub(r"[^A-Za-z0-9._:@=-]+", "_", stripped_value)
-    return safe.strip("._") or "recipient-list"
+    stripped_safe = safe.strip("._")
+    if stripped_safe:
+        return stripped_safe
+    return "recipient-list"
 
 
 def import_object_key(kind, config, list_key, content_sha256):
@@ -324,7 +327,9 @@ def import_s3_bucket():
 
 def import_s3_client():
     region = getattr(settings, "DATAMAILER_IMPORT_S3_REGION", "")
-    s3_kwargs = {"region_name": region} if region else {}
+    s3_kwargs = {}
+    if region:
+        s3_kwargs["region_name"] = region
     return boto3.client("s3", **s3_kwargs)
 
 
@@ -391,7 +396,10 @@ def upload_import_file(kind, config, list_key, payload):
 def import_idempotency_key(
     kind, list_key, content_sha256, *, remove_absent
 ):
-    remove_absent_value = "true" if remove_absent else "false"
+    if remove_absent:
+        remove_absent_value = "true"
+    else:
+        remove_absent_value = "false"
     encoded_list_key = list_key.encode("utf-8")
     list_key_sha256 = hashlib.sha256(encoded_list_key).hexdigest()
     return (
@@ -771,7 +779,9 @@ class Command(BaseCommand):
 
     def _import_job(self, client, list_key, job_id):
         response = client.recipient_list_import(list_key, job_id)
-        return (response or {}).get("import_job", {})
+        response_body = response or {}
+        import_job = response_body.get("import_job", {})
+        return import_job
 
     def _handle_import_job_status(self, list_key, job_id, job):
         status = job.get("status")
