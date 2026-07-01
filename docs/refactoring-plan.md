@@ -182,6 +182,8 @@ testable service functions.
   into a shared route helper.
 - [x] Flatten Datamailer membership sync payload construction and remove unused
   internal dataclass fields.
+- [x] Flatten duplicate-course admin creation inputs and clean criteria form
+  validation style.
 
 ## Current Findings
 

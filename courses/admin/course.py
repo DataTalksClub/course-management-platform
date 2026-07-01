@@ -1,14 +1,13 @@
 from django import forms
 from django.contrib import admin
-from django.utils import timezone
+from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.widgets import (
     UnfoldAdminTextInputWidget,
     UnfoldAdminTextareaWidget,
 )
-
-from django.contrib import messages
 
 from courses.models import (
     Course,
@@ -35,31 +34,30 @@ class CriteriaForm(forms.ModelForm):
                 attrs={"cols": 60, "rows": 4}
             ),
         }
-    
+
     def clean_options(self):
         """Validate the options field to ensure it has the correct structure."""
-        options = self.cleaned_data.get('options')
-        
+        options = self.cleaned_data.get("options")
+
         if options is None:
             raise ValidationError("Options field cannot be empty.")
-        
-        # Run the validator
+
         try:
             validate_review_criteria_options(options)
-        except ValidationError as e:
-            # Extract error message properly for modern Django
-            if hasattr(e, 'messages') and e.messages:
-                error_msg = e.messages[0]
+        except ValidationError as exc:
+            error_messages = getattr(exc, "messages", None)
+            if error_messages:
+                error_msg = error_messages[0]
             else:
-                error_msg = str(e)
-            
+                error_msg = str(exc)
+
             raise ValidationError(
                 f"Invalid options format. {error_msg}\n\n"
                 f"Expected format:\n"
                 f'[{{"criteria": "Poor", "score": 0}}, '
                 f'{{"criteria": "Good", "score": 1}}, ...]'
-            )
-        
+            ) from exc
+
         return options
 
 
@@ -99,9 +97,8 @@ duplicate_course.short_description = "Duplicate selected courses"
 
 
 def _duplicate_course(course, current_year):
-    new_course = Course.objects.create(
-        **_course_duplicate_fields(course, current_year)
-    )
+    duplicate_fields = _course_duplicate_fields(course, current_year)
+    new_course = Course.objects.create(**duplicate_fields)
     _copy_review_criteria(course, new_course)
     return new_course
 
