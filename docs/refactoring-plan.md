@@ -502,6 +502,11 @@ testable service functions.
   assertions. Verification:
   `uv run ruff check courses/tests/test_project_assign.py` and
   `uv run python manage.py test courses.tests.test_project_assign`.
+- [x] Shorten project pass/fail outcome scoring tests by naming required
+  reverse-review setup, passing-score setup, and final score outcome
+  assertions. Verification:
+  `uv run ruff check courses/tests/test_project_score_outcomes.py` and
+  `uv run python manage.py test courses.tests.test_project_score_outcomes`.
 
 ## Current Findings
 

@@ -4,40 +4,52 @@ from courses.tests.project_score_base import ProjectEvaluationTestBase
 
 
 class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
-    def test_project_passed(self):
+    def submit_required_reverse_reviews(self):
         other_prs = self.create_reverse_assignments(self.peer_reviews)
-
         self.submit_peer_review(other_prs[0], "4")
         self.submit_peer_review(other_prs[1], "3")
         self.submit_peer_review(other_prs[2], "3")
+        return other_prs
 
-        answers = ["4", "4", "1"]
-        scores = [3, 3, 0]
-        expected_project_score = 3
-
+    def use_three_point_project_passing_score(self):
         self.course.project_passing_score = 3
         self.course.save()
 
-        answers_and_scores = list(zip(answers, scores))
-
-        self.assert_evaluation_score(
-            answers_and_scores, expected_project_score
-        )
-
+    def assert_project_score_outcome(
+        self,
+        expected_project_score,
+        expected_passed,
+        review_count,
+    ):
         self.submission.refresh_from_db()
-        self.assertTrue(self.submission.passed)
-
+        self.assertEqual(self.submission.passed, expected_passed)
         self.assertEqual(
             self.submission.project_score, expected_project_score
         )
         self.assertEqual(
             self.submission.peer_review_score,
-            3 * self.project.points_for_peer_review,
+            review_count * self.project.points_for_peer_review,
         )
         self.assertEqual(
             self.submission.total_score,
             expected_project_score
-            + 3 * self.project.points_for_peer_review,
+            + review_count * self.project.points_for_peer_review,
+        )
+
+    def test_project_passed(self):
+        other_prs = self.submit_required_reverse_reviews()
+        expected_project_score = 3
+        self.use_three_point_project_passing_score()
+        answers_and_scores = [("4", 3), ("4", 3), ("1", 0)]
+
+        self.assert_evaluation_score(
+            answers_and_scores, expected_project_score
+        )
+
+        self.assert_project_score_outcome(
+            expected_project_score,
+            expected_passed=True,
+            review_count=len(other_prs),
         )
 
     @patch("courses.project_scoring._sync_scored_project_submission_to_datamailer")
@@ -60,39 +72,19 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
         self.assertIn(self.submission.pk, synced_submission_ids)
 
     def test_project_not_passed(self):
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-
-        self.submit_peer_review(other_prs[0], "4")
-        self.submit_peer_review(other_prs[1], "3")
-        self.submit_peer_review(other_prs[2], "3")
-
-        answers = ["4", "1", "1"]
-        scores = [3, 0, 0]
+        other_prs = self.submit_required_reverse_reviews()
         expected_project_score = 0
-
-        self.course.project_passing_score = 3
-        self.course.save()
-
-        answers_and_scores = list(zip(answers, scores))
+        self.use_three_point_project_passing_score()
+        answers_and_scores = [("4", 3), ("1", 0), ("1", 0)]
 
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
-        self.submission.refresh_from_db()
-        self.assertFalse(self.submission.passed)
-
-        self.assertEqual(
-            self.submission.project_score, expected_project_score
-        )
-        self.assertEqual(
-            self.submission.peer_review_score,
-            3 * self.project.points_for_peer_review,
-        )
-        self.assertEqual(
-            self.submission.total_score,
-            expected_project_score
-            + 3 * self.project.points_for_peer_review,
+        self.assert_project_score_outcome(
+            expected_project_score,
+            expected_passed=False,
+            review_count=len(other_prs),
         )
 
     def test_project_passed_with_optional(self):
