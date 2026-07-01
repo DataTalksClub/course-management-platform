@@ -153,7 +153,8 @@ class ProjectEvaluationTestBase(TestCase):
                 criteria=self.criteria,
                 answer=answer,
             )
-            self.assertEqual([expected_score], response.get_scores())
+            scores = response.get_scores()
+            self.assertEqual([expected_score], scores)
 
             peer_review.state = PeerReviewState.SUBMITTED.value
             peer_review.save()
@@ -206,7 +207,9 @@ class ProjectEvaluationTestBase(TestCase):
             criteria=self.criteria,
             answer=answer,
         )
-        self.assertEqual([int(answer) - 1], response.get_scores())
+        expected_score = int(answer) - 1
+        scores = response.get_scores()
+        self.assertEqual([expected_score], scores)
 
         peer_review.state = PeerReviewState.SUBMITTED.value
         peer_review.save()
@@ -266,12 +269,11 @@ class ProjectEvaluationTestBase(TestCase):
 
     def project_results_response(self):
         self.client.login(**credentials)
-        return self.client.get(
-            reverse(
-                "project_results",
-                args=[self.course.slug, self.project.slug],
-            )
+        results_url = reverse(
+            "project_results",
+            args=[self.course.slug, self.project.slug],
         )
+        return self.client.get(results_url)
 
     def assert_option_vote_counts(self, response):
         score = response.context["scores"][0]

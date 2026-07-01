@@ -9,7 +9,8 @@ from courses.tests.project_view_base import (
 class ProjectViewTestCase(ProjectViewTestBase):
 
     def test_project_detail_unauthenticated_no_submission(self):
-        response = self.client.get(self.project_url())
+        project_url = self.project_url()
+        response = self.client.get(project_url)
         self.assertEqual(response.status_code, 200)
 
         context = response.context
@@ -30,7 +31,8 @@ class ProjectViewTestCase(ProjectViewTestBase):
         )
         self.project.save()
 
-        response = self.client.get(self.project_url())
+        project_url = self.project_url()
+        response = self.client.get(project_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Instructions")
@@ -41,7 +43,8 @@ class ProjectViewTestCase(ProjectViewTestBase):
         self.project.instructions_url = ""
         self.project.save()
 
-        response = self.client.get(self.project_url())
+        project_url = self.project_url()
+        response = self.client.get(project_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Instructions")

@@ -109,7 +109,8 @@ class ProjectStatisticsViewTestCase(TestCase):
             "courses.views.project_statistics.calculate_project_statistics"
         ) as mock_calc:
             self.mock_project_statistics(mock_calc)
-            response = self.client.get(self.project_statistics_url())
+            statistics_url = self.project_statistics_url()
+            response = self.client.get(statistics_url)
 
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, "Test Project statistics")
@@ -123,12 +124,13 @@ class ProjectStatisticsViewTestCase(TestCase):
         url = self.project_statistics_url(self.incomplete_project)
         response = self.client.get(url, follow=True)
 
+        project_url = reverse(
+            "project",
+            args=[self.course.slug, self.incomplete_project.slug],
+        )
         self.assertRedirects(
             response,
-            reverse(
-                "project",
-                args=[self.course.slug, self.incomplete_project.slug],
-            ),
+            project_url,
         )
 
         messages = list(response.context["messages"])
@@ -166,7 +168,8 @@ class ProjectStatisticsViewTestCase(TestCase):
             "courses.views.project_statistics.calculate_project_statistics"
         ) as mock_calc:
             self.mock_project_statistics(mock_calc)
-            response = self.client.get(self.project_statistics_url())
+            statistics_url = self.project_statistics_url()
+            response = self.client.get(statistics_url)
 
             self.assertEqual(response.status_code, 200)
             self.assertTemplateUsed(response, "projects/stats.html")

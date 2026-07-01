@@ -26,7 +26,8 @@ class DashboardAuthenticationTestCase(TestCase):
         return reverse("dashboard", args=[self.course.slug])
 
     def test_dashboard_access_without_login(self):
-        response = self.client.get(self.dashboard_url())
+        dashboard_url = self.dashboard_url()
+        response = self.client.get(dashboard_url)
 
         self.assertEqual(response.status_code, 200)
 
@@ -34,7 +35,8 @@ class DashboardAuthenticationTestCase(TestCase):
         User.objects.create_user(**credentials)
         self.client.login(**credentials)
 
-        response = self.client.get(self.dashboard_url())
+        dashboard_url = self.dashboard_url()
+        response = self.client.get(dashboard_url)
 
         self.assertEqual(response.status_code, 200)
 
@@ -42,7 +44,8 @@ class DashboardAuthenticationTestCase(TestCase):
         self.course.first_homework_scored = False
         self.course.save()
 
-        response = self.client.get(self.dashboard_url())
+        dashboard_url = self.dashboard_url()
+        response = self.client.get(dashboard_url)
         course_url = reverse(
             "course", kwargs={"course_slug": self.course.slug}
         )
