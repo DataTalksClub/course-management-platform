@@ -2218,6 +2218,13 @@ Steps:
   `uv run ruff check course_management/urls.py docs/refactoring-plan.md`,
   broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Inline one-use Datamailer outbox dispatch-run and count-initialization
+  helpers into the processing coordinator while keeping the created run and count
+  dictionary named. Verification:
+  `uv run ruff check course_management/datamailer_outbox_runs.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -16,12 +16,19 @@ def process_due_datamailer_outbox(
     *, limit=100, record_run=True
 ) -> dict[str, int]:
     started_at = timezone.now()
+    run = None
     if record_run:
-        run = create_dispatch_run(started_at)
-    else:
-        run = None
+        run = DatamailerOutboxDispatchRun.objects.create(
+            started_at=started_at,
+            status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+        )
     event_ids = due_outbox_event_ids(limit)
-    counts = initial_outbox_counts()
+    counts = {
+        "processed": 0,
+        "acked": 0,
+        "retrying": 0,
+        "failed": 0,
+    }
 
     try:
         process_outbox_event_ids(event_ids, counts)
@@ -34,13 +41,6 @@ def process_due_datamailer_outbox(
     return counts
 
 
-def create_dispatch_run(started_at):
-    return DatamailerOutboxDispatchRun.objects.create(
-        started_at=started_at,
-        status=DatamailerOutboxDispatchRunStatus.SUCCESS,
-    )
-
-
 def due_outbox_event_ids(limit):
     now = timezone.now()
     event_ids = DatamailerOutboxEvent.objects.filter(
@@ -51,10 +51,6 @@ def due_outbox_event_ids(limit):
     due_ids = ordered_event_ids.values_list("id", flat=True)[:limit]
     result = list(due_ids)
     return result
-
-
-def initial_outbox_counts():
-    return {"processed": 0, "acked": 0, "retrying": 0, "failed": 0}
 
 
 def process_outbox_event_ids(event_ids, counts):
