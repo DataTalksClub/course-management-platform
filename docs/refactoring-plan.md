@@ -1787,6 +1787,12 @@ Steps:
   `uv run python manage.py test accounts.tests_enrollment_profile`, touched-file
   nested-call scan reports `touched_file_nested_calls=0`, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Name the homework due date in submission timestamp tests instead of
+  nesting `timezone.now()` inside model construction. Verification:
+  `uv run ruff check courses/tests/test_submission_timestamps.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_submission_timestamps`,
+  touched-file nested-call scan reports `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

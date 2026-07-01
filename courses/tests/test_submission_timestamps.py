@@ -25,11 +25,12 @@ class SubmissionTimestampTest(TestCase):
         )
 
     def create_homework(self, course):
+        due_date = timezone.now()
         return Homework.objects.create(
             course=course,
             slug="hw1",
             title="Homework 1",
-            due_date=timezone.now(),
+            due_date=due_date,
         )
 
     def create_question(self, homework):
