@@ -96,20 +96,20 @@ class CadminViewModelTests(TestCase):
         )
 
     def create_project_submission_status_examples(self):
-        incomplete = self.create_project_submission(
-            self.create_enrollment("incomplete")
-        )
+        incomplete_enrollment = self.create_enrollment("incomplete")
+        incomplete = self.create_project_submission(incomplete_enrollment)
+        missing_repo_enrollment = self.create_enrollment("missing-repo")
         missing_repo = self.create_project_submission(
-            self.create_enrollment("missing-repo"),
+            missing_repo_enrollment,
             github_link="",
         )
+        not_passed_enrollment = self.create_enrollment("not-passed")
         not_passed = self.create_project_submission(
-            self.create_enrollment("not-passed"),
+            not_passed_enrollment,
             passed=False,
         )
-        reviewed_submission = self.create_project_submission(
-            self.create_enrollment("reviewed")
-        )
+        reviewed_enrollment = self.create_enrollment("reviewed")
+        reviewed_submission = self.create_project_submission(reviewed_enrollment)
         PeerReview.objects.create(
             submission_under_evaluation=reviewed_submission,
             reviewer=incomplete,

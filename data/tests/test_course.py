@@ -69,12 +69,15 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
         )
 
     def get_criteria_yaml(self, course):
-        response = self.client.get(self.course_criteria_url(course))
+        criteria_url = self.course_criteria_url(course)
+        response = self.client.get(criteria_url)
         self.assertEqual(response.status_code, 200)
+        content_type = response.get("Content-Type")
         self.assertEqual(
-            response.get("Content-Type"), "text/plain; charset=utf-8"
+            content_type, "text/plain; charset=utf-8"
         )
-        return yaml.safe_load(response.content.decode("utf-8"))
+        content = response.content.decode("utf-8")
+        return yaml.safe_load(content)
 
     def assert_course_data(self, parsed_data, course):
         course_data = parsed_data["course"]
@@ -121,22 +124,19 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
             slug="empty-course"
         )
 
-        url = reverse(
-            "api_course_criteria_yaml",
-            kwargs={"course_slug": empty_course.slug}
-        )
+        url = self.course_criteria_url(empty_course)
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
 
         # Parse and validate YAML content
-        yaml_content = response.content.decode('utf-8')
+        yaml_content = response.content.decode("utf-8")
         parsed_data = yaml.safe_load(yaml_content)
 
         # Should have course data but empty criteria list
-        self.assertIn('course', parsed_data)
-        self.assertIn('review_criteria', parsed_data)
-        self.assertEqual(len(parsed_data['review_criteria']), 0)
+        self.assertIn("course", parsed_data)
+        self.assertIn("review_criteria", parsed_data)
+        self.assertEqual(len(parsed_data["review_criteria"]), 0)
 
     def test_course_criteria_yaml_view_nonexistent_course(self):
         """Test the endpoint with non-existent course."""
@@ -154,12 +154,10 @@ class CourseCriteriaYAMLViewTestCase(TestCase):
         # Create client without authentication
         unauth_client = Client()
 
-        url = reverse(
-            "api_course_criteria_yaml",
-            kwargs={"course_slug": self.course.slug}
-        )
+        url = self.course_criteria_url(self.course)
         response = unauth_client.get(url)
 
         # Should return 200 since no authentication is required
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get("Content-Type"), "text/plain; charset=utf-8")
+        content_type = response.get("Content-Type")
+        self.assertEqual(content_type, "text/plain; charset=utf-8")
