@@ -27,6 +27,9 @@ def _build_homework_state_choices():
     return choices
 
 
+HOMEWORK_STATE_CHOICES = _build_homework_state_choices()
+
+
 class Homework(models.Model):
     slug = models.SlugField(blank=False)
 
@@ -62,7 +65,7 @@ class Homework(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=_build_homework_state_choices(),
+        choices=HOMEWORK_STATE_CHOICES,
         default=HomeworkState.OPEN.value,
     )
 

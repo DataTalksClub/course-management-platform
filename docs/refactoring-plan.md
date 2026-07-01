@@ -639,6 +639,11 @@ testable service functions.
   formatting. Verification: `uv run ruff check scripts/score_project_dev.py`,
   `python -m py_compile scripts/score_project_dev.py`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name homework, project, and peer-review state choice lists before passing
+  them into model field declarations. Verification:
+  `uv run ruff check courses/models/project.py courses/models/homework.py`,
+  `uv run python manage.py makemigrations --check --dry-run`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

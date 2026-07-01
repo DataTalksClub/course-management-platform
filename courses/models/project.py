@@ -33,6 +33,9 @@ def _build_enum_choices(enum_type):
     return choices
 
 
+PROJECT_STATE_CHOICES = _build_enum_choices(ProjectState)
+
+
 class Project(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     slug = models.SlugField(blank=False)
@@ -64,7 +67,7 @@ class Project(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=_build_enum_choices(ProjectState),
+        choices=PROJECT_STATE_CHOICES,
         default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
@@ -192,6 +195,9 @@ class PeerReviewState(Enum):
     SUBMITTED = "SU"
 
 
+PEER_REVIEW_STATE_CHOICES = _build_enum_choices(PeerReviewState)
+
+
 class PeerReview(models.Model):
     submission_under_evaluation = models.ForeignKey(
         ProjectSubmission,
@@ -216,7 +222,7 @@ class PeerReview(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=_build_enum_choices(PeerReviewState),
+        choices=PEER_REVIEW_STATE_CHOICES,
         default=PeerReviewState.TO_REVIEW.value,
     )
 
