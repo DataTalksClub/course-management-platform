@@ -1198,6 +1198,15 @@ Steps:
   `uv run python manage.py test courses.tests.test_load_rds_export_script`,
   touched-file style scans for comprehensions/generators and 30+ line
   functions, `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten production-like leaderboard data generation by replacing
+  three-value course/enrollment returns with named result objects, naming
+  derived homework/project submission values before ORM construction, and
+  splitting generated submission persistence from course seeding.
+  Verification:
+  `uv run ruff check scripts/generate_production_like_leaderboard_data.py`,
+  `uv run python scripts/generate_production_like_leaderboard_data.py --list-courses > .tmp/generated_leaderboard_list_courses.txt`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

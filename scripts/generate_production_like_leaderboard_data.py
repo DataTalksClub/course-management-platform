@@ -67,6 +67,13 @@ DEFAULT_SELECTED_COURSES = {
 
 
 @dataclass(frozen=True)
+class CourseMaterials:
+    course: Course
+    homeworks: list[Homework]
+    projects: list[Project]
+
+
+@dataclass(frozen=True)
 class GeneratedSubmissionData:
     course: Course
     enrollment: Enrollment
@@ -83,6 +90,34 @@ class GeneratedSubmissionsData:
     homeworks: list[Homework]
     projects: list[Project]
     count: int
+
+
+@dataclass(frozen=True)
+class GeneratedEnrollmentData:
+    course: Course
+    spec: dict
+    count: int
+    username_prefix: str
+
+
+@dataclass(frozen=True)
+class GeneratedEnrollmentResult:
+    enrollments: list[Enrollment]
+    created_users: int
+    created_enrollments: int
+
+
+@dataclass(frozen=True)
+class GeneratedEnrollmentRecord:
+    enrollment: Enrollment
+    user_created: bool
+    enrollment_created: bool
+
+
+@dataclass(frozen=True)
+class GeneratedSubmissionResult:
+    homework_submissions: list[Submission]
+    project_submissions: list[ProjectSubmission]
 
 
 @dataclass(frozen=True)
@@ -114,6 +149,17 @@ class GeneratedProjectScores:
 
 
 @dataclass(frozen=True)
+class GeneratedHomeworkScores:
+    questions_score: int
+    faq_score: int
+    lip_score: int
+
+    @property
+    def total_score(self) -> int:
+        return self.questions_score + self.faq_score + self.lip_score
+
+
+@dataclass(frozen=True)
 class GeneratedHomeworkLinks:
     homework_link: str
     learning_in_public_link: str
@@ -123,6 +169,27 @@ class GeneratedHomeworkLinks:
 class GeneratedHomeworkTimeSpent:
     lectures: float
     homework: float
+
+
+@dataclass(frozen=True)
+class GeneratedHomeworkSubmissionValues:
+    scores: GeneratedHomeworkScores
+    links: GeneratedHomeworkLinks
+    time_spent: GeneratedHomeworkTimeSpent
+    faq_contribution_url: str
+    learning_in_public_links: list[str]
+
+
+@dataclass(frozen=True)
+class GeneratedProjectSubmissionValues:
+    scores: GeneratedProjectScores
+    github_link: str
+    commit_id: str
+    learning_in_public_links: list[str]
+    faq_contribution_url: str
+    time_spent: float
+    reviewed_enough_peers: bool
+    passed: bool
 
 
 def configure_sqlite_busy_timeout():
@@ -479,10 +546,11 @@ def list_courses():
 
 def ensure_full_catalog():
     for spec in COURSE_SPECS:
-        course, homeworks, projects = ensure_course_materials(spec)
+        materials = ensure_course_materials(spec)
         print(
-            f"{course.slug}: catalog ready "
-            f"({len(homeworks)} homeworks, {len(projects)} projects)"
+            f"{materials.course.slug}: catalog ready "
+            f"({len(materials.homeworks)} homeworks, "
+            f"{len(materials.projects)} projects)"
         )
     hide_legacy_demo_duplicates()
 
@@ -580,7 +648,11 @@ def ensure_course_materials(spec):
     homeworks = ensure_homeworks(course, spec)
     projects = ensure_projects(course, spec)
 
-    return course, homeworks, projects
+    return CourseMaterials(
+        course=course,
+        homeworks=homeworks,
+        projects=projects,
+    )
 
 
 def score_for_student(student_index, count, assignment_index, max_score):
@@ -594,36 +666,56 @@ def score_for_student(student_index, count, assignment_index, max_score):
     return max(0, capped_score)
 
 
-def create_generated_enrollments(course, spec, count, username_prefix):
+def generated_display_name(data, student_index):
+    return f"{data.spec['title']} Student {student_index:04d}"
+
+
+def create_generated_enrollment(data, student_index):
+    username = f"{data.username_prefix}{student_index:04d}"
+    user_defaults = {"email": f"{username}@example.com"}
+    user, user_created = User.objects.get_or_create(
+        username=username,
+        defaults=user_defaults,
+    )
+
+    display_name = generated_display_name(data, student_index)
+    enrollment_defaults = {"display_name": display_name}
+    enrollment, enrollment_created = Enrollment.objects.get_or_create(
+        course=data.course,
+        student=user,
+        defaults=enrollment_defaults,
+    )
+    enrollment.display_name = display_name
+    enrollment.display_on_leaderboard = True
+
+    return GeneratedEnrollmentRecord(
+        enrollment=enrollment,
+        user_created=user_created,
+        enrollment_created=enrollment_created,
+    )
+
+
+def create_generated_enrollments(data):
     enrollments = []
     created_users = 0
     created_enrollments = 0
 
-    for student_index in range(1, count + 1):
-        username = f"{username_prefix}{student_index:04d}"
-        user, user_created = User.objects.get_or_create(
-            username=username,
-            defaults={"email": f"{username}@example.com"},
-        )
-        created_users += int(user_created)
-
-        enrollment, enrollment_created = Enrollment.objects.get_or_create(
-            course=course,
-            student=user,
-            defaults={"display_name": f"{spec['title']} Student {student_index:04d}"},
-        )
-        created_enrollments += int(enrollment_created)
-
-        enrollment.display_name = f"{spec['title']} Student {student_index:04d}"
-        enrollment.display_on_leaderboard = True
-        enrollments.append(enrollment)
+    for student_index in range(1, data.count + 1):
+        record = create_generated_enrollment(data, student_index)
+        created_users += int(record.user_created)
+        created_enrollments += int(record.enrollment_created)
+        enrollments.append(record.enrollment)
 
     Enrollment.objects.bulk_update(
         enrollments,
         ["display_name", "display_on_leaderboard"],
     )
 
-    return enrollments, created_users, created_enrollments
+    return GeneratedEnrollmentResult(
+        enrollments=enrollments,
+        created_users=created_users,
+        created_enrollments=created_enrollments,
+    )
 
 
 def generated_enrollment_queryset(course, username_prefix):
@@ -649,8 +741,16 @@ def homework_scores(student_index, count, homework_index):
     faq_score = (student_index + homework_index) % 6
     lip_score = (student_index * homework_index) % 8
     if student_index % (homework_index + 11) == 0:
-        return 0, 0, 0
-    return questions_score, faq_score, lip_score
+        return GeneratedHomeworkScores(
+            questions_score=0,
+            faq_score=0,
+            lip_score=0,
+        )
+    return GeneratedHomeworkScores(
+        questions_score=questions_score,
+        faq_score=faq_score,
+        lip_score=lip_score,
+    )
 
 
 def homework_faq_url(student_index, homework_index, faq_score):
@@ -684,8 +784,14 @@ def generated_homework_time_spent(data):
     )
 
 
-def build_homework_submission(data):
-    questions_score, faq_score, lip_score = homework_scores(
+def homework_learning_in_public_links(links):
+    learning_in_public_links = []
+    learning_in_public_links.append(links.learning_in_public_link)
+    return learning_in_public_links
+
+
+def homework_submission_values(data):
+    scores = homework_scores(
         data.student_index,
         data.count,
         data.item_index,
@@ -695,23 +801,34 @@ def build_homework_submission(data):
     faq_contribution_url = homework_faq_url(
         data.student_index,
         data.item_index,
-        faq_score,
+        scores.faq_score,
     )
-    total_score = questions_score + faq_score + lip_score
+    learning_in_public_links = homework_learning_in_public_links(links)
+    return GeneratedHomeworkSubmissionValues(
+        scores=scores,
+        links=links,
+        time_spent=time_spent,
+        faq_contribution_url=faq_contribution_url,
+        learning_in_public_links=learning_in_public_links,
+    )
+
+
+def build_homework_submission(data):
+    values = homework_submission_values(data)
 
     return Submission(
         homework=data.item,
         student=data.enrollment.student,
         enrollment=data.enrollment,
-        homework_link=links.homework_link,
-        learning_in_public_links=[links.learning_in_public_link],
-        time_spent_lectures=time_spent.lectures,
-        time_spent_homework=time_spent.homework,
-        faq_contribution_url=faq_contribution_url,
-        questions_score=questions_score,
-        faq_score=faq_score,
-        learning_in_public_score=lip_score,
-        total_score=total_score,
+        homework_link=values.links.homework_link,
+        learning_in_public_links=values.learning_in_public_links,
+        time_spent_lectures=values.time_spent.lectures,
+        time_spent_homework=values.time_spent.homework,
+        faq_contribution_url=values.faq_contribution_url,
+        questions_score=values.scores.questions_score,
+        faq_score=values.scores.faq_score,
+        learning_in_public_score=values.scores.lip_score,
+        total_score=values.scores.total_score,
     )
 
 
@@ -767,34 +884,57 @@ def project_learning_links(data):
     ]
 
 
-def build_project_submission(data):
+def project_submission_values(data):
     scores = project_scores(
         data.student_index,
         data.count,
         data.item_index,
     )
+    github_link = project_github_link(data)
+    commit_id = project_commit_id(data)
+    learning_in_public_links = project_learning_links(data)
+    faq_contribution_url = project_faq_url(
+        data.student_index,
+        data.item_index,
+        scores.project_faq_score,
+    )
+    time_spent = 6.0 + ((data.student_index * data.item_index) % 24)
+    reviewed_enough_peers = scores.peer_review_score > 0
+    passed = scores.project_score > 0
+    return GeneratedProjectSubmissionValues(
+        scores=scores,
+        github_link=github_link,
+        commit_id=commit_id,
+        learning_in_public_links=learning_in_public_links,
+        faq_contribution_url=faq_contribution_url,
+        time_spent=time_spent,
+        reviewed_enough_peers=reviewed_enough_peers,
+        passed=passed,
+    )
+
+
+def build_project_submission(data):
+    values = project_submission_values(data)
     return ProjectSubmission(
         project=data.item,
         student=data.enrollment.student,
         enrollment=data.enrollment,
-        github_link=project_github_link(data),
-        commit_id=project_commit_id(data),
-        learning_in_public_links=project_learning_links(data),
-        faq_contribution_url=project_faq_url(
-            data.student_index,
-            data.item_index,
-            scores.project_faq_score,
-        ),
-        time_spent=6.0 + ((data.student_index * data.item_index) % 24),
+        github_link=values.github_link,
+        commit_id=values.commit_id,
+        learning_in_public_links=values.learning_in_public_links,
+        faq_contribution_url=values.faq_contribution_url,
+        time_spent=values.time_spent,
         problems_comments="Generated project submission",
-        project_score=scores.project_score,
-        project_faq_score=scores.project_faq_score,
-        project_learning_in_public_score=scores.project_lip_score,
-        peer_review_score=scores.peer_review_score,
-        peer_review_learning_in_public_score=scores.peer_review_lip_score,
-        total_score=scores.total_score,
-        reviewed_enough_peers=scores.peer_review_score > 0,
-        passed=scores.project_score > 0,
+        project_score=values.scores.project_score,
+        project_faq_score=values.scores.project_faq_score,
+        project_learning_in_public_score=values.scores.project_lip_score,
+        peer_review_score=values.scores.peer_review_score,
+        peer_review_learning_in_public_score=(
+            values.scores.peer_review_lip_score
+        ),
+        total_score=values.scores.total_score,
+        reviewed_enough_peers=values.reviewed_enough_peers,
+        passed=values.passed,
     )
 
 
@@ -858,22 +998,22 @@ def print_seed_summary(data):
     )
 
 
-def seed_course(spec, count):
-    course, homeworks, projects = ensure_course_materials(spec)
-    username_prefix = f"{USER_PREFIX}-{course.slug}-"
-    enrollments, created_users, created_enrollments = create_generated_enrollments(
-        course, spec, count, username_prefix
+def generated_enrollment_result(materials, spec, count, username_prefix):
+    enrollment_data = GeneratedEnrollmentData(
+        course=materials.course,
+        spec=spec,
+        count=count,
+        username_prefix=username_prefix,
     )
-    clear_generated_submissions(
-        generated_enrollment_queryset(course, username_prefix),
-        homeworks,
-        projects,
-    )
+    return create_generated_enrollments(enrollment_data)
+
+
+def persist_generated_submissions(materials, enrollment_result, count):
     generated_data = GeneratedSubmissionsData(
-        course=course,
-        enrollments=enrollments,
-        homeworks=homeworks,
-        projects=projects,
+        course=materials.course,
+        enrollments=enrollment_result.enrollments,
+        homeworks=materials.homeworks,
+        projects=materials.projects,
         count=count,
     )
     homework_submissions, project_submissions = (
@@ -881,14 +1021,62 @@ def seed_course(spec, count):
     )
     Submission.objects.bulk_create(homework_submissions, batch_size=1000)
     ProjectSubmission.objects.bulk_create(project_submissions, batch_size=1000)
-
-    recalculate_course_scores(course, homeworks, projects)
-    summary_data = SeedSummaryData(
-        course=course,
-        created_users=created_users,
-        created_enrollments=created_enrollments,
+    return GeneratedSubmissionResult(
         homework_submissions=homework_submissions,
         project_submissions=project_submissions,
+    )
+
+
+def clear_generated_course_submissions(materials, username_prefix):
+    generated_enrollments = generated_enrollment_queryset(
+        materials.course,
+        username_prefix,
+    )
+    clear_generated_submissions(
+        generated_enrollments,
+        materials.homeworks,
+        materials.projects,
+    )
+
+
+def recalculate_material_scores(materials):
+    recalculate_course_scores(
+        materials.course,
+        materials.homeworks,
+        materials.projects,
+    )
+
+
+def seed_summary_data(materials, enrollment_result, submission_result):
+    return SeedSummaryData(
+        course=materials.course,
+        created_users=enrollment_result.created_users,
+        created_enrollments=enrollment_result.created_enrollments,
+        homework_submissions=submission_result.homework_submissions,
+        project_submissions=submission_result.project_submissions,
+    )
+
+
+def seed_course(spec, count):
+    materials = ensure_course_materials(spec)
+    username_prefix = f"{USER_PREFIX}-{materials.course.slug}-"
+    enrollment_result = generated_enrollment_result(
+        materials,
+        spec,
+        count,
+        username_prefix,
+    )
+    clear_generated_course_submissions(materials, username_prefix)
+    submission_result = persist_generated_submissions(
+        materials,
+        enrollment_result,
+        count,
+    )
+    recalculate_material_scores(materials)
+    summary_data = seed_summary_data(
+        materials,
+        enrollment_result,
+        submission_result,
     )
     print_seed_summary(summary_data)
 
