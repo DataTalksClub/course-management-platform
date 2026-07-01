@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from typing import Any
 
-from django.urls import reverse
-
 from course_management import email_templates
 
-from ..client import DatamailerConfig, public_url
+from ..client import DatamailerConfig
 from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
 from .registration_common import registration_email
+from .urls import public_route_url
 
 
 @dataclass(frozen=True)
@@ -21,17 +20,16 @@ class RegistrationConfirmationPayloadData:
 
 
 def registration_confirmation_urls(campaign, course) -> dict[str, str]:
-    registration_path = reverse(
+    registration_kwargs = {"campaign_slug": campaign.slug}
+    registration_url = public_route_url(
         "registration_campaign",
-        kwargs={"campaign_slug": campaign.slug},
+        registration_kwargs,
     )
     course_url = ""
     if course is not None:
-        course_path = reverse("course", kwargs={"course_slug": course.slug})
-        course_url = public_url(course_path)
-    registration_url = public_url(registration_path)
-    profile_path = reverse("account_settings")
-    profile_url = public_url(profile_path)
+        course_kwargs = {"course_slug": course.slug}
+        course_url = public_route_url("course", course_kwargs)
+    profile_url = public_route_url("account_settings")
     return {
         "registration_url": registration_url,
         "course_url": course_url,

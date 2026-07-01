@@ -1,8 +1,5 @@
 from typing import Any
 
-from django.urls import reverse
-
-from ..client import public_url
 from ..keys import (
     homework_submitters_list_key,
     project_submitters_list_key,
@@ -13,6 +10,7 @@ from .base import (
     normalized_email,
     recipient_list_member_payload,
 )
+from .urls import public_route_url
 
 
 def homework_submission_recipient_list_payload(
@@ -66,14 +64,11 @@ def homework_submission_metadata(submission) -> dict[str, Any]:
 
 
 def homework_public_url(homework):
-    homework_path = reverse(
-        "homework",
-        kwargs={
-            "course_slug": homework.course.slug,
-            "homework_slug": homework.slug,
-        },
-    )
-    homework_url = public_url(homework_path)
+    homework_kwargs = {
+        "course_slug": homework.course.slug,
+        "homework_slug": homework.slug,
+    }
+    homework_url = public_route_url("homework", homework_kwargs)
     return homework_url
 
 
@@ -138,14 +133,11 @@ def project_submission_status_metadata(submission) -> dict[str, Any]:
 
 
 def project_public_url(project):
-    project_path = reverse(
-        "project",
-        kwargs={
-            "course_slug": project.course.slug,
-            "project_slug": project.slug,
-        },
-    )
-    project_url = public_url(project_path)
+    project_kwargs = {
+        "course_slug": project.course.slug,
+        "project_slug": project.slug,
+    }
+    project_url = public_route_url("project", project_kwargs)
     return project_url
 
 

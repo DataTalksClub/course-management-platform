@@ -1,21 +1,19 @@
 from typing import Any
 
-from django.urls import reverse
-
 from course_management import email_templates
 
 from ..client import DatamailerConfig, public_url
 from .base import normalized_email
+from .urls import public_route_url
 
 
 def _certificate_availability_urls(enrollment):
     course = enrollment.course
     certificate_path = enrollment.certificate_url.strip()
     certificate_url = public_url(certificate_path)
-    course_path = reverse("course", kwargs={"course_slug": course.slug})
-    course_url = public_url(course_path)
-    profile_path = reverse("account_settings")
-    profile_url = public_url(profile_path)
+    course_kwargs = {"course_slug": course.slug}
+    course_url = public_route_url("course", course_kwargs)
+    profile_url = public_route_url("account_settings")
     return {
         "course_url": course_url,
         "certificate_url": certificate_url,

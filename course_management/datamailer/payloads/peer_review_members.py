@@ -1,10 +1,7 @@
 from typing import Any
 
-from django.urls import reverse
-
 from accounts.services.timezones import format_deadline_for_user
 
-from ..client import public_url
 from ..keys import project_submitters_list_key
 from .base import (
     RecipientListMemberPayload,
@@ -13,6 +10,7 @@ from .base import (
     recipient_list_member_payload,
     recipient_list_send_member_payload,
 )
+from .urls import public_route_url
 
 
 def assigned_review_links(submission) -> list[dict[str, Any]]:
@@ -41,15 +39,12 @@ def assigned_review_link_item(review, course, project) -> dict[str, Any]:
 
 
 def assigned_review_eval_url(review, course, project) -> str:
-    eval_path = reverse(
-        "projects_eval_submit",
-        kwargs={
-            "course_slug": course.slug,
-            "project_slug": project.slug,
-            "review_id": review.id,
-        },
-    )
-    eval_url = public_url(eval_path)
+    eval_kwargs = {
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+        "review_id": review.id,
+    }
+    eval_url = public_route_url("projects_eval_submit", eval_kwargs)
     return eval_url
 
 
@@ -93,14 +88,11 @@ def peer_review_assignment_review_metadata(submission) -> dict[str, Any]:
 
 
 def peer_review_assignment_evaluations_url(project) -> str:
-    evaluations_path = reverse(
-        "projects_eval",
-        kwargs={
-            "course_slug": project.course.slug,
-            "project_slug": project.slug,
-        },
-    )
-    evaluations_url = public_url(evaluations_path)
+    evaluations_kwargs = {
+        "course_slug": project.course.slug,
+        "project_slug": project.slug,
+    }
+    evaluations_url = public_route_url("projects_eval", evaluations_kwargs)
     return evaluations_url
 
 

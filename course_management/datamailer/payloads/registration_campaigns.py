@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from typing import Any
 
-from django.urls import reverse
-
 from courses.registration import render_markdown
 
-from ..client import public_url
 from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
+from .urls import public_route_url
 
 
 @dataclass(frozen=True)
@@ -35,11 +33,11 @@ def registration_campaign_payload_data(
         or campaign.meta_description.strip()
         or campaign.title
     )
-    public_path = reverse(
+    registration_kwargs = {"campaign_slug": campaign.slug}
+    registration_url = public_route_url(
         "registration_campaign",
-        kwargs={"campaign_slug": campaign.slug},
+        registration_kwargs,
     )
-    registration_url = public_url(public_path)
     return RegistrationCampaignPayloadData(
         campaign=campaign,
         body_text=body_text,
