@@ -172,6 +172,8 @@ testable service functions.
   the email delivery module.
 - [x] Split public course registration form and profile-sync helpers out of
   the generic course view forms module.
+- [x] Split API certificate update validation, persistence, and notification
+  queuing out of the route module while preserving the notification patch path.
 
 ## Current Findings
 
