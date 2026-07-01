@@ -160,6 +160,8 @@ testable service functions.
   helpers out of the homework admin action module.
 - [x] Split cadmin campaign form/edit, metrics, and registration-list helpers
   out of the public campaign route module.
+- [x] Split cadmin project submission listing and edit helpers out of the
+  project admin action module while preserving notification patch points.
 
 ## Current Findings
 
