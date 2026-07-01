@@ -83,11 +83,12 @@ def extract_user_data(user):
 
 def extract_enrollment_data(enrollment):
     """Extract enrollment data"""
+    enrollment_date = serialize_datetime(enrollment.enrollment_date)
     return {
         "id": enrollment.id,
         "student_id": enrollment.student.id,
         "course_id": enrollment.course.id,
-        "enrollment_date": serialize_datetime(enrollment.enrollment_date),
+        "enrollment_date": enrollment_date,
         "display_name": enrollment.display_name,
         "display_on_leaderboard": enrollment.display_on_leaderboard,
         "position_on_leaderboard": enrollment.position_on_leaderboard,
@@ -121,15 +122,17 @@ def extract_course_data(course):
 
 def extract_project_data(project):
     """Extract project data"""
+    submission_due_date = serialize_datetime(project.submission_due_date)
+    peer_review_due_date = serialize_datetime(project.peer_review_due_date)
     return {
         "id": project.id,
         "course_id": project.course.id,
         "slug": project.slug,
         "title": project.title,
         "description": project.description,
-        "submission_due_date": serialize_datetime(project.submission_due_date),
+        "submission_due_date": submission_due_date,
         "learning_in_public_cap_project": project.learning_in_public_cap_project,
-        "peer_review_due_date": serialize_datetime(project.peer_review_due_date),
+        "peer_review_due_date": peer_review_due_date,
         "time_spent_project_field": project.time_spent_project_field,
         "problems_comments_field": project.problems_comments_field,
         "faq_contribution_field": project.faq_contribution_field,
@@ -155,6 +158,7 @@ def extract_review_criteria_data(criteria):
 
 def extract_submission_data(submission):
     """Extract project submission data"""
+    submitted_at = serialize_datetime(submission.submitted_at)
     return {
         "id": submission.id,
         "project_id": submission.project.id,
@@ -166,7 +170,7 @@ def extract_submission_data(submission):
         "faq_contribution_url": submission.faq_contribution_url,
         "time_spent": submission.time_spent,
         "problems_comments": submission.problems_comments,
-        "submitted_at": serialize_datetime(submission.submitted_at),
+        "submitted_at": submitted_at,
         "project_score": submission.project_score,
         "project_faq_score": submission.project_faq_score,
         "project_learning_in_public_score": submission.project_learning_in_public_score,
@@ -180,6 +184,7 @@ def extract_submission_data(submission):
 
 def extract_peer_review_data(review):
     """Extract peer review data"""
+    submitted_at = serialize_datetime(review.submitted_at)
     return {
         "id": review.id,
         "submission_under_evaluation_id": review.submission_under_evaluation.id,
@@ -189,7 +194,7 @@ def extract_peer_review_data(review):
         "time_spent_reviewing": review.time_spent_reviewing,
         "problems_comments": review.problems_comments,
         "optional": review.optional,
-        "submitted_at": serialize_datetime(review.submitted_at),
+        "submitted_at": submitted_at,
         "state": review.state,
     }
 
@@ -339,9 +344,10 @@ def write_jsonl_record(file, record_type, data):
 
 
 def write_metadata(file, course_slug, project_slug):
+    extracted_at = datetime.now().isoformat()
     file.write(json.dumps({
         "type": "metadata",
-        "extracted_at": datetime.now().isoformat(),
+        "extracted_at": extracted_at,
         "course_slug": course_slug,
         "project_slug": project_slug,
     }) + "\n")

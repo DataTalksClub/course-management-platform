@@ -2857,6 +2857,14 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name serialized timestamp values before assembling JSON export records
+  in `scripts/pull_project_data.py`. Verification:
+  `uv run ruff check scripts/pull_project_data.py`,
+  `python -m py_compile scripts/pull_project_data.py`, touched-file scan
+  reports `touched_dict_call_values=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
