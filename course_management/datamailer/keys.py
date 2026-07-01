@@ -2,19 +2,6 @@ import re
 
 from django.utils.text import slugify
 
-__all__ = [
-    "contact_tags_for_course",
-    "course_enrolled_list_key",
-    "course_family_slug",
-    "course_graduates_list_key",
-    "datamailer_ordering_key",
-    "homework_submitters_list_key",
-    "project_passed_list_key",
-    "project_submitters_list_key",
-    "registration_campaign_external_key",
-    "registration_list_key",
-]
-
 
 def course_family_slug(course) -> str:
     slug = course.slug

@@ -2730,6 +2730,14 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Remove unused `__all__` export lists from Datamailer client and key
+  modules after confirming no wildcard imports depend on them. Verification:
+  `uv run ruff check course_management/datamailer/client.py course_management/datamailer/keys.py courses/tests/test_datamailer_client.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_homework_scores.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_registration.py courses/tests/test_datamailer_certificates.py courses/tests/test_datamailer_contact.py courses/tests/test_datamailer_peer_review.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_client courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_registration courses.tests.test_datamailer_certificates courses.tests.test_datamailer_contact courses.tests.test_datamailer_peer_review`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -11,13 +11,6 @@ from .client_recipient_lists import DatamailerRecipientListClientMixin
 from .client_transactional import DatamailerTransactionalClientMixin
 from .client_types import DatamailerRequestData
 
-__all__ = [
-    "DatamailerClient",
-    "DatamailerConfig",
-    "datamailer_enabled",
-    "public_url",
-]
-
 
 @dataclass(frozen=True)
 class DatamailerConfig:
