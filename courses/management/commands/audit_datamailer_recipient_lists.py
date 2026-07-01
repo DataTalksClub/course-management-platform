@@ -7,7 +7,7 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
-from courses.management.commands.sync_datamailer_recipient_lists import (
+from course_management.datamailer.recipient_list_batches import (
     build_batches,
 )
 

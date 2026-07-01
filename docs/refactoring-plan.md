@@ -126,6 +126,8 @@ testable service functions.
   the project scoring orchestration module.
 - [x] Split homework answer correctness and single-submission score update
   helpers out of the homework scoring orchestration module.
+- [x] Split Datamailer recipient-list source querysets and batch assembly out
+  of the sync management command into a shared batch module.
 
 ## Current Findings
 
