@@ -81,12 +81,13 @@ def peer_review_assignment_identity_metadata(submission) -> dict[str, Any]:
 def peer_review_assignment_review_metadata(submission) -> dict[str, Any]:
     project = submission.project
     reviews = assigned_review_links(submission)
+    assigned_reviews_count = len(reviews)
     evaluations_url = peer_review_assignment_evaluations_url(project)
     return {
         "evaluations_url": evaluations_url,
         "number_of_peers_to_evaluate": project.number_of_peers_to_evaluate,
         "assigned_reviews": reviews,
-        "assigned_reviews_count": len(reviews),
+        "assigned_reviews_count": assigned_reviews_count,
     }
 
 

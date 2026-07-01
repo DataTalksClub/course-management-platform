@@ -1533,6 +1533,15 @@ Steps:
   `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name Datamailer peer-review assigned-review counts before constructing
+  recipient metadata dictionaries. Verification:
+  `uv run ruff check course_management/datamailer/payloads/peer_review_members.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_peer_review`,
+  touched-file scans report `touched_file_inline_dict_calls=0`,
+  `touched_file_nested_call_arguments=0`, and
+  `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
