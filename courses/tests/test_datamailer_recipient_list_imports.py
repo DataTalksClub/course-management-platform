@@ -23,13 +23,16 @@ class DatamailerRecipientListImportCommandTest(
 ):
     def run_enrollment_import_by_reference(self, enrollment, *extra_args):
         out = StringIO()
-        call_command(
+        command_args = [
             "sync_datamailer_recipient_lists",
             "enrollments",
             "--course-slug",
             enrollment.course.slug,
             "--import-by-reference",
-            *extra_args,
+        ]
+        command_args.extend(extra_args)
+        call_command(
+            *command_args,
             stdout=out,
         )
         return out
@@ -58,12 +61,15 @@ class DatamailerRecipientListImportCommandTest(
         course = registration.course
 
         out = StringIO()
-        call_command(
+        command_args = [
             "sync_datamailer_recipient_lists",
             "registrations",
             "--course-slug",
             course.slug,
             "--import-by-reference",
+        ]
+        call_command(
+            *command_args,
             stdout=out,
         )
 
@@ -179,7 +185,7 @@ class DatamailerRecipientListImportCommandTest(
         ):
             with self.assertRaisesMessage(CommandError, message):
                 stdout = StringIO()
-                call_command(
+                command_args = [
                     "sync_datamailer_recipient_lists",
                     "enrollments",
                     "--course-slug",
@@ -190,6 +196,9 @@ class DatamailerRecipientListImportCommandTest(
                     "1",
                     "--import-poll-interval",
                     "0.01",
+                ]
+                call_command(
+                    *command_args,
                     stdout=stdout,
                 )
 
