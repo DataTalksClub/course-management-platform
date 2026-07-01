@@ -80,7 +80,9 @@ def reminder_metadata(spec, item):
     }
 
 
-def deadline_action_url(spec, item):
+def deadline_action_url(data):
+    spec = data.spec
+    item = data.item
     action_path = reverse(
         spec.route_name,
         kwargs={
@@ -109,29 +111,18 @@ def reminder_event_context(data, action_url):
 
 
 def build_reminder_event(data):
-    item = data.item
-    action_url = deadline_action_url(data.spec, item)
-    event_key = reminder_event_key(
-        data.spec,
-        item.item_id,
-        item.reminder_key,
-    )
+    action_url = deadline_action_url(data)
+    event_key = reminder_event_key(data)
     context = reminder_event_context(data, action_url)
-    list_key = reminder_list_key(
-        data.spec,
-        item,
-    )
-    list_name = reminder_list_name(
-        data.spec,
-        item,
-    )
+    list_key = reminder_list_key(data)
+    list_name = reminder_list_name(data)
     send_payload = deadline_send_payload(
         data.config,
         event_key=event_key,
         template_context=context,
         metadata=data.metadata,
     )
-    return ReminderEvent(
+    event = ReminderEvent(
         key=event_key,
         list_key=list_key,
         list_name=list_name,
@@ -139,22 +130,29 @@ def build_reminder_event(data):
         send_payload=send_payload,
         members=data.members,
     )
+    return event
 
 
-def reminder_event_key(spec, item_id, reminder_key):
-    return f"deadline-reminder:{spec.event_kind}:{item_id}:{reminder_key}"
+def reminder_event_key(data):
+    event_key = (
+        f"deadline-reminder:{data.spec.event_kind}:"
+        f"{data.item.item_id}:{data.item.reminder_key}"
+    )
+    return event_key
 
 
-def reminder_list_key(spec, item):
-    return (
+def reminder_list_key(data):
+    list_key = (
         "deadline-reminders:"
-        f"{spec.list_kind}:{item.course.slug}:"
-        f"{item.item_slug}:{item.reminder_key}"
+        f"{data.spec.list_kind}:{data.item.course.slug}:"
+        f"{data.item.item_slug}:{data.item.reminder_key}"
     )
+    return list_key
 
 
-def reminder_list_name(spec, item):
-    return (
-        f"{item.course.title} {item.item_title} "
-        f"{item.reminder_key} {spec.list_name_suffix}"
+def reminder_list_name(data):
+    list_name = (
+        f"{data.item.course.title} {data.item.item_title} "
+        f"{data.item.reminder_key} {data.spec.list_name_suffix}"
     )
+    return list_name
