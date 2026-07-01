@@ -227,6 +227,8 @@ testable service functions.
   directly from timezone services.
 - [x] Remove the single-use peer-review assignment constructor wrapper while
   keeping assignment construction explicit before append.
+- [x] Split Datamailer outbox event sender strategies out of the dispatch
+  orchestration module.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
