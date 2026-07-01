@@ -1421,6 +1421,14 @@ Steps:
   Verification: repo-wide active-code scan excluding `.tmp` and generated
   migrations reports `threshold_violations=0`; repo-wide comprehension scan
   reports `forbidden_comprehensions=0`.
+- [x] Replace remaining inline constructed `append(...)` calls in active code
+  by naming the method result before appending. Verification:
+  `uv run ruff check courses/tests/test_datamailer_client.py courses/tests/test_homework_submission_integrations.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_client courses.tests.test_homework_submission_integrations`,
+  repo-wide active-code scan excluding `.tmp` and generated migrations reports
+  `append_constructed=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

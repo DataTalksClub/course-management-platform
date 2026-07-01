@@ -227,11 +227,16 @@ class HomeworkSubmissionIntegrationTest(TestCase):
 
     def expected_submission_fields(self):
         fields = []
-        fields.append(self.expected_learning_in_public_field())
-        fields.append(self.expected_lecture_time_field())
-        fields.append(self.expected_homework_time_field())
-        fields.append(self.expected_problem_comments_field())
-        fields.append(self.expected_faq_contribution_field())
+        field = self.expected_learning_in_public_field()
+        fields.append(field)
+        field = self.expected_lecture_time_field()
+        fields.append(field)
+        field = self.expected_homework_time_field()
+        fields.append(field)
+        field = self.expected_problem_comments_field()
+        fields.append(field)
+        field = self.expected_faq_contribution_field()
+        fields.append(field)
         return fields
 
     def assert_submission_fields(self, payload):

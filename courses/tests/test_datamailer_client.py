@@ -183,8 +183,10 @@ class DatamailerClientEndpointTest(TestCase):
 
     def contact_read_method_cases(self):
         cases = []
-        cases.append(self.contact_status_method_case())
-        cases.append(self.contact_history_method_case())
+        case = self.contact_status_method_case()
+        cases.append(case)
+        case = self.contact_history_method_case()
+        cases.append(case)
         return cases
 
     def contact_method_cases(self):
@@ -289,8 +291,10 @@ class DatamailerClientEndpointTest(TestCase):
 
     def recipient_list_import_method_cases(self):
         cases = []
-        cases.append(self.create_recipient_list_import_method_case())
-        cases.append(self.recipient_list_import_status_method_case())
+        case = self.create_recipient_list_import_method_case()
+        cases.append(case)
+        case = self.recipient_list_import_status_method_case()
+        cases.append(case)
         return cases
 
     def transient_transactional_payload(self):
@@ -335,8 +339,10 @@ class DatamailerClientEndpointTest(TestCase):
 
     def transactional_send_method_cases(self):
         cases = []
-        cases.append(self.recipient_list_transactional_send_method_case())
-        cases.append(self.transient_transactional_send_method_case())
+        case = self.recipient_list_transactional_send_method_case()
+        cases.append(case)
+        case = self.transient_transactional_send_method_case()
+        cases.append(case)
         return cases
 
     def campaign_upsert_payload(self):
