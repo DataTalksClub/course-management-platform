@@ -11,17 +11,25 @@ def project_delete_blockers(project):
     return blockers
 
 
+def project_deadline_fields(project):
+    submission_due_date = project.submission_due_date.isoformat()
+    peer_review_due_date = project.peer_review_due_date.isoformat()
+    return {
+        "submission_due_date": submission_due_date,
+        "peer_review_due_date": peer_review_due_date,
+    }
+
+
 def project_to_dict(project):
     submissions_count = project.projectsubmission_set.count()
     delete_blockers = project_delete_blockers(project)
-    return {
+    deadline_fields = project_deadline_fields(project)
+    result = {
         "id": project.id,
         "slug": project.slug,
         "title": project.title,
         "description": project.description,
         "instructions_url": project.instructions_url,
-        "submission_due_date": project.submission_due_date.isoformat(),
-        "peer_review_due_date": project.peer_review_due_date.isoformat(),
         "state": project.state,
         "learning_in_public_cap_project": (
             project.learning_in_public_cap_project
@@ -40,3 +48,5 @@ def project_to_dict(project):
         "can_delete": not delete_blockers,
         "delete_blockers": delete_blockers,
     }
+    result.update(deadline_fields)
+    return result

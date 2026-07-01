@@ -1560,6 +1560,16 @@ Steps:
   `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name API homework and project serializer counts and deadline strings
+  before constructing response dictionaries, with project deadline fields
+  grouped in a focused helper. Verification:
+  `uv run ruff check api/views/homework_serializers.py api/views/project_serializers.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_homeworks api.tests.test_projects`,
+  touched-file scans report `touched_file_inline_dict_calls=0`,
+  `touched_file_nested_call_arguments=0`, and
+  `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
