@@ -235,6 +235,8 @@ testable service functions.
   validation out of the route/persistence module.
 - [x] Split homework submission POST field application and validation helpers
   out of the submission persistence/callback module.
+- [x] Split homework submitted-answer query and display payload helpers out of
+  the submitted-content summary module.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
