@@ -164,6 +164,8 @@ testable service functions.
   project admin action module while preserving notification patch points.
 - [x] Split cadmin Datamailer operations-dashboard and events-list helpers out
   of the route module.
+- [x] Split cadmin enrollment list, leaderboard complaint, and enrollment edit
+  helpers out of the route module.
 
 ## Current Findings
 
