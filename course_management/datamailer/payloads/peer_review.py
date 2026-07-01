@@ -44,11 +44,18 @@ def _peer_review_assignment_urls(course, project) -> dict[str, str]:
 
 def _peer_review_assignment_context(course, project) -> dict[str, Any]:
     urls = _peer_review_assignment_urls(course, project)
+    project_context = _peer_review_assignment_project_context(course, project)
+    deadline_context = _peer_review_assignment_deadline_context(project)
+    message_context = _peer_review_assignment_message_context(
+        course,
+        project,
+        urls,
+    )
     return {
-        **_peer_review_assignment_project_context(course, project),
+        **project_context,
         **urls,
-        **_peer_review_assignment_deadline_context(project),
-        **_peer_review_assignment_message_context(course, project, urls),
+        **deadline_context,
+        **message_context,
     }
 
 
@@ -64,8 +71,9 @@ def _peer_review_assignment_project_context(course, project) -> dict[str, Any]:
 
 def _peer_review_assignment_deadline_context(project) -> dict[str, Any]:
     deadline = format_deadline_for_user(project.peer_review_due_date)
+    peer_review_due_at = project.peer_review_due_date.isoformat()
     return {
-        "peer_review_due_at": project.peer_review_due_date.isoformat(),
+        "peer_review_due_at": peer_review_due_at,
         "deadline_weekday": deadline["deadline_weekday"],
         "deadline_date": deadline["deadline_date"],
         "deadline_time": deadline["deadline_time"],
