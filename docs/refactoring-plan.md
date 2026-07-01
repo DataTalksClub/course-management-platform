@@ -229,6 +229,8 @@ testable service functions.
   keeping assignment construction explicit before append.
 - [x] Split Datamailer outbox event sender strategies out of the dispatch
   orchestration module.
+- [x] Split Datamailer membership outbox event builders out of the public
+  membership sync entry-point module.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
