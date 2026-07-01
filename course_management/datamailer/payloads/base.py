@@ -137,12 +137,13 @@ def enrollment_recipient_list_payload(
     course = enrollment.course
     list_key = course_enrolled_list_key(course)
     source_object_key = f"user:{enrollment.student_id}"
+    metadata = enrollment_recipient_metadata(enrollment)
     payload_data = RecipientListMemberPayloadData(
         list_type="custom",
         list_name=f"{course.title} enrolled learners",
         email=email,
         source_object_key=source_object_key,
-        metadata=enrollment_recipient_metadata(enrollment),
+        metadata=metadata,
     )
     payload = recipient_list_member_payload(payload_data)
     if payload is None:

@@ -96,6 +96,8 @@ testable service functions.
   payloads and keep only project results URL assembly local.
 - [x] Split recipient-list sync command option-to-batch construction out of
   the command handler.
+- [x] Name Datamailer recipient-list metadata, list-name, and ordering-key
+  values before constructing payload/outbox event objects.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with

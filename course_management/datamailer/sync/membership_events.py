@@ -31,6 +31,7 @@ def sync_contact_and_membership(data):
     if data.contact_payload is None or data.list_payload is None:
         return
 
+    ordering_key = datamailer_ordering_key(data.obj)
     event_data = DatamailerOutboxEventData(
         event_type="recipient_list.member_upsert",
         idempotency_key=(
@@ -39,7 +40,7 @@ def sync_contact_and_membership(data):
             f"{data.list_payload.source_object_key}:"
             f"{data.obj.pk}:{data.obj.__class__.__name__}"
         ),
-        ordering_key=datamailer_ordering_key(data.obj),
+        ordering_key=ordering_key,
         payload={
             "contact_payload": data.contact_payload,
             "list_key": data.list_payload.list_key,
@@ -59,6 +60,7 @@ def remove_recipient_list_memberships(data) -> None:
         member_payload = removed_recipient_list_member_payload(
             list_payload.payload
         )
+        ordering_key = datamailer_ordering_key(data.obj)
         event_data = DatamailerOutboxEventData(
             event_type="recipient_list.member_remove",
             idempotency_key=(
@@ -67,7 +69,7 @@ def remove_recipient_list_memberships(data) -> None:
                 f"{list_payload.source_object_key}:"
                 f"{data.obj.pk}:{data.obj.__class__.__name__}"
             ),
-            ordering_key=datamailer_ordering_key(data.obj),
+            ordering_key=ordering_key,
             payload={
                 "list_key": list_payload.list_key,
                 "source_object_key": list_payload.source_object_key,

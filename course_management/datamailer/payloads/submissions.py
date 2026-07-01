@@ -27,12 +27,13 @@ def homework_submission_recipient_list_payload(
     course = homework.course
     list_key = homework_submitters_list_key(homework)
     source_object_key = f"homework-submission:{submission.pk}"
+    metadata = homework_submission_metadata(submission)
     payload_data = RecipientListMemberPayloadData(
         list_type="homework_submitters",
         list_name=f"{course.title} {homework.title} submitters",
         email=email,
         source_object_key=source_object_key,
-        metadata=homework_submission_metadata(submission),
+        metadata=metadata,
     )
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
@@ -158,12 +159,13 @@ def project_submission_recipient_list_payload(
     course = project.course
     list_key = project_submitters_list_key(project)
     source_object_key = f"project-submission:{submission.pk}"
+    metadata = project_submission_metadata(submission)
     payload_data = RecipientListMemberPayloadData(
         list_type="project_submitters",
         list_name=f"{course.title} {project.title} submitters",
         email=email,
         source_object_key=source_object_key,
-        metadata=project_submission_metadata(submission),
+        metadata=metadata,
     )
     payload = recipient_list_member_payload(payload_data)
     if payload is None:

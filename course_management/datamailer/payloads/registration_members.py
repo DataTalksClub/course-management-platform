@@ -18,12 +18,14 @@ def registration_recipient_list_payload(
 
     list_key = registration_list_key(registration)
     source_object_key = f"registration:{registration.pk}"
+    list_name = registration_recipient_list_name(registration)
+    metadata = registration_recipient_metadata(registration)
     payload_data = RecipientListMemberPayloadData(
         list_type="registrants",
-        list_name=registration_recipient_list_name(registration),
+        list_name=list_name,
         email=email,
         source_object_key=source_object_key,
-        metadata=registration_recipient_metadata(registration),
+        metadata=metadata,
     )
     payload = recipient_list_member_payload(payload_data)
     if payload is None:
