@@ -27,8 +27,10 @@ DEFAULT_WORK_DIR = PROJECT_ROOT / ".tmp"
 DEFAULT_ADMIN_PASSWORD = "admin"
 SKIP_TABLES = {"sqlite_sequence", "django_migrations"}
 
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT_PATH = str(PROJECT_ROOT)
+
+if PROJECT_ROOT_PATH not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT_PATH)
 
 
 @dataclass
@@ -130,6 +132,11 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
 
 
 def add_target_options(parser: argparse.ArgumentParser) -> None:
+    add_target_path_options(parser)
+    add_target_behavior_options(parser)
+
+
+def add_target_path_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--target-db",
         type=Path,
@@ -145,6 +152,9 @@ def add_target_options(parser: argparse.ArgumentParser) -> None:
             f"Default: {DEFAULT_WORK_DIR}"
         ),
     )
+
+
+def add_target_behavior_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--no-replace",
         action="store_true",
@@ -377,23 +387,43 @@ def source_column_names(source_info: list[sqlite3.Row]) -> set[str]:
     return columns
 
 
-def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
-    source_info = pragma_table_info(data.source_cursor, data.table)
-    target_info = pragma_table_info(data.target_cursor, data.table)
-    source_columns = source_column_names(source_info)
+def empty_table_copy_plan(
+    table: str,
+    source_columns: set[str],
+) -> TableCopyPlan:
     plan = TableCopyPlan(
-        table=data.table,
+        table=table,
         insert_columns=[],
         source_columns=source_columns,
         default_values={},
     )
+    return plan
+
+
+def column_copy_data(
+    data: TableCopyBuildData,
+    source_columns: set[str],
+    plan: TableCopyPlan,
+) -> ColumnCopyData:
     model = data.model_by_table.get(data.table)
-    column_data = ColumnCopyData(
+    return ColumnCopyData(
         model=model,
         table=data.table,
         source_columns=source_columns,
         plan=plan,
         defaults_used=data.defaults_used,
+    )
+
+
+def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
+    source_info = pragma_table_info(data.source_cursor, data.table)
+    target_info = pragma_table_info(data.target_cursor, data.table)
+    source_columns = source_column_names(source_info)
+    plan = empty_table_copy_plan(data.table, source_columns)
+    column_data = column_copy_data(
+        data,
+        source_columns,
+        plan,
     )
     missing_required = missing_required_columns(
         target_info,
@@ -490,7 +520,8 @@ def validate_foreign_keys(target_cursor: sqlite3.Cursor) -> None:
         detail_lines = []
         violation_sample = violations[:20]
         for row in violation_sample:
-            detail = str(tuple(row))
+            row_values = tuple(row)
+            detail = str(row_values)
             detail_lines.append(detail)
         details = "\n".join(detail_lines)
         raise RuntimeError(
@@ -569,10 +600,11 @@ def execute_table_copy_plan(
         data.target_cursor,
         plan,
     )
+    inserted_columns_count = len(plan.insert_columns)
     imported_table = ImportedTable(
         data.table,
         row_count,
-        len(plan.insert_columns),
+        inserted_columns_count,
     )
     data.summary.imported.append(imported_table)
 

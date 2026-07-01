@@ -2705,6 +2705,19 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split `scripts/load_rds_export.py` target CLI options into path and
+  behavior groups, and split table-copy plan construction into named plan and
+  column-copy data builders. Also named remaining nested call arguments in the
+  touched script. Verification:
+  `uv run ruff check scripts/load_rds_export.py courses/tests/test_load_rds_export_script.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_load_rds_export_script`,
+  `python -m py_compile scripts/load_rds_export.py`, touched-file scans report
+  `touched_long_functions=0`, `touched_nested_call_args=0`,
+  `touched_dict_call_values=0`, and `touched_wide_positional_calls=0`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
