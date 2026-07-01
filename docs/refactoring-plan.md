@@ -1888,6 +1888,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_wrapped_views courses.tests.test_homework_submission_validation`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name admin criteria form validity checks and unit-scoring possible-answer
+  strings before assertions or question construction. Verification:
+  `uv run ruff check courses/tests/test_admin_criteria_form.py courses/tests/test_unit_scoring.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_admin_criteria_form courses.tests.test_unit_scoring`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

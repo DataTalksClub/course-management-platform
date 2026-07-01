@@ -23,11 +23,12 @@ logger = logging.getLogger(__name__)
 
 class HomeworkScoringTestCase(TestCase):
     def test_scoring_checkbox_correct(self):
+        possible_answers = join_possible_answers(
+            ["2", "4", "5", "7", "8"]
+        )
         question = Question(
             text="Select the prime numbers: 2, 4, 5, 7, 8",
-            possible_answers=join_possible_answers(
-                ["2", "4", "5", "7", "8"]
-            ),
+            possible_answers=possible_answers,
             correct_answer="1,3,4",
             question_type=QuestionTypes.CHECKBOXES.value,
             scores_for_correct_answer=100000,
@@ -43,11 +44,12 @@ class HomeworkScoringTestCase(TestCase):
 
 
     def test_scoring_checkbox_partially_correct(self):
+        possible_answers = join_possible_answers(
+            ["2", "4", "5", "7", "8"]
+        )
         question = Question(
             text="Select the prime numbers: 2, 4, 5, 7, 8",
-            possible_answers=join_possible_answers(
-                ["2", "4", "5", "7", "8"]
-            ),
+            possible_answers=possible_answers,
             correct_answer="1,3,4",
             question_type=QuestionTypes.CHECKBOXES.value,
             scores_for_correct_answer=100000,
@@ -62,11 +64,12 @@ class HomeworkScoringTestCase(TestCase):
         self.assertFalse(result)
 
     def test_scoring_checkbox_incorrect(self):
+        possible_answers = join_possible_answers(
+            ["2", "4", "5", "7", "8"]
+        )
         question = Question(
             text="Select the prime numbers: 2, 4, 5, 7, 8",
-            possible_answers=join_possible_answers(
-                ["2", "4", "5", "7", "8"]
-            ),
+            possible_answers=possible_answers,
             correct_answer="1,3,4",
             question_type=QuestionTypes.CHECKBOXES.value,
             scores_for_correct_answer=100000,
@@ -81,15 +84,16 @@ class HomeworkScoringTestCase(TestCase):
         self.assertFalse(result)
 
     def test_scoring_multiple_choice_correct(self):
+        possible_answers = join_possible_answers(
+            [
+                "George Washington",
+                "Thomas Jefferson",
+                "Abraham Lincoln",
+            ]
+        )
         question = Question(
             text="Who is the first President of the United States?",
-            possible_answers=join_possible_answers(
-                [
-                    "George Washington",
-                    "Thomas Jefferson",
-                    "Abraham Lincoln",
-                ]
-            ),
+            possible_answers=possible_answers,
             correct_answer="1",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
         )
@@ -103,15 +107,16 @@ class HomeworkScoringTestCase(TestCase):
         self.assertTrue(result)
 
     def test_scoring_multiple_choice_incorrect(self):
+        possible_answers = join_possible_answers(
+            [
+                "George Washington",
+                "Thomas Jefferson",
+                "Abraham Lincoln",
+            ]
+        )
         question = Question(
             text="Who is the first President of the United States?",
-            possible_answers=join_possible_answers(
-                [
-                    "George Washington",
-                    "Thomas Jefferson",
-                    "Abraham Lincoln",
-                ]
-            ),
+            possible_answers=possible_answers,
             correct_answer="1",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
         )

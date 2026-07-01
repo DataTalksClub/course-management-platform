@@ -27,7 +27,8 @@ class CriteriaFormValidationTestCase(TestCase):
             ]
         }
         form = CriteriaForm(data=form_data)
-        self.assertTrue(form.is_valid(), f"Form should be valid but has errors: {form.errors}")
+        form_is_valid = form.is_valid()
+        self.assertTrue(form_is_valid, f"Form should be valid but has errors: {form.errors}")
 
     def test_form_invalid_with_dict_instead_of_list(self):
         """Test that form rejects the problematic JSON from the issue."""
@@ -46,7 +47,8 @@ class CriteriaFormValidationTestCase(TestCase):
             }
         }
         form = CriteriaForm(data=form_data)
-        self.assertFalse(form.is_valid(), "Form should be invalid with dict instead of list")
+        form_is_valid = form.is_valid()
+        self.assertFalse(form_is_valid, "Form should be invalid with dict instead of list")
         self.assertIn('options', form.errors)
         self.assertIn('must be a list', str(form.errors['options']))
 
@@ -62,7 +64,8 @@ class CriteriaFormValidationTestCase(TestCase):
             ]
         }
         form = CriteriaForm(data=form_data)
-        self.assertFalse(form.is_valid(), "Form should be invalid with missing 'criteria' key")
+        form_is_valid = form.is_valid()
+        self.assertFalse(form_is_valid, "Form should be invalid with missing 'criteria' key")
         self.assertIn('options', form.errors)
         self.assertIn('criteria', str(form.errors['options']))
 
@@ -78,7 +81,8 @@ class CriteriaFormValidationTestCase(TestCase):
             ]
         }
         form = CriteriaForm(data=form_data)
-        self.assertFalse(form.is_valid(), "Form should be invalid with missing 'score' key")
+        form_is_valid = form.is_valid()
+        self.assertFalse(form_is_valid, "Form should be invalid with missing 'score' key")
         self.assertIn('options', form.errors)
         self.assertIn('score', str(form.errors['options']))
 
@@ -94,7 +98,8 @@ class CriteriaFormValidationTestCase(TestCase):
             ]
         }
         form = CriteriaForm(data=form_data)
-        self.assertFalse(form.is_valid(), "Form should be invalid with string score")
+        form_is_valid = form.is_valid()
+        self.assertFalse(form_is_valid, "Form should be invalid with string score")
         self.assertIn('options', form.errors)
 
     def test_form_can_save_valid_criteria(self):
@@ -110,7 +115,8 @@ class CriteriaFormValidationTestCase(TestCase):
             ]
         }
         form = CriteriaForm(data=form_data)
-        self.assertTrue(form.is_valid(), f"Form should be valid but has errors: {form.errors}")
+        form_is_valid = form.is_valid()
+        self.assertTrue(form_is_valid, f"Form should be valid but has errors: {form.errors}")
         
         # Save and verify
         criteria = form.save()
