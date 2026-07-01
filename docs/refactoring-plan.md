@@ -721,6 +721,8 @@ Steps:
   orchestration module.
 - [x] Split Datamailer transactional sending and certificate notification sync
   out of the recipient-list notification module.
+- [x] Split Datamailer client endpoint methods into contact, recipient-list,
+  transactional, and campaign mixins.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin
