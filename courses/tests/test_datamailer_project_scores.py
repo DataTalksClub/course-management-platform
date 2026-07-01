@@ -334,40 +334,11 @@ class DatamailerProjectScoreTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_project_score_notification_includes_submitters(self):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        project = Project.objects.create(
-            course=course,
-            slug="project-1",
-            title="Project 1",
-            submission_due_date="2026-01-01T00:00:00Z",
-            peer_review_due_date="2026-01-08T00:00:00Z",
-        )
-        user = CustomUser.objects.create_user(
-            username="project-learner@example.com",
-            email="project-learner@example.com",
-            password="test",
-        )
-        enrollment = Enrollment.objects.create(
-            student=user,
-            course=course,
-        )
-        ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/project",
-            commit_id="abc123",
-            total_score=98,
-        )
+        project, _ = self.create_project_score_submission()
 
         _, payload = project_score_notification_payload(project)
 
-        self.assertEqual(len(payload["members"]), 1)
-        member = payload["members"][0]
+        member = self.single_project_score_member(payload)
         self.assertEqual(member["email"], "project-learner@example.com")
         self.assertEqual(member["metadata"]["total_score"], 98)
 

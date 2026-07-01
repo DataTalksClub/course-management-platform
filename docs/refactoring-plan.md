@@ -455,6 +455,11 @@ testable service functions.
   module.
 - [x] Split public course page data lookup and context builders out of the
   route module.
+- [x] Shorten the Datamailer project-score submitter notification test by
+  reusing existing project-score submission fixtures and single-member
+  assertions. Verification:
+  `uv run ruff check courses/tests/test_datamailer_project_scores.py` and
+  `uv run python manage.py test courses.tests.test_datamailer_project_scores`.
 
 ## Current Findings
 
