@@ -2331,6 +2331,15 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Align homework-create validation with project-create validation by
+  introducing a `HomeworkCreateInput` value object for required raw fields and
+  passing that object through due-date and slug validation. Verification:
+  `uv run ruff check api/views/homework_create.py api/tests/test_homeworks.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_homeworks`, comprehension,
+  size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

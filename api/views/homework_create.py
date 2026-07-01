@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.http import JsonResponse
 from django.utils.text import slugify
 
@@ -8,6 +10,12 @@ from api.crud import bulk_create_response
 from api.safety import require_staff_token
 from api.utils import instructions_url_error, parse_date, parse_json_body
 from api.views.homework_serializers import homework_to_dict
+
+
+@dataclass(frozen=True)
+class HomeworkCreateInput:
+    name: str
+    due_date_str: str
 
 
 def create_questions(homework, questions_data):
@@ -27,16 +35,17 @@ def homework_create_instructions_url(homework_data):
     return instructions_url, None
 
 
-def homework_create_due_date(due_date_str):
-    due_date = parse_date(due_date_str)
+def homework_create_due_date(input_data):
+    due_date = parse_date(input_data.due_date_str)
     if due_date is None:
-        return None, f"Invalid date format: {due_date_str}"
+        error = f"Invalid date format: {input_data.due_date_str}"
+        return None, error
 
     return due_date, None
 
 
-def homework_create_slug(course, homework_data, name):
-    slug = homework_data.get("slug") or slugify(name)
+def homework_create_slug(course, homework_data, input_data):
+    slug = homework_data.get("slug") or slugify(input_data.name)
     matching_homework = Homework.objects.filter(course=course, slug=slug)
     slug_exists = matching_homework.exists()
     if slug_exists:
@@ -45,38 +54,39 @@ def homework_create_slug(course, homework_data, name):
     return slug, None
 
 
-def homework_create_required_error(homework_data):
+def homework_create_input(homework_data):
     name = homework_data.get("name")
     due_date_str = homework_data.get("due_date")
     if not name or not due_date_str:
-        return "name and due_date are required"
+        return None, "name and due_date are required"
 
-    return None
+    input_data = HomeworkCreateInput(
+        name=name,
+        due_date_str=due_date_str,
+    )
+    return input_data, None
 
 
 def homework_create_attrs(course, homework_data):
-    required_error = homework_create_required_error(homework_data)
-    if required_error:
-        return None, required_error
-
-    name = homework_data.get("name")
-    due_date_str = homework_data.get("due_date")
+    input_data, error = homework_create_input(homework_data)
+    if error:
+        return None, error
 
     instructions_url, error = homework_create_instructions_url(homework_data)
     if error:
         return None, error
 
-    due_date, error = homework_create_due_date(due_date_str)
+    due_date, error = homework_create_due_date(input_data)
     if error:
         return None, error
 
-    slug, error = homework_create_slug(course, homework_data, name)
+    slug, error = homework_create_slug(course, homework_data, input_data)
     if error:
         return None, error
 
     description = homework_data.get("description", "")
     attrs = {
-        "title": name,
+        "title": input_data.name,
         "description": description,
         "instructions_url": instructions_url,
         "due_date": due_date,
