@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models import (
+from courses.models.course import (
     Course,
     Enrollment,
 )

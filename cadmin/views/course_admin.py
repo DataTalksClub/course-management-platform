@@ -1,16 +1,20 @@
 from django.shortcuts import get_object_or_404, render
 
-from courses.models import (
+from courses.models.course import (
     Course,
     Enrollment,
+    LeaderboardComplaint,
+    RegistrationCampaign,
+)
+from courses.models.homework import (
     Homework,
     HomeworkState,
-    LeaderboardComplaint,
+    Submission,
+)
+from courses.models.project import (
     Project,
     ProjectState,
     ProjectSubmission,
-    RegistrationCampaign,
-    Submission,
 )
 from .campaign_metrics import registration_campaign_metrics
 from .helpers import staff_required

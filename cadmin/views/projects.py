@@ -5,10 +5,8 @@ from course_management.datamailer.sync.notifications import (
     send_peer_review_assignment_notification,
     send_project_score_notification,
 )
-from courses.models import (
-    Course,
-    Project,
-)
+from courses.models.course import Course
+from courses.models.project import Project
 from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,

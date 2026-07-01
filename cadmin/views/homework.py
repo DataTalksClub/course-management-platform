@@ -4,7 +4,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from course_management.datamailer.sync.notifications import (
     send_homework_score_notification,
 )
-from courses.models import Course, Homework
+from courses.models.course import Course
+from courses.models.homework import Homework
 from courses.scoring import (
     HomeworkScoringStatus,
     clear_correct_answers,
