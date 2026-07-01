@@ -2875,6 +2875,15 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name the optional admin user id string before extending the
+  `scripts/load_rds_export.py` superuser command argument list. Verification:
+  `uv run ruff check scripts/load_rds_export.py courses/tests/test_load_rds_export_script.py`,
+  `uv run python manage.py test courses.tests.test_load_rds_export_script`,
+  `python -m py_compile scripts/load_rds_export.py`, touched-file scan reports
+  `touched_sequence_call_values=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
