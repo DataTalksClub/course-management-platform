@@ -660,6 +660,11 @@ testable service functions.
   `python -m py_compile e2e/tests/test_06_mock_inbox_client.py`,
   `uv run pytest e2e/tests/test_06_mock_inbox_client.py -q`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name production-like leaderboard generator homework and project slugs
+  before `update_or_create` calls. Verification:
+  `uv run ruff check scripts/generate_production_like_leaderboard_data.py`,
+  `python -m py_compile scripts/generate_production_like_leaderboard_data.py`,
+  and touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

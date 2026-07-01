@@ -610,9 +610,10 @@ def ensure_course(spec):
 def ensure_homeworks(course, spec):
     homeworks = []
     for index, (title, due_date) in enumerate(spec["homeworks"], start=1):
+        homework_slug = stable_slug("homework", title, index)
         homework, _ = Homework.objects.update_or_create(
             course=course,
-            slug=stable_slug("homework", title, index),
+            slug=homework_slug,
             defaults={
                 "title": title,
                 "description": homework_description(title),
@@ -628,9 +629,10 @@ def ensure_homeworks(course, spec):
 def ensure_projects(course, spec):
     projects = []
     for index, (title, due_date) in enumerate(spec["projects"], start=1):
+        project_slug = stable_slug("project", title, index)
         project, _ = Project.objects.update_or_create(
             course=course,
-            slug=stable_slug("project", title, index),
+            slug=project_slug,
             defaults={
                 "title": title,
                 "description": f"Production-like generated project: {title}",
