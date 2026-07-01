@@ -315,9 +315,6 @@ class AdminSession:
                 return course_pk
         return None
 
-    def _course_is_absent(self, slug: str) -> bool:
-        return self.find_course_pk(slug) is None
-
     def _open_course_delete_confirmation(self, course_pk: int) -> None:
         self.page.goto(self.url(f"/admin/courses/course/{course_pk}/delete/"))
         self.page.wait_for_load_state("networkidle")
@@ -339,30 +336,20 @@ class AdminSession:
     ) -> bool:
         """Delete a Course (and its cascade) through the Django admin UI.
 
-        Opens the admin delete-confirmation page
-        (``/admin/courses/course/<pk>/delete/``) and submits the "Yes, I'm
-        sure" form (which carries the CSRF token + ``post=yes``). Deleting the
-        Course cascades to all test data (homeworks, questions, projects,
-        submissions, answers, enrollments, peer reviews) because every FK back
-        to Course/Project is ``on_delete=CASCADE``.
-
-        This is the deliberate cleanup path: the platform intentionally has no
-        course DELETE API endpoint (a standing delete capability is unsafe), so
-        teardown reuses the interactive, staff-gated admin confirmation screen.
-
-        Returns ``True`` if the course is gone afterwards (change page 404s and
-        the changelist no longer lists it), ``False`` otherwise. Never raises.
+        The platform intentionally has no course DELETE API endpoint, so e2e
+        teardown uses the staff-gated admin confirmation screen. Returns
+        ``True`` if the course is gone afterwards, ``False`` otherwise.
         """
         try:
             pk = course_pk
             if pk is None:
                 pk = self.find_course_pk(slug)
             if pk is None:
-                return self._course_is_absent(slug)
+                return self.find_course_pk(slug) is None
 
             self._open_course_delete_confirmation(pk)
             self._submit_course_delete_confirmation()
-            return self._course_is_absent(slug)
+            return self.find_course_pk(slug) is None
         except Exception:
             return False
 

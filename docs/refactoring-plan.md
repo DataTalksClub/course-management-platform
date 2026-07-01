@@ -543,6 +543,10 @@ testable service functions.
   `request_body(ref(...))` nesting. Verification:
   `uv run ruff check api/openapi/primitives.py api/openapi/data_paths.py` and
   `uv run python manage.py test api.tests.test_openapi`.
+- [x] Simplify e2e course admin deletion by removing a trivial course-absence
+  wrapper and shortening the admin-delete method documentation. Verification:
+  `uv run ruff check e2e/browser.py` and
+  `uv run pytest e2e/tests/test_07_browser_helpers.py --collect-only -q`.
 
 ## Current Findings
 
