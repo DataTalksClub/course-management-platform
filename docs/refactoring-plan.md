@@ -2278,6 +2278,12 @@ Steps:
   `uv run python manage.py test accounts.tests_account_settings courses.tests.test_deadlines`,
   broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split deadline-reminder command dry-run output and send output loops out of
+  the command handler so `handle` remains the planning coordinator. Verification:
+  `uv run ruff check courses/management/commands/send_deadline_reminders.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_deadline_reminder_dry_run courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_project courses.tests.test_deadline_reminder_peer_review`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

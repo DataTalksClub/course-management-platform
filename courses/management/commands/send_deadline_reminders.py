@@ -126,17 +126,25 @@ class Command(BaseCommand):
         )
 
         if options["dry_run"]:
-            for event in events:
-                self.stdout.write(
-                    f"{event.list_key}: {len(event.members)} member(s)"
-                )
+            self.write_dry_run_events(events)
             return
 
         client = DatamailerClient(config)
+        self.send_events(client, config, events)
+
+    def write_dry_run_events(self, events):
+        for event in events:
+            self.stdout.write(
+                f"{event.list_key}: {len(event.members)} member(s)"
+            )
+
+    def send_events(self, client, config, events):
         for event in events:
             response = send_reminder_event(client, config, event)
-            self.stdout.write(
+            suffix = event_send_suffix(response)
+            message = (
                 f"Sent {event.list_key}: "
                 f"{len(event.members)} member(s)"
-                f"{event_send_suffix(response)}"
+                f"{suffix}"
             )
+            self.stdout.write(message)
