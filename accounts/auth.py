@@ -173,6 +173,10 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
             )
 
     @staticmethod
+    def most_recent_user_key(user):
+        return user.last_login or user.date_joined
+
+    @staticmethod
     def select_most_recent_user(email_addresses):
         # Assuming 'last_login' can be used to determine the most recently active user
         users = []
@@ -182,7 +186,7 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
                 users.append(user)
         return max(
             users,
-            key=lambda user: (user.last_login or user.date_joined),
+            key=ConsolidatingSocialAccountAdapter.most_recent_user_key,
             default=None,
         )
 

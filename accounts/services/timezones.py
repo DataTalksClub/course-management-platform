@@ -59,7 +59,11 @@ def build_timezone_options() -> list[TimezoneOption]:
             offset_minutes=offset_minutes,
         )
         options.append(option)
-    return sorted(options, key=lambda option: (option.offset_minutes, option.value))
+    return sorted(options, key=timezone_option_sort_key)
+
+
+def timezone_option_sort_key(option: TimezoneOption):
+    return option.offset_minutes, option.value
 
 
 def get_timezone_label(timezone_name: str) -> str:

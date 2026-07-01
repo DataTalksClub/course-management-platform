@@ -238,6 +238,8 @@ testable service functions.
   explicit registry modules.
 - [x] Move Datamailer template aggregation out of package roots into explicit
   registry modules.
+- [x] Extend the no-lambda cleanup to accounts and timezone helpers with named
+  sort-key functions.
 
 ## Current Findings
 
