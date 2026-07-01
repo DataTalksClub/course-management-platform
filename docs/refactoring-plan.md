@@ -105,6 +105,8 @@ testable service functions.
   homework API view module.
 - [x] Split API project list/create serialization helpers out of the oversized
   project API view module.
+- [x] Split API project upsert validation and save flow out of the public
+  project API view module.
 
 ## Current Findings
 
