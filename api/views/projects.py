@@ -1,17 +1,9 @@
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.auth import token_required
-from courses.models import Course, Project, PeerReview
+from courses.models import Course, Project
 from courses.models.project import ProjectState
-from courses.project_assignment import (
-    ProjectActionStatus,
-    assign_peer_reviews_for_project,
-)
-from courses.projects import (
-    score_project,
-)
 
 from api.crud import (
     DeleteResponseConfig,
@@ -26,6 +18,10 @@ from api.safety import (
 from api.utils import (
     require_methods,
 )
+from api.views.project_actions import (
+    project_assign_reviews_response,
+    project_score_response,
+)
 from api.views.project_create import (
     projects_create_response,
     projects_list_response,
@@ -35,83 +31,6 @@ from api.views.project_upsert import (
     PROJECT_PATCH_RULES,
     staff_upsert_project_by_slug,
 )
-
-
-def _project_action_base(project, status, message):
-    project.refresh_from_db()
-    return {
-        "status": status.name,
-        "message": message,
-        "project_id": project.id,
-        "project_slug": project.slug,
-        "state": project.state,
-    }
-
-
-def _project_assign_reviews_response(project):
-    before_count = PeerReview.objects.filter(
-        submission_under_evaluation__project=project,
-    ).count()
-    status, message = assign_peer_reviews_for_project(project)
-    after_count = PeerReview.objects.filter(
-        submission_under_evaluation__project=project,
-    ).count()
-    if status == ProjectActionStatus.OK:
-        assigned_peer_reviews_count = after_count - before_count
-        response_status = 200
-    else:
-        assigned_peer_reviews_count = 0
-        response_status = 400
-    data = _project_action_base(project, status, message)
-    data.update(
-        {
-            "peer_reviews_count": after_count,
-            "assigned_peer_reviews_count": assigned_peer_reviews_count,
-        }
-    )
-    response = JsonResponse(
-        data,
-        status=response_status,
-    )
-    return response
-
-
-def _project_scorable_submissions_count(project):
-    return (
-        PeerReview.objects.filter(
-            submission_under_evaluation__project=project,
-        )
-        .values("submission_under_evaluation")
-        .distinct()
-        .count()
-    )
-
-
-def _project_score_response(project):
-    scorable_submissions_count = _project_scorable_submissions_count(project)
-    status, message = score_project(project)
-    submissions = project.projectsubmission_set.all()
-    response_status = 400
-    scored_count = 0
-    passed_count = 0
-    if status == ProjectActionStatus.OK:
-        response_status = 200
-        scored_count = scorable_submissions_count
-        passed_count = submissions.filter(passed=True).count()
-
-    data = _project_action_base(project, status, message)
-    data.update(
-        {
-            "submissions_count": submissions.count(),
-            "scored_submissions_count": scored_count,
-            "passed_submissions_count": passed_count,
-        }
-    )
-    response = JsonResponse(
-        data,
-        status=response_status,
-    )
-    return response
 
 
 @token_required
@@ -218,7 +137,7 @@ def project_assign_reviews_view(request, course_slug, project_id):
         course,
         object_id=project_id,
     )
-    return _project_assign_reviews_response(project)
+    return project_assign_reviews_response(project)
 
 
 @token_required
@@ -240,7 +159,7 @@ def project_assign_reviews_by_slug_view(
         course,
         slug=project_slug,
     )
-    return _project_assign_reviews_response(project)
+    return project_assign_reviews_response(project)
 
 
 @token_required
@@ -260,7 +179,7 @@ def project_score_view(request, course_slug, project_id):
         course,
         object_id=project_id,
     )
-    return _project_score_response(project)
+    return project_score_response(project)
 
 
 @token_required
@@ -280,4 +199,4 @@ def project_score_by_slug_view(request, course_slug, project_slug):
         course,
         slug=project_slug,
     )
-    return _project_score_response(project)
+    return project_score_response(project)
