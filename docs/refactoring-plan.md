@@ -570,6 +570,11 @@ testable service functions.
   Verification: `uv run ruff check api/tests/test_homeworks.py` and
   `uv run python manage.py test api.tests.test_homeworks`; touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name API project test URLs, JSON request bodies, invalid-state payloads,
+  and queryset existence checks before client calls or assertions.
+  Verification: `uv run ruff check api/tests/test_projects.py` and
+  `uv run python manage.py test api.tests.test_projects`; touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
