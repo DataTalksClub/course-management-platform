@@ -634,6 +634,11 @@ testable service functions.
   `uv run ruff check scripts/analyze_scoring_bug.py`,
   `uv run python -c "from scripts.analyze_scoring_bug import parse_args; print(parse_args(['analyze_scoring_bug.py', 'course', 'project']))"`,
   and touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name score-project-dev script project-root, `.envrc` path, and
+  submission-count values before path insertion, file opening, or output
+  formatting. Verification: `uv run ruff check scripts/score_project_dev.py`,
+  `python -m py_compile scripts/score_project_dev.py`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

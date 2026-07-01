@@ -16,17 +16,19 @@ import argparse
 import time
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 # Parse .envrc file
-envrc_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.envrc')
+envrc_path = project_root / ".envrc"
 env_vars = {}
 
 if os.path.exists(envrc_path):
-    with open(envrc_path, 'r') as f:
+    with open(envrc_path, "r") as f:
         for line in f:
             line = line.strip()
             if line.startswith('export '):
@@ -156,7 +158,8 @@ def print_results_header():
 
 def print_passed_count(submissions):
     passed_count = submissions.filter(passed=True).count()
-    print(f"Passed: {passed_count}/{submissions.count()}")
+    submission_count = submissions.count()
+    print(f"Passed: {passed_count}/{submission_count}")
     print()
 
 
@@ -185,8 +188,10 @@ def print_submission_table(submissions):
     for sub in top_submissions:
         print_submission_row(sub)
 
-    if submissions.count() > 10:
-        print(f"\n... and {submissions.count() - 10} more submissions")
+    submission_count = submissions.count()
+    if submission_count > 10:
+        remaining_count = submission_count - 10
+        print(f"\n... and {remaining_count} more submissions")
 
 
 def print_scoring_results(project):
