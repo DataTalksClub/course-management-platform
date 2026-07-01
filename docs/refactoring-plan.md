@@ -686,6 +686,11 @@ testable service functions.
   `uv run ruff check api/openapi/primitives.py api/openapi/course_schemas.py api/openapi/integration_schemas.py api/openapi/content_schemas/homeworks.py api/openapi/content_schemas/projects.py api/openapi/content_schemas/questions.py`,
   `python -m py_compile api/openapi/primitives.py api/openapi/course_schemas.py api/openapi/integration_schemas.py api/openapi/content_schemas/homeworks.py api/openapi/content_schemas/projects.py api/openapi/content_schemas/questions.py`,
   and touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name OpenAPI data-route response maps, content schemas, request bodies,
+  operation data, and operation records before path registry construction.
+  Verification: `uv run ruff check api/openapi/data_paths.py`,
+  `python -m py_compile api/openapi/data_paths.py`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
