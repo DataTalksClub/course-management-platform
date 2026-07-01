@@ -10,7 +10,8 @@ class ExtractEmailTestCase(TestCase):
         return SimpleNamespace(email=email, verified=verified)
 
     def sociallogin_with_emails(self, *email_addresses):
-        return SimpleNamespace(email_addresses=list(email_addresses))
+        email_address_list = list(email_addresses)
+        return SimpleNamespace(email_addresses=email_address_list)
 
     def test_extract_email_prefers_response_email(self):
         verified_email = self.email_address(

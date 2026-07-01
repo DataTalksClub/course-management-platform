@@ -2885,6 +2885,15 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name the social-login email address list before constructing the auth
+  test helper namespace. Verification:
+  `uv run ruff check accounts/tests_auth.py`,
+  `uv run python manage.py test accounts.tests_auth`, touched-file scans
+  report `touched_nested_call_args=0` and `touched_long_functions=0`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
