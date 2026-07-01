@@ -105,9 +105,10 @@ def mark_retry_or_failed(event, exc):
     event.refresh_from_db()
     status = status_for_error(exc, event)
     now = timezone.now()
+    last_error = str(exc)
     updates = {
         "status": status,
-        "last_error": str(exc),
+        "last_error": last_error,
         "updated_at": now,
     }
     if status == DatamailerOutboxStatus.RETRYING:
@@ -132,4 +133,5 @@ def json_response_payload(value):
         return {"items": value}
     if value in (None, "", True, False):
         return {}
-    return {"value": str(value)}
+    response_value = str(value)
+    return {"value": response_value}
