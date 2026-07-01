@@ -104,6 +104,8 @@ testable service functions.
   so answer selection and persistence are separate steps.
 - [x] Split project statistics view and integration tests out of the
   calculation-focused `courses/tests/test_project_statistics.py` module.
+- [x] Shorten project detail/submission view tests by reusing route, POST,
+  expected-field, and repeated-copy assertion helpers.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
