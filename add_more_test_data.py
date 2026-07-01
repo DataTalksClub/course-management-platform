@@ -38,7 +38,7 @@ from courses.models import (  # noqa: E402
 from courses.project_assignment import (  # noqa: E402
     assign_peer_reviews_for_project,
 )
-from courses.projects import (  # noqa: E402
+from courses.project_scoring import (  # noqa: E402
     score_project,
 )
 

@@ -24,7 +24,7 @@ import django
 django.setup()
 
 from courses.models import Project, ProjectSubmission
-from courses.projects import score_project
+from courses.project_scoring import score_project
 
 
 def get_project(course_slug, project_slug):

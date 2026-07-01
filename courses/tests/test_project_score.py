@@ -25,7 +25,7 @@ from courses.models import (
 
 
 from courses.project_assignment import ProjectActionStatus
-from courses.projects import score_project
+from courses.project_scoring import score_project
 
 logger = logging.getLogger(__name__)
 
@@ -447,7 +447,7 @@ class ProjectEvaluationTestCase(TestCase):
             + 3 * self.project.points_for_peer_review,
         )
 
-    @patch("courses.projects._sync_scored_project_submission_to_datamailer")
+    @patch("courses.project_scoring._sync_scored_project_submission_to_datamailer")
     def test_project_scoring_syncs_datamailer_after_commit(self, sync):
         other_prs = self.create_reverse_assignments(self.peer_reviews)
         self.submit_peer_review(other_prs[0], "4")

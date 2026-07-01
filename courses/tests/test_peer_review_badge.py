@@ -17,7 +17,7 @@ from courses.models import (
 )
 
 from courses.project_assignment import ProjectActionStatus
-from courses.projects import score_project
+from courses.project_scoring import score_project
 
 
 class PeerReviewBadgeTests(TestCase):

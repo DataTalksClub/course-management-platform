@@ -565,7 +565,7 @@ def print_success(project) -> None:
     print("\n" + "=" * 80)
     print("✓ Data successfully loaded into local database")
     print("\nYou can now reproduce the scoring bug by running:")
-    print("  from courses.projects import score_project")
+    print("  from courses.project_scoring import score_project")
     print("  from courses.models import Project")
     print(f"  project = Project.objects.get(slug='{project.slug}')")
     print("  score_project(project)")

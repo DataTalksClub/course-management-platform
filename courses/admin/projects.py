@@ -9,7 +9,7 @@ from courses.project_assignment import (
     assign_peer_reviews_for_project,
     ProjectActionStatus,
 )
-from courses.projects import score_project
+from courses.project_scoring import score_project
 
 from courses.assignment_statistics import calculate_project_statistics
 

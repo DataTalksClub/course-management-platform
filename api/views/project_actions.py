@@ -5,7 +5,7 @@ from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
 )
-from courses.projects import score_project
+from courses.project_scoring import score_project
 
 
 def project_action_base(project, status, message):

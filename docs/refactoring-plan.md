@@ -113,6 +113,9 @@ testable service functions.
   public campaign page view module.
 - [x] Split public homework POST preview and validation-error context helpers
   out of the homework detail view module.
+- [x] Rename the generic `courses.projects` scoring module to
+  `courses.project_scoring` and update direct imports without a compatibility
+  shim.
 
 ## Current Findings
 
