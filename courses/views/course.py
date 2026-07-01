@@ -20,7 +20,7 @@ from courses.models import (
     PeerReviewState,
 )
 
-from .course_list import (
+from .course_homepage import (
     add_course_homepage_info,
 )
 from .course_homeworks import (

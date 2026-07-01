@@ -143,6 +143,8 @@ testable service functions.
 - [x] Split homework upsert API internals into shared rules, validation,
   question replacement, and persistence modules while keeping the public
   upsert view module as the coordinator.
+- [x] Split course homepage display metadata out of the public course list view
+  so list and detail pages share it through a direct owner module.
 
 ## Current Findings
 
