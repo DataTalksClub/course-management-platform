@@ -1,12 +1,3 @@
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class RegistrationProfileValue:
-    field_name: str
-    value: object
-
-
 def can_update_registration_user_profile(user):
     return user is not None and user.is_authenticated
 
@@ -14,12 +5,12 @@ def can_update_registration_user_profile(user):
 def update_user_profile_from_registration(user, registration):
     update_fields = []
     profile_values = registration_profile_values(registration)
-    for profile_value in profile_values:
+    for field_name, value in profile_values:
         update_user_profile_field(
             user,
             update_fields,
-            profile_value.field_name,
-            profile_value.value,
+            field_name,
+            value,
         )
     return update_fields
 
@@ -27,13 +18,13 @@ def update_user_profile_from_registration(user, registration):
 def registration_profile_values(registration):
     profile_values = []
     certificate_name_value = registration.name.strip()
-    certificate_name = RegistrationProfileValue(
+    certificate_name = (
         "certificate_name",
         certificate_name_value,
     )
-    country = RegistrationProfileValue("country", registration.country)
-    region = RegistrationProfileValue("region", registration.region)
-    registration_role = RegistrationProfileValue(
+    country = ("country", registration.country)
+    region = ("region", registration.region)
+    registration_role = (
         "registration_role",
         registration.role,
     )

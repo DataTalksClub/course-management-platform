@@ -1723,6 +1723,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_scoring_view courses.tests.test_homework_scoring_view_warnings`,
   dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Replace the two-field registration profile-value dataclass with explicit
+  two-item field/value records, which are allowed by the style guide.
+  Verification:
+  `uv run ruff check courses/views/registration_profile.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_registration_campaigns`,
+  dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
