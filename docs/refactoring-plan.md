@@ -1677,6 +1677,15 @@ Steps:
   and `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name settings env conversion inputs and translated Unfold labels before
+  settings dictionary construction. Verification:
+  `uv run ruff check course_management/settings.py docs/refactoring-plan.md`,
+  `uv run python manage.py check`, touched-file scans report
+  `touched_file_high_arg_calls=0`, `touched_file_inline_dict_calls=0`,
+  `touched_file_nested_call_arguments=0`, and `touched_file_long_functions=0`,
+  inline-construction scan reports `total_calls=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
