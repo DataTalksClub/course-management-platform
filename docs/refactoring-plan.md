@@ -704,6 +704,11 @@ testable service functions.
   `python -m py_compile scripts/load_project_data.py`, touched-file
   nested-call scans report `touched_file_nested_calls=0`, and function-length
   scans report no function over 30 lines.
+- [x] Name OpenAPI question-route refs, response maps, request bodies,
+  operation data, and operation records before path registry construction.
+  Verification: `uv run ruff check api/openapi/content_paths/questions.py`,
+  `python -m py_compile api/openapi/content_paths/questions.py`, and
+  touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
