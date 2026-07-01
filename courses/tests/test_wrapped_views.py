@@ -72,7 +72,8 @@ class WrappedViewTests(TestCase):
         self.user_wrapped = self.create_user_wrapped_statistics()
 
     def test_wrapped_view_shows_no_data_when_missing(self):
-        response = self.client.get(reverse("wrapped", args=[2024]))
+        wrapped_url = reverse("wrapped", args=[2024])
+        response = self.client.get(wrapped_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "courses/wrapped.html")
@@ -82,7 +83,8 @@ class WrappedViewTests(TestCase):
     def test_wrapped_view_uses_visible_platform_and_user_stats(self):
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("wrapped", args=[2025]))
+        wrapped_url = reverse("wrapped", args=[2025])
+        response = self.client.get(wrapped_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["no_data"])
@@ -107,15 +109,15 @@ class WrappedViewTests(TestCase):
         self.wrapped.is_visible = False
         self.wrapped.save(update_fields=["is_visible"])
 
-        response = self.client.get(reverse("wrapped", args=[2025]))
+        wrapped_url = reverse("wrapped", args=[2025])
+        response = self.client.get(wrapped_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["no_data"])
 
     def test_user_wrapped_view_shows_shareable_user_stats(self):
-        response = self.client.get(
-            reverse("user_wrapped", args=[2025, self.user.id])
-        )
+        user_wrapped_url = reverse("user_wrapped", args=[2025, self.user.id])
+        response = self.client.get(user_wrapped_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "courses/user_wrapped.html")
@@ -142,9 +144,10 @@ class WrappedViewTests(TestCase):
             email="bob@example.com",
         )
 
-        response = self.client.get(
-            reverse("user_wrapped", args=[2025, other_user.id])
+        user_wrapped_url = reverse(
+            "user_wrapped", args=[2025, other_user.id]
         )
+        response = self.client.get(user_wrapped_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["no_activity"])

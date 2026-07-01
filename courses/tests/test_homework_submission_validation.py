@@ -176,7 +176,8 @@ class HomeworkSubmissionValidationTests(TestCase):
 
     def post_homework(self, post_data, follow=False):
         self.client.login(**credentials)
-        return self.client.post(self.homework_url(), post_data, follow=follow)
+        homework_url = self.homework_url()
+        return self.client.post(homework_url, post_data, follow=follow)
 
     def get_saved_submission(self):
         return Submission.objects.get(
@@ -184,11 +185,10 @@ class HomeworkSubmissionValidationTests(TestCase):
         )
 
     def assert_no_submission(self):
-        self.assertFalse(
-            Submission.objects.filter(
-                student=self.user, homework=self.homework
-            ).exists()
-        )
+        submission_exists = Submission.objects.filter(
+            student=self.user, homework=self.homework
+        ).exists()
+        self.assertFalse(submission_exists)
 
     def mock_failed_url_checks(self, mock_get, mock_head, status_code=404):
         mock_response = mock.Mock()
@@ -291,7 +291,8 @@ class HomeworkSubmissionValidationTests(TestCase):
             faq_contribution_url=faq_url,
         )
 
-        response = self.client.post(self.homework_url(), post_data)
+        homework_url = self.homework_url()
+        response = self.client.post(homework_url, post_data)
 
         self.assertEqual(response.status_code, 302)
         submission = self.get_saved_submission()
@@ -315,7 +316,8 @@ class HomeworkSubmissionValidationTests(TestCase):
         self.close_homework()
         self.client.login(**credentials)
 
-        response = self.client.get(self.homework_url())
+        homework_url = self.homework_url()
+        response = self.client.get(homework_url)
 
         self.assert_closed_homework_response(response)
 
@@ -328,7 +330,8 @@ class HomeworkSubmissionValidationTests(TestCase):
 
         response = self.post_homework(post_data, follow=True)
 
-        self.assertRedirects(response, self.homework_url())
+        homework_url = self.homework_url()
+        self.assertRedirects(response, homework_url)
         self.assertContains(
             response, "This homework is not open for submissions."
         )
