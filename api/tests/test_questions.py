@@ -199,42 +199,56 @@ class QuestionsAPITestCase(TestCase):
         self.assertTrue(Question.objects.filter(id=q.id).exists())
         self.assertTrue(Answer.objects.filter(id=answer.id).exists())
 
-    def test_question_mutations_require_staff_token(self):
-        question = Question.objects.create(
-            homework=self.homework,
-            text="Staff only question",
-            question_type="FF",
-        )
+    def non_staff_client(self):
         non_staff = CustomUser.objects.create(
             username="question-nonstaff",
             email="question-nonstaff@example.com",
             password="password",
         )
         token = Token.objects.create(user=non_staff)
-        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+        return Client(HTTP_AUTHORIZATION=f"Token {token.key}")
 
+    def non_staff_mutation_responses(self, client, question):
+        responses = []
+        create_payload = {"text": "Created by nonstaff"}
         create_response = client.post(
             self._url(),
-            json.dumps({"text": "Created by nonstaff"}),
+            json.dumps(create_payload),
             content_type="application/json",
         )
+        responses.append(create_response)
+
+        patch_payload = {"text": "Changed by nonstaff"}
         patch_response = client.patch(
             self._url(question.id),
-            json.dumps({"text": "Changed by nonstaff"}),
+            json.dumps(patch_payload),
             content_type="application/json",
         )
+        responses.append(patch_response)
+
         delete_response = client.delete(self._url(question.id))
+        responses.append(delete_response)
+        return responses
 
-        for response in (
-            create_response,
-            patch_response,
-            delete_response,
-        ):
-            self.assertEqual(response.status_code, 403)
-            self.assertEqual(
-                response.json()["code"], "staff_token_required"
-            )
+    def assert_staff_token_required(self, response):
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "staff_token_required")
 
+    def assert_question_unchanged_after_forbidden_mutations(self, question):
         question.refresh_from_db()
         self.assertEqual(question.text, "Staff only question")
         self.assertEqual(self.homework.question_set.count(), 1)
+
+    def test_question_mutations_require_staff_token(self):
+        question = Question.objects.create(
+            homework=self.homework,
+            text="Staff only question",
+            question_type="FF",
+        )
+        client = self.non_staff_client()
+
+        responses = self.non_staff_mutation_responses(client, question)
+
+        for response in responses:
+            self.assert_staff_token_required(response)
+        self.assert_question_unchanged_after_forbidden_mutations(question)

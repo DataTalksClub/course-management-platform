@@ -254,6 +254,10 @@ testable service functions.
   helpers out of the YAML/cache route module.
 - [x] Split API question serialization and mutation helpers out of the route
   module.
+- [x] Shorten API question staff-token tests by naming the non-staff client,
+  mutation responses, forbidden assertion, and unchanged-state assertion.
+  Verification: `uv run ruff check api/tests/test_questions.py` and
+  `uv run python manage.py test api.tests.test_questions`.
 - [x] Split repeated API project action staff-check and lookup coordination
   into a shared route helper.
 - [x] Flatten Datamailer membership sync payload construction and remove unused
