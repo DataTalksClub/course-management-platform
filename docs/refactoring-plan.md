@@ -2199,6 +2199,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_datamailer_outbox`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Remove remaining one-use script wrappers for evaluation-score creation,
+  score recalculation, and seed-summary construction while keeping constructed
+  values named before append or output. Verification:
+  `uv run ruff check scripts/load_project_data.py scripts/generate_production_like_leaderboard_data.py docs/refactoring-plan.md`,
+  `python -m py_compile scripts/load_project_data.py scripts/generate_production_like_leaderboard_data.py`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

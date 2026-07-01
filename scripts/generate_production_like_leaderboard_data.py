@@ -1041,24 +1041,6 @@ def clear_generated_course_submissions(materials, username_prefix):
     )
 
 
-def recalculate_material_scores(materials):
-    recalculate_course_scores(
-        materials.course,
-        materials.homeworks,
-        materials.projects,
-    )
-
-
-def seed_summary_data(materials, enrollment_result, submission_result):
-    return SeedSummaryData(
-        course=materials.course,
-        created_users=enrollment_result.created_users,
-        created_enrollments=enrollment_result.created_enrollments,
-        homework_submissions=submission_result.homework_submissions,
-        project_submissions=submission_result.project_submissions,
-    )
-
-
 def seed_course(spec, count):
     materials = ensure_course_materials(spec)
     username_prefix = f"{USER_PREFIX}-{materials.course.slug}-"
@@ -1074,11 +1056,17 @@ def seed_course(spec, count):
         enrollment_result,
         count,
     )
-    recalculate_material_scores(materials)
-    summary_data = seed_summary_data(
-        materials,
-        enrollment_result,
-        submission_result,
+    recalculate_course_scores(
+        materials.course,
+        materials.homeworks,
+        materials.projects,
+    )
+    summary_data = SeedSummaryData(
+        course=materials.course,
+        created_users=enrollment_result.created_users,
+        created_enrollments=enrollment_result.created_enrollments,
+        homework_submissions=submission_result.homework_submissions,
+        project_submissions=submission_result.project_submissions,
     )
     print_seed_summary(summary_data)
 

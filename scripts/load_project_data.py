@@ -570,14 +570,6 @@ def create_criteria_responses(responses_data, maps: ImportMaps) -> None:
     print("✓ Criteria responses created")
 
 
-def build_evaluation_score(score_data, maps: ImportMaps):
-    return ProjectEvaluationScore(
-        submission_id=maps.submission_id_map[score_data["submission_id"]],
-        review_criteria_id=maps.criteria_id_map[score_data["review_criteria_id"]],
-        score=score_data["score"],
-    )
-
-
 def create_evaluation_scores(scores_data, maps: ImportMaps) -> None:
     print(f"Creating {len(scores_data)} evaluation scores...")
     records = []
@@ -587,7 +579,16 @@ def create_evaluation_scores(scores_data, maps: ImportMaps) -> None:
         unit="scores",
     )
     for score_data in score_records:
-        record = build_evaluation_score(score_data, maps)
+        submission_id = maps.submission_id_map[score_data["submission_id"]]
+        review_criteria_id = maps.criteria_id_map[
+            score_data["review_criteria_id"]
+        ]
+        score = score_data["score"]
+        record = ProjectEvaluationScore(
+            submission_id=submission_id,
+            review_criteria_id=review_criteria_id,
+            score=score,
+        )
         records.append(record)
     bulk_create_in_batches(ProjectEvaluationScore, records)
     print("✓ Evaluation scores created")
