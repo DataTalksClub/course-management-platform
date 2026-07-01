@@ -13,12 +13,6 @@ class ProjectSubmissionsDecorationData:
 
 
 @dataclass(frozen=True)
-class SubmissionViewerStateData:
-    submission: ProjectSubmission
-    decoration: ProjectSubmissionsDecorationData
-
-
-@dataclass(frozen=True)
 class SubmissionReviewGroupData:
     submission: ProjectSubmission
     in_peer_review: bool
@@ -38,11 +32,7 @@ def decorate_project_submissions(data):
             submission,
             viewer_state.review_ids,
         )
-        viewer_data = SubmissionViewerStateData(
-            submission=submission,
-            decoration=data,
-        )
-        _decorate_submission_viewer_state(viewer_data)
+        _decorate_submission_viewer_state(submission, data)
         review_group_data = SubmissionReviewGroupData(
             submission=submission,
             in_peer_review=in_peer_review,
@@ -87,12 +77,12 @@ def _decorate_submission_review_state(submission, review_ids):
     submission.to_evaluate = False
 
 
-def _decorate_submission_viewer_state(data):
-    viewer_state = data.decoration.viewer_state
-    project = data.decoration.project
-    data.submission.own = data.submission.id in viewer_state.own_submissions
-    data.submission.vote_limit_reached = (
-        data.submission.id not in viewer_state.voted_submission_ids
+def _decorate_submission_viewer_state(submission, decoration):
+    viewer_state = decoration.viewer_state
+    project = decoration.project
+    submission.own = submission.id in viewer_state.own_submissions
+    submission.vote_limit_reached = (
+        submission.id not in viewer_state.voted_submission_ids
         and viewer_state.project_vote_counts.get(project.id, 0)
         >= PROJECT_VOTES_PER_PROJECT
     )

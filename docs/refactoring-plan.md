@@ -1736,6 +1736,12 @@ Steps:
   `uv run python manage.py test cadmin.tests.test_homework_submission_edit_views cadmin.tests.test_homework_views`,
   dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Remove the one-use project submission viewer-state wrapper and pass the
+  submission plus decoration context directly. Verification:
+  `uv run ruff check courses/views/project_submission_display.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_submissions_view courses.tests.test_project_voting courses.tests.test_project_view`,
+  dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
