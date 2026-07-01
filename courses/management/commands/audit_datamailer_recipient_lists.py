@@ -80,13 +80,10 @@ class Command(BaseCommand):
             )
             return
 
-        client = DatamailerClient(config)
-        audit_data = AuditRunData(
-            client=client,
-            config=config,
-            batches=batches,
-            limit=options["limit"],
-            repair=options["repair"],
+        audit_data = recipient_list_audit_run_data(
+            config,
+            batches,
+            options,
         )
         drift_count = audit_batches_against_datamailer(
             audit_data,
@@ -120,6 +117,18 @@ class Command(BaseCommand):
         errors = option_validation_errors(options)
         for error in errors:
             raise CommandError(error)
+
+
+def recipient_list_audit_run_data(config, batches, options):
+    client = DatamailerClient(config)
+    audit_data = AuditRunData(
+        client=client,
+        config=config,
+        batches=batches,
+        limit=options["limit"],
+        repair=options["repair"],
+    )
+    return audit_data
 
 
 def option_validation_errors(options):
