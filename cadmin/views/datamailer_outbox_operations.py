@@ -39,11 +39,13 @@ def recent_failed_datamailer_outbox_events():
 
 def datamailer_outbox_status_rows(outbox_summary):
     rows = []
+    event_counts = outbox_summary["event_counts"]
 
     for status in DatamailerOutboxStatus.values:
+        count = event_counts.get(status, 0)
         row = {
             "status": status,
-            "count": outbox_summary["event_counts"].get(status, 0),
+            "count": count,
         }
         rows.append(row)
     return rows
