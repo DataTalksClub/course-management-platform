@@ -50,6 +50,29 @@ def project_eval_build_context(
     enrollment: Enrollment | None = None,
 ):
     submission = review.submission_under_evaluation
+    review_context = project_eval_review_context(
+        project,
+        review,
+        review_criteria,
+        enrollment,
+    )
+
+    context = {
+        "project": project,
+        "review": review,
+        "submission": submission,
+        **review_context,
+    }
+
+    return context
+
+
+def project_eval_review_context(
+    project,
+    review,
+    review_criteria,
+    enrollment,
+):
     accepting_submissions = project_eval_accepting_submissions(project)
     disabled = not accepting_submissions
     responses_by_criteria_id = project_eval_responses_by_criteria_id(review)
@@ -62,9 +85,6 @@ def project_eval_build_context(
     )
 
     context = {
-        "project": project,
-        "review": review,
-        "submission": submission,
         "criteria_response_pairs": criteria_response_pairs,
         "accepting_submissions": accepting_submissions,
         "disabled": disabled,

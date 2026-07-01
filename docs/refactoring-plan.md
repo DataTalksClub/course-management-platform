@@ -2526,6 +2526,17 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split project-evaluation review-state context assembly out of
+  `project_eval_build_context` so the page context builder composes page
+  objects with a named review context fragment. Verification:
+  `uv run ruff check courses/views/project_eval_submit_context.py courses/tests/test_project_eval.py courses/tests/test_project_eval_view.py courses/tests/project_eval_base.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, and `touched_wide_positional_calls=0`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
