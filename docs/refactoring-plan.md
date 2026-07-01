@@ -218,6 +218,9 @@ testable service functions.
   focused fixture/assertion or score-row groups.
 - [x] Flatten compact Datamailer outbox ID extraction and recipient-list JSONL
   encoding return expressions into named intermediate steps.
+- [x] Replace non-test `courses.models` compatibility re-export imports with
+  direct owner-module imports across API, cadmin, Datamailer, course admin,
+  course services, and course views.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
