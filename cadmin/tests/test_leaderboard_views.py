@@ -26,6 +26,14 @@ class LeaderboardEnrollmentData:
     position: int
 
 
+@dataclass(frozen=True)
+class LeaderboardComplaintData:
+    enrollment: Enrollment
+    reporter: User
+    issue_type: str
+    description: str
+
+
 class LeaderboardCadminViewTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -79,39 +87,39 @@ class LeaderboardCadminViewTests(TestCase):
 
     def create_leaderboard_complaint(
         self,
-        enrollment,
-        reporter,
-        issue_type,
-        description,
+        data,
     ):
         return LeaderboardComplaint.objects.create(
-            enrollment=enrollment,
-            reporter=reporter,
-            issue_type=issue_type,
-            description=description,
+            enrollment=data.enrollment,
+            reporter=data.reporter,
+            issue_type=data.issue_type,
+            description=data.description,
         )
 
     def create_complaint_sorting_target(self, reporter):
         first = self.create_first_complaint_enrollment()
         second = self.create_second_complaint_enrollment()
-        self.create_leaderboard_complaint(
-            first,
+        complaint_data = LeaderboardComplaintData(
+            enrollment=first,
             reporter=reporter,
             issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
             description="Incorrect homework.",
         )
-        self.create_leaderboard_complaint(
-            second,
+        self.create_leaderboard_complaint(complaint_data)
+        complaint_data = LeaderboardComplaintData(
+            enrollment=second,
             reporter=reporter,
             issue_type=LeaderboardComplaint.IssueType.PROJECT,
             description="Incorrect project.",
         )
-        self.create_leaderboard_complaint(
-            second,
+        self.create_leaderboard_complaint(complaint_data)
+        complaint_data = LeaderboardComplaintData(
+            enrollment=second,
             reporter=reporter,
             issue_type=LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
             description="Incorrect learning links.",
         )
+        self.create_leaderboard_complaint(complaint_data)
         return second
 
     def assert_most_complained_enrollment_first(self, response, enrollment):
@@ -142,12 +150,13 @@ class LeaderboardCadminViewTests(TestCase):
             display_name="Reported Student",
             total_score=10,
         )
-        complaint = self.create_leaderboard_complaint(
-            enrollment,
+        complaint_data = LeaderboardComplaintData(
+            enrollment=enrollment,
             reporter=self.user,
             issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
             description="Incorrect homework.",
         )
+        complaint = self.create_leaderboard_complaint(complaint_data)
         resolve_url = self.complaint_resolve_url(complaint)
         complaints_url = self.leaderboard_complaints_url()
 

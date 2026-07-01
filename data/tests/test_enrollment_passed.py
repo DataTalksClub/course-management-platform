@@ -14,6 +14,14 @@ from .enrollment_base import (
 
 
 @dataclass(frozen=True)
+class PassedSubmissionRowsActors:
+    user2: object
+    user3: object
+    enrollment2: object
+    enrollment3: object
+
+
+@dataclass(frozen=True)
 class PassedSubmissionRowsContext:
     passed_submissions: list
     user2: object
@@ -56,10 +64,7 @@ class PassedEnrollmentAPITestCase(EnrollmentDataAPIBase):
 
     def create_passed_submission_rows(
         self,
-        user2,
-        user3,
-        enrollment2,
-        enrollment3,
+        actors,
     ):
         project1 = self.create_test_project("p1", "P1")
         project2 = self.create_test_project("p2", "P2")
@@ -68,10 +73,10 @@ class PassedEnrollmentAPITestCase(EnrollmentDataAPIBase):
         passed_submissions = []
         context = PassedSubmissionRowsContext(
             passed_submissions=passed_submissions,
-            user2=user2,
-            user3=user3,
-            enrollment2=enrollment2,
-            enrollment3=enrollment3,
+            user2=actors.user2,
+            user3=actors.user3,
+            enrollment2=actors.enrollment2,
+            enrollment3=actors.enrollment3,
             project1=project1,
             project2=project2,
             project3=project3,
@@ -93,12 +98,13 @@ class PassedEnrollmentAPITestCase(EnrollmentDataAPIBase):
         enrollment2 = self.create_unsaved_enrollment(2, user2)
         enrollment3 = self.create_unsaved_enrollment(3, user3)
         enrollment4 = self.create_unsaved_enrollment(4, user4)
-        passed_submissions = self.create_passed_submission_rows(
-            user2,
-            user3,
-            enrollment2,
-            enrollment3,
+        actors = PassedSubmissionRowsActors(
+            user2=user2,
+            user3=user3,
+            enrollment2=enrollment2,
+            enrollment3=enrollment3,
         )
+        passed_submissions = self.create_passed_submission_rows(actors)
         return PassedEnrollmentScenario(
             passed_submissions=passed_submissions,
             enrollment2=enrollment2,

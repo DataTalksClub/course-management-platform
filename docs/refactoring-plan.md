@@ -2920,6 +2920,15 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Replace the remaining five-argument test fixture helpers with named
+  leaderboard complaint, leaderboard enrollment, and passed-submission actor
+  data objects. Verification:
+  `uv run ruff check cadmin/tests/test_leaderboard_views.py data/tests/test_leaderboard.py data/tests/test_enrollment_passed.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_leaderboard_views data.tests.test_leaderboard data.tests.test_enrollment_passed`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

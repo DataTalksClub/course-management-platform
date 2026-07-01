@@ -1,5 +1,7 @@
 """Tests for the public leaderboard data endpoint."""
 
+from dataclasses import dataclass
+
 import yaml
 from unittest.mock import patch
 
@@ -22,6 +24,14 @@ from courses.models.project import ProjectState
 from courses.leaderboard import update_leaderboard
 
 
+@dataclass(frozen=True)
+class LeaderboardEnrollmentData:
+    user: CustomUser
+    display_name: str
+    total_score: int
+    position: int
+
+
 class LeaderboardDataViewTestCase(TestCase):
 
     def setUp(self):
@@ -30,17 +40,23 @@ class LeaderboardDataViewTestCase(TestCase):
         self.url = self.course_leaderboard_url()
         self.user1 = self.create_user("user1")
         self.user2 = self.create_user("user2")
-        self.enrollment1 = self.create_leaderboard_enrollment(
-            self.user1,
+        enrollment_data = LeaderboardEnrollmentData(
+            user=self.user1,
             display_name="Alice",
             total_score=100,
             position=1,
         )
-        self.enrollment2 = self.create_leaderboard_enrollment(
-            self.user2,
+        self.enrollment1 = self.create_leaderboard_enrollment(
+            enrollment_data
+        )
+        enrollment_data = LeaderboardEnrollmentData(
+            user=self.user2,
             display_name="Bob",
             total_score=50,
             position=2,
+        )
+        self.enrollment2 = self.create_leaderboard_enrollment(
+            enrollment_data
         )
 
     def create_course(self):
@@ -65,17 +81,14 @@ class LeaderboardDataViewTestCase(TestCase):
 
     def create_leaderboard_enrollment(
         self,
-        user,
-        display_name,
-        total_score,
-        position,
+        data,
     ):
         return Enrollment.objects.create(
-            student=user,
+            student=data.user,
             course=self.course,
-            display_name=display_name,
-            total_score=total_score,
-            position_on_leaderboard=position,
+            display_name=data.display_name,
+            total_score=data.total_score,
+            position_on_leaderboard=data.position,
         )
 
     def tearDown(self):
