@@ -17,8 +17,7 @@ class AccountSettingsForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         timezone_choices = [("", "UTC until your browser timezone is detected")]
-        timezone_options = build_timezone_options()
-        for option in timezone_options:
+        for option in build_timezone_options():
             timezone_choice = (option.value, option.label)
             timezone_choices.append(timezone_choice)
         self.fields["preferred_timezone"].choices = timezone_choices

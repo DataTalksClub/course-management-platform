@@ -36,16 +36,14 @@ EMAIL_PREFERENCE_CATEGORIES = {
 
 def email_preference_category_tags() -> list[str]:
     tags = []
-    categories = EMAIL_PREFERENCE_CATEGORIES.values()
-    for category in categories:
+    for category in EMAIL_PREFERENCE_CATEGORIES.values():
         tags.append(category["tag"])
     return tags
 
 
 def _response_categories_by_tag(response):
     categories_by_tag = {}
-    categories = response.get("categories", [])
-    for category in categories:
+    for category in response.get("categories", []):
         if not isinstance(category, dict):
             continue
         tag = category.get("tag")

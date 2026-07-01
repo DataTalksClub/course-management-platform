@@ -1429,6 +1429,15 @@ Steps:
   `append_constructed=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Remove obvious one-off aliases immediately before loops when the iterable
+  expression is already clear, such as preference-category values and stored
+  form question/criteria lists. Verification:
+  `uv run ruff check accounts/forms.py cadmin/forms.py course_management/datamailer/preference_categories.py`,
+  `uv run python manage.py test accounts.tests_account_settings accounts.tests_email_preferences accounts.tests_timezone`,
+  `uv run python manage.py test cadmin.tests.test_homework_submission_edit_views cadmin.tests.test_project_submission_edit_views`,
+  size-threshold scan reports `threshold_violations=0`, comprehension scan
+  reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

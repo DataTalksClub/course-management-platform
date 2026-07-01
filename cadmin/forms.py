@@ -15,8 +15,7 @@ class HomeworkSubmissionEditForm(forms.Form):
         self.submission = submission
         self.questions = list(questions)
 
-        form_questions = self.questions
-        for question in form_questions:
+        for question in self.questions:
             self.fields[f"answer_{question.id}"] = forms.CharField(
                 required=False
             )
@@ -30,8 +29,7 @@ class HomeworkSubmissionEditForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         answers_by_question = []
-        questions = self.questions
-        for question in questions:
+        for question in self.questions:
             answer_text = cleaned_data.get(f"answer_{question.id}", "")
             answer = (
                 question,
@@ -63,8 +61,7 @@ class ProjectSubmissionEditForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.review_criteria = list(review_criteria)
 
-        review_criteria_items = self.review_criteria
-        for criteria in review_criteria_items:
+        for criteria in self.review_criteria:
             self.fields[f"criteria_score_{criteria.id}"] = (
                 forms.IntegerField(
                     min_value=0,
@@ -75,8 +72,7 @@ class ProjectSubmissionEditForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         criteria_scores = []
-        review_criteria_items = self.review_criteria
-        for criteria in review_criteria_items:
+        for criteria in self.review_criteria:
             score = cleaned_data.get(f"criteria_score_{criteria.id}", 0)
             criteria_score = (
                 criteria,
