@@ -1352,6 +1352,14 @@ Steps:
   functions, repo-wide active-code scans excluding `.tmp` and generated
   migrations (`forbidden_comprehensions=0`, `long_functions=31`),
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten homework scoring workflow tests by naming submission-with-answer
+  setup, OK scoring, and refreshed-submission checks. Verification:
+  `uv run ruff check courses/tests/test_scoring.py`,
+  `uv run python manage.py test courses.tests.test_scoring`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, repo-wide active-code scans excluding `.tmp` and generated
+  migrations (`forbidden_comprehensions=0`, `long_functions=30`),
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
