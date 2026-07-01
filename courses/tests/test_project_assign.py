@@ -198,6 +198,22 @@ class ProjectActionsTestCase(TestCase):
             optional=optional,
         )
 
+    def add_optional_eval_and_assert_redirect(self, submission):
+        self.client.login(**credentials)
+        response = self.client.get(self.add_eval_url(submission.id))
+        self.assertEqual(response.status_code, 302)
+
+    def assert_optional_peer_review_created(self, reviewer, submission):
+        peer_review = self.get_peer_review(reviewer, submission)
+        self.assertEqual(peer_review.optional, True)
+
+    def assert_no_peer_review(self, reviewer, submission):
+        peer_reviews = PeerReview.objects.filter(
+            reviewer=reviewer,
+            submission_under_evaluation=submission,
+        )
+        self.assertFalse(peer_reviews.exists())
+
     def delete_peer_review_response(self, peer_review):
         self.client.login(**credentials)
         return self.client.get(self.delete_eval_url(peer_review.id))
@@ -291,17 +307,17 @@ class ProjectActionsTestCase(TestCase):
         self.project.number_of_peers_to_evaluate = 3
         self.project.save()
 
-        status, message = self.assign_peer_reviews()
+        status, _ = self.assign_peer_reviews()
         self.assertEqual(status, ProjectActionStatus.OK)
 
         self.client.login(**credentials)
         other_submission_id = self.find_optional_eval_candidate_id()
-
-        self.client.get(self.add_eval_url(other_submission_id))
-
         other_submission = ProjectSubmission.objects.get(
             id=other_submission_id
         )
+
+        self.add_optional_eval_and_assert_redirect(other_submission)
+
         peer_review = self.get_peer_review(my_submission, other_submission)
 
         self.assertEqual(peer_review.optional, True)
@@ -310,71 +326,26 @@ class ProjectActionsTestCase(TestCase):
         )
 
     def test_add_optional_project_eval(self):
-        my_submission = ProjectSubmission.objects.create(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-            github_link=f"https://github.com/{self.user.username}/project",
-        )
+        my_submission = self.create_my_submission()
 
         num_submissions = 5
         other_submissions = self.generate_submissions(num_submissions)
         other_submission = other_submissions[0]
 
-        self.client.login(**credentials)
-
-        eval_url = reverse(
-            "projects_eval_add",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                other_submission.id,
-            ],
+        self.add_optional_eval_and_assert_redirect(other_submission)
+        self.assert_optional_peer_review_created(
+            my_submission,
+            other_submission,
         )
-
-        response = self.client.get(eval_url)
-        self.assertEqual(response.status_code, 302)
-
-        peer_review = PeerReview.objects.get(
-            reviewer=my_submission,
-            submission_under_evaluation=other_submission,
-        )
-
-        self.assertEqual(peer_review.optional, True)
 
     def test_add_optional_project_self_eval_not_possible(self):
-        my_submission = ProjectSubmission.objects.create(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-            github_link=f"https://github.com/{self.user.username}/project",
-        )
+        my_submission = self.create_my_submission()
 
         num_submissions = 5
         self.generate_submissions(num_submissions)
-        other_submission = my_submission
 
-        self.client.login(**credentials)
-
-        eval_url = reverse(
-            "projects_eval_add",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                other_submission.id,
-            ],
-        )
-
-        response = self.client.get(eval_url)
-        self.assertEqual(response.status_code, 302)
-
-        peer_reviews = PeerReview.objects.filter(
-            reviewer=my_submission,
-            submission_under_evaluation=other_submission,
-        )
-
-        self.assertFalse(peer_reviews.exists())
-
+        self.add_optional_eval_and_assert_redirect(my_submission)
+        self.assert_no_peer_review(my_submission, my_submission)
 
     def test_delete_optional_project_eval_non_optional(self):
         my_submission = self.create_my_submission()

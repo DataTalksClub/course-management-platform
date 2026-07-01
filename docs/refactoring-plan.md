@@ -1333,6 +1333,16 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten optional project-evaluation add/self-eval tests by reusing the
+  shared own-submission builder, naming the add-review redirect assertion, and
+  moving optional-review existence checks into focused assertions.
+  Verification:
+  `uv run ruff check courses/tests/test_project_assign.py`,
+  `uv run python manage.py test courses.tests.test_project_assign`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide active-code scans excluding `.tmp` and
+  generated migrations (`forbidden_comprehensions=0`,
+  `long_functions=32`), `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
