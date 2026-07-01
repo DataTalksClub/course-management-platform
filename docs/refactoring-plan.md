@@ -174,6 +174,8 @@ testable service functions.
   the generic course view forms module.
 - [x] Split API certificate update validation, persistence, and notification
   queuing out of the route module while preserving the notification patch path.
+- [x] Split API leaderboard export queryset, pagination, and serialization
+  helpers out of the YAML/cache route module.
 
 ## Current Findings
 
