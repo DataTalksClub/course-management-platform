@@ -50,9 +50,10 @@ def content_response(description, content):
 
 
 def request_body(schema):
+    content = json_content(schema)
     return {
         "required": True,
-        "content": json_content(schema),
+        "content": content,
     }
 
 
