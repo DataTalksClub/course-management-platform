@@ -197,7 +197,8 @@ class HomeworkScoringViewBase(TestCase):
 
         self.homework = Homework.objects.get(id=self.homework.id)
         self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
-        self.assertTrue(self.homework.is_scored())
+        homework_is_scored = self.homework.is_scored()
+        self.assertTrue(homework_is_scored)
 
     def create_scored_submission_with_answers(self, answers_by_question):
         self.create_enrollment()
@@ -260,7 +261,8 @@ class HomeworkScoringViewBase(TestCase):
     def assert_no_answer_submitted(self, question_answer, expected_question):
         question, answer = question_answer
         self.assertEqual(question, expected_question)
-        self.assertTrue(answer.get("no_answer_submitted", False))
+        no_answer_submitted = answer.get("no_answer_submitted", False)
+        self.assertTrue(no_answer_submitted)
         return answer
 
     def full_submission_answers(self):

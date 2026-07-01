@@ -70,9 +70,10 @@ class DatamailerRecipientListImportCommandTest(
         key = self.assert_registration_import_object(s3, registration)
         self.assert_presigned_import_url_created(s3, key)
         self.assert_registration_import_payload(create_import, registration)
+        command_output = out.getvalue()
         self.assertIn(
             "Created import job for ml-zoomcamp-2026: job_id=17",
-            out.getvalue(),
+            command_output,
         )
 
     @override_settings(
@@ -177,6 +178,7 @@ class DatamailerRecipientListImportCommandTest(
             side_effect=[0, 2],
         ):
             with self.assertRaisesMessage(CommandError, message):
+                stdout = StringIO()
                 call_command(
                     "sync_datamailer_recipient_lists",
                     "enrollments",
@@ -188,7 +190,7 @@ class DatamailerRecipientListImportCommandTest(
                     "1",
                     "--import-poll-interval",
                     "0.01",
-                    stdout=StringIO(),
+                    stdout=stdout,
                 )
 
     @override_settings(

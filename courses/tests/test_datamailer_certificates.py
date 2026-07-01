@@ -114,7 +114,8 @@ class DatamailerCertificateTest(TestCase):
         self.assert_certificate_availability_copy(payload)
 
     def assert_course_graduate_recipient_payload(self, list_key, payload, enrollment):
-        self.assertEqual(list_key, course_graduates_list_key(enrollment.course))
+        expected_list_key = course_graduates_list_key(enrollment.course)
+        self.assertEqual(list_key, expected_list_key)
         self.assertEqual(payload["list"]["type"], "custom")
         self.assertEqual(payload["list"]["metadata"]["outcome"], "course_graduated")
         self.assertEqual(len(payload["members"]), 1)
@@ -211,9 +212,10 @@ class DatamailerCertificateTest(TestCase):
 
         self.assertEqual(result, {"id": 123})
         bulk_upsert.assert_called_once()
+        expected_list_key = course_graduates_list_key(enrollment.course)
         self.assertEqual(
             bulk_upsert.call_args.args[0],
-            course_graduates_list_key(enrollment.course),
+            expected_list_key,
         )
         send.assert_called_once()
         payload = send.call_args.args[0]

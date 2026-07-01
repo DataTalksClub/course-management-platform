@@ -152,9 +152,10 @@ class DatamailerStatusTest(TestCase):
     ):
         user = self.create_student_user()
 
+        updated_preferences = self.updated_email_preferences()
         result = update_email_preferences_for_user(
             user,
-            self.updated_email_preferences(),
+            updated_preferences,
         )
 
         self.assertTrue(result)
@@ -183,9 +184,10 @@ class DatamailerStatusTest(TestCase):
         return preferences
 
     def assert_contact_preferences_updated(self, update_contact_preferences):
+        expected_updates = self.expected_contact_preference_updates()
         update_contact_preferences.assert_called_once_with(
             "student@example.com",
-            self.expected_contact_preference_updates(),
+            expected_updates,
         )
 
     @override_settings(**DATAMAILER_SETTINGS)
