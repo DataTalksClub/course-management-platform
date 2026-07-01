@@ -128,6 +128,8 @@ testable service functions.
   dashboard test module.
 - [x] Split course duplication admin tests out of the oversized course detail
   test module.
+- [x] Split course detail view fixture helpers and certificate-display tests
+  out of the oversized course detail test module.
 - [x] Split project list view tests out of the oversized project evaluation
   test module.
 - [x] Extract deadline reminder event planning from the management command into
