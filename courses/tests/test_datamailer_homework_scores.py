@@ -18,7 +18,7 @@ from course_management.datamailer.keys import homework_submitters_list_key
 from course_management.datamailer.payloads.homework_scores import (
     homework_score_notification_payload,
 )
-from course_management.datamailer.sync.notifications import (
+from course_management.datamailer.sync.score_notifications import (
     send_homework_score_notification,
 )
 from courses.models import Course, Enrollment, Homework, Submission

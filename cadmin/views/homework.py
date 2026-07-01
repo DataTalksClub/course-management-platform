@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-from course_management.datamailer.sync.notifications import (
+from course_management.datamailer.sync.score_notifications import (
     send_homework_score_notification,
 )
 from courses.models.course import Course

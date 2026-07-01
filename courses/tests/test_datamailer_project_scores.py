@@ -20,7 +20,7 @@ from course_management.datamailer.payloads.project_outcomes import (
 from course_management.datamailer.payloads.project_scores import (
     project_score_notification_payload,
 )
-from course_management.datamailer.sync.notifications import (
+from course_management.datamailer.sync.score_notifications import (
     send_project_score_notification,
 )
 from courses.models import (

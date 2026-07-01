@@ -341,6 +341,8 @@ testable service functions.
   leaving wrapped views as render boundaries.
 - [x] Split Datamailer homework and project score notification payload builders
   into direct owner modules and remove the mixed score payload module.
+- [x] Split Datamailer score and peer-review notification send flows out of
+  the registration-confirmation notification module.
 
 ## Current Findings
 
