@@ -91,45 +91,62 @@ class DatamailerClientEndpointTest(TestCase):
         )
         self.assert_datamailer_request(expectation)
 
-    def contact_write_method_cases(self):
+    def upsert_contact_method_case(self):
+        return DatamailerMethodCase(
+            method_name="upsert_contact",
+            args=({"email": "student@example.com"},),
+            method="POST",
+            path="/api/contacts",
+            json_payload={"email": "student@example.com"},
+            response_payload={"ok": True},
+            expected_result={"ok": True},
+        )
+
+    def bulk_import_contacts_method_case(self):
         contact_import_payload = {
             "audience": "dtc-courses",
             "client": "dtc-courses",
             "contacts": [{"email": "student@example.com"}],
         }
-        return [
-            DatamailerMethodCase(
-                method_name="upsert_contact",
-                args=({"email": "student@example.com"},),
-                method="POST",
-                path="/api/contacts",
-                json_payload={"email": "student@example.com"},
-                response_payload={"ok": True},
-                expected_result={"ok": True},
-            ),
-            DatamailerMethodCase(
-                method_name="bulk_import_contacts",
-                args=(contact_import_payload,),
-                method="POST",
-                path="/api/contacts/imports",
-                json_payload=contact_import_payload,
-                response_payload={"counts": {"created": 1}},
-                expected_result={"counts": {"created": 1}},
-            ),
-            DatamailerMethodCase(
-                method_name="erase_contact",
-                args=("student@example.com",),
-                method="POST",
-                path="/api/contacts/erase",
-                json_payload={
-                    "email": "student@example.com",
-                    "audience": "dtc-courses",
-                    "client": "dtc-courses",
-                },
-                response_payload={"erased": True},
-                expected_result={"erased": True},
-            ),
-        ]
+        return DatamailerMethodCase(
+            method_name="bulk_import_contacts",
+            args=(contact_import_payload,),
+            method="POST",
+            path="/api/contacts/imports",
+            json_payload=contact_import_payload,
+            response_payload={"counts": {"created": 1}},
+            expected_result={"counts": {"created": 1}},
+        )
+
+    def erase_contact_method_case(self):
+        erase_payload = {
+            "email": "student@example.com",
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+        }
+        return DatamailerMethodCase(
+            method_name="erase_contact",
+            args=("student@example.com",),
+            method="POST",
+            path="/api/contacts/erase",
+            json_payload=erase_payload,
+            response_payload={"erased": True},
+            expected_result={"erased": True},
+        )
+
+    def contact_write_method_cases(self):
+        cases = []
+
+        upsert_case = self.upsert_contact_method_case()
+        cases.append(upsert_case)
+
+        import_case = self.bulk_import_contacts_method_case()
+        cases.append(import_case)
+
+        erase_case = self.erase_contact_method_case()
+        cases.append(erase_case)
+
+        return cases
 
     def contact_read_method_cases(self):
         return [

@@ -460,6 +460,10 @@ testable service functions.
   assertions. Verification:
   `uv run ruff check courses/tests/test_datamailer_project_scores.py` and
   `uv run python manage.py test courses.tests.test_datamailer_project_scores`.
+- [x] Split Datamailer contact write endpoint test cases into named case
+  builders so the method-case aggregator stays short and explicit.
+  Verification: `uv run ruff check courses/tests/test_datamailer_client.py`
+  and `uv run python manage.py test courses.tests.test_datamailer_client`.
 
 ## Current Findings
 
