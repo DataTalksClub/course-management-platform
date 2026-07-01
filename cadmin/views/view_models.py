@@ -65,9 +65,10 @@ def project_submission_list_data(project, search_query, status_filter):
         PROJECT_SUBMISSION_FILTER_COUNTS,
     )
 
-    filtered_submissions = _filter_project_submissions(
+    filtered_submissions = _filter_by_status(
         submissions,
         status_filter,
+        PROJECT_SUBMISSION_STATUS_FILTERS,
     )
     return filtered_submissions, filter_counts
 
@@ -89,14 +90,6 @@ def _attach_project_review_counts(project, submissions):
         counts = review_counts[submission.id]
         submission.peer_reviews_completed = counts["completed"]
         submission.peer_reviews_total = counts["total"]
-
-
-def _filter_project_submissions(submissions, status_filter):
-    return _filter_by_status(
-        submissions,
-        status_filter,
-        PROJECT_SUBMISSION_STATUS_FILTERS,
-    )
 
 
 def _enrollment_has_lip_disabled(enrollment):
@@ -157,7 +150,11 @@ def enrollment_list_data(course, search_query, status_filter):
         ENROLLMENT_FILTER_COUNTS,
     )
 
-    filtered_enrollments = _filter_enrollments(enrollments, status_filter)
+    filtered_enrollments = _filter_by_status(
+        enrollments,
+        status_filter,
+        ENROLLMENT_STATUS_FILTERS,
+    )
     return filtered_enrollments, filter_counts
 
 
@@ -172,14 +169,6 @@ def _attach_enrollment_support_flags(enrollments):
             or not enrollment.display_on_leaderboard
             or enrollment.has_no_submissions
         )
-
-
-def _filter_enrollments(enrollments, status_filter):
-    return _filter_by_status(
-        enrollments,
-        status_filter,
-        ENROLLMENT_STATUS_FILTERS,
-    )
 
 
 def _status_filter_counts(items, count_predicates):
