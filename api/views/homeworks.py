@@ -1,14 +1,12 @@
 from dataclasses import dataclass
-from datetime import date
 
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.text import slugify
 
 from accounts.auth import token_required
-from courses.models import Course, Homework, Question
+from courses.models import Course, Homework
 from courses.models.homework import HomeworkState
 from courses.scoring import (
     HomeworkScoringStatus,
@@ -19,7 +17,6 @@ from api.crud import (
     DeleteResponseConfig,
     DetailResponseConfig,
     PatchResponseConfig,
-    bulk_create_response,
     detail_response,
     get_course_child_or_404,
 )
@@ -33,6 +30,15 @@ from api.utils import (
     parse_date,
     parse_json_body,
     require_methods,
+)
+from api.views.homework_create import (
+    create_question,
+    homeworks_create_response,
+    homeworks_list_response,
+)
+from api.views.homework_serializers import (
+    homework_delete_blockers,
+    homework_to_dict,
 )
 
 
@@ -50,62 +56,6 @@ class HomeworkUpsertValidationData:
     data: dict
     homework: Homework | None
     created: bool
-
-
-@dataclass(frozen=True)
-class HomeworkCreateRequiredValues:
-    name: str
-    due_date_str: str
-
-
-@dataclass(frozen=True)
-class HomeworkCreateValues:
-    name: str
-    due_date: date
-    instructions_url: str | None
-
-
-@dataclass
-class HomeworkCreateData:
-    course: Course
-    hw_data: dict
-    required_values: HomeworkCreateRequiredValues | None = None
-    instructions_url: str | None = None
-    due_date: date | None = None
-    slug: str | None = None
-
-
-def _homework_delete_blockers(hw):
-    blockers = []
-    submissions_count = hw.submission_set.count()
-    if hw.state != HomeworkState.CLOSED.value:
-        blockers.append("not_closed")
-    if submissions_count > 0:
-        blockers.append("has_submissions")
-    return blockers
-
-
-def _homework_to_dict(hw):
-    submissions_count = hw.submission_set.count()
-    delete_blockers = _homework_delete_blockers(hw)
-    return {
-        "id": hw.id,
-        "slug": hw.slug,
-        "title": hw.title,
-        "description": hw.description,
-        "instructions_url": hw.instructions_url,
-        "due_date": hw.due_date.isoformat(),
-        "state": hw.state,
-        "learning_in_public_cap": hw.learning_in_public_cap,
-        "homework_url_field": hw.homework_url_field,
-        "time_spent_lectures_field": hw.time_spent_lectures_field,
-        "time_spent_homework_field": hw.time_spent_homework_field,
-        "faq_contribution_field": hw.faq_contribution_field,
-        "questions_count": hw.question_set.count(),
-        "submissions_count": submissions_count,
-        "can_delete": not delete_blockers,
-        "delete_blockers": delete_blockers,
-    }
 
 
 def _homework_score_response(homework):
@@ -135,220 +85,6 @@ def _homework_score_response(homework):
     return response
 
 
-def _homework_create_defaults(hw_data, values):
-    return {
-        "title": values.name,
-        "description": hw_data.get("description", ""),
-        "instructions_url": values.instructions_url,
-        "due_date": values.due_date,
-        "state": HomeworkState.CLOSED.value,
-    }
-
-
-def _create_questions(homework, questions_data):
-    for q_data in questions_data:
-        _create_question(homework, q_data)
-
-
-def _homework_create_required_values(hw_data):
-    name = hw_data.get("name")
-    due_date_str = hw_data.get("due_date")
-
-    if not name or not due_date_str:
-        return None, "name and due_date are required"
-
-    values = HomeworkCreateRequiredValues(name, due_date_str)
-    return values, None
-
-
-def _homework_create_instructions_url(hw_data):
-    instructions_url = hw_data.get("instructions_url")
-    if instructions_url and (
-        error := instructions_url_error(instructions_url)
-    ):
-        return None, error
-
-    return instructions_url, None
-
-
-def _homework_create_due_date(due_date_str):
-    due_date = parse_date(due_date_str)
-    if due_date is None:
-        return None, f"Invalid date format: {due_date_str}"
-
-    return due_date, None
-
-
-def _homework_create_slug(course, hw_data, name):
-    slug = hw_data.get("slug") or slugify(name)
-    if Homework.objects.filter(course=course, slug=slug).exists():
-        return None, f"Homework with slug '{slug}' already exists"
-
-    return slug, None
-
-
-def _load_homework_create_required_values(create_data):
-    required_values, error = _homework_create_required_values(
-        create_data.hw_data
-    )
-    if error:
-        return error
-    create_data.required_values = required_values
-    return None
-
-
-def _load_homework_create_instructions_url(create_data):
-    instructions_url, error = _homework_create_instructions_url(
-        create_data.hw_data
-    )
-    if error:
-        return error
-    create_data.instructions_url = instructions_url
-    return None
-
-
-def _load_homework_create_due_date(create_data):
-    required_values = create_data.required_values
-    if required_values is None:
-        return "name and due_date are required"
-    due_date, error = _homework_create_due_date(
-        required_values.due_date_str
-    )
-    if error:
-        return error
-    create_data.due_date = due_date
-    return None
-
-
-def _load_homework_create_slug(create_data):
-    required_values = create_data.required_values
-    if required_values is None:
-        return "name and due_date are required"
-    slug, error = _homework_create_slug(
-        create_data.course,
-        create_data.hw_data,
-        required_values.name,
-    )
-    if error:
-        return error
-    create_data.slug = slug
-    return None
-
-
-def _homework_create_data(course, hw_data):
-    create_data = HomeworkCreateData(
-        course=course,
-        hw_data=hw_data,
-    )
-    steps = (
-        _load_homework_create_required_values,
-        _load_homework_create_instructions_url,
-        _load_homework_create_due_date,
-        _load_homework_create_slug,
-    )
-    for step in steps:
-        error = step(create_data)
-        if error:
-            return None, error
-
-    return create_data, None
-
-
-def _homework_create_values(create_data):
-    required_values = create_data.required_values
-    if required_values is None:
-        return None
-    due_date = create_data.due_date
-    if due_date is None:
-        return None
-    values = HomeworkCreateValues(
-        name=required_values.name,
-        due_date=due_date,
-        instructions_url=create_data.instructions_url,
-    )
-    return values
-
-
-def _homework_create_attrs(course, hw_data):
-    create_data, error = _homework_create_data(course, hw_data)
-    if error:
-        return None, error
-
-    values = _homework_create_values(create_data)
-    if values is None:
-        return None, "name and due_date are required"
-
-    attrs = _homework_create_defaults(hw_data, values)
-    attrs["slug"] = create_data.slug
-    return attrs, None
-
-
-def _create_homework(course, hw_data):
-    """Create a homework. Returns (dict, None) or (None, error_str)."""
-    attrs, error = _homework_create_attrs(course, hw_data)
-    if error:
-        return None, error
-
-    homework = Homework.objects.create(
-        course=course,
-        **attrs,
-    )
-
-    questions_data = hw_data.get("questions", [])
-    _create_questions(homework, questions_data)
-
-    return _homework_to_dict(homework), None
-
-
-def _create_question(homework, q_data):
-    text = q_data.get("text", "")
-    question_type = q_data.get("question_type", "FF")
-    answer_type = q_data.get("answer_type")
-    possible_answers_data = q_data.get("possible_answers", [])
-    possible_answers = "\n".join(possible_answers_data)
-    correct_answer = q_data.get("correct_answer", "")
-    score = q_data.get("scores_for_correct_answer", 1)
-
-    Question.objects.create(
-        homework=homework,
-        text=text,
-        question_type=question_type,
-        answer_type=answer_type,
-        possible_answers=possible_answers,
-        correct_answer=correct_answer,
-        scores_for_correct_answer=score,
-    )
-
-
-def _homeworks_list_response(course):
-    homeworks = Homework.objects.filter(course=course).order_by("id")
-    homework_records = []
-    for homework in homeworks:
-        homework_record = _homework_to_dict(homework)
-        homework_records.append(homework_record)
-
-    payload = {
-        "homeworks": homework_records,
-    }
-    response = JsonResponse(payload)
-    return response
-
-
-def _homeworks_create_response(request, course):
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    return bulk_create_response(
-        data,
-        lambda item: _create_homework(course, item),
-    )
-
-
 @token_required
 @csrf_exempt
 @require_methods("GET", "POST")
@@ -360,9 +96,9 @@ def homeworks_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     if request.method == "GET":
-        return _homeworks_list_response(course)
+        return homeworks_list_response(course)
 
-    return _homeworks_create_response(request, course)
+    return homeworks_create_response(request, course)
 
 
 HOMEWORK_PATCH_FIELDS = {
@@ -506,12 +242,12 @@ def _apply_homework_direct_fields(homework, data):
 
 
 def _homework_questions_replace_error(homework):
-    if _homework_delete_blockers(homework):
+    if homework_delete_blockers(homework):
         return error_response(
             "Questions can only be replaced for closed homeworks with no submissions",
             "homework_questions_replace_blocked",
             details={
-                "delete_blockers": _homework_delete_blockers(homework)
+                "delete_blockers": homework_delete_blockers(homework)
             },
         )
 
@@ -537,7 +273,7 @@ def _replace_homework_questions(homework, questions_data):
 
     homework.question_set.all().delete()
     for q_data in questions_data:
-        _create_question(homework, q_data)
+        create_question(homework, q_data)
     return None
 
 
@@ -710,7 +446,7 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
 
     upsert, homework = save_result
 
-    homework_data = _homework_to_dict(homework)
+    homework_data = homework_to_dict(homework)
     if upsert.created:
         response_status = 201
     else:
@@ -722,7 +458,7 @@ def _upsert_homework_by_slug(request, course_slug, homework_slug):
 def _homework_detail_config(homework):
     return DetailResponseConfig(
         patch=PatchResponseConfig(
-            to_dict=_homework_to_dict,
+            to_dict=homework_to_dict,
             rules=HOMEWORK_PATCH_RULES,
         ),
         delete=DeleteResponseConfig(

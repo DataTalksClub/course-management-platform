@@ -99,6 +99,8 @@ testable service functions.
   a focused `courses.deadline_reminder_events` module.
 - [x] Split deadline reminder planning helpers by responsibility into type,
   member, query, and event modules.
+- [x] Split API homework list/create serialization helpers out of the oversized
+  homework API view module.
 
 ## Current Findings
 
