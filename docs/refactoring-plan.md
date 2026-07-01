@@ -469,6 +469,10 @@ testable service functions.
   Verification:
   `uv run ruff check cadmin/tests/test_homework_views.py cadmin/tests/homework_view_base.py`
   and `uv run python manage.py test cadmin.tests.test_homework_views`.
+- [x] Split Datamailer peer-review assignment test fixture setup into named
+  project, submission, and assignment builders. Verification:
+  `uv run ruff check courses/tests/test_datamailer_peer_review.py` and
+  `uv run python manage.py test courses.tests.test_datamailer_peer_review`.
 
 ## Current Findings
 

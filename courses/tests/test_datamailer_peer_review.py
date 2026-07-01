@@ -76,41 +76,62 @@ class DatamailerPeerReviewTest(TestCase):
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
-    def create_peer_review_assignment_fixture(self):
-        project = self.create_project(
+    def create_peer_review_assignment_project(self):
+        return self.create_project(
             state=ProjectState.PEER_REVIEWING.value,
             number_of_peers_to_evaluate=3,
             # Summer instant: PT 15:00, Berlin 00:00 next day.
             peer_review_due_date="2026-07-02T22:00:00Z",
         )
+
+    def create_peer_review_assignment_submission(self, project, index):
+        user = self.create_user(f"learner-{index}@example.com")
+        if index == 0:
+            user.preferred_timezone = "Europe/Berlin"
+            user.save(update_fields=["preferred_timezone"])
+        return self.create_project_submission(
+            project,
+            user,
+            github_link=f"https://github.com/example/p{index}",
+        )
+
+    def create_peer_review_assignment_submissions(self, project):
         submissions = []
         for index in range(4):
-            user = self.create_user(f"learner-{index}@example.com")
-            if index == 0:
-                user.preferred_timezone = "Europe/Berlin"
-                user.save(update_fields=["preferred_timezone"])
-            submission = self.create_project_submission(
+            submission = self.create_peer_review_assignment_submission(
                 project,
-                user,
-                github_link=f"https://github.com/example/p{index}",
+                index,
             )
             submissions.append(submission)
+        return submissions
 
+    def create_peer_review_assignment(self, reviewer, target, optional):
+        PeerReview.objects.create(
+            reviewer=reviewer,
+            submission_under_evaluation=target,
+            note_to_peer="",
+            optional=optional,
+        )
+
+    def create_reviewer_assignments(self, submissions):
         reviewer = submissions[0]
         targets = submissions[1:]
         for target in targets:
-            PeerReview.objects.create(
-                reviewer=reviewer,
-                submission_under_evaluation=target,
-                note_to_peer="",
+            self.create_peer_review_assignment(
+                reviewer,
+                target,
                 optional=False,
             )
-        PeerReview.objects.create(
-            reviewer=reviewer,
-            submission_under_evaluation=targets[0],
-            note_to_peer="",
+        self.create_peer_review_assignment(
+            reviewer,
+            targets[0],
             optional=True,
         )
+
+    def create_peer_review_assignment_fixture(self):
+        project = self.create_peer_review_assignment_project()
+        submissions = self.create_peer_review_assignment_submissions(project)
+        self.create_reviewer_assignments(submissions)
         project.refresh_from_db()
         return project
 
