@@ -4,7 +4,7 @@ from datetime import date
 from django.http import JsonResponse
 from django.utils.text import slugify
 
-from courses.models import Homework, Question
+from courses.models.homework import Homework, Question
 from courses.models.homework import HomeworkState
 
 from api.crud import bulk_create_response

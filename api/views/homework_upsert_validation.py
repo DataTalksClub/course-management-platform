@@ -12,7 +12,7 @@ from api.views.homework_upsert_common import (
 from api.views.homework_upsert_questions import (
     homework_questions_replace_error,
 )
-from courses.models import Homework
+from courses.models.homework import Homework
 
 
 @dataclass(frozen=True)

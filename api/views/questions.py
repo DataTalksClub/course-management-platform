@@ -3,7 +3,8 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.auth import token_required
-from courses.models import Course, Homework, Question
+from courses.models.course import Course
+from courses.models.homework import Homework, Question
 
 from api.safety import (
     require_staff_token,

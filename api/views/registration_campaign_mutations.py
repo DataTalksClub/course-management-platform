@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 
 from api.safety import error_response
 from api.utils import parse_json_body
-from courses.models import Course, RegistrationCampaign
+from courses.models.course import Course, RegistrationCampaign
 
 
 CAMPAIGN_FIELDS = {

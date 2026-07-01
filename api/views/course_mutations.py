@@ -3,7 +3,7 @@ from django.utils.dateparse import parse_date
 
 from api.safety import error_response
 from api.utils import parse_json_body
-from courses.models import Course
+from courses.models.course import Course
 
 
 COURSE_PATCH_FIELDS = {

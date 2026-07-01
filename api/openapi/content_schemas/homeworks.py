@@ -1,4 +1,4 @@
-from courses.models import Homework
+from courses.models.homework import Homework
 
 from ..primitives import (
     JSON,

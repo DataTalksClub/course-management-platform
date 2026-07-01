@@ -1,4 +1,4 @@
-from courses.models import Question
+from courses.models.homework import Question
 
 from ..primitives import JSON, array_of, model_properties, ref
 

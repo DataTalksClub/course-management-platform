@@ -5,7 +5,7 @@ from api.safety import (
     ensure_no_related_records_for_delete,
 )
 from api.utils import parse_json_body
-from courses.models import Question
+from courses.models.homework import Question
 
 from .question_serializers import question_to_dict
 

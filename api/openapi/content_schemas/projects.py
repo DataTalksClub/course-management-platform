@@ -1,4 +1,4 @@
-from courses.models import Project
+from courses.models.project import Project
 
 from ..primitives import (
     JSON,

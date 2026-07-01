@@ -4,7 +4,8 @@ from django.shortcuts import get_object_or_404
 
 from api.crud import get_course_child_or_404
 from api.safety import require_staff_token
-from courses.models import Course, Project
+from courses.models.course import Course
+from courses.models.project import Project
 
 
 @dataclass(frozen=True)

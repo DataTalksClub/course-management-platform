@@ -5,7 +5,7 @@ from api.views.registration_campaign_serializers import (
     campaign_to_dict,
     registration_to_dict,
 )
-from courses.models import CourseRegistration
+from courses.models.course import CourseRegistration
 
 
 def registration_campaign_registrations_payload(campaign, params):

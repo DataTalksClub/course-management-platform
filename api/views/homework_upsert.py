@@ -14,7 +14,7 @@ from api.views.homework_upsert_save import (
     save_homework_upsert,
 )
 from api.views.homework_upsert_validation import validate_homework_upsert
-from courses.models import Course
+from courses.models.course import Course
 
 
 HOMEWORK_PATCH_FIELDS = {

@@ -5,7 +5,8 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
-from courses.models import Course, ProjectSubmission
+from courses.models.course import Course
+from courses.models.project import ProjectSubmission
 
 
 @require_GET

@@ -9,7 +9,7 @@ from accounts.auth import token_required
 from course_management.datamailer.sync.certificates import (
     send_certificate_availability_notification,
 )
-from courses.models import Course
+from courses.models.course import Course
 
 from .enrollment_certificate_updates import process_certificate_updates
 

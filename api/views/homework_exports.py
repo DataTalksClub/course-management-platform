@@ -12,10 +12,10 @@ from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
 
-from courses.models import (
-    Course,
-    Homework,
+from courses.models.course import Course
+from courses.models.homework import (
     Answer,
+    Homework,
 )
 
 

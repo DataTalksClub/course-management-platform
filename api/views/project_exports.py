@@ -11,8 +11,8 @@ from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
 
-from courses.models import (
-    Course,
+from courses.models.course import Course
+from courses.models.project import (
     Project,
     ProjectSubmission,
 )

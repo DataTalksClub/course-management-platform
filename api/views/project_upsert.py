@@ -1,7 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
-from courses.models import Course, Project
+from courses.models.course import Course
+from courses.models.project import Project
 from courses.models.project import ProjectState
 
 from api.safety import (

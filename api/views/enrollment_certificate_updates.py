@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from courses.models import Enrollment, User
+from courses.models.course import Enrollment, User
 
 
 @dataclass

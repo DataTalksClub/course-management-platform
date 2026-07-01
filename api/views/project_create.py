@@ -4,7 +4,7 @@ from datetime import date
 from django.http import JsonResponse
 from django.utils.text import slugify
 
-from courses.models import Project
+from courses.models.project import Project
 from courses.models.project import ProjectState
 
 from api.crud import bulk_create_response

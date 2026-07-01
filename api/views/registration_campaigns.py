@@ -14,7 +14,7 @@ from api.views.registration_campaign_registrations import (
     registration_campaign_registrations_payload,
 )
 from api.views.registration_campaign_serializers import campaign_to_dict
-from courses.models import RegistrationCampaign
+from courses.models.course import RegistrationCampaign
 
 
 def campaigns_list_response():

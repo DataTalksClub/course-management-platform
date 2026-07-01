@@ -1,4 +1,4 @@
-from courses.models import Question
+from courses.models.homework import Question
 from courses.models.homework import AnswerTypes, HomeworkState
 from courses.models.project import ProjectState
 

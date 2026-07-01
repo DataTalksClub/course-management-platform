@@ -17,7 +17,7 @@ from django.views.decorators.http import require_GET
 from api.views.leaderboard_export_data import (
     build_leaderboard_data,
 )
-from courses.models import Course
+from courses.models.course import Course
 
 logger = logging.getLogger(__name__)
 

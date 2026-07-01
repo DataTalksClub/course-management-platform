@@ -10,7 +10,7 @@ from api.views.homework_upsert_common import (
     validate_homework_instructions_url_value,
 )
 from api.views.homework_upsert_questions import replace_homework_questions
-from courses.models import Homework
+from courses.models.homework import Homework
 from courses.models.homework import HomeworkState
 
 

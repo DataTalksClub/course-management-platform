@@ -17,7 +17,7 @@ from api.views.course_serializers import (
     course_summary_to_dict,
     course_to_dict,
 )
-from courses.models import Course
+from courses.models.course import Course
 
 
 def courses_list_response():

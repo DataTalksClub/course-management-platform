@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 
-from courses.models import PeerReview
+from courses.models.project import PeerReview
 from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
