@@ -163,13 +163,9 @@ def perform_datamailer_campaign_action(data):
     return run_datamailer_campaign_action(data)
 
 
-def handle_datamailer_campaign_action(request, campaign):
+def datamailer_campaign_action_data(request, campaign, client):
     raw_action = request.POST.get("datamailer_action", "")
     action = raw_action.strip()
-    client = datamailer_campaign_client_or_message(request)
-    if client is None:
-        return None, True
-
     external_key = registration_campaign_external_key(campaign)
     action_data = DatamailerCampaignActionData(
         request=request,
@@ -177,6 +173,19 @@ def handle_datamailer_campaign_action(request, campaign):
         action=action,
         client=client,
         external_key=external_key,
+    )
+    return action_data
+
+
+def handle_datamailer_campaign_action(request, campaign):
+    client = datamailer_campaign_client_or_message(request)
+    if client is None:
+        return None, True
+
+    action_data = datamailer_campaign_action_data(
+        request,
+        campaign,
+        client,
     )
 
     try:
