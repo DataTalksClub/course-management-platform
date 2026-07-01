@@ -306,6 +306,8 @@ testable service functions.
   public project upsert route module.
 - [x] Remove the over-abstracted homework-create loader dataclasses and keep
   the create validation flow explicit and linear.
+- [x] Remove the matching over-abstracted project-create dataclasses and
+  expand the create validation flow into named local steps.
 
 ## Current Findings
 
