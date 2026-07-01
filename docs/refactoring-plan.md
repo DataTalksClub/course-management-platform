@@ -2389,6 +2389,15 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split project API serialization into identity, settings, deadline, and
+  deletion field groups, and avoid counting project submissions twice while
+  computing deletion blockers. Verification:
+  `uv run ruff check api/views/project_serializers.py api/tests/test_projects.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_projects`, comprehension,
+  size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
