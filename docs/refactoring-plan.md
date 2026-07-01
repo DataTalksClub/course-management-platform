@@ -17,6 +17,9 @@ testable service functions.
 - Use `uv run python manage.py test ...` for Django tests.
 - Do not mix UI redesign with backend refactoring unless a step specifically
   touches templates or form behavior.
+- Keep production and application-support functions within one screen. Use 30
+  lines as the active-code scan threshold outside tests, and allow test methods
+  and test helpers up to 60 lines when the scenario remains readable.
 - Do not introduce list/dict/set comprehensions during cleanup. Prefer explicit
   loops so filtering, appending, and early exits stay easy to inspect.
 - Use Pyrefly as a whole-repo Python type check during cleanup.
@@ -1413,6 +1416,11 @@ Steps:
   functions, repo-wide active-code scans excluding `.tmp` and generated
   migrations (`forbidden_comprehensions=0`, `long_functions=23`),
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Update function-size scanning rules to use a 30-line threshold for
+  production/application-support code and a 60-line threshold for tests.
+  Verification: repo-wide active-code scan excluding `.tmp` and generated
+  migrations reports `threshold_violations=0`; repo-wide comprehension scan
+  reports `forbidden_comprehensions=0`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
