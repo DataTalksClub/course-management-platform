@@ -50,6 +50,16 @@ class RawStatExpectation:
     average: float
 
 
+@dataclass(frozen=True)
+class WorkflowSubmissionScores:
+    project_score: int
+    project_learning_in_public_score: int
+    peer_review_score: int
+    peer_review_learning_in_public_score: int
+    total_score: int
+    time_spent: float
+
+
 class ProjectStatisticsTestCase(TestCase):
     def setUp(self):
         self.client = Client()
@@ -150,7 +160,9 @@ class ProjectStatisticsTestCase(TestCase):
         self.assertIsInstance(first_field, tuple)
         self.assertEqual(len(first_field), 3)
 
-        field_name, field_stats, field_icon = first_field
+        field_name = first_field[0]
+        field_stats = first_field[1]
+        field_icon = first_field[2]
         self.assertIsInstance(field_name, str)
         self.assertIsInstance(field_stats, list)
         self.assertIsInstance(field_icon, str)
@@ -600,30 +612,66 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         )
 
     def workflow_submission_score_rows(self):
-        return [
-            (5, 2, 1, 0, 8, 5.0),
-            (8, 4, 2, 1, 15, 8.0),
-            (12, 6, 3, 2, 23, 12.0),
-            (10, 5, 3, 1, 19, 10.0),
-            (15, 8, 3, 2, 28, 15.0),
-        ]
+        rows = []
+        row = WorkflowSubmissionScores(
+            project_score=5,
+            project_learning_in_public_score=2,
+            peer_review_score=1,
+            peer_review_learning_in_public_score=0,
+            total_score=8,
+            time_spent=5.0,
+        )
+        rows.append(row)
+        row = WorkflowSubmissionScores(
+            project_score=8,
+            project_learning_in_public_score=4,
+            peer_review_score=2,
+            peer_review_learning_in_public_score=1,
+            total_score=15,
+            time_spent=8.0,
+        )
+        rows.append(row)
+        row = WorkflowSubmissionScores(
+            project_score=12,
+            project_learning_in_public_score=6,
+            peer_review_score=3,
+            peer_review_learning_in_public_score=2,
+            total_score=23,
+            time_spent=12.0,
+        )
+        rows.append(row)
+        row = WorkflowSubmissionScores(
+            project_score=10,
+            project_learning_in_public_score=5,
+            peer_review_score=3,
+            peer_review_learning_in_public_score=1,
+            total_score=19,
+            time_spent=10.0,
+        )
+        rows.append(row)
+        row = WorkflowSubmissionScores(
+            project_score=15,
+            project_learning_in_public_score=8,
+            peer_review_score=3,
+            peer_review_learning_in_public_score=2,
+            total_score=28,
+            time_spent=15.0,
+        )
+        rows.append(row)
+        return rows
 
     def workflow_submission_scores(self, row):
-        (
-            project_score,
-            project_lip_score,
-            peer_review_score,
-            peer_review_lip_score,
-            total_score,
-            time_spent,
-        ) = row
         return {
-            "project_score": project_score,
-            "project_learning_in_public_score": project_lip_score,
-            "peer_review_score": peer_review_score,
-            "peer_review_learning_in_public_score": peer_review_lip_score,
-            "total_score": total_score,
-            "time_spent": time_spent,
+            "project_score": row.project_score,
+            "project_learning_in_public_score": (
+                row.project_learning_in_public_score
+            ),
+            "peer_review_score": row.peer_review_score,
+            "peer_review_learning_in_public_score": (
+                row.peer_review_learning_in_public_score
+            ),
+            "total_score": row.total_score,
+            "time_spent": row.time_spent,
         }
 
     def workflow_submission_data(self):
@@ -893,7 +941,6 @@ class ProjectStatisticsAdminTestCase(TestCase):
         )
 
         # Test action description
-        action_func, name, description = actions[
-            "calculate_statistics_selected_projects"
-        ]
+        action = actions["calculate_statistics_selected_projects"]
+        description = action[2]
         self.assertEqual(description, "Calculate statistics")

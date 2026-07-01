@@ -79,6 +79,8 @@ testable service functions.
 
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
+- [x] Replace remaining large tuple unpacking in project statistics tests with
+  named values or a dataclass.
 
 ## Current Findings
 
