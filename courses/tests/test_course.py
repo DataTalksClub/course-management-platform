@@ -7,8 +7,6 @@ from courses.models import (
 )
 from courses.tests.course_view_base import (
     CourseDetailViewTestBase,
-    OpenHomeworkExpectation,
-    ScoredHomeworkExpectation,
     credentials,
 )
 
@@ -173,8 +171,6 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
         self.assert_enrolled_course_context(response, total_score)
 
     def test_course_detail_authenticated_user_not_enrolled(self):
-        # Test the view for an authenticated user
-
         self.enrollment.delete()
         self.course.first_homework_scored = True
         self.course.save(update_fields=["first_homework_scored"])
@@ -186,28 +182,7 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
         context = response.context
 
         self.assert_course_context(context, authenticated=True)
-        homeworks = self.homeworks_by_slug(response)
-
-        scored_homework = homeworks["scored-homework"]
-        scored_expectation = ScoredHomeworkExpectation(
-            homework=scored_homework,
-            submitted=False,
-            score=None,
-        )
-        self.assert_scored_homework(scored_expectation)
-
-        submitted_homework = homeworks["submitted-homework"]
-        open_expectation = OpenHomeworkExpectation(
-            homework=submitted_homework,
-            submitted=False,
-            score=None,
-            days_until_due=7,
-        )
-        self.assert_open_homework(open_expectation)
-
-        unscored_homework = homeworks["unscored-homework"]
-        self.assert_unsubmitted_open_homework(unscored_homework)
-
+        self.assert_not_enrolled_homework_summary(response)
         self.assertIsNone(context["total_score"])
         self.assertFalse(context["has_enrollment"])
         self.assert_no_enrollment_profile_links(response)

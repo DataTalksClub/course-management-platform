@@ -288,6 +288,27 @@ class CourseDetailViewTestBase(TestCase):
             homeworks["unscored-homework"]
         )
 
+    def assert_not_enrolled_homework_summary(self, response):
+        homeworks = self.homeworks_by_slug(response)
+        scored_expectation = ScoredHomeworkExpectation(
+            homework=homeworks["scored-homework"],
+            submitted=False,
+            score=None,
+        )
+        self.assert_scored_homework(scored_expectation)
+
+        submitted_homework = homeworks["submitted-homework"]
+        open_expectation = OpenHomeworkExpectation(
+            homework=submitted_homework,
+            submitted=False,
+            score=None,
+            days_until_due=7,
+        )
+        self.assert_open_homework(open_expectation)
+
+        unscored_homework = homeworks["unscored-homework"]
+        self.assert_unsubmitted_open_homework(unscored_homework)
+
     def assert_enrolled_course_context(self, response, total_score):
         self.assertEqual(response.context["total_score"], total_score)
         self.assertTrue(response.context["has_enrollment"])

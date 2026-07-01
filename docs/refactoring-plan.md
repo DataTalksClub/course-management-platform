@@ -147,6 +147,10 @@ testable service functions.
   test module.
 - [x] Split course detail view fixture helpers and certificate-display tests
   out of the oversized course detail test module.
+- [x] Shorten the not-enrolled course detail test by moving repeated homework
+  state assertions into the shared course-view fixture base. Verification:
+  `uv run ruff check courses/tests/test_course.py courses/tests/course_view_base.py`
+  and `uv run python manage.py test courses.tests.test_course`.
 - [x] Split project list view tests out of the oversized project evaluation
   test module.
 - [x] Extract deadline reminder event planning from the management command into
