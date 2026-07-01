@@ -9,7 +9,7 @@ from courses.models import (
     AnswerTypes,
 )
 
-from courses.scoring import (
+from courses.homework_score_calculation import (
     is_checkbox_answer_correct,
     is_multiple_choice_answer_correct,
     is_free_form_answer_correct,

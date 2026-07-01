@@ -15,7 +15,7 @@ from courses.models import (
     ProjectSubmission,
 )
 
-from courses.scoring import (
+from courses.homework_score_calculation import (
     update_learning_in_public_score,
 )
 from courses.services.enrollment_flags import (

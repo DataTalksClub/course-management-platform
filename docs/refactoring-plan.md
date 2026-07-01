@@ -124,6 +124,8 @@ testable service functions.
   out of the score-notification payload module.
 - [x] Split project score calculation and peer-review grouping helpers out of
   the project scoring orchestration module.
+- [x] Split homework answer correctness and single-submission score update
+  helpers out of the homework scoring orchestration module.
 
 ## Current Findings
 

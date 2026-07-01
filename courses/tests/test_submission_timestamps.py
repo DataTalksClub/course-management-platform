@@ -13,7 +13,7 @@ from courses.models import (
     QuestionTypes,
     Submission,
 )
-from courses.scoring import update_score
+from courses.homework_score_calculation import update_score
 
 
 class SubmissionTimestampTest(TestCase):

@@ -2,7 +2,7 @@ from django.db import transaction
 
 from courses.models import Answer, ProjectEvaluationScore
 from courses.leaderboard import update_leaderboard
-from courses.scoring import update_score
+from courses.homework_score_calculation import update_score
 
 
 def update_homework_submission_from_admin(submission, cleaned_data):

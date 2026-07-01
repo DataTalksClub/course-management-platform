@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from courses.models import Answer, Homework, HomeworkState, Question
 from courses.models import QuestionTypes
-from courses.scoring import is_free_form_answer_correct
+from courses.homework_score_calculation import is_free_form_answer_correct
 
 
 CHOICE_QUESTION_TYPES = {
