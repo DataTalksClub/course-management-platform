@@ -2894,6 +2894,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Remove the enrollment graduate test helper that unpacked
+  `PassedProjectSubmissionData` fields back into positional arguments; callers
+  now construct the dataclass and pass it directly. Verification:
+  `uv run ruff check data/tests/enrollment_base.py data/tests/test_enrollment.py`,
+  `uv run python manage.py test data.tests.test_enrollment`, touched-file
+  scans report `touched_wide_helpers=0` and `touched_nested_call_args=0`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

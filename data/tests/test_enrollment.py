@@ -4,7 +4,10 @@ Tests for enrollment-related graduate data API views.
 
 from courses.models import Enrollment
 
-from .enrollment_base import EnrollmentDataAPIBase
+from .enrollment_base import (
+    EnrollmentDataAPIBase,
+    PassedProjectSubmissionData,
+)
 
 
 class EnrollmentGraduateDataAPITestCase(EnrollmentDataAPIBase):
@@ -21,18 +24,20 @@ class EnrollmentGraduateDataAPITestCase(EnrollmentDataAPIBase):
         return other_user, other_enrollment
 
     def create_primary_graduate_submissions(self, project1, project2):
-        self.create_passed_submission_data(
-            project1,
-            self.user,
-            self.enrollment,
-            "1111",
+        first_submission = PassedProjectSubmissionData(
+            project=project1,
+            student=self.user,
+            enrollment=self.enrollment,
+            commit_id="1111",
         )
-        self.create_passed_submission_data(
-            project2,
-            self.user,
-            self.enrollment,
-            "2222",
+        self.create_passed_project_submission(first_submission)
+        second_submission = PassedProjectSubmissionData(
+            project=project2,
+            student=self.user,
+            enrollment=self.enrollment,
+            commit_id="2222",
         )
+        self.create_passed_project_submission(second_submission)
 
     def create_graduate_view_scenario(self):
         self.require_two_projects_to_pass()
@@ -41,12 +46,13 @@ class EnrollmentGraduateDataAPITestCase(EnrollmentDataAPIBase):
         project1 = self.create_saved_project("project1", "Project 1")
         project2 = self.create_saved_project("project2", "Project 2")
         self.create_primary_graduate_submissions(project1, project2)
-        self.create_passed_submission_data(
-            project1,
-            other_user,
-            other_enrollment,
-            "3333",
+        other_submission = PassedProjectSubmissionData(
+            project=project1,
+            student=other_user,
+            enrollment=other_enrollment,
+            commit_id="3333",
         )
+        self.create_passed_project_submission(other_submission)
 
     def test_graduate_data_view(self):
         self.create_graduate_view_scenario()
@@ -57,8 +63,9 @@ class EnrollmentGraduateDataAPITestCase(EnrollmentDataAPIBase):
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
         graduates = response_json["graduates"]
+        graduates_count = len(graduates)
 
-        self.assertEqual(len(graduates), 1)
+        self.assertEqual(graduates_count, 1)
 
         first_graduate = graduates[0]
         self.assertEqual(first_graduate["email"], self.user.email)

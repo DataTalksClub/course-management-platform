@@ -143,21 +143,6 @@ class EnrollmentDataAPIBase(TestCase):
             passed=True,
         )
 
-    def create_passed_submission_data(
-        self,
-        project,
-        student,
-        enrollment,
-        commit_id,
-    ):
-        data = PassedProjectSubmissionData(
-            project=project,
-            student=student,
-            enrollment=enrollment,
-            commit_id=commit_id,
-        )
-        self.create_passed_project_submission(data)
-
     def create_test_project(self, slug, title):
         now = timezone.now()
         submission_due_date = now + timezone.timedelta(days=7)
