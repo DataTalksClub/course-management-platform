@@ -10,6 +10,7 @@ from ..keys import (
 from .base import (
     RecipientListMemberPayload,
     RecipientListMemberPayloadData,
+    normalized_email,
     recipient_list_member_payload,
 )
 
@@ -17,9 +18,7 @@ from .base import (
 def homework_submission_recipient_list_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
-    email_value = submission.student.email or ""
-    stripped_email = email_value.strip()
-    email = stripped_email.lower()
+    email = normalized_email(submission.student.email)
     if not email:
         return None
 
@@ -153,9 +152,7 @@ def project_public_url(project):
 def project_submission_recipient_list_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
-    email_value = submission.student.email or ""
-    stripped_email = email_value.strip()
-    email = stripped_email.lower()
+    email = normalized_email(submission.student.email)
     if not email:
         return None
 

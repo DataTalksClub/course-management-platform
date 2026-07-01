@@ -5,6 +5,7 @@ from ..keys import course_graduates_list_key
 from .base import (
     RecipientListMemberPayload,
     RecipientListMemberPayloadData,
+    normalized_email,
     recipient_list_member_payload,
     recipient_list_send_member_payload,
 )
@@ -38,13 +39,6 @@ def course_graduate_recipient_list_payload(
     return list_key, payload
 
 
-def _course_graduate_email(enrollment) -> str:
-    email = enrollment.student.email or ""
-    stripped_email = email.strip()
-    normalized_email = stripped_email.lower()
-    return normalized_email
-
-
 def _course_graduate_certificate_url(enrollment) -> str:
     certificate_url = enrollment.certificate_url or ""
     stripped_certificate_url = certificate_url.strip()
@@ -56,7 +50,7 @@ def _course_graduate_source_object_key(enrollment) -> str:
 
 
 def _course_graduate_member_data(enrollment):
-    email = _course_graduate_email(enrollment)
+    email = normalized_email(enrollment.student.email)
     certificate_url = _course_graduate_certificate_url(enrollment)
     if not email or not certificate_url:
         return None

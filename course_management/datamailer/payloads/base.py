@@ -25,6 +25,13 @@ class RecipientListMemberPayload:
     payload: dict[str, Any]
 
 
+def normalized_email(value) -> str:
+    email_value = value or ""
+    stripped_email = email_value.strip()
+    email = stripped_email.lower()
+    return email
+
+
 def contact_base_custom_fields(user) -> dict[str, str]:
     platform_user_id = str(user.pk)
     return {
@@ -60,9 +67,7 @@ def contact_payload_tags_and_fields(user, course):
 def contact_payload_for_user(
     user, course=None
 ) -> dict[str, Any] | None:
-    email_value = user.email or ""
-    stripped_email = email_value.strip()
-    email = stripped_email.lower()
+    email = normalized_email(user.email)
     if not email:
         return None
 
@@ -91,7 +96,7 @@ def recipient_list_member_payload(data) -> dict[str, Any] | None:
     if config is None:
         return None
 
-    email = data.email.strip().lower()
+    email = normalized_email(data.email)
     source_metadata = {"source_object_key": data.source_object_key}
     metadata = data.metadata | source_metadata
 
@@ -133,9 +138,7 @@ def enrollment_recipient_metadata(enrollment) -> dict[str, Any]:
 def enrollment_recipient_list_payload(
     enrollment,
 ) -> RecipientListMemberPayload | None:
-    email_value = enrollment.student.email or ""
-    stripped_email = email_value.strip()
-    email = stripped_email.lower()
+    email = normalized_email(enrollment.student.email)
     if not email:
         return None
 

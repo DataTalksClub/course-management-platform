@@ -5,6 +5,7 @@ from django.urls import reverse
 from course_management import email_templates
 
 from ..client import DatamailerConfig, public_url
+from .base import normalized_email
 
 
 def _certificate_availability_urls(enrollment):
@@ -63,9 +64,7 @@ def _certificate_availability_metadata(enrollment):
 
 
 def _certificate_availability_recipient(enrollment) -> str | None:
-    email_value = enrollment.student.email or ""
-    stripped_email = email_value.strip()
-    email = stripped_email.lower()
+    email = normalized_email(enrollment.student.email)
     certificate_url = enrollment.certificate_url or ""
     stripped_certificate_url = certificate_url.strip()
     if not email or not stripped_certificate_url:

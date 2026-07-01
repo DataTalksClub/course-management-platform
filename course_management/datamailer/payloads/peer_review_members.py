@@ -9,6 +9,7 @@ from ..keys import project_submitters_list_key
 from .base import (
     RecipientListMemberPayload,
     RecipientListMemberPayloadData,
+    normalized_email,
     recipient_list_member_payload,
     recipient_list_send_member_payload,
 )
@@ -123,9 +124,7 @@ def peer_review_assignment_deadline_metadata(
 def peer_review_assignment_recipient_list_payload(
     submission,
 ) -> RecipientListMemberPayload | None:
-    email_value = submission.student.email or ""
-    stripped_email = email_value.strip()
-    email = stripped_email.lower()
+    email = normalized_email(submission.student.email)
     if not email:
         return None
 

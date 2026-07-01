@@ -2340,6 +2340,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Centralize Datamailer payload email normalization in the payload base
+  module and remove duplicated inline `strip().lower()` recipient handling
+  from enrollment, submission, peer-review assignment, graduate, and
+  certificate-availability payload builders. Verification:
+  `uv run ruff check course_management/datamailer/payloads/base.py course_management/datamailer/payloads/submissions.py course_management/datamailer/payloads/peer_review_members.py course_management/datamailer/payloads/certificate_availability.py course_management/datamailer/payloads/course_graduates.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_membership courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_peer_review courses.tests.test_datamailer_certificates`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
