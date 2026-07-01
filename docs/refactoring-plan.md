@@ -478,6 +478,11 @@ testable service functions.
   Verification:
   `uv run ruff check courses/tests/test_disable_learning_in_public.py` and
   `uv run python manage.py test courses.tests.test_disable_learning_in_public`.
+- [x] Split project-evaluation review-criteria fixture setup into named
+  code-quality, documentation, and best-practices criteria builders.
+  Verification: `uv run ruff check courses/tests/project_eval_base.py`
+  and
+  `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`.
 
 ## Current Findings
 

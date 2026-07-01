@@ -88,41 +88,50 @@ class ProjectEvaluationTestBase(TestCase):
             review_criteria_type=review_criteria_type,
         )
 
-    def create_review_criteria_set(self):
-        code_quality_options = [
+    def create_code_quality_criteria(self):
+        options = [
             {"criteria": "Poor", "score": 0},
             {"criteria": "Satisfactory", "score": 1},
             {"criteria": "Good", "score": 2},
             {"criteria": "Excellent", "score": 3},
         ]
-        self.criteria1 = self.create_review_criteria(
+        return self.create_review_criteria(
             "Code quality",
-            code_quality_options,
+            options,
             ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
-        documentation_options = [
+
+    def create_documentation_criteria(self):
+        options = [
             {"criteria": "None", "score": 0},
             {"criteria": "Basic", "score": 1},
             {"criteria": "Complete", "score": 2},
             {"criteria": "In-depth", "score": 3},
         ]
-        self.criteria2 = self.create_review_criteria(
+        return self.create_review_criteria(
             "Project documentation",
-            documentation_options,
+            options,
             ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
-        best_practices_options = [
+
+    def create_best_practices_criteria(self):
+        options = [
             {"criteria": "Coding standards", "score": 1},
             {"criteria": "Tests", "score": 1},
             {"criteria": "Logging", "score": 1},
             {"criteria": "Version control", "score": 1},
             {"criteria": "CI/CD", "score": 1},
         ]
-        self.criteria3 = self.create_review_criteria(
+        return self.create_review_criteria(
             "Best practices",
-            best_practices_options,
+            options,
             ReviewCriteriaTypes.CHECKBOXES.value,
         )
+
+    def create_review_criteria_set(self):
+        self.criteria1 = self.create_code_quality_criteria()
+        self.criteria2 = self.create_documentation_criteria()
+        self.criteria3 = self.create_best_practices_criteria()
         self.criteria = [self.criteria1, self.criteria2, self.criteria3]
 
     def setUp(self):
