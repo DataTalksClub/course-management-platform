@@ -6,16 +6,6 @@ from .base import (
     contact_payload_for_user,
     contact_payload_tags_and_fields,
     enrollment_recipient_list_payload,
-    homework_public_url,
-    homework_submission_metadata,
-    homework_submission_recipient_list_payload,
-    project_public_url,
-    project_submission_identity_metadata,
-    project_submission_metadata,
-    project_submission_recipient_list_payload,
-    project_submission_score_metadata,
-    project_submission_source_metadata,
-    project_submission_status_metadata,
     recipient_list_member_payload,
     recipient_list_send_member_payload,
     registration_campaign_datamailer_payload,
@@ -65,6 +55,18 @@ from .send import (
     recipient_list_response_key,
     recipient_list_send_payload,
     transient_recipient_list_key,
+)
+from .submissions import (
+    homework_public_url,
+    homework_submission_metadata,
+    homework_submission_recipient_list_payload,
+    project_public_url,
+    project_submission_identity_metadata,
+    project_submission_metadata,
+    project_submission_recipient_list_payload,
+    project_submission_score_metadata,
+    project_submission_source_metadata,
+    project_submission_status_metadata,
 )
 
 __all__ = (

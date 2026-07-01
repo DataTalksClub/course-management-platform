@@ -116,6 +116,8 @@ testable service functions.
 - [x] Rename the generic `courses.projects` scoring module to
   `courses.project_scoring` and update direct imports without a compatibility
   shim.
+- [x] Split Datamailer homework/project submission recipient-list payload
+  helpers out of the shared payload base module.
 
 ## Current Findings
 

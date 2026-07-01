@@ -12,9 +12,11 @@ from ..keys import (
 )
 from .base import (
     RecipientListMemberPayload,
+    recipient_list_send_member_payload,
+)
+from .submissions import (
     homework_submission_recipient_list_payload,
     project_submission_recipient_list_payload,
-    recipient_list_send_member_payload,
 )
 
 def homework_score_notification_members(
