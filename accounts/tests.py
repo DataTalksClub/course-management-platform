@@ -93,7 +93,10 @@ class AccountSettingsTestCase(TestCase):
         self.assertEqual(self.user.about_me, "Learning data.")
         self.assertFalse(self.user.dark_mode)
 
-    @patch("accounts.views.update_email_preferences_for_user")
+    @patch(
+        "accounts.views.email_preferences."
+        "update_email_preferences_for_user"
+    )
     def test_account_email_preferences_update_proxies_to_datamailer(
         self,
         update_email_preferences,
@@ -120,7 +123,10 @@ class AccountSettingsTestCase(TestCase):
             {"email_deadline_reminders": False},
         )
 
-    @patch("accounts.views.get_email_preferences_for_user")
+    @patch(
+        "accounts.views.email_preferences."
+        "get_email_preferences_for_user"
+    )
     def test_account_email_preferences_read_proxies_to_datamailer(
         self,
         get_email_preferences,
@@ -154,7 +160,10 @@ class AccountSettingsTestCase(TestCase):
 
         self.assertEqual(response.status_code, 503)
 
-    @patch("accounts.views.get_email_preferences_for_user")
+    @patch(
+        "accounts.views.email_preferences."
+        "get_email_preferences_for_user"
+    )
     def test_account_settings_does_not_block_on_datamailer_preferences(
         self,
         get_email_preferences,

@@ -256,6 +256,9 @@ testable service functions.
   inlined URL, timestamp, list, or payload helper calls inside records.
 - [x] Flatten campaign stats, course duplicate-field, and Datamailer send-status
   record builders and remove a tiny send-status count wrapper.
+- [x] Split the mixed `accounts/views.py` module into focused account settings,
+  toggle, email-preference, timezone, impersonation, login, and disabled-route
+  view modules with direct URL imports.
 
 ## Current Findings
 
