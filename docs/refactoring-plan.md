@@ -1920,6 +1920,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name peer-review badge course URLs, peer-review submissions, submitted
+  timestamps, and project-score answer rows before calls or assertions.
+  Verification:
+  `uv run ruff check courses/tests/test_peer_review_badge.py courses/tests/test_project_score.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_peer_review_badge courses.tests.test_project_score`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

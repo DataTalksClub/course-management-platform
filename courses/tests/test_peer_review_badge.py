@@ -75,19 +75,22 @@ class PeerReviewBadgeTests(TestCase):
 
     def create_submitted_reviews(self, reviewer_submission, count):
         for index in range(count):
+            peer_submission = self.create_peer_submission(index)
+            submitted_at = timezone.now()
             PeerReview.objects.create(
-                submission_under_evaluation=self.create_peer_submission(index),
+                submission_under_evaluation=peer_submission,
                 reviewer=reviewer_submission,
                 optional=False,
                 state=PeerReviewState.SUBMITTED.value,
-                submitted_at=timezone.now(),
+                submitted_at=submitted_at,
             )
 
     def course_project(self):
         self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
+        course_url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
         )
+        response = self.client.get(course_url)
         self.assertEqual(response.status_code, 200)
         projects = response.context["projects"]
         self.assertEqual(len(projects), 1)
@@ -211,12 +214,13 @@ class PeerReviewBadgeEndToEndTests(TestCase):
         )
 
     def create_submitted_reverse_review(self, other_submission):
+        submitted_at = timezone.now()
         return PeerReview.objects.create(
             submission_under_evaluation=self.main_submission,
             reviewer=other_submission,
             optional=False,
             state=PeerReviewState.SUBMITTED.value,
-            submitted_at=timezone.now(),
+            submitted_at=submitted_at,
         )
 
     def create_review_criteria(self):
@@ -246,9 +250,10 @@ class PeerReviewBadgeEndToEndTests(TestCase):
     def get_badge_state(self):
         """Helper to get current badge state from course view"""
         self.client.login(username="main@test.com", password="12345")
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
+        course_url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
         )
+        response = self.client.get(course_url)
         self.assertEqual(response.status_code, 200)
 
         projects = response.context["projects"]

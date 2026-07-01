@@ -12,42 +12,34 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
             answers_and_scores, expected_project_score
         )
 
-    def test_project_evaluation_complete_mediam(self):
-        answers = ["4", "4", "1"]
-        scores = [3, 3, 0]
+    def test_project_evaluation_complete_median(self):
+        answers_and_scores = [("4", 3), ("4", 3), ("1", 0)]
         expected_project_score = 3
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
     def test_project_evaluation_two_submissions(self):
-        answers = ["4", "2"]
-        scores = [3, 1]
+        answers_and_scores = [("4", 3), ("2", 1)]
         expected_project_score = 2
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
     def test_project_evaluation_two_submissions_round_up(self):
-        answers = ["4", "1"]
-        scores = [3, 0]
+        answers_and_scores = [("4", 3), ("1", 0)]
         expected_project_score = 2
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
     def test_project_evaluation_one_submission(self):
-        answers = ["4"]
-        scores = [3]
+        answers_and_scores = [("4", 3)]
         expected_project_score = 3
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
@@ -55,11 +47,9 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
     def test_project_evaluation_zero_submissions_get_median_score_rounded_up(
         self,
     ):
-        answers = []
-        scores = []
+        answers_and_scores = []
         expected_project_score = 2
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
