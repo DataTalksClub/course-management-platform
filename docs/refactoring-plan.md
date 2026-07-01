@@ -1277,6 +1277,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten Datamailer recipient-list import command tests by extracting the
+  enrollment import-by-reference command runner and failed import payload.
+  Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_list_imports.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_list_imports`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

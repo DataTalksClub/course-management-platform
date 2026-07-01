@@ -21,6 +21,19 @@ from courses.tests.datamailer_recipient_lists_base import (
 class DatamailerRecipientListImportCommandTest(
     DatamailerRecipientListCommandTestBase
 ):
+    def run_enrollment_import_by_reference(self, enrollment, *extra_args):
+        out = StringIO()
+        call_command(
+            "sync_datamailer_recipient_lists",
+            "enrollments",
+            "--course-slug",
+            enrollment.course.slug,
+            "--import-by-reference",
+            *extra_args,
+            stdout=out,
+        )
+        return out
+
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
@@ -89,17 +102,11 @@ class DatamailerRecipientListImportCommandTest(
         )
         enrollment = self.create_enrolled_student()
 
-        out = StringIO()
-        call_command(
-            "sync_datamailer_recipient_lists",
-            "enrollments",
-            "--course-slug",
-            enrollment.course.slug,
-            "--import-by-reference",
+        out = self.run_enrollment_import_by_reference(
+            enrollment,
             "--wait-for-import",
             "--import-poll-interval",
             "0.01",
-            stdout=out,
         )
 
         expectation = ImportWaitExpectation(
@@ -132,13 +139,7 @@ class DatamailerRecipientListImportCommandTest(
         self.configure_import_by_reference(
             boto3_client, create_import, job_id=19
         )
-        recipient_list_import.return_value = {
-            "import_job": {
-                "id": 19,
-                "status": "failed",
-                "error": "bad jsonl",
-            }
-        }
+        recipient_list_import.return_value = self.failed_import_response()
         enrollment = self.create_enrolled_student()
 
         with self.assertRaisesMessage(
@@ -147,15 +148,18 @@ class DatamailerRecipientListImportCommandTest(
             f"{course_enrolled_list_key(enrollment.course)}: "
             "job_id=19; error=bad jsonl",
         ):
-            call_command(
-                "sync_datamailer_recipient_lists",
-                "enrollments",
-                "--course-slug",
-                enrollment.course.slug,
-                "--import-by-reference",
+            self.run_enrollment_import_by_reference(
+                enrollment,
                 "--wait-for-import",
-                stdout=StringIO(),
             )
+
+    def failed_import_response(self):
+        import_job = {
+            "id": 19,
+            "status": "failed",
+            "error": "bad jsonl",
+        }
+        return {"import_job": import_job}
 
     def configure_processing_import_job(self, recipient_list_import, job_id):
         recipient_list_import.return_value = {
