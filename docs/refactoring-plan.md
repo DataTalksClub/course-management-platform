@@ -145,6 +145,8 @@ testable service functions.
   upsert view module as the coordinator.
 - [x] Split course homepage display metadata out of the public course list view
   so list and detail pages share it through a direct owner module.
+- [x] Split course API serialization and mutation workflows out of the public
+  course API view module, keeping list/detail handlers as coordinators.
 
 ## Current Findings
 
