@@ -1,8 +1,5 @@
 from dataclasses import dataclass
-import time
 
-from botocore.exceptions import BotoCoreError, ClientError
-import requests
 from django.core.management.base import BaseCommand, CommandError
 
 from course_management.datamailer.client import (
@@ -14,54 +11,11 @@ from course_management.datamailer.recipient_list_batches import (
     RECIPIENT_LIST_KINDS,
     build_batches,
 )
-from course_management.datamailer.recipient_list_imports import (
-    import_idempotency_key,
-    upload_import_file,
+from course_management.datamailer.recipient_list_sync import (
+    ImportJobOptions,
+    RecipientListSyncData,
+    sync_recipient_list_batches,
 )
-
-
-@dataclass(frozen=True)
-class ImportJobOptions:
-    remove_absent: bool
-    wait_for_import: bool
-    timeout: int
-    poll_interval: float
-
-
-@dataclass(frozen=True)
-class ImportJobData:
-    client: DatamailerClient
-    config: DatamailerConfig
-    kind: str
-    list_key: str
-    payload: dict
-    options: ImportJobOptions
-
-
-@dataclass(frozen=True)
-class ImportJobCreatedData:
-    list_key: str
-    upload: dict
-    job: dict
-    job_id: str | None
-
-
-@dataclass(frozen=True)
-class ImportJobWaitData:
-    client: DatamailerClient
-    list_key: str
-    job_id: str | None
-    timeout: int
-    poll_interval: float
-
-
-@dataclass(frozen=True)
-class InlineSyncData:
-    client: DatamailerClient
-    config: DatamailerConfig
-    list_key: str
-    payload: dict
-    reconcile: bool
 
 
 @dataclass(frozen=True)
@@ -70,17 +24,6 @@ class RecipientListSyncRequest:
     kind: str
     batches: dict
     options: dict
-
-
-@dataclass(frozen=True)
-class RecipientListSyncData:
-    client: DatamailerClient
-    config: DatamailerConfig
-    kind: str
-    batches: dict
-    reconcile: bool
-    import_by_reference: bool
-    import_options: ImportJobOptions
 
 
 def validate_recipient_list_options(kind, options):
@@ -287,194 +230,4 @@ class Command(BaseCommand):
             import_by_reference=request.options["import_by_reference"],
             import_options=import_options,
         )
-        self._sync_batches(sync_data)
-
-    def _sync_batches(self, data):
-        for list_key, payload in data.batches.items():
-            if data.import_by_reference:
-                import_data = self._import_job_data(
-                    data,
-                    list_key,
-                    payload,
-                )
-                self._create_import_job(import_data)
-                continue
-
-            inline_data = InlineSyncData(
-                client=data.client,
-                config=data.config,
-                list_key=list_key,
-                payload=payload,
-                reconcile=data.reconcile,
-            )
-            response = self._sync_inline_batch(inline_data)
-            self._write_sync_result(list_key, payload, response)
-
-    def _import_job_data(self, data, list_key, payload):
-        return ImportJobData(
-            client=data.client,
-            config=data.config,
-            kind=data.kind,
-            list_key=list_key,
-            payload=payload,
-            options=data.import_options,
-        )
-
-    def _sync_inline_batch(self, data):
-        try:
-            if data.reconcile:
-                return data.client.reconcile_recipient_list_members(
-                    data.list_key, data.payload
-                )
-            return data.client.bulk_upsert_recipient_list_members(
-                data.list_key, data.payload
-            )
-        except requests.RequestException as exc:
-            if data.config.strict:
-                raise
-            raise CommandError(
-                f"Datamailer sync failed for {data.list_key}: {exc}"
-            ) from exc
-
-    def _write_sync_result(self, list_key, payload, response):
-        active_count = self._active_member_count(response)
-        suffix = (
-            f"; active={active_count}"
-            if active_count is not None
-            else ""
-        )
-        self.stdout.write(
-            f"Synced {list_key}: {len(payload['members'])} member(s){suffix}"
-        )
-
-    def _active_member_count(self, response):
-        if not response:
-            return None
-        return response.get("recipient_list", {}).get(
-            "active_member_count"
-        )
-
-    def _create_import_job(self, import_data):
-        upload, response = self._safe_create_import_job_response(
-            import_data
-        )
-        job = (response or {}).get("import_job", {})
-        job_id = job.get("id")
-        created_data = ImportJobCreatedData(
-            list_key=import_data.list_key,
-            upload=upload,
-            job=job,
-            job_id=job_id,
-        )
-        self._write_import_job_created(created_data)
-        if import_data.options.wait_for_import:
-            wait_data = ImportJobWaitData(
-                client=import_data.client,
-                list_key=import_data.list_key,
-                job_id=job_id,
-                timeout=import_data.options.timeout,
-                poll_interval=import_data.options.poll_interval,
-            )
-            self._wait_for_created_import_job(wait_data)
-
-    def _safe_create_import_job_response(self, import_data):
-        try:
-            return self._create_import_job_response(import_data)
-        except (
-            BotoCoreError,
-            ClientError,
-            requests.RequestException,
-        ) as exc:
-            if import_data.config.strict:
-                raise
-            raise CommandError(
-                "Datamailer import job creation failed for "
-                f"{import_data.list_key}: {exc}"
-            ) from exc
-
-    def _create_import_job_response(self, import_data):
-        upload = upload_import_file(
-            import_data.kind,
-            import_data.config,
-            import_data.list_key,
-            import_data.payload,
-        )
-        idempotency_key = import_idempotency_key(
-            import_data.kind,
-            import_data.list_key,
-            upload["content_sha256"],
-            remove_absent=import_data.options.remove_absent,
-        )
-        import_payload = {
-            "source_url": upload["source_url"],
-            "idempotency_key": idempotency_key,
-            "list": import_data.payload["list"],
-            "remove_absent": import_data.options.remove_absent,
-        }
-        response = import_data.client.create_recipient_list_import(
-            import_data.list_key,
-            import_payload,
-        )
-        return upload, response
-
-    def _write_import_job_created(self, data):
-        status = data.job.get("status", "unknown")
-        self.stdout.write(
-            "Created import job for "
-            f"{data.list_key}: job_id={data.job_id}; status={status}; "
-            f"rows={data.upload['row_count']}; s3_key={data.upload['s3_key']}"
-        )
-
-    def _wait_for_created_import_job(self, data):
-        if not data.job_id:
-            raise CommandError(
-                "Datamailer did not return an import job id for "
-                f"{data.list_key}."
-            )
-        self._wait_for_import_job(data)
-
-    def _wait_for_import_job(self, data):
-        deadline = time.monotonic() + data.timeout
-        while True:
-            job = self._import_job(data.client, data.list_key, data.job_id)
-            if self._handle_import_job_status(
-                data.list_key,
-                data.job_id,
-                job,
-            ):
-                return
-            if time.monotonic() >= deadline:
-                raise CommandError(
-                    "Timed out waiting for Datamailer import job "
-                    f"{data.job_id} for {data.list_key}; "
-                    f"last status={job.get('status')}"
-                )
-            time.sleep(data.poll_interval)
-
-    def _import_job(self, client, list_key, job_id):
-        response = client.recipient_list_import(list_key, job_id)
-        response_body = response or {}
-        import_job = response_body.get("import_job", {})
-        return import_job
-
-    def _handle_import_job_status(self, list_key, job_id, job):
-        status = job.get("status")
-        if status == "succeeded":
-            self._write_import_job_succeeded(list_key, job_id, job)
-            return True
-        if status == "failed":
-            raise CommandError(
-                "Datamailer import job failed for "
-                f"{list_key}: job_id={job_id}; error={job.get('error')}"
-            )
-        return False
-
-    def _write_import_job_succeeded(self, list_key, job_id, job):
-        self.stdout.write(
-            "Import job succeeded for "
-            f"{list_key}: job_id={job_id}; "
-            f"rows={job.get('row_count')}; "
-            f"created={job.get('created_count')}; "
-            f"updated={job.get('updated_count')}; "
-            f"removed={job.get('removed_count')}"
-        )
+        sync_recipient_list_batches(sync_data, self.stdout.write)

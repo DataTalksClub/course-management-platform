@@ -713,6 +713,8 @@ Steps:
   question modules under the content-paths package.
 - [x] Split Datamailer template definitions into submission, score,
   certificate, reminder, and peer-review modules.
+- [x] Split Datamailer recipient-list sync execution and import-job polling out
+  of the management command into a service module.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin
