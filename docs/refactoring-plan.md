@@ -2206,6 +2206,18 @@ Steps:
   `python -m py_compile scripts/load_project_data.py scripts/generate_production_like_leaderboard_data.py`,
   broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Remove the Datamailer outbox sender dispatch map and tiny one-use sender
+  wrappers by making the event-type dispatcher explicit with named payload
+  fields. Verification:
+  `uv run ruff check course_management/datamailer_outbox_senders.py course_management/urls.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
+- [x] Name Django URL includes before `path(...)` registration so the project URL
+  module follows the no-nested-meaningful-call cleanup rule. Verification:
+  `uv run ruff check course_management/urls.py docs/refactoring-plan.md`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
