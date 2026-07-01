@@ -224,42 +224,56 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             ],
         )
 
+    def multiple_choice_answer_record(self):
+        selected_options = [{"index": 2, "value": "Second option"}]
+        return {
+            "question_id": self.multiple_choice_question.id,
+            "question": "Pick one option",
+            "question_type": QuestionTypes.MULTIPLE_CHOICE.value,
+            "answer": "2. Second option",
+            "raw_answer": "2",
+            "selected_options": selected_options,
+        }
+
+    def free_form_answer_record(self):
+        return {
+            "question_id": self.free_form_question.id,
+            "question": "Explain your approach",
+            "question_type": QuestionTypes.FREE_FORM.value,
+            "answer": "I used pandas and DuckDB.",
+            "raw_answer": "I used pandas and DuckDB.",
+            "selected_options": [],
+        }
+
+    def checkbox_answer_record(self):
+        selected_options = [
+            {"index": 1, "value": "Alpha"},
+            {"index": 3, "value": "Gamma"},
+        ]
+        return {
+            "question_id": self.checkbox_question.id,
+            "question": "Pick all matching options",
+            "question_type": QuestionTypes.CHECKBOXES.value,
+            "answer": "1. Alpha, 3. Gamma",
+            "raw_answer": "1,3",
+            "selected_options": selected_options,
+        }
+
+    def submitted_answer_records(self):
+        multiple_choice_answer = self.multiple_choice_answer_record()
+        free_form_answer = self.free_form_answer_record()
+        checkbox_answer = self.checkbox_answer_record()
+        return [
+            multiple_choice_answer,
+            free_form_answer,
+            checkbox_answer,
+        ]
+
     def assert_submitted_answers(self, payload):
+        expected_answers = self.submitted_answer_records()
         self.assertEqual(
             payload["context"]["submitted_answers"],
-            [
-                {
-                    "question_id": self.multiple_choice_question.id,
-                    "question": "Pick one option",
-                    "question_type": (
-                        QuestionTypes.MULTIPLE_CHOICE.value
-                    ),
-                    "answer": "2. Second option",
-                    "raw_answer": "2",
-                    "selected_options": [
-                        {"index": 2, "value": "Second option"}
-                    ],
-                },
-                {
-                    "question_id": self.free_form_question.id,
-                    "question": "Explain your approach",
-                    "question_type": QuestionTypes.FREE_FORM.value,
-                    "answer": "I used pandas and DuckDB.",
-                    "raw_answer": "I used pandas and DuckDB.",
-                    "selected_options": [],
-                },
-                {
-                    "question_id": self.checkbox_question.id,
-                    "question": "Pick all matching options",
-                    "question_type": QuestionTypes.CHECKBOXES.value,
-                    "answer": "1. Alpha, 3. Gamma",
-                    "raw_answer": "1,3",
-                    "selected_options": [
-                        {"index": 1, "value": "Alpha"},
-                        {"index": 3, "value": "Gamma"},
-                    ],
-                },
-            ],
+            expected_answers,
         )
 
     def assert_confirmation_summary(self, payload):
@@ -356,6 +370,17 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self,
         send_email,
     ):
+        self.create_previous_homework_submission_with_learning_link()
+
+        post_data = self.reused_learning_link_post_data()
+        url = self.homework_url()
+        response = self.client.post(url, post_data)
+
+        self.assert_reused_learning_link_rejected(response)
+        self.assert_current_homework_not_submitted()
+        send_email.assert_not_called()
+
+    def create_previous_homework_submission_with_learning_link(self):
         previous_homework = Homework.objects.create(
             course=self.course,
             slug="hw0",
@@ -368,28 +393,26 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             enrollment=self.enrollment,
             learning_in_public_links=["https://example.com/post"],
         )
-        url = reverse(
-            "homework",
-            args=[self.course.slug, self.homework.slug],
-        )
 
-        response = self.client.post(
-            url,
-            {"learning_in_public_links[]": ["https://example.com/post"]},
-        )
+    def reused_learning_link_post_data(self):
+        return {
+            "learning_in_public_links[]": ["https://example.com/post"]
+        }
 
+    def assert_reused_learning_link_rejected(self, response):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
             "Learning in public links were already used",
         )
+
+    def assert_current_homework_not_submitted(self):
         self.assertFalse(
             Submission.objects.filter(
                 student=self.user,
                 homework=self.homework,
             ).exists()
         )
-        send_email.assert_not_called()
 
     def test_duplicate_learning_in_public_finder_checks_project_submissions(
         self,

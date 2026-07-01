@@ -137,6 +137,11 @@ testable service functions.
   named values or a dataclass.
 - [x] Split optional homework submission-field tests out of the oversized
   homework detail test module.
+- [x] Shorten homework submission integration tests by naming submitted-answer
+  records and reused learning-in-public rejection helpers. Verification:
+  `uv run ruff check courses/tests/test_homework_submission_integrations.py`
+  and
+  `uv run python manage.py test courses.tests.test_homework_submission_integrations`.
 - [x] Split cadmin homework view test helpers and submission-edit tests out of
   the oversized cadmin homework view test module.
 - [x] Split all-project-submissions course page tests out of the oversized
