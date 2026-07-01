@@ -55,7 +55,7 @@ class ProjectScoreListSendExpectation:
     submission: ProjectSubmission
 
 
-class DatamailerWorkflowTest(TestCase):
+class DatamailerProjectScoreTest(TestCase):
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",

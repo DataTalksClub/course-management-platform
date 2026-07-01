@@ -637,6 +637,8 @@ Steps:
   Datamailer workflow test module.
 - [x] Split Datamailer homework-score publication tests out of the oversized
   Datamailer workflow test module.
+- [x] Rename the remaining Datamailer workflow score tests to a project-score
+  test module.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
