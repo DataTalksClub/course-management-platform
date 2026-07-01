@@ -47,19 +47,21 @@ def homework_submission_recipient_list_payload(
 def homework_submission_metadata(submission) -> dict[str, Any]:
     homework = submission.homework
     course = homework.course
+    submitted_at = ""
+    if submission.submitted_at:
+        submitted_at = submission.submitted_at.isoformat()
+    homework_url = homework_public_url(homework)
     return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
         "course_slug": course.slug,
         "homework_slug": homework.slug,
-        "submitted_at": submission.submitted_at.isoformat()
-        if submission.submitted_at
-        else "",
+        "submitted_at": submitted_at,
         "questions_score": submission.questions_score,
         "learning_in_public_score": submission.learning_in_public_score,
         "faq_score": submission.faq_score,
         "total_score": submission.total_score,
-        "homework_url": homework_public_url(homework),
+        "homework_url": homework_url,
     }
 
 
@@ -87,14 +89,15 @@ def project_submission_metadata(submission) -> dict[str, Any]:
 def project_submission_identity_metadata(submission) -> dict[str, Any]:
     project = submission.project
     course = project.course
+    submitted_at = ""
+    if submission.submitted_at:
+        submitted_at = submission.submitted_at.isoformat()
     return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
         "course_slug": course.slug,
         "project_slug": project.slug,
-        "submitted_at": submission.submitted_at.isoformat()
-        if submission.submitted_at
-        else "",
+        "submitted_at": submitted_at,
     }
 
 
@@ -114,11 +117,12 @@ def project_submission_score_metadata(submission) -> dict[str, Any]:
 
 
 def project_submission_source_metadata(submission) -> dict[str, Any]:
+    project_url = project_public_url(submission.project)
     return {
         "github_link": submission.github_link,
         "commit_id": submission.commit_id,
         "faq_contribution_url": submission.faq_contribution_url or "",
-        "project_url": project_public_url(submission.project),
+        "project_url": project_url,
     }
 
 

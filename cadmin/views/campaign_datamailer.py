@@ -65,13 +65,11 @@ def parse_test_recipients(value):
 
 
 def datamailer_campaign_context(campaign):
+    external_key = registration_campaign_external_key(campaign)
+    payload = registration_campaign_datamailer_payload(campaign)
     return {
-        "datamailer_external_key": registration_campaign_external_key(
-            campaign
-        ),
-        "datamailer_payload": registration_campaign_datamailer_payload(
-            campaign
-        ),
+        "datamailer_external_key": external_key,
+        "datamailer_payload": payload,
     }
 
 

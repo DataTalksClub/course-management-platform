@@ -82,9 +82,10 @@ def project_passed_member(submission) -> dict[str, Any] | None:
 
 def project_passed_member_payload(project, payload) -> dict[str, Any]:
     member = project_passed_member_payload_data(payload)
+    list_data = project_passed_list_data(project)
     return {
         **payload,
-        "list": project_passed_list_data(project),
+        "list": list_data,
         "member": member,
     }
 

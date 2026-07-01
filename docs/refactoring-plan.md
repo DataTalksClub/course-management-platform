@@ -252,6 +252,8 @@ testable service functions.
   oversized account settings test module.
 - [x] Flatten remaining Datamailer registration, score, and peer-review payload
   dictionaries that inlined context, metadata, or tag helper calls.
+- [x] Flatten additional cadmin campaign and Datamailer metadata builders that
+  inlined URL, timestamp, list, or payload helper calls inside records.
 
 ## Current Findings
 

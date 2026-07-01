@@ -14,6 +14,7 @@ from .base import (
     recipient_list_send_member_payload,
 )
 
+
 def _assigned_review_links(submission) -> list[dict[str, Any]]:
     """The non-optional peer reviews this submission's author must complete,
     each with a direct evaluation link and the target's GitHub link."""
@@ -33,9 +34,10 @@ def _assigned_review_links(submission) -> list[dict[str, Any]]:
 
 def assigned_review_link_item(review, course, project) -> dict[str, Any]:
     target = review.submission_under_evaluation
+    eval_url = assigned_review_eval_url(review, course, project)
     return {
         "review_id": review.id,
-        "eval_url": assigned_review_eval_url(review, course, project),
+        "eval_url": eval_url,
         "submission_github_link": getattr(target, "github_link", "") or "",
     }
 
@@ -63,14 +65,15 @@ def peer_review_assignment_metadata(submission) -> dict[str, Any]:
 
 def peer_review_assignment_identity_metadata(submission) -> dict[str, Any]:
     project = submission.project
+    submitted_at = ""
+    if submission.submitted_at:
+        submitted_at = submission.submitted_at.isoformat()
     return {
         "submission_id": submission.pk,
         "user_id": submission.student_id,
         "course_slug": project.course.slug,
         "project_slug": project.slug,
-        "submitted_at": submission.submitted_at.isoformat()
-        if submission.submitted_at
-        else "",
+        "submitted_at": submitted_at,
         "github_link": submission.github_link,
     }
 
@@ -78,8 +81,9 @@ def peer_review_assignment_identity_metadata(submission) -> dict[str, Any]:
 def peer_review_assignment_review_metadata(submission) -> dict[str, Any]:
     project = submission.project
     assigned_reviews = _assigned_review_links(submission)
+    evaluations_url = peer_review_assignment_evaluations_url(project)
     return {
-        "evaluations_url": peer_review_assignment_evaluations_url(project),
+        "evaluations_url": evaluations_url,
         "number_of_peers_to_evaluate": project.number_of_peers_to_evaluate,
         "assigned_reviews": assigned_reviews,
         "assigned_reviews_count": len(assigned_reviews),
