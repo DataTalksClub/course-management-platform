@@ -81,6 +81,53 @@ def project_validation_error_response(
     return response
 
 
+def delete_project_submission_response(
+    request: HttpRequest,
+    course: Course,
+    project: Project,
+):
+    project_delete_submission(request, project)
+    messages.success(
+        request,
+        PROJECT_SUBMISSION_DELETED_MESSAGE,
+        extra_tags="homework",
+    )
+    response = redirect(
+        "project",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+    return response
+
+
+def save_project_submission_response(
+    request: HttpRequest,
+    course: Course,
+    project: Project,
+):
+    try:
+        project_submit_post(request, project)
+    except ValidationError as error:
+        return project_validation_error_response(
+            request,
+            course,
+            project,
+            error,
+        )
+
+    messages.success(
+        request,
+        PROJECT_SUBMISSION_SAVED_MESSAGE,
+        extra_tags="homework",
+    )
+    response = redirect(
+        "project",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+    return response
+
+
 def handle_project_post(request: HttpRequest, course: Course, project: Project):
     if not request.user.is_authenticated:
         return project_login_required_response(request, course, project)
@@ -91,29 +138,17 @@ def handle_project_post(request: HttpRequest, course: Course, project: Project):
         )
 
     if is_delete_project_submission_request(request):
-        project_delete_submission(request, project)
-        messages.success(
+        response = delete_project_submission_response(
             request,
-            PROJECT_SUBMISSION_DELETED_MESSAGE,
-            extra_tags="homework",
+            course,
+            project,
         )
-    else:
-        try:
-            project_submit_post(request, project)
-            messages.success(
-                request,
-                PROJECT_SUBMISSION_SAVED_MESSAGE,
-                extra_tags="homework",
-            )
-        except ValidationError as error:
-            return project_validation_error_response(
-                request, course, project, error
-            )
+        return response
 
-    response = redirect(
-        "project",
-        course_slug=course.slug,
-        project_slug=project.slug,
+    response = save_project_submission_response(
+        request,
+        course,
+        project,
     )
     return response
 

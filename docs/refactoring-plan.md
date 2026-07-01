@@ -186,6 +186,8 @@ testable service functions.
   validation style.
 - [x] Flatten Datamailer outbox timestamp and response payload construction in
   enqueue/dispatch status updates.
+- [x] Split project POST delete/save branches out of the public project view
+  coordinator.
 
 ## Current Findings
 
