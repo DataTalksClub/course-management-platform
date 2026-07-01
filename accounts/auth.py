@@ -28,19 +28,6 @@ class SocialLoginConnection:
     existing_emails: object
 
 
-def generate_random_password(
-    length=12,
-    allowed_chars="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-):
-    return get_random_string(
-        length=length, allowed_chars=allowed_chars
-    )
-
-
-def response_email(response_data):
-    return response_data.get("email")
-
-
 def verified_social_email(email_addresses):
     for email_address in email_addresses:
         if email_address.verified:
@@ -58,14 +45,10 @@ def sociallogin_email(sociallogin):
     )
 
 
-def notification_email(response_data):
-    return response_data.get("notification_email")
-
-
 def extract_email(response_data, sociallogin=None):
-    response_email_value = response_email(response_data)
+    response_email_value = response_data.get("email")
     sociallogin_email_value = sociallogin_email(sociallogin)
-    notification_email_value = notification_email(response_data)
+    notification_email_value = response_data.get("notification_email")
     email_candidates = (
         response_email_value,
         sociallogin_email_value,
@@ -132,7 +115,12 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         logger.info(
             f"No existing user found with email {email}, creating a new one"
         )
-        password = generate_random_password()
+        password_chars = (
+            "abcdefghijklmnopqrstuvwxyz"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "0123456789"
+        )
+        password = get_random_string(length=12, allowed_chars=password_chars)
         user = User.objects.create_user(
             username=email,
             email=email,

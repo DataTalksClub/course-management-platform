@@ -246,6 +246,8 @@ testable service functions.
   into data files loaded by a small helper module.
 - [x] Extend the no-lambda cleanup to maintained e2e and script helpers with
   named callbacks and sort keys.
+- [x] Remove additional tiny pass-through helpers from account email extraction,
+  homework numeric answer checks, and deadline reminder send payload assembly.
 
 ## Current Findings
 

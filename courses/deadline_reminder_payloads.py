@@ -99,15 +99,6 @@ def deadline_context(data):
     return context
 
 
-def reminder_event_send_payload(data, event_key, context):
-    return deadline_send_payload(
-        data.config,
-        event_key=event_key,
-        template_context=context,
-        metadata=data.metadata,
-    )
-
-
 def reminder_event_context(data, action_url):
     context_data = ReminderTemplateContextData(
         spec=data.spec,
@@ -134,7 +125,12 @@ def build_reminder_event(data):
         data.spec,
         item,
     )
-    send_payload = reminder_event_send_payload(data, event_key, context)
+    send_payload = deadline_send_payload(
+        data.config,
+        event_key=event_key,
+        template_context=context,
+        metadata=data.metadata,
+    )
     return ReminderEvent(
         key=event_key,
         list_key=list_key,

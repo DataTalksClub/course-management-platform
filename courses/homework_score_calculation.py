@@ -104,26 +104,12 @@ def is_contains_string_answer_correct(
     return normalized_correct_answer in normalized_user_answer
 
 
-def is_float_answer_correct(
-    user_answer: str,
-    correct_answer: str,
-) -> bool:
-    return is_float_equal(user_answer, correct_answer, tolerance=0.01)
-
-
-def is_integer_answer_correct(
-    user_answer: str,
-    correct_answer: str,
-) -> bool:
-    return is_integer_equal(user_answer, correct_answer)
-
-
 FREE_FORM_ANSWER_CHECKS = {
     AnswerTypes.ANY.value: is_any_free_form_answer_correct,
     AnswerTypes.EXACT_STRING.value: is_exact_string_answer_correct,
     AnswerTypes.CONTAINS_STRING.value: is_contains_string_answer_correct,
-    AnswerTypes.FLOAT.value: is_float_answer_correct,
-    AnswerTypes.INTEGER.value: is_integer_answer_correct,
+    AnswerTypes.FLOAT.value: is_float_equal,
+    AnswerTypes.INTEGER.value: is_integer_equal,
 }
 
 
