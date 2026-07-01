@@ -140,19 +140,27 @@ def print_import_metadata(data: ProjectImportData) -> None:
     print()
 
 def course_defaults(course_data):
+    social_media_hashtag = course_data.get("social_media_hashtag", "")
+    first_homework_scored = course_data.get("first_homework_scored", False)
+    finished = course_data.get("finished", False)
+    faq_document_url = course_data.get("faq_document_url", "")
+    min_projects_to_pass = course_data.get("min_projects_to_pass", 1)
+    homework_problems_comments_field = course_data.get(
+        "homework_problems_comments_field", False
+    )
+    project_passing_score = course_data.get("project_passing_score", 0)
+    visible = course_data.get("visible", True)
     return {
         "title": course_data["title"],
         "description": course_data["description"],
-        "social_media_hashtag": course_data.get("social_media_hashtag", ""),
-        "first_homework_scored": course_data.get("first_homework_scored", False),
-        "finished": course_data.get("finished", False),
-        "faq_document_url": course_data.get("faq_document_url", ""),
-        "min_projects_to_pass": course_data.get("min_projects_to_pass", 1),
-        "homework_problems_comments_field": course_data.get(
-            "homework_problems_comments_field", False
-        ),
-        "project_passing_score": course_data.get("project_passing_score", 0),
-        "visible": course_data.get("visible", True),
+        "social_media_hashtag": social_media_hashtag,
+        "first_homework_scored": first_homework_scored,
+        "finished": finished,
+        "faq_document_url": faq_document_url,
+        "min_projects_to_pass": min_projects_to_pass,
+        "homework_problems_comments_field": homework_problems_comments_field,
+        "project_passing_score": project_passing_score,
+        "visible": visible,
     }
 
 
@@ -170,28 +178,54 @@ def get_or_create_course(course_data):
 
 
 def project_defaults(project_data):
-    return {
+    optional_defaults = project_optional_defaults(project_data)
+    defaults = {
         "title": project_data["title"],
         "description": project_data["description"],
-        "submission_due_date": parse_datetime(project_data["submission_due_date"]),
-        "learning_in_public_cap_project": project_data.get(
-            "learning_in_public_cap_project", 14
-        ),
-        "peer_review_due_date": parse_datetime(project_data["peer_review_due_date"]),
-        "time_spent_project_field": project_data.get("time_spent_project_field", True),
-        "problems_comments_field": project_data.get("problems_comments_field", True),
-        "faq_contribution_field": project_data.get("faq_contribution_field", True),
-        "learning_in_public_cap_review": project_data.get(
-            "learning_in_public_cap_review", 2
-        ),
-        "number_of_peers_to_evaluate": project_data.get(
-            "number_of_peers_to_evaluate", 3
-        ),
-        "points_for_peer_review": project_data.get("points_for_peer_review", 3),
-        "time_spent_evaluation_field": project_data.get(
-            "time_spent_evaluation_field", True
-        ),
         "state": project_data["state"],
+    }
+    defaults.update(optional_defaults)
+    return defaults
+
+
+def project_optional_defaults(project_data):
+    submission_due_date = parse_datetime(project_data["submission_due_date"])
+    learning_in_public_cap_project = project_data.get(
+        "learning_in_public_cap_project", 14
+    )
+    peer_review_due_date = parse_datetime(project_data["peer_review_due_date"])
+    time_spent_project_field = project_data.get("time_spent_project_field", True)
+    problems_comments_field = project_data.get("problems_comments_field", True)
+    faq_contribution_field = project_data.get("faq_contribution_field", True)
+    defaults = {
+        "submission_due_date": submission_due_date,
+        "learning_in_public_cap_project": learning_in_public_cap_project,
+        "peer_review_due_date": peer_review_due_date,
+        "time_spent_project_field": time_spent_project_field,
+        "problems_comments_field": problems_comments_field,
+        "faq_contribution_field": faq_contribution_field,
+    }
+    review_defaults = project_review_defaults(project_data)
+    defaults.update(review_defaults)
+    return defaults
+
+
+def project_review_defaults(project_data):
+    learning_in_public_cap_review = project_data.get(
+        "learning_in_public_cap_review", 2
+    )
+    number_of_peers_to_evaluate = project_data.get(
+        "number_of_peers_to_evaluate", 3
+    )
+    points_for_peer_review = project_data.get("points_for_peer_review", 3)
+    time_spent_evaluation_field = project_data.get(
+        "time_spent_evaluation_field", True
+    )
+    return {
+        "learning_in_public_cap_review": learning_in_public_cap_review,
+        "number_of_peers_to_evaluate": number_of_peers_to_evaluate,
+        "points_for_peer_review": points_for_peer_review,
+        "time_spent_evaluation_field": time_spent_evaluation_field,
     }
 
 
@@ -278,6 +312,26 @@ def create_users(users_data, maps: ImportMaps) -> None:
 
 def build_enrollment(enroll_data, course, student_id):
     enrollment_date = parse_datetime(enroll_data["enrollment_date"])
+    optional_values = enrollment_optional_values(enroll_data)
+    values = enrollment_base_values(
+        course,
+        student_id,
+        enrollment_date,
+    )
+    values.update(optional_values)
+    valid_values = valid_model_kwargs(Enrollment, values)
+    return Enrollment(**valid_values)
+
+
+def enrollment_base_values(course, student_id, enrollment_date):
+    return {
+        "student_id": student_id,
+        "course": course,
+        "enrollment_date": enrollment_date,
+    }
+
+
+def enrollment_optional_values(enroll_data):
     display_name = enroll_data.get("display_name", "")
     display_on_leaderboard = enroll_data.get("display_on_leaderboard", True)
     position_on_leaderboard = enroll_data.get("position_on_leaderboard")
@@ -288,10 +342,7 @@ def build_enrollment(enroll_data, course, student_id):
     linkedin_url = enroll_data.get("linkedin_url")
     personal_website_url = enroll_data.get("personal_website_url")
     about_me = enroll_data.get("about_me")
-    values = {
-        "student_id": student_id,
-        "course": course,
-        "enrollment_date": enrollment_date,
+    return {
         "display_name": display_name,
         "display_on_leaderboard": display_on_leaderboard,
         "position_on_leaderboard": position_on_leaderboard,
@@ -303,8 +354,6 @@ def build_enrollment(enroll_data, course, student_id):
         "personal_website_url": personal_website_url,
         "about_me": about_me,
     }
-    valid_values = valid_model_kwargs(Enrollment, values)
-    return Enrollment(**valid_values)
 
 
 def valid_model_kwargs(model, values):
