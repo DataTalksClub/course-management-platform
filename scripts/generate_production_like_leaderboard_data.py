@@ -589,19 +589,18 @@ def course_due_range(spec):
 
 def ensure_course(spec):
     start_date, end_date = course_due_range(spec)
+    description = course_description(spec)
+    registration_url = f"https://courses.datatalks.club/{spec['slug']}/register"
+    github_repo_url = f"https://github.com/DataTalksClub/{spec['slug']}"
     course, _ = Course.objects.update_or_create(
         slug=spec["slug"],
         defaults={
             "title": spec["title"],
-            "description": course_description(spec),
+            "description": description,
             "start_date": start_date,
             "end_date": end_date,
-            "registration_url": (
-                f"https://courses.datatalks.club/{spec['slug']}/register"
-            ),
-            "github_repo_url": (
-                f"https://github.com/DataTalksClub/{spec['slug']}"
-            ),
+            "registration_url": registration_url,
+            "github_repo_url": github_repo_url,
             "finished": spec["finished"],
             "visible": True,
             "first_homework_scored": True,
@@ -614,13 +613,15 @@ def ensure_homeworks(course, spec):
     homeworks = []
     for index, (title, due_date) in enumerate(spec["homeworks"], start=1):
         homework_slug = stable_slug("homework", title, index)
+        description = homework_description(title)
+        parsed_due_date = parse_date(due_date)
         homework, _ = Homework.objects.update_or_create(
             course=course,
             slug=homework_slug,
             defaults={
                 "title": title,
-                "description": homework_description(title),
-                "due_date": parse_date(due_date),
+                "description": description,
+                "due_date": parsed_due_date,
                 "state": HomeworkState.SCORED.value,
             },
         )
@@ -633,14 +634,16 @@ def ensure_projects(course, spec):
     projects = []
     for index, (title, due_date) in enumerate(spec["projects"], start=1):
         project_slug = stable_slug("project", title, index)
+        description = f"Production-like generated project: {title}"
+        parsed_due_date = parse_date(due_date)
         project, _ = Project.objects.update_or_create(
             course=course,
             slug=project_slug,
             defaults={
                 "title": title,
-                "description": f"Production-like generated project: {title}",
-                "submission_due_date": parse_date(due_date),
-                "peer_review_due_date": parse_date(due_date),
+                "description": description,
+                "submission_due_date": parsed_due_date,
+                "peer_review_due_date": parsed_due_date,
                 "state": ProjectState.COMPLETED.value,
             },
         )
