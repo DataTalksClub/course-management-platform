@@ -308,6 +308,8 @@ testable service functions.
   the create validation flow explicit and linear.
 - [x] Remove the matching over-abstracted project-create dataclasses and
   expand the create validation flow into named local steps.
+- [x] Split certificate update validation and notification/persistence side
+  effects out of the certificate update apply coordinator.
 
 ## Current Findings
 

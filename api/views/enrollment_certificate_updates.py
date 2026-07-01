@@ -1,8 +1,14 @@
 from dataclasses import dataclass
 
-from django.db import transaction
-
 from courses.models.course import Enrollment, User
+
+from api.views.enrollment_certificate_delivery import (
+    persist_certificate_updates,
+    queue_certificate_notifications,
+)
+from api.views.enrollment_certificate_validation import (
+    validate_certificate_update_items,
+)
 
 
 @dataclass
@@ -61,57 +67,6 @@ def process_certificate_updates(
     )
 
     return apply_batch.updated, errors
-
-
-def validate_certificate_update_items(certificate_updates):
-    valid_updates = []
-    errors = []
-
-    for index, update in enumerate(certificate_updates):
-        valid_update, error = validate_certificate_update_item(index, update)
-        if error:
-            errors.append(error)
-            continue
-        valid_updates.append(valid_update)
-
-    return valid_updates, errors
-
-
-def validate_certificate_update_item(index, update):
-    if not isinstance(update, dict):
-        error = invalid_certificate_update_item_error(index)
-        return None, error
-
-    email = update.get("email")
-    certificate_path = update.get("certificate_path")
-
-    if not email or not certificate_path:
-        error = missing_certificate_update_fields_error(index, email)
-        return None, error
-
-    valid_update = {
-        "index": index,
-        "email": email,
-        "certificate_path": certificate_path,
-    }
-    return valid_update, None
-
-
-def invalid_certificate_update_item_error(index):
-    return {
-        "index": index,
-        "code": "invalid_item",
-        "error": "Each certificate update must be an object",
-    }
-
-
-def missing_certificate_update_fields_error(index, email):
-    return {
-        "index": index,
-        "email": email,
-        "code": "missing_fields",
-        "error": "Both email and certificate_path are required",
-    }
 
 
 def certificate_update_lookups(course, valid_updates):
@@ -231,25 +186,3 @@ def certificate_update_result(update, enrollment):
         "enrollment_id": enrollment.id,
         "certificate_url": update["certificate_path"],
     }
-
-
-def persist_certificate_updates(enrollments_to_update):
-    if enrollments_to_update:
-        enrollments = enrollments_to_update.values()
-        Enrollment.objects.bulk_update(
-            enrollments,
-            ["certificate_url"],
-        )
-
-
-def queue_certificate_notifications(
-    enrollments_to_notify,
-    notification_sender,
-):
-    notification_enrollments = enrollments_to_notify.values()
-    for enrollment in notification_enrollments:
-
-        def send_notification(enrollment=enrollment):
-            notification_sender(enrollment)
-
-        transaction.on_commit(send_notification)
