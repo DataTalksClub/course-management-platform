@@ -1377,6 +1377,15 @@ Steps:
   functions, repo-wide active-code scans excluding `.tmp` and generated
   migrations (`forbidden_comprehensions=0`, `long_functions=28`),
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten API question delete-with-answers tests by naming the answered
+  question fixture, blocked-delete response assertion, and persistence
+  assertion. Verification:
+  `uv run ruff check api/tests/test_questions.py`,
+  `uv run python manage.py test api.tests.test_questions`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, repo-wide active-code scans excluding `.tmp` and generated
+  migrations (`forbidden_comprehensions=0`, `long_functions=27`),
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

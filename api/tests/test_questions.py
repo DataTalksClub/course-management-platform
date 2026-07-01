@@ -166,8 +166,8 @@ class QuestionsAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Question.objects.filter(id=q.id).exists())
 
-    def test_delete_question_with_answers_is_blocked(self):
-        q = Question.objects.create(
+    def create_answered_question(self):
+        question = Question.objects.create(
             homework=self.homework,
             text="Answered question",
             question_type="FF",
@@ -183,12 +183,13 @@ class QuestionsAPITestCase(TestCase):
         )
         answer = Answer.objects.create(
             submission=submission,
-            question=q,
+            question=question,
             answer_text="answer",
         )
 
-        response = self.client.delete(self._url(q.id))
+        return question, answer
 
+    def assert_question_delete_blocked_response(self, response):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json()["error"],
@@ -196,8 +197,18 @@ class QuestionsAPITestCase(TestCase):
         )
         self.assertEqual(response.json()["code"], "question_has_answers")
         self.assertEqual(response.json()["details"]["answers_count"], 1)
-        self.assertTrue(Question.objects.filter(id=q.id).exists())
+
+    def assert_answered_question_exists(self, question, answer):
+        self.assertTrue(Question.objects.filter(id=question.id).exists())
         self.assertTrue(Answer.objects.filter(id=answer.id).exists())
+
+    def test_delete_question_with_answers_is_blocked(self):
+        question, answer = self.create_answered_question()
+
+        response = self.client.delete(self._url(question.id))
+
+        self.assert_question_delete_blocked_response(response)
+        self.assert_answered_question_exists(question, answer)
 
     def non_staff_client(self):
         non_staff = CustomUser.objects.create(
