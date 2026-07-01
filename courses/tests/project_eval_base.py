@@ -177,7 +177,8 @@ class ProjectEvaluationTestBase(TestCase):
 
     def get_eval_submit_response(self):
         self.client.login(**credentials)
-        return self.client.get(self.eval_submit_url())
+        eval_submit_url = self.eval_submit_url()
+        return self.client.get(eval_submit_url)
 
     def review_post_data(self, **extra_fields):
         data = {
@@ -202,7 +203,8 @@ class ProjectEvaluationTestBase(TestCase):
 
     def post_eval_submit(self, post_data):
         self.client.login(**credentials)
-        return self.client.post(self.eval_submit_url(), post_data)
+        eval_submit_url = self.eval_submit_url()
+        return self.client.post(eval_submit_url, post_data)
 
     def create_criteria_responses(self):
         responses = {
@@ -253,23 +255,26 @@ class ProjectEvaluationTestBase(TestCase):
         self, pairs, criteria_responses
     ):
         self.assertEqual(len(pairs), 3)
+        code_quality_options = self.code_quality_options()
         code_quality_expected = ExpectedCriteriaResponse(
             pair=pairs[0],
             criteria=self.criteria1,
             response=criteria_responses[self.criteria1],
-            options=self.code_quality_options(),
+            options=code_quality_options,
         )
+        documentation_options = self.documentation_options()
         documentation_expected = ExpectedCriteriaResponse(
             pair=pairs[1],
             criteria=self.criteria2,
             response=criteria_responses[self.criteria2],
-            options=self.documentation_options(),
+            options=documentation_options,
         )
+        best_practices_options = self.best_practices_options()
         best_practices_expected = ExpectedCriteriaResponse(
             pair=pairs[2],
             criteria=self.criteria3,
             response=criteria_responses[self.criteria3],
-            options=self.best_practices_options(),
+            options=best_practices_options,
         )
         expected_rows = [
             code_quality_expected,
@@ -328,7 +333,8 @@ class ProjectEvaluationTestBase(TestCase):
         self.assertEqual(self.peer_review.note_to_peer, "Well done!")
         self.assertEqual(self.peer_review.time_spent_reviewing, 3.0)
         criteria_responses = self.criteria_responses()
-        self.assertEqual(criteria_responses.count(), len(expected_answers))
+        criteria_response_count = criteria_responses.count()
+        self.assertEqual(criteria_response_count, len(expected_answers))
         for criteria, expected_answer in expected_answers.items():
             response = criteria_responses.get(criteria=criteria)
             self.assertEqual(response.answer, expected_answer)
