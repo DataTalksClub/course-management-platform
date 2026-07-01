@@ -211,6 +211,10 @@ testable service functions.
   out of the route-level submit view.
 - [x] Split project evaluation test helpers and eval-page tests out of the
   mixed project evaluation test module.
+- [x] Shorten the project-evaluation submit POST test by naming learning-in-
+  public fixture links and saved-link assertions. Verification:
+  `uv run ruff check courses/tests/test_project_eval.py` and
+  `uv run python manage.py test courses.tests.test_project_eval`.
 - [x] Split cached course leaderboard data and score-breakdown query helpers
   out of the leaderboard view module.
 - [x] Split course leaderboard tests into shared fixtures plus focused

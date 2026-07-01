@@ -126,45 +126,51 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
             criteria_responses,
         )
 
+    def learning_in_public_review_links(self):
+        return [
+            "http://example.com/page",
+            "http://example.com/page2",
+        ]
+
+    def review_post_data_with_learning_links(self):
+        learning_links = self.learning_in_public_review_links()
+        extra_fields = {
+            "learning_in_public_links[]": learning_links,
+        }
+        return self.review_post_data(
+            **extra_fields,
+            problems_comments="No problems",
+        )
+
+    def assert_learning_in_public_links_saved(self, expected_links):
+        learning_in_public_links = (
+            self.peer_review.learning_in_public_links
+        )
+        self.assertEqual(len(learning_in_public_links), len(expected_links))
+        for index, expected_link in enumerate(expected_links):
+            self.assertEqual(
+                learning_in_public_links[index],
+                expected_link,
+            )
+
     def test_eval_submit_post_not_submitted(self):
         criteria_responses = self.criteria_responses()
         self.assertEqual(criteria_responses.count(), 0)
 
-        response = self.post_eval_submit(
-            self.review_post_data(
-                **{
-                    "learning_in_public_links[]": [
-                        "http://example.com/page",
-                        "http://example.com/page2",
-                    ],
-                },
-                problems_comments="No problems",
-            )
-        )
+        post_data = self.review_post_data_with_learning_links()
+        response = self.post_eval_submit(post_data)
 
         self.assertEqual(response.status_code, 302)
-        self.assert_review_saved(
-            {
-                self.criteria1: "1",
-                self.criteria2: "2",
-                self.criteria3: "1,3",
-            }
-        )
+        expected_answers = {
+            self.criteria1: "1",
+            self.criteria2: "2",
+            self.criteria3: "1,3",
+        }
+        self.assert_review_saved(expected_answers)
         self.assertEqual(self.peer_review.problems_comments, "No problems")
 
-        learning_in_public_links = (
-            self.peer_review.learning_in_public_links
-        )
-
-        self.assertEqual(len(learning_in_public_links), 2)
-        self.assertEqual(
-            learning_in_public_links[0],
-            "http://example.com/page",
-        )
-        self.assertEqual(
-            learning_in_public_links[1],
-            "http://example.com/page2",
-        )
+        expected_links = self.learning_in_public_review_links()
+        self.assert_learning_in_public_links_saved(expected_links)
 
     def test_eval_submit_post_already_submitted(self):
         criteria_response_map = self.create_criteria_responses()
