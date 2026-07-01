@@ -5,12 +5,14 @@ from course_management.datamailer.client import (
     DatamailerConfig,
 )
 from course_management.datamailer.recipient_list_audit import (
-    RECIPIENT_LIST_KINDS,
     AuditRunData,
     audit_batches_against_datamailer,
 )
 from course_management.datamailer.recipient_list_batches import (
     build_batches,
+)
+from course_management.datamailer.recipient_list_sources import (
+    RECIPIENT_LIST_KINDS,
 )
 
 

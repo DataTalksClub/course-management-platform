@@ -331,6 +331,8 @@ testable service functions.
   mixed certificate payload module.
 - [x] Split public course calendar ICS/event generation out of the route module,
   leaving the view as the HTTP response boundary.
+- [x] Split Datamailer recipient-list source querysets and source constants out
+  of batch aggregation, with one owner for recipient-list kinds.
 
 ## Current Findings
 

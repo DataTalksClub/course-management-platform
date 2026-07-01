@@ -10,16 +10,6 @@ from course_management.datamailer.client import (
 from course_management.datamailer.recipient_list_drift import member_drift
 
 
-RECIPIENT_LIST_KINDS = [
-    "registrations",
-    "enrollments",
-    "homework",
-    "project",
-    "project-passed",
-    "graduates",
-]
-
-
 @dataclass(frozen=True)
 class AuditRunData:
     client: DatamailerClient

@@ -6,10 +6,10 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
-from course_management.datamailer.recipient_list_batches import (
+from course_management.datamailer.recipient_list_batches import build_batches
+from course_management.datamailer.recipient_list_sources import (
     PROJECT_FILTER_KINDS,
     RECIPIENT_LIST_KINDS,
-    build_batches,
 )
 from course_management.datamailer.recipient_list_import_jobs import (
     ImportJobOptions,
