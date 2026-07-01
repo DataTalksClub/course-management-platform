@@ -160,6 +160,8 @@ testable service functions.
   project API view module.
 - [x] Split API project upsert validation and save flow out of the public
   project API view module.
+- [x] Split project API test fixtures, assign/score action tests, and
+  staff-auth tests out of the oversized mixed project API test module.
 - [x] Split API project score and assign-review response helpers out of the
   public project API view module.
 - [x] Split cadmin registration-campaign Datamailer action helpers out of the
