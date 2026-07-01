@@ -1,16 +1,19 @@
 from django.contrib import messages
-from django.db.models import Count, Sum
 from django.shortcuts import redirect
-from django.utils import timezone
 
 from course_management.datamailer_outbox_status import (
     datamailer_outbox_status_summary,
 )
-from data.models import (
-    DatamailerOutboxEvent,
-    DatamailerOutboxStatus,
-    DatamailerSendAudit,
-    DatamailerSendAuditStatus,
+from .datamailer_outbox_operations import (
+    datamailer_outbox_status_rows,
+    recent_failed_datamailer_outbox_events,
+    requeue_datamailer_outbox_events,
+)
+from .datamailer_send_audits import (
+    normalized_send_totals,
+    recent_failed_datamailer_sends,
+    send_audit_grouped,
+    send_audit_totals,
 )
 
 
@@ -62,57 +65,6 @@ DATAMAILER_OPERATOR_COMMANDS = (
 )
 
 
-def send_audit_totals():
-    total_count = Count("id")
-    intended_count_sum = Sum("intended_count")
-    created_count_sum = Sum("created_count")
-    enqueued_count_sum = Sum("enqueued_count")
-    skipped_count_sum = Sum("skipped_count")
-    idempotent_replay_count_sum = Sum("idempotent_replay_count")
-
-    return DatamailerSendAudit.objects.aggregate(
-        total=total_count,
-        intended_count=intended_count_sum,
-        created_count=created_count_sum,
-        enqueued_count=enqueued_count_sum,
-        skipped_count=skipped_count_sum,
-        idempotent_replay_count=idempotent_replay_count_sum,
-    )
-
-
-def send_audit_grouped(field):
-    group_count = Count("id")
-    intended_count_sum = Sum("intended_count")
-    enqueued_count_sum = Sum("enqueued_count")
-    skipped_count_sum = Sum("skipped_count")
-    rows = (
-        DatamailerSendAudit.objects.values(field)
-        .annotate(
-            count=group_count,
-            intended_count=intended_count_sum,
-            enqueued_count=enqueued_count_sum,
-            skipped_count=skipped_count_sum,
-        )
-        .order_by(field)
-    )
-    return list(rows)
-
-
-def requeue_datamailer_outbox_events():
-    now = timezone.now()
-    return DatamailerOutboxEvent.objects.filter(
-        status__in=[
-            DatamailerOutboxStatus.FAILED,
-            DatamailerOutboxStatus.DEAD,
-        ]
-    ).update(
-        status=DatamailerOutboxStatus.RETRYING,
-        next_attempt_at=now,
-        last_error="",
-        updated_at=now,
-    )
-
-
 def handle_datamailer_operations_post(request):
     if request.POST.get("action") != "requeue":
         return None
@@ -124,60 +76,6 @@ def handle_datamailer_operations_post(request):
     )
     response = redirect("cadmin_datamailer_operations")
     return response
-
-
-def recent_failed_datamailer_outbox_events():
-    return DatamailerOutboxEvent.objects.filter(
-        status__in=[
-            DatamailerOutboxStatus.RETRYING,
-            DatamailerOutboxStatus.FAILED,
-            DatamailerOutboxStatus.DEAD,
-        ]
-    ).exclude(last_error="")[:10]
-
-
-def recent_failed_datamailer_sends():
-    return DatamailerSendAudit.objects.filter(
-        status=DatamailerSendAuditStatus.FAILED,
-    )[:10]
-
-
-def failed_datamailer_send_count():
-    return DatamailerSendAudit.objects.filter(
-        status=DatamailerSendAuditStatus.FAILED,
-    ).count()
-
-
-def normalized_send_totals(send_totals):
-    total = send_totals["total"] or 0
-    intended_count = send_totals["intended_count"] or 0
-    created_count = send_totals["created_count"] or 0
-    enqueued_count = send_totals["enqueued_count"] or 0
-    skipped_count = send_totals["skipped_count"] or 0
-    idempotent_replay_count = send_totals["idempotent_replay_count"] or 0
-    failed = failed_datamailer_send_count()
-
-    return {
-        "total": total,
-        "intended_count": intended_count,
-        "created_count": created_count,
-        "enqueued_count": enqueued_count,
-        "skipped_count": skipped_count,
-        "idempotent_replay_count": idempotent_replay_count,
-        "failed": failed,
-    }
-
-
-def datamailer_outbox_status_rows(outbox_summary):
-    rows = []
-
-    for status in DatamailerOutboxStatus.values:
-        row = {
-            "status": status,
-            "count": outbox_summary["event_counts"].get(status, 0),
-        }
-        rows.append(row)
-    return rows
 
 
 def datamailer_operations_context():
