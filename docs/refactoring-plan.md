@@ -194,6 +194,8 @@ testable service functions.
   evaluation submit view coordinator.
 - [x] Split peer-review submit save-and-redirect response out of the POST
   coordinator.
+- [x] Split leaderboard complaint form context construction out of the public
+  complaint view coordinator.
 
 ## Current Findings
 

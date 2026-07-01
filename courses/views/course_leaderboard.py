@@ -73,6 +73,15 @@ def _leaderboard_complaint_post_response(
     return response
 
 
+def leaderboard_complaint_context(enrollment, form):
+    context = {
+        "enrollment": enrollment,
+        "course": enrollment.course,
+        "form": form,
+    }
+    return context
+
+
 @login_required
 def leaderboard_complaint_view(
     request, course_slug: str, enrollment_id: int
@@ -97,11 +106,7 @@ def leaderboard_complaint_view(
     else:
         form = LeaderboardComplaintForm()
 
-    context = {
-        "enrollment": enrollment,
-        "course": enrollment.course,
-        "form": form,
-    }
+    context = leaderboard_complaint_context(enrollment, form)
     response = render(
         request, "courses/leaderboard_complaint.html", context
     )
