@@ -1951,6 +1951,12 @@ Steps:
   `uv run python manage.py test cadmin.tests.test_datamailer_views`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name homework submission view test post data, saved submissions, dates,
+  and URLs before helper/client calls. Verification:
+  `uv run ruff check courses/tests/test_homework_submission_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_submission_view`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -16,12 +16,14 @@ class HomeworkSubmissionViewTests(HomeworkDetailViewTestBase):
     def test_homework_detail_submission_post_no_submissions(self):
         self.assert_no_enrollment_or_submission()
 
-        response = self.post_homework(self.answer_post_data())
+        post_data = self.answer_post_data()
+        response = self.post_homework(post_data)
 
         self.assert_redirects_to_homework(response)
         self.assert_enrollment_and_submission_exist()
+        submission = self.get_saved_submission()
         self.assert_submission_answers(
-            self.get_saved_submission(),
+            submission,
             {
                 self.question1: "1",
                 self.question2: "Some text",
@@ -36,11 +38,13 @@ class HomeworkSubmissionViewTests(HomeworkDetailViewTestBase):
     def test_homework_detail_submission_post_with_submissions(
         self, mock_now
     ):
-        update_time_now = timezone.make_aware(datetime(2020, 1, 1))
+        naive_update_time = datetime(2020, 1, 1)
+        update_time_now = timezone.make_aware(naive_update_time)
         mock_now.return_value = update_time_now
         self.create_submission_with_answers(question3_answer="1,2,3")
 
-        response = self.post_homework(self.updated_answer_post_data())
+        post_data = self.updated_answer_post_data()
+        response = self.post_homework(post_data)
 
         self.assert_redirects_to_homework(response)
         submission = Submission.objects.get(id=self.submission.id)
@@ -58,10 +62,12 @@ class HomeworkSubmissionViewTests(HomeworkDetailViewTestBase):
         )
 
     def test_submit_homework_submission_artifacts(self):
-        self.post_homework(self.artifact_post_data())
+        post_data = self.artifact_post_data()
+        self.post_homework(post_data)
 
+        submission = self.get_saved_submission()
         self.assert_submission_answers(
-            self.get_saved_submission(),
+            submission,
             {
                 self.question1: "1",
                 self.question2: "Some text",
@@ -75,9 +81,11 @@ class HomeworkSubmissionViewTests(HomeworkDetailViewTestBase):
     def test_submit_homework_submission_artifacts_dispayed_correctly(
         self,
     ):
-        self.post_homework(self.artifact_post_data(question1_answer="3\r\n"))
+        post_data = self.artifact_post_data(question1_answer="3\r\n")
+        self.post_homework(post_data)
 
-        response = self.client.get(self.homework_url())
+        homework_url = self.homework_url()
+        response = self.client.get(homework_url)
 
         self.assert_saved_question_answers(response.context["question_answers"])
 
