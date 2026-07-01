@@ -727,6 +727,12 @@ testable service functions.
   `python -m py_compile api/views/homework_upsert.py api/views/homework_upsert_save.py`,
   `uv run python manage.py test api.tests.test_homeworks`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Remove the single-use debug-score submission-data constructor helper and
+  construct `SubmissionDebugData` directly from named context values.
+  Verification: `uv run ruff check scripts/debug_score_project.py`,
+  `python -m py_compile scripts/debug_score_project.py`, touched-file
+  nested-call scans report `touched_file_nested_calls=0`, and function-length
+  scans report no function over 30 lines.
 
 ## Current Findings
 

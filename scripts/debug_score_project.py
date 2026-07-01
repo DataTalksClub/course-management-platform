@@ -250,17 +250,6 @@ def process_submission(
         check_review_responses(review, data.errors, data.warnings)
 
 
-def submission_debug_data(data, submission_id, submission):
-    return SubmissionDebugData(
-        submission_id=submission_id,
-        submission=submission,
-        reviews_by_submission=data.review_data.reviews_by_submission,
-        reviews_by_reviewer=data.review_data.reviews_by_reviewer,
-        errors=data.errors,
-        warnings=data.warnings,
-    )
-
-
 def print_submission_progress(processed_count, total_count):
     if processed_count % 50 != 0:
         return
@@ -273,7 +262,16 @@ def print_submission_progress(processed_count, total_count):
 def process_submission_item(data, index, item):
     submission_id, submission = item
     try:
-        debug_data = submission_debug_data(data, submission_id, submission)
+        reviews_by_submission = data.review_data.reviews_by_submission
+        reviews_by_reviewer = data.review_data.reviews_by_reviewer
+        debug_data = SubmissionDebugData(
+            submission_id=submission_id,
+            submission=submission,
+            reviews_by_submission=reviews_by_submission,
+            reviews_by_reviewer=reviews_by_reviewer,
+            errors=data.errors,
+            warnings=data.warnings,
+        )
         process_submission(debug_data)
         processed_count = index + 1
         total_count = len(data.review_data.submissions)
