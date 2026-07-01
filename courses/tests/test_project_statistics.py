@@ -37,15 +37,21 @@ class RawStatExpectation:
 class ProjectStatisticsTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.project = self.create_completed_project()
+        self.users = []
+        self.enrollments = []
+        self.create_student_enrollments()
 
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             project_passing_score=10,
         )
 
-        # Create a completed project
-        self.project = Project.objects.create(
+    def create_completed_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -55,9 +61,7 @@ class ProjectStatisticsTestCase(TestCase):
             state=ProjectState.COMPLETED.value,
         )
 
-        # Create some test users and enrollments
-        self.users = []
-        self.enrollments = []
+    def create_student_enrollments(self):
         for i in range(5):
             user = User.objects.create_user(
                 username=f"student{i}@test.com",
@@ -186,6 +190,36 @@ class ProjectStatisticsTestCase(TestCase):
         self.assertEqual(data.stats[data.field]["max"], data.maximum)
         self.assertEqual(data.stats[data.field]["avg"], data.average)
 
+    def assert_basic_project_score_stats(self, stats):
+        expectation = RawStatExpectation(
+            stats=stats,
+            field="project_score",
+            minimum=8,
+            maximum=12,
+            average=10.0,
+        )
+        self.assert_raw_stat(expectation)
+
+    def assert_basic_total_score_stats(self, stats):
+        expectation = RawStatExpectation(
+            stats=stats,
+            field="total_score",
+            minimum=15,
+            maximum=20,
+            average=17.666666666666668,
+        )
+        self.assert_raw_stat(expectation)
+
+    def assert_basic_time_spent_stats(self, stats):
+        expectation = RawStatExpectation(
+            stats=stats,
+            field="time_spent",
+            minimum=8.0,
+            maximum=12.0,
+            average=10.0,
+        )
+        self.assert_raw_stat(expectation)
+
     def test_calculate_raw_project_statistics_basic(self):
         """Test basic raw statistics calculation"""
         self.create_basic_raw_statistics_submissions()
@@ -193,30 +227,9 @@ class ProjectStatisticsTestCase(TestCase):
         stats = calculate_raw_project_statistics(self.project)
 
         self.assertEqual(stats["total_submissions"], 3)
-        project_score_expectation = RawStatExpectation(
-            stats=stats,
-            field="project_score",
-            minimum=8,
-            maximum=12,
-            average=10.0,
-        )
-        self.assert_raw_stat(project_score_expectation)
-        total_score_expectation = RawStatExpectation(
-            stats=stats,
-            field="total_score",
-            minimum=15,
-            maximum=20,
-            average=17.666666666666668,
-        )
-        self.assert_raw_stat(total_score_expectation)
-        time_spent_expectation = RawStatExpectation(
-            stats=stats,
-            field="time_spent",
-            minimum=8.0,
-            maximum=12.0,
-            average=10.0,
-        )
-        self.assert_raw_stat(time_spent_expectation)
+        self.assert_basic_project_score_stats(stats)
+        self.assert_basic_total_score_stats(stats)
+        self.assert_basic_time_spent_stats(stats)
 
     def test_calculate_raw_project_statistics_insufficient_data(self):
         """Test statistics calculation with insufficient data (< 3 submissions)"""
@@ -241,9 +254,7 @@ class ProjectStatisticsTestCase(TestCase):
             self.assertIsNone(stats[field]["median"])
             self.assertIsNone(stats[field]["q3"])
 
-    def test_calculate_raw_project_statistics_with_nulls(self):
-        """Test statistics calculation with some null values"""
-        # Create submissions with some null time_spent values
+    def create_null_time_spent_submissions(self):
         submissions_data = [
             {"project_score": 8, "total_score": 15, "time_spent": None},
             {
@@ -264,16 +275,23 @@ class ProjectStatisticsTestCase(TestCase):
                 self.users[i], self.enrollments[i], scores
             )
 
-        stats = calculate_raw_project_statistics(self.project)
-
-        # time_spent should only include non-null values
+    def assert_non_null_time_spent_stats(self, stats):
         self.assertEqual(stats["time_spent"]["min"], 8.0)
         self.assertEqual(stats["time_spent"]["max"], 12.0)
         self.assertEqual(stats["time_spent"]["avg"], 10.0)
 
-        # project_score should include all values
+    def assert_project_score_includes_null_time_rows(self, stats):
         self.assertEqual(stats["project_score"]["min"], 8)
         self.assertEqual(stats["project_score"]["max"], 12)
+
+    def test_calculate_raw_project_statistics_with_nulls(self):
+        """Test statistics calculation with some null values"""
+        self.create_null_time_spent_submissions()
+
+        stats = calculate_raw_project_statistics(self.project)
+
+        self.assert_non_null_time_spent_stats(stats)
+        self.assert_project_score_includes_null_time_rows(stats)
 
     def test_calculate_project_statistics_model_creation(self):
         """Test that calculate_project_statistics creates a ProjectStatistics object"""
