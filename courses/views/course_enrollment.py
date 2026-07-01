@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 
 from courses.models import Course, Enrollment
 
-from .course_leaderboard import invalidate_leaderboard_cache
+from .course_leaderboard_data import invalidate_leaderboard_cache
 from .forms import EnrollmentForm
 
 ENROLLMENT_TOGGLE_FIELDS = {

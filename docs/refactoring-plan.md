@@ -152,6 +152,8 @@ testable service functions.
   boundary.
 - [x] Split project evaluation submit context decoration and review persistence
   out of the route-level submit view.
+- [x] Split cached course leaderboard data and score-breakdown query helpers
+  out of the leaderboard view module.
 
 ## Current Findings
 
