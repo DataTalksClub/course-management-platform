@@ -711,6 +711,8 @@ Steps:
   persistence, and calculator modules.
 - [x] Split OpenAPI content path definitions into homework, project, and
   question modules under the content-paths package.
+- [x] Split Datamailer template definitions into submission, score,
+  certificate, reminder, and peer-review modules.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin
