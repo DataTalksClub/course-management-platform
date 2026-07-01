@@ -21,11 +21,6 @@ from courses.models import (
     AnswerTypes,
 )
 
-from courses.scoring import (
-    HomeworkScoringStatus,
-    score_homework_submissions,
-)
-
 from .util import join_possible_answers
 
 logger = logging.getLogger(__name__)
@@ -33,15 +28,6 @@ logger = logging.getLogger(__name__)
 credentials = dict(
     username="test@test.com", email="test@test.com", password="12345"
 )
-
-
-@dataclass(frozen=True)
-class ScoredOptionExpectation:
-    index: int
-    value: str
-    is_selected: bool
-    is_correct: bool
-    selected_class: str
 
 
 @dataclass(frozen=True)
@@ -186,20 +172,6 @@ class HomeworkDetailViewTests(TestCase):
             "index": index,
         }
 
-    def scored_option(self, expectation):
-        option = self.option(
-            expectation.value,
-            expectation.index,
-            expectation.is_selected,
-        )
-        option.update(
-            {
-                "is_correct": expectation.is_correct,
-                "correctly_selected_class": expectation.selected_class,
-            }
-        )
-        return option
-
     def unselected_options(self, values):
         options = []
         for index, value in enumerate(values, start=1):
@@ -212,13 +184,6 @@ class HomeworkDetailViewTests(TestCase):
         for index, value in enumerate(values, start=1):
             is_selected = index in selected_indexes
             option = self.option(value, index, is_selected)
-            options.append(option)
-        return options
-
-    def scored_options(self, rows):
-        options = []
-        for row in rows:
-            option = self.scored_option(row)
             options.append(option)
         return options
 
@@ -544,195 +509,6 @@ class HomeworkDetailViewTests(TestCase):
             ),
         )
 
-    def score_homework(self):
-        self.homework.due_date = timezone.now() - timezone.timedelta(days=1)
-        self.homework.save()
-
-        status, _ = score_homework_submissions(self.homework.id)
-        self.assertEqual(status, HomeworkScoringStatus.OK)
-
-        self.homework = Homework.objects.get(id=self.homework.id)
-        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
-        self.assertTrue(self.homework.is_scored())
-
-    def assert_scored_text_answer(self, answer, text):
-        self.assertEqual(answer["text"], text)
-        self.assertEqual(
-            answer["correctly_selected_class"],
-            "option-answer-correct",
-        )
-
-    def assert_first_scored_answer(self, question_answer):
-        question, answer = question_answer
-        self.assertEqual(question, self.question1)
-        self.assertEqual(
-            answer["options"],
-            self.scored_options(
-                [
-                    ScoredOptionExpectation(
-                        index=1,
-                        value="Paris",
-                        is_selected=False,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                    ScoredOptionExpectation(
-                        index=2,
-                        value="London",
-                        is_selected=False,
-                        is_correct=False,
-                        selected_class="option-answer-none",
-                    ),
-                    ScoredOptionExpectation(
-                        index=3,
-                        value="Berlin",
-                        is_selected=True,
-                        is_correct=False,
-                        selected_class="option-answer-incorrect",
-                    ),
-                ]
-            ),
-        )
-
-    def assert_third_scored_answer(self, question_answer):
-        question, answer = question_answer
-        self.assertEqual(question, self.question3)
-        self.assertEqual(
-            answer["options"],
-            self.scored_options(
-                [
-                    ScoredOptionExpectation(
-                        index=1,
-                        value="2",
-                        is_selected=True,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                    ScoredOptionExpectation(
-                        index=2,
-                        value="3",
-                        is_selected=True,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                    ScoredOptionExpectation(
-                        index=3,
-                        value="4",
-                        is_selected=True,
-                        is_correct=False,
-                        selected_class="option-answer-incorrect",
-                    ),
-                    ScoredOptionExpectation(
-                        index=4,
-                        value="5",
-                        is_selected=False,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                ]
-            ),
-        )
-
-    def assert_fourth_scored_answer(self, question_answer):
-        question, answer = question_answer
-        self.assertEqual(question, self.question4)
-        self.assertEqual(
-            answer["options"],
-            self.scored_options(
-                [
-                    ScoredOptionExpectation(
-                        index=1,
-                        value="5",
-                        is_selected=True,
-                        is_correct=False,
-                        selected_class="option-answer-incorrect",
-                    ),
-                    ScoredOptionExpectation(
-                        index=2,
-                        value="6",
-                        is_selected=False,
-                        is_correct=False,
-                        selected_class="option-answer-none",
-                    ),
-                    ScoredOptionExpectation(
-                        index=3,
-                        value="7",
-                        is_selected=False,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                ]
-            ),
-        )
-
-    def assert_sixth_scored_answer(self, question_answer):
-        question, answer = question_answer
-        self.assertEqual(question, self.question6)
-        self.assertEqual(
-            answer["options"],
-            self.scored_options(
-                [
-                    ScoredOptionExpectation(
-                        index=1,
-                        value="Blue",
-                        is_selected=True,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                    ScoredOptionExpectation(
-                        index=2,
-                        value="White",
-                        is_selected=True,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                    ScoredOptionExpectation(
-                        index=3,
-                        value="Red",
-                        is_selected=True,
-                        is_correct=True,
-                        selected_class="option-answer-correct",
-                    ),
-                    ScoredOptionExpectation(
-                        index=4,
-                        value="Green",
-                        is_selected=False,
-                        is_correct=False,
-                        selected_class="option-answer-none",
-                    ),
-                ]
-            ),
-        )
-
-    def assert_scored_question_answers(self, question_answers):
-        self.assertEqual(len(question_answers), 6)
-        self.assert_first_scored_answer(question_answers[0])
-        self.assertEqual(question_answers[1][0], self.question2)
-        self.assert_scored_text_answer(question_answers[1][1], "Some text")
-        self.assert_third_scored_answer(question_answers[2])
-        self.assert_fourth_scored_answer(question_answers[3])
-        self.assertEqual(question_answers[4][0], self.question5)
-        self.assert_scored_text_answer(question_answers[4][1], "3.141516")
-        self.assert_sixth_scored_answer(question_answers[5])
-
-    def create_scored_submission_with_answers(self, answers_by_question):
-        self.create_enrollment()
-        self.create_submission()
-        self.create_answers(answers_by_question)
-        self.score_homework()
-
-    def assert_answer_present(self, question_answer, expected_question):
-        question, answer = question_answer
-        self.assertEqual(question, expected_question)
-        self.assertNotIn("no_answer_submitted", answer)
-        return answer
-
-    def assert_no_answer_submitted(self, question_answer, expected_question):
-        question, answer = question_answer
-        self.assertEqual(question, expected_question)
-        self.assertTrue(answer.get("no_answer_submitted", False))
-        return answer
-
     def test_homework_detail_unauthenticated(self):
         response = self.get_homework_response()
 
@@ -870,23 +646,6 @@ class HomeworkDetailViewTests(TestCase):
                 "deadline. Your latest saved version will be scored."
             ),
         )
-
-    def test_homework_detail_with_scored_homework(self):
-        self.create_submission_with_answers(question3_answer="1,2,3")
-        self.score_homework()
-
-        response = self.get_homework_response(login=True)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "homework/homework.html")
-
-        context = self.assert_homework_context(
-            response, is_authenticated=True
-        )
-        self.assertEqual(context["submission"], self.submission)
-        self.assertTrue(context["homework"].is_scored)
-
-        self.assert_scored_question_answers(context["question_answers"])
 
     def test_homework_detail_submission_post_no_submissions(self):
         self.assert_no_enrollment_or_submission()
@@ -1282,91 +1041,3 @@ class HomeworkDetailViewTests(TestCase):
             {"value": "Berlin", "is_selected": False, "index": 3},
         ]
         self.assertEqual(answer1["options"], expected_options1)
-
-    def test_homework_detail_scored_with_unanswered_questions(self):
-        """Test that unanswered questions in scored homework show appropriate indicators"""
-        self.create_scored_submission_with_answers(
-            {
-                self.question1: "1",
-                self.question2: "Some explanation",
-                self.question5: "3.14",
-            }
-        )
-
-        response = self.get_homework_response(login=True)
-        self.assertEqual(response.status_code, 200)
-
-        question_answers = response.context["question_answers"]
-        self.assertEqual(len(question_answers), 6)
-        self.assert_answer_present(question_answers[0], self.question1)
-        answer2 = self.assert_answer_present(
-            question_answers[1], self.question2
-        )
-        self.assertEqual(answer2["text"], "Some explanation")
-        self.assert_no_answer_submitted(question_answers[2], self.question3)
-        self.assert_no_answer_submitted(question_answers[3], self.question4)
-        self.assert_answer_present(question_answers[4], self.question5)
-        self.assert_no_answer_submitted(question_answers[5], self.question6)
-
-    def test_homework_detail_scored_with_empty_free_form_answer(self):
-        """Test that empty free form answers in scored homework show appropriate indicators"""
-        self.create_scored_submission_with_answers(
-            {
-                self.question2: "   ",
-            }
-        )
-
-        response = self.get_homework_response(login=True)
-        self.assertEqual(response.status_code, 200)
-
-        self.assert_no_answer_submitted(
-            response.context["question_answers"][1],
-            self.question2,
-        )
-
-    def test_homework_detail_unauthenticated_scored_no_answer_warning(self):
-        """
-        Test that unauthenticated users viewing a scored homework
-        don't see 'no answer submitted' warnings in the rendered HTML.
-        """
-        self.create_scored_submission_with_answers(
-            {
-                self.question1: "1",
-                self.question4: "3",
-            }
-        )
-
-        response = self.get_homework_response()
-        self.assertEqual(response.status_code, 200)
-
-        content = response.content.decode("utf-8")
-        self.assertIn("Correct answers are available below", content)
-        self.assertIn("Log in to view my results", content)
-        self.assertIn("Correct answers", content)
-        self.assertIn("Review the expected answers", content)
-        self.assertIn('type="radio"', content)
-        self.assertIn('type="checkbox"', content)
-        self.assertIn('type="text"', content)
-        self.assertIn("disabled", content)
-        self.assertNotIn("Log in to submit this homework", content)
-        self.assertNotIn("You can preview the questions", content)
-        self.assertNotIn("Submission details", content)
-        self.assertNotIn("Status: Not submitted", content)
-        self.assertNotIn("No answer was submitted for this question", content)
-
-    def test_homework_detail_authenticated_scored_with_answer_warning(self):
-        """
-        Test that authenticated users viewing a scored homework with incomplete
-        answers DO see 'no answer submitted' warnings for questions they didn't answer.
-        """
-        self.create_scored_submission_with_answers(
-            {
-                self.question1: "1",
-            }
-        )
-
-        response = self.get_homework_response(login=True)
-        self.assertEqual(response.status_code, 200)
-
-        content = response.content.decode("utf-8")
-        self.assertIn("No answer was submitted for this question", content)

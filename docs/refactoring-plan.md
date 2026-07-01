@@ -75,6 +75,11 @@ testable service functions.
   guard, or group only one or two obvious arguments without naming a durable
   domain concept.
 
+## Progress Log
+
+- [x] Split scored homework result view tests out of the oversized homework
+  detail test module.
+
 ## Current Findings
 
 ### API owns public/export routes
