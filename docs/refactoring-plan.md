@@ -184,6 +184,8 @@ testable service functions.
   internal dataclass fields.
 - [x] Flatten duplicate-course admin creation inputs and clean criteria form
   validation style.
+- [x] Flatten Datamailer outbox timestamp and response payload construction in
+  enqueue/dispatch status updates.
 
 ## Current Findings
 

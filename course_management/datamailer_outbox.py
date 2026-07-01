@@ -27,15 +27,17 @@ class DatamailerOutboxEventData:
 def enqueue_datamailer_outbox_event(
     data: DatamailerOutboxEventData,
 ) -> DatamailerOutboxEvent:
-    event_id = f"cmp-datamailer-event:{uuid4()}"
+    event_uuid = uuid4()
+    event_id = f"cmp-datamailer-event:{event_uuid}"
+    now = timezone.now()
     event = DatamailerOutboxEvent.objects.create(
         idempotency_key=data.idempotency_key,
         event_id=event_id,
         event_type=data.event_type,
         ordering_key=data.ordering_key,
         payload=data.payload,
-        occurred_at=timezone.now(),
-        next_attempt_at=timezone.now(),
+        occurred_at=now,
+        next_attempt_at=now,
     )
 
     if data.dispatch_immediately and event.status in RETRYABLE_STATUSES:

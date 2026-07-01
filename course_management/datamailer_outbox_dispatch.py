@@ -100,8 +100,9 @@ def finish_dispatch_run_if_present(run, counts, *, status, last_error):
 
 
 def finish_dispatch_run(run, counts, *, status, last_error):
+    finished_at = timezone.now()
     run.status = status
-    run.finished_at = timezone.now()
+    run.finished_at = finished_at
     run.processed_count = counts["processed"]
     run.acked_count = counts["acked"]
     run.retrying_count = counts["retrying"]
@@ -150,9 +151,10 @@ def claim_outbox_event(event):
 
 
 def mark_processing(event):
+    now = timezone.now()
     event.status = DatamailerOutboxStatus.PROCESSING
     event.attempt_count += 1
-    event.last_attempt_at = timezone.now()
+    event.last_attempt_at = now
     event.save(
         update_fields=[
             "status",
@@ -237,34 +239,39 @@ def send_event(client, event_type: str, payload: dict[str, Any]):
 
 
 def mark_acked(event, response_payload):
+    now = timezone.now()
+    response_data = json_response_payload(response_payload)
     DatamailerOutboxEvent.objects.filter(id=event.id).update(
         status=DatamailerOutboxStatus.ACKED,
-        acked_at=timezone.now(),
-        next_attempt_at=timezone.now(),
+        acked_at=now,
+        next_attempt_at=now,
         last_error="",
-        response_payload=json_response_payload(response_payload),
-        updated_at=timezone.now(),
+        response_payload=response_data,
+        updated_at=now,
     )
 
 
 def mark_retry_or_failed(event, exc):
     event.refresh_from_db()
     status = status_for_error(exc, event)
+    now = timezone.now()
     updates = {
         "status": status,
         "last_error": str(exc),
-        "updated_at": timezone.now(),
+        "updated_at": now,
     }
     if status == DatamailerOutboxStatus.RETRYING:
-        updates["next_attempt_at"] = timezone.now() + retry_delay(event.attempt_count)
+        retry_delta = retry_delay(event.attempt_count)
+        updates["next_attempt_at"] = now + retry_delta
     DatamailerOutboxEvent.objects.filter(id=event.id).update(**updates)
 
 
 def mark_failed(event, message):
+    now = timezone.now()
     DatamailerOutboxEvent.objects.filter(id=event.id).update(
         status=DatamailerOutboxStatus.FAILED,
         last_error=message,
-        updated_at=timezone.now(),
+        updated_at=now,
     )
 
 
