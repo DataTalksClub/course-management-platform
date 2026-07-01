@@ -200,6 +200,8 @@ testable service functions.
   public project-evaluation add route.
 - [x] Split API leaderboard export homework/project queryset builders out of
   the prefetch coordinator.
+- [x] Replace repetitive API course-create field extraction with an explicit
+  default table and value builder.
 
 ## Current Findings
 

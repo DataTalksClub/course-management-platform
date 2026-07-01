@@ -24,6 +24,21 @@ COURSE_PATCH_FIELDS = {
 
 COURSE_DATE_FIELDS = {"start_date", "end_date"}
 
+COURSE_CREATE_DEFAULTS = (
+    ("description", ""),
+    ("start_date", None),
+    ("end_date", None),
+    ("registration_url", ""),
+    ("github_repo_url", ""),
+    ("social_media_hashtag", ""),
+    ("faq_document_url", ""),
+    ("min_projects_to_pass", 1),
+    ("homework_problems_comments_field", False),
+    ("project_passing_score", 0),
+    ("finished", False),
+    ("visible", True),
+)
+
 
 def course_create_data_from_request(request):
     data, err = parse_json_body(request)
@@ -149,40 +164,19 @@ def duplicate_course_slug_response(data):
     )
 
 
-def course_from_create_data(data):
-    slug = data.get("slug")
-    title = data.get("title")
-    description = data.get("description", "")
-    start_date = data.get("start_date")
-    end_date = data.get("end_date")
-    registration_url = data.get("registration_url", "")
-    github_repo_url = data.get("github_repo_url", "")
-    social_media_hashtag = data.get("social_media_hashtag", "")
-    faq_document_url = data.get("faq_document_url", "")
-    min_projects_to_pass = data.get("min_projects_to_pass", 1)
-    homework_problems_comments_field = data.get(
-        "homework_problems_comments_field", False
-    )
-    project_passing_score = data.get("project_passing_score", 0)
-    finished = data.get("finished", False)
-    visible = data.get("visible", True)
+def course_create_values(data):
+    values = {
+        "slug": data.get("slug"),
+        "title": data.get("title"),
+    }
+    for field, default in COURSE_CREATE_DEFAULTS:
+        values[field] = data.get(field, default)
+    return values
 
-    course = Course(
-        slug=slug,
-        title=title,
-        description=description,
-        start_date=start_date,
-        end_date=end_date,
-        registration_url=registration_url,
-        github_repo_url=github_repo_url,
-        social_media_hashtag=social_media_hashtag,
-        faq_document_url=faq_document_url,
-        min_projects_to_pass=min_projects_to_pass,
-        homework_problems_comments_field=homework_problems_comments_field,
-        project_passing_score=project_passing_score,
-        finished=finished,
-        visible=visible,
-    )
+
+def course_from_create_data(data):
+    values = course_create_values(data)
+    course = Course(**values)
     return course
 
 
