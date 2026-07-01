@@ -119,44 +119,44 @@ def faq_contribution_submission_field(
     }
 
 
-def optional_homework_submission_fields(
-    course: Course,
+def add_visible_submission_field(
+    fields: list[dict[str, Any]],
+    field: dict[str, Any] | None,
+) -> None:
+    if field is None:
+        return
+
+    fields.append(field)
+
+
+def add_homework_detail_submission_fields(
+    fields: list[dict[str, Any]],
     homework: Homework,
     submission: Submission,
-) -> list[dict[str, Any] | None]:
-    fields = []
+) -> None:
     homework_url_field = homework_url_submission_field(homework, submission)
-    fields.append(homework_url_field)
+    add_visible_submission_field(fields, homework_url_field)
     learning_in_public_field = learning_in_public_submission_field(
         homework,
         submission,
     )
-    fields.append(learning_in_public_field)
+    add_visible_submission_field(fields, learning_in_public_field)
     lecture_time_field = lecture_time_submission_field(homework, submission)
-    fields.append(lecture_time_field)
+    add_visible_submission_field(fields, lecture_time_field)
     homework_time_field = homework_time_submission_field(homework, submission)
-    fields.append(homework_time_field)
+    add_visible_submission_field(fields, homework_time_field)
+
+
+def add_course_owned_submission_fields(
+    fields: list[dict[str, Any]],
+    course: Course,
+    submission: Submission,
+) -> None:
     problems_comments_field = problems_comments_submission_field(
         course,
         submission,
     )
-    fields.append(problems_comments_field)
-    faq_contribution_field = faq_contribution_submission_field(
-        homework,
-        submission,
-    )
-    fields.append(faq_contribution_field)
-    return fields
-
-
-def visible_homework_submission_fields(
-    fields: list[dict[str, Any] | None],
-) -> list[dict[str, Any]]:
-    visible_fields = []
-    for field in fields:
-        if field is not None:
-            visible_fields.append(field)
-    return visible_fields
+    add_visible_submission_field(fields, problems_comments_field)
 
 
 def homework_submission_fields(
@@ -164,12 +164,15 @@ def homework_submission_fields(
     homework: Homework,
     submission: Submission,
 ) -> list[dict[str, Any]]:
-    fields = optional_homework_submission_fields(
-        course,
+    fields = []
+    add_homework_detail_submission_fields(fields, homework, submission)
+    add_course_owned_submission_fields(fields, course, submission)
+    faq_contribution_field = faq_contribution_submission_field(
         homework,
         submission,
     )
-    return visible_homework_submission_fields(fields)
+    add_visible_submission_field(fields, faq_contribution_field)
+    return fields
 
 
 def homework_submitted_content(

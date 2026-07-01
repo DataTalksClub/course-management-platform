@@ -2558,6 +2558,17 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Simplify homework submission summary field assembly by removing the
+  intermediate optional-field list and adding visible fields directly while
+  preserving the existing confirmation payload order. Verification:
+  `uv run ruff check courses/views/homework_submission_summary.py courses/tests/test_homework_submission_integrations.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_submission_integrations`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, `touched_dict_call_values=0`, and
+  `touched_wide_positional_calls=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
