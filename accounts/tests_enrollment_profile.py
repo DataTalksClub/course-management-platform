@@ -20,53 +20,54 @@ class EnrollmentProfileTestCase(AccountCourseTestCase):
 
     def test_account_settings_certificate_name_shows_in_enrollment_form(self):
         self.client.force_login(self.user)
+        account_settings_url = reverse("account_settings")
+        enrollment_url = reverse("enrollment", args=[self.course.slug])
+        payload = {
+            "certificate_name": "Account Certificate",
+            "github_url": "",
+            "linkedin_url": "",
+            "personal_website_url": "",
+            "about_me": "",
+            "dark_mode": "",
+        }
 
-        response = self.client.post(
-            reverse("account_settings"),
-            {
-                "certificate_name": "Account Certificate",
-                "github_url": "",
-                "linkedin_url": "",
-                "personal_website_url": "",
-                "about_me": "",
-                "dark_mode": "",
-            },
-        )
+        response = self.client.post(account_settings_url, payload)
 
-        self.assertRedirects(response, reverse("account_settings"))
+        self.assertRedirects(response, account_settings_url)
 
-        response = self.client.get(
-            reverse("enrollment", args=[self.course.slug])
-        )
+        response = self.client.get(enrollment_url)
 
         self.assertEqual(response.status_code, 200)
+        certificate_name_value = (
+            response.context["form"]["certificate_name"].value()
+        )
         self.assertEqual(
-            response.context["form"]["certificate_name"].value(),
+            certificate_name_value,
             "Account Certificate",
         )
 
     def test_enrollment_form_links_to_account_public_profile(self):
         self.client.force_login(self.user)
+        account_settings_url = reverse("account_settings")
+        enrollment_url = reverse("enrollment", args=[self.course.slug])
 
-        response = self.client.get(
-            reverse("enrollment", args=[self.course.slug])
-        )
+        response = self.client.get(enrollment_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit public profile")
-        self.assertContains(response, f'href="{reverse("account_settings")}"')
+        self.assertContains(response, f'href="{account_settings_url}"')
 
     def test_enrollment_certificate_name_saves_to_user_profile(self):
         self.client.force_login(self.user)
+        account_settings_url = reverse("account_settings")
+        course_url = reverse("course", args=[self.course.slug])
+        enrollment_url = reverse("enrollment", args=[self.course.slug])
         payload = self.enrollment_payload(display_public_profile=True)
         payload["certificate_name"] = "Enrollment Certificate"
 
-        response = self.client.post(
-            reverse("enrollment", args=[self.course.slug]),
-            payload,
-        )
+        response = self.client.post(enrollment_url, payload)
 
-        self.assertRedirects(response, reverse("course", args=[self.course.slug]))
+        self.assertRedirects(response, course_url)
         self.user.refresh_from_db()
         self.enrollment.refresh_from_db()
         self.assertEqual(
@@ -75,38 +76,40 @@ class EnrollmentProfileTestCase(AccountCourseTestCase):
         )
         self.assertIsNone(self.enrollment.certificate_name)
 
-        response = self.client.get(reverse("account_settings"))
+        response = self.client.get(account_settings_url)
 
         self.assertEqual(response.status_code, 200)
+        certificate_name_value = (
+            response.context["form"]["certificate_name"].value()
+        )
         self.assertEqual(
-            response.context["form"]["certificate_name"].value(),
+            certificate_name_value,
             "Enrollment Certificate",
         )
 
     def test_enrollment_public_profile_flag_saves_enabled(self):
         self.client.force_login(self.user)
+        course_url = reverse("course", args=[self.course.slug])
+        enrollment_url = reverse("enrollment", args=[self.course.slug])
         payload = self.enrollment_payload(display_public_profile=True)
 
-        response = self.client.post(
-            reverse("enrollment", args=[self.course.slug]),
-            payload,
-        )
+        response = self.client.post(enrollment_url, payload)
 
-        self.assertRedirects(response, reverse("course", args=[self.course.slug]))
+        self.assertRedirects(response, course_url)
         self.enrollment.refresh_from_db()
         self.assertTrue(self.enrollment.display_public_profile)
 
     def test_enrollment_toggle_updates_public_profile_immediately(self):
         self.client.force_login(self.user)
+        url = reverse("update_enrollment_toggle", args=[self.course.slug])
+        payload = {"field": "display_public_profile", "value": "true"}
 
-        response = self.client.post(
-            reverse("update_enrollment_toggle", args=[self.course.slug]),
-            {"field": "display_public_profile", "value": "true"},
-        )
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
+        response_data = response.json()
         self.assertEqual(
-            response.json(),
+            response_data,
             {"field": "display_public_profile", "value": True},
         )
         self.enrollment.refresh_from_db()
@@ -114,11 +117,10 @@ class EnrollmentProfileTestCase(AccountCourseTestCase):
 
     def test_enrollment_toggle_rejects_unknown_field(self):
         self.client.force_login(self.user)
+        url = reverse("update_enrollment_toggle", args=[self.course.slug])
+        payload = {"field": "total_score", "value": "true"}
 
-        response = self.client.post(
-            reverse("update_enrollment_toggle", args=[self.course.slug]),
-            {"field": "total_score", "value": "true"},
-        )
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 400)
 
@@ -126,14 +128,13 @@ class EnrollmentProfileTestCase(AccountCourseTestCase):
         self.enrollment.display_public_profile = True
         self.enrollment.save()
         self.client.force_login(self.user)
+        course_url = reverse("course", args=[self.course.slug])
+        enrollment_url = reverse("enrollment", args=[self.course.slug])
         payload = self.enrollment_payload()
 
-        response = self.client.post(
-            reverse("enrollment", args=[self.course.slug]),
-            payload,
-        )
+        response = self.client.post(enrollment_url, payload)
 
-        self.assertRedirects(response, reverse("course", args=[self.course.slug]))
+        self.assertRedirects(response, course_url)
         self.enrollment.refresh_from_db()
         self.assertFalse(self.enrollment.display_public_profile)
 
@@ -143,13 +144,12 @@ class EnrollmentProfileTestCase(AccountCourseTestCase):
         self.user.personal_website_url = "https://student.example.com"
         self.user.about_me = "Learning data."
         self.user.save()
-
-        response = self.client.get(
-            reverse(
-                "leaderboard_score_breakdown",
-                args=[self.course.slug, self.enrollment.id],
-            )
+        leaderboard_url = reverse(
+            "leaderboard_score_breakdown",
+            args=[self.course.slug, self.enrollment.id],
         )
+
+        response = self.client.get(leaderboard_url)
 
         self.assertNotContains(response, "Learning data.")
         self.assertNotContains(response, "https://github.com/student")
@@ -157,12 +157,7 @@ class EnrollmentProfileTestCase(AccountCourseTestCase):
         self.enrollment.display_public_profile = True
         self.enrollment.save()
 
-        response = self.client.get(
-            reverse(
-                "leaderboard_score_breakdown",
-                args=[self.course.slug, self.enrollment.id],
-            )
-        )
+        response = self.client.get(leaderboard_url)
 
         self.assertContains(response, "Learning data.")
         self.assertContains(response, "https://github.com/student")
