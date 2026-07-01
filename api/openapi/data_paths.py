@@ -3,9 +3,9 @@ from .primitives import (
     OperationData,
     content_response,
     operation,
-    ref,
-    request_body,
     response,
+    schema_request_body,
+    schema_response,
 )
 
 
@@ -16,7 +16,7 @@ DATA_PATHS_BY_URL_NAME = {
                 "api_health",
                 ["System"],
                 "Health check",
-                {"200": response("Service status", ref("Health"))},
+                {"200": schema_response("Service status", "Health")},
                 requires_auth=False,
             )
         ),
@@ -32,7 +32,7 @@ DATA_PATHS_BY_URL_NAME = {
                         "Course criteria YAML",
                         {"text/yaml": {"schema": {"type": "string"}}},
                     ),
-                    "404": response("Course not found", ref("Error")),
+                    "404": schema_response("Course not found", "Error"),
                 },
                 requires_auth=False,
             )
@@ -49,7 +49,7 @@ DATA_PATHS_BY_URL_NAME = {
                         "Leaderboard YAML",
                         {"text/plain": {"schema": {"type": "string"}}},
                     ),
-                    "404": response("Course not found", ref("Error")),
+                    "404": schema_response("Course not found", "Error"),
                 },
                 requires_auth=False,
             )
@@ -65,8 +65,8 @@ DATA_PATHS_BY_URL_NAME = {
                     "200": response(
                         "Homework submissions export", JSON
                     ),
-                    "404": response(
-                        "Course or homework not found", ref("Error")
+                    "404": schema_response(
+                        "Course or homework not found", "Error"
                     ),
                 },
             )
@@ -80,8 +80,8 @@ DATA_PATHS_BY_URL_NAME = {
                 "Export project submissions",
                 {
                     "200": response("Project submissions export", JSON),
-                    "404": response(
-                        "Course or project not found", ref("Error")
+                    "404": schema_response(
+                        "Course or project not found", "Error"
                     ),
                 },
             )
@@ -94,10 +94,10 @@ DATA_PATHS_BY_URL_NAME = {
                 ["Course Data"],
                 "Get course graduates",
                 {
-                    "200": response(
-                        "Course graduates", ref("Graduates")
+                    "200": schema_response(
+                        "Course graduates", "Graduates"
                     ),
-                    "404": response("Course not found", ref("Error")),
+                    "404": schema_response("Course not found", "Error"),
                 },
             )
         ),
@@ -109,14 +109,14 @@ DATA_PATHS_BY_URL_NAME = {
                 ["Course Data"],
                 "Bulk update enrollment certificate URLs",
                 {
-                    "200": response(
+                    "200": schema_response(
                         "Certificate update result",
-                        ref("CertificateUpdateResponse"),
+                        "CertificateUpdateResponse",
                     ),
-                    "400": response("Invalid request", ref("Error")),
-                    "404": response("Course not found", ref("Error")),
+                    "400": schema_response("Invalid request", "Error"),
+                    "404": schema_response("Course not found", "Error"),
                 },
-                body=request_body(ref("CertificateUpdateRequest")),
+                body=schema_request_body("CertificateUpdateRequest"),
                 description=(
                     "Updates many enrollment certificate URLs in one request. "
                     "The response includes per-entry errors for missing users, "
@@ -132,21 +132,21 @@ DATA_PATHS_BY_URL_NAME = {
                 ["Datamailer"],
                 "Receive Datamailer contact event",
                 {
-                    "200": response(
+                    "200": schema_response(
                         "Datamailer event accepted",
-                        ref("DatamailerEventAccepted"),
+                        "DatamailerEventAccepted",
                     ),
-                    "400": response(
-                        "Invalid event payload", ref("Error")
+                    "400": schema_response(
+                        "Invalid event payload", "Error"
                     ),
-                    "401": response(
-                        "Invalid webhook token", ref("Error")
+                    "401": schema_response(
+                        "Invalid webhook token", "Error"
                     ),
-                    "503": response(
-                        "Webhook not configured", ref("Error")
+                    "503": schema_response(
+                        "Webhook not configured", "Error"
                     ),
                 },
-                body=request_body(ref("DatamailerEvent")),
+                body=schema_request_body("DatamailerEvent"),
                 requires_auth=False,
                 description=(
                     "Webhook used by Datamailer to report hard bounces, "

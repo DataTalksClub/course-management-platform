@@ -37,6 +37,11 @@ def response(description, schema=None):
     return result
 
 
+def schema_response(description, schema_name):
+    schema = ref(schema_name)
+    return response(description, schema)
+
+
 def content_response(description, content):
     return {
         "description": description,
@@ -49,6 +54,11 @@ def request_body(schema):
         "required": True,
         "content": json_content(schema),
     }
+
+
+def schema_request_body(schema_name):
+    schema = ref(schema_name)
+    return request_body(schema)
 
 
 def enum_schema(enum_class, *, nullable=False, description=None):

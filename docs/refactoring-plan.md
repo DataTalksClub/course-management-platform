@@ -538,6 +538,11 @@ testable service functions.
   into the `ChoiceField` declaration. Verification:
   `uv run ruff check accounts/forms.py` and
   `uv run python manage.py test accounts.tests_account_settings accounts.tests_timezone`.
+- [x] Add OpenAPI schema response/request-body helpers and use them in data
+  endpoint path declarations to avoid repeated `response(..., ref(...))` and
+  `request_body(ref(...))` nesting. Verification:
+  `uv run ruff check api/openapi/primitives.py api/openapi/data_paths.py` and
+  `uv run python manage.py test api.tests.test_openapi`.
 
 ## Current Findings
 
