@@ -111,6 +111,23 @@ class HomeworkCadminViewTestBase(TestCase):
         defaults.update(overrides)
         return Submission.objects.create(**defaults)
 
+    def create_homework_search_submission(self, index):
+        user = User.objects.create_user(
+            username=f"hw-student-{index:02d}",
+            email=f"hw-student-{index:02d}@example.com",
+            password="test",
+        )
+        enrollment = self.create_enrollment(student=user)
+        return self.create_homework_submission(
+            enrollment=enrollment,
+            student=user,
+            total_score=index,
+        )
+
+    def create_homework_search_submissions(self, count):
+        for index in range(count):
+            self.create_homework_search_submission(index)
+
     def create_free_form_question(self, score=1):
         return Question.objects.create(
             homework=self.homework,

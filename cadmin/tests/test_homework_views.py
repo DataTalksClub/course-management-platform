@@ -9,7 +9,6 @@ from courses.models import (
     Enrollment,
     Question,
     QuestionTypes,
-    Submission,
 )
 from cadmin.tests.homework_view_base import HomeworkCadminViewTestBase
 
@@ -149,21 +148,7 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         self,
     ):
         """Homework submission search is server-side across all submissions."""
-        for index in range(30):
-            user = User.objects.create_user(
-                username=f"hw-student-{index:02d}",
-                email=f"hw-student-{index:02d}@example.com",
-                password="test",
-            )
-            enrollment = Enrollment.objects.create(
-                student=user, course=self.course
-            )
-            Submission.objects.create(
-                homework=self.homework,
-                student=user,
-                enrollment=enrollment,
-                total_score=index,
-            )
+        self.create_homework_search_submissions(30)
 
         self.client.login(
             username="admin@test.com", password="admin123"

@@ -464,6 +464,11 @@ testable service functions.
   builders so the method-case aggregator stays short and explicit.
   Verification: `uv run ruff check courses/tests/test_datamailer_client.py`
   and `uv run python manage.py test courses.tests.test_datamailer_client`.
+- [x] Shorten the cadmin homework-submission search test by moving repeated
+  searchable-submission setup into the shared homework cadmin fixture base.
+  Verification:
+  `uv run ruff check cadmin/tests/test_homework_views.py cadmin/tests/homework_view_base.py`
+  and `uv run python manage.py test cadmin.tests.test_homework_views`.
 
 ## Current Findings
 
