@@ -127,19 +127,24 @@ def registration_confirmation_metadata(registration, campaign, course):
     }
 
 
+def registration_confirmation_course_context(course):
+    context = {
+        "course_title": "",
+        "course_slug": "",
+    }
+    if course is not None:
+        context["course_title"] = course.title
+        context["course_slug"] = course.slug
+    return context
+
+
 def registration_confirmation_context(registration, campaign, course, urls):
     profile_url = urls["profile_url"]
-    course_title = ""
-    course_slug = ""
-    if course is not None:
-        course_title = course.title
-        course_slug = course.slug
-    return {
+    course_context = registration_confirmation_course_context(course)
+    context = {
         "email_subject": f"Registration confirmed: {campaign.title}",
         "campaign_title": campaign.title,
         "campaign_slug": campaign.slug,
-        "course_title": course_title,
-        "course_slug": course_slug,
         "registration_id": registration.pk,
         "registration_url": urls["registration_url"],
         "course_url": urls["course_url"],
@@ -157,6 +162,8 @@ def registration_confirmation_context(registration, campaign, course, urls):
             f"them off in your profile: {profile_url}"
         ),
     }
+    context.update(course_context)
+    return context
 
 
 def registration_confirmation_payload(registration) -> dict[str, Any] | None:

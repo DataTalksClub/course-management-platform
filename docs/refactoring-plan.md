@@ -210,6 +210,8 @@ testable service functions.
   out of the sync coordinator.
 - [x] Split Datamailer peer-review assignment public route URL construction
   out of the assignment URL record builder.
+- [x] Split Datamailer registration confirmation course context fields out of
+  the confirmation context record builder.
 
 ## Current Findings
 
