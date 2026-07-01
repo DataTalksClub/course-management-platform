@@ -16,7 +16,8 @@ from courses.tests.project_eval_base import (
 class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
 
     def test_eval_submit_not_authenticated(self):
-        response = self.client.get(self.eval_submit_url())
+        eval_submit_url = self.eval_submit_url()
+        response = self.client.get(eval_submit_url)
         self.assertEqual(response.status_code, 302)
 
     def close_project_reviews(self):
@@ -84,7 +85,8 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_post_not_accepting_responses(self):
         self.close_project_reviews()
 
-        response = self.post_eval_submit(self.review_post_data())
+        post_data = self.review_post_data()
+        response = self.post_eval_submit(post_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -97,9 +99,10 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
         self.assertEqual(self.peer_review.state, PeerReviewState.TO_REVIEW.value)
         self.assertEqual(self.peer_review.note_to_peer, "")
         self.assertIsNone(self.peer_review.submitted_at)
-        self.assertFalse(
-            CriteriaResponse.objects.filter(review=self.peer_review).exists()
-        )
+        criteria_response_exists = CriteriaResponse.objects.filter(
+            review=self.peer_review
+        ).exists()
+        self.assertFalse(criteria_response_exists)
 
     def test_eval_submit_get_authenticated_submitted(self):
         criteria_responses = self.create_criteria_responses()
@@ -150,7 +153,8 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
 
     def test_eval_submit_post_not_submitted(self):
         criteria_responses = self.criteria_responses()
-        self.assertEqual(criteria_responses.count(), 0)
+        criteria_response_count = criteria_responses.count()
+        self.assertEqual(criteria_response_count, 0)
 
         post_data = self.review_post_data_with_learning_links()
         response = self.post_eval_submit(post_data)
@@ -171,12 +175,15 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
         criteria_response_map = self.create_criteria_responses()
         self.mark_peer_review_submitted()
         criteria_responses = self.criteria_responses()
-        self.assertEqual(criteria_responses.count(), 3)
+        criteria_response_count = criteria_responses.count()
+        self.assertEqual(criteria_response_count, 3)
 
-        response = self.post_eval_submit(self.updated_review_post_data())
+        post_data = self.updated_review_post_data()
+        response = self.post_eval_submit(post_data)
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(criteria_responses.count(), 3)
+        updated_criteria_response_count = criteria_responses.count()
+        self.assertEqual(updated_criteria_response_count, 3)
 
         c1 = fetch_fresh(criteria_response_map[self.criteria1])
         self.assertEqual(c1.answer, "2")
@@ -203,9 +210,8 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            ProjectVote.objects.filter(
-                voter=self.user,
-                submission=self.other_submission,
-            ).exists()
-        )
+        vote_exists = ProjectVote.objects.filter(
+            voter=self.user,
+            submission=self.other_submission,
+        ).exists()
+        self.assertTrue(vote_exists)
