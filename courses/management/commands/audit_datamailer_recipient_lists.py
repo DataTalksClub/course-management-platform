@@ -66,7 +66,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         config = self._datamailer_config()
         self._validate_options(options)
-        batches = self._audit_batches(options)
+        batches = build_batches(
+            options["kind"],
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
         if not batches:
             self.stdout.write(
                 "No Datamailer recipient-list members to audit."
@@ -94,16 +99,8 @@ class Command(BaseCommand):
             raise CommandError(
                 "Datamailer is not configured. Set DATAMAILER_URL, "
                 "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
-            )
-        return config
-
-    def _audit_batches(self, options):
-        return build_batches(
-            options["kind"],
-            course_slug=options["course_slug"],
-            homework_slug=options["homework_slug"],
-            project_slug=options["project_slug"],
         )
+        return config
 
     def _write_audit_summary(self, batches, drift_count):
         self.stdout.write(

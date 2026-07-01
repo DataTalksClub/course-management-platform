@@ -26,18 +26,14 @@ def selected_template_keys(template_key):
     return sorted(TEMPLATES)
 
 
-def template_upsert_request_data(key):
-    return DatamailerRequestData(
-        method="PUT",
-        path=f"/api/transactional/templates/{key}",
-        json=TEMPLATES[key],
-    )
-
-
 def upsert_datamailer_templates(client, keys):
     results = []
     for key in keys:
-        request_data = template_upsert_request_data(key)
+        request_data = DatamailerRequestData(
+            method="PUT",
+            path=f"/api/transactional/templates/{key}",
+            json=TEMPLATES[key],
+        )
         response = client.request(request_data)
         result = {"template_key": key, "response": response}
         results.append(result)

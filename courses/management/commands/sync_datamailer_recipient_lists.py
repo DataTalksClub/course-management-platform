@@ -153,9 +153,14 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         config = self.get_datamailer_config()
         kind = options["kind"]
-        self.validate_options(kind, options)
+        validate_recipient_list_options(kind, options)
 
-        batches = self.get_batches(kind, options)
+        batches = build_batches(
+            kind,
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
         if not batches:
             self.stdout.write(
                 "No Datamailer recipient-list members to sync."
@@ -182,19 +187,8 @@ class Command(BaseCommand):
             raise CommandError(
                 "Datamailer is not configured. Set DATAMAILER_URL, "
                 "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
-            )
-        return config
-
-    def validate_options(self, kind, options):
-        validate_recipient_list_options(kind, options)
-
-    def get_batches(self, kind, options):
-        return build_batches(
-            kind,
-            course_slug=options["course_slug"],
-            homework_slug=options["homework_slug"],
-            project_slug=options["project_slug"],
         )
+        return config
 
     def write_batch_summary(self, batches):
         total_members = 0
