@@ -271,6 +271,8 @@ testable service functions.
   the notification payload builder.
 - [x] Split Datamailer registration campaign payload construction out of the
   registration membership and confirmation payload module.
+- [x] Split Datamailer homework/project score recipient-list member gathering
+  out of the score notification payload builder.
 
 ## Current Findings
 
