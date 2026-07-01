@@ -2946,6 +2946,15 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split homework submission integration tests into confirmation and
+  Learning in Public duplicate-link modules, with shared setup and assertion
+  helpers grouped by responsibility. Verification:
+  `uv run ruff check courses/tests/homework_submission_integration_base.py courses/tests/homework_submission_confirmation_helpers.py courses/tests/homework_submission_learning_links_helpers.py courses/tests/test_homework_submission_integrations.py courses/tests/test_homework_submission_learning_links.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_submission_integrations courses.tests.test_homework_submission_learning_links`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
