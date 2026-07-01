@@ -1,4 +1,5 @@
 import re
+from dataclasses import dataclass
 
 import requests
 from django.contrib import messages
@@ -23,6 +24,15 @@ DATAMAILER_CAMPAIGN_UPSERT_ACTIONS = {
     "test_send",
     "queue",
 }
+
+
+@dataclass(frozen=True)
+class DatamailerCampaignActionData:
+    request: object
+    campaign: object
+    action: str
+    client: DatamailerClient
+    external_key: str
 
 
 def test_recipient_emails(value):
@@ -133,26 +143,26 @@ DATAMAILER_CAMPAIGN_ACTION_HANDLERS = {
 }
 
 
-def run_datamailer_campaign_action(
-    request,
-    action,
-    client,
-    external_key,
-):
-    handler = DATAMAILER_CAMPAIGN_ACTION_HANDLERS.get(action)
+def run_datamailer_campaign_action(data):
+    handler = DATAMAILER_CAMPAIGN_ACTION_HANDLERS.get(data.action)
     if handler:
-        return handler(request, client, external_key)
+        return handler(data.request, data.client, data.external_key)
 
-    messages.error(request, "Unknown Datamailer campaign action.")
+    messages.error(data.request, "Unknown Datamailer campaign action.")
     return None, False
 
 
-def upsert_datamailer_campaign_if_needed(action, client, external_key, campaign):
-    if action not in DATAMAILER_CAMPAIGN_UPSERT_ACTIONS:
+def upsert_datamailer_campaign_if_needed(data):
+    if data.action not in DATAMAILER_CAMPAIGN_UPSERT_ACTIONS:
         return
 
-    payload = registration_campaign_datamailer_payload(campaign)
-    client.upsert_campaign(external_key, payload)
+    payload = registration_campaign_datamailer_payload(data.campaign)
+    data.client.upsert_campaign(data.external_key, payload)
+
+
+def perform_datamailer_campaign_action(data):
+    upsert_datamailer_campaign_if_needed(data)
+    return run_datamailer_campaign_action(data)
 
 
 def handle_datamailer_campaign_action(request, campaign):
@@ -163,20 +173,16 @@ def handle_datamailer_campaign_action(request, campaign):
         return None, True
 
     external_key = registration_campaign_external_key(campaign)
+    action_data = DatamailerCampaignActionData(
+        request=request,
+        campaign=campaign,
+        action=action,
+        client=client,
+        external_key=external_key,
+    )
 
     try:
-        upsert_datamailer_campaign_if_needed(
-            action,
-            client,
-            external_key,
-            campaign,
-        )
-        return run_datamailer_campaign_action(
-            request,
-            action,
-            client,
-            external_key,
-        )
+        return perform_datamailer_campaign_action(action_data)
     except ValidationError as exc:
         message = "; ".join(exc.messages)
         messages.error(request, message)

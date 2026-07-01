@@ -204,6 +204,8 @@ testable service functions.
   default table and value builder.
 - [x] Split cadmin campaign edit POST action selection out of the public edit
   view coordinator.
+- [x] Group cadmin Datamailer campaign action inputs into a value object and
+  pass it through action upsert/run helpers.
 
 ## Current Findings
 
