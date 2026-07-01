@@ -32,12 +32,6 @@ class ChoiceOptionData:
     correct_indices: list[int]
 
 
-@dataclass(frozen=True)
-class AnswerClassState:
-    selected: bool
-    correct: bool
-
-
 def process_unscored_free_form_answer(answer: Answer | None):
     if not answer:
         return {"text": ""}
@@ -126,12 +120,9 @@ def process_choice_option(data: ChoiceOptionData):
 
     if data.homework.state == HomeworkState.SCORED.value:
         is_correct = data.index in data.correct_indices
-        answer_class_state = AnswerClassState(
+        correctly_selected_class = determine_answer_class(
             selected=is_selected,
             correct=is_correct,
-        )
-        correctly_selected_class = determine_answer_class(
-            answer_class_state
         )
         processed_answer.update(
             {
@@ -159,10 +150,10 @@ def extract_selected_options(answer):
     return extract_selected_option_indexes(answer.answer_text)
 
 
-def determine_answer_class(state: AnswerClassState) -> str:
-    if state.correct:
+def determine_answer_class(*, selected: bool, correct: bool) -> str:
+    if correct:
         return "option-answer-correct"
-    if state.selected:
+    if selected:
         return "option-answer-incorrect"
     return "option-answer-none"
 

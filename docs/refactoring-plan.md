@@ -1717,6 +1717,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_project_score courses.tests.test_project_score_outcomes courses.tests.test_project_score_bonus courses.tests.test_project_results`,
   production loop-alias scan reports `production_loop_aliases=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Remove the two-field homework answer class-state dataclass that only
+  forwarded two booleans to one helper. Verification:
+  `uv run ruff check courses/views/homework_answers.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_scoring_view courses.tests.test_homework_scoring_view_warnings`,
+  dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
