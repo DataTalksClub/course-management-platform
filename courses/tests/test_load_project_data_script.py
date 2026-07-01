@@ -21,6 +21,11 @@ def quiet_tqdm(items, **_kwargs):
 
 
 class LoadProjectDataScriptTest(TestCase):
+    def run_quiet_import_step(self, import_step, *args):
+        with patch("scripts.load_project_data.tqdm", quiet_tqdm):
+            with redirect_stdout(StringIO()):
+                import_step(*args)
+
     def test_create_users_maps_existing_and_created_users(self):
         existing = User.objects.create_user(
             username="existing@example.com",
@@ -38,9 +43,7 @@ class LoadProjectDataScriptTest(TestCase):
             },
         ]
 
-        with patch("scripts.load_project_data.tqdm", quiet_tqdm):
-            with redirect_stdout(StringIO()):
-                create_users(records, maps)
+        self.run_quiet_import_step(create_users, records, maps)
 
         created = User.objects.get(username="new@example.com")
         self.assertEqual(maps.user_id_map[10], existing.id)
@@ -48,11 +51,13 @@ class LoadProjectDataScriptTest(TestCase):
         self.assertEqual(created.certificate_name, "New User")
         self.assertTrue(created.dark_mode)
 
-    def test_create_enrollments_maps_existing_and_created_enrollments(self):
-        course = Course.objects.create(
+    def create_enrollment_import_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
         )
+
+    def create_enrollment_import_users(self):
         existing_user = User.objects.create_user(
             username="existing@example.com",
             email="existing@example.com",
@@ -61,14 +66,10 @@ class LoadProjectDataScriptTest(TestCase):
             username="new@example.com",
             email="new@example.com",
         )
-        existing_enrollment = Enrollment.objects.create(
-            student=existing_user,
-            course=course,
-        )
-        maps = ImportMaps(
-            user_id_map={10: existing_user.id, 11: new_user.id}
-        )
-        records = [
+        return existing_user, new_user
+
+    def enrollment_import_records(self):
+        return [
             {"id": 20, "student_id": 10, "enrollment_date": None},
             {
                 "id": 21,
@@ -78,9 +79,22 @@ class LoadProjectDataScriptTest(TestCase):
             },
         ]
 
-        with patch("scripts.load_project_data.tqdm", quiet_tqdm):
-            with redirect_stdout(StringIO()):
-                create_enrollments(records, course, maps)
+    def enrollment_import_maps(self, existing_user, new_user):
+        return ImportMaps(
+            user_id_map={10: existing_user.id, 11: new_user.id}
+        )
+
+    def test_create_enrollments_maps_existing_and_created_enrollments(self):
+        course = self.create_enrollment_import_course()
+        existing_user, new_user = self.create_enrollment_import_users()
+        existing_enrollment = Enrollment.objects.create(
+            student=existing_user,
+            course=course,
+        )
+        maps = self.enrollment_import_maps(existing_user, new_user)
+        records = self.enrollment_import_records()
+
+        self.run_quiet_import_step(create_enrollments, records, course, maps)
 
         created = Enrollment.objects.get(student=new_user, course=course)
         self.assertEqual(maps.enrollment_id_map[20], existing_enrollment.id)

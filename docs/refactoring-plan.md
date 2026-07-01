@@ -106,6 +106,10 @@ testable service functions.
   deadline deltas, and fixture records are named before construction.
 - [x] Flatten initial data-script homework question fixtures so possible-answer
   strings and saved answer records are named before persistence.
+- [x] Shorten load-project-data script tests by naming quiet import execution
+  and enrollment import fixtures. Verification:
+  `uv run ruff check courses/tests/test_load_project_data_script.py` and
+  `uv run python manage.py test courses.tests.test_load_project_data_script`.
 - [x] Split project statistics view and integration tests out of the
   calculation-focused `courses/tests/test_project_statistics.py` module.
 - [x] Shorten project detail/submission view tests by reusing route, POST,
