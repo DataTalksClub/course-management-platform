@@ -180,6 +180,8 @@ testable service functions.
   module.
 - [x] Split repeated API project action staff-check and lookup coordination
   into a shared route helper.
+- [x] Flatten Datamailer membership sync payload construction and remove unused
+  internal dataclass fields.
 
 ## Current Findings
 

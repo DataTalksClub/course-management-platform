@@ -22,9 +22,9 @@ from ..payloads import (
     removed_recipient_list_member_payload,
 )
 
+
 @dataclass(frozen=True)
 class ContactMembershipSyncData:
-    config: DatamailerConfig
     contact_payload: dict[str, Any] | None
     list_payload: object
     label: str
@@ -42,7 +42,6 @@ class RecipientListBulkUpsertData:
 
 @dataclass(frozen=True)
 class RecipientListMembershipRemoveData:
-    config: DatamailerConfig
     list_payloads: list
     label: str
     obj: object
@@ -82,10 +81,11 @@ def sync_registration_to_datamailer(registration) -> None:
     if config is None:
         return
 
+    contact_payload = registration_contact_payload(registration)
+    list_payload = registration_recipient_list_payload(registration)
     sync_data = ContactMembershipSyncData(
-        config=config,
-        contact_payload=registration_contact_payload(registration),
-        list_payload=registration_recipient_list_payload(registration),
+        contact_payload=contact_payload,
+        list_payload=list_payload,
         label="registration",
         obj=registration,
     )
@@ -97,12 +97,13 @@ def sync_enrollment_to_datamailer(enrollment) -> None:
     if config is None:
         return
 
+    contact_payload = contact_payload_for_user(
+        enrollment.student, course=enrollment.course
+    )
+    list_payload = enrollment_recipient_list_payload(enrollment)
     sync_data = ContactMembershipSyncData(
-        config=config,
-        contact_payload=contact_payload_for_user(
-            enrollment.student, course=enrollment.course
-        ),
-        list_payload=enrollment_recipient_list_payload(enrollment),
+        contact_payload=contact_payload,
+        list_payload=list_payload,
         label="enrollment",
         obj=enrollment,
     )
@@ -114,12 +115,15 @@ def sync_homework_submission_to_datamailer(submission) -> None:
     if config is None:
         return
 
+    course = submission.homework.course
+    contact_payload = contact_payload_for_user(
+        submission.student,
+        course=course,
+    )
+    list_payload = homework_submission_recipient_list_payload(submission)
     sync_data = ContactMembershipSyncData(
-        config=config,
-        contact_payload=contact_payload_for_user(
-            submission.student, course=submission.homework.course
-        ),
-        list_payload=homework_submission_recipient_list_payload(submission),
+        contact_payload=contact_payload,
+        list_payload=list_payload,
         label="homework submission",
         obj=submission,
     )
@@ -131,12 +135,15 @@ def sync_project_submission_to_datamailer(submission) -> None:
     if config is None:
         return
 
+    course = submission.project.course
+    contact_payload = contact_payload_for_user(
+        submission.student,
+        course=course,
+    )
+    list_payload = project_submission_recipient_list_payload(submission)
     sync_data = ContactMembershipSyncData(
-        config=config,
-        contact_payload=contact_payload_for_user(
-            submission.student, course=submission.project.course
-        ),
-        list_payload=project_submission_recipient_list_payload(submission),
+        contact_payload=contact_payload,
+        list_payload=list_payload,
         label="project submission",
         obj=submission,
     )
@@ -152,11 +159,13 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
         submission
     )
     if submission.passed:
+        course = submission.project.course
+        contact_payload = contact_payload_for_user(
+            submission.student,
+            course=course,
+        )
         sync_data = ContactMembershipSyncData(
-            config=config,
-            contact_payload=contact_payload_for_user(
-                submission.student, course=submission.project.course
-            ),
+            contact_payload=contact_payload,
             list_payload=outcome_payload,
             label="project passed outcome",
             obj=submission,
@@ -164,9 +173,9 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
         _sync_contact_and_membership(sync_data)
         return
 
+    list_payloads = [outcome_payload]
     remove_data = RecipientListMembershipRemoveData(
-        config=config,
-        list_payloads=[outcome_payload],
+        list_payloads=list_payloads,
         label="project passed outcome",
         obj=submission,
     )
@@ -174,6 +183,10 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
 
 
 def enqueue_recipient_list_bulk_upsert(data):
+    member_sync_payload = recipient_list_member_sync_payload(
+        data.config,
+        data.payload,
+    )
     event_data = DatamailerOutboxEventData(
         event_type="recipient_list.members_bulk_upsert",
         idempotency_key=(
@@ -183,10 +196,7 @@ def enqueue_recipient_list_bulk_upsert(data):
         ordering_key=data.ordering_key,
         payload={
             "list_key": data.list_key,
-            "member_sync_payload": recipient_list_member_sync_payload(
-                data.config,
-                data.payload,
-            ),
+            "member_sync_payload": member_sync_payload,
         },
     )
     return enqueue_datamailer_outbox_event(event_data)
@@ -201,6 +211,9 @@ def _remove_recipient_list_memberships(data) -> None:
     for list_payload in data.list_payloads:
         if list_payload is None:
             continue
+        member_payload = removed_recipient_list_member_payload(
+            list_payload.payload
+        )
         event_data = DatamailerOutboxEventData(
             event_type="recipient_list.member_remove",
             idempotency_key=(
@@ -213,9 +226,7 @@ def _remove_recipient_list_memberships(data) -> None:
             payload={
                 "list_key": list_payload.list_key,
                 "source_object_key": list_payload.source_object_key,
-                "member_payload": removed_recipient_list_member_payload(
-                    list_payload.payload
-                ),
+                "member_payload": member_payload,
                 "label": data.label,
                 "object_id": data.obj.pk,
             },
@@ -228,9 +239,10 @@ def remove_registration_from_datamailer(registration) -> None:
     if config is None:
         return
 
+    list_payload = registration_recipient_list_payload(registration)
+    list_payloads = [list_payload]
     remove_data = RecipientListMembershipRemoveData(
-        config=config,
-        list_payloads=[registration_recipient_list_payload(registration)],
+        list_payloads=list_payloads,
         label="registration",
         obj=registration,
     )
@@ -242,12 +254,16 @@ def remove_enrollment_from_datamailer(enrollment) -> None:
     if config is None:
         return
 
+    enrollment_payload = enrollment_recipient_list_payload(enrollment)
+    graduate_payload = course_graduate_recipient_list_member_payload(
+        enrollment
+    )
+    list_payloads = [
+        enrollment_payload,
+        graduate_payload,
+    ]
     remove_data = RecipientListMembershipRemoveData(
-        config=config,
-        list_payloads=[
-            enrollment_recipient_list_payload(enrollment),
-            course_graduate_recipient_list_member_payload(enrollment),
-        ],
+        list_payloads=list_payloads,
         label="enrollment",
         obj=enrollment,
     )
@@ -262,7 +278,6 @@ def remove_homework_submission_from_datamailer(submission) -> None:
     list_payload = homework_submission_recipient_list_payload(submission)
     list_payloads = [list_payload]
     remove_data = RecipientListMembershipRemoveData(
-        config=config,
         list_payloads=list_payloads,
         label="homework submission",
         obj=submission,
@@ -283,7 +298,6 @@ def remove_project_submission_from_datamailer(submission) -> None:
         )
         list_payloads.append(passed_payload)
     remove_data = RecipientListMembershipRemoveData(
-        config=config,
         list_payloads=list_payloads,
         label="project submission",
         obj=submission,
