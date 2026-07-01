@@ -10,11 +10,13 @@ from course_management.datamailer.sync.contacts import (
     erase_contact_from_datamailer,
     sync_contact,
 )
-from course_management.datamailer.sync.memberships import (
+from course_management.datamailer.sync.membership_removals import (
     remove_enrollment_from_datamailer as remove_enrollment_recipient_list,
     remove_homework_submission_from_datamailer as remove_homework_submission_recipient_list,
     remove_project_submission_from_datamailer as remove_project_submission_recipient_list,
     remove_registration_from_datamailer as remove_registration_recipient_list,
+)
+from course_management.datamailer.sync.memberships import (
     sync_enrollment_to_datamailer as sync_enrollment_recipient_list,
 )
 from courses.models.course import CourseRegistration, Enrollment

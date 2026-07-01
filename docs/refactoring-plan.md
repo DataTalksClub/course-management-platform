@@ -333,6 +333,8 @@ testable service functions.
   leaving the view as the HTTP response boundary.
 - [x] Split Datamailer recipient-list source querysets and source constants out
   of batch aggregation, with one owner for recipient-list kinds.
+- [x] Split Datamailer recipient-list membership removal entry points out of
+  the membership upsert/sync module.
 
 ## Current Findings
 
