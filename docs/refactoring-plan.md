@@ -1386,6 +1386,15 @@ Steps:
   functions, repo-wide active-code scans excluding `.tmp` and generated
   migrations (`forbidden_comprehensions=0`, `long_functions=27`),
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten API homework PUT-by-slug question replacement tests by naming the
+  old-question fixture, replacement payload, JSON body, and persisted-question
+  assertions. Verification:
+  `uv run ruff check api/tests/test_homeworks.py`,
+  `uv run python manage.py test api.tests.test_homeworks`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, repo-wide active-code scans excluding `.tmp` and generated
+  migrations (`forbidden_comprehensions=0`, `long_functions=26`),
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

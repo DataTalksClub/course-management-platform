@@ -201,14 +201,18 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         self.assertEqual(data["title"], "Homework From Put")
         self.assertEqual(data["questions_count"], 1)
 
-    def test_put_homework_by_slug_updates_and_replaces_questions(self):
-        hw = self._create_homework(slug="hw-put")
+    def _create_homework_with_old_question(self):
+        homework = self._create_homework(slug="hw-put")
         Question.objects.create(
-            homework=hw,
+            homework=homework,
             text="Old question",
             question_type="FF",
         )
-        payload = {
+
+        return homework
+
+    def _homework_replacement_payload(self):
+        return {
             "title": "Updated Homework",
             "due_date": "2026-04-01T23:59:59Z",
             "questions": [
@@ -221,18 +225,26 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             ],
         }
 
+    def _assert_homework_questions_replaced(self, homework):
+        homework.refresh_from_db()
+        self.assertEqual(homework.title, "Updated Homework")
+        questions = list(homework.question_set.order_by("id"))
+        self.assertEqual(len(questions), 1)
+        self.assertEqual(questions[0].text, "New question?")
+
+    def test_put_homework_by_slug_updates_and_replaces_questions(self):
+        homework = self._create_homework_with_old_question()
+        payload = self._homework_replacement_payload()
+        payload_body = json.dumps(payload)
+
         response = self.client.put(
             f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/",
-            json.dumps(payload),
+            payload_body,
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
-        hw.refresh_from_db()
-        self.assertEqual(hw.title, "Updated Homework")
-        questions = list(hw.question_set.order_by("id"))
-        self.assertEqual(len(questions), 1)
-        self.assertEqual(questions[0].text, "New question?")
+        self._assert_homework_questions_replaced(homework)
 
     def test_put_homework_questions_with_submissions_is_blocked(self):
         hw = self._create_homework(slug="hw-put")
