@@ -17,7 +17,10 @@ from datetime import datetime
 from tqdm import tqdm
 
 # Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+script_path = os.path.abspath(__file__)
+script_dir = os.path.dirname(script_path)
+project_root = os.path.dirname(script_dir)
+sys.path.insert(0, project_root)
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
@@ -91,7 +94,9 @@ LIST_IMPORT_FIELDS = {
 def append_import_record(data: ProjectImportData, record: dict) -> None:
     record_type = record["type"]
     if record_type in SINGULAR_IMPORT_FIELDS:
-        setattr(data, SINGULAR_IMPORT_FIELDS[record_type], record_value(record))
+        field_name = SINGULAR_IMPORT_FIELDS[record_type]
+        value = record_value(record)
+        setattr(data, field_name, value)
     elif record_type in LIST_IMPORT_FIELDS:
         records = getattr(data, LIST_IMPORT_FIELDS[record_type])
         value = record_value(record)
@@ -121,7 +126,8 @@ def read_project_import_data(input_file):
     with open(input_file, 'r', encoding='utf-8') as f:
         lines = tqdm(f, total=total_lines, desc="Reading data", unit="records")
         for line in lines:
-            append_import_record(data, json.loads(line))
+            record = json.loads(line)
+            append_import_record(data, record)
 
     return data
 
@@ -151,9 +157,10 @@ def course_defaults(course_data):
 
 
 def get_or_create_course(course_data):
+    defaults = course_defaults(course_data)
     course, created = Course.objects.get_or_create(
         slug=course_data["slug"],
-        defaults=course_defaults(course_data),
+        defaults=defaults,
     )
     if created:
         print(f"✓ Created course: {course.title}")
@@ -200,10 +207,11 @@ def clear_project_data(project) -> None:
 
 
 def get_or_create_project(course, project_data, clear_existing):
+    defaults = project_defaults(project_data)
     project, created = Project.objects.get_or_create(
         course=course,
         slug=project_data["slug"],
-        defaults=project_defaults(project_data),
+        defaults=defaults,
     )
 
     if created:
@@ -231,11 +239,13 @@ def existing_users_by_username(users_data):
 
 
 def build_user(user_data):
+    certificate_name = user_data.get("certificate_name", "")
+    dark_mode = user_data.get("dark_mode", False)
     return User(
         username=user_data["username"],
         email=user_data["email"],
-        certificate_name=user_data.get("certificate_name", ""),
-        dark_mode=user_data.get("dark_mode", False),
+        certificate_name=certificate_name,
+        dark_mode=dark_mode,
     )
 
 
@@ -267,30 +277,34 @@ def create_users(users_data, maps: ImportMaps) -> None:
 
 
 def build_enrollment(enroll_data, course, student_id):
-    return Enrollment(
-        **valid_model_kwargs(
-            Enrollment,
-            {
-                "student_id": student_id,
-                "course": course,
-                "enrollment_date": parse_datetime(enroll_data["enrollment_date"]),
-                "display_name": enroll_data.get("display_name", ""),
-                "display_on_leaderboard": enroll_data.get(
-                    "display_on_leaderboard", True
-                ),
-                "position_on_leaderboard": enroll_data.get(
-                    "position_on_leaderboard"
-                ),
-                "certificate_name": enroll_data.get("certificate_name"),
-                "total_score": enroll_data.get("total_score", 0),
-                "certificate_url": enroll_data.get("certificate_url"),
-                "github_url": enroll_data.get("github_url"),
-                "linkedin_url": enroll_data.get("linkedin_url"),
-                "personal_website_url": enroll_data.get("personal_website_url"),
-                "about_me": enroll_data.get("about_me"),
-            },
-        )
-    )
+    enrollment_date = parse_datetime(enroll_data["enrollment_date"])
+    display_name = enroll_data.get("display_name", "")
+    display_on_leaderboard = enroll_data.get("display_on_leaderboard", True)
+    position_on_leaderboard = enroll_data.get("position_on_leaderboard")
+    certificate_name = enroll_data.get("certificate_name")
+    total_score = enroll_data.get("total_score", 0)
+    certificate_url = enroll_data.get("certificate_url")
+    github_url = enroll_data.get("github_url")
+    linkedin_url = enroll_data.get("linkedin_url")
+    personal_website_url = enroll_data.get("personal_website_url")
+    about_me = enroll_data.get("about_me")
+    values = {
+        "student_id": student_id,
+        "course": course,
+        "enrollment_date": enrollment_date,
+        "display_name": display_name,
+        "display_on_leaderboard": display_on_leaderboard,
+        "position_on_leaderboard": position_on_leaderboard,
+        "certificate_name": certificate_name,
+        "total_score": total_score,
+        "certificate_url": certificate_url,
+        "github_url": github_url,
+        "linkedin_url": linkedin_url,
+        "personal_website_url": personal_website_url,
+        "about_me": about_me,
+    }
+    valid_values = valid_model_kwargs(Enrollment, values)
+    return Enrollment(**valid_values)
 
 
 def valid_model_kwargs(model, values):
@@ -310,7 +324,8 @@ def valid_model_kwargs(model, values):
 
 
 def existing_enrollments_by_student(course, maps: ImportMaps):
-    user_ids = list(maps.user_id_map.values())
+    mapped_user_ids = maps.user_id_map.values()
+    user_ids = list(mapped_user_ids)
     enrollments = Enrollment.objects.filter(
         course=course,
         student_id__in=user_ids,
@@ -394,35 +409,61 @@ def bulk_create_mapped(model, pending, target_map):
     return []
 
 
-def flush_mapped_batch(model, pending, target_map):
-    return bulk_create_mapped(model, pending, target_map)
+def project_submission_base_kwargs(sub_data, project, maps: ImportMaps):
+    student_id = maps.user_id_map[sub_data["student_id"]]
+    enrollment_id = maps.enrollment_id_map[sub_data["enrollment_id"]]
+    learning_in_public_links = sub_data.get("learning_in_public_links")
+    faq_contribution_url = sub_data.get("faq_contribution_url")
+    time_spent = sub_data.get("time_spent")
+    problems_comments = sub_data.get("problems_comments", "")
+    submitted_at = parse_datetime(sub_data["submitted_at"])
+    return {
+        "project": project,
+        "student_id": student_id,
+        "enrollment_id": enrollment_id,
+        "github_link": sub_data["github_link"],
+        "commit_id": sub_data["commit_id"],
+        "learning_in_public_links": learning_in_public_links,
+        "faq_contribution_url": faq_contribution_url,
+        "time_spent": time_spent,
+        "problems_comments": problems_comments,
+        "submitted_at": submitted_at,
+    }
+
+
+def project_submission_score_kwargs(sub_data):
+    project_score = sub_data.get("project_score", 0)
+    project_faq_score = sub_data.get("project_faq_score", 0)
+    project_lip_score = sub_data.get("project_learning_in_public_score", 0)
+    peer_review_score = sub_data.get("peer_review_score", 0)
+    peer_review_lip_score = sub_data.get(
+        "peer_review_learning_in_public_score", 0
+    )
+    total_score = sub_data.get("total_score", 0)
+    reviewed_enough_peers = sub_data.get("reviewed_enough_peers", False)
+    passed = sub_data.get("passed", False)
+    return {
+        "project_score": project_score,
+        "project_faq_score": project_faq_score,
+        "project_learning_in_public_score": project_lip_score,
+        "peer_review_score": peer_review_score,
+        "peer_review_learning_in_public_score": peer_review_lip_score,
+        "total_score": total_score,
+        "reviewed_enough_peers": reviewed_enough_peers,
+        "passed": passed,
+    }
+
+
+def project_submission_kwargs(sub_data, project, maps: ImportMaps):
+    kwargs = project_submission_base_kwargs(sub_data, project, maps)
+    score_kwargs = project_submission_score_kwargs(sub_data)
+    kwargs.update(score_kwargs)
+    return kwargs
 
 
 def build_project_submission(sub_data, project, maps: ImportMaps):
-    return ProjectSubmission(
-        project=project,
-        student_id=maps.user_id_map[sub_data["student_id"]],
-        enrollment_id=maps.enrollment_id_map[sub_data["enrollment_id"]],
-        github_link=sub_data["github_link"],
-        commit_id=sub_data["commit_id"],
-        learning_in_public_links=sub_data.get("learning_in_public_links"),
-        faq_contribution_url=sub_data.get("faq_contribution_url"),
-        time_spent=sub_data.get("time_spent"),
-        problems_comments=sub_data.get("problems_comments", ""),
-        submitted_at=parse_datetime(sub_data["submitted_at"]),
-        project_score=sub_data.get("project_score", 0),
-        project_faq_score=sub_data.get("project_faq_score", 0),
-        project_learning_in_public_score=sub_data.get(
-            "project_learning_in_public_score", 0
-        ),
-        peer_review_score=sub_data.get("peer_review_score", 0),
-        peer_review_learning_in_public_score=sub_data.get(
-            "peer_review_learning_in_public_score", 0
-        ),
-        total_score=sub_data.get("total_score", 0),
-        reviewed_enough_peers=sub_data.get("reviewed_enough_peers", False),
-        passed=sub_data.get("passed", False),
-    )
+    kwargs = project_submission_kwargs(sub_data, project, maps)
+    return ProjectSubmission(**kwargs)
 
 
 def create_project_submissions(submissions_data, project, maps: ImportMaps) -> None:
@@ -440,26 +481,35 @@ def create_project_submissions(submissions_data, project, maps: ImportMaps) -> N
         submission_record = (sub_data["id"], submission)
         pending.append(submission_record)
         if len(pending) >= batch_size:
-            pending = flush_mapped_batch(
+            pending = bulk_create_mapped(
                 ProjectSubmission, pending, maps.submission_id_map
             )
 
-    flush_mapped_batch(ProjectSubmission, pending, maps.submission_id_map)
+    bulk_create_mapped(ProjectSubmission, pending, maps.submission_id_map)
     print("✓ Submissions created")
 
 
 def build_peer_review(review_data, maps: ImportMaps):
+    submission_id = maps.submission_id_map[
+        review_data["submission_under_evaluation_id"]
+    ]
+    reviewer_id = maps.submission_id_map[review_data["reviewer_id"]]
+    note_to_peer = review_data.get("note_to_peer", "")
+    learning_in_public_links = review_data.get("learning_in_public_links")
+    time_spent_reviewing = review_data.get("time_spent_reviewing")
+    problems_comments = review_data.get("problems_comments", "")
+    optional = review_data.get("optional", False)
+    submitted_at_text = review_data.get("submitted_at")
+    submitted_at = parse_datetime(submitted_at_text)
     return PeerReview(
-        submission_under_evaluation_id=maps.submission_id_map[
-            review_data["submission_under_evaluation_id"]
-        ],
-        reviewer_id=maps.submission_id_map[review_data["reviewer_id"]],
-        note_to_peer=review_data.get("note_to_peer", ""),
-        learning_in_public_links=review_data.get("learning_in_public_links"),
-        time_spent_reviewing=review_data.get("time_spent_reviewing"),
-        problems_comments=review_data.get("problems_comments", ""),
-        optional=review_data.get("optional", False),
-        submitted_at=parse_datetime(review_data.get("submitted_at")),
+        submission_under_evaluation_id=submission_id,
+        reviewer_id=reviewer_id,
+        note_to_peer=note_to_peer,
+        learning_in_public_links=learning_in_public_links,
+        time_spent_reviewing=time_spent_reviewing,
+        problems_comments=problems_comments,
+        optional=optional,
+        submitted_at=submitted_at,
         state=review_data["state"],
     )
 
@@ -479,9 +529,9 @@ def create_peer_reviews(peer_reviews_data, maps: ImportMaps) -> None:
         peer_review_record = (review_data["id"], peer_review)
         pending.append(peer_review_record)
         if len(pending) >= batch_size:
-            pending = flush_mapped_batch(PeerReview, pending, maps.review_id_map)
+            pending = bulk_create_mapped(PeerReview, pending, maps.review_id_map)
 
-    flush_mapped_batch(PeerReview, pending, maps.review_id_map)
+    bulk_create_mapped(PeerReview, pending, maps.review_id_map)
     print("✓ Peer reviews created")
 
 
@@ -497,10 +547,11 @@ def bulk_create_in_batches(model, items, batch_size=100):
 
 
 def build_criteria_response(response_data, maps: ImportMaps):
+    answer = response_data.get("answer", "")
     return CriteriaResponse(
         review_id=maps.review_id_map[response_data["review_id"]],
         criteria_id=maps.criteria_id_map[response_data["criteria_id"]],
-        answer=response_data.get("answer", ""),
+        answer=answer,
     )
 
 

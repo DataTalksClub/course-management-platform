@@ -696,6 +696,14 @@ testable service functions.
   Verification: `uv run ruff check api/openapi/course_paths.py`,
   `python -m py_compile api/openapi/course_paths.py`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name project-data loader path setup, parsed records, defaults, model
+  kwargs, mapped ids, and optional submission/review fields before path,
+  parser, queryset, or model construction calls, and remove a trivial batch
+  flush pass-through helper. Verification:
+  `uv run ruff check scripts/load_project_data.py`,
+  `python -m py_compile scripts/load_project_data.py`, touched-file
+  nested-call scans report `touched_file_nested_calls=0`, and function-length
+  scans report no function over 30 lines.
 
 ## Current Findings
 
