@@ -507,6 +507,10 @@ testable service functions.
   assertions. Verification:
   `uv run ruff check courses/tests/test_project_score_outcomes.py` and
   `uv run python manage.py test courses.tests.test_project_score_outcomes`.
+- [x] Shorten registration campaign course-page tests by naming the registered
+  user fixture and shared intro-homework fixture. Verification:
+  `uv run ruff check courses/tests/test_registration_campaigns.py` and
+  `uv run python manage.py test courses.tests.test_registration_campaigns`.
 
 ## Current Findings
 

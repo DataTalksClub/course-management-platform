@@ -126,6 +126,35 @@ class RegistrationCampaignPublicTests(TestCase):
             CourseRegistration.Role.DATA_SCIENTIST,
         )
 
+    def create_registered_course_user(self):
+        user = CustomUser.objects.create_user(
+            username="registered",
+            email="registered@example.com",
+            password="test",
+        )
+        CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            user=user,
+            email=user.email,
+            name="Registered Student",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            accepted_newsletter=True,
+        )
+        return user
+
+    def create_intro_homework(self):
+        return Homework.objects.create(
+            course=self.course,
+            slug="intro",
+            title="Intro",
+            description="",
+            due_date=timezone.now(),
+            state=HomeworkState.OPEN.value,
+        )
+
     def test_registration_page_renders_campaign_content(self):
         response = self.client.get(self.campaign_url())
 
@@ -275,14 +304,7 @@ class RegistrationCampaignPublicTests(TestCase):
     def test_course_with_homework_shows_workspace_and_registration_link(
         self,
     ):
-        Homework.objects.create(
-            course=self.course,
-            slug="intro",
-            title="Intro",
-            description="",
-            due_date=timezone.now(),
-            state=HomeworkState.OPEN.value,
-        )
+        self.create_intro_homework()
 
         response = self.client.get(
             reverse("course", kwargs={"course_slug": self.course.slug})
@@ -295,30 +317,8 @@ class RegistrationCampaignPublicTests(TestCase):
     def test_course_page_hides_registration_button_when_registered(
         self,
     ):
-        user = CustomUser.objects.create_user(
-            username="registered",
-            email="registered@example.com",
-            password="test",
-        )
-        CourseRegistration.objects.create(
-            campaign=self.campaign,
-            course=self.course,
-            user=user,
-            email=user.email,
-            name="Registered Student",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
-        Homework.objects.create(
-            course=self.course,
-            slug="intro",
-            title="Intro",
-            description="",
-            due_date=timezone.now(),
-            state=HomeworkState.OPEN.value,
-        )
+        user = self.create_registered_course_user()
+        self.create_intro_homework()
         self.client.force_login(user)
 
         response = self.client.get(
@@ -335,14 +335,7 @@ class RegistrationCampaignPublicTests(TestCase):
             password="test",
         )
         Enrollment.objects.create(student=user, course=self.course)
-        Homework.objects.create(
-            course=self.course,
-            slug="intro",
-            title="Intro",
-            description="",
-            due_date=timezone.now(),
-            state=HomeworkState.OPEN.value,
-        )
+        self.create_intro_homework()
         self.client.force_login(user)
 
         response = self.client.get(
