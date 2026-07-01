@@ -1191,6 +1191,13 @@ Steps:
   oversized cadmin view test module.
 - [x] Rename the remaining homework cadmin view tests from the generic
   `test_views.py` module to focused homework ownership.
+- [x] Shorten the RDS export loader script by splitting admin CLI option
+  groups, source-column discovery, table-copy setup, and source-table copy
+  iteration into named helpers. Verification:
+  `uv run ruff check scripts/load_rds_export.py`,
+  `uv run python manage.py test courses.tests.test_load_rds_export_script`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

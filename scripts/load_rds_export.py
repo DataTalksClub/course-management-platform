@@ -88,6 +88,16 @@ class SourceTableCopyData:
     summary: CopySummary
 
 
+@dataclass(frozen=True)
+class TableCopyRunData:
+    source_tables: list[str]
+    source_cursor: sqlite3.Cursor
+    target_cursor: sqlite3.Cursor
+    target_tables: set[str]
+    model_by_table: dict[str, Any]
+    summary: CopySummary
+
+
 @dataclass
 class ImportPaths:
     source_db: Path
@@ -149,7 +159,7 @@ def add_target_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_admin_options(parser: argparse.ArgumentParser) -> None:
+def add_admin_account_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--admin-email",
         default=os.getenv("CMP_ADMIN_EMAIL", "alexey@datatalks.club"),
@@ -167,6 +177,9 @@ def add_admin_options(parser: argparse.ArgumentParser) -> None:
             "with CMP_ADMIN_PASSWORD."
         ),
     )
+
+
+def add_admin_control_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--admin-user-id",
         type=int,
@@ -192,7 +205,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_source_options(parser)
     add_target_options(parser)
-    add_admin_options(parser)
+    add_admin_account_options(parser)
+    add_admin_control_options(parser)
     return parser
 
 
@@ -353,13 +367,18 @@ def column_allows_local_value(column_info: sqlite3.Row) -> bool:
     return not bool(column_info["notnull"]) or column_info["dflt_value"] is not None
 
 
+def source_column_names(source_info: list[sqlite3.Row]) -> set[str]:
+    columns = set()
+    for row in source_info:
+        column = row["name"]
+        columns.add(column)
+    return columns
+
+
 def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
     source_info = pragma_table_info(data.source_cursor, data.table)
     target_info = pragma_table_info(data.target_cursor, data.table)
-    source_columns = set()
-    for row in source_info:
-        column = row["name"]
-        source_columns.add(column)
+    source_columns = source_column_names(source_info)
     plan = TableCopyPlan(
         table=data.table,
         insert_columns=[],
@@ -576,34 +595,57 @@ def copy_source_table(data: SourceTableCopyData) -> None:
     execute_table_copy_plan(data, plan)
 
 
+def copy_source_tables(data: TableCopyRunData) -> None:
+    for table in data.source_tables:
+        table_data = SourceTableCopyData(
+            table=table,
+            source_cursor=data.source_cursor,
+            target_cursor=data.target_cursor,
+            target_tables=data.target_tables,
+            model_by_table=data.model_by_table,
+            summary=data.summary,
+        )
+        copy_source_table(table_data)
+
+
+def table_copy_run_data(
+    source: sqlite3.Connection,
+    target: sqlite3.Connection,
+    model_by_table: dict[str, Any],
+) -> TableCopyRunData:
+    source_cursor = source.cursor()
+    target_cursor = target.cursor()
+    source_table_names = table_names(source_cursor)
+    source_tables = sorted(source_table_names)
+    target_tables = table_names(target_cursor)
+    summary = CopySummary()
+    return TableCopyRunData(
+        source_tables=source_tables,
+        source_cursor=source_cursor,
+        target_cursor=target_cursor,
+        target_tables=target_tables,
+        model_by_table=model_by_table,
+        summary=summary,
+    )
+
+
 def copy_rows(source_db: Path, target_db: Path) -> None:
     model_by_table = setup_django()
     source, target = connect_databases(source_db, target_db)
 
     try:
-        source_cursor = source.cursor()
-        target_cursor = target.cursor()
-        source_tables = sorted(table_names(source_cursor))
-        target_tables = table_names(target_cursor)
-        summary = CopySummary()
-
-        target_cursor.execute("PRAGMA foreign_keys=OFF")
-        for table in source_tables:
-            table_data = SourceTableCopyData(
-                table=table,
-                source_cursor=source_cursor,
-                target_cursor=target_cursor,
-                target_tables=target_tables,
-                model_by_table=model_by_table,
-                summary=summary,
-            )
-            copy_source_table(table_data)
+        copy_data = table_copy_run_data(source, target, model_by_table)
+        copy_data.target_cursor.execute("PRAGMA foreign_keys=OFF")
+        copy_source_tables(copy_data)
 
         target.commit()
-        refresh_sqlite_sequences(target_cursor, summary.imported)
+        refresh_sqlite_sequences(
+            copy_data.target_cursor,
+            copy_data.summary.imported,
+        )
         target.commit()
-        validate_foreign_keys(target_cursor)
-        print_copy_summary(source_db, summary)
+        validate_foreign_keys(copy_data.target_cursor)
+        print_copy_summary(source_db, copy_data.summary)
     finally:
         source.close()
         target.close()
