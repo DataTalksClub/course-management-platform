@@ -6,6 +6,20 @@ from courses.models.course import Course
 from courses.models.project import Project, ProjectState
 
 
+def incomplete_project_statistics_response(request, course, project):
+    messages.error(
+        request,
+        "This project is not completed yet, so there are no available statistics.",
+        extra_tags="project",
+    )
+    response = redirect(
+        "project",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+    return response
+
+
 def project_statistics(request, course_slug, project_slug):
     course = get_object_or_404(Course, slug=course_slug)
     project = get_object_or_404(
@@ -13,17 +27,11 @@ def project_statistics(request, course_slug, project_slug):
     )
 
     if project.state != ProjectState.COMPLETED.value:
-        messages.error(
+        return incomplete_project_statistics_response(
             request,
-            "This project is not completed yet, so there are no available statistics.",
-            extra_tags="project",
+            course,
+            project,
         )
-        response = redirect(
-            "project",
-            course_slug=course.slug,
-            project_slug=project.slug,
-        )
-        return response
 
     stats = calculate_project_statistics(project, force=False)
 
