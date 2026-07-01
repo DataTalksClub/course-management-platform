@@ -85,7 +85,8 @@ class DatamailerCadminViewTests(TestCase):
         self.assertContains(response, "Datamailer operations")
         self.assertContains(response, "network error")
         self.assertContains(response, "Datamailer failed")
-        self.assertContains(response, self.datamailer_events_url())
+        events_url = self.datamailer_events_url()
+        self.assertContains(response, events_url)
         self.assertContains(response, "Bootstrap and repair")
         self.assertContains(
             response,
@@ -138,8 +139,9 @@ class DatamailerCadminViewTests(TestCase):
 
     def post_datamailer_requeue(self):
         self.login_admin()
+        operations_url = self.datamailer_operations_url()
         return self.client.post(
-            self.datamailer_operations_url(),
+            operations_url,
             {"action": "requeue"},
         )
 
@@ -165,7 +167,8 @@ class DatamailerCadminViewTests(TestCase):
 
     def test_datamailer_operations_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(self.datamailer_operations_url())
+        operations_url = self.datamailer_operations_url()
+        response = self.client.get(operations_url)
 
         self.assertEqual(response.status_code, 302)
 
@@ -173,7 +176,8 @@ class DatamailerCadminViewTests(TestCase):
         self.create_datamailer_operations_records()
 
         self.login_admin()
-        response = self.client.get(self.datamailer_operations_url())
+        operations_url = self.datamailer_operations_url()
+        response = self.client.get(operations_url)
 
         self.assertEqual(response.status_code, 200)
         self.assert_datamailer_operations_content(response)
@@ -184,7 +188,8 @@ class DatamailerCadminViewTests(TestCase):
 
         response = self.post_datamailer_requeue()
 
-        self.assertRedirects(response, self.datamailer_operations_url())
+        operations_url = self.datamailer_operations_url()
+        self.assertRedirects(response, operations_url)
         self.assert_outbox_event_requeued(events["failed"])
         self.assert_outbox_event_requeued(events["dead"])
         self.assert_outbox_event_unchanged(
@@ -195,7 +200,8 @@ class DatamailerCadminViewTests(TestCase):
 
     def test_datamailer_events_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")
-        response = self.client.get(self.datamailer_events_url())
+        events_url = self.datamailer_events_url()
+        response = self.client.get(events_url)
 
         self.assertEqual(response.status_code, 302)
 
@@ -216,7 +222,8 @@ class DatamailerCadminViewTests(TestCase):
         self.create_contact_event(opened)
 
         self.login_admin()
-        response = self.client.get(self.datamailer_events_url())
+        events_url = self.datamailer_events_url()
+        response = self.client.get(events_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Datamailer events")
@@ -242,8 +249,9 @@ class DatamailerCadminViewTests(TestCase):
         self.create_contact_event(opened)
 
         self.login_admin()
+        events_url = self.datamailer_events_url()
         response = self.client.get(
-            self.datamailer_events_url(),
+            events_url,
             {"event_type": "contact.hard_bounced", "q": "student"},
         )
 
