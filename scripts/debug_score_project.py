@@ -51,6 +51,13 @@ class ReviewDictionaryData:
     reviews_by_reviewer: dict
 
 
+@dataclass(frozen=True)
+class SubmissionProcessingData:
+    review_data: ReviewDictionaryData
+    errors: list[str]
+    warnings: list[str]
+
+
 def print_debug_header(course_slug, project_slug):
     print("=" * 80)
     print(f"DEBUGGING PROJECT SCORING: {course_slug}/{project_slug}")
@@ -241,33 +248,51 @@ def process_submission(
         check_review_responses(review, data.errors, data.warnings)
 
 
+def submission_debug_data(data, submission_id, submission):
+    return SubmissionDebugData(
+        submission_id=submission_id,
+        submission=submission,
+        reviews_by_submission=data.review_data.reviews_by_submission,
+        reviews_by_reviewer=data.review_data.reviews_by_reviewer,
+        errors=data.errors,
+        warnings=data.warnings,
+    )
+
+
+def print_submission_progress(processed_count, total_count):
+    if processed_count % 50 != 0:
+        return
+    print(
+        f"  Processed {processed_count}/"
+        f"{total_count} submissions..."
+    )
+
+
+def process_submission_item(data, index, item):
+    submission_id, submission = item
+    try:
+        debug_data = submission_debug_data(data, submission_id, submission)
+        process_submission(debug_data)
+        processed_count = index + 1
+        total_count = len(data.review_data.submissions)
+        print_submission_progress(processed_count, total_count)
+    except Exception as e:
+        data.errors.append(f"Submission {submission_id}: {e}")
+        traceback.print_exc()
+
+
 def process_submissions(review_data):
     print_step("Step 5: Processing submissions (checking for issues)")
     errors = []
     warnings = []
+    processing_data = SubmissionProcessingData(
+        review_data=review_data,
+        errors=errors,
+        warnings=warnings,
+    )
 
-    submission_items = review_data.submissions.items()
-    for i, (submission_id, submission) in enumerate(submission_items):
-        try:
-            submission_data = SubmissionDebugData(
-                submission_id=submission_id,
-                submission=submission,
-                reviews_by_submission=review_data.reviews_by_submission,
-                reviews_by_reviewer=review_data.reviews_by_reviewer,
-                errors=errors,
-                warnings=warnings,
-            )
-            process_submission(submission_data)
-            # Progress indicator
-            if (i + 1) % 50 == 0:
-                print(
-                    f"  Processed {i + 1}/"
-                    f"{len(review_data.submissions)} submissions..."
-                )
-
-        except Exception as e:
-            errors.append(f"Submission {submission_id}: {e}")
-            traceback.print_exc()
+    for index, item in enumerate(review_data.submissions.items()):
+        process_submission_item(processing_data, index, item)
 
     print(f"✓ Processed all {len(review_data.submissions)} submissions")
     return errors, warnings

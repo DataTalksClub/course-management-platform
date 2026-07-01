@@ -1207,6 +1207,13 @@ Steps:
   `uv run python scripts/generate_production_like_leaderboard_data.py --list-courses > .tmp/generated_leaderboard_list_courses.txt`,
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten project-score debug submission processing by moving per-item
+  processing, progress reporting, and submission debug-data construction out of
+  the top-level loop. Verification:
+  `uv run ruff check scripts/debug_score_project.py`,
+  `uv run python scripts/debug_score_project.py --help > .tmp/debug_score_project_help.txt`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
