@@ -275,6 +275,8 @@ testable service functions.
   out of the score notification payload builder.
 - [x] Split Datamailer recipient-list send sync, audit, and error handling
   helpers out of notification-specific orchestration.
+- [x] Split Datamailer campaign command payload construction and action
+  execution out of the management command.
 
 ## Current Findings
 
