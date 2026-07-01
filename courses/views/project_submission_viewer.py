@@ -1,9 +1,23 @@
+from dataclasses import dataclass, field
+
 from courses.models.project import PeerReview, ProjectSubmission
 from courses.votes import (
     PROJECT_VOTES_PER_PROJECT,
     get_project_vote_counts,
     get_voted_submission_ids,
 )
+
+
+@dataclass
+class ProjectViewerState:
+    voted_submission_ids: set
+    project_vote_counts: dict
+    project_votes_left: int
+    is_authenticated: bool = False
+    review_ids: dict = field(default_factory=dict)
+    own_submissions: set = field(default_factory=set)
+    has_submission: bool = False
+    has_assigned_reviews: bool = False
 
 
 def project_viewer_state(project, course, user):
@@ -13,7 +27,7 @@ def project_viewer_state(project, course, user):
     if not user.is_authenticated:
         return state
 
-    state["is_authenticated"] = True
+    state.is_authenticated = True
     student_submissions, own_submissions = (
         _project_viewer_student_submissions(project, user)
     )
@@ -22,14 +36,10 @@ def project_viewer_state(project, course, user):
         student_submissions,
     )
 
-    state.update(
-        {
-            "review_ids": review_ids,
-            "own_submissions": own_submissions,
-            "has_submission": len(own_submissions) > 0,
-            "has_assigned_reviews": has_assigned_reviews,
-        }
-    )
+    state.review_ids = review_ids
+    state.own_submissions = own_submissions
+    state.has_submission = len(own_submissions) > 0
+    state.has_assigned_reviews = has_assigned_reviews
     return state
 
 
@@ -49,15 +59,12 @@ def _project_viewer_vote_state(project, course, user):
 
 
 def _base_project_viewer_state(vote_state):
-    own_submissions = set()
-    return {
-        "is_authenticated": False,
-        "review_ids": {},
-        "own_submissions": own_submissions,
-        "has_submission": False,
-        **vote_state,
-        "has_assigned_reviews": False,
-    }
+    state = ProjectViewerState(
+        voted_submission_ids=vote_state["voted_submission_ids"],
+        project_vote_counts=vote_state["project_vote_counts"],
+        project_votes_left=vote_state["project_votes_left"],
+    )
+    return state
 
 
 def _project_viewer_student_submissions(project, user):

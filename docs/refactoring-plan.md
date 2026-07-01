@@ -1608,6 +1608,16 @@ Steps:
   and `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Group project submission viewer state in a dataclass and pass it through
+  listing decoration as one concept instead of unpacking it into a long
+  constructor call. Verification:
+  `uv run ruff check courses/views/project_submission_display.py courses/views/project_submission_listing.py courses/views/project_submission_viewer.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_submission_view courses.tests.test_project_voting courses.tests.test_project_view courses.tests.test_project_list_view`,
+  touched-file scans report `touched_file_high_arg_calls=0`,
+  `touched_file_inline_dict_calls=0`, `touched_file_nested_call_arguments=0`,
+  and `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

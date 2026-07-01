@@ -23,12 +23,7 @@ def project_submissions_page(request, project, viewer_state):
     decoration_data = ProjectSubmissionsDecorationData(
         submissions_list=submissions_list,
         project=project,
-        is_authenticated=viewer_state["is_authenticated"],
-        review_ids=viewer_state["review_ids"],
-        own_submissions=viewer_state["own_submissions"],
-        voted_submission_ids=viewer_state["voted_submission_ids"],
-        project_vote_counts=viewer_state["project_vote_counts"],
-        has_assigned_reviews=viewer_state["has_assigned_reviews"],
+        viewer_state=viewer_state,
     )
     decorate_project_submissions(decoration_data)
     sort_project_submissions_for_view(
@@ -55,11 +50,11 @@ def projects_list_context(course, project, submissions_page, viewer_state):
         "submissions": submissions_page.object_list,
         "submissions_page": submissions_page,
         "page_range": page_range,
-        "is_authenticated": viewer_state["is_authenticated"],
-        "has_submission": viewer_state["has_submission"],
-        "voted_submission_ids": viewer_state["voted_submission_ids"],
+        "is_authenticated": viewer_state.is_authenticated,
+        "has_submission": viewer_state.has_submission,
+        "voted_submission_ids": viewer_state.voted_submission_ids,
         "project_votes_per_project": PROJECT_VOTES_PER_PROJECT,
-        "project_votes_left": viewer_state["project_votes_left"],
+        "project_votes_left": viewer_state.project_votes_left,
     }
 
 

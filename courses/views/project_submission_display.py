@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from courses.models.project import Project, ProjectState, ProjectSubmission
+from courses.views.project_submission_viewer import ProjectViewerState
 from courses.votes import PROJECT_VOTES_PER_PROJECT
 
 
@@ -8,51 +9,44 @@ from courses.votes import PROJECT_VOTES_PER_PROJECT
 class ProjectSubmissionsDecorationData:
     submissions_list: list
     project: Project
-    is_authenticated: bool
-    review_ids: dict
-    own_submissions: set
-    voted_submission_ids: set
-    project_vote_counts: dict
-    has_assigned_reviews: bool
+    viewer_state: ProjectViewerState
 
 
 @dataclass(frozen=True)
 class SubmissionViewerStateData:
     submission: ProjectSubmission
-    project: Project
-    own_submissions: set
-    voted_submission_ids: set
-    project_vote_counts: dict
+    decoration: ProjectSubmissionsDecorationData
 
 
 @dataclass(frozen=True)
 class SubmissionReviewGroupData:
     submission: ProjectSubmission
     in_peer_review: bool
-    has_assigned_reviews: bool
+    decoration: ProjectSubmissionsDecorationData
 
 
 def decorate_project_submissions(data):
+    viewer_state = data.viewer_state
     in_peer_review = (
-        data.is_authenticated
+        viewer_state.is_authenticated
         and data.project.state == ProjectState.PEER_REVIEWING.value
     )
 
     for order, submission in enumerate(data.submissions_list):
         submission.list_order = order
-        _decorate_submission_review_state(submission, data.review_ids)
+        _decorate_submission_review_state(
+            submission,
+            viewer_state.review_ids,
+        )
         viewer_data = SubmissionViewerStateData(
             submission=submission,
-            project=data.project,
-            own_submissions=data.own_submissions,
-            voted_submission_ids=data.voted_submission_ids,
-            project_vote_counts=data.project_vote_counts,
+            decoration=data,
         )
         _decorate_submission_viewer_state(viewer_data)
         review_group_data = SubmissionReviewGroupData(
-            submission,
+            submission=submission,
             in_peer_review=in_peer_review,
-            has_assigned_reviews=data.has_assigned_reviews,
+            decoration=data,
         )
         _decorate_submission_review_group(review_group_data)
 
@@ -94,10 +88,12 @@ def _decorate_submission_review_state(submission, review_ids):
 
 
 def _decorate_submission_viewer_state(data):
-    data.submission.own = data.submission.id in data.own_submissions
+    viewer_state = data.decoration.viewer_state
+    project = data.decoration.project
+    data.submission.own = data.submission.id in viewer_state.own_submissions
     data.submission.vote_limit_reached = (
-        data.submission.id not in data.voted_submission_ids
-        and data.project_vote_counts.get(data.project.id, 0)
+        data.submission.id not in viewer_state.voted_submission_ids
+        and viewer_state.project_vote_counts.get(project.id, 0)
         >= PROJECT_VOTES_PER_PROJECT
     )
 
@@ -115,12 +111,12 @@ def _decorate_submission_review_group(data):
         submission.group_label = "Assigned reviews"
         return
 
-    if data.has_assigned_reviews:
+    if data.decoration.viewer_state.has_assigned_reviews:
         submission.group_label = "Other submissions"
 
 
 def _project_submissions_use_review_group_sort(project, viewer_state):
     return (
-        viewer_state["is_authenticated"]
+        viewer_state.is_authenticated
         and project.state == ProjectState.PEER_REVIEWING.value
     )
