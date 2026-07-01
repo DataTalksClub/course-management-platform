@@ -1773,6 +1773,13 @@ Steps:
   `uv run python manage.py test accounts.tests_auth`, touched-file nested-call
   scan reports `touched_file_nested_calls=0`, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name URLs, redirect prefixes, and inline payloads in account settings
+  tests instead of nesting `reverse(...)` or constructed values inside calls.
+  Verification:
+  `uv run ruff check accounts/tests_account_settings.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_account_settings`, touched-file
+  nested-call scan reports `touched_file_nested_calls=0`, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
