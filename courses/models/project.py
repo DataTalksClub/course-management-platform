@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .course import Course, Enrollment
-from .stat_display import StatSection, build_stat_fields
+from .stat_display import build_stat_fields, project_stat_sections
 from courses.validators.criteria_validators import (
     validate_review_criteria_options,
 )
@@ -352,34 +352,8 @@ class ProjectStatistics(models.Model):
         return getattr(self, attribute_name)
 
     def get_stat_fields(self):
-        return build_stat_fields(self, [
-            StatSection(
-                "project_score",
-                "Project score",
-                "fas fa-project-diagram",
-            ),
-            StatSection(
-                "project_learning_in_public_score",
-                "Project learning in public score",
-                "fas fa-globe",
-            ),
-            StatSection(
-                "peer_review_score",
-                "Peer review score",
-                "fas fa-users",
-            ),
-            StatSection(
-                "peer_review_learning_in_public_score",
-                "Peer review learning in public score",
-                "fas fa-share-alt",
-            ),
-            StatSection("total_score", "Total score", "fas fa-star"),
-            StatSection(
-                "time_spent",
-                "Time spent on project",
-                "fas fa-clock",
-            ),
-        ])
+        sections = project_stat_sections()
+        return build_stat_fields(self, sections)
 
     def __str__(self):
         return f"Statistics for {self.project.slug}"

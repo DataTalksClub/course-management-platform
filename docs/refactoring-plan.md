@@ -2582,6 +2582,19 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Move homework and project statistics display section construction into
+  `courses.models.stat_display`, naming each `StatSection` before appending
+  and leaving model `get_stat_fields` methods as short orchestration. The
+  project section order remains project metrics, peer-review metrics, then
+  total/time metrics. Verification:
+  `uv run ruff check courses/models/stat_display.py courses/models/homework.py courses/models/project.py courses/tests/test_project_statistics.py courses/tests/test_dashboard.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_dashboard`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, `touched_dict_call_values=0`, and
+  `touched_wide_positional_calls=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

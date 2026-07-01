@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .course import Course, Enrollment
-from .stat_display import StatSection, build_stat_fields
+from .stat_display import build_stat_fields, homework_stat_sections
 from courses.validators.custom_url_validators import validate_url_200
 
 User = get_user_model()
@@ -303,29 +303,8 @@ class HomeworkStatistics(models.Model):
         return getattr(self, attribute_name)
 
     def get_stat_fields(self):
-        return build_stat_fields(self, [
-            StatSection(
-                "questions_score",
-                "Questions score",
-                "fas fa-question-circle",
-            ),
-            StatSection("total_score", "Total score", "fas fa-star"),
-            StatSection(
-                "time_spent_lectures",
-                "Time spent on lectures",
-                "fas fa-book-reader",
-            ),
-            StatSection(
-                "time_spent_homework",
-                "Time spent on homework",
-                "fas fa-clock",
-            ),
-            StatSection(
-                "learning_in_public_score",
-                "Learning in public score",
-                "fas fa-globe",
-            ),
-        ])
+        sections = homework_stat_sections()
+        return build_stat_fields(self, sections)
 
     def __str__(self):
         return f"Statistics for {self.homework.slug}"

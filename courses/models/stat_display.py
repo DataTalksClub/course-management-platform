@@ -33,6 +33,95 @@ STAT_ROWS = [
 ]
 
 
+def homework_stat_sections():
+    sections = []
+    questions_score = StatSection(
+        "questions_score",
+        "Questions score",
+        "fas fa-question-circle",
+    )
+    sections.append(questions_score)
+    total_score = StatSection("total_score", "Total score", "fas fa-star")
+    sections.append(total_score)
+    lecture_time = StatSection(
+        "time_spent_lectures",
+        "Time spent on lectures",
+        "fas fa-book-reader",
+    )
+    sections.append(lecture_time)
+    homework_time = StatSection(
+        "time_spent_homework",
+        "Time spent on homework",
+        "fas fa-clock",
+    )
+    sections.append(homework_time)
+    learning_in_public = StatSection(
+        "learning_in_public_score",
+        "Learning in public score",
+        "fas fa-globe",
+    )
+    sections.append(learning_in_public)
+    return sections
+
+
+def project_score_stat_sections():
+    sections = []
+    project_score = StatSection(
+        "project_score",
+        "Project score",
+        "fas fa-project-diagram",
+    )
+    sections.append(project_score)
+    project_learning_in_public = StatSection(
+        "project_learning_in_public_score",
+        "Project learning in public score",
+        "fas fa-globe",
+    )
+    sections.append(project_learning_in_public)
+    return sections
+
+
+def project_peer_review_stat_sections():
+    sections = []
+    peer_review_score = StatSection(
+        "peer_review_score",
+        "Peer review score",
+        "fas fa-users",
+    )
+    sections.append(peer_review_score)
+    peer_review_learning_in_public = StatSection(
+        "peer_review_learning_in_public_score",
+        "Peer review learning in public score",
+        "fas fa-share-alt",
+    )
+    sections.append(peer_review_learning_in_public)
+    return sections
+
+
+def project_summary_stat_sections():
+    sections = []
+    total_score = StatSection("total_score", "Total score", "fas fa-star")
+    sections.append(total_score)
+    time_spent = StatSection(
+        "time_spent",
+        "Time spent on project",
+        "fas fa-clock",
+    )
+    sections.append(time_spent)
+    return sections
+
+
+def project_stat_sections():
+    sections = []
+    score_sections = project_score_stat_sections()
+    sections.extend(score_sections)
+    peer_review_sections = project_peer_review_stat_sections()
+    sections.extend(peer_review_sections)
+    summary_sections = project_summary_stat_sections()
+    sections.extend(summary_sections)
+    return sections
+
+
 def build_stat_fields(stats, sections):
     """Build the display structure for a statistics model.
 
