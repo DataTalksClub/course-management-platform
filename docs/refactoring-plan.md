@@ -84,6 +84,8 @@ testable service functions.
   out of the client service module.
 - [x] Split cadmin Datamailer operations outbox and send-audit query helpers
   out of the page context module.
+- [x] Replace production tuple-return records that inlined meaningful function
+  or constructor calls with named local variables.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with

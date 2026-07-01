@@ -85,13 +85,15 @@ def registration_limit(params):
     try:
         raw_limit = params.get("limit", 100)
         limit = int(raw_limit)
-        return min(limit, 500), None
+        capped_limit = min(limit, 500)
+        return capped_limit, None
     except ValueError:
-        return None, error_response(
+        error = error_response(
             "limit must be an integer",
             "invalid_limit",
             details={"field": "limit"},
         )
+        return None, error
 
 
 def registration_list_payload(campaign, registrations, stats, limit):

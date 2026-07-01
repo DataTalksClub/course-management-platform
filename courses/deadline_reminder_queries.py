@@ -63,10 +63,10 @@ def homework_reminder_queryset(now, course_slug):
 def project_submission_reminder_windows(now):
     daily_start, daily_end = reminder_window(now, "24h")
     weekly_start, weekly_end = reminder_window(now, "7d")
-    return (
-        ReminderWindow("24h", daily_start, daily_end),
-        ReminderWindow("7d", weekly_start, weekly_end),
-    )
+    daily_window = ReminderWindow("24h", daily_start, daily_end)
+    weekly_window = ReminderWindow("7d", weekly_start, weekly_end)
+    windows = (daily_window, weekly_window)
+    return windows
 
 
 def project_submission_reminder_queryset(windows, course_slug):

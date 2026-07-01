@@ -65,11 +65,12 @@ def normalize_campaign_data(data):
             try:
                 result["current_course"] = Course.objects.get(slug=slug)
             except Course.DoesNotExist:
-                return None, error_response(
+                error = error_response(
                     f"Course with slug '{slug}' does not exist",
                     "course_not_found",
                     details={"current_course": slug},
                 )
+                return None, error
 
     return result, None
 

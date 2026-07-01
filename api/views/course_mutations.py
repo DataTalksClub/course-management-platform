@@ -109,11 +109,12 @@ def normalize_course_data(data):
 
         parsed = parse_date(value)
         if parsed is None:
-            return None, error_response(
+            error = error_response(
                 f"{field} must use YYYY-MM-DD format",
                 "invalid_date",
                 details={"field": field},
             )
+            return None, error
 
         result[field] = parsed
 

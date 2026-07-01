@@ -89,7 +89,8 @@ def create_homework(course, homework_data):
     questions_data = homework_data.get("questions", [])
     create_questions(homework, questions_data)
 
-    return homework_to_dict(homework), None
+    homework_record = homework_to_dict(homework)
+    return homework_record, None
 
 
 def create_question(homework, question_data):

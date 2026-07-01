@@ -76,4 +76,5 @@ def homework_score_notification_payload(
         "members": members,
         "metadata": metadata,
     }
-    return list_key, add_from_email_if_configured(payload, config)
+    payload_with_from = add_from_email_if_configured(payload, config)
+    return list_key, payload_with_from

@@ -96,7 +96,8 @@ def create_project(course, project_data):
         **attrs,
     )
 
-    return project_to_dict(project), None
+    project_record = project_to_dict(project)
+    return project_record, None
 
 
 def projects_list_response(course):
