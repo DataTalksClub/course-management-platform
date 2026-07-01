@@ -164,11 +164,12 @@ class DatamailerContactTest(TestCase):
         )
 
     def assert_contact_import_output(self, out):
+        output = out.getvalue()
         self.assertIn(
             "Prepared 2 contact batch(es), 2 contact(s).",
-            out.getvalue(),
+            output,
         )
-        self.assertIn("Synced batch 1: 1 contact(s); created=1", out.getvalue())
+        self.assertIn("Synced batch 1: 1 contact(s); created=1", output)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
@@ -185,13 +186,12 @@ class DatamailerContactTest(TestCase):
             description="Machine learning",
         )
 
-        self.assertEqual(
-            contact_tags_for_course(course),
-            [
-                "course-ml-zoomcamp",
-                "course-cohort-ml-zoomcamp",
-            ],
-        )
+        tags = contact_tags_for_course(course)
+        expected_tags = [
+            "course-ml-zoomcamp",
+            "course-cohort-ml-zoomcamp",
+        ]
+        self.assertEqual(tags, expected_tags)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -227,7 +227,8 @@ class DatamailerContactTest(TestCase):
     ):
         self.configure_transactional_send_success(send)
 
-        result = send_transactional_email(self.transactional_email_payload())
+        payload = self.transactional_email_payload()
+        result = send_transactional_email(payload)
 
         self.assertEqual(result["message"]["id"], "message-id")
         self.assert_transactional_send_called(send)
@@ -240,7 +241,8 @@ class DatamailerContactTest(TestCase):
     def test_send_transactional_email_audits_api_failure(self, send):
         send.side_effect = requests.RequestException("network error")
 
-        result = send_transactional_email(self.transactional_email_payload())
+        payload = self.transactional_email_payload()
+        result = send_transactional_email(payload)
 
         self.assertIsNone(result)
         self.assert_transactional_send_called(send)
@@ -402,8 +404,9 @@ class DatamailerContactTest(TestCase):
         call_command("sync_datamailer_contacts", "--dry-run", stdout=out)
 
         bulk_import.assert_not_called()
-        self.assertIn("Prepared 1 contact batch(es), 1 contact(s).", out.getvalue())
-        self.assertIn("batch 1: 1 contact(s)", out.getvalue())
+        output = out.getvalue()
+        self.assertIn("Prepared 1 contact batch(es), 1 contact(s).", output)
+        self.assertIn("batch 1: 1 contact(s)", output)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
