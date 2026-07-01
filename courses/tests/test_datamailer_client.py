@@ -362,12 +362,13 @@ class DatamailerClientEndpointTest(TestCase):
         return payload
 
     def campaign_upsert_expectation(self, response, session):
+        expected_payload = self.campaign_upsert_expected_payload()
         return DatamailerRequestExpectation(
             response=response,
             session=session,
             method="PUT",
             path="/api/campaigns/course-start-2026",
-            json_payload=self.campaign_upsert_expected_payload(),
+            json_payload=expected_payload,
         )
 
     def recipient_list_method_cases(self):
@@ -501,7 +502,8 @@ class DatamailerClientEndpointTest(TestCase):
             DATAMAILER_CLIENT="",
             DATAMAILER_AUDIENCE="",
         ):
-            self.assertFalse(datamailer_enabled())
+            enabled = datamailer_enabled()
+            self.assertFalse(enabled)
 
     def test_client_methods_use_expected_endpoints_and_scope(self):
         cases = self.datamailer_method_cases()
@@ -516,9 +518,10 @@ class DatamailerClientEndpointTest(TestCase):
         config = self.datamailer_config()
         client = DatamailerClient(config, session=session)
 
+        upsert_payload = self.campaign_upsert_payload()
         result = client.upsert_campaign(
             "course-start-2026",
-            self.campaign_upsert_payload(),
+            upsert_payload,
         )
 
         self.assertEqual(result, {"created": True})

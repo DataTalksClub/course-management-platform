@@ -135,9 +135,10 @@ class DatamailerRegistrationTest(TestCase):
 
     def assert_registration_member_synced(self, upsert_member, registration):
         upsert_member.assert_called_once()
+        expected_list_key = registration_list_key(registration)
         self.assertEqual(
             upsert_member.call_args.args[0],
-            registration_list_key(registration),
+            expected_list_key,
         )
         self.assertEqual(
             upsert_member.call_args.args[1],
@@ -156,8 +157,9 @@ class DatamailerRegistrationTest(TestCase):
         )
         self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
         self.assertEqual(event.ordering_key, "email:student@example.com")
+        expected_list_key = registration_list_key(registration)
         self.assertEqual(
-            event.payload["list_key"], registration_list_key(registration)
+            event.payload["list_key"], expected_list_key
         )
         self.assertEqual(
             event.payload["source_object_key"],
@@ -166,9 +168,10 @@ class DatamailerRegistrationTest(TestCase):
 
     def assert_registration_member_removed(self, remove_member, registration):
         remove_member.assert_called_once()
+        expected_list_key = registration_list_key(registration)
         self.assertEqual(
             remove_member.call_args.args[0],
-            registration_list_key(registration),
+            expected_list_key,
         )
         self.assertEqual(
             remove_member.call_args.args[1],

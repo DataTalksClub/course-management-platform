@@ -109,11 +109,12 @@ class ProjectViewTestBase(TestCase):
 
     def post_project(self, data, execute_callbacks=False):
         self.client.login(**credentials)
+        project_url = self.project_url()
         if not execute_callbacks:
-            return self.client.post(self.project_url(), data)
+            return self.client.post(project_url, data)
         with self.captureOnCommitCallbacks(execute=True):
             return self.client.post(
-                self.project_url(), data, HTTP_HOST="localhost"
+                project_url, data, HTTP_HOST="localhost"
             )
 
     def get_project_submission(self):
@@ -288,5 +289,6 @@ class ProjectViewTestBase(TestCase):
 
     def authenticated_project_response(self):
         self.client.login(**credentials)
-        response = self.client.get(self.project_url())
+        project_url = self.project_url()
+        response = self.client.get(project_url)
         return response

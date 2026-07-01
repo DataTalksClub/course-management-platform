@@ -290,10 +290,11 @@ class HomeworkOptionalFieldsTests(TestCase):
         post_data = self.full_optional_post_data()
 
         self.client.login(**credentials)
-        response = self.client.get(self.homework_url())
+        homework_url = self.homework_url()
+        response = self.client.get(homework_url)
         self.assert_submission_help_links(response)
 
-        self.client.post(self.homework_url(), post_data)
+        self.client.post(homework_url, post_data)
         submission = self.get_saved_submission()
         self.assert_full_optional_submission(submission, post_data)
 
@@ -307,7 +308,8 @@ class HomeworkOptionalFieldsTests(TestCase):
         post_data = self.empty_optional_post_data()
 
         self.client.login(**credentials)
-        self.client.post(self.homework_url(), post_data)
+        homework_url = self.homework_url()
+        self.client.post(homework_url, post_data)
 
         submission = self.get_saved_submission()
         self.assert_empty_optional_submission(submission, post_data)
