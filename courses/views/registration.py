@@ -1,3 +1,5 @@
+from functools import partial
+
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -81,12 +83,16 @@ def _save_registration_if_valid(
         return None
 
     registration = form.save()
-    transaction.on_commit(
-        lambda: sync_registration_to_datamailer(registration)
+    sync_callback = partial(
+        sync_registration_to_datamailer,
+        registration,
     )
-    transaction.on_commit(
-        lambda: send_registration_confirmation_email(registration)
+    email_callback = partial(
+        send_registration_confirmation_email,
+        registration,
     )
+    transaction.on_commit(sync_callback)
+    transaction.on_commit(email_callback)
     return registration
 
 

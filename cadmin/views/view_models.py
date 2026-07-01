@@ -73,12 +73,16 @@ def project_submission_list_data(project, search_query, status_filter):
     return filtered_submissions, filter_counts
 
 
+def _empty_peer_review_counts():
+    return {"completed": 0, "total": 0}
+
+
 def _attach_project_review_counts(project, submissions):
     peer_reviews = PeerReview.objects.filter(
         reviewer__project=project
     ).select_related("reviewer")
 
-    review_counts = defaultdict(lambda: {"completed": 0, "total": 0})
+    review_counts = defaultdict(_empty_peer_review_counts)
     for review in peer_reviews:
         if review.optional:
             continue

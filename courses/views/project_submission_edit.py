@@ -1,3 +1,5 @@
+from functools import partial
+
 from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
@@ -47,14 +49,16 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         submission=project_submission,
         update_url=update_url,
     )
-    transaction.on_commit(
-        lambda: sync_project_submission_to_datamailer(
-            project_submission
-        )
+    sync_callback = partial(
+        sync_project_submission_to_datamailer,
+        project_submission,
     )
-    transaction.on_commit(
-        lambda: send_project_confirmation_email(confirmation_data)
+    email_callback = partial(
+        send_project_confirmation_email,
+        confirmation_data,
     )
+    transaction.on_commit(sync_callback)
+    transaction.on_commit(email_callback)
 
 
 def project_delete_submission(

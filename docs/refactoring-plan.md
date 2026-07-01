@@ -226,6 +226,8 @@ testable service functions.
   objects.
 - [x] Replace lambda-based admin, Datamailer dispatch, commit, and sort-key
   callbacks with named predicates, shared filters, and helper functions.
+- [x] Replace remaining signal, submission, registration, and defaultdict
+  lambdas with explicit callbacks and named/default factories.
 
 ## Current Findings
 

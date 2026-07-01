@@ -45,11 +45,15 @@ def _criteria_responses_for_scores(
 
 
 def _option_votes_by_criteria(responses):
-    votes_by_criteria = defaultdict(lambda: defaultdict(int))
+    votes_by_criteria = {}
     for response in responses:
+        votes = votes_by_criteria.get(response.criteria_id)
+        if votes is None:
+            votes = defaultdict(int)
+            votes_by_criteria[response.criteria_id] = votes
         option_indexes = answer_option_indexes(response.answer)
         for option_index in option_indexes:
-            votes_by_criteria[response.criteria_id][option_index] += 1
+            votes[option_index] += 1
     return votes_by_criteria
 
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -209,12 +210,16 @@ def register_homework_submission_callbacks(data, submission):
         submission=submission,
         update_url=update_url,
     )
-    transaction.on_commit(
-        lambda: send_homework_confirmation_email(confirmation_data)
+    email_callback = partial(
+        send_homework_confirmation_email,
+        confirmation_data,
     )
-    transaction.on_commit(
-        lambda: sync_homework_submission_to_datamailer(submission)
+    sync_callback = partial(
+        sync_homework_submission_to_datamailer,
+        submission,
     )
+    transaction.on_commit(email_callback)
+    transaction.on_commit(sync_callback)
 
 
 def homework_submission_success_response(request, course, homework):
