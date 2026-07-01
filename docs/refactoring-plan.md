@@ -580,6 +580,11 @@ testable service functions.
   Verification: `uv run ruff check api/tests/test_courses.py` and
   `uv run python manage.py test api.tests.test_courses`; touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name project-submission view test counts, selected submissions, and POST
+  data before assertions or request helper calls. Verification:
+  `uv run ruff check courses/tests/test_project_submission_view.py` and
+  `uv run python manage.py test courses.tests.test_project_submission_view`;
+  touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

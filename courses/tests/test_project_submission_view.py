@@ -23,9 +23,11 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
         response = self.post_project(data)
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(self.project_submission_count(), 1)
+        submission_count = self.project_submission_count()
+        self.assertEqual(submission_count, 1)
+        submission = self.get_project_submission()
         self.assert_project_submission_matches(
-            self.get_project_submission(),
+            submission,
             data,
         )
 
@@ -114,7 +116,8 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
             student=self.user,
             course=self.course,
         )
-        self.assertEqual(enrollments.count(), 0)
+        initial_enrollment_count = enrollments.count()
+        self.assertEqual(initial_enrollment_count, 0)
 
         data = {
             "github_link": "https://github.com/existing/repo",
@@ -126,7 +129,8 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
         response = self.post_project(data)
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(enrollments.count(), 1)
+        final_enrollment_count = enrollments.count()
+        self.assertEqual(final_enrollment_count, 1)
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
@@ -149,18 +153,22 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
         response = self.post_project(data)
         self.assertEqual(response.status_code, 302)
 
-        self.assertEqual(self.project_submission_count(), 1)
+        submission_count = self.project_submission_count()
+        self.assertEqual(submission_count, 1)
         submission = fetch_fresh(submission)
         self.assert_project_submission_matches(submission, data)
 
     def test_remove_project_submission(self):
         self.create_existing_project_submission()
-        self.assertEqual(self.project_submission_count(), 1)
+        initial_submission_count = self.project_submission_count()
+        self.assertEqual(initial_submission_count, 1)
 
-        response = self.post_project(self.project_delete_submission_data())
+        data = self.project_delete_submission_data()
+        response = self.post_project(data)
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(self.project_submission_count(), 0)
+        final_submission_count = self.project_submission_count()
+        self.assertEqual(final_submission_count, 0)
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
@@ -254,7 +262,8 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
     def test_project_submission_not_accepting_responses(self):
         self.close_project_submissions()
 
-        response = self.post_project(self.closed_project_submission_data())
+        data = self.closed_project_submission_data()
+        response = self.post_project(data)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -267,7 +276,8 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
             "Submission details",
             status_code=200,
         )
-        self.assertEqual(self.project_submission_count(), 0)
+        submission_count = self.project_submission_count()
+        self.assertEqual(submission_count, 0)
 
     @mock.patch("requests.head")
     @mock.patch("requests.get")
@@ -286,4 +296,5 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
             response.context["submission"],
             data,
         )
-        self.assertEqual(self.project_submission_count(), 0)
+        submission_count = self.project_submission_count()
+        self.assertEqual(submission_count, 0)
