@@ -2312,6 +2312,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Replace Datamailer certificate availability send argument groups with a
+  `CertificateAvailabilitySendData` value object and pass that object through
+  readiness, graduate-outcome sync, idempotency-key, and error-handling steps.
+  Verification:
+  `uv run ruff check course_management/datamailer/sync/certificates.py courses/tests/test_datamailer_certificates.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_certificates`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
