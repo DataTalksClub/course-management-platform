@@ -2606,6 +2606,17 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split certificate update delivery from certificate update processing so
+  validation, lookup, application, persistence, and notification each have a
+  named step. Verification:
+  `uv run ruff check api/views/enrollment_certificate_updates.py api/tests/test_enrollment_exports.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_enrollment_exports`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, `touched_dict_call_values=0`, and
+  `touched_wide_positional_calls=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

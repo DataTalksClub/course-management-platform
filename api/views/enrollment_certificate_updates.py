@@ -66,13 +66,17 @@ def process_certificate_updates(
     )
     errors.extend(apply_batch.errors)
 
+    deliver_certificate_update_batch(apply_batch, notification_sender)
+
+    return apply_batch.updated, errors
+
+
+def deliver_certificate_update_batch(apply_batch, notification_sender):
     persist_certificate_updates(apply_batch.enrollments_to_update)
     queue_certificate_notifications(
         apply_batch.enrollments_to_notify,
         notification_sender,
     )
-
-    return apply_batch.updated, errors
 
 
 def certificate_update_lookups(course, course_slug, valid_updates):
