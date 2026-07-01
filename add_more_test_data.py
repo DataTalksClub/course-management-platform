@@ -84,6 +84,7 @@ def random_question_type():
 def create_multiple_choice_question(homework: Homework, question_id: int):
     answers = ["1", "2", "3", "4"]
     correct_answer = random.choice(answers)
+    possible_answers = QUESTION_ANSWER_DELIMITER.join(answers)
     print(
         f"  Correct answer is {correct_answer}, possible answers are {answers}"
     )
@@ -93,7 +94,7 @@ def create_multiple_choice_question(homework: Homework, question_id: int):
         text=f"Question text {question_id}",
         correct_answer=correct_answer,
         question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-        possible_answers=QUESTION_ANSWER_DELIMITER.join(answers),
+        possible_answers=possible_answers,
         scores_for_correct_answer=1,
     )
 
@@ -233,12 +234,14 @@ for user in all_users:
     )
 
     for homework in homeworks:
+        time_spent_lectures = random.randint(0, 10)
+        time_spent_homework = random.randint(0, 10)
         submission, created = Submission.objects.get_or_create(
             homework=homework,
             student=user,
             defaults={"enrollment": enrollment},
-            time_spent_lectures=random.randint(0, 10),
-            time_spent_homework=random.randint(0, 10),
+            time_spent_lectures=time_spent_lectures,
+            time_spent_homework=time_spent_homework,
         )
 
         if created:
@@ -345,32 +348,39 @@ score_project(p1)
 
 
 # Create homeworks with varied upcoming deadlines to test "time left" display
-upcoming_hw_data = [
-    UpcomingHomeworkFixture(
-        slug="upcoming-hw-urgent",
-        title="Time-sensitive homework: Urgent",
-        due_delta=timedelta(hours=6),
-        state=HomeworkState.OPEN.value,
-    ),
-    UpcomingHomeworkFixture(
-        slug="upcoming-hw-soon",
-        title="Time-sensitive homework: Soon",
-        due_delta=timedelta(days=2, hours=12),
-        state=HomeworkState.OPEN.value,
-    ),
-    UpcomingHomeworkFixture(
-        slug="upcoming-hw-normal",
-        title="Time-sensitive homework: Normal",
-        due_delta=timedelta(days=7),
-        state=HomeworkState.OPEN.value,
-    ),
-    UpcomingHomeworkFixture(
-        slug="upcoming-hw-later",
-        title="Time-sensitive homework: Later",
-        due_delta=timedelta(days=14),
-        state=HomeworkState.OPEN.value,
-    ),
-]
+urgent_homework_due_delta = timedelta(hours=6)
+soon_homework_due_delta = timedelta(days=2, hours=12)
+normal_homework_due_delta = timedelta(days=7)
+later_homework_due_delta = timedelta(days=14)
+upcoming_hw_data = []
+fixture = UpcomingHomeworkFixture(
+    slug="upcoming-hw-urgent",
+    title="Time-sensitive homework: Urgent",
+    due_delta=urgent_homework_due_delta,
+    state=HomeworkState.OPEN.value,
+)
+upcoming_hw_data.append(fixture)
+fixture = UpcomingHomeworkFixture(
+    slug="upcoming-hw-soon",
+    title="Time-sensitive homework: Soon",
+    due_delta=soon_homework_due_delta,
+    state=HomeworkState.OPEN.value,
+)
+upcoming_hw_data.append(fixture)
+fixture = UpcomingHomeworkFixture(
+    slug="upcoming-hw-normal",
+    title="Time-sensitive homework: Normal",
+    due_delta=normal_homework_due_delta,
+    state=HomeworkState.OPEN.value,
+)
+upcoming_hw_data.append(fixture)
+fixture = UpcomingHomeworkFixture(
+    slug="upcoming-hw-later",
+    title="Time-sensitive homework: Later",
+    due_delta=later_homework_due_delta,
+    state=HomeworkState.OPEN.value,
+)
+upcoming_hw_data.append(fixture)
 
 for fixture in upcoming_hw_data:
     hw, created = Homework.objects.get_or_create(
@@ -394,20 +404,25 @@ for fixture in upcoming_hw_data:
     print(f"Created homework: {fixture.title}")
 
 # Create projects with upcoming deadlines
-upcoming_proj_data = [
-    UpcomingProjectFixture(
-        slug="upcoming-proj-urgent",
-        title="Time-sensitive project: Urgent",
-        submission_delta=timedelta(hours=2),
-        peer_review_delta=timedelta(days=5),
-    ),
-    UpcomingProjectFixture(
-        slug="upcoming-proj-normal",
-        title="Time-sensitive project: Normal",
-        submission_delta=timedelta(days=10),
-        peer_review_delta=timedelta(days=17),
-    ),
-]
+urgent_project_submission_delta = timedelta(hours=2)
+urgent_project_peer_review_delta = timedelta(days=5)
+normal_project_submission_delta = timedelta(days=10)
+normal_project_peer_review_delta = timedelta(days=17)
+upcoming_proj_data = []
+fixture = UpcomingProjectFixture(
+    slug="upcoming-proj-urgent",
+    title="Time-sensitive project: Urgent",
+    submission_delta=urgent_project_submission_delta,
+    peer_review_delta=urgent_project_peer_review_delta,
+)
+upcoming_proj_data.append(fixture)
+fixture = UpcomingProjectFixture(
+    slug="upcoming-proj-normal",
+    title="Time-sensitive project: Normal",
+    submission_delta=normal_project_submission_delta,
+    peer_review_delta=normal_project_peer_review_delta,
+)
+upcoming_proj_data.append(fixture)
 
 for fixture in upcoming_proj_data:
     proj, _ = Project.objects.get_or_create(

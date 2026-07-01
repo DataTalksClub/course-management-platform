@@ -102,6 +102,8 @@ testable service functions.
   profile tests out of the oversized mixed `accounts/tests.py` module.
 - [x] Decompose answer generation in the `add_more_test_data.py` seed script
   so answer selection and persistence are separate steps.
+- [x] Flatten seed-script fixture tables so joined answers, random timings,
+  deadline deltas, and fixture records are named before construction.
 - [x] Split project statistics view and integration tests out of the
   calculation-focused `courses/tests/test_project_statistics.py` module.
 - [x] Shorten project detail/submission view tests by reusing route, POST,
