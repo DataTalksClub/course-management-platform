@@ -13,12 +13,14 @@ class HomeworkAuthAPITestCase(HomeworkAPITestBase):
         for response in responses:
             self._assert_staff_token_required(response)
 
-        self.assertFalse(
-            Homework.objects.filter(
-                course=self.course,
-                slug="nonstaff-put",
-            ).exists()
-        )
+        nonstaff_homework_exists = Homework.objects.filter(
+            course=self.course,
+            slug="nonstaff-put",
+        ).exists()
+        self.assertFalse(nonstaff_homework_exists)
         homework.refresh_from_db()
         self.assertEqual(homework.description, "Description")
-        self.assertTrue(Homework.objects.filter(id=homework.id).exists())
+        persisted_homework_exists = Homework.objects.filter(
+            id=homework.id
+        ).exists()
+        self.assertTrue(persisted_homework_exists)

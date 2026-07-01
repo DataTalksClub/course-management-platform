@@ -103,7 +103,8 @@ class CourseDuplicationTests(TestCase):
         self, new_course, review_criteria1, review_criteria2
     ):
         new_criteria = new_course.reviewcriteria_set.all()
-        self.assertEqual(new_criteria.count(), 2)
+        new_criteria_count = new_criteria.count()
+        self.assertEqual(new_criteria_count, 2)
         criteria1 = new_criteria.get(description="Code Quality")
         self.assertEqual(criteria1.options, review_criteria1.options)
         self.assertEqual(
@@ -132,7 +133,8 @@ class CourseDuplicationTests(TestCase):
         self.assert_duplicated_criteria(
             new_course, review_criteria1, review_criteria2
         )
-        self.assertEqual(new_course.students.count(), 0)
+        student_count = new_course.students.count()
+        self.assertEqual(student_count, 0)
 
     def test_duplicate_course_preserves_visibility(self):
         current_year = timezone.now().year

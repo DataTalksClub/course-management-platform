@@ -103,7 +103,8 @@ class CourseProjectSubmissionsViewTests(TestCase):
     def get_submissions_response(self, login=False):
         if login:
             self.client.login(**credentials)
-        return self.client.get(self.submissions_url())
+        submissions_url = self.submissions_url()
+        return self.client.get(submissions_url)
 
     def create_paginated_submissions(self):
         for index in range(30):
@@ -206,7 +207,8 @@ class CourseProjectSubmissionsViewTests(TestCase):
         submissions_page = response.context["submissions_page"]
         self.assertEqual(submissions_page.paginator.count, 32)
         self.assertEqual(len(response.context["submissions"]), 25)
-        self.assertTrue(submissions_page.has_next())
+        has_next_page = submissions_page.has_next()
+        self.assertTrue(has_next_page)
 
     def test_list_all_submissions_view_unauthorized(self):
         response = self.get_submissions_response()

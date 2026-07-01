@@ -57,8 +57,9 @@ class HomeworkSubmissionEditViewTests(HomeworkCadminViewTestBase):
             "faq_contribution_url": faq_entry,
             "faq_score": "3",
         }
+        edit_url = self.homework_submission_edit_url(submission)
         response = self.client.post(
-            self.homework_submission_edit_url(submission),
+            edit_url,
             data,
         )
 
@@ -91,8 +92,9 @@ class HomeworkSubmissionEditViewTests(HomeworkCadminViewTestBase):
             f"answer_{question.id}": "4",
             "learning_in_public_links": "",
         }
+        edit_url = self.homework_submission_edit_url(submission)
         response = self.client.post(
-            self.homework_submission_edit_url(submission),
+            edit_url,
             data,
         )
 

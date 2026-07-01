@@ -43,7 +43,8 @@ class OpenAPITestCase(TestCase):
         for methods in spec["paths"].values():
             for operation in methods.values():
                 documented_names.add(operation["x-django-url-name"])
-        self.assertEqual(routed_url_names(), documented_names)
+        routed_names = routed_url_names()
+        self.assertEqual(routed_names, documented_names)
 
     def test_documented_paths_match_routed_paths(self):
         spec = build_openapi_spec()
@@ -51,7 +52,9 @@ class OpenAPITestCase(TestCase):
 
         self.assertEqual(coverage["undocumented"], [])
         self.assertEqual(coverage["documented_without_route"], [])
-        self.assertEqual(routed_paths(), set(spec["paths"]))
+        django_paths = routed_paths()
+        documented_paths = set(spec["paths"])
+        self.assertEqual(django_paths, documented_paths)
 
     def test_schema_uses_inspected_route_and_view_metadata(self):
         spec = build_openapi_spec()
