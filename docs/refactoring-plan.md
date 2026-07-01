@@ -1026,6 +1026,10 @@ Steps:
   tests out of the oversized Datamailer workflow test module.
 - [x] Split Datamailer certificate and graduate-recipient tests out of the
   oversized Datamailer workflow test module.
+- [x] Shorten Datamailer certificate availability assertions by separating
+  identity, context, metadata, and copy checks. Verification:
+  `uv run ruff check courses/tests/test_datamailer_certificates.py` and
+  `uv run python manage.py test courses.tests.test_datamailer_certificates`.
 - [x] Split Datamailer peer-review assignment tests out of the oversized
   Datamailer workflow test module.
 - [x] Split Datamailer homework-score publication tests out of the oversized

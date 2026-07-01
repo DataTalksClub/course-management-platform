@@ -62,7 +62,7 @@ class DatamailerCertificateTest(TestCase):
             certificate_url="/certificates/student.pdf",
         )
 
-    def assert_certificate_availability_payload(self, payload, enrollment):
+    def assert_certificate_availability_identity(self, payload, enrollment):
         self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(payload["audience"], "dtc-courses")
         self.assertEqual(payload["client"], "dtc-courses")
@@ -75,6 +75,8 @@ class DatamailerCertificateTest(TestCase):
             f"certificate-available:{enrollment.pk}",
         )
         self.assertEqual(payload["from_email"], "courses")
+
+    def assert_certificate_availability_context(self, payload):
         self.assertEqual(
             payload["context"]["certificate_url"],
             "https://courses.example.com/certificates/student.pdf",
@@ -83,6 +85,8 @@ class DatamailerCertificateTest(TestCase):
             payload["context"]["course_url"],
             "https://courses.example.com/ml-zoomcamp-2026/",
         )
+
+    def assert_certificate_availability_metadata(self, payload):
         self.assertEqual(
             payload["metadata"]["event"],
             "certificate_availability",
@@ -92,6 +96,8 @@ class DatamailerCertificateTest(TestCase):
             payload["metadata"]["preference_key"],
             "email_course_updates",
         )
+
+    def assert_certificate_availability_copy(self, payload):
         self.assertIn(
             "Congratulations",
             payload["context"]["intro_text"],
@@ -100,6 +106,12 @@ class DatamailerCertificateTest(TestCase):
             payload["context"]["notification_category"],
             "course-related emails",
         )
+
+    def assert_certificate_availability_payload(self, payload, enrollment):
+        self.assert_certificate_availability_identity(payload, enrollment)
+        self.assert_certificate_availability_context(payload)
+        self.assert_certificate_availability_metadata(payload)
+        self.assert_certificate_availability_copy(payload)
 
     def assert_course_graduate_recipient_payload(self, list_key, payload, enrollment):
         self.assertEqual(list_key, course_graduates_list_key(enrollment.course))
