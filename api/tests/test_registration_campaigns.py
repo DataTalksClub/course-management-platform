@@ -53,17 +53,21 @@ class RegistrationCampaignAPITestCase(TestCase):
         self.assertEqual(response.json()["code"], "staff_token_required")
 
     def non_staff_admin_responses(self, client):
+        create_payload = {
+            "slug": "nonstaff-campaign",
+            "title": "Nonstaff Campaign",
+        }
+        create_body = json.dumps(create_payload)
         create_response = client.post(
             "/api/registration-campaigns/",
-            json.dumps({
-                "slug": "nonstaff-campaign",
-                "title": "Nonstaff Campaign",
-            }),
+            create_body,
             content_type="application/json",
         )
+        patch_payload = {"title": "Changed by nonstaff"}
+        patch_body = json.dumps(patch_payload)
         patch_response = client.patch(
             "/api/registration-campaigns/llm-zoomcamp/",
-            json.dumps({"title": "Changed by nonstaff"}),
+            patch_body,
             content_type="application/json",
         )
         registrations_response = client.get(
@@ -72,15 +76,17 @@ class RegistrationCampaignAPITestCase(TestCase):
         return create_response, patch_response, registrations_response
 
     def test_create_and_patch_registration_campaign(self):
+        create_payload = {
+            "slug": "llm-zoomcamp",
+            "title": "LLM Zoomcamp",
+            "edition_label": "2026 cohort",
+            "current_course": self.course.slug,
+            "marketing_markdown": "Register now",
+        }
+        create_body = json.dumps(create_payload)
         response = self.client.post(
             "/api/registration-campaigns/",
-            json.dumps({
-                "slug": "llm-zoomcamp",
-                "title": "LLM Zoomcamp",
-                "edition_label": "2026 cohort",
-                "current_course": self.course.slug,
-                "marketing_markdown": "Register now",
-            }),
+            create_body,
             content_type="application/json",
         )
 
@@ -89,11 +95,13 @@ class RegistrationCampaignAPITestCase(TestCase):
         self.assertEqual(data["slug"], "llm-zoomcamp")
         self.assertEqual(data["current_course"], self.course.slug)
 
+        patch_payload = {
+            "current_course": None,
+        }
+        patch_body = json.dumps(patch_payload)
         response = self.client.patch(
             "/api/registration-campaigns/llm-zoomcamp/",
-            json.dumps({
-                "current_course": None,
-            }),
+            patch_body,
             content_type="application/json",
         )
 
@@ -133,10 +141,9 @@ class RegistrationCampaignAPITestCase(TestCase):
         for response in self.non_staff_admin_responses(client):
             self.assert_staff_token_required(response)
 
-        self.assertFalse(
-            RegistrationCampaign.objects.filter(
-                slug="nonstaff-campaign",
-            ).exists()
-        )
+        nonstaff_campaign_exists = RegistrationCampaign.objects.filter(
+            slug="nonstaff-campaign",
+        ).exists()
+        self.assertFalse(nonstaff_campaign_exists)
         campaign.refresh_from_db()
         self.assertEqual(campaign.title, "LLM Zoomcamp")

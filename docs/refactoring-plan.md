@@ -1868,6 +1868,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_course_list data.tests.test_datamailer_webhook data.tests.test_leaderboard data.tests.test_project`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name API enrollment certificate payloads, response bodies, and
+  registration-campaign JSON bodies plus existence checks before client calls
+  or assertions. Verification:
+  `uv run ruff check api/tests/test_enrollment_exports.py api/tests/test_registration_campaigns.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_enrollment_exports api.tests.test_registration_campaigns`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

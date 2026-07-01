@@ -26,9 +26,10 @@ class EnrollmentExportsAPITestCase(TestCase):
         )
 
     def post_certificates(self, payload):
+        request_body = json.dumps(payload)
         return self.client.post(
             f"/api/courses/{self.course.slug}/certificates",
-            json.dumps(payload),
+            request_body,
             content_type="application/json",
         )
 
@@ -83,22 +84,24 @@ class EnrollmentExportsAPITestCase(TestCase):
 
     def assert_single_certificate_response(self, response, enrollment):
         self.assertEqual(response.status_code, 200)
+        response_data = response.json()
+        expected_response = {
+            "success": True,
+            "updated_count": 1,
+            "error_count": 0,
+            "updated": [
+                {
+                    "index": 0,
+                    "email": "student@example.com",
+                    "enrollment_id": enrollment.id,
+                    "certificate_url": "/certificates/student.pdf",
+                }
+            ],
+            "errors": [],
+        }
         self.assertEqual(
-            response.json(),
-            {
-                "success": True,
-                "updated_count": 1,
-                "error_count": 0,
-                "updated": [
-                    {
-                        "index": 0,
-                        "email": "student@example.com",
-                        "enrollment_id": enrollment.id,
-                        "certificate_url": "/certificates/student.pdf",
-                    }
-                ],
-                "errors": [],
-            },
+            response_data,
+            expected_response,
         )
 
     def assert_mixed_certificate_response(self, response, enrolled):
@@ -129,9 +132,8 @@ class EnrollmentExportsAPITestCase(TestCase):
             "send_certificate_availability_notification"
         ) as send_notification:
             with self.captureOnCommitCallbacks(execute=True):
-                response = self.post_certificates(
-                    self.single_certificate_payload()
-                )
+                payload = self.single_certificate_payload()
+                response = self.post_certificates(payload)
 
         self.assert_single_certificate_response(response, enrollment)
         self.assert_certificate_url(enrollment, "/certificates/student.pdf")
@@ -141,16 +143,18 @@ class EnrollmentExportsAPITestCase(TestCase):
         enrolled = self.create_enrollment("enrolled@example.com")
         self.create_student("not-enrolled@example.com")
 
-        response = self.post_certificates(self.mixed_certificate_payload())
+        payload = self.mixed_certificate_payload()
+        response = self.post_certificates(payload)
 
         self.assert_mixed_certificate_response(response, enrolled)
         self.assert_certificate_url(enrolled, "/certificates/enrolled.pdf")
 
     def test_bulk_update_certificates_requires_token(self):
         client = Client()
+        request_body = json.dumps({"certificates": []})
         response = client.post(
             f"/api/courses/{self.course.slug}/certificates",
-            json.dumps({"certificates": []}),
+            request_body,
             content_type="application/json",
         )
 
