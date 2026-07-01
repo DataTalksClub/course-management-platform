@@ -198,6 +198,18 @@ class ProjectActionsTestCase(TestCase):
             optional=optional,
         )
 
+    def delete_peer_review_response(self, peer_review):
+        self.client.login(**credentials)
+        return self.client.get(self.delete_eval_url(peer_review.id))
+
+    def assert_peer_review_deleted(self, peer_review):
+        reviews = PeerReview.objects.filter(id=peer_review.id)
+        self.assertFalse(reviews.exists())
+
+    def assert_peer_review_still_exists(self, peer_review):
+        reviews = PeerReview.objects.filter(id=peer_review.id)
+        self.assertTrue(reviews.exists())
+
     def test_select_random_assignment(self):
         num_submissions = 10
         self.generate_submissions(num_submissions)
@@ -386,73 +398,31 @@ class ProjectActionsTestCase(TestCase):
         self.assertTrue(PeerReview.objects.filter(id=peer_review.id).exists())
 
     def test_delete_optional_project_eval_optional(self):
-        my_submission = ProjectSubmission.objects.create(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-            github_link=f"https://github.com/{self.user.username}/project",
-        )
-
-        num_submissions = 5
-        other_submissions = self.generate_submissions(num_submissions)
+        my_submission = self.create_my_submission()
+        other_submissions = self.generate_submissions(5)
         other_submission = other_submissions[0]
-
-        peer_review = PeerReview.objects.create(
-            reviewer=my_submission,
-            submission_under_evaluation=other_submission,
+        peer_review = self.create_peer_review(
+            my_submission,
+            other_submission,
             optional=True,
         )
 
-        self.client.login(**credentials)
-
-        delete_url = reverse(
-            "projects_eval_delete",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                peer_review.id,
-            ],
-        )
-
-        response = self.client.get(delete_url)
+        response = self.delete_peer_review_response(peer_review)
         self.assertEqual(response.status_code, 302)
 
-        reviews = PeerReview.objects.filter(id=peer_review.id)
-
-        self.assertFalse(reviews.exists())
+        self.assert_peer_review_deleted(peer_review)
 
     def test_delete_project_eval_from_other_user(self):
-        my_submission = ProjectSubmission.objects.create(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-            github_link=f"https://github.com/{self.user.username}/project",
-        )
-
-        num_submissions = 5
-        other_submissions = self.generate_submissions(num_submissions)
+        my_submission = self.create_my_submission()
+        other_submissions = self.generate_submissions(5)
         other_submission = other_submissions[0]
-
-        peer_review = PeerReview.objects.create(
-            reviewer=other_submission,
-            submission_under_evaluation=my_submission,
+        peer_review = self.create_peer_review(
+            other_submission,
+            my_submission,
             optional=True,
         )
 
-        self.client.login(**credentials)
-
-        delete_url = reverse(
-            "projects_eval_delete",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                peer_review.id,
-            ],
-        )
-
-        response = self.client.get(delete_url)
+        response = self.delete_peer_review_response(peer_review)
         self.assertEqual(response.status_code, 302)
 
-        reviews = PeerReview.objects.filter(id=peer_review.id)
-
-        self.assertTrue(reviews.exists())
+        self.assert_peer_review_still_exists(peer_review)

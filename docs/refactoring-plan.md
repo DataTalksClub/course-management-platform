@@ -497,6 +497,11 @@ testable service functions.
   expected page assertions. Verification:
   `uv run ruff check courses/tests/test_project_eval_view.py` and
   `uv run python manage.py test courses.tests.test_project_eval_view`.
+- [x] Shorten project optional-review delete tests by reusing shared
+  submission/review builders, delete request helper, and review-existence
+  assertions. Verification:
+  `uv run ruff check courses/tests/test_project_assign.py` and
+  `uv run python manage.py test courses.tests.test_project_assign`.
 
 ## Current Findings
 
