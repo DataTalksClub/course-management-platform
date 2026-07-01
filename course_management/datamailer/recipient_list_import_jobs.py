@@ -58,17 +58,6 @@ class ImportJobStatusData:
     write: object
 
 
-def import_job_data(data, list_key, payload):
-    return ImportJobData(
-        client=data.client,
-        config=data.config,
-        kind=data.kind,
-        list_key=list_key,
-        payload=payload,
-        options=data.import_options,
-    )
-
-
 def create_import_job(import_data, write):
     upload, response = safe_create_import_job_response(import_data)
     job = (response or {}).get("import_job", {})

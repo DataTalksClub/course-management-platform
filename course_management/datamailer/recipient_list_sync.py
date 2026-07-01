@@ -8,9 +8,9 @@ from course_management.datamailer.client import (
     DatamailerConfig,
 )
 from course_management.datamailer.recipient_list_import_jobs import (
+    ImportJobData,
     ImportJobOptions,
     create_import_job,
-    import_job_data,
 )
 
 
@@ -44,7 +44,14 @@ class SyncResultData:
 def sync_recipient_list_batches(data, write):
     for list_key, payload in data.batches.items():
         if data.import_by_reference:
-            import_data = import_job_data(data, list_key, payload)
+            import_data = ImportJobData(
+                client=data.client,
+                config=data.config,
+                kind=data.kind,
+                list_key=list_key,
+                payload=payload,
+                options=data.import_options,
+            )
             create_import_job(import_data, write)
             continue
 
