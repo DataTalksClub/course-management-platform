@@ -29,12 +29,14 @@ class ProjectVotingTest(TestCase):
             title="Course",
             description="Course description",
         )
+        submission_due_date = timezone.now()
+        peer_review_due_date = timezone.now()
         self.project = Project.objects.create(
             course=self.course,
             slug="project",
             title="Project",
-            submission_due_date=timezone.now(),
-            peer_review_due_date=timezone.now(),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
         )
         self.student = User.objects.create_user(username="student")
         self.voter = User.objects.create_user(username="voter")
@@ -73,19 +75,18 @@ class ProjectVotingTest(TestCase):
         )
 
     def post_vote(self, submission):
+        project_list_url = self.project_list_url()
         return self.client.post(
-            self.project_list_url(),
+            project_list_url,
             {"submission_id": submission.id},
         )
 
     def assert_project_vote_count(self, count):
-        self.assertEqual(
-            ProjectVote.objects.filter(
-                voter=self.voter,
-                submission__project=self.project,
-            ).count(),
-            count,
-        )
+        vote_count = ProjectVote.objects.filter(
+            voter=self.voter,
+            submission__project=self.project,
+        ).count()
+        self.assertEqual(vote_count, count)
 
     def assert_submission_voted(self, submission, voted=True):
         vote_exists = ProjectVote.objects.filter(
@@ -122,7 +123,8 @@ class ProjectVotingTest(TestCase):
 
     def test_project_voting_page_lists_submissions(self):
         self.client.force_login(self.voter)
-        response = self.client.get(self.project_list_url())
+        project_list_url = self.project_list_url()
+        response = self.client.get(project_list_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Student")
@@ -136,10 +138,10 @@ class ProjectVotingTest(TestCase):
             response = self.post_vote(self.submission)
             self.assertEqual(response.status_code, 302)
 
-        self.assertEqual(
-            ProjectVote.objects.filter(submission=self.submission).count(),
-            1,
-        )
+        vote_count = ProjectVote.objects.filter(
+            submission=self.submission
+        ).count()
+        self.assertEqual(vote_count, 1)
 
     def test_user_can_remove_vote(self):
         ProjectVote.objects.create(
@@ -148,8 +150,9 @@ class ProjectVotingTest(TestCase):
         )
         self.client.force_login(self.voter)
 
+        project_list_url = self.project_list_url()
         response = self.client.post(
-            self.project_list_url(),
+            project_list_url,
             {
                 "submission_id": self.submission.id,
                 "action": "remove",
@@ -157,15 +160,17 @@ class ProjectVotingTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(
-            ProjectVote.objects.filter(submission=self.submission).exists()
-        )
+        vote_exists = ProjectVote.objects.filter(
+            submission=self.submission
+        ).exists()
+        self.assertFalse(vote_exists)
 
     def test_ajax_vote_returns_updated_vote_state(self):
         self.client.force_login(self.voter)
 
+        project_list_url = self.project_list_url()
         response = self.client.post(
-            self.project_list_url(),
+            project_list_url,
             {"submission_id": self.submission.id},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
