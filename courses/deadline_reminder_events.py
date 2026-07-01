@@ -1,177 +1,31 @@
 from collections import OrderedDict
-from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import datetime, time, timedelta, timezone as datetime_timezone
-from typing import Any
 
-from django.db.models import Q
 from django.urls import reverse
 
 from course_management import email_templates
-from course_management.datamailer.client import DatamailerConfig, public_url
+from course_management.datamailer.client import public_url
 from course_management.deadlines import format_deadline_for_email
-from courses.models import (
-    Course,
-    Enrollment,
-    Homework,
-    HomeworkState,
-    PeerReviewState,
-    Project,
-    ProjectState,
-    ProjectSubmission,
-    Submission,
+from courses.deadline_reminder_members import (
+    reminder_members_from_enrollments,
+    reminder_members_from_submissions,
 )
-
-
-@dataclass(frozen=True)
-class ReminderEvent:
-    key: str
-    list_key: str
-    list_name: str
-    list_metadata: dict[str, Any]
-    send_payload: dict[str, Any]
-    members: list[dict[str, Any]]
-
-
-@dataclass(frozen=True)
-class ReminderSpec:
-    deadline_kind: str
-    event_kind: str
-    list_kind: str
-    item_type: str
-    route_name: str
-    route_slug_kwarg: str
-    metadata_slug_key: str
-    metadata_id_key: str
-    list_name_suffix: str
-
-
-@dataclass(frozen=True)
-class ReminderWindow:
-    key: str
-    start: datetime
-    end: datetime
-
-
-@dataclass(frozen=True)
-class ReminderItemData:
-    course: Course
-    item_slug: str
-    item_id: int
-    item_title: str
-    reminder_key: str
-    deadline: datetime
-    context_extra: Callable[[str], dict[str, Any]]
-
-
-@dataclass(frozen=True)
-class ReminderTemplateContextData:
-    spec: ReminderSpec
-    item: ReminderItemData
-    action_url: str
-
-
-@dataclass(frozen=True)
-class ReminderEventData:
-    config: DatamailerConfig
-    spec: ReminderSpec
-    item: ReminderItemData
-    members: list[dict[str, Any]]
-    metadata: dict[str, Any]
-
-
-def utc_day_window(now, *, days_ahead):
-    now_utc = now.astimezone(datetime_timezone.utc)
-    target_date = (now_utc + timedelta(days=days_ahead)).date()
-    start = datetime.combine(
-        target_date,
-        time.min,
-        tzinfo=datetime_timezone.utc,
-    )
-    return start, start + timedelta(days=1)
-
-
-def reminder_window(now, reminder_key):
-    days_by_key = {
-        "24h": 1,
-        "7d": 8,
-    }
-    return utc_day_window(now, days_ahead=days_by_key[reminder_key])
-
-
-def matching_reminder_key(deadline, windows):
-    for window in windows:
-        if is_within_window(deadline, window.start, window.end):
-            return window.key
-    return None
-
-
-def is_within_window(value, start, end):
-    value_utc = value.astimezone(datetime_timezone.utc)
-    return start <= value_utc < end
-
-
-def deadline_metadata(deadline, user):
-    formatted = format_deadline_for_email(deadline, user)
-    return {
-        "deadline_at": formatted["deadline_summary"],
-        "deadline_iso": formatted["deadline_iso"],
-        "deadline_weekday": formatted["deadline_weekday"],
-        "deadline_date": formatted["deadline_date"],
-        "deadline_time": formatted["deadline_time"],
-        "deadline_timezone": formatted["deadline_timezone"],
-        "deadline_summary": formatted["deadline_summary"],
-    }
-
-
-def member_from_enrollment(enrollment, metadata, *, deadline=None):
-    raw_email = enrollment.student.email or ""
-    email_stripped = raw_email.strip()
-    email = email_stripped.lower()
-    if not email:
-        return None
-    member_metadata = metadata
-    if deadline is not None:
-        member_metadata = member_metadata | deadline_metadata(
-            deadline, enrollment.student
-        )
-    return {
-        "source_object_key": f"enrollment:{enrollment.pk}",
-        "email": email,
-        "status": "active",
-        "metadata": member_metadata
-        | {
-            "enrollment_id": enrollment.pk,
-            "user_id": enrollment.student_id,
-            "source_object_key": f"enrollment:{enrollment.pk}",
-        },
-    }
-
-
-def member_from_project_submission(submission, metadata, *, deadline=None):
-    raw_email = submission.student.email or ""
-    email_stripped = raw_email.strip()
-    email = email_stripped.lower()
-    if not email:
-        return None
-    source_object_key = f"project-submission:{submission.pk}"
-    member_metadata = metadata
-    if deadline is not None:
-        member_metadata = member_metadata | deadline_metadata(
-            deadline, submission.student
-        )
-    return {
-        "source_object_key": source_object_key,
-        "email": email,
-        "status": "active",
-        "metadata": member_metadata
-        | {
-            "submission_id": submission.pk,
-            "enrollment_id": submission.enrollment_id,
-            "user_id": submission.student_id,
-            "source_object_key": source_object_key,
-        },
-    }
+from courses.deadline_reminder_queries import (
+    homework_reminder_queryset,
+    matching_reminder_key,
+    peer_review_reminder_queryset,
+    pending_homework_enrollments,
+    pending_peer_review_submissions,
+    pending_project_submission_enrollments,
+    project_submission_reminder_queryset,
+    project_submission_reminder_windows,
+)
+from courses.deadline_reminder_types import (
+    ReminderEvent,
+    ReminderEventData,
+    ReminderItemData,
+    ReminderSpec,
+    ReminderTemplateContextData,
+)
 
 
 def deadline_send_payload(
@@ -369,125 +223,6 @@ def peer_review_reminder_spec():
         metadata_id_key="project_id",
         list_name_suffix="peer review deadline reminders",
     )
-
-
-def homework_reminder_queryset(now, course_slug):
-    reminder_start, reminder_end = reminder_window(now, "24h")
-    queryset = Homework.objects.select_related("course").filter(
-        state=HomeworkState.OPEN.value,
-        due_date__gte=reminder_start,
-        due_date__lt=reminder_end,
-    )
-    if course_slug:
-        queryset = queryset.filter(course__slug=course_slug)
-    return queryset.order_by("due_date", "pk")
-
-
-def project_submission_reminder_windows(now):
-    daily_start, daily_end = reminder_window(now, "24h")
-    weekly_start, weekly_end = reminder_window(now, "7d")
-    return (
-        ReminderWindow("24h", daily_start, daily_end),
-        ReminderWindow("7d", weekly_start, weekly_end),
-    )
-
-
-def project_submission_reminder_queryset(windows, course_slug):
-    daily_window = windows[0]
-    weekly_window = windows[1]
-    queryset = Project.objects.select_related("course").filter(
-        state=ProjectState.COLLECTING_SUBMISSIONS.value,
-    ).filter(
-        Q(
-            submission_due_date__gte=daily_window.start,
-            submission_due_date__lt=daily_window.end,
-        )
-        | Q(
-            submission_due_date__gte=weekly_window.start,
-            submission_due_date__lt=weekly_window.end,
-        )
-    )
-    if course_slug:
-        queryset = queryset.filter(course__slug=course_slug)
-    return queryset.order_by("submission_due_date", "pk")
-
-
-def peer_review_reminder_queryset(now, course_slug):
-    reminder_start, reminder_end = reminder_window(now, "24h")
-    queryset = Project.objects.select_related("course").filter(
-        state=ProjectState.PEER_REVIEWING.value,
-        peer_review_due_date__gte=reminder_start,
-        peer_review_due_date__lt=reminder_end,
-    )
-    if course_slug:
-        queryset = queryset.filter(course__slug=course_slug)
-    return queryset.order_by("peer_review_due_date", "pk")
-
-
-def pending_homework_enrollments(homework):
-    submitted_student_ids = Submission.objects.filter(
-        homework=homework
-    ).values("student_id")
-    return (
-        Enrollment.objects.filter(course=homework.course)
-        .exclude(student_id__in=submitted_student_ids)
-        .select_related("student", "course")
-        .order_by("pk")
-    )
-
-
-def pending_project_submission_enrollments(project):
-    submitted_student_ids = ProjectSubmission.objects.filter(
-        project=project,
-        volunteer_review_only=False,
-    ).values("student_id")
-    return (
-        Enrollment.objects.filter(course=project.course)
-        .exclude(student_id__in=submitted_student_ids)
-        .select_related("student", "course")
-        .order_by("pk")
-    )
-
-
-def pending_peer_review_submissions(project):
-    return (
-        ProjectSubmission.objects.filter(
-            project=project,
-            volunteer_review_only=False,
-            reviewers__state=PeerReviewState.TO_REVIEW.value,
-            reviewers__optional=False,
-        )
-        .filter(Q(student__email__isnull=False) & ~Q(student__email=""))
-        .select_related("student", "enrollment", "project")
-        .distinct()
-        .order_by("pk")
-    )
-
-
-def reminder_members_from_enrollments(enrollments, metadata, deadline):
-    members = []
-    for enrollment in enrollments:
-        member = member_from_enrollment(
-            enrollment,
-            metadata,
-            deadline=deadline,
-        )
-        if member is not None:
-            members.append(member)
-    return members
-
-
-def reminder_members_from_submissions(submissions, metadata, deadline):
-    members = []
-    for submission in submissions:
-        member = member_from_project_submission(
-            submission,
-            metadata,
-            deadline=deadline,
-        )
-        if member is not None:
-            members.append(member)
-    return members
 
 
 def homework_deadline_context(homework):

@@ -97,6 +97,8 @@ testable service functions.
   test module.
 - [x] Extract deadline reminder event planning from the management command into
   a focused `courses.deadline_reminder_events` module.
+- [x] Split deadline reminder planning helpers by responsibility into type,
+  member, query, and event modules.
 
 ## Current Findings
 
