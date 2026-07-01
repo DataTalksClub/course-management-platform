@@ -5,6 +5,37 @@ from accounts.services.timezones import build_timezone_options, is_valid_timezon
 
 
 PREFERRED_TIMEZONE_WIDGET = forms.Select(attrs={"class": "form-control"})
+CERTIFICATE_NAME_WIDGET = forms.TextInput(
+    attrs={
+        "class": "form-control",
+        "placeholder": "Your name for certificates",
+    }
+)
+COUNTRY_WIDGET = forms.TextInput(
+    attrs={
+        "class": "form-control",
+        "placeholder": "Your country",
+    }
+)
+REGISTRATION_ROLE_WIDGET = forms.TextInput(
+    attrs={
+        "class": "form-control",
+        "placeholder": "Your role",
+    }
+)
+GITHUB_URL_WIDGET = forms.TextInput(attrs={"class": "form-control"})
+LINKEDIN_URL_WIDGET = forms.TextInput(attrs={"class": "form-control"})
+PERSONAL_WEBSITE_URL_WIDGET = forms.TextInput(
+    attrs={"class": "form-control"}
+)
+ABOUT_ME_WIDGET = forms.Textarea(
+    attrs={
+        "class": "form-control",
+        "rows": 3,
+        "style": "height: 100px;",
+    }
+)
+DARK_MODE_WIDGET = forms.CheckboxInput(attrs={"class": "h-4 w-4"})
 
 
 class AccountSettingsForm(forms.ModelForm):
@@ -64,35 +95,12 @@ class AccountSettingsForm(forms.ModelForm):
             ),
         }
         widgets = {
-            "certificate_name": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Your name for certificates",
-                }
-            ),
-            "country": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Your country",
-                }
-            ),
-            "registration_role": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Your role",
-                }
-            ),
-            "github_url": forms.TextInput(attrs={"class": "form-control"}),
-            "linkedin_url": forms.TextInput(attrs={"class": "form-control"}),
-            "personal_website_url": forms.TextInput(
-                attrs={"class": "form-control"}
-            ),
-            "about_me": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 3,
-                    "style": "height: 100px;",
-                }
-            ),
-            "dark_mode": forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
+            "certificate_name": CERTIFICATE_NAME_WIDGET,
+            "country": COUNTRY_WIDGET,
+            "registration_role": REGISTRATION_ROLE_WIDGET,
+            "github_url": GITHUB_URL_WIDGET,
+            "linkedin_url": LINKEDIN_URL_WIDGET,
+            "personal_website_url": PERSONAL_WEBSITE_URL_WIDGET,
+            "about_me": ABOUT_ME_WIDGET,
+            "dark_mode": DARK_MODE_WIDGET,
         }
