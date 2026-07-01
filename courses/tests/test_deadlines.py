@@ -4,11 +4,11 @@ from zoneinfo import ZoneInfo
 
 from django.test import TestCase
 
-from course_management.deadlines import (
-    ceil_to_next_hour,
-    format_deadline_for_email,
+from accounts.services.timezones import (
+    format_deadline_for_user,
+    format_user_datetime,
 )
-from accounts.services.timezones import format_user_datetime
+from course_management.deadlines import ceil_to_next_hour
 
 UTC = ZoneInfo("UTC")
 
@@ -33,10 +33,10 @@ class CeilToNextHourTest(TestCase):
         )
 
 
-class FormatDeadlineForEmailTest(TestCase):
+class FormatDeadlineForUserTest(TestCase):
     def test_renders_utc_with_weekday(self):
         value = datetime(2026, 7, 2, 18, 0, 0, tzinfo=UTC)
-        result = format_deadline_for_email(value)
+        result = format_deadline_for_user(value)
 
         self.assertEqual(result["deadline_weekday"], "Thursday")
         self.assertEqual(result["deadline_date"], "2 July 2026")
@@ -50,7 +50,7 @@ class FormatDeadlineForEmailTest(TestCase):
     def test_non_utc_instant_is_converted_to_utc(self):
         # 21:00 in Berlin (CEST, UTC+2) is 19:00 UTC.
         value = datetime(2026, 7, 2, 21, 0, 0, tzinfo=ZoneInfo("Europe/Berlin"))
-        result = format_deadline_for_email(value)
+        result = format_deadline_for_user(value)
         self.assertEqual(result["deadline_time"], "19:00")
         self.assertEqual(result["deadline_summary"], "Thursday, 2 July 2026, 19:00 UTC")
 
@@ -58,7 +58,7 @@ class FormatDeadlineForEmailTest(TestCase):
         value = datetime(2026, 7, 2, 22, 0, 0, tzinfo=UTC)
         user = SimpleNamespace(preferred_timezone="Europe/Berlin")
 
-        result = format_deadline_for_email(value, user)
+        result = format_deadline_for_user(value, user)
 
         self.assertEqual(result["deadline_weekday"], "Friday")
         self.assertEqual(result["deadline_date"], "3 July 2026")

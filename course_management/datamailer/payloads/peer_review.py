@@ -3,7 +3,7 @@ from typing import Any
 from django.urls import reverse
 
 from course_management import email_templates
-from course_management.deadlines import format_deadline_for_email
+from accounts.services.timezones import format_deadline_for_user
 
 from ..client import DatamailerConfig, public_url
 from ..keys import project_submitters_list_key
@@ -63,7 +63,7 @@ def _peer_review_assignment_project_context(course, project) -> dict[str, Any]:
 
 
 def _peer_review_assignment_deadline_context(project) -> dict[str, Any]:
-    deadline = format_deadline_for_email(project.peer_review_due_date)
+    deadline = format_deadline_for_user(project.peer_review_due_date)
     return {
         "peer_review_due_at": project.peer_review_due_date.isoformat(),
         "deadline_weekday": deadline["deadline_weekday"],

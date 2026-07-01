@@ -2,7 +2,7 @@ from django.urls import reverse
 
 from course_management import email_templates
 from course_management.datamailer.client import public_url
-from course_management.deadlines import format_deadline_for_email
+from accounts.services.timezones import format_deadline_for_user
 from courses.deadline_reminder_types import (
     ReminderEvent,
     ReminderTemplateContextData,
@@ -46,7 +46,7 @@ def transient_recipient_list_send_payload(event):
 
 
 def base_context(data):
-    formatted_deadline = format_deadline_for_email(data.item.deadline)
+    formatted_deadline = format_deadline_for_user(data.item.deadline)
     deadline_summary = formatted_deadline["deadline_summary"]
     profile_path = reverse("account_settings")
     profile_url = public_url(profile_path)

@@ -21,7 +21,7 @@ from course_management.datamailer.payloads.peer_review_members import (
 from course_management.datamailer.payloads.peer_review import (
     peer_review_assignment_notification_payload,
 )
-from course_management.deadlines import format_deadline_for_email
+from accounts.services.timezones import format_deadline_for_user
 
 
 class Command(BaseCommand):
@@ -77,7 +77,7 @@ class Command(BaseCommand):
 
     def write_deadline(self, project):
         out = self.stdout
-        deadline = format_deadline_for_email(project.peer_review_due_date)
+        deadline = format_deadline_for_user(project.peer_review_due_date)
         out.write("Deadline shown in the email:")
         out.write(f"  {deadline['deadline_summary']}")
         out.write("")

@@ -1,8 +1,8 @@
-from course_management.deadlines import format_deadline_for_email
+from accounts.services.timezones import format_deadline_for_user
 
 
 def deadline_metadata(deadline, user):
-    formatted = format_deadline_for_email(deadline, user)
+    formatted = format_deadline_for_user(deadline, user)
     return {
         "deadline_at": formatted["deadline_summary"],
         "deadline_iso": formatted["deadline_iso"],

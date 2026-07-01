@@ -2,7 +2,7 @@ from typing import Any
 
 from django.urls import reverse
 
-from course_management.deadlines import format_deadline_for_email
+from accounts.services.timezones import format_deadline_for_user
 
 from ..client import public_url
 from ..keys import project_submitters_list_key
@@ -106,7 +106,7 @@ def peer_review_assignment_deadline_metadata(
     submission,
 ) -> dict[str, Any]:
     project = submission.project
-    deadline = format_deadline_for_email(
+    deadline = format_deadline_for_user(
         project.peer_review_due_date,
         submission.student,
     )
