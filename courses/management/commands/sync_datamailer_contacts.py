@@ -43,8 +43,14 @@ def contact_payloads(*, active_only=False):
 
 
 def batches(items, batch_size):
-    for index in range(0, len(items), batch_size):
-        yield items[index : index + batch_size]
+    current_batch = []
+    for item in items:
+        current_batch.append(item)
+        if len(current_batch) == batch_size:
+            yield current_batch
+            current_batch = []
+    if current_batch:
+        yield current_batch
 
 
 class Command(BaseCommand):

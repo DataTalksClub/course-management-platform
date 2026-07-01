@@ -37,6 +37,9 @@ testable service functions.
   a cleanup rule. The same applies to simple enum/class/queryset attributes
   used only by the next loop, such as `statuses = DatamailerOutboxStatus.values`;
   use `for status in DatamailerOutboxStatus.values:` directly.
+- Avoid index-based loops such as `range(len(items))` and slice-window loops
+  unless the index itself is the domain value. Prefer `enumerate(...)` for
+  position plus item, or an explicit accumulator when building batches.
 - Prefer direct imports from the real owner module. Do not keep compatibility
   re-export modules or fallback import shims after internal callers have moved.
 - Tuple unpacking with one or two values is fine. When a loop unpacks three or
@@ -1453,6 +1456,15 @@ Steps:
   helpers. Verification:
   `uv run ruff check courses/management/commands/send_deadline_reminders.py`,
   `uv run python manage.py test courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_project courses.tests.test_deadline_reminder_peer_review courses.tests.test_deadline_reminder_dry_run`,
+  touched-file nested-call scan reports `touched_file_nested_call_arguments=0`,
+  size-threshold scan reports `threshold_violations=0`, comprehension scan
+  reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
+  `git diff --check`.
+- [x] Replace the Datamailer contact backfill slice-window batching loop with
+  explicit batch accumulation so the helper no longer depends on
+  `range(len(...))`-style indexing. Verification:
+  `uv run ruff check courses/management/commands/sync_datamailer_contacts.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_contact`,
   touched-file nested-call scan reports `touched_file_nested_call_arguments=0`,
   size-threshold scan reports `threshold_violations=0`, comprehension scan
   reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
