@@ -259,6 +259,8 @@ testable service functions.
 - [x] Split the mixed `accounts/views.py` module into focused account settings,
   toggle, email-preference, timezone, impersonation, login, and disabled-route
   view modules with direct URL imports.
+- [x] Split Datamailer recipient-list audit drift comparison and Datamailer
+  execution/repair logic out of the management command.
 
 ## Current Findings
 

@@ -1,58 +1,17 @@
-from dataclasses import dataclass
-
-import requests
 from django.core.management.base import BaseCommand, CommandError
 
 from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
+from course_management.datamailer.recipient_list_audit import (
+    RECIPIENT_LIST_KINDS,
+    AuditRunData,
+    audit_batches_against_datamailer,
+)
 from course_management.datamailer.recipient_list_batches import (
     build_batches,
 )
-
-RECIPIENT_LIST_KINDS = [
-    "registrations",
-    "enrollments",
-    "homework",
-    "project",
-    "project-passed",
-    "graduates",
-]
-
-
-@dataclass(frozen=True)
-class AuditRunData:
-    client: DatamailerClient
-    config: DatamailerConfig
-    batches: dict
-    limit: int
-    repair: bool
-
-
-@dataclass(frozen=True)
-class AuditListData:
-    client: DatamailerClient
-    config: DatamailerConfig
-    list_key: str
-    payload: dict
-    limit: int
-    repair: bool
-
-
-@dataclass(frozen=True)
-class DriftReportData:
-    list_key: str
-    expected: dict
-    actual: dict
-    drift: dict
-
-
-@dataclass(frozen=True)
-class MemberDriftData:
-    expected: dict
-    actual: dict
-    drift: dict
 
 
 def add_recipient_list_filter_arguments(parser):
@@ -122,7 +81,10 @@ class Command(BaseCommand):
             limit=options["limit"],
             repair=options["repair"],
         )
-        drift_count = self._audit_batches_against_datamailer(audit_data)
+        drift_count = audit_batches_against_datamailer(
+            audit_data,
+            self.stdout.write,
+        )
         self._write_audit_summary(batches, drift_count)
         self._fail_on_drift_if_requested(drift_count, options)
 
@@ -143,22 +105,6 @@ class Command(BaseCommand):
             project_slug=options["project_slug"],
         )
 
-    def _audit_batches_against_datamailer(self, data):
-        drift_count = 0
-        for list_key, payload in data.batches.items():
-            list_data = AuditListData(
-                client=data.client,
-                config=data.config,
-                list_key=list_key,
-                payload=payload,
-                limit=data.limit,
-                repair=data.repair,
-            )
-            drift = self._audit_list(list_data)
-            if drift["has_drift"]:
-                drift_count += 1
-        return drift_count
-
     def _write_audit_summary(self, batches, drift_count):
         self.stdout.write(
             f"Audited {len(batches)} recipient list(s); "
@@ -175,121 +121,6 @@ class Command(BaseCommand):
         errors = option_validation_errors(options)
         for error in errors:
             raise CommandError(error)
-
-    def _audit_list(self, data):
-        response = self._list_members(data)
-        self._ensure_complete_response(response, data.list_key, data.limit)
-        member_drift = self._member_drift(data.payload, response)
-        report_data = DriftReportData(
-            list_key=data.list_key,
-            expected=member_drift.expected,
-            actual=member_drift.actual,
-            drift=member_drift.drift,
-        )
-        self._print_drift(report_data)
-
-        if data.repair and member_drift.drift["has_drift"]:
-            self._repair_list(data)
-        return member_drift.drift
-
-    def _list_members(self, data):
-        try:
-            return data.client.recipient_list_members(
-                data.list_key,
-                include_removed=False,
-                limit=data.limit,
-            )
-        except requests.RequestException as exc:
-            if data.config.strict:
-                raise
-            raise CommandError(
-                f"Datamailer member listing failed for {data.list_key}: {exc}"
-            ) from exc
-
-    def _ensure_complete_response(self, response, list_key, limit):
-        if (response or {}).get("has_more"):
-            raise CommandError(
-                f"Datamailer returned more than {limit} active members for {list_key}; "
-                "rerun with a narrower course/item filter."
-            )
-
-    def _member_drift(self, payload, response):
-        expected = expected_members(payload)
-        actual = actual_members(response or {})
-        drift = compare_members(expected, actual)
-        return MemberDriftData(expected, actual, drift)
-
-    def _repair_list(self, data):
-        try:
-            repair_response = data.client.reconcile_recipient_list_members(
-                data.list_key,
-                data.payload,
-            )
-        except requests.RequestException as exc:
-            if data.config.strict:
-                raise
-            raise CommandError(
-                f"Datamailer repair failed for {data.list_key}: {exc}"
-            ) from exc
-        self.stdout.write(
-            "Repaired "
-            f"{data.list_key}: upserted={repair_response.get('upsert_count', 0)} "
-            f"removed={repair_response.get('removed_count', 0)}"
-        )
-
-    def _print_drift(self, data):
-        self.stdout.write(
-            f"Audited {data.list_key}: expected={len(data.expected)} "
-            f"actual={len(data.actual)} missing={len(data.drift['missing'])} "
-            f"unexpected={len(data.drift['unexpected'])} "
-            f"email_mismatches={len(data.drift['email_mismatches'])} "
-            f"metadata_mismatches={len(data.drift['metadata_mismatches'])}"
-        )
-        drift_labels = (
-            "missing",
-            "unexpected",
-            "email_mismatches",
-            "metadata_mismatches",
-        )
-        for label in drift_labels:
-            if data.drift[label]:
-                self.stdout.write(f"{label}: {', '.join(data.drift[label])}")
-
-
-def expected_members(payload):
-    members = {}
-    payload_members = payload["members"]
-    for member in payload_members:
-        if member.get("status", "active") == "removed":
-            continue
-        source_object_key = member["source_object_key"]
-        email_stripped = member["email"].strip()
-        email = email_stripped.lower()
-        metadata = member.get("metadata") or {}
-        member_record = {
-            "email": email,
-            "metadata": metadata,
-        }
-        members[source_object_key] = member_record
-    return members
-
-
-def actual_members(response):
-    members = {}
-    response_members = response.get("members", [])
-    for member in response_members:
-        if member.get("status", "active") == "removed":
-            continue
-        source_object_key = member["source_object_key"]
-        email_stripped = member["email"].strip()
-        email = email_stripped.lower()
-        metadata = member.get("metadata") or {}
-        member_record = {
-            "email": email,
-            "metadata": metadata,
-        }
-        members[source_object_key] = member_record
-    return members
 
 
 def option_validation_errors(options):
@@ -328,47 +159,3 @@ def invalid_limit(options):
     if 1 <= options["limit"] <= 10000:
         return ""
     return "--limit must be between 1 and 10000."
-
-
-def compare_members(expected, actual):
-    expected_keys = set(expected)
-    actual_keys = set(actual)
-    shared_keys = expected_keys & actual_keys
-    missing_keys = sorted(expected_keys - actual_keys)
-    unexpected_keys = sorted(actual_keys - expected_keys)
-    email_mismatches = member_field_mismatches(
-        expected, actual, shared_keys, "email"
-    )
-    metadata_mismatches = member_field_mismatches(
-        expected, actual, shared_keys, "metadata"
-    )
-    drift = {
-        "missing": missing_keys,
-        "unexpected": unexpected_keys,
-        "email_mismatches": email_mismatches,
-        "metadata_mismatches": metadata_mismatches,
-    }
-    drift["has_drift"] = has_member_drift(drift)
-    return drift
-
-
-def member_field_mismatches(expected, actual, shared_keys, field):
-    mismatches = []
-    for key in shared_keys:
-        if expected[key][field] == actual[key][field]:
-            continue
-        mismatches.append(key)
-    return sorted(mismatches)
-
-
-def has_member_drift(drift):
-    drift_labels = (
-        "missing",
-        "unexpected",
-        "email_mismatches",
-        "metadata_mismatches",
-    )
-    for label in drift_labels:
-        if drift[label]:
-            return True
-    return False
