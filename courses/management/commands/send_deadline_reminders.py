@@ -15,8 +15,8 @@ from data.models import DatamailerSendAuditType
 from courses.deadline_reminder_events import (
     build_reminder_events,
     reminder_event_member_count,
-    transient_recipient_list_send_payload,
 )
+from courses.deadline_reminder_payloads import transient_recipient_list_send_payload
 
 
 def aware_now(value: str):
