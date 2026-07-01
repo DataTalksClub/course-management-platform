@@ -128,6 +128,8 @@ testable service functions.
   helpers out of the homework scoring orchestration module.
 - [x] Split Datamailer recipient-list source querysets and batch assembly out
   of the sync management command into a shared batch module.
+- [x] Split Datamailer recipient-list import JSONL/S3 upload helpers out of
+  the sync management command.
 
 ## Current Findings
 

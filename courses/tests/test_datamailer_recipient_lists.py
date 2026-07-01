@@ -498,7 +498,7 @@ class DatamailerRecipientListCommandTest(TestCase):
         "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
-        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+        "course_management.datamailer.recipient_list_imports.boto3.client"
     )
     def test_recipient_list_backfill_command_creates_import_job(
         self,
@@ -540,7 +540,7 @@ class DatamailerRecipientListCommandTest(TestCase):
         "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
-        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+        "course_management.datamailer.recipient_list_imports.boto3.client"
     )
     def test_recipient_list_backfill_command_waits_for_import_success(
         self,
@@ -588,7 +588,7 @@ class DatamailerRecipientListCommandTest(TestCase):
         "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
-        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+        "course_management.datamailer.recipient_list_imports.boto3.client"
     )
     def test_recipient_list_backfill_command_reports_import_failure(
         self,
@@ -635,7 +635,7 @@ class DatamailerRecipientListCommandTest(TestCase):
         "course_management.datamailer.client.DatamailerClient.create_recipient_list_import"
     )
     @patch(
-        "courses.management.commands.sync_datamailer_recipient_lists.boto3.client"
+        "course_management.datamailer.recipient_list_imports.boto3.client"
     )
     def test_recipient_list_backfill_command_times_out_waiting_for_import(
         self,
