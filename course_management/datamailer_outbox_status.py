@@ -15,13 +15,19 @@ def datamailer_outbox_status_summary() -> dict[str, Any]:
     now = timezone.now()
     due_events = due_outbox_events(now)
     dispatch_runs = outbox_dispatch_runs()
+    event_counts = outbox_event_counts()
+    due_count = due_events.count()
+    oldest_due = oldest_due_outbox_event(due_events)
+    last_successful_run = dispatch_runs["last_successful_run"]
+    last_run = dispatch_runs["last_run"]
+    last_error_event = last_error_outbox_event()
     return {
-        "event_counts": outbox_event_counts(),
-        "due_count": due_events.count(),
-        "oldest_due": oldest_due_outbox_event(due_events),
-        "last_successful_run": dispatch_runs["last_successful_run"],
-        "last_run": dispatch_runs["last_run"],
-        "last_error_event": last_error_outbox_event(),
+        "event_counts": event_counts,
+        "due_count": due_count,
+        "oldest_due": oldest_due,
+        "last_successful_run": last_successful_run,
+        "last_run": last_run,
+        "last_error_event": last_error_event,
     }
 
 
