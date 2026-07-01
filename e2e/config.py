@@ -147,6 +147,16 @@ def _first_env(*names: str) -> str | None:
     return None
 
 
+def _float_env(name: str, default: str) -> float:
+    raw_value = _first_env(name) or default
+    return float(raw_value)
+
+
+def _int_env(name: str, default: str) -> int:
+    raw_value = _first_env(name) or default
+    return int(raw_value)
+
+
 def _base_url() -> str:
     # Default to dev; PUBLIC_BASE_URL in the repo .env already points at dev.
     base_url = _first_env(
@@ -194,17 +204,28 @@ def _real_inbox_settings() -> dict:
 def load_settings() -> Settings:
     _ensure_env_loaded()
 
+    base_url = _base_url()
+    api_token = _first_env("E2E_API_TOKEN", "DEV_AUTH_TOKEN")
+    admin_email = _first_env("E2E_ADMIN_EMAIL")
+    admin_password = _first_env("E2E_ADMIN_PASSWORD")
+    student_email = _first_env("E2E_STUDENT_EMAIL")
+    student_password = _first_env("E2E_STUDENT_PASSWORD")
+    mock_inbox_settings = _mock_inbox_settings()
+    real_inbox_settings = _real_inbox_settings()
+    request_timeout = _float_env("E2E_REQUEST_TIMEOUT", "30")
+    ui_timeout_ms = _int_env("E2E_UI_TIMEOUT_MS", "20000")
+    expected_version = _first_env("E2E_EXPECTED_VERSION")
+
     return Settings(
-        base_url=_base_url(),
-        # Prefer an explicit e2e token; fall back to the dev token in .env.
-        api_token=_first_env("E2E_API_TOKEN", "DEV_AUTH_TOKEN"),
-        admin_email=_first_env("E2E_ADMIN_EMAIL"),
-        admin_password=_first_env("E2E_ADMIN_PASSWORD"),
-        student_email=_first_env("E2E_STUDENT_EMAIL"),
-        student_password=_first_env("E2E_STUDENT_PASSWORD"),
-        **_mock_inbox_settings(),
-        **_real_inbox_settings(),
-        request_timeout=float(_first_env("E2E_REQUEST_TIMEOUT") or "30"),
-        ui_timeout_ms=int(_first_env("E2E_UI_TIMEOUT_MS") or "20000"),
-        expected_version=_first_env("E2E_EXPECTED_VERSION"),
+        base_url=base_url,
+        api_token=api_token,
+        admin_email=admin_email,
+        admin_password=admin_password,
+        student_email=student_email,
+        student_password=student_password,
+        **mock_inbox_settings,
+        **real_inbox_settings,
+        request_timeout=request_timeout,
+        ui_timeout_ms=ui_timeout_ms,
+        expected_version=expected_version,
     )
