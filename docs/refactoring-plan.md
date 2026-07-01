@@ -2322,6 +2322,15 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split Datamailer outbox event dispatch from event-specific send behavior
+  by moving each supported event type into a named sender and using a sender
+  registry in the dispatcher. Verification:
+  `uv run ruff check course_management/datamailer_outbox_senders.py courses/tests/test_datamailer_outbox.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
