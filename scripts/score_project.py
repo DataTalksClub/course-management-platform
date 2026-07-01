@@ -12,9 +12,11 @@ Usage:
 import os
 import sys
 import argparse
+from pathlib import Path
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
@@ -90,7 +92,8 @@ def print_results_header():
 
 def print_passed_count(submissions):
     passed_count = submissions.filter(passed=True).count()
-    print(f"Passed: {passed_count}/{submissions.count()}")
+    submission_count = submissions.count()
+    print(f"Passed: {passed_count}/{submission_count}")
     print()
 
 
@@ -119,8 +122,10 @@ def print_submission_table(submissions):
     for sub in top_submissions:
         print_submission_row(sub)
 
-    if submissions.count() > 10:
-        print(f"\n... and {submissions.count() - 10} more submissions")
+    submission_count = submissions.count()
+    if submission_count > 10:
+        remaining_count = submission_count - 10
+        print(f"\n... and {remaining_count} more submissions")
 
 
 def print_scoring_results(project):

@@ -614,6 +614,11 @@ testable service functions.
   `uv run ruff check scripts/create_superuser.py`,
   `uv run python scripts/create_superuser.py --help`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name score-project script project-root and submission-count values before
+  path insertion or output formatting. Verification:
+  `uv run ruff check scripts/score_project.py`,
+  `uv run python scripts/score_project.py --help`, and touched-file nested-call
+  scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
