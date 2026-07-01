@@ -166,6 +166,8 @@ testable service functions.
   of the route module.
 - [x] Split cadmin enrollment list, leaderboard complaint, and enrollment edit
   helpers out of the route module.
+- [x] Split public course project query and badge decoration helpers out of
+  the course route/context module.
 
 ## Current Findings
 

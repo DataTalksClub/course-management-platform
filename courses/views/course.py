@@ -5,19 +5,12 @@ from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 
-from django.db.models import Prefetch
-
 from courses.models import (
     Course,
     Enrollment,
-    Project,
-    ProjectSubmission,
     ProjectState,
     RegistrationCampaign,
     CourseRegistration,
-    User,
-    PeerReview,
-    PeerReviewState,
 )
 
 from .course_homepage import (
@@ -26,13 +19,7 @@ from .course_homepage import (
 from .course_homeworks import (
     get_homeworks_for_course,
 )
-
-
-@dataclass(frozen=True)
-class ProjectBadgeData:
-    name: str
-    css_class: str
-    score: object = None
+from .course_projects import get_projects_for_course
 
 
 @dataclass(frozen=True)
@@ -42,118 +29,6 @@ class CoursePageData:
     homeworks: list
     projects: list
     registration_campaign: object
-
-
-def get_projects_for_course(
-    course: Course, user: User
-) -> list[Project]:
-    if user.is_authenticated:
-        queryset = ProjectSubmission.objects.filter(student=user)
-    else:
-        queryset = ProjectSubmission.objects.none()
-
-    submissions_prefetch = Prefetch(
-        "projectsubmission_set",
-        queryset=queryset,
-        to_attr="submissions",
-    )
-
-    projects = (
-        Project.objects.filter(course=course)
-        .prefetch_related(submissions_prefetch)
-        .order_by("id")
-    )
-
-    for project in projects:
-        update_project_with_additional_info(project)
-
-    return list(projects)
-
-
-def _project_days_until(due_date) -> int:
-    now = timezone.now()
-    if due_date > now:
-        return (due_date - now).days
-    return 0
-
-
-def _base_project_badge(state):
-    """Badge from a project's state alone, before any submission."""
-    if state == ProjectState.CLOSED.value:
-        return ProjectBadgeData("Closed", "bg-secondary")
-    if state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        return ProjectBadgeData("Open", "bg-warning")
-    return ProjectBadgeData("Not submitted", "bg-secondary")
-
-
-def _submitted_mandatory_review_count(submission):
-    return PeerReview.objects.filter(
-        reviewer=submission,
-        optional=False,
-        state=PeerReviewState.SUBMITTED.value,
-    ).count()
-
-
-def _peer_review_project_badge(project, submission):
-    completed_reviews_count = _submitted_mandatory_review_count(
-        submission
-    )
-    if completed_reviews_count >= project.number_of_peers_to_evaluate:
-        return ProjectBadgeData("Review completed", "bg-success")
-
-    return ProjectBadgeData("Review", "bg-danger")
-
-
-def _completed_project_badge(submission):
-    score = submission.total_score
-    if submission.passed:
-        label = f"Passed ({score})"
-        badge = ProjectBadgeData(label, "bg-success", score)
-        return badge
-
-    label = f"Failed ({score})"
-    badge = ProjectBadgeData(label, "bg-secondary", score)
-    return badge
-
-
-def _submitted_project_badge(project, submission):
-    """Badge override once a project has a submission."""
-    state = project.state
-    if state == ProjectState.COLLECTING_SUBMISSIONS.value:
-        return ProjectBadgeData("Submitted", "bg-info")
-    if state == ProjectState.PEER_REVIEWING.value:
-        return _peer_review_project_badge(project, submission)
-    if state == ProjectState.COMPLETED.value:
-        return _completed_project_badge(submission)
-    return None
-
-
-def update_project_with_additional_info(project: Project) -> None:
-    project.days_until_submission_due = _project_days_until(
-        project.submission_due_date
-    )
-    project.days_until_pr_due = _project_days_until(
-        project.peer_review_due_date
-    )
-
-    project.submitted = False
-    project.score = None
-    badge = _base_project_badge(project.state)
-    project.badge_state_name = badge.name
-    project.badge_css_class = badge.css_class
-
-    if not project.submissions:
-        return
-
-    submission = project.submissions[0]
-    project.submitted = True
-    project.submitted_at = submission.submitted_at
-
-    override = _submitted_project_badge(project, submission)
-    if override is not None:
-        project.badge_state_name = override.name
-        project.badge_css_class = override.css_class
-        project.score = override.score
 
 
 def active_registration_campaign_for_course(
