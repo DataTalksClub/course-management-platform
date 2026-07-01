@@ -109,6 +109,8 @@ testable service functions.
   project API view module.
 - [x] Split API project score and assign-review response helpers out of the
   public project API view module.
+- [x] Split cadmin registration-campaign Datamailer action helpers out of the
+  public campaign page view module.
 
 ## Current Findings
 
