@@ -13,7 +13,7 @@ from course_management.datamailer.client import (
 from course_management.datamailer.keys import (
     registration_campaign_external_key,
 )
-from course_management.datamailer.payloads.registrations import (
+from course_management.datamailer.payloads.registration_campaigns import (
     registration_campaign_datamailer_payload,
 )
 

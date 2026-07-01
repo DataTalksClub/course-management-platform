@@ -269,6 +269,8 @@ testable service functions.
   membership sync ownership.
 - [x] Split Datamailer peer-review assignment recipient/member metadata out of
   the notification payload builder.
+- [x] Split Datamailer registration campaign payload construction out of the
+  registration membership and confirmation payload module.
 
 ## Current Findings
 
