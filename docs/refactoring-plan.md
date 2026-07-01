@@ -1894,6 +1894,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_admin_criteria_form courses.tests.test_unit_scoring`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name data homework export URLs, expected export records, RDS default
+  lookup results, and copy-summary source paths before calls or assertions.
+  Verification:
+  `uv run ruff check data/tests/test_homework.py courses/tests/test_load_rds_export_script.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_homework courses.tests.test_load_rds_export_script`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

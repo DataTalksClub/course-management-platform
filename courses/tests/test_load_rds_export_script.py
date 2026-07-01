@@ -84,13 +84,17 @@ class LoadRdsExportScriptTest(SimpleTestCase):
         )
 
     def test_django_field_default_uses_model_defaults_and_nullable_fields(self):
-        self.assertEqual(django_field_default(Course, "visible"), (True, True))
+        visible_default = django_field_default(Course, "visible")
+        self.assertEqual(visible_default, (True, True))
+        start_date_default = django_field_default(Course, "start_date")
         self.assertEqual(
-            django_field_default(Course, "start_date"),
+            start_date_default,
             (True, None),
         )
-        self.assertEqual(django_field_default(Course, "missing"), (False, None))
-        self.assertEqual(django_field_default(None, "visible"), (False, None))
+        missing_default = django_field_default(Course, "missing")
+        self.assertEqual(missing_default, (False, None))
+        missing_model_default = django_field_default(None, "visible")
+        self.assertEqual(missing_model_default, (False, None))
 
     def test_refresh_sqlite_sequences_updates_id_primary_key_tables(self):
         connection = sqlite3.connect(":memory:")
@@ -131,8 +135,9 @@ class LoadRdsExportScriptTest(SimpleTestCase):
         )
 
         out = StringIO()
+        source_path = Path("source.db")
         with redirect_stdout(out):
-            print_copy_summary(Path("source.db"), summary)
+            print_copy_summary(source_path, summary)
 
         output = out.getvalue()
         self.assertIn("Imported 1 tables from source.db", output)

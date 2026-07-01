@@ -72,13 +72,14 @@ class HomeworkDataAPITestCase(TestCase):
         )
 
     def create_question(self, homework):
+        possible_answers = join_possible_answers(
+            ["Paris", "London", "Berlin"]
+        )
         return Question.objects.create(
             homework=homework,
             text="What is the capital of France?",
             question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-            possible_answers=join_possible_answers(
-                ["Paris", "London", "Berlin"]
-            ),
+            possible_answers=possible_answers,
             correct_answer="1",
         )
 
@@ -161,22 +162,25 @@ class HomeworkDataAPITestCase(TestCase):
             is_correct=True,
         )
 
-        response = self.client.get(self.homework_export_url(homework))
+        export_url = self.homework_export_url(homework)
+        response = self.client.get(export_url)
 
         self.assertEqual(response.status_code, 200)
         actual_result = response.json()
 
-        self.assert_fields(actual_result["course"], self.expected_course_data())
+        expected_course = self.expected_course_data()
+        self.assert_fields(actual_result["course"], expected_course)
+        expected_homework = self.expected_homework_data(homework)
         self.assert_fields(
-            actual_result["homework"], self.expected_homework_data(homework)
+            actual_result["homework"], expected_homework
         )
         self.assertEqual(len(actual_result["submissions"]), 1)
         actual_submission = actual_result["submissions"][0]
-        self.assert_fields(
-            actual_submission, self.expected_submission_data(submission)
-        )
+        expected_submission = self.expected_submission_data(submission)
+        self.assert_fields(actual_submission, expected_submission)
         self.assertEqual(len(actual_submission["answers"]), 1)
+        expected_answer = self.expected_answer_data(question, answer)
         self.assert_fields(
             actual_submission["answers"][0],
-            self.expected_answer_data(question, answer),
+            expected_answer,
         )
