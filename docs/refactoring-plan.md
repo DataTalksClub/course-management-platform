@@ -515,6 +515,11 @@ testable service functions.
   fixture submissions and formatted-field assertions. Verification:
   `uv run ruff check courses/tests/test_dashboard.py` and
   `uv run python manage.py test courses.tests.test_dashboard`.
+- [x] Shorten unauthenticated homework detail submission-field test by naming
+  optional-field setup, login-preview assertions, and hidden-field assertions.
+  Verification:
+  `uv run ruff check courses/tests/test_homework.py courses/tests/homework_view_base.py`
+  and `uv run python manage.py test courses.tests.test_homework`.
 
 ## Current Findings
 

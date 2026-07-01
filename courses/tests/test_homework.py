@@ -21,40 +21,13 @@ class HomeworkDetailViewTests(HomeworkDetailViewTestBase):
         self.assertNotContains(response, "account timezone")
 
     def test_homework_detail_unauthenticated_hides_submission_fields(self):
-        self.homework.homework_url_field = True
-        self.homework.learning_in_public_cap = 2
-        self.homework.time_spent_lectures_field = True
-        self.homework.time_spent_homework_field = True
-        self.homework.faq_contribution_field = True
-        self.homework.save()
-        self.course.homework_problems_comments_field = True
-        self.course.save()
+        self.enable_all_optional_submission_fields()
 
-        response = self.client.get(
-            reverse(
-                "homework",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                },
-            )
-        )
+        response = self.get_homework_response()
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Log in to submit this homework")
-        self.assertContains(response, "Log in to submit", count=2)
-        self.assertContains(response, "You can preview the questions")
-        self.assertNotContains(
-            response, "Log in</a> to see the status of your submission."
-        )
-        self.assertNotContains(response, "Submission details")
-        self.assertNotContains(response, "Homework URL")
-        self.assertNotContains(response, "Learning in public links")
-        self.assertNotContains(response, "No learning in public links submitted")
-        self.assertNotContains(response, "Time spent on lectures")
-        self.assertNotContains(response, "Time spent on homework")
-        self.assertNotContains(response, "Problems or comments")
-        self.assertNotContains(response, "FAQ contribution")
+        self.assert_unauthenticated_submission_preview(response)
+        self.assert_submission_fields_hidden(response)
 
     def test_homework_detail_displays_optional_instructions_url(self):
         self.homework.instructions_url = (
