@@ -2672,6 +2672,17 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split Datamailer recipient-list batch syncing into batch iteration,
+  import-job data construction, inline sync result construction, and result
+  writing so the per-batch import-vs-inline decision is isolated. Verification:
+  `uv run ruff check course_management/datamailer/recipient_list_sync.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, `touched_dict_call_values=0`, and
+  `touched_wide_positional_calls=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
