@@ -12,9 +12,10 @@ from accounts.tests_base import (
 @override_settings(**DATAMAILER_DISABLED_SETTINGS)
 class AccountTimezonePreferenceTestCase(AccountCourseTestCase):
     def post_timezone_preference(self, payload):
+        url = reverse("update_timezone_preference")
         request_body = json.dumps(payload)
         response = self.client.post(
-            reverse("update_timezone_preference"),
+            url,
             data=request_body,
             content_type="application/json",
         )
