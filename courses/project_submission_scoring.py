@@ -17,11 +17,17 @@ class ProjectScoringData:
     criteria: Iterable
 
 
-@dataclass(frozen=True)
+@dataclass
 class ProjectScoringResult:
     submissions_to_update: list
     evaluation_scores: list
     passed_count: int
+
+    def record(self, submission, scores):
+        self.evaluation_scores.extend(scores)
+        self.submissions_to_update.append(submission)
+        if submission.passed:
+            self.passed_count += 1
 
 
 @dataclass(frozen=True)
@@ -120,31 +126,33 @@ def score_submission(data):
     return scores
 
 
+def project_submission_scoring_data(data, submission_id, submission):
+    reviews = data.reviews_by_submission[submission_id]
+    reviewed = data.reviews_by_reviewer.get(submission_id) or []
+    return SubmissionScoringData(
+        submission=submission,
+        project=data.project,
+        reviews=reviews,
+        reviewed=reviewed,
+        criteria=data.criteria,
+    )
+
+
 def score_project_submissions(data):
     submissions_to_update = []
-    all_scores = []
-    passed = 0
-
+    evaluation_scores = []
+    result = ProjectScoringResult(
+        submissions_to_update=submissions_to_update,
+        evaluation_scores=evaluation_scores,
+        passed_count=0,
+    )
     for submission_id, submission in data.submissions.items():
-        reviews = data.reviews_by_submission[submission_id]
-        reviewed = data.reviews_by_reviewer.get(submission_id) or []
-
-        submission_data = SubmissionScoringData(
-            submission=submission,
-            project=data.project,
-            reviews=reviews,
-            reviewed=reviewed,
-            criteria=data.criteria,
+        submission_data = project_submission_scoring_data(
+            data,
+            submission_id,
+            submission,
         )
         scores = score_submission(submission_data)
-        all_scores.extend(scores)
-        submissions_to_update.append(submission)
+        result.record(submission, scores)
 
-        if submission.passed:
-            passed += 1
-
-    return ProjectScoringResult(
-        submissions_to_update=submissions_to_update,
-        evaluation_scores=all_scores,
-        passed_count=passed,
-    )
+    return result

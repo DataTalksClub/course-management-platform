@@ -2398,6 +2398,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Move project scoring result accumulation into `ProjectScoringResult`
+  and name the per-submission scoring-data construction so project scoring no
+  longer carries parallel result lists and counters in the main loop.
+  Verification:
+  `uv run ruff check courses/project_submission_scoring.py courses/tests/test_project_score.py courses/tests/test_project_score_bonus.py api/tests/test_project_scoring.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_score courses.tests.test_project_score_bonus api.tests.test_project_scoring`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
