@@ -20,7 +20,8 @@ class TokenAdminAccessTestCase(TestCase):
         response = self.client.get(self.token_add_url)
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(Token.objects.filter(user=self.student).exists())
+        token_exists = Token.objects.filter(user=self.student).exists()
+        self.assertFalse(token_exists)
 
     def test_staff_without_token_permission_cannot_create_token(self):
         staff = CustomUser.objects.create_user(
@@ -37,7 +38,8 @@ class TokenAdminAccessTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
-        self.assertFalse(Token.objects.filter(user=staff).exists())
+        token_exists = Token.objects.filter(user=staff).exists()
+        self.assertFalse(token_exists)
 
     def test_token_admin_rejects_non_staff_user_selection(self):
         superuser = CustomUser.objects.create_superuser(
@@ -58,4 +60,5 @@ class TokenAdminAccessTestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Select a valid choice")
-        self.assertFalse(Token.objects.filter(user=self.student).exists())
+        token_exists = Token.objects.filter(user=self.student).exists()
+        self.assertFalse(token_exists)

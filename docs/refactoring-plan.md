@@ -1761,6 +1761,12 @@ Steps:
   `uv run python manage.py test accounts.tests_timezone`, touched-file
   nested-call scan reports `touched_file_nested_calls=0`, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Name token-existence checks before assertions in account token-admin tests
+  instead of nesting queryset checks inside `assertFalse(...)`. Verification:
+  `uv run ruff check accounts/tests_token_admin.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_token_admin`, touched-file
+  nested-call scan reports `touched_file_nested_calls=0`, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
