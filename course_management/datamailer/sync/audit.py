@@ -65,6 +65,13 @@ def datamailer_send_audit_defaults(data) -> dict[str, Any]:
 
 
 def datamailer_send_audit_base_defaults(data) -> dict[str, Any]:
+    defaults = datamailer_send_audit_send_defaults(data)
+    outcome_defaults = datamailer_send_audit_outcome_defaults(data)
+    defaults.update(outcome_defaults)
+    return defaults
+
+
+def datamailer_send_audit_send_defaults(data) -> dict[str, Any]:
     list_key = datamailer_send_list_key(
         data.send_type,
         explicit_list_key=data.list_key,
@@ -79,14 +86,19 @@ def datamailer_send_audit_base_defaults(data) -> dict[str, Any]:
         data.payload,
         data.metadata,
     )
+    return {
+        "template_key": template_key,
+        "category_tag": category_tag,
+        "list_key": list_key,
+    }
+
+
+def datamailer_send_audit_outcome_defaults(data) -> dict[str, Any]:
     status = datamailer_audit_status(data.error)
     source = data.metadata.get("source", "")
     event = data.metadata.get("event", "")
     return {
         "status": status,
-        "template_key": template_key,
-        "category_tag": category_tag,
-        "list_key": list_key,
         "source": source,
         "event": event,
         "error": data.error,
