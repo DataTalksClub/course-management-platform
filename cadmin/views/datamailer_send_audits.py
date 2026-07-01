@@ -5,6 +5,15 @@ from data.models import (
     DatamailerSendAuditStatus,
 )
 
+SEND_TOTAL_FIELDS = (
+    "total",
+    "intended_count",
+    "created_count",
+    "enqueued_count",
+    "skipped_count",
+    "idempotent_replay_count",
+)
+
 
 def send_audit_totals():
     total_count = Count("id")
@@ -59,20 +68,12 @@ def failed_datamailer_send_count():
 
 
 def normalized_send_totals(send_totals):
-    total = send_totals["total"] or 0
-    intended_count = send_totals["intended_count"] or 0
-    created_count = send_totals["created_count"] or 0
-    enqueued_count = send_totals["enqueued_count"] or 0
-    skipped_count = send_totals["skipped_count"] or 0
-    idempotent_replay_count = send_totals["idempotent_replay_count"] or 0
-    failed = failed_datamailer_send_count()
+    totals = {}
+    for field in SEND_TOTAL_FIELDS:
+        value = send_totals[field] or 0
+        totals[field] = value
 
-    return {
-        "total": total,
-        "intended_count": intended_count,
-        "created_count": created_count,
-        "enqueued_count": enqueued_count,
-        "skipped_count": skipped_count,
-        "idempotent_replay_count": idempotent_replay_count,
-        "failed": failed,
-    }
+    failed = failed_datamailer_send_count()
+    totals["failed"] = failed
+
+    return totals

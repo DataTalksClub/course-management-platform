@@ -2231,6 +2231,13 @@ Steps:
   `uv run ruff check api/views/homework_create.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_homeworks`, broad AST cleanup
   gates report zero violations, `uvx pyrefly check`, and `git diff --check`.
+- [x] Replace repeated Datamailer send-total normalization assignments with an
+  explicit field tuple and loop, keeping the no-comprehension style while making
+  the aggregate fields easier to audit. Verification:
+  `uv run ruff check cadmin/views/datamailer_send_audits.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_datamailer_views`, broad AST
+  cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
