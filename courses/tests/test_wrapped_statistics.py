@@ -25,7 +25,8 @@ from courses.wrapped_statistics.calculator import calculate_wrapped_statistics
 
 
 def in_2025(month=6, day=1):
-    return timezone.make_aware(datetime(2025, month, day, 12, 0, 0))
+    naive_date = datetime(2025, month, day, 12, 0, 0)
+    return timezone.make_aware(naive_date)
 
 
 @dataclass(frozen=True)
@@ -53,20 +54,23 @@ class CalculateWrappedStatisticsTest(TestCase):
         )
 
     def create_homework(self):
+        due_date = in_2025()
         return Homework.objects.create(
             course=self.course,
             slug="hw1",
             title="HW 1",
-            due_date=in_2025(),
+            due_date=due_date,
         )
 
     def create_project(self):
+        submission_due_date = in_2025(7, 1)
+        peer_review_due_date = in_2025(7, 8)
         return Project.objects.create(
             course=self.course,
             slug="proj1",
             title="Project 1",
-            submission_due_date=in_2025(7, 1),
-            peer_review_due_date=in_2025(7, 8),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
         )
 
     def create_user(self, email):
@@ -85,6 +89,7 @@ class CalculateWrappedStatisticsTest(TestCase):
         self,
         data: HomeworkSubmissionFixtureData,
     ):
+        submitted_at = in_2025()
         return Submission.objects.create(
             homework=self.homework,
             student=data.user,
@@ -93,17 +98,18 @@ class CalculateWrappedStatisticsTest(TestCase):
             time_spent_homework=data.homework_hours,
             learning_in_public_links=data.learning_links,
             faq_contribution_url=data.faq_url,
-            submitted_at=in_2025(),
+            submitted_at=submitted_at,
         )
 
     def create_project_submission(self, user, enrollment):
+        submitted_at = in_2025(7, 2)
         return ProjectSubmission.objects.create(
             project=self.project,
             student=user,
             enrollment=enrollment,
             time_spent=5.0,
             learning_in_public_links=["https://x/3"],
-            submitted_at=in_2025(7, 2),
+            submitted_at=submitted_at,
         )
 
     def create_alice_activity(self):
@@ -209,7 +215,8 @@ class CalculateWrappedStatisticsTest(TestCase):
     def test_idempotent_recalculation(self):
         # Re-running with force should not duplicate user rows.
         again = calculate_wrapped_statistics(year=2025, force=True)
+        wrapped_statistics_count = UserWrappedStatistics.objects.filter(
+            wrapped=again
+        ).count()
         self.assertEqual(again.id, self.stats.id)
-        self.assertEqual(
-            UserWrappedStatistics.objects.filter(wrapped=again).count(), 2
-        )
+        self.assertEqual(wrapped_statistics_count, 2)

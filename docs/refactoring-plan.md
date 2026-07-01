@@ -1939,6 +1939,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_datamailer_contact`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name wrapped-statistics test dates and row counts before model creation
+  or assertions. Verification:
+  `uv run ruff check courses/tests/test_wrapped_statistics.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_wrapped_statistics`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
