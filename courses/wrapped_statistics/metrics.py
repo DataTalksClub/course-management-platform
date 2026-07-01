@@ -178,8 +178,7 @@ def wrapped_display_name(student, enrollments):
     return student.username
 
 
-def user_wrapped_metrics_values(data: UserWrappedStatData):
-    total_points = wrapped_total_points(data.enrollments)
+def user_wrapped_submission_metrics(data: UserWrappedStatData):
     total_hours = wrapped_total_hours(
         data.homework_submissions,
         data.project_submissions,
@@ -192,6 +191,17 @@ def user_wrapped_metrics_values(data: UserWrappedStatData):
         data.homework_submissions,
         data.project_submissions,
     )
+    metrics = {
+        "total_hours": total_hours,
+        "learning_in_public_count": learning_in_public_count,
+        "faq_contributions_count": faq_contributions_count,
+    }
+    return metrics
+
+
+def user_wrapped_metrics_values(data: UserWrappedStatData):
+    submission_metrics = user_wrapped_submission_metrics(data)
+    total_points = wrapped_total_points(data.enrollments)
     certificates_earned = wrapped_certificates_count(data.enrollments)
     courses = wrapped_courses(data.enrollments)
     rank = wrapped_rank(data.student, data.leaderboard_data)
@@ -199,9 +209,7 @@ def user_wrapped_metrics_values(data: UserWrappedStatData):
 
     values = {
         "total_points": total_points,
-        "total_hours": total_hours,
-        "learning_in_public_count": learning_in_public_count,
-        "faq_contributions_count": faq_contributions_count,
+        **submission_metrics,
         "certificates_earned": certificates_earned,
         "courses": courses,
         "rank": rank,
