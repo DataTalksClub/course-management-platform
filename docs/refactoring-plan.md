@@ -111,6 +111,8 @@ testable service functions.
   public project API view module.
 - [x] Split cadmin registration-campaign Datamailer action helpers out of the
   public campaign page view module.
+- [x] Split public homework POST preview and validation-error context helpers
+  out of the homework detail view module.
 
 ## Current Findings
 
