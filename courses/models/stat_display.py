@@ -33,7 +33,7 @@ STAT_ROWS = [
 ]
 
 
-def homework_stat_sections():
+def homework_score_stat_sections():
     sections = []
     questions_score = StatSection(
         "questions_score",
@@ -43,6 +43,11 @@ def homework_stat_sections():
     sections.append(questions_score)
     total_score = StatSection("total_score", "Total score", "fas fa-star")
     sections.append(total_score)
+    return sections
+
+
+def homework_detail_stat_sections():
+    sections = []
     lecture_time = StatSection(
         "time_spent_lectures",
         "Time spent on lectures",
@@ -61,6 +66,15 @@ def homework_stat_sections():
         "fas fa-globe",
     )
     sections.append(learning_in_public)
+    return sections
+
+
+def homework_stat_sections():
+    sections = []
+    score_sections = homework_score_stat_sections()
+    sections.extend(score_sections)
+    detail_sections = homework_detail_stat_sections()
+    sections.extend(detail_sections)
     return sections
 
 
