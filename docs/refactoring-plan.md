@@ -202,6 +202,8 @@ testable service functions.
   the prefetch coordinator.
 - [x] Replace repetitive API course-create field extraction with an explicit
   default table and value builder.
+- [x] Split cadmin campaign edit POST action selection out of the public edit
+  view coordinator.
 
 ## Current Findings
 

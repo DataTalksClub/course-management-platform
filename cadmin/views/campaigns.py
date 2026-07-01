@@ -50,6 +50,18 @@ def campaign_create(request):
     return response
 
 
+def campaign_edit_post_result(request, campaign):
+    if request.POST.get("datamailer_action"):
+        post_result = handle_campaign_datamailer_post(
+            request,
+            campaign,
+        )
+        return post_result
+
+    post_result = handle_campaign_form_post(request, campaign)
+    return post_result
+
+
 @staff_required
 def campaign_edit(request, campaign_slug):
     campaigns = RegistrationCampaign.objects.select_related("current_course")
@@ -59,13 +71,7 @@ def campaign_edit(request, campaign_slug):
     )
 
     if request.method == "POST":
-        if request.POST.get("datamailer_action"):
-            post_result = handle_campaign_datamailer_post(
-                request,
-                campaign,
-            )
-        else:
-            post_result = handle_campaign_form_post(request, campaign)
+        post_result = campaign_edit_post_result(request, campaign)
         if post_result.response:
             return post_result.response
         form = post_result.form
