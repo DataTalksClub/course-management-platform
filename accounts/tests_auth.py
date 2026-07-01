@@ -13,8 +13,12 @@ class ExtractEmailTestCase(TestCase):
         return SimpleNamespace(email_addresses=list(email_addresses))
 
     def test_extract_email_prefers_response_email(self):
+        verified_email = self.email_address(
+            "verified@example.com",
+            verified=True,
+        )
         sociallogin = self.sociallogin_with_emails(
-            self.email_address("verified@example.com", verified=True)
+            verified_email,
         )
 
         email = extract_email(
@@ -25,9 +29,14 @@ class ExtractEmailTestCase(TestCase):
         self.assertEqual(email, "response@example.com")
 
     def test_extract_email_uses_verified_social_email(self):
+        first_email = self.email_address("first@example.com")
+        verified_email = self.email_address(
+            "verified@example.com",
+            verified=True,
+        )
         sociallogin = self.sociallogin_with_emails(
-            self.email_address("first@example.com"),
-            self.email_address("verified@example.com", verified=True),
+            first_email,
+            verified_email,
         )
 
         email = extract_email({}, sociallogin=sociallogin)
@@ -35,9 +44,11 @@ class ExtractEmailTestCase(TestCase):
         self.assertEqual(email, "verified@example.com")
 
     def test_extract_email_falls_back_to_first_social_email(self):
+        first_email = self.email_address("first@example.com")
+        second_email = self.email_address("second@example.com")
         sociallogin = self.sociallogin_with_emails(
-            self.email_address("first@example.com"),
-            self.email_address("second@example.com"),
+            first_email,
+            second_email,
         )
 
         email = extract_email({}, sociallogin=sociallogin)
