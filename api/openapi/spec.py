@@ -45,7 +45,9 @@ def openapi_path_for_url_name(url_name):
     path = reverse(url_name, kwargs=kwargs)
 
     for name, value in kwargs.items():
-        path = path.replace(str(value), f"{{{name}}}", 1)
+        sample_value = str(value)
+        parameter_marker = f"{{{name}}}"
+        path = path.replace(sample_value, parameter_marker, 1)
 
     return path
 
