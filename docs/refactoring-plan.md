@@ -231,6 +231,8 @@ testable service functions.
   orchestration module.
 - [x] Split Datamailer membership outbox event builders out of the public
   membership sync entry-point module.
+- [x] Split Datamailer webhook request authentication, JSON parsing, and field
+  validation out of the route/persistence module.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
