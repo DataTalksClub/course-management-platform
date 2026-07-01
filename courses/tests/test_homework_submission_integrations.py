@@ -189,39 +189,55 @@ class HomeworkSubmissionIntegrationTest(TestCase):
             "Your homework submission for Homework 1 in Course was saved.",
         )
 
+    def expected_learning_in_public_field(self):
+        return {
+            "key": "learning_in_public_links",
+            "label": "Learning in public links",
+            "value": "https://example.com/post",
+            "values": ["https://example.com/post"],
+        }
+
+    def expected_lecture_time_field(self):
+        return {
+            "key": "time_spent_lectures",
+            "label": "Time spent on lectures",
+            "value": "2.5 hours",
+        }
+
+    def expected_homework_time_field(self):
+        return {
+            "key": "time_spent_homework",
+            "label": "Time spent on homework",
+            "value": "4 hours",
+        }
+
+    def expected_problem_comments_field(self):
+        return {
+            "key": "problems_comments",
+            "label": "Problems, comments, or feedback",
+            "value": "No blockers.",
+        }
+
+    def expected_faq_contribution_field(self):
+        return {
+            "key": "faq_contribution_url",
+            "label": "FAQ contribution URL",
+            "value": "https://github.com/DataTalksClub/faq/pull/1",
+        }
+
+    def expected_submission_fields(self):
+        fields = []
+        fields.append(self.expected_learning_in_public_field())
+        fields.append(self.expected_lecture_time_field())
+        fields.append(self.expected_homework_time_field())
+        fields.append(self.expected_problem_comments_field())
+        fields.append(self.expected_faq_contribution_field())
+        return fields
+
     def assert_submission_fields(self, payload):
         self.assertEqual(
             payload["context"]["submission_fields"],
-            [
-                {
-                    "key": "learning_in_public_links",
-                    "label": "Learning in public links",
-                    "value": "https://example.com/post",
-                    "values": ["https://example.com/post"],
-                },
-                {
-                    "key": "time_spent_lectures",
-                    "label": "Time spent on lectures",
-                    "value": "2.5 hours",
-                },
-                {
-                    "key": "time_spent_homework",
-                    "label": "Time spent on homework",
-                    "value": "4 hours",
-                },
-                {
-                    "key": "problems_comments",
-                    "label": "Problems, comments, or feedback",
-                    "value": "No blockers.",
-                },
-                {
-                    "key": "faq_contribution_url",
-                    "label": "FAQ contribution URL",
-                    "value": (
-                        "https://github.com/DataTalksClub/faq/pull/1"
-                    ),
-                },
-            ],
+            self.expected_submission_fields(),
         )
 
     def multiple_choice_answer_record(self):
@@ -310,32 +326,31 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self,
         send_email,
     ):
-        url = reverse(
-            "homework",
-            args=[self.course.slug, self.homework.slug],
-        )
+        post_data = self.datamailer_preference_post_data()
 
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                url,
-                {
-                    f"answer_{self.multiple_choice_question.id}": ["2"],
-                    "learning_in_public_links[]": [],
-                },
-                HTTP_HOST="localhost",
-            )
+        response = self.post_homework(post_data)
 
         self.assertEqual(response.status_code, 302)
+        self.assert_submission_exists()
+        send_email.assert_called_once()
+        payload = send_email.call_args.args[0]
+        self.assertEqual(payload["email"], "student@example.com")
+        self.assertEqual(payload["category_tag"], "submission-results")
+
+    def datamailer_preference_post_data(self):
+        answer_key = f"answer_{self.multiple_choice_question.id}"
+        return {
+            answer_key: ["2"],
+            "learning_in_public_links[]": [],
+        }
+
+    def assert_submission_exists(self):
         self.assertTrue(
             Submission.objects.filter(
                 student=self.user,
                 homework=self.homework,
             ).exists()
         )
-        send_email.assert_called_once()
-        payload = send_email.call_args.args[0]
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(payload["category_tag"], "submission-results")
 
     @override_settings(PUBLIC_BASE_URL="https://dev.courses.datatalks.club")
     @patch("courses.views.homework_confirmation.send_transactional_email")
