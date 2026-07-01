@@ -28,12 +28,6 @@ class HomeworkSubmissionEditObjects:
     submission: Submission
 
 
-@dataclass(frozen=True)
-class HomeworkSubmissionQuestions:
-    questions: list
-    questions_with_answers: list
-
-
 def homework_submission_edit_response(
     request, course_slug, homework_slug, submission_id
 ):
@@ -41,7 +35,7 @@ def homework_submission_edit_response(
         course_slug, homework_slug, submission_id
     )
 
-    submission_questions = questions_with_submission_answers(
+    questions, questions_with_answers = questions_with_submission_answers(
         edit_objects.homework,
         edit_objects.submission,
     )
@@ -50,8 +44,8 @@ def homework_submission_edit_response(
         course=edit_objects.course,
         homework=edit_objects.homework,
         submission=edit_objects.submission,
-        questions=submission_questions.questions,
-        questions_with_answers=submission_questions.questions_with_answers,
+        questions=questions,
+        questions_with_answers=questions_with_answers,
     )
 
     if request.method == "POST":
@@ -102,10 +96,7 @@ def questions_with_submission_answers(homework, submission):
             "answer_text": answer_text,
         }
         questions_with_answers.append(record)
-    return HomeworkSubmissionQuestions(
-        questions=questions,
-        questions_with_answers=questions_with_answers,
-    )
+    return questions, questions_with_answers
 
 
 def handle_homework_submission_edit_post(data):

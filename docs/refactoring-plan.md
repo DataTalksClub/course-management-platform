@@ -1730,6 +1730,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_registration_campaigns`,
   dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Remove the two-field cadmin homework submission questions wrapper and
+  unpack the two returned values directly. Verification:
+  `uv run ruff check cadmin/views/homework_submission_edit.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_homework_submission_edit_views cadmin.tests.test_homework_views`,
+  dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
