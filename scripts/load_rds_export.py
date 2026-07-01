@@ -758,10 +758,12 @@ def create_admin_user(db_path: Path, args: argparse.Namespace) -> None:
         args.admin_email,
     ]
     if args.admin_password:
-        command.extend(["--password", args.admin_password])
+        command.append("--password")
+        command.append(args.admin_password)
     if args.admin_user_id is not None:
         admin_user_id = str(args.admin_user_id)
-        command.extend(["--user-id", admin_user_id])
+        command.append("--user-id")
+        command.append(admin_user_id)
 
     print(f"Creating/resetting admin user: {args.admin_email}")
     subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=True)
