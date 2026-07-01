@@ -2408,6 +2408,15 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split project calendar deadline spec construction from calendar event
+  rendering so the project deadline event loop only iterates over named specs
+  and renders each event. Verification:
+  `uv run ruff check courses/views/course_calendar_events.py courses/tests/test_course.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course`, comprehension,
+  size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

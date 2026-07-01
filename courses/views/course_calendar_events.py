@@ -90,9 +90,7 @@ def _project_deadline_calendar_event(
     return calendar_event(event_data)
 
 
-def _project_deadline_calendar_events(
-    course, project, url, dtstamp
-) -> list[list[str]]:
+def _project_deadline_specs(project):
     submission_deadline = ProjectDeadlineEventSpec(
         uid_suffix="submission",
         event_type="submission",
@@ -107,6 +105,13 @@ def _project_deadline_calendar_events(
         submission_deadline,
         peer_review_deadline,
     )
+    return deadlines
+
+
+def _project_deadline_calendar_events(
+    course, project, url, dtstamp
+) -> list[list[str]]:
+    deadlines = _project_deadline_specs(project)
     events = []
     for deadline in deadlines:
         event_data = ProjectDeadlineCalendarEventData(
