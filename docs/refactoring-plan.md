@@ -329,6 +329,8 @@ testable service functions.
 - [x] Split Datamailer certificate availability and course-graduate
   recipient-list payload builders into direct owner modules and remove the
   mixed certificate payload module.
+- [x] Split public course calendar ICS/event generation out of the route module,
+  leaving the view as the HTTP response boundary.
 
 ## Current Findings
 
