@@ -1021,6 +1021,11 @@ Steps:
   fixtures. Verification:
   `uv run ruff check courses/tests/test_datamailer_recipient_lists.py` and
   `uv run python manage.py test courses.tests.test_datamailer_recipient_lists`.
+- [x] Shorten Datamailer recipient-list import timeout tests by naming
+  processing-job setup and timeout assertion flow. Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_list_imports.py`
+  and
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_list_imports`.
 - [x] Split Datamailer recipient-list audit tests out of the recipient-list
   command test module.
 - [x] Split Datamailer outbox, erase-contact, and status command tests out of

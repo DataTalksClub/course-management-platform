@@ -157,6 +157,36 @@ class DatamailerRecipientListImportCommandTest(
                 stdout=StringIO(),
             )
 
+    def configure_processing_import_job(self, recipient_list_import, job_id):
+        recipient_list_import.return_value = {
+            "import_job": {"id": job_id, "status": "processing"}
+        }
+
+    def assert_import_wait_times_out(self, enrollment, job_id):
+        message = (
+            "Timed out waiting for Datamailer import job "
+            f"{job_id} for {course_enrolled_list_key(enrollment.course)}; "
+            "last status=processing"
+        )
+        with patch(
+            "course_management.datamailer.recipient_list_import_jobs.time.monotonic",
+            side_effect=[0, 2],
+        ):
+            with self.assertRaisesMessage(CommandError, message):
+                call_command(
+                    "sync_datamailer_recipient_lists",
+                    "enrollments",
+                    "--course-slug",
+                    enrollment.course.slug,
+                    "--import-by-reference",
+                    "--wait-for-import",
+                    "--import-timeout",
+                    "1",
+                    "--import-poll-interval",
+                    "0.01",
+                    stdout=StringIO(),
+                )
+
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
@@ -179,34 +209,10 @@ class DatamailerRecipientListImportCommandTest(
         self.configure_import_by_reference(
             boto3_client, create_import, job_id=20
         )
-        recipient_list_import.return_value = {
-            "import_job": {"id": 20, "status": "processing"}
-        }
+        self.configure_processing_import_job(recipient_list_import, 20)
         enrollment = self.create_enrolled_student()
 
-        with patch(
-            "course_management.datamailer.recipient_list_import_jobs.time.monotonic",
-            side_effect=[0, 2],
-        ):
-            with self.assertRaisesMessage(
-                CommandError,
-                "Timed out waiting for Datamailer import job "
-                f"20 for {course_enrolled_list_key(enrollment.course)}; "
-                "last status=processing",
-            ):
-                call_command(
-                    "sync_datamailer_recipient_lists",
-                    "enrollments",
-                    "--course-slug",
-                    enrollment.course.slug,
-                    "--import-by-reference",
-                    "--wait-for-import",
-                    "--import-timeout",
-                    "1",
-                    "--import-poll-interval",
-                    "0.01",
-                    stdout=StringIO(),
-                )
+        self.assert_import_wait_times_out(enrollment, 20)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_import_by_reference_requires_s3_bucket(self):
