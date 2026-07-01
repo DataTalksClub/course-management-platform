@@ -290,10 +290,8 @@ class HomeworkCadminViewTestBase(TestCase):
                 "https://example.com/post2"
             ),
         }
-        return self.client.post(
-            self.homework_submission_edit_url(fixture.submission),
-            data,
-        )
+        edit_url = self.homework_submission_edit_url(fixture.submission)
+        return self.client.post(edit_url, data)
 
     def homework_submission_edit_response(self, submission):
         self.login_admin()
@@ -359,8 +357,10 @@ class HomeworkCadminViewTestBase(TestCase):
         )
 
     def post_homework_action_to_submissions(self, action_name):
-        data = {"next": self.cadmin_homework_submissions_url()}
-        return self.client.post(self.homework_action_url(action_name), data)
+        next_url = self.cadmin_homework_submissions_url()
+        data = {"next": next_url}
+        action_url = self.homework_action_url(action_name)
+        return self.client.post(action_url, data)
 
     def cadmin_course_url(self):
         return reverse(
@@ -370,25 +370,34 @@ class HomeworkCadminViewTestBase(TestCase):
 
     def cadmin_course_response(self):
         self.login_admin()
-        return self.client.get(self.cadmin_course_url())
+        course_url = self.cadmin_course_url()
+        return self.client.get(course_url)
 
     def assert_homework_submission_actions(self, response):
-        self.assertContains(response, self.homework_url())
+        homework_url = self.homework_url()
+        self.assertContains(response, homework_url)
         self.assertContains(
             response,
             f"/admin/courses/homework/{self.homework.id}/change/",
         )
-        self.assertContains(
-            response,
-            self.homework_action_url("cadmin_homework_set_correct_answers"),
+        set_correct_answers_url = self.homework_action_url(
+            "cadmin_homework_set_correct_answers"
         )
         self.assertContains(
             response,
-            self.homework_action_url("cadmin_homework_clear_correct_answers"),
+            set_correct_answers_url,
+        )
+        clear_correct_answers_url = self.homework_action_url(
+            "cadmin_homework_clear_correct_answers"
         )
         self.assertContains(
             response,
-            self.homework_action_url("cadmin_homework_score"),
+            clear_correct_answers_url,
+        )
+        score_url = self.homework_action_url("cadmin_homework_score")
+        self.assertContains(
+            response,
+            score_url,
         )
         self.assertContains(response, "Select most frequent answer")
         self.assertContains(response, "Clear correct answers")
