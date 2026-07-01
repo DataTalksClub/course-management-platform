@@ -214,6 +214,8 @@ testable service functions.
   the confirmation context record builder.
 - [x] Split long Datamailer client endpoint test case lists into endpoint-area
   groups with explicit aggregators.
+- [x] Split remaining long dashboard and project-statistics test helpers into
+  focused fixture/assertion or score-row groups.
 
 ## Current Findings
 

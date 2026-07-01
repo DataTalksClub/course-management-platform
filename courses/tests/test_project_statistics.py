@@ -605,7 +605,7 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             time_spent=10.0,
         )
 
-    def workflow_submission_score_rows(self):
+    def lower_workflow_submission_score_rows(self):
         rows = []
         row = WorkflowSubmissionScores(
             project_score=5,
@@ -625,6 +625,10 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             time_spent=8.0,
         )
         rows.append(row)
+        return rows
+
+    def higher_workflow_submission_score_rows(self):
+        rows = []
         row = WorkflowSubmissionScores(
             project_score=12,
             project_learning_in_public_score=6,
@@ -652,6 +656,14 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             time_spent=15.0,
         )
         rows.append(row)
+        return rows
+
+    def workflow_submission_score_rows(self):
+        rows = []
+        for row in self.lower_workflow_submission_score_rows():
+            rows.append(row)
+        for row in self.higher_workflow_submission_score_rows():
+            rows.append(row)
         return rows
 
     def workflow_submission_scores(self, row):

@@ -569,9 +569,8 @@ class DashboardProjectStatsTestCase(TestCase):
         self.assertIsNotNone(response.context["project_score_median"])
         self.assertIsNotNone(response.context["project_time_median"])
 
-    def test_completion_rate_with_multiple_projects(self):
-        """Completion rate counts distinct students, not enrollments x projects."""
-        project2 = Project.objects.create(
+    def create_completed_second_project(self):
+        project = Project.objects.create(
             course=self.course,
             slug="project2",
             title="Project 2",
@@ -579,9 +578,9 @@ class DashboardProjectStatsTestCase(TestCase):
             peer_review_due_date=timezone.now() + timedelta(days=14),
             state=ProjectState.COMPLETED.value,
         )
+        return project
 
-        # 3 distinct students submit project 1; 2 of them also submit project 2,
-        # for 5 submissions total across 2 projects.
+    def create_overlapping_project_submissions(self, project):
         for i in range(3):
             submission_data = ProjectSubmissionFixtureData(
                 user=self.users[i],
@@ -590,7 +589,7 @@ class DashboardProjectStatsTestCase(TestCase):
             self.create_project_submission(submission_data)
         for i in range(2):
             ProjectSubmission.objects.create(
-                project=project2,
+                project=project,
                 student=self.users[i],
                 enrollment=self.enrollments[i],
                 github_link="https://github.com/test/repo2",
@@ -599,16 +598,22 @@ class DashboardProjectStatsTestCase(TestCase):
                 time_spent=10.0,
             )
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
-
-        # 3 distinct enrollments submitted out of 6 -> 50%, regardless of the
-        # 2 projects or the 5 total submissions (old formula gave 5/(6*2)=41.7%).
+    def assert_distinct_student_completion_rate(self, response):
         self.assertAlmostEqual(
             response.context["project_completion_rate"],
             (3 / 6) * 100,
             places=1,
         )
+
+    def test_completion_rate_with_multiple_projects(self):
+        """Completion rate counts distinct students, not enrollments x projects."""
+        project = self.create_completed_second_project()
+        self.create_overlapping_project_submissions(project)
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        self.assert_distinct_student_completion_rate(response)
 
     def test_project_statistics_with_no_submissions(self):
         """Test project statistics when no submissions exist"""
