@@ -188,6 +188,8 @@ testable service functions.
   enqueue/dispatch status updates.
 - [x] Split project POST delete/save branches out of the public project view
   coordinator.
+- [x] Split homework statistics scored/unscored response paths out of the
+  public statistics view coordinator.
 
 ## Current Findings
 
