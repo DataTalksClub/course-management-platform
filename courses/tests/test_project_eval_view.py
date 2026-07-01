@@ -35,7 +35,8 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
 
     def get_authenticated_eval_view(self):
         self.client.login(**credentials)
-        return self.client.get(self.eval_view_url())
+        eval_url = self.eval_view_url()
+        return self.client.get(eval_url)
 
     def assert_optional_reviews_visible_without_submission(self, response):
         self.assertEqual(response.status_code, 200)
@@ -119,12 +120,11 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
         )
 
         self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "projects_eval",
-                args=[self.course.slug, self.project.slug],
-            )
+        eval_url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
         )
+        response = self.client.get(eval_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Review progress")

@@ -94,11 +94,12 @@ class DatamailerCampaignCommandTest(TestCase):
         expectation.mocks.queue_campaign.assert_called_once_with(
             "course-start-2026"
         )
+        command_output = expectation.out.getvalue()
         self.assertIn(
             "Upserted course-start-2026: status=draft",
-            expectation.out.getvalue(),
+            command_output,
         )
-        self.assertIn("queue: ok", expectation.out.getvalue())
+        self.assertIn("queue: ok", command_output)
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_datamailer_campaign_command_upserts_and_runs_actions(self):

@@ -154,13 +154,15 @@ class LeaderboardTestCase(TestCase):
 
         # Manually set a value in cache to verify it gets invalidated
         cache.set(cache_key, "test_value", 3600)
-        self.assertEqual(cache.get(cache_key), "test_value")
+        cached_value = cache.get(cache_key)
+        self.assertEqual(cached_value, "test_value")
 
         # Update leaderboard again (this should invalidate the cache)
         update_leaderboard(self.course)
 
         # Cache should be invalidated (None)
-        self.assertIsNone(cache.get(cache_key))
+        invalidated_value = cache.get(cache_key)
+        self.assertIsNone(invalidated_value)
 
     def create_paginated_leaderboard(self, count):
         for i in range(1, count + 1):

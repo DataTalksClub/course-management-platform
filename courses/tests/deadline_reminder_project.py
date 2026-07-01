@@ -34,21 +34,23 @@ class ProjectSubmissionReminderTestMixin:
         )
         self.create_enrollment(user, course)
         self.create_enrollment(opted_out_user, course)
+        project_week_delta = timedelta(days=8, hours=2)
         project_week = ProjectReminderData(
             course=course,
             now=now,
             slug="project-week",
             title="Project Week",
-            submission_delta=timedelta(days=8, hours=2),
+            submission_delta=project_week_delta,
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
         self.create_project(project_week)
+        project_day_delta = timedelta(days=1, hours=14)
         project_day = ProjectReminderData(
             course=course,
             now=now,
             slug="project-day",
             title="Project Day",
-            submission_delta=timedelta(days=1, hours=14),
+            submission_delta=project_day_delta,
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
         self.create_project(project_day)

@@ -48,22 +48,22 @@ class DatamailerTemplatesTest(TestCase):
     def test_examples_render_with_no_unresolved_variables(self):
         for key, payload in TEMPLATES.items():
             with self.subTest(template=key):
-                ctx = Context(payload["example_context"])
+                context = Context(payload["example_context"])
                 for field in ("subject", "html_body", "text_body"):
-                    rendered = Template(payload[field]).render(
-                        Context(payload["example_context"])
-                    )
+                    template = Template(payload[field])
+                    rendered = template.render(context)
                     self.assertNotIn("{{", rendered)
                     self.assertNotIn("{%", rendered)
-                # touch ctx so flake doesn't complain about unused in some flows
-                self.assertIsNotNone(ctx)
+                self.assertIsNotNone(context)
 
     def test_peer_review_assignment_lists_assigned_links(self):
-        html = Template(
+        template = Template(
             TEMPLATES["peer-review-assignment"]["html_body"]
-        ).render(
-            Context(TEMPLATES["peer-review-assignment"]["example_context"])
         )
+        context = Context(
+            TEMPLATES["peer-review-assignment"]["example_context"]
+        )
+        html = template.render(context)
         self.assertIn("Open all your peer reviews", html)
         self.assertIn("/eval/4567", html)
         self.assertIn("20:00 Europe/Berlin", html)

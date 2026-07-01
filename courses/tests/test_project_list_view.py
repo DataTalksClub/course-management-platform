@@ -95,7 +95,8 @@ class ProjectListViewTests(TestCase):
     def get_project_list_response(self, login=False):
         if login:
             self.client.login(**credentials)
-        return self.client.get(self.project_list_url())
+        project_list_url = self.project_list_url()
+        return self.client.get(project_list_url)
 
     def create_paginated_submissions(self):
         for index in range(30):
@@ -172,4 +173,5 @@ class ProjectListViewTests(TestCase):
         submissions_page = response.context["submissions_page"]
         self.assertEqual(submissions_page.paginator.count, 32)
         self.assertEqual(len(response.context["submissions"]), 25)
-        self.assertTrue(submissions_page.has_next())
+        has_next_page = submissions_page.has_next()
+        self.assertTrue(has_next_page)

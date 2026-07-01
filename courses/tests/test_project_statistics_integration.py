@@ -244,7 +244,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         stats = calculate_project_statistics(self.project)
         self.assert_workflow_statistics(stats)
 
-        response = self.client.get(self.project_statistics_url())
+        statistics_url = self.project_statistics_url()
+        response = self.client.get(statistics_url)
         self.assert_statistics_view_content(response)
 
         project_url = reverse(
@@ -252,7 +253,7 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         )
         project_response = self.client.get(project_url)
         self.assertContains(project_response, "Project statistics")
-        self.assertContains(project_response, self.project_statistics_url())
+        self.assertContains(project_response, statistics_url)
 
     def test_statistics_links_in_navigation(self):
         """Test that statistics links appear in appropriate navigation areas"""
