@@ -11,7 +11,6 @@ from courses.models.homework import (
     Submission,
 )
 from courses.views.homework_answers import process_question_options
-from courses.views.homework_post_preview import homework_state_context
 
 
 @dataclass(frozen=True)
@@ -35,6 +34,14 @@ class AuthenticatedHomeworkContext:
     context: dict
     submission: Submission | None
     enrollment: Enrollment
+
+
+def homework_state_context(homework: Homework) -> dict[str, bool]:
+    accepting_submissions = homework.state == HomeworkState.OPEN.value
+    return {
+        "disabled": not accepting_submissions,
+        "accepting_submissions": accepting_submissions,
+    }
 
 
 def homework_detail_build_context_not_authenticated(

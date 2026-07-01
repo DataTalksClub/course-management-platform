@@ -300,6 +300,8 @@ testable service functions.
   execution out of the management command.
 - [x] Split Datamailer recipient-list import job creation and polling out of
   inline recipient-list sync.
+- [x] Split homework POST field preview binding and validation-context
+  reconstruction out of the public POST response handler.
 
 ## Current Findings
 
