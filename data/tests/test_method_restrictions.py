@@ -25,24 +25,23 @@ class DataEndpointMethodRestrictionTest(TestCase):
             slug="test-course",
         )
         Enrollment.objects.create(student=self.user, course=self.course)
+        now = timezone.now()
         self.homework = Homework.objects.create(
             course=self.course,
             title="Test Homework",
             slug="test-homework",
-            due_date=timezone.now() + timezone.timedelta(days=7),
+            due_date=now + timezone.timedelta(days=7),
         )
         self.project = Project.objects.create(
             course=self.course,
             title="Test Project",
             slug="test-project",
-            submission_due_date=timezone.now()
-            + timezone.timedelta(days=7),
-            peer_review_due_date=timezone.now()
-            + timezone.timedelta(days=14),
+            submission_due_date=now + timezone.timedelta(days=7),
+            peer_review_due_date=now + timezone.timedelta(days=14),
         )
 
-    def test_get_only_data_endpoints_reject_delete(self):
-        routes = [
+    def get_only_routes(self):
+        return [
             reverse("api_health"),
             reverse(
                 "api_course_criteria_yaml",
@@ -72,15 +71,8 @@ class DataEndpointMethodRestrictionTest(TestCase):
             ),
         ]
 
-        for url in routes:
-            with self.subTest(url=url):
-                response = self.auth_client.delete(url)
-
-                self.assertEqual(response.status_code, 405)
-                self.assertEqual(response["Allow"], "GET")
-
-    def test_post_only_data_endpoints_reject_get(self):
-        routes = [
+    def post_only_routes(self):
+        return [
             reverse(
                 "api_course_certificates",
                 kwargs={"course_slug": self.course.slug},
@@ -88,9 +80,29 @@ class DataEndpointMethodRestrictionTest(TestCase):
             reverse("api_datamailer_events"),
         ]
 
+    def assert_method_rejected(self, method, url, allowed_method):
+        response = method(url)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response["Allow"], allowed_method)
+
+    def test_get_only_data_endpoints_reject_delete(self):
+        routes = self.get_only_routes()
+
         for url in routes:
             with self.subTest(url=url):
-                response = self.auth_client.get(url)
+                self.assert_method_rejected(
+                    self.auth_client.delete,
+                    url,
+                    "GET",
+                )
 
-                self.assertEqual(response.status_code, 405)
-                self.assertEqual(response["Allow"], "POST")
+    def test_post_only_data_endpoints_reject_get(self):
+        routes = self.post_only_routes()
+
+        for url in routes:
+            with self.subTest(url=url):
+                self.assert_method_rejected(
+                    self.auth_client.get,
+                    url,
+                    "POST",
+                )

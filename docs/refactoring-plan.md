@@ -212,6 +212,10 @@ testable service functions.
   `uv run ruff check data/tests/enrollment_base.py data/tests/test_enrollment.py data/tests/test_enrollment_passed.py data/tests/test_enrollment_certificates.py`
   and
   `uv run python manage.py test data.tests.test_enrollment data.tests.test_enrollment_passed data.tests.test_enrollment_certificates`.
+- [x] Shorten data endpoint method-restriction tests by naming route groups and
+  shared rejected-method assertions. Verification:
+  `uv run ruff check data/tests/test_method_restrictions.py` and
+  `uv run python manage.py test data.tests.test_method_restrictions`.
 - [x] Split the public project detail view into route handling, page-context,
   and submission-edit modules so the view module only coordinates responses.
 - [x] Split homework upsert API internals into shared rules, validation,
