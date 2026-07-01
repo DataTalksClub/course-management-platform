@@ -29,15 +29,16 @@ def column_info(name, *, notnull=False, default=None, pk=False):
 
 
 class LoadRdsExportScriptTest(SimpleTestCase):
-    def test_missing_required_columns_builds_copy_plan(self):
-        plan = TableCopyPlan(
+    def copy_plan_without_insert_columns(self):
+        return TableCopyPlan(
             table="courses_course",
             insert_columns=[],
             source_columns={"slug", "title"},
             default_values={},
         )
-        defaults_used = set()
-        target_info = [
+
+    def target_course_column_info(self):
+        return [
             column_info("id", pk=True),
             column_info("slug", notnull=True),
             column_info("title", notnull=True),
@@ -47,24 +48,40 @@ class LoadRdsExportScriptTest(SimpleTestCase):
             column_info("required_local", notnull=True),
         ]
 
-        column_data = ColumnCopyData(
+    def course_column_copy_data(self, plan, defaults_used):
+        return ColumnCopyData(
             model=Course,
             table="courses_course",
             source_columns={"slug", "title"},
             plan=plan,
             defaults_used=defaults_used,
         )
-        missing = missing_required_columns(target_info, column_data)
 
-        self.assertEqual(missing, ["required_local"])
-        self.assertEqual(plan.insert_columns, ["slug", "title", "visible"])
-        self.assertEqual(plan.default_values, {"visible": True})
+    def assert_missing_required_copy_plan(self, missing, plan, defaults_used):
         expected_default = ColumnDefault(
             "courses_course",
             "visible",
             True,
         )
+
+        self.assertEqual(missing, ["required_local"])
+        self.assertEqual(plan.insert_columns, ["slug", "title", "visible"])
+        self.assertEqual(plan.default_values, {"visible": True})
         self.assertEqual(defaults_used, {expected_default})
+
+    def test_missing_required_columns_builds_copy_plan(self):
+        plan = self.copy_plan_without_insert_columns()
+        target_info = self.target_course_column_info()
+        defaults_used = set()
+        column_data = self.course_column_copy_data(plan, defaults_used)
+
+        missing = missing_required_columns(target_info, column_data)
+
+        self.assert_missing_required_copy_plan(
+            missing,
+            plan,
+            defaults_used,
+        )
 
     def test_django_field_default_uses_model_defaults_and_nullable_fields(self):
         self.assertEqual(django_field_default(Course, "visible"), (True, True))

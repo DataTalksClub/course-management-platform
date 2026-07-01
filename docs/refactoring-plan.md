@@ -487,6 +487,11 @@ testable service functions.
   repository and project-detail field groups. Verification:
   `uv run ruff check courses/tests/project_view_base.py` and
   `uv run python manage.py test courses.tests.test_project_submission_view`.
+- [x] Shorten the RDS export missing-column test by naming copy-plan,
+  target-schema, column-copy-data, and expected-plan assertion helpers.
+  Verification:
+  `uv run ruff check courses/tests/test_load_rds_export_script.py` and
+  `uv run python manage.py test courses.tests.test_load_rds_export_script`.
 
 ## Current Findings
 
