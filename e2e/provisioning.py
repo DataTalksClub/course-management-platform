@@ -79,7 +79,8 @@ class CloseDeleteData:
 
 def make_namespace(timestamp: int | None = None) -> str:
     if timestamp is None:
-        ts = int(time.time())
+        current_time = time.time()
+        ts = int(current_time)
     else:
         ts = timestamp
     return f"{NAMESPACE_PREFIX}{ts}"

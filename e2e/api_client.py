@@ -120,12 +120,13 @@ class CmpApiClient:
         if data.response.status_code in data.request.expected:
             return
 
+        response_body = _safe_json(data.response)
         raise ApiError(
             f"{data.request.method} {data.request.path} "
             f"returned {data.response.status_code} "
             f"(expected {data.request.expected}): {data.response.text[:500]}",
             status=data.response.status_code,
-            body=_safe_json(data.response),
+            body=response_body,
         )
 
     def _raise_network_error(self, data: ApiNetworkErrorData) -> None:

@@ -75,12 +75,13 @@ def _assert_project_confirmation(backend, run_state):
     expected_template = (
         PROJECT_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
     )
+    criteria = MessageMatchCriteria(
+        template_key=expected_template,
+        subject="Project submission saved",
+    )
     request = MessageWaitRequest(
         address=run_state.student_email,
-        criteria=MessageMatchCriteria(
-            template_key=expected_template,
-            subject="Project submission saved",
-        ),
+        criteria=criteria,
         timeout=120,
     )
     message = backend.wait_for_message(request)

@@ -648,6 +648,12 @@ testable service functions.
   construction or namespace generation. Verification:
   `uv run ruff check e2e/conftest.py`, `python -m py_compile e2e/conftest.py`,
   and touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name e2e API error bodies, namespace timestamps, and email-match
+  criteria before error construction, namespace generation, or wait-request
+  construction. Verification:
+  `uv run ruff check e2e/api_client.py e2e/provisioning.py e2e/tests/test_03_homework.py e2e/tests/test_04_project.py`,
+  `python -m py_compile e2e/api_client.py e2e/provisioning.py e2e/tests/test_03_homework.py e2e/tests/test_04_project.py`,
+  and touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

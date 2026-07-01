@@ -154,12 +154,13 @@ def _assert_homework_confirmation(backend, run_state):
     expected_template = (
         HOMEWORK_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
     )
+    criteria = MessageMatchCriteria(
+        template_key=expected_template,
+        subject="Homework submission saved",
+    )
     request = MessageWaitRequest(
         address=run_state.student_email,
-        criteria=MessageMatchCriteria(
-            template_key=expected_template,
-            subject="Homework submission saved",
-        ),
+        criteria=criteria,
         # Real SES inbound is eventually consistent (~5-15s); give it headroom.
         timeout=120,
     )
