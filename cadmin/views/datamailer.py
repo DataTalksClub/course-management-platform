@@ -5,7 +5,7 @@ from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
-from course_management.datamailer_outbox import (
+from course_management.datamailer_outbox_status import (
     datamailer_outbox_status_summary,
 )
 from data.models import (

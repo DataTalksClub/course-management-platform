@@ -21,7 +21,7 @@ from course_management.datamailer.sync import (
     erase_contact_from_datamailer,
     sync_enrollment_to_datamailer,
 )
-from course_management.datamailer_outbox import _status_for_error
+from course_management.datamailer_outbox_dispatch import status_for_error
 from courses.models import Course, Enrollment
 
 
@@ -164,11 +164,11 @@ class DatamailerOutboxTest(TestCase):
 
     def test_outbox_status_for_error_classifies_retryable_errors(self):
         self.assertEqual(
-            _status_for_error(self.http_error(429), self.outbox_attempt()),
+            status_for_error(self.http_error(429), self.outbox_attempt()),
             DatamailerOutboxStatus.RETRYING,
         )
         self.assertEqual(
-            _status_for_error(self.http_error(503), self.outbox_attempt()),
+            status_for_error(self.http_error(503), self.outbox_attempt()),
             DatamailerOutboxStatus.RETRYING,
         )
 
@@ -177,11 +177,11 @@ class DatamailerOutboxTest(TestCase):
         final_attempt = self.outbox_attempt(attempt_count=3, max_attempts=3)
 
         self.assertEqual(
-            _status_for_error(self.http_error(400), self.outbox_attempt()),
+            status_for_error(self.http_error(400), self.outbox_attempt()),
             DatamailerOutboxStatus.FAILED,
         )
         self.assertEqual(
-            _status_for_error(network_error, final_attempt),
+            status_for_error(network_error, final_attempt),
             DatamailerOutboxStatus.FAILED,
         )
 

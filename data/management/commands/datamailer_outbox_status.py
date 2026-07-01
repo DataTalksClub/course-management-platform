@@ -1,7 +1,9 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from course_management.datamailer_outbox import datamailer_outbox_status_summary
+from course_management.datamailer_outbox_status import (
+    datamailer_outbox_status_summary,
+)
 from data.models import DatamailerOutboxStatus
 
 
