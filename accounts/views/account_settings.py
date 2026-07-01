@@ -1,10 +1,8 @@
-from urllib.parse import unquote
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from accounts.forms import AccountSettingsForm
-from accounts.services.timezones import get_timezone_label, is_valid_timezone
+from accounts.services.timezones import browser_timezone_name, get_timezone_label
 from accounts.views.account_toggles import LOCAL_ACCOUNT_TOGGLE_FIELDS
 from course_management.datamailer.preference_categories import (
     EMAIL_PREFERENCE_CATEGORIES,
@@ -85,8 +83,7 @@ def _browser_timezone_label(request, user):
     if user.preferred_timezone:
         return ""
 
-    browser_timezone_cookie = request.COOKIES.get("browser_timezone", "")
-    browser_timezone = unquote(browser_timezone_cookie)
-    if not is_valid_timezone(browser_timezone):
+    browser_timezone = browser_timezone_name(request)
+    if not browser_timezone:
         return ""
     return get_timezone_label(browser_timezone)

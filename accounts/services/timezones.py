@@ -41,6 +41,19 @@ def user_timezone_name(user, browser_timezone: str = "") -> str:
     return DEFAULT_TIMEZONE
 
 
+def browser_timezone_name(viewer) -> str:
+    """Return the decoded browser-cookie timezone when it is valid."""
+    cookies = getattr(viewer, "COOKIES", None)
+    if cookies is None:
+        return ""
+
+    browser_timezone_cookie = cookies.get("browser_timezone", "")
+    browser_timezone = unquote(browser_timezone_cookie)
+    if not is_valid_timezone(browser_timezone):
+        return ""
+    return browser_timezone
+
+
 def build_timezone_options() -> list[TimezoneOption]:
     """Return IANA timezones labeled with current GMT offset, west to east."""
     now_utc = timezone.now().astimezone(UTC)
@@ -95,12 +108,7 @@ def format_user_datetime(
         value = value.replace(tzinfo=UTC)
 
     user = getattr(viewer, "user", viewer)
-    browser_timezone = ""
-    cookies = getattr(viewer, "COOKIES", None)
-    if cookies is not None:
-        browser_timezone_cookie = cookies.get("browser_timezone", "")
-        browser_timezone = unquote(browser_timezone_cookie)
-
+    browser_timezone = browser_timezone_name(viewer)
     timezone_name = user_timezone_name(user, browser_timezone)
     timezone_info = ZoneInfo(timezone_name)
     localized = value.astimezone(timezone_info)

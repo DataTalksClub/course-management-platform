@@ -2271,6 +2271,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_datamailer_outbox`, broad
   AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Extract browser timezone cookie decoding/validation into the timezone
+  service and reuse it from account settings and user datetime formatting.
+  Verification:
+  `uv run ruff check accounts/services/timezones.py accounts/views/account_settings.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_account_settings courses.tests.test_deadlines`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
