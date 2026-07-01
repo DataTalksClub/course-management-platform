@@ -10,6 +10,7 @@ from .score_members import project_score_notification_members
 from .score_notifications import (
     add_from_email_if_configured,
     score_notification_footer,
+    score_notification_urls,
 )
 
 
@@ -36,35 +37,32 @@ def _project_score_notification_context(project):
 
 
 def _project_score_notification_urls(course, project):
+    urls = score_notification_urls(
+        course,
+        project,
+        "project",
+        "project_slug",
+    )
+    project_url = urls["assignment_url"]
+    project_results_url = _project_score_results_url(course, project)
+
+    return {
+        "course_url": urls["course_url"],
+        "project_url": project_url,
+        "project_results_url": project_results_url,
+        "leaderboard_url": urls["leaderboard_url"],
+        "profile_url": urls["profile_url"],
+    }
+
+
+def _project_score_results_url(course, project):
     project_kwargs = {
         "course_slug": course.slug,
         "project_slug": project.slug,
     }
-    course_path = reverse("course", kwargs={"course_slug": course.slug})
-    course_url = public_url(course_path)
-
-    project_path = reverse("project", kwargs=project_kwargs)
-    project_url = public_url(project_path)
-
     project_results_path = reverse("project_results", kwargs=project_kwargs)
     project_results_url = public_url(project_results_path)
-
-    leaderboard_path = reverse(
-        "leaderboard",
-        kwargs={"course_slug": course.slug},
-    )
-    leaderboard_url = public_url(leaderboard_path)
-
-    profile_path = reverse("account_settings")
-    profile_url = public_url(profile_path)
-
-    return {
-        "course_url": course_url,
-        "project_url": project_url,
-        "project_results_url": project_results_url,
-        "leaderboard_url": leaderboard_url,
-        "profile_url": profile_url,
-    }
+    return project_results_url
 
 
 def _project_score_notification_metadata(project):
