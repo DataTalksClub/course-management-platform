@@ -46,9 +46,10 @@ def settings() -> Settings:
 
 @pytest.fixture(scope="session")
 def api(settings: Settings) -> CmpApiClient:
+    api_token = settings.require_api_token()
     return CmpApiClient(
         settings.base_url,
-        settings.require_api_token(),
+        api_token,
         timeout=settings.request_timeout,
     )
 
@@ -103,7 +104,8 @@ def email_backend(request):
 
 @pytest.fixture(scope="session")
 def run_state() -> RunState:
-    timestamp = int(time.time())
+    current_time = time.time()
+    timestamp = int(current_time)
     namespace = make_namespace(timestamp)
     return RunState(namespace=namespace)
 

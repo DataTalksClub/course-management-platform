@@ -644,6 +644,10 @@ testable service functions.
   `uv run ruff check courses/models/project.py courses/models/homework.py`,
   `uv run python manage.py makemigrations --check --dry-run`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name e2e conftest API-token and timestamp values before client
+  construction or namespace generation. Verification:
+  `uv run ruff check e2e/conftest.py`, `python -m py_compile e2e/conftest.py`,
+  and touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
