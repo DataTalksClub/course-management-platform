@@ -2819,6 +2819,15 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Extract OpenAPI project-path response objects into named constants
+  before assembling operation response maps. Verification:
+  `uv run ruff check api/openapi/content_paths/projects.py api/tests/test_openapi.py`,
+  `uv run python manage.py test api.tests.test_openapi`, touched-file scans
+  report `touched_dict_call_values=0` and
+  `touched_sequence_call_values=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
