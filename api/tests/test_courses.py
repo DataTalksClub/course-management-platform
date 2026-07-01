@@ -54,8 +54,8 @@ class CoursesAPITestCase(TestCase):
         response = client.get("/api/courses/")
         self.assertEqual(response.status_code, 401)
 
-    def test_create_course(self):
-        payload = {
+    def new_course_payload(self):
+        return {
             "slug": "new-course",
             "title": "New Course",
             "description": "Created by API",
@@ -67,14 +67,7 @@ class CoursesAPITestCase(TestCase):
             "project_passing_score": 12,
         }
 
-        response = self.client.post(
-            "/api/courses/",
-            json.dumps(payload),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        data = response.json()
+    def assert_created_course_payload(self, data):
         self.assertEqual(data["slug"], "new-course")
         self.assertEqual(data["start_date"], "2026-02-01")
         self.assertEqual(data["end_date"], "2026-05-01")
@@ -87,6 +80,20 @@ class CoursesAPITestCase(TestCase):
             "https://github.com/DataTalksClub/new",
         )
         self.assertEqual(data["project_passing_score"], 12)
+
+    def test_create_course(self):
+        payload = self.new_course_payload()
+        body = json.dumps(payload)
+
+        response = self.client.post(
+            "/api/courses/",
+            body,
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assert_created_course_payload(data)
         self.assertTrue(Course.objects.filter(slug="new-course").exists())
 
     def test_create_course_duplicate_slug(self):
@@ -156,8 +163,8 @@ class CoursesAPITestCase(TestCase):
         data = response.json()
         self.assert_course_detail_payload(data)
 
-    def test_patch_course(self):
-        payload = {
+    def patch_course_payload(self):
+        return {
             "title": "Updated ML Zoomcamp",
             "start_date": "2026-01-20",
             "end_date": "2026-04-20",
@@ -165,14 +172,8 @@ class CoursesAPITestCase(TestCase):
             "github_repo_url": "https://github.com/DataTalksClub/updated",
             "visible": False,
         }
-        response = self.client.patch(
-            "/api/courses/ml-zoomcamp/",
-            json.dumps(payload),
-            content_type="application/json",
-        )
 
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
+    def assert_patched_course_payload(self, data):
         self.assertEqual(data["title"], "Updated ML Zoomcamp")
         self.assertEqual(data["start_date"], "2026-01-20")
         self.assertEqual(data["end_date"], "2026-04-20")
@@ -185,9 +186,26 @@ class CoursesAPITestCase(TestCase):
             "https://github.com/DataTalksClub/updated",
         )
         self.assertFalse(data["visible"])
+
+    def assert_persisted_course_patch(self):
         self.course.refresh_from_db()
         self.assertFalse(self.course.visible)
         self.assertEqual(str(self.course.start_date), "2026-01-20")
+
+    def test_patch_course(self):
+        payload = self.patch_course_payload()
+        body = json.dumps(payload)
+
+        response = self.client.patch(
+            "/api/courses/ml-zoomcamp/",
+            body,
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assert_patched_course_payload(data)
+        self.assert_persisted_course_patch()
 
     def test_patch_course_rejects_invalid_date_range(self):
         response = self.client.patch(

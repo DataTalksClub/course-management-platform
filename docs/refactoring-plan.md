@@ -1222,6 +1222,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten course API mutation tests by naming create/patch request
+  payloads, JSON request bodies, response assertions, and persisted-state
+  assertions. Verification:
+  `uv run ruff check api/tests/test_courses.py`,
+  `uv run python manage.py test api.tests.test_courses`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
