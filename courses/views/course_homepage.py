@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from courses.models import Course
+from courses.models.course import Course
 
 
 ASSIGNMENT_TYPE_ORDER = {

@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 
-from courses.models import (
-    Course,
-    Enrollment,
+from courses.models.course import Course, Enrollment, User
+from courses.models.project import (
     Project,
     ProjectSubmission,
     ProjectState,
-    User,
 )
 
 

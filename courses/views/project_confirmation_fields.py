@@ -1,4 +1,4 @@
-from courses.models import Project, ProjectSubmission
+from courses.models.project import Project, ProjectSubmission
 from courses.views.homework_answers import format_hours
 
 

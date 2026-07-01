@@ -1,4 +1,4 @@
-from courses.models import PeerReview, ProjectSubmission
+from courses.models.project import PeerReview, ProjectSubmission
 from courses.votes import (
     PROJECT_VOTES_PER_PROJECT,
     get_project_vote_counts,

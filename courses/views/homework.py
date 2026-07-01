@@ -4,15 +4,13 @@ from django.http import HttpRequest
 
 from django.shortcuts import render, get_object_or_404
 
-from courses.models import (
-    Course,
+from courses.models.course import Course, Enrollment, User
+from courses.models.homework import (
+    Answer,
     Homework,
     HomeworkState,
     Question,
-    Answer,
     Submission,
-    Enrollment,
-    User,
 )
 
 from courses.views.homework_answers import (

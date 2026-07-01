@@ -5,7 +5,7 @@ from django.db.models import Count
 from django.shortcuts import render
 from django.utils import timezone
 
-from courses.models import (
+from courses.models.course import (
     Course,
     CourseRegistration,
     Enrollment,

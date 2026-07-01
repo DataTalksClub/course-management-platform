@@ -3,9 +3,8 @@ from dataclasses import dataclass
 
 from django.http import HttpRequest
 
-from courses.models import (
-    Course,
-    Enrollment,
+from courses.models.course import Course, Enrollment
+from courses.models.project import (
     PeerReview,
     Project,
     ProjectState,

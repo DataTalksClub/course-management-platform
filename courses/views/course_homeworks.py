@@ -1,7 +1,8 @@
 from django.db.models import Prefetch
 from django.utils import timezone
 
-from courses.models import Course, Homework, Submission
+from courses.models.course import Course
+from courses.models.homework import Homework, Submission
 
 
 def get_homeworks_for_course(course: Course, user) -> list[Homework]:

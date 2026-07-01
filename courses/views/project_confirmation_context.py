@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from courses.models import Course, Project, ProjectSubmission
+from courses.models.course import Course
+from courses.models.project import Project, ProjectSubmission
 from courses.views.project_confirmation_fields import project_submission_fields
 from courses.views.submission_formatting import format_submission_lines
 

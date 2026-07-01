@@ -11,14 +11,12 @@ from django.utils import timezone
 from course_management.datamailer.sync.memberships import (
     sync_homework_submission_to_datamailer,
 )
-from courses.models import (
+from courses.models.course import Course, Enrollment, User
+from courses.models.homework import (
     Answer,
-    Course,
-    Enrollment,
     Homework,
     Question,
     Submission,
-    User,
 )
 from courses.validators.custom_url_validators import (
     clean_faq_contribution_url,

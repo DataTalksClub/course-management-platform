@@ -2,7 +2,7 @@ from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 
-from courses.models import ProjectSubmission
+from courses.models.project import ProjectSubmission
 from courses.votes import (
     PROJECT_VOTES_PER_PROJECT,
     get_project_vote_counts,

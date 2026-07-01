@@ -7,7 +7,8 @@ from django.utils import timezone
 from course_management.datamailer.sync.memberships import (
     sync_project_submission_to_datamailer,
 )
-from courses.models import Enrollment, Project, ProjectSubmission, User
+from courses.models.course import Enrollment, User
+from courses.models.project import Project, ProjectSubmission
 from courses.views.homework_learning_links import (
     clean_learning_in_public_links,
 )

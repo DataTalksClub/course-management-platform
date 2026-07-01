@@ -6,7 +6,9 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 
-from courses.models import Course, Homework, Project
+from courses.models.course import Course
+from courses.models.homework import Homework
+from courses.models.project import Project
 
 
 @dataclass(frozen=True)

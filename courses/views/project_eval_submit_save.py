@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import HttpRequest
 from django.utils import timezone
 
-from courses.models import (
+from courses.models.project import (
     CriteriaResponse,
     PeerReview,
     PeerReviewState,

@@ -1,10 +1,10 @@
 from django import forms
 
-from courses.models import (
-    Answer,
+from courses.models.course import (
     Enrollment,
     LeaderboardComplaint,
 )
+from courses.models.homework import Answer
 
 
 class AnswerForm(forms.ModelForm):

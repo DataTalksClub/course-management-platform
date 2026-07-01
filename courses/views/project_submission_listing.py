@@ -1,7 +1,7 @@
 from django.core.paginator import Paginator
 from django.db.models import Count
 
-from courses.models import (
+from courses.models.project import (
     ProjectState,
     ProjectSubmission,
 )

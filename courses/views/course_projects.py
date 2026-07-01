@@ -3,14 +3,13 @@ from dataclasses import dataclass
 from django.db.models import Prefetch
 from django.utils import timezone
 
-from courses.models import (
-    Course,
+from courses.models.course import Course, User
+from courses.models.project import (
     PeerReview,
     PeerReviewState,
     Project,
     ProjectState,
     ProjectSubmission,
-    User,
 )
 
 

@@ -12,12 +12,9 @@ from course_management.datamailer.sync.memberships import (
 from course_management.datamailer.sync.notifications import (
     send_registration_confirmation_email,
 )
-from courses.models import (
-    CourseRegistration,
-    Homework,
-    Project,
-    RegistrationCampaign,
-)
+from courses.models.course import CourseRegistration, RegistrationCampaign
+from courses.models.homework import Homework
+from courses.models.project import Project
 from courses.registration import (
     ordered_countries,
     render_markdown,

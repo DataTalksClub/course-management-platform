@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from courses.models import Answer, Course, Homework, Question, Submission
+from courses.models.course import Course
+from courses.models.homework import Answer, Homework, Question, Submission
 from courses.views.homework_answers import (
     CHOICE_QUESTION_TYPES,
     extract_selected_option_indexes,

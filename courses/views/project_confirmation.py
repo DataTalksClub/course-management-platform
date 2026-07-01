@@ -7,7 +7,8 @@ from course_management import email_templates
 from course_management.datamailer.sync.transactional import (
     send_transactional_email,
 )
-from courses.models import Course, Project, ProjectSubmission, User
+from courses.models.course import Course, User
+from courses.models.project import Project, ProjectSubmission
 from courses.views.project_confirmation_context import (
     ProjectConfirmationData,
     project_confirmation_context,

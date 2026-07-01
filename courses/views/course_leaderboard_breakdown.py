@@ -1,10 +1,10 @@
 from django.db.models import Case, IntegerField, Value, When
 
-from courses.models import (
+from courses.models.homework import (
     HomeworkState,
-    ProjectSubmission,
     Submission,
 )
+from courses.models.project import ProjectSubmission
 
 
 def leaderboard_score_breakdown_context(enrollment, user):

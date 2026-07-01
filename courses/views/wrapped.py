@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 
-from courses.models import WrappedStatistics, UserWrappedStatistics
+from courses.models.wrapped import WrappedStatistics, UserWrappedStatistics
 
 
 def visible_wrapped_statistics(year: int) -> WrappedStatistics | None:

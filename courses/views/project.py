@@ -6,10 +6,8 @@ from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 
-from courses.models import (
-    Course,
-    Project,
-)
+from courses.models.course import Course
+from courses.models.project import Project
 from courses.views.project_page_context import (
     project_accepting_submissions,
     project_build_context,

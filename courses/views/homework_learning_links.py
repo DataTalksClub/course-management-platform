@@ -1,7 +1,9 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
-from courses.models import Course, ProjectSubmission, Submission, User
+from courses.models.course import Course, User
+from courses.models.homework import Submission
+from courses.models.project import ProjectSubmission
 
 
 def _invalid_learning_in_public_link_error():

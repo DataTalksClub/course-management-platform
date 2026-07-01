@@ -5,13 +5,13 @@ from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 
-from courses.models import (
+from courses.models.course import (
     Course,
     Enrollment,
-    ProjectState,
     RegistrationCampaign,
     CourseRegistration,
 )
+from courses.models.project import ProjectState
 
 from .course_homepage import (
     add_course_homepage_info,

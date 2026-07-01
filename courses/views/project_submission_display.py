@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from courses.models import Project, ProjectState, ProjectSubmission
+from courses.models.project import Project, ProjectState, ProjectSubmission
 from courses.votes import PROJECT_VOTES_PER_PROJECT
 
 

@@ -3,15 +3,15 @@ from dataclasses import dataclass
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models import (
-    Course,
-    Enrollment,
+from courses.models.course import Course, Enrollment
+from courses.models.project import (
     PeerReview,
     PeerReviewState,
     Project,
     ProjectState,
     ProjectSubmission,
 )
+
 
 @dataclass(frozen=True)
 class ProjectEvalReviewGroups:

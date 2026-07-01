@@ -4,9 +4,9 @@ from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect
 
-from courses.models import (
+from courses.models.course import Course
+from courses.models.homework import (
     Answer,
-    Course,
     Homework,
     HomeworkState,
     Question,

@@ -8,7 +8,8 @@ from course_management import email_templates
 from course_management.datamailer.sync.transactional import (
     send_transactional_email,
 )
-from courses.models import Course, Homework, Submission, User
+from courses.models.course import Course, User
+from courses.models.homework import Homework, Submission
 from courses.views.homework_submission_summary import (
     homework_submitted_content,
 )

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django import forms
 
-from courses.models import CourseRegistration
+from courses.models.course import CourseRegistration
 from courses.registration import region_for_country
 
 

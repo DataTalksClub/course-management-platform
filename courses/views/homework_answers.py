@@ -1,7 +1,12 @@
 from dataclasses import dataclass
 
-from courses.models import Answer, Homework, HomeworkState, Question
-from courses.models import QuestionTypes
+from courses.models.homework import (
+    Answer,
+    Homework,
+    HomeworkState,
+    Question,
+    QuestionTypes,
+)
 from courses.homework_score_calculation import is_free_form_answer_correct
 
 

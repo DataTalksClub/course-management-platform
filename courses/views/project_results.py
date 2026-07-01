@@ -3,8 +3,8 @@ from collections import defaultdict
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404, render
 
-from courses.models import (
-    Course,
+from courses.models.course import Course
+from courses.models.project import (
     CriteriaResponse,
     PeerReview,
     PeerReviewState,

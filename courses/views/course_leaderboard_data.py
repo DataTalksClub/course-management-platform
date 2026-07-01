@@ -6,7 +6,8 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch, Value
 from django.db.models.functions import Coalesce
 
-from courses.models import Enrollment, ProjectState, ProjectSubmission
+from courses.models.course import Enrollment
+from courses.models.project import ProjectState, ProjectSubmission
 
 logger = logging.getLogger(__name__)
 
