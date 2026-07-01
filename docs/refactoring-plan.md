@@ -2746,6 +2746,14 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name the OpenAPI graduate item schema and graduates array before adding
+  them to the integration schema dictionary. Verification:
+  `uv run ruff check api/openapi/integration_schemas.py api/tests/test_openapi.py`,
+  `uv run python manage.py test api.tests.test_openapi`, touched-file scan
+  reports `touched_dict_call_values=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

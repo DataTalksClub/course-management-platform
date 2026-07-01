@@ -6,22 +6,22 @@ CERTIFICATE_UPDATE_RESULT_REF = ref("CertificateUpdateResult")
 CERTIFICATE_UPDATE_RESULT_ARRAY = array_of(CERTIFICATE_UPDATE_RESULT_REF)
 CERTIFICATE_UPDATE_ERROR_REF = ref("CertificateUpdateError")
 CERTIFICATE_UPDATE_ERROR_ARRAY = array_of(CERTIFICATE_UPDATE_ERROR_REF)
+GRADUATE_SCHEMA = {
+    "type": "object",
+    "required": ["email", "name"],
+    "properties": {
+        "email": {"type": "string"},
+        "name": {"type": "string"},
+    },
+}
+GRADUATES_ARRAY = array_of(GRADUATE_SCHEMA)
 
 INTEGRATION_SCHEMAS = {
     "Graduates": {
         "type": "object",
         "required": ["graduates"],
         "properties": {
-            "graduates": array_of(
-                {
-                    "type": "object",
-                    "required": ["email", "name"],
-                    "properties": {
-                        "email": {"type": "string"},
-                        "name": {"type": "string"},
-                    },
-                }
-            )
+            "graduates": GRADUATES_ARRAY,
         },
     },
     "CertificateUpdate": {
