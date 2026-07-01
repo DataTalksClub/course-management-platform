@@ -26,35 +26,56 @@ class LeaderboardDataViewTestCase(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.course = Course.objects.create(
+        self.course = self.create_course()
+        self.url = self.course_leaderboard_url()
+        self.user1 = self.create_user("user1")
+        self.user2 = self.create_user("user2")
+        self.enrollment1 = self.create_leaderboard_enrollment(
+            self.user1,
+            display_name="Alice",
+            total_score=100,
+            position=1,
+        )
+        self.enrollment2 = self.create_leaderboard_enrollment(
+            self.user2,
+            display_name="Bob",
+            total_score=50,
+            position=2,
+        )
+
+    def create_course(self):
+        return Course.objects.create(
             title="Test Course",
             slug="test-course",
             description="Test",
         )
-        self.url = reverse(
+
+    def course_leaderboard_url(self):
+        return reverse(
             "api_course_leaderboard",
             kwargs={"course_slug": self.course.slug},
         )
 
-        self.user1 = CustomUser.objects.create(
-            username="user1", email="user1@example.com", password="pw",
+    def create_user(self, username):
+        return CustomUser.objects.create(
+            username=username,
+            email=f"{username}@example.com",
+            password="pw",
         )
-        self.user2 = CustomUser.objects.create(
-            username="user2", email="user2@example.com", password="pw",
-        )
-        self.enrollment1 = Enrollment.objects.create(
-            student=self.user1,
+
+    def create_leaderboard_enrollment(
+        self,
+        user,
+        display_name,
+        total_score,
+        position,
+    ):
+        return Enrollment.objects.create(
+            student=user,
             course=self.course,
-            display_name="Alice",
-            total_score=100,
-            position_on_leaderboard=1,
-        )
-        self.enrollment2 = Enrollment.objects.create(
-            student=self.user2,
-            course=self.course,
-            display_name="Bob",
-            total_score=50,
-            position_on_leaderboard=2,
+            display_name=display_name,
+            total_score=total_score,
+            position_on_leaderboard=position,
         )
 
     def tearDown(self):
@@ -85,7 +106,7 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(leaderboard[1]["display_name"], "Bob")
 
     def test_includes_scored_homework_submissions(self):
-        hw = Homework.objects.create(
+        homework = Homework.objects.create(
             course=self.course,
             title="HW1",
             slug="hw1",
@@ -94,7 +115,7 @@ class LeaderboardDataViewTestCase(TestCase):
             state=HomeworkState.SCORED.value,
         )
         Submission.objects.create(
-            homework=hw,
+            homework=homework,
             student=self.user1,
             enrollment=self.enrollment1,
             questions_score=5,
@@ -109,13 +130,17 @@ class LeaderboardDataViewTestCase(TestCase):
         alice = data["leaderboard"][0]
         self.assertIn("homeworks", alice)
         self.assertEqual(len(alice["homeworks"]), 1)
-        self.assertEqual(alice["homeworks"][0]["homework"], "HW1")
-        self.assertEqual(alice["homeworks"][0]["questions_score"], 5)
-        self.assertEqual(alice["homeworks"][0]["faq_score"], 1)
-        self.assertEqual(alice["homeworks"][0]["learning_in_public_score"], 2)
-        self.assertEqual(alice["homeworks"][0]["total_score"], 8)
+        homework_data = alice["homeworks"][0]
+        self.assert_scored_homework_export(homework_data)
+
+    def assert_scored_homework_export(self, homework_data):
+        self.assertEqual(homework_data["homework"], "HW1")
+        self.assertEqual(homework_data["questions_score"], 5)
+        self.assertEqual(homework_data["faq_score"], 1)
+        self.assertEqual(homework_data["learning_in_public_score"], 2)
+        self.assertEqual(homework_data["total_score"], 8)
         self.assertEqual(
-            alice["homeworks"][0]["faq_contribution_url"],
+            homework_data["faq_contribution_url"],
             "https://github.com/DataTalksClub/faq/pull/266",
         )
 

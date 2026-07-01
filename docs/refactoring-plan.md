@@ -1214,6 +1214,14 @@ Steps:
   `uv run python scripts/debug_score_project.py --help > .tmp/debug_score_project_help.txt`,
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten public leaderboard data endpoint tests by extracting
+  leaderboard-specific fixture creation and scored-homework export assertions
+  from the longest setup and assertion methods. Verification:
+  `uv run ruff check data/tests/test_leaderboard.py`,
+  `uv run python manage.py test data.tests.test_leaderboard`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
