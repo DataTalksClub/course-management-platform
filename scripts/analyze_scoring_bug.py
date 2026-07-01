@@ -10,9 +10,11 @@ import os
 import sys
 import django
 from collections import defaultdict
+from pathlib import Path
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
 django.setup()
@@ -112,8 +114,10 @@ def print_submission_review_completion(project, submissions, submitted_reviews):
         status = "✓" if count >= expected else "✗"
         print(f"    {status} Submission {sub.id}: {count}/{expected} reviews completed")
 
-    if submissions.count() > 10:
-        print(f"    ... and {submissions.count() - 10} more")
+    submission_count = submissions.count()
+    if submission_count > 10:
+        remaining_count = submission_count - 10
+        print(f"    ... and {remaining_count} more")
 
 
 def print_project_impact(project):
@@ -121,8 +125,10 @@ def print_project_impact(project):
     peer_reviews = project_reviews(project)
 
     print("IMPACT ON THIS PROJECT:")
-    print(f"  Total submissions: {submissions.count()}")
-    print(f"  Total peer reviews: {peer_reviews.count()}")
+    submission_count = submissions.count()
+    peer_review_count = peer_reviews.count()
+    print(f"  Total submissions: {submission_count}")
+    print(f"  Total peer reviews: {peer_review_count}")
     print(f"  Expected reviews per person: {project.number_of_peers_to_evaluate}")
     print()
 
