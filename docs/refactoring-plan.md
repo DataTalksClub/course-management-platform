@@ -709,6 +709,8 @@ Steps:
   production compatibility shims were found in the current pass.
 - [x] Split wrapped statistics calculation into focused activity, metrics,
   persistence, and calculator modules.
+- [x] Split OpenAPI content path definitions into homework, project, and
+  question modules under the content-paths package.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin
