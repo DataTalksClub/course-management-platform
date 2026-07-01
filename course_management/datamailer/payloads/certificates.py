@@ -12,7 +12,7 @@ from .base import (
     recipient_list_member_payload,
     recipient_list_send_member_payload,
 )
-from .scores import _bulk_recipient_list_payload
+from .bulk import bulk_recipient_list_payload
 
 def _certificate_availability_urls(enrollment):
     course = enrollment.course
@@ -144,7 +144,7 @@ def course_graduate_recipient_list_payload(
         member_payload,
     )
     members = [member]
-    payload = _bulk_recipient_list_payload(
+    payload = bulk_recipient_list_payload(
         config,
         member_payload["list"],
         members,

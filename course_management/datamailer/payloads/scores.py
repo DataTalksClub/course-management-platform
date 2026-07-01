@@ -7,11 +7,9 @@ from course_management import email_templates
 from ..client import DatamailerConfig, public_url
 from ..keys import (
     homework_submitters_list_key,
-    project_passed_list_key,
     project_submitters_list_key,
 )
 from .base import (
-    RecipientListMemberPayload,
     recipient_list_send_member_payload,
 )
 from .submissions import (
@@ -97,121 +95,6 @@ def project_score_notification_submissions(project):
     return project.projectsubmission_set.select_related(
         "student", "project__course"
     ).order_by("student_id", "-submitted_at", "-id")
-
-
-def project_passed_recipient_list_payload(
-    project,
-) -> tuple[str, dict[str, Any]] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
-
-    list_key = project_passed_list_key(project)
-    payload = _bulk_recipient_list_payload(
-        config,
-        _project_passed_list_data(project),
-        _project_passed_members(project),
-    )
-    return list_key, payload
-
-
-def _project_passed_list_data(project) -> dict[str, Any]:
-    course = project.course
-    return {
-        "type": "custom",
-        "name": f"{course.title} {project.title} passed learners",
-        "metadata": {
-            "course_slug": course.slug,
-            "project_slug": project.slug,
-            "project_id": project.pk,
-            "outcome": "project_passed",
-        },
-    }
-
-
-def _project_passed_members(project) -> list[dict[str, Any]]:
-    members = []
-    seen_students = set()
-    candidate_submissions = _project_passed_candidate_submissions(project)
-    for submission in candidate_submissions:
-        if submission.student_id in seen_students:
-            continue
-        seen_students.add(submission.student_id)
-        member = _project_passed_member(submission)
-        if member is not None:
-            members.append(member)
-    return members
-
-
-def _project_passed_candidate_submissions(project):
-    return project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
-
-
-def _project_passed_member(submission) -> dict[str, Any] | None:
-    if not submission.passed:
-        return None
-
-    item = project_submission_recipient_list_payload(submission)
-    if item is None:
-        return None
-
-    member_payload = item.payload
-    member = recipient_list_send_member_payload(
-        item.source_object_key, member_payload
-    )
-    member["metadata"] = member["metadata"] | {
-        "outcome": "project_passed",
-    }
-    return member
-
-
-def _bulk_recipient_list_payload(config, list_data, members):
-    return {
-        "audience": config.audience,
-        "client": config.client,
-        "list": list_data,
-        "members": members,
-    }
-
-
-def _project_passed_member_payload(project, payload) -> dict[str, Any]:
-    return {
-        **payload,
-        "list": _project_passed_list_data(project),
-        "member": _project_passed_member_payload_data(payload),
-    }
-
-
-def _project_passed_member_payload_data(payload) -> dict[str, Any]:
-    return {
-        **payload["member"],
-        "metadata": _project_passed_member_metadata(payload),
-    }
-
-
-def _project_passed_member_metadata(payload) -> dict[str, Any]:
-    return payload["member"]["metadata"] | {
-        "outcome": "project_passed",
-    }
-
-
-def project_passed_recipient_list_member_payload(
-    submission,
-) -> RecipientListMemberPayload | None:
-    item = project_submission_recipient_list_payload(submission)
-    if item is None:
-        return None
-
-    project = submission.project
-    payload = item.payload
-    member_payload = _project_passed_member_payload(project, payload)
-    return RecipientListMemberPayload(
-        list_key=project_passed_list_key(project),
-        source_object_key=item.source_object_key,
-        payload=member_payload,
-    )
 
 
 def _score_notification_urls(course, assignment, route_name, slug_kwarg):

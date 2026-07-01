@@ -120,6 +120,8 @@ testable service functions.
   helpers out of the shared payload base module.
 - [x] Split Datamailer registration campaign, confirmation, contact, and
   recipient-list payload helpers out of the shared payload base module.
+- [x] Split Datamailer project-passed outcome recipient-list payload helpers
+  out of the score-notification payload module.
 
 ## Current Findings
 

@@ -35,12 +35,14 @@ from .scores import (
     homework_score_notification_members,
     homework_score_notification_payload,
     homework_score_notification_submissions,
-    project_passed_recipient_list_member_payload,
-    project_passed_recipient_list_payload,
     project_score_notification_list_data,
     project_score_notification_members,
     project_score_notification_payload,
     project_score_notification_submissions,
+)
+from .project_outcomes import (
+    project_passed_recipient_list_member_payload,
+    project_passed_recipient_list_payload,
 )
 from .send import (
     datamailer_send_counts,
