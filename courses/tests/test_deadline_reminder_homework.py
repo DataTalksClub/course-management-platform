@@ -33,10 +33,11 @@ class HomeworkDeadlineReminderCommandTest(
 
         out = StringIO()
         self.run_deadline_reminders(now, stdout=out)
+        output = out.getvalue()
 
         self.assertIn(
             "Prepared 1 reminder event(s), 2 member(s).",
-            out.getvalue(),
+            output,
         )
         send_transient.assert_called_once()
         payload = send_transient.call_args.args[0]

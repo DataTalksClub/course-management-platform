@@ -1806,6 +1806,12 @@ Steps:
   `uv run python manage.py test api.tests.test_homework_scoring cadmin.tests.test_campaign_views courses.tests.test_registration_helpers data.tests.test_enrollment`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name nested values in small cadmin leaderboard, dashboard integration,
+  and deadline-reminder tests before client calls or assertions. Verification:
+  `uv run ruff check cadmin/tests/test_leaderboard_views.py courses/tests/test_dashboard_integration.py courses/tests/test_deadline_reminder_dry_run.py courses/tests/test_deadline_reminder_homework.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_leaderboard_views courses.tests.test_dashboard_integration courses.tests.test_deadline_reminder_dry_run courses.tests.test_deadline_reminder_homework`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

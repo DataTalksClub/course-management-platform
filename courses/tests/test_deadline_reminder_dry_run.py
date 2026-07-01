@@ -33,9 +33,10 @@ class DeadlineReminderDryRunCommandTest(DeadlineReminderTestBase):
 
         out = StringIO()
         self.run_deadline_reminders(now, stdout=out, dry_run=True)
+        output = out.getvalue()
 
         self.assertIn(
             "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h: 1 member(s)",
-            out.getvalue(),
+            output,
         )
         send_transient.assert_not_called()

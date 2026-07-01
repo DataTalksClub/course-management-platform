@@ -43,8 +43,9 @@ class LeaderboardCadminViewTests(TestCase):
         )
 
     def create_leaderboard_enrollment(self, data):
+        student = User.objects.create_user(username=data.username)
         return Enrollment.objects.create(
-            student=User.objects.create_user(username=data.username),
+            student=student,
             course=self.course,
             display_name=data.display_name,
             total_score=data.total_score,

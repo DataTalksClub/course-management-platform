@@ -155,8 +155,9 @@ class DashboardIntegrationTestCase(TestCase):
 
     def test_dashboard_with_complete_course_data(self):
         self.create_complete_dashboard_fixture()
+        url = self.dashboard_url()
 
-        response = self.client.get(self.dashboard_url())
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assert_complete_dashboard_counts(response)
