@@ -46,11 +46,12 @@ class HomeworkSubmissionsViewTests(TestCase):
         )
 
     def create_homework(self):
+        due_date = timezone.now() + timezone.timedelta(days=7)
         return Homework.objects.create(
             course=self.course,
             title="Test Homework",
             description="Test Homework Description",
-            due_date=timezone.now() + timezone.timedelta(days=7),
+            due_date=due_date,
             state=HomeworkState.OPEN.value,
             slug="test-homework",
         )
@@ -197,36 +198,43 @@ class HomeworkSubmissionsViewTests(TestCase):
     def get_admin_submissions_response(self):
         self.login_admin()
 
-        return self.client.get(self.submissions_url(), follow=True)
+        url = self.submissions_url()
+        return self.client.get(url, follow=True)
 
     def assert_compact_submission_content(self, content):
         self.assertIn(self.user.email, content)
         self.assertIn("Score", content)
         self.assertIn("Open", content)
-        self.assertIn(self.cadmin_submission_edit_url(), content)
+        edit_url = self.cadmin_submission_edit_url()
+        self.assertIn(edit_url, content)
         self.assertNotIn("What is 2+2?", content)
         self.assertNotIn("What is the capital of France?", content)
         self.assertNotIn("Paris", content)
 
     def test_submissions_view_unauthenticated_redirects(self):
         """Test that unauthenticated users are redirected"""
-        response = self.client.get(self.submissions_url())
+        url = self.submissions_url()
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, self.homework_url())
+        redirect_url = self.homework_url()
+        self.assertRedirects(response, redirect_url)
 
     def test_submissions_view_regular_user_denied(self):
         """Test that regular users cannot access submissions view"""
         self.client.login(**credentials)
-        response = self.client.get(self.submissions_url())
+        url = self.submissions_url()
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, self.homework_url())
+        redirect_url = self.homework_url()
+        self.assertRedirects(response, redirect_url)
 
     def test_submissions_view_admin_can_access(self):
         """Test that admin users can access submissions view"""
         self.login_admin()
-        response = self.client.get(self.submissions_url(), follow=True)
+        url = self.submissions_url()
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "cadmin/homework_submissions.html")
@@ -244,7 +252,8 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.create_second_submission()
 
         self.login_admin()
-        response = self.client.get(self.submissions_url(), follow=True)
+        url = self.submissions_url()
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         submissions_data = response.context["submissions_data"]
@@ -253,17 +262,20 @@ class HomeworkSubmissionsViewTests(TestCase):
     def test_admin_link_visible_to_staff(self):
         """Test that the admin link is visible to staff users"""
         self.login_admin()
-        response = self.client.get(self.homework_url())
+        url = self.homework_url()
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
         self.assertIn("Manage homework in cadmin", content)
-        self.assertIn(self.cadmin_homework_submissions_url(), content)
+        admin_url = self.cadmin_homework_submissions_url()
+        self.assertIn(admin_url, content)
 
     def test_admin_link_not_visible_to_regular_users(self):
         """Test that the admin link is not visible to regular users"""
         self.client.login(**credentials)
-        response = self.client.get(self.homework_url())
+        url = self.homework_url()
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
@@ -286,7 +298,8 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.create_answer("Short answer question", short_answer)
 
         self.login_admin()
-        response = self.client.get(self.submissions_url(), follow=True)
+        url = self.submissions_url()
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
@@ -303,7 +316,8 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.create_answer("Long answer question", long_answer)
 
         self.login_admin()
-        response = self.client.get(self.submissions_url(), follow=True)
+        url = self.submissions_url()
+        response = self.client.get(url, follow=True)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
