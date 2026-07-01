@@ -118,6 +118,8 @@ testable service functions.
   shim.
 - [x] Split Datamailer homework/project submission recipient-list payload
   helpers out of the shared payload base module.
+- [x] Split Datamailer registration campaign, confirmation, contact, and
+  recipient-list payload helpers out of the shared payload base module.
 
 ## Current Findings
 

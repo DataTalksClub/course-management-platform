@@ -8,12 +8,6 @@ from .base import (
     enrollment_recipient_list_payload,
     recipient_list_member_payload,
     recipient_list_send_member_payload,
-    registration_campaign_datamailer_payload,
-    registration_confirmation_payload,
-    registration_contact_payload,
-    registration_recipient_list_name,
-    registration_recipient_list_payload,
-    registration_recipient_metadata,
     removed_recipient_list_member_payload,
 )
 from .certificates import (
@@ -55,6 +49,14 @@ from .send import (
     recipient_list_response_key,
     recipient_list_send_payload,
     transient_recipient_list_key,
+)
+from .registrations import (
+    registration_campaign_datamailer_payload,
+    registration_confirmation_payload,
+    registration_contact_payload,
+    registration_recipient_list_name,
+    registration_recipient_list_payload,
+    registration_recipient_metadata,
 )
 from .submissions import (
     homework_public_url,
