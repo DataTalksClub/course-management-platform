@@ -2293,6 +2293,15 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split learning-in-public score reset predicates and total recomputation
+  out of the enrollment flag update loops so the bulk-update loops only decide
+  which submissions need mutation and persist the affected fields. Verification:
+  `uv run ruff check courses/services/enrollment_flags.py courses/tests/test_disable_learning_in_public.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_disable_learning_in_public`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
