@@ -81,6 +81,8 @@ testable service functions.
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
   named values or a dataclass.
+- [x] Split optional homework submission-field tests out of the oversized
+  homework detail test module.
 
 ## Current Findings
 

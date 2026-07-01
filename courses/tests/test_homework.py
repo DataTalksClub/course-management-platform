@@ -355,99 +355,6 @@ class HomeworkDetailViewTests(TestCase):
         )
         self.assert_no_submission()
 
-    def enable_full_submission_fields(self):
-        self.course.homework_problems_comments_field = True
-        self.course.save()
-
-        self.homework.homework_url_field = True
-        self.homework.learning_in_public_cap = 7
-        self.homework.time_spent_lectures_field = True
-        self.homework.time_spent_homework_field = True
-        self.homework.faq_contribution_field = True
-        self.homework.save()
-
-    def enable_empty_optional_submission_fields(self):
-        self.homework.homework_url_field = True
-        self.homework.learning_in_public_cap = 7
-        self.homework.time_spent_lectures_field = True
-        self.homework.time_spent_homework_field = True
-        self.homework.problems_comments_field = True
-        self.homework.faq_contribution_field = True
-        self.homework.save()
-
-    def full_optional_post_data(self):
-        return self.updated_answer_post_data(
-            homework_url="https://httpbin.org/status/200",
-            **{
-                "learning_in_public_links[]": [
-                    "https://httpbin.org/status/200",
-                    "https://github.com/DataTalksClub",
-                    "",
-                ]
-            },
-            time_spent_lectures="5",
-            time_spent_homework="3",
-            problems_comments="Some problems and comments",
-            faq_contribution_url=(
-                "https://github.com/DataTalksClub/faq/pull/266"
-            ),
-        )
-
-    def empty_optional_post_data(self):
-        return self.updated_answer_post_data(
-            homework_url="https://github.com/existing/repo",
-            **{"learning_in_public_links[]": [""]},
-            time_spent_lectures="",
-            time_spent_homework="",
-            problems_comments="",
-            faq_contribution_url="",
-        )
-
-    def assert_submission_help_links(self, response):
-        self.assertContains(
-            response,
-            "https://datatalks.club/docs/courses/"
-            "course-management-platform/learning-in-public/",
-        )
-        self.assertContains(
-            response,
-            "https://datatalks.club/docs/courses/faq/",
-        )
-
-    def assert_full_optional_submission(self, submission, post_data):
-        self.assertEqual(submission.homework_link, post_data["homework_url"])
-        self.assertEqual(
-            submission.learning_in_public_links,
-            [
-                "https://httpbin.org/status/200",
-                "https://github.com/DataTalksClub",
-            ],
-        )
-        self.assertEqual(
-            submission.time_spent_lectures,
-            float(post_data["time_spent_lectures"]),
-        )
-        self.assertEqual(
-            submission.time_spent_homework,
-            float(post_data["time_spent_homework"]),
-        )
-        self.assertEqual(
-            submission.problems_comments,
-            post_data["problems_comments"],
-        )
-        self.assertEqual(
-            submission.faq_contribution_url,
-            post_data["faq_contribution_url"],
-        )
-
-    def assert_empty_optional_submission(self, submission, post_data):
-        self.assertEqual(submission.homework_link, post_data["homework_url"])
-        self.assertEqual(submission.learning_in_public_links, [])
-        self.assertEqual(submission.time_spent_lectures, None)
-        self.assertEqual(submission.time_spent_homework, None)
-        self.assertEqual(submission.problems_comments, "")
-        self.assertEqual(submission.faq_contribution_url, "")
-
     def assert_homework_context(self, response, is_authenticated):
         context = response.context
         self.assertEqual(context["course"], self.course)
@@ -691,39 +598,6 @@ class HomeworkDetailViewTests(TestCase):
                 self.question5: "3.141516",
                 self.question6: "1,2",
             },
-        )
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_submit_homework_with_all_fields(self, mock_get, mock_head):
-        self.mock_successful_url_checks(mock_get, mock_head)
-        self.enable_full_submission_fields()
-        post_data = self.full_optional_post_data()
-
-        self.client.login(**credentials)
-        self.assert_submission_help_links(
-            self.client.get(self.homework_url())
-        )
-
-        self.client.post(self.homework_url(), post_data)
-        self.assert_full_optional_submission(
-            self.get_saved_submission(), post_data
-        )
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_submit_homework_with_all_fields_optional_empty(
-        self, mock_get, mock_head
-    ):
-        self.mock_successful_url_checks(mock_get, mock_head)
-        self.enable_empty_optional_submission_fields()
-        post_data = self.empty_optional_post_data()
-
-        self.client.login(**credentials)
-        self.client.post(self.homework_url(), post_data)
-
-        self.assert_empty_optional_submission(
-            self.get_saved_submission(), post_data
         )
 
     def test_submit_homework_rejects_non_faq_contribution_url(self):
