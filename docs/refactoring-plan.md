@@ -2973,6 +2973,14 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split homework API tests into list/create, detail/mutation, and deletion
+  modules while reusing the existing homework API fixture base. Verification:
+  `uv run ruff check api/tests/test_homeworks.py api/tests/test_homework_mutations.py api/tests/test_homework_deletion.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_homeworks api.tests.test_homework_mutations api.tests.test_homework_deletion`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
