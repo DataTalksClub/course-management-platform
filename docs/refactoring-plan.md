@@ -707,6 +707,8 @@ Steps:
   project-passed payload inputs instead of nesting calls inline.
 - [x] Audit compatibility-style imports after package/module moves; no remaining
   production compatibility shims were found in the current pass.
+- [x] Split wrapped statistics calculation into focused activity, metrics,
+  persistence, and calculator modules.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin
