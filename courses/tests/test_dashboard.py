@@ -140,14 +140,21 @@ class DashboardHomeworkStatsTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
-        self.course = Course.objects.create(
+        self.course = self.create_dashboard_course()
+        self.homework = self.create_dashboard_homework()
+        self.users = []
+        self.enrollments = []
+        self.create_dashboard_enrollments(5)
+
+    def create_dashboard_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             first_homework_scored=True,
         )
 
-        # Create homework
-        self.homework = Homework.objects.create(
+    def create_dashboard_homework(self):
+        return Homework.objects.create(
             course=self.course,
             slug="hw1",
             title="Homework 1",
@@ -155,21 +162,26 @@ class DashboardHomeworkStatsTestCase(TestCase):
             state=HomeworkState.OPEN.value,
         )
 
-        # Create multiple users and submissions for statistics
-        self.users = []
-        self.enrollments = []
-        for i in range(5):
-            user_creds = {
-                "username": f"user{i}@test.com",
-                "email": f"user{i}@test.com",
-                "password": "12345",
-            }
-            user = User.objects.create_user(**user_creds)
-            enrollment = Enrollment.objects.create(
-                student=user, course=self.course
-            )
+    def create_dashboard_enrollments(self, count):
+        for i in range(count):
+            user = self.create_dashboard_stat_user(i)
+            enrollment = self.create_dashboard_stat_enrollment(user)
             self.users.append(user)
             self.enrollments.append(enrollment)
+
+    def create_dashboard_stat_user(self, index):
+        user_creds = {
+            "username": f"user{index}@test.com",
+            "email": f"user{index}@test.com",
+            "password": "12345",
+        }
+        return User.objects.create_user(**user_creds)
+
+    def create_dashboard_stat_enrollment(self, user):
+        return Enrollment.objects.create(
+            student=user,
+            course=self.course,
+        )
 
     def create_homework_submission(self, user, enrollment, scores=None):
         """Helper method to create homework submissions with test data"""

@@ -1301,6 +1301,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten dashboard homework-stat tests by extracting course, homework,
+  statistic-user, and enrollment setup out of the long fixture setup method.
+  Verification:
+  `uv run ruff check courses/tests/test_dashboard.py`,
+  `uv run python manage.py test courses.tests.test_dashboard`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
