@@ -1628,6 +1628,16 @@ Steps:
   and `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Group project upsert create fields in `ProjectUpsertCreateData` and build
+  the model from named values instead of an eight-field manager call.
+  Verification:
+  `uv run ruff check api/views/project_upsert_persistence.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_projects`,
+  touched-file scans report `touched_file_high_arg_calls=0`,
+  `touched_file_inline_dict_calls=0`, `touched_file_nested_call_arguments=0`,
+  and `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
