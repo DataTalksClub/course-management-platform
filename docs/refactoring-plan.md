@@ -126,6 +126,8 @@ testable service functions.
   detail test module.
 - [x] Split dashboard integration and authentication tests out of the oversized
   dashboard test module.
+- [x] Split project-statistics dashboard tests out of the mixed dashboard test
+  module so basic/homework and project dashboard behavior are separate.
 - [x] Split course duplication admin tests out of the oversized course detail
   test module.
 - [x] Split course detail view fixture helpers and certificate-display tests
