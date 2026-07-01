@@ -525,6 +525,11 @@ testable service functions.
   project assertions. Verification:
   `uv run ruff check data/tests/test_leaderboard.py` and
   `uv run python manage.py test data.tests.test_leaderboard`.
+- [x] Shorten the e2e homework UI submission test by naming readiness checks,
+  question-id resolution, answer mapping, submission payload construction, and
+  confirmation assertion. Verification:
+  `uv run ruff check e2e/tests/test_03_homework.py` and
+  `uv run pytest e2e/tests/test_03_homework.py --collect-only -q`.
 
 ## Current Findings
 

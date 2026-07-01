@@ -51,41 +51,67 @@ def _questions_via_api(api, run_state, hw_id) -> dict[str, int]:
     return mapping
 
 
-def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
+def _assert_homework_flow_ready(run_state):
     assert run_state.student_user_id, "Student/impersonation required first."
     assert run_state.course and run_state.course.homework_slug
 
-    qmap = _questions_via_api(api, run_state, run_state.course.homework_id)
-    assert {"free_form", "checkboxes", "multiple_choice"} <= set(qmap), (
-        f"Could not resolve all question ids: {qmap}"
-    )
 
-    answers = {
-        qmap["free_form"]: hw_answers["free_form"],
-        qmap["checkboxes"]: hw_answers["checkboxes"],
-        qmap["multiple_choice"]: hw_answers["multiple_choice"],
-    }
+def _assert_required_homework_questions(qmap):
+    required_questions = ("free_form", "checkboxes", "multiple_choice")
+    for question_key in required_questions:
+        assert question_key in qmap, (
+            f"Could not resolve all question ids: {qmap}"
+        )
+
+
+def _homework_question_ids(api, run_state):
+    qmap = _questions_via_api(api, run_state, run_state.course.homework_id)
+    _assert_required_homework_questions(qmap)
+    return qmap
+
+
+def _homework_answers_by_question(qmap, hw_answers):
+    answers = {}
+    answers[qmap["free_form"]] = hw_answers["free_form"]
+    answers[qmap["checkboxes"]] = hw_answers["checkboxes"]
+    answers[qmap["multiple_choice"]] = hw_answers["multiple_choice"]
     if "long_free_form" in qmap:
         answers[qmap["long_free_form"]] = hw_answers["long_free_form"]
+    return answers
 
-    submission_data = HomeworkSubmissionData(
+
+def _homework_submission_data(run_state, answers):
+    learning_links = [
+        f"https://twitter.com/e2e/{run_state.namespace}-hw"
+    ]
+    return HomeworkSubmissionData(
         course_slug=run_state.course.slug,
         homework_slug=run_state.course.homework_slug,
         answers=answers,
         homework_url="https://github.com/DataTalksClub/course-management-platform",
-        learning_in_public_links=[
-            f"https://twitter.com/e2e/{run_state.namespace}-hw"
-        ],
+        learning_in_public_links=learning_links,
         time_spent_lectures=2,
         time_spent_homework=3,
     )
-    admin_session.submit_homework(submission_data)
-    run_state.homework_submitted = True
 
+
+def _assert_homework_submission_confirmation(admin_session):
     body = admin_session.homework_confirmation_text()
     assert "Thank you for submitting your homework" in body, (
         "Homework confirmation message not shown after submission."
     )
+
+
+def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
+    _assert_homework_flow_ready(run_state)
+    qmap = _homework_question_ids(api, run_state)
+    answers = _homework_answers_by_question(qmap, hw_answers)
+    submission_data = _homework_submission_data(run_state, answers)
+
+    admin_session.submit_homework(submission_data)
+    run_state.homework_submitted = True
+
+    _assert_homework_submission_confirmation(admin_session)
 
 
 def test_homework_submission_recorded_in_api(api, run_state):
