@@ -200,7 +200,5 @@ def projects_create_response(request, course):
     if err:
         return err
 
-    def project_creator(item):
-        return create_project(course, item)
-
-    return bulk_create_response(data, project_creator)
+    response = bulk_create_response(data, create_project, course)
+    return response

@@ -42,12 +42,12 @@ def single_or_list(data):
     return item_list
 
 
-def bulk_create_response(data, create_item, *, name_field="name"):
+def bulk_create_response(data, create_item, *create_args, name_field="name"):
     created = []
     errors = []
     items = single_or_list(data)
     for item in items:
-        item_dict, error = create_item(item)
+        item_dict, error = create_item(*create_args, item)
         if error:
             item_name = item.get(name_field, "unknown")
             error_record = {

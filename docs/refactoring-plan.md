@@ -220,6 +220,8 @@ testable service functions.
   encoding return expressions into named intermediate steps.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
+- [x] Remove API bulk-create wrapper callables by letting the shared bulk
+  helper accept route context arguments directly.
 
 ## Current Findings
 

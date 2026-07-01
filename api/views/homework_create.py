@@ -243,7 +243,9 @@ def homeworks_create_response(request, course):
     if err:
         return err
 
-    return bulk_create_response(
+    response = bulk_create_response(
         data,
-        lambda item: create_homework(course, item),
+        create_homework,
+        course,
     )
+    return response
