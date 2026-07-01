@@ -2251,6 +2251,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_datamailer_recipient_list_imports`,
   broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Simplify ordered country assembly by extending the remaining country list
+  instead of copying both groups with separate append loops. Verification:
+  `uv run ruff check courses/registration.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_registration_helpers`, broad
+  AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

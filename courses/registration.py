@@ -87,11 +87,8 @@ def ordered_countries():
             remaining_countries.append(country)
     remaining_countries.sort()
 
-    countries = []
-    for country in top_countries:
-        countries.append(country)
-    for country in remaining_countries:
-        countries.append(country)
+    countries = list(top_countries)
+    countries.extend(remaining_countries)
     return countries
 
 
