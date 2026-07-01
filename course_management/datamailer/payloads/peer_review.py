@@ -113,6 +113,23 @@ def _peer_review_assignment_metadata(course, project) -> dict[str, Any]:
     }
 
 
+def _peer_review_assignment_delivery_fields(
+    config,
+    course,
+    project,
+) -> dict[str, Any]:
+    idempotency_key = (
+        f"peer-review-assignment:{course.slug}:{project.slug}"
+    )
+    return {
+        "audience": config.audience,
+        "client": config.client,
+        "template_key": email_templates.PEER_REVIEW_ASSIGNMENT,
+        "category_tag": "submission-results",
+        "idempotency_key": idempotency_key,
+    }
+
+
 def peer_review_assignment_notification_payload(
     project,
 ) -> tuple[str, dict[str, Any]] | None:
@@ -126,18 +143,14 @@ def peer_review_assignment_notification_payload(
     context = _peer_review_assignment_context(course, project)
     metadata = _peer_review_assignment_metadata(course, project)
 
-    payload = {
-        "audience": config.audience,
-        "client": config.client,
-        "template_key": email_templates.PEER_REVIEW_ASSIGNMENT,
-        "category_tag": "submission-results",
-        "idempotency_key": (
-            f"peer-review-assignment:{course.slug}:{project.slug}"
-        ),
-        "context": context,
-        "list": list_data,
-        "members": members,
-        "metadata": metadata,
-    }
+    payload = _peer_review_assignment_delivery_fields(
+        config,
+        course,
+        project,
+    )
+    payload["context"] = context
+    payload["list"] = list_data
+    payload["members"] = members
+    payload["metadata"] = metadata
     payload_with_from = add_from_email_if_configured(payload, config)
     return list_key, payload_with_from
