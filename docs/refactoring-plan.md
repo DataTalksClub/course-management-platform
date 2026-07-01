@@ -982,6 +982,11 @@ Steps:
   test module.
 - [x] Split course leaderboard and score-breakdown tests out of the oversized
   course detail test module.
+- [x] Split homework scoring workflow, leaderboard update, and correct-answer
+  backfill tests out of the oversized scoring test module. Verification:
+  `uv run ruff check courses/tests/scoring_base.py courses/tests/test_scoring.py courses/tests/test_scoring_leaderboard.py courses/tests/test_homework_correct_answers.py`
+  and
+  `uv run python manage.py test courses.tests.test_scoring courses.tests.test_scoring_leaderboard courses.tests.test_homework_correct_answers`.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
