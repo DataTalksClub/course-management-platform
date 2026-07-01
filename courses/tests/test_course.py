@@ -41,7 +41,8 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
             self.assertIn(hw.title, expected_titles)
             self.assertFalse(hw.submitted)
             self.assertIsNone(hw.score)
-            self.assertFalse(hasattr(hw, "submitted_at"))
+            has_submitted_at = hasattr(hw, "submitted_at")
+            self.assertFalse(has_submitted_at)
 
     def test_course_detail_shows_registration_url(self):
         self.course.start_date = timezone.localdate() + timezone.timedelta(
@@ -100,16 +101,20 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
             "All deadlines are shown in your timezone.",
         )
         self.assertNotContains(response, "account timezone")
+        account_settings_url = (
+            f'{reverse("account_settings")}#display-preferences-section'
+        )
         self.assertNotContains(
             response,
-            f'{reverse("account_settings")}#display-preferences-section',
+            account_settings_url,
+        )
+        calendar_url = reverse(
+            "course_calendar",
+            kwargs={"course_slug": self.course.slug},
         )
         self.assertContains(
             response,
-            reverse(
-                "course_calendar",
-                kwargs={"course_slug": self.course.slug},
-            ),
+            calendar_url,
         )
 
     def test_course_detail_does_not_show_time_left_for_scored_homework(self):
@@ -151,7 +156,8 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
         self.assertIn("SUMMARY:Test Course: Submitted Homework deadline", content)
         self.assertIn("SUMMARY:Test Course: Open Project submission deadline", content)
         self.assertIn("SUMMARY:Test Course: Open Project peer review deadline", content)
-        self.assertEqual(content.count("BEGIN:VEVENT"), 7)
+        event_count = content.count("BEGIN:VEVENT")
+        self.assertEqual(event_count, 7)
 
     def test_course_detail_authenticated_user(self):
         # Test the view for an authenticated user
@@ -194,9 +200,13 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Course dashboard")
+        dashboard_url = reverse(
+            "dashboard",
+            kwargs={"course_slug": self.course.slug},
+        )
         self.assertNotContains(
             response,
-            reverse("dashboard", kwargs={"course_slug": self.course.slug}),
+            dashboard_url,
         )
 
     def test_course_detail_shows_dashboard_after_first_homework_scored(self):
@@ -208,9 +218,13 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Course dashboard")
+        dashboard_url = reverse(
+            "dashboard",
+            kwargs={"course_slug": self.course.slug},
+        )
         self.assertContains(
             response,
-            reverse("dashboard", kwargs={"course_slug": self.course.slug}),
+            dashboard_url,
         )
 
     def test_not_enrolled_but_can_edit_details(self):
@@ -232,9 +246,8 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
     def test_course_view_with_completed_projects(self):
         """Test that the course view shows the 'See all submitted projects' button when there are completed projects"""
         self.client.login(**credentials)
-        response = self.client.get(
-            reverse("course", args=[self.course.slug])
-        )
+        course_url = reverse("course", args=[self.course.slug])
+        response = self.client.get(course_url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "courses/course.html")
         self.assertTrue(response.context["has_completed_projects"])
@@ -249,9 +262,8 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
         self.completed_project.save()
 
         self.client.login(**credentials)
-        response = self.client.get(
-            reverse("course", args=[self.course.slug])
-        )
+        course_url = reverse("course", args=[self.course.slug])
+        response = self.client.get(course_url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["has_completed_projects"])
         self.assertNotContains(response, "See all submitted projects")
@@ -260,13 +272,14 @@ class CourseDetailViewTests(CourseDetailViewTestBase):
         """Test that homeworks are displayed in order of due date."""
         self.create_sorted_homework_fixture()
 
-        response = self.client.get(self.course_url())
+        course_url = self.course_url()
+        response = self.client.get(course_url)
 
         self.assertEqual(response.status_code, 200)
         self.assert_homeworks_in_due_order(response)
 
         self.client.login(**credentials)
-        response = self.client.get(self.course_url())
+        response = self.client.get(course_url)
 
         self.assertEqual(response.status_code, 200)
         self.assert_homeworks_in_due_order(response)
