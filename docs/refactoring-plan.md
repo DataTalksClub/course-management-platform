@@ -195,6 +195,11 @@ testable service functions.
   route-level view module thin.
 - [x] Split enrollment export API ownership into direct graduates and
   certificate-update view modules without a compatibility re-export.
+- [x] Split enrollment API tests into graduate export, passed-enrollment
+  helper, and certificate-update modules with shared fixtures. Verification:
+  `uv run ruff check data/tests/enrollment_base.py data/tests/test_enrollment.py data/tests/test_enrollment_passed.py data/tests/test_enrollment_certificates.py`
+  and
+  `uv run python manage.py test data.tests.test_enrollment data.tests.test_enrollment_passed data.tests.test_enrollment_certificates`.
 - [x] Split the public project detail view into route handling, page-context,
   and submission-edit modules so the view module only coordinates responses.
 - [x] Split homework upsert API internals into shared rules, validation,
