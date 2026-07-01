@@ -1448,6 +1448,15 @@ Steps:
   size-threshold scan reports `threshold_violations=0`, comprehension scan
   reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name meaningful intermediates in the deadline reminder command and split
+  successful/failed reminder-send audit recording into outcome-specific
+  helpers. Verification:
+  `uv run ruff check courses/management/commands/send_deadline_reminders.py`,
+  `uv run python manage.py test courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_project courses.tests.test_deadline_reminder_peer_review courses.tests.test_deadline_reminder_dry_run`,
+  touched-file nested-call scan reports `touched_file_nested_call_arguments=0`,
+  size-threshold scan reports `threshold_violations=0`, comprehension scan
+  reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

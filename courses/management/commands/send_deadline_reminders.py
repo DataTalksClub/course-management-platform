@@ -27,9 +27,8 @@ def aware_now(value: str):
     if parsed is None:
         raise CommandError("--now must be an ISO-8601 datetime.")
     if timezone.is_naive(parsed):
-        parsed = timezone.make_aware(
-            parsed, timezone.get_current_timezone()
-        )
+        current_timezone = timezone.get_current_timezone()
+        parsed = timezone.make_aware(parsed, current_timezone)
     return parsed
 
 
@@ -59,13 +58,8 @@ def send_reminder_event(client, config, event):
             payload,
         )
     except requests.RequestException as exc:
-        audit_data = DatamailerSendAuditData(
-            send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-            payload=payload,
-            list_key=event.list_key,
-            error=str(exc),
-        )
-        record_datamailer_send_audit(audit_data)
+        error = str(exc)
+        record_failed_reminder_send(event, payload, error)
         if config.strict:
             raise
         raise CommandError(
@@ -73,6 +67,21 @@ def send_reminder_event(client, config, event):
             f"{event.list_key}: {exc}"
         ) from exc
 
+    record_successful_reminder_send(event, payload, response)
+    return response
+
+
+def record_failed_reminder_send(event, payload, error):
+    audit_data = DatamailerSendAuditData(
+        send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+        payload=payload,
+        list_key=event.list_key,
+        error=error,
+    )
+    record_datamailer_send_audit(audit_data)
+
+
+def record_successful_reminder_send(event, payload, response):
     audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
         payload=payload,
@@ -80,7 +89,6 @@ def send_reminder_event(client, config, event):
         response=response,
     )
     record_datamailer_send_audit(audit_data)
-    return response
 
 
 class Command(BaseCommand):
