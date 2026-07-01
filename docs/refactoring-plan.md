@@ -1793,6 +1793,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_submission_timestamps`,
   touched-file nested-call scan reports `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name the enrollment form validity check in certificate-name tests instead
+  of nesting `form.is_valid()` inside `assertTrue(...)`. Verification:
+  `uv run ruff check courses/tests/test_certificate_name.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_certificate_name`,
+  touched-file nested-call scan reports `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
