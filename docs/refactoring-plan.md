@@ -1748,6 +1748,13 @@ Steps:
   `uv run ruff check accounts/tests_email_preferences.py docs/refactoring-plan.md`,
   `uv run python manage.py test accounts.tests_email_preferences`,
   nested-call scan reviewed, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name URLs, request payloads, and JSON response bodies in account toggle
+  tests instead of nesting `reverse(...)` or `response.json()` calls.
+  Verification:
+  `uv run ruff check accounts/tests_toggles.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_toggles`, touched-file
+  nested-call scan reports `touched_file_nested_calls=0`, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
