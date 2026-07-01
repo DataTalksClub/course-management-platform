@@ -715,6 +715,12 @@ testable service functions.
   `uv run ruff check api/openapi/content_paths/homeworks.py`,
   `python -m py_compile api/openapi/content_paths/homeworks.py`, and
   touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name OpenAPI project-route refs, shared response maps, request bodies,
+  descriptions, operation data, and operation records before path registry
+  construction. Verification:
+  `uv run ruff check api/openapi/content_paths/projects.py`,
+  `python -m py_compile api/openapi/content_paths/projects.py`, and
+  touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
