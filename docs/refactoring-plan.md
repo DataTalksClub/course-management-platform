@@ -225,6 +225,8 @@ testable service functions.
   forwarded batch construction, validation, or request-data construction.
 - [x] Remove the deadline formatting alias and import the owner formatter
   directly from timezone services.
+- [x] Remove the single-use peer-review assignment constructor wrapper while
+  keeping assignment construction explicit before append.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk

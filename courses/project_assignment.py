@@ -111,9 +111,11 @@ def _select_reviewer_assignments(
         selected.add(selected_project_idx)
         _remove_project_from_slot_pool(selected_project_idx, projects)
         selected_project = submissions[selected_project_idx]
-        assignment = _peer_review_assignment(
-            reviewer_submission,
-            selected_project,
+        assignment = PeerReview(
+            submission_under_evaluation=selected_project,
+            reviewer=reviewer_submission,
+            state=PeerReviewState.TO_REVIEW.value,
+            optional=False,
         )
         assignments.append(assignment)
 
@@ -159,18 +161,6 @@ def _remove_project_from_slot_pool(
 ) -> None:
     if project_idx in projects:
         projects.remove(project_idx)
-
-
-def _peer_review_assignment(
-    reviewer_submission: ProjectSubmission,
-    selected_project: ProjectSubmission,
-) -> PeerReview:
-    return PeerReview(
-        submission_under_evaluation=selected_project,
-        reviewer=reviewer_submission,
-        state=PeerReviewState.TO_REVIEW.value,
-        optional=False,
-    )
 
 
 def _assignment_precondition_failure(
