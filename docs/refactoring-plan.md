@@ -473,6 +473,11 @@ testable service functions.
   project, submission, and assignment builders. Verification:
   `uv run ruff check courses/tests/test_datamailer_peer_review.py` and
   `uv run python manage.py test courses.tests.test_datamailer_peer_review`.
+- [x] Shorten the Learning in Public score-zeroing test by naming scored
+  homework/project submission fixtures and post-disable score assertions.
+  Verification:
+  `uv run ruff check courses/tests/test_disable_learning_in_public.py` and
+  `uv run python manage.py test courses.tests.test_disable_learning_in_public`.
 
 ## Current Findings
 
