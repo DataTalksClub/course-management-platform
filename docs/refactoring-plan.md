@@ -1293,6 +1293,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten leaderboard view tests by extracting paginated leaderboard
+  fixture creation, page assertions, current-student target setup, and the
+  shared leaderboard URL helper. Verification:
+  `uv run ruff check courses/tests/test_leaderboard.py`,
+  `uv run python manage.py test courses.tests.test_leaderboard`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

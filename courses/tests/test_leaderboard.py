@@ -162,8 +162,8 @@ class LeaderboardTestCase(TestCase):
         # Cache should be invalidated (None)
         self.assertIsNone(cache.get(cache_key))
 
-    def test_leaderboard_is_paginated_by_100(self):
-        for i in range(1, 106):
+    def create_paginated_leaderboard(self, count):
+        for i in range(1, count + 1):
             student = User.objects.create_user(username=f"student-{i:03d}")
             Enrollment.objects.create(
                 course=self.course,
@@ -173,9 +173,10 @@ class LeaderboardTestCase(TestCase):
                 total_score=1000 - i,
             )
 
-        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
-        response = self.client.get(url)
+    def leaderboard_url(self):
+        return reverse("leaderboard", kwargs={"course_slug": self.course.slug})
 
+    def assert_first_leaderboard_page(self, response):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["enrollments"]), 100)
         self.assertContains(response, "Student 001")
@@ -187,8 +188,7 @@ class LeaderboardTestCase(TestCase):
         self.assertNotContains(response, "Last")
         self.assertContains(response, "Leaderboard data (YAML)")
 
-        response = self.client.get(url, {"page": 2})
-
+    def assert_second_leaderboard_page(self, response):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["enrollments"]), 5)
         self.assertContains(response, "Student 101")
@@ -196,11 +196,21 @@ class LeaderboardTestCase(TestCase):
         self.assertNotContains(response, "Showing 101-105 of 105")
         self.assertNotContains(response, 'href="?page=3"')
 
-    def test_leaderboard_jump_to_current_student_uses_their_page(self):
+    def test_leaderboard_is_paginated_by_100(self):
+        self.create_paginated_leaderboard(105)
+        url = self.leaderboard_url()
+
+        response = self.client.get(url)
+        self.assert_first_leaderboard_page(response)
+
+        response = self.client.get(url, {"page": 2})
+        self.assert_second_leaderboard_page(response)
+
+    def create_leaderboard_with_target_student(self, target_index, count):
         target_user = None
         target_enrollment = None
 
-        for i in range(1, 106):
+        for i in range(1, count + 1):
             student = User.objects.create_user(username=f"student-{i:03d}")
             enrollment = Enrollment.objects.create(
                 course=self.course,
@@ -209,14 +219,13 @@ class LeaderboardTestCase(TestCase):
                 position_on_leaderboard=i,
                 total_score=1000 - i,
             )
-            if i == 101:
+            if i == target_index:
                 target_user = student
                 target_enrollment = enrollment
 
-        self.client.force_login(target_user)
-        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
-        response = self.client.get(url)
+        return target_user, target_enrollment
 
+    def assert_current_student_page_link(self, response, target_enrollment):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["current_student_page_number"], 2)
         self.assertContains(
@@ -224,18 +233,22 @@ class LeaderboardTestCase(TestCase):
             f'?page=2#record-{target_enrollment.id}',
         )
 
-    def test_leaderboard_refreshes_stale_cache_for_current_student(self):
-        for i in range(1, 102):
-            student = User.objects.create_user(username=f"student-{i:03d}")
-            Enrollment.objects.create(
-                course=self.course,
-                student=student,
-                display_name=f"Student {i:03d}",
-                position_on_leaderboard=i,
-                total_score=1000 - i,
+    def test_leaderboard_jump_to_current_student_uses_their_page(self):
+        target_user, target_enrollment = (
+            self.create_leaderboard_with_target_student(
+                target_index=101,
+                count=105,
             )
+        )
+        self.client.force_login(target_user)
+        url = self.leaderboard_url()
+        response = self.client.get(url)
 
-        url = reverse("leaderboard", kwargs={"course_slug": self.course.slug})
+        self.assert_current_student_page_link(response, target_enrollment)
+
+    def test_leaderboard_refreshes_stale_cache_for_current_student(self):
+        self.create_paginated_leaderboard(101)
+        url = self.leaderboard_url()
         self.client.get(url)
 
         target_user = User.objects.create_user(username="current-student")
