@@ -26,6 +26,11 @@ from courses.tests.datamailer_recipient_lists_base import (
 class DatamailerRecipientListCommandTest(
     DatamailerRecipientListCommandTestBase
 ):
+    def run_recipient_list_command(self, *args):
+        out = StringIO()
+        call_command("sync_datamailer_recipient_lists", *args, stdout=out)
+        return out
+
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -39,13 +44,10 @@ class DatamailerRecipientListCommandTest(
         registration = self.create_registration()
         course = registration.course
 
-        out = StringIO()
-        call_command(
-            "sync_datamailer_recipient_lists",
+        out = self.run_recipient_list_command(
             "registrations",
             "--course-slug",
             course.slug,
-            stdout=out,
         )
 
         expectation = BulkUpsertMemberExpectation(
@@ -69,13 +71,10 @@ class DatamailerRecipientListCommandTest(
         enrollment = self.create_enrolled_student()
         course = enrollment.course
 
-        out = StringIO()
-        call_command(
-            "sync_datamailer_recipient_lists",
+        out = self.run_recipient_list_command(
             "enrollments",
             "--course-slug",
             course.slug,
-            stdout=out,
         )
 
         expectation = BulkUpsertMemberExpectation(
@@ -98,39 +97,52 @@ class DatamailerRecipientListCommandTest(
         self,
         reconcile,
     ):
+        self.configure_reconcile_success(reconcile)
+        project, passed_submission = (
+            self.create_passed_and_failed_project_submissions()
+        )
+
+        out = self.run_recipient_list_command(
+            "project-passed",
+            "--project-slug",
+            project.slug,
+            "--reconcile",
+        )
+
+        self.assert_project_passed_reconcile_call(
+            reconcile,
+            project,
+            passed_submission,
+        )
+        self.assert_prepared_one_member(out)
+
+    def configure_reconcile_success(self, reconcile):
         reconcile.return_value = {
             "recipient_list": {
                 "active_member_count": 1,
             },
         }
-        project, passed_submission = (
-            self.create_passed_and_failed_project_submissions()
-        )
 
-        out = StringIO()
-        call_command(
-            "sync_datamailer_recipient_lists",
-            "project-passed",
-            "--project-slug",
-            project.slug,
-            "--reconcile",
-            stdout=out,
-        )
-
+    def assert_project_passed_reconcile_call(
+        self,
+        reconcile,
+        project,
+        passed_submission,
+    ):
         reconcile.assert_called_once()
-        self.assertEqual(
-            reconcile.call_args.args[0],
-            project_passed_list_key(project),
-        )
+        list_key = reconcile.call_args.args[0]
+        self.assertEqual(list_key, project_passed_list_key(project))
+
         payload = reconcile.call_args.args[1]
-        self.assertEqual(payload["list"]["metadata"]["outcome"], "project_passed")
-        self.assertEqual(len(payload["members"]), 1)
         self.assertEqual(
-            payload["members"][0]["source_object_key"],
-            f"project-submission:{passed_submission.pk}",
+            payload["list"]["metadata"]["outcome"],
+            "project_passed",
         )
-        self.assertIn(
-            "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
+        self.assertEqual(len(payload["members"]), 1)
+        member = payload["members"][0]
+        self.assertEqual(
+            member["source_object_key"],
+            f"project-submission:{passed_submission.pk}",
         )
 
     @override_settings(
@@ -147,13 +159,10 @@ class DatamailerRecipientListCommandTest(
         self.configure_bulk_upsert_success(bulk_upsert)
         course, enrollment = self.create_graduate_and_non_graduate()
 
-        out = StringIO()
-        call_command(
-            "sync_datamailer_recipient_lists",
+        out = self.run_recipient_list_command(
             "graduates",
             "--course-slug",
             course.slug,
-            stdout=out,
         )
 
         expectation = BulkUpsertMemberExpectation(
@@ -173,6 +182,20 @@ class DatamailerRecipientListCommandTest(
         self,
         bulk_upsert,
     ):
+        self.create_dry_run_registration()
+
+        out = self.run_recipient_list_command(
+            "registrations",
+            "--dry-run",
+        )
+
+        bulk_upsert.assert_not_called()
+        self.assertIn(
+            "ml-zoomcamp-2026: 1 member(s)",
+            out.getvalue(),
+        )
+
+    def create_dry_run_registration(self):
         course = Course.objects.create(
             slug="ml-zoomcamp-2026",
             title="ML Zoomcamp 2026",
@@ -192,20 +215,6 @@ class DatamailerRecipientListCommandTest(
             region="Europe",
             role=CourseRegistration.Role.DATA_ENGINEER,
             accepted_newsletter=True,
-        )
-
-        out = StringIO()
-        call_command(
-            "sync_datamailer_recipient_lists",
-            "registrations",
-            "--dry-run",
-            stdout=out,
-        )
-
-        bulk_upsert.assert_not_called()
-        self.assertIn(
-            "ml-zoomcamp-2026: 1 member(s)",
-            out.getvalue(),
         )
 
     @override_settings(**DATAMAILER_SETTINGS)

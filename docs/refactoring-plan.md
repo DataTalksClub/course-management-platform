@@ -1011,6 +1011,11 @@ Steps:
   module.
 - [x] Split Datamailer recipient-list backfill, audit, and import command tests
   out of the oversized Datamailer test module.
+- [x] Shorten Datamailer recipient-list command tests by naming command
+  execution, project-passed reconcile assertions, and dry-run registration
+  fixtures. Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_lists.py` and
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists`.
 - [x] Split Datamailer recipient-list audit tests out of the recipient-list
   command test module.
 - [x] Split Datamailer outbox, erase-contact, and status command tests out of
