@@ -95,6 +95,8 @@ testable service functions.
   test module.
 - [x] Split project list view tests out of the oversized project evaluation
   test module.
+- [x] Extract deadline reminder event planning from the management command into
+  a focused `courses.deadline_reminder_events` module.
 
 ## Current Findings
 
