@@ -3,14 +3,22 @@ from dataclasses import dataclass
 
 from django.core.management.base import CommandError
 
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.base import (
     RecipientListMemberPayload,
-    course_graduate_recipient_list_payload,
     enrollment_recipient_list_payload,
-    homework_submission_recipient_list_payload,
+)
+from course_management.datamailer.payloads.certificates import (
+    course_graduate_recipient_list_payload,
+)
+from course_management.datamailer.payloads.project_outcomes import (
     project_passed_recipient_list_payload,
-    project_submission_recipient_list_payload,
+)
+from course_management.datamailer.payloads.registrations import (
     registration_recipient_list_payload,
+)
+from course_management.datamailer.payloads.submissions import (
+    homework_submission_recipient_list_payload,
+    project_submission_recipient_list_payload,
 )
 from courses.models import (
     CourseRegistration,

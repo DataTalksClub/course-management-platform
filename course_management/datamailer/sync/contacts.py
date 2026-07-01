@@ -8,7 +8,7 @@ from course_management.datamailer_outbox import (
 )
 
 from ..client import DatamailerClient, DatamailerConfig
-from ..payloads import contact_payload_for_user
+from ..payloads.base import contact_payload_for_user
 
 
 logger = logging.getLogger(__name__)

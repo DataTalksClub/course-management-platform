@@ -14,8 +14,10 @@ from course_management.datamailer.keys import (
     project_passed_list_key,
     project_submitters_list_key,
 )
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.project_outcomes import (
     project_passed_recipient_list_payload,
+)
+from course_management.datamailer.payloads.scores import (
     project_score_notification_payload,
 )
 from course_management.datamailer.sync.notifications import (

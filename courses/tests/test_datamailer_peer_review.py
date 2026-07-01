@@ -11,7 +11,7 @@ from data.models import (
     DatamailerSendAuditType,
 )
 from course_management.datamailer.keys import project_submitters_list_key
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.peer_review import (
     peer_review_assignment_notification_payload,
 )
 from course_management.datamailer.sync.notifications import (

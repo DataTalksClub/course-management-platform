@@ -8,7 +8,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 
 from accounts.models import CustomUser
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.base import (
     RecipientListMemberPayload,
     enrollment_recipient_list_payload,
 )

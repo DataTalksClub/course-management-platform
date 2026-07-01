@@ -7,13 +7,21 @@ import requests
 from data.models import DatamailerSendAuditType
 
 from ..client import DatamailerClient, DatamailerConfig
-from ..payloads import (
-    homework_score_notification_payload,
+from ..payloads.peer_review import (
     peer_review_assignment_notification_payload,
+)
+from ..payloads.project_outcomes import (
     project_passed_recipient_list_payload,
-    project_score_notification_payload,
-    recipient_list_send_payload,
+)
+from ..payloads.registrations import (
     registration_confirmation_payload,
+)
+from ..payloads.scores import (
+    homework_score_notification_payload,
+    project_score_notification_payload,
+)
+from ..payloads.send import (
+    recipient_list_send_payload,
 )
 from .audit import DatamailerSendAuditData, record_datamailer_send_audit
 from .memberships import (

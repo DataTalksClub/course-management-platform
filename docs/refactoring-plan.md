@@ -230,6 +230,8 @@ testable service functions.
   lambdas with explicit callbacks and named/default factories.
 - [x] Move Datamailer sync callers to direct owner-module imports and remove
   the sync package re-export shim.
+- [x] Move Datamailer payload callers to direct owner-module imports and remove
+  the payload package re-export shim.
 
 ## Current Findings
 

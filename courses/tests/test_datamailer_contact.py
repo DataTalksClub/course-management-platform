@@ -12,8 +12,10 @@ from data.models import (
     DatamailerSendAuditType,
 )
 from course_management.datamailer.keys import contact_tags_for_course
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.base import (
     contact_payload_for_user,
+)
+from course_management.datamailer.payloads.send import (
     datamailer_send_counts,
 )
 from course_management.datamailer.sync.contacts import (

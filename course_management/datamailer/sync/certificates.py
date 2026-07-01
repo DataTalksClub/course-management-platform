@@ -6,7 +6,7 @@ import requests
 from data.models import DatamailerSendAuditType
 
 from ..client import DatamailerConfig
-from ..payloads import (
+from ..payloads.certificates import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
 )

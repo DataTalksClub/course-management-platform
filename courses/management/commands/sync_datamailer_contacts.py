@@ -8,7 +8,7 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.base import (
     contact_payload_for_user,
 )
 

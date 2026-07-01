@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 
 from accounts.models import CustomUser
 from course_management.datamailer.keys import course_graduates_list_key
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.certificates import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
 )

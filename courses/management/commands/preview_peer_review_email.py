@@ -14,7 +14,7 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 
 from courses.models import Course, Project
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.peer_review import (
     _assigned_review_links,
     peer_review_assignment_notification_payload,
 )

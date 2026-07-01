@@ -11,7 +11,7 @@ from course_management.datamailer.keys import (
     project_passed_list_key,
     project_submitters_list_key,
 )
-from course_management.datamailer.payloads import (
+from course_management.datamailer.payloads.base import (
     enrollment_recipient_list_payload,
 )
 from course_management.datamailer.sync.memberships import (

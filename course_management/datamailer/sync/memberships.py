@@ -9,17 +9,27 @@ from data.models import DatamailerOutboxStatus
 
 from ..client import DatamailerConfig
 from ..keys import datamailer_ordering_key
-from ..payloads import (
+from ..payloads.base import (
     contact_payload_for_user,
-    course_graduate_recipient_list_member_payload,
     enrollment_recipient_list_payload,
-    homework_submission_recipient_list_payload,
+    removed_recipient_list_member_payload,
+)
+from ..payloads.certificates import (
+    course_graduate_recipient_list_member_payload,
+)
+from ..payloads.project_outcomes import (
     project_passed_recipient_list_member_payload,
-    project_submission_recipient_list_payload,
-    recipient_list_member_sync_payload,
+)
+from ..payloads.registrations import (
     registration_contact_payload,
     registration_recipient_list_payload,
-    removed_recipient_list_member_payload,
+)
+from ..payloads.send import (
+    recipient_list_member_sync_payload,
+)
+from ..payloads.submissions import (
+    homework_submission_recipient_list_payload,
+    project_submission_recipient_list_payload,
 )
 
 
