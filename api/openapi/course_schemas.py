@@ -12,6 +12,20 @@ from .primitives import (
     ref,
 )
 
+COURSE_SUMMARY_REF = ref("CourseSummary")
+COURSES_ARRAY = array_of(COURSE_SUMMARY_REF)
+HOMEWORK_SUMMARY_REF = ref("HomeworkSummary")
+HOMEWORK_SUMMARY_ARRAY = array_of(HOMEWORK_SUMMARY_REF)
+PROJECT_SUMMARY_REF = ref("ProjectSummary")
+PROJECT_SUMMARY_ARRAY = array_of(PROJECT_SUMMARY_REF)
+REGISTRATION_CAMPAIGN_REF = ref("RegistrationCampaign")
+REGISTRATION_CAMPAIGN_ARRAY = array_of(REGISTRATION_CAMPAIGN_REF)
+REGISTRATION_COUNT_REF = ref("RegistrationCount")
+REGISTRATION_COUNT_ARRAY = array_of(REGISTRATION_COUNT_REF)
+REGISTRATION_STATS_REF = ref("RegistrationStats")
+COURSE_REGISTRATION_REF = ref("CourseRegistration")
+COURSE_REGISTRATION_ARRAY = array_of(COURSE_REGISTRATION_REF)
+
 COURSE_SCHEMAS = {
     "Error": {
         "type": "object",
@@ -53,7 +67,7 @@ COURSE_SCHEMAS = {
     "CoursesList": {
         "type": "object",
         "required": ["courses"],
-        "properties": {"courses": array_of(ref("CourseSummary"))},
+        "properties": {"courses": COURSES_ARRAY},
     },
     "CourseCreate": model_object_schema(
         Course,
@@ -116,8 +130,8 @@ COURSE_SCHEMAS = {
             "project_passing_score",
         ],
         extra_properties={
-            "homeworks": array_of(ref("HomeworkSummary")),
-            "projects": array_of(ref("ProjectSummary")),
+            "homeworks": HOMEWORK_SUMMARY_ARRAY,
+            "projects": PROJECT_SUMMARY_ARRAY,
         },
     ),
     "RegistrationCampaign": {
@@ -187,9 +201,7 @@ COURSE_SCHEMAS = {
         "type": "object",
         "required": ["registration_campaigns"],
         "properties": {
-            "registration_campaigns": array_of(
-                ref("RegistrationCampaign")
-            ),
+            "registration_campaigns": REGISTRATION_CAMPAIGN_ARRAY,
         },
     },
     "CourseRegistration": model_object_schema(
@@ -221,17 +233,17 @@ COURSE_SCHEMAS = {
         "type": "object",
         "properties": {
             "total": {"type": "integer"},
-            "by_role": array_of(ref("RegistrationCount")),
-            "by_country": array_of(ref("RegistrationCount")),
-            "by_region": array_of(ref("RegistrationCount")),
+            "by_role": REGISTRATION_COUNT_ARRAY,
+            "by_country": REGISTRATION_COUNT_ARRAY,
+            "by_region": REGISTRATION_COUNT_ARRAY,
         },
     },
     "RegistrationCampaignRegistrations": {
         "type": "object",
         "properties": {
-            "campaign": ref("RegistrationCampaign"),
-            "stats": ref("RegistrationStats"),
-            "registrations": array_of(ref("CourseRegistration")),
+            "campaign": REGISTRATION_CAMPAIGN_REF,
+            "stats": REGISTRATION_STATS_REF,
+            "registrations": COURSE_REGISTRATION_ARRAY,
         },
     },
 }

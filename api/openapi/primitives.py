@@ -146,10 +146,12 @@ def model_object_schema(
 def auth_required(operation):
     result = deepcopy(operation)
     result["security"] = [{"TokenAuth": []}]
-    result.setdefault("responses", {})["401"] = response(
+    error_schema = ref("Error")
+    auth_response = response(
         "Authentication token missing or invalid",
-        ref("Error"),
+        error_schema,
     )
+    result.setdefault("responses", {})["401"] = auth_response
     return result
 
 

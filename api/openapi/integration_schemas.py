@@ -1,5 +1,12 @@
 from .primitives import JSON, array_of, ref
 
+CERTIFICATE_UPDATE_REF = ref("CertificateUpdate")
+CERTIFICATE_UPDATE_ARRAY = array_of(CERTIFICATE_UPDATE_REF)
+CERTIFICATE_UPDATE_RESULT_REF = ref("CertificateUpdateResult")
+CERTIFICATE_UPDATE_RESULT_ARRAY = array_of(CERTIFICATE_UPDATE_RESULT_REF)
+CERTIFICATE_UPDATE_ERROR_REF = ref("CertificateUpdateError")
+CERTIFICATE_UPDATE_ERROR_ARRAY = array_of(CERTIFICATE_UPDATE_ERROR_REF)
+
 INTEGRATION_SCHEMAS = {
     "Graduates": {
         "type": "object",
@@ -31,10 +38,10 @@ INTEGRATION_SCHEMAS = {
                 "type": "object",
                 "required": ["certificates"],
                 "properties": {
-                    "certificates": array_of(ref("CertificateUpdate")),
+                    "certificates": CERTIFICATE_UPDATE_ARRAY,
                 },
             },
-            array_of(ref("CertificateUpdate")),
+            CERTIFICATE_UPDATE_ARRAY,
         ],
     },
     "CertificateUpdateResult": {
@@ -62,8 +69,8 @@ INTEGRATION_SCHEMAS = {
             "success": {"type": "boolean"},
             "updated_count": {"type": "integer"},
             "error_count": {"type": "integer"},
-            "updated": array_of(ref("CertificateUpdateResult")),
-            "errors": array_of(ref("CertificateUpdateError")),
+            "updated": CERTIFICATE_UPDATE_RESULT_ARRAY,
+            "errors": CERTIFICATE_UPDATE_ERROR_ARRAY,
         },
     },
     "DatamailerEvent": {

@@ -3,6 +3,11 @@ from courses.models.homework import Question
 from ..primitives import JSON, array_of, model_properties, ref
 
 
+QUESTION_REF = ref("Question")
+QUESTION_ARRAY = array_of(QUESTION_REF)
+QUESTION_CREATE_REF = ref("QuestionCreate")
+QUESTION_CREATE_ARRAY = array_of(QUESTION_CREATE_REF)
+
 QUESTION_SCHEMAS = {
     "Question": {
         "type": "object",
@@ -26,7 +31,7 @@ QUESTION_SCHEMAS = {
         "properties": {
             "homework_id": {"type": "integer"},
             "homework_title": {"type": "string"},
-            "questions": array_of(ref("Question")),
+            "questions": QUESTION_ARRAY,
         },
     },
     "QuestionCreate": {
@@ -53,14 +58,14 @@ QUESTION_SCHEMAS = {
     "QuestionCreateRequest": {
         "oneOf": [
             ref("QuestionCreate"),
-            array_of(ref("QuestionCreate")),
+            QUESTION_CREATE_ARRAY,
         ],
     },
     "QuestionCreateResponse": {
         "type": "object",
         "required": ["created"],
         "properties": {
-            "created": array_of(ref("Question")),
+            "created": QUESTION_ARRAY,
             "errors": array_of(JSON),
         },
     },

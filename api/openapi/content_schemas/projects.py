@@ -9,6 +9,11 @@ from ..primitives import (
 )
 
 
+PROJECT_REF = ref("Project")
+PROJECT_ARRAY = array_of(PROJECT_REF)
+PROJECT_CREATE_REF = ref("ProjectCreate")
+PROJECT_CREATE_ARRAY = array_of(PROJECT_CREATE_REF)
+
 PROJECT_SCHEMAS = {
     "ProjectSummary": model_object_schema(
         Project,
@@ -52,7 +57,7 @@ PROJECT_SCHEMAS = {
     "ProjectsList": {
         "type": "object",
         "required": ["projects"],
-        "properties": {"projects": array_of(ref("Project"))},
+        "properties": {"projects": PROJECT_ARRAY},
     },
     "ProjectCreate": {
         "type": "object",
@@ -76,7 +81,7 @@ PROJECT_SCHEMAS = {
         },
     },
     "ProjectCreateRequest": {
-        "oneOf": [ref("ProjectCreate"), array_of(ref("ProjectCreate"))],
+        "oneOf": [PROJECT_CREATE_REF, PROJECT_CREATE_ARRAY],
     },
     "ProjectUpsert": {
         "type": "object",
@@ -115,7 +120,7 @@ PROJECT_SCHEMAS = {
         "type": "object",
         "required": ["created"],
         "properties": {
-            "created": array_of(ref("Project")),
+            "created": PROJECT_ARRAY,
             "errors": array_of(JSON),
         },
     },

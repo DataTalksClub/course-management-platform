@@ -9,6 +9,13 @@ from ..primitives import (
 )
 
 
+HOMEWORK_REF = ref("Homework")
+HOMEWORK_ARRAY = array_of(HOMEWORK_REF)
+HOMEWORK_CREATE_REF = ref("HomeworkCreate")
+HOMEWORK_CREATE_ARRAY = array_of(HOMEWORK_CREATE_REF)
+QUESTION_CREATE_INLINE_REF = ref("QuestionCreateInline")
+QUESTION_CREATE_INLINE_ARRAY = array_of(QUESTION_CREATE_INLINE_REF)
+
 HOMEWORK_SCHEMAS = {
     "HomeworkSummary": model_object_schema(
         Homework,
@@ -50,7 +57,7 @@ HOMEWORK_SCHEMAS = {
     "HomeworksList": {
         "type": "object",
         "required": ["homeworks"],
-        "properties": {"homeworks": array_of(ref("Homework"))},
+        "properties": {"homeworks": HOMEWORK_ARRAY},
     },
     "HomeworkCreate": {
         "type": "object",
@@ -62,13 +69,13 @@ HOMEWORK_SCHEMAS = {
                 Homework,
                 ["due_date", "description", "instructions_url"],
             ),
-            "questions": array_of(ref("QuestionCreateInline")),
+            "questions": QUESTION_CREATE_INLINE_ARRAY,
         },
     },
     "HomeworkCreateRequest": {
         "oneOf": [
             ref("HomeworkCreate"),
-            array_of(ref("HomeworkCreate")),
+            HOMEWORK_CREATE_ARRAY,
         ],
     },
     "HomeworkUpsert": {
@@ -91,7 +98,7 @@ HOMEWORK_SCHEMAS = {
                     "faq_contribution_field",
                 ],
             ),
-            "questions": array_of(ref("QuestionCreateInline")),
+            "questions": QUESTION_CREATE_INLINE_ARRAY,
         },
         "description": (
             "Idempotent homework payload. Creating requires name/title and "
@@ -104,7 +111,7 @@ HOMEWORK_SCHEMAS = {
         "type": "object",
         "required": ["created"],
         "properties": {
-            "created": array_of(ref("Homework")),
+            "created": HOMEWORK_ARRAY,
             "errors": array_of(JSON),
         },
     },
