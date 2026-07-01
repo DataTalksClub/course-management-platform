@@ -8,6 +8,28 @@ from courses.views.registration_profile import (
 )
 
 
+ACCEPTED_NEWSLETTER_WIDGET = forms.CheckboxInput(
+    attrs={"class": "h-4 w-4"}
+)
+EMAIL_WIDGET = forms.EmailInput(attrs={"class": "form-control"})
+NAME_WIDGET = forms.TextInput(attrs={"class": "form-control"})
+COUNTRY_SELECT_WIDGET = forms.Select(attrs={"class": "form-control"})
+ROLE_WIDGET = forms.Select(attrs={"class": "form-control"})
+COMMENT_WIDGET = forms.Textarea(
+    attrs={
+        "class": "form-control",
+        "rows": 4,
+        "placeholder": "Anything you would like to add?",
+    }
+)
+COUNTRY_COMBOBOX_WIDGET_ATTRS = {
+    "class": "form-control",
+    "autocomplete": "country-name",
+    "placeholder": "Start typing your country",
+    "data-country-combobox-input": "",
+}
+
+
 class CourseRegistrationForm(forms.ModelForm):
     accepted_newsletter = forms.BooleanField(
         label=(
@@ -15,7 +37,7 @@ class CourseRegistrationForm(forms.ModelForm):
             "receive course updates."
         ),
         required=True,
-        widget=forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
+        widget=ACCEPTED_NEWSLETTER_WIDGET,
     )
 
     class Meta:
@@ -29,17 +51,11 @@ class CourseRegistrationForm(forms.ModelForm):
             "accepted_newsletter",
         ]
         widgets = {
-            "email": forms.EmailInput(attrs={"class": "form-control"}),
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "country": forms.Select(attrs={"class": "form-control"}),
-            "role": forms.Select(attrs={"class": "form-control"}),
-            "comment": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 4,
-                    "placeholder": "Anything you would like to add?",
-                }
-            ),
+            "email": EMAIL_WIDGET,
+            "name": NAME_WIDGET,
+            "country": COUNTRY_SELECT_WIDGET,
+            "role": ROLE_WIDGET,
+            "comment": COMMENT_WIDGET,
         }
 
     def __init__(self, *args, **kwargs):
@@ -57,14 +73,8 @@ class CourseRegistrationForm(forms.ModelForm):
             self.fields[field_name].required = False
 
     def configure_country_field(self):
-        self.fields["country"].widget = forms.TextInput(
-            attrs={
-                "class": "form-control",
-                "autocomplete": "country-name",
-                "placeholder": "Start typing your country",
-                "data-country-combobox-input": "",
-            }
-        )
+        country_widget = forms.TextInput(attrs=COUNTRY_COMBOBOX_WIDGET_ATTRS)
+        self.fields["country"].widget = country_widget
 
     def configure_role_choices(self):
         role_choices = list(CourseRegistration.Role.choices)

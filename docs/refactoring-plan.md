@@ -1649,6 +1649,16 @@ Steps:
   `total=0`, size-threshold scan reports `threshold_violations=0`,
   comprehension scan reports `forbidden_comprehensions=0`, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Name student-facing registration, enrollment, and complaint form widgets
+  before form field and widget-map construction, preserving existing classes
+  from the design-system form layout. Verification:
+  `uv run ruff check courses/views/registration_form.py courses/views/forms.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_registration_campaigns courses.tests.test_certificate_name courses.tests.test_course_leaderboard_complaints`,
+  touched-file scans report `touched_file_high_arg_calls=0`,
+  `touched_file_inline_dict_calls=0`, `touched_file_nested_call_arguments=0`,
+  and `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

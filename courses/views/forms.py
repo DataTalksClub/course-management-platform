@@ -7,6 +7,34 @@ from courses.models.course import (
 from courses.models.homework import Answer
 
 
+CERTIFICATE_NAME_WIDGET = forms.TextInput(
+    attrs={
+        "class": "form-control",
+        "placeholder": "Your name for certificates",
+    }
+)
+DISPLAY_NAME_WIDGET = forms.TextInput(attrs={"class": "form-control"})
+DISPLAY_PUBLIC_PROFILE_WIDGET = forms.CheckboxInput(
+    attrs={"class": "h-4 w-4"}
+)
+DISPLAY_ON_LEADERBOARD_WIDGET = forms.CheckboxInput(
+    attrs={"class": "h-4 w-4"}
+)
+COMPLAINT_ISSUE_TYPE_WIDGET = forms.Select(
+    attrs={"class": "form-control"}
+)
+COMPLAINT_DESCRIPTION_WIDGET = forms.Textarea(
+    attrs={
+        "class": "form-control",
+        "rows": 5,
+        "placeholder": (
+            "Include the homework, project, or link that looks "
+            "incorrect and why it should be reviewed."
+        ),
+    }
+)
+
+
 class AnswerForm(forms.ModelForm):
     class Meta:
         model = Answer
@@ -18,12 +46,7 @@ class EnrollmentForm(forms.ModelForm):
         label="Certificate name",
         required=False,
         help_text="Used for certificates across your course enrollments.",
-        widget=forms.TextInput(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Your name for certificates",
-            }
-        ),
+        widget=CERTIFICATE_NAME_WIDGET,
     )
 
     class Meta:
@@ -35,15 +58,9 @@ class EnrollmentForm(forms.ModelForm):
             "display_public_profile",
         ]
         widgets = {
-            "display_name": forms.TextInput(
-                attrs={"class": "form-control"}
-            ),
-            "display_public_profile": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
-            "display_on_leaderboard": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
+            "display_name": DISPLAY_NAME_WIDGET,
+            "display_public_profile": DISPLAY_PUBLIC_PROFILE_WIDGET,
+            "display_on_leaderboard": DISPLAY_ON_LEADERBOARD_WIDGET,
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -106,15 +123,6 @@ class LeaderboardComplaintForm(forms.ModelForm):
             "description": "Describe the issue",
         }
         widgets = {
-            "issue_type": forms.Select(attrs={"class": "form-control"}),
-            "description": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 5,
-                    "placeholder": (
-                        "Include the homework, project, or link that looks "
-                        "incorrect and why it should be reviewed."
-                    ),
-                }
-            ),
+            "issue_type": COMPLAINT_ISSUE_TYPE_WIDGET,
+            "description": COMPLAINT_DESCRIPTION_WIDGET,
         }
