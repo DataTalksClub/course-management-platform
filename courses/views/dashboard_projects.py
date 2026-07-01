@@ -8,27 +8,35 @@ def dashboard_project_stats(course, total_enrollments):
         project_submissions,
         total_enrollments,
     )
+    quartile_metrics = project_quartile_metrics(project_submissions)
+    pass_count, fail_count = project_pass_fail_counts(project_submissions)
+    rounded_completion_rate = round(completion_rate, 1)
+
+    return {
+        "project_completion_rate": rounded_completion_rate,
+        **quartile_metrics,
+        "project_pass_count": pass_count,
+        "project_fail_count": fail_count,
+        "project_total_submissions": pass_count + fail_count,
+    }
+
+
+def project_quartile_metrics(project_submissions):
     time_spent = project_submission_values(
         project_submissions,
         "time_spent",
     )
     scores = project_submission_values(project_submissions, "total_score")
-    pass_count, fail_count = project_pass_fail_counts(project_submissions)
     time_quartiles = safe_quartiles(time_spent)
     score_quartiles = safe_quartiles(scores)
-    rounded_completion_rate = round(completion_rate, 1)
 
     return {
-        "project_completion_rate": rounded_completion_rate,
         "project_time_q25": time_quartiles.q25,
         "project_time_median": time_quartiles.median,
         "project_time_q75": time_quartiles.q75,
         "project_score_q25": score_quartiles.q25,
         "project_score_median": score_quartiles.median,
         "project_score_q75": score_quartiles.q75,
-        "project_pass_count": pass_count,
-        "project_fail_count": fail_count,
-        "project_total_submissions": pass_count + fail_count,
     }
 
 

@@ -2547,6 +2547,17 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split dashboard project quartile metric fields out of the project stats
+  summary assembler so completion/pass-fail totals and quartile fields have
+  separate names. Verification:
+  `uv run ruff check courses/views/dashboard_projects.py courses/tests/test_dashboard_project_stats.py courses/tests/test_dashboard.py courses/tests/test_dashboard_integration.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_dashboard_project_stats courses.tests.test_dashboard courses.tests.test_dashboard_integration`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, `touched_dict_call_values=0`, and
+  `touched_wide_positional_calls=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
