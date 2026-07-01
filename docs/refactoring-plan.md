@@ -676,6 +676,11 @@ testable service functions.
   `uv run ruff check scripts/load_rds_export.py`,
   `python -m py_compile scripts/load_rds_export.py`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name project-data pull script path setup, queryset ID lists, and extracted
+  JSONL records before path insertion, filters, or write calls. Verification:
+  `uv run ruff check scripts/pull_project_data.py`,
+  `python -m py_compile scripts/pull_project_data.py`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

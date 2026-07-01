@@ -17,7 +17,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 # Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+script_path = os.path.abspath(__file__)
+script_dir = os.path.dirname(script_path)
+project_root = os.path.dirname(script_dir)
+sys.path.insert(0, project_root)
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
@@ -293,15 +296,17 @@ def project_evaluation_scores(submissions):
 
 
 def project_enrollments(submissions):
+    enrollment_ids = submissions.values_list("enrollment_id", flat=True)
     enrollments = Enrollment.objects.filter(
-        id__in=submissions.values_list("enrollment_id", flat=True)
+        id__in=enrollment_ids
     ).select_related("student", "course")
     print(f"✓ Found {enrollments.count()} enrollments")
     return enrollments
 
 
 def project_users(submissions):
-    user_ids = set(submissions.values_list("student_id", flat=True))
+    student_ids = submissions.values_list("student_id", flat=True)
+    user_ids = set(student_ids)
     users = User.objects.filter(id__in=user_ids)
     print(f"✓ Found {users.count()} users")
     return users
@@ -344,19 +349,22 @@ def write_metadata(file, course_slug, project_slug):
 
 def write_jsonl_collection(file, record_type, items, extractor):
     for item in items:
-        write_jsonl_record(file, record_type, extractor(item))
+        record_data = extractor(item)
+        write_jsonl_record(file, record_type, record_data)
 
 
 def write_project_identity_records(file, export_data):
+    course_data = extract_course_data(export_data.course)
     write_jsonl_record(
         file,
         "course",
-        extract_course_data(export_data.course),
+        course_data,
     )
+    project_data = extract_project_data(export_data.project)
     write_jsonl_record(
         file,
         "project",
-        extract_project_data(export_data.project),
+        project_data,
     )
 
 
