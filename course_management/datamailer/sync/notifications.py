@@ -8,8 +8,6 @@ from data.models import DatamailerSendAuditType
 
 from ..client import DatamailerClient, DatamailerConfig
 from ..payloads import (
-    certificate_availability_notification_payload,
-    course_graduate_recipient_list_payload,
     homework_score_notification_payload,
     peer_review_assignment_notification_payload,
     project_passed_recipient_list_payload,
@@ -22,6 +20,7 @@ from .memberships import (
     RecipientListBulkUpsertData,
     bulk_upsert_recipient_list_members_before_send,
 )
+from .transactional import send_transactional_email
 
 logger = logging.getLogger(__name__)
 
@@ -279,167 +278,3 @@ def _send_peer_review_assignment_notification_if_ready(
     return _send_recipient_list_transactional_and_audit(
         config, list_key, payload
     )
-
-
-def send_certificate_availability_notification(
-    enrollment,
-) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
-
-    notification_payloads = _certificate_availability_payloads(enrollment)
-    if notification_payloads is None:
-        return None
-
-    graduate_list_payload, payload = notification_payloads
-    try:
-        return _send_certificate_availability_if_ready(
-            config,
-            enrollment,
-            graduate_list_payload,
-            payload,
-        )
-    except requests.RequestException as exc:
-        return _handle_certificate_availability_send_error(
-            config,
-            enrollment,
-            payload,
-            exc,
-        )
-
-
-def _certificate_availability_payloads(enrollment):
-    graduate_list_payload = course_graduate_recipient_list_payload(
-        enrollment
-    )
-    payload = certificate_availability_notification_payload(enrollment)
-    if graduate_list_payload is None and payload is None:
-        return None
-    return graduate_list_payload, payload
-
-
-def _send_certificate_availability_if_ready(
-    config,
-    enrollment,
-    graduate_list_payload,
-    payload,
-):
-    if not _sync_graduate_outcome_before_certificate_send(
-        config, enrollment, graduate_list_payload, payload
-    ):
-        return None
-    if payload is None:
-        return None
-    return _send_transactional_and_audit(config, payload)
-
-
-def _handle_certificate_availability_send_error(
-    config,
-    enrollment,
-    payload,
-    exc,
-):
-    logger.exception(
-        "Datamailer certificate availability notification failed "
-        "for enrollment_id=%s",
-        enrollment.pk,
-    )
-    if payload is not None:
-        error = str(exc)
-        audit_data = DatamailerSendAuditData(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            payload=payload,
-            error=error,
-        )
-        record_datamailer_send_audit(audit_data)
-    if config.strict:
-        raise
-    return None
-
-
-def _sync_graduate_outcome_before_certificate_send(
-    config, enrollment, graduate_list_payload, payload
-):
-    if graduate_list_payload is None:
-        return True
-
-    list_key, list_payload = graduate_list_payload
-    idempotency_key = _certificate_graduate_outcome_idempotency_key(
-        payload, enrollment
-    )
-    bulk_data = RecipientListBulkUpsertData(
-        config=config,
-        list_key=list_key,
-        payload=list_payload,
-        idempotency_key=idempotency_key,
-        ordering_key=list_key,
-    )
-    synced = bulk_upsert_recipient_list_members_before_send(bulk_data)
-    if synced:
-        return True
-
-    if payload is not None:
-        audit_data = DatamailerSendAuditData(
-            send_type=DatamailerSendAuditType.TRANSACTIONAL,
-            payload=payload,
-            error="Datamailer graduate-outcome sync was not acknowledged",
-        )
-        record_datamailer_send_audit(audit_data)
-    return False
-
-
-def _certificate_graduate_outcome_idempotency_key(payload, enrollment):
-    if payload is not None:
-        return f"{payload['idempotency_key']}:graduate-outcome"
-    return f"certificate-available:{enrollment.pk}:graduate-outcome"
-
-
-def _send_transactional_and_audit(config, payload):
-    client = DatamailerClient(config)
-    response = client.send_transactional(payload)
-    audit_data = DatamailerSendAuditData(
-        send_type=DatamailerSendAuditType.TRANSACTIONAL,
-        payload=payload,
-        response=response,
-    )
-    record_datamailer_send_audit(audit_data)
-    return response
-
-
-def send_transactional_email(
-    payload: dict[str, Any],
-) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
-
-    payload = _transactional_payload_with_config_defaults(config, payload)
-    try:
-        return _send_transactional_and_audit(config, payload)
-    except requests.RequestException as exc:
-        return _handle_transactional_send_error(config, payload, exc)
-
-
-def _transactional_payload_with_config_defaults(config, payload):
-    if "audience" not in payload:
-        payload = payload | {"audience": config.audience}
-    if "client" not in payload:
-        payload = payload | {"client": config.client}
-    if config.from_email and "from_email" not in payload:
-        payload = payload | {"from_email": config.from_email}
-    return payload
-
-
-def _handle_transactional_send_error(config, payload, exc):
-    logger.exception("Datamailer transactional email failed")
-    error = str(exc)
-    audit_data = DatamailerSendAuditData(
-        send_type=DatamailerSendAuditType.TRANSACTIONAL,
-        payload=payload,
-        error=error,
-    )
-    record_datamailer_send_audit(audit_data)
-    if config.strict:
-        raise
-    return None

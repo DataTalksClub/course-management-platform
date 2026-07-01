@@ -719,6 +719,8 @@ Steps:
   of the management command into a service module.
 - [x] Split deadline reminder payload, item, and spec helpers out of the event
   orchestration module.
+- [x] Split Datamailer transactional sending and certificate notification sync
+  out of the recipient-list notification module.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin

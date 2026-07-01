@@ -7,6 +7,7 @@ from .audit import (
     datamailer_send_audit_defaults,
     record_datamailer_send_audit,
 )
+from .certificates import send_certificate_availability_notification
 from .memberships import (
     ContactMembershipSyncData,
     RecipientListBulkUpsertData,
@@ -30,12 +31,10 @@ from .memberships import (
 from .notifications import (
     DatamailerNotificationErrorData,
     RecipientListSendSyncData,
-    send_certificate_availability_notification,
     send_homework_score_notification,
     send_peer_review_assignment_notification,
     send_project_score_notification,
     send_registration_confirmation_email,
-    send_transactional_email,
 )
 from .status import (
     get_contact_history,
@@ -43,6 +42,7 @@ from .status import (
     get_email_status,
     get_transactional_message_status,
 )
+from .transactional import send_transactional_email
 
 __all__ = [
     "ContactMembershipSyncData",
