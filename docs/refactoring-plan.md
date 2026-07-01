@@ -168,6 +168,8 @@ testable service functions.
   helpers out of the route module.
 - [x] Split public course project query and badge decoration helpers out of
   the course route/context module.
+- [x] Split project submission confirmation field and context builders out of
+  the email delivery module.
 
 ## Current Findings
 
