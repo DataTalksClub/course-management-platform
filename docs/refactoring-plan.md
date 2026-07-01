@@ -277,6 +277,8 @@ testable service functions.
   helpers out of notification-specific orchestration.
 - [x] Split Datamailer campaign command payload construction and action
   execution out of the management command.
+- [x] Split Datamailer recipient-list import job creation and polling out of
+  inline recipient-list sync.
 
 ## Current Findings
 

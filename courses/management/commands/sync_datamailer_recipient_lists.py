@@ -11,8 +11,10 @@ from course_management.datamailer.recipient_list_batches import (
     RECIPIENT_LIST_KINDS,
     build_batches,
 )
-from course_management.datamailer.recipient_list_sync import (
+from course_management.datamailer.recipient_list_import_jobs import (
     ImportJobOptions,
+)
+from course_management.datamailer.recipient_list_sync import (
     RecipientListSyncData,
     sync_recipient_list_batches,
 )

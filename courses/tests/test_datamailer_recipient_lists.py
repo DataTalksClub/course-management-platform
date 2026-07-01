@@ -652,7 +652,7 @@ class DatamailerRecipientListCommandTest(TestCase):
         enrollment = self.create_enrolled_student()
 
         with patch(
-            "course_management.datamailer.recipient_list_sync.time.monotonic",
+            "course_management.datamailer.recipient_list_import_jobs.time.monotonic",
             side_effect=[0, 2],
         ):
             with self.assertRaisesMessage(
