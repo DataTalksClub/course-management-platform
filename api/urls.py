@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .openapi import openapi_json_view
+from .openapi.spec import openapi_json_view
 from .views import course_exports
 from .views import courses
 from .views import enrollment_certificates

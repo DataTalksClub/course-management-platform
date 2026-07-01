@@ -1,7 +1,7 @@
 from django.test import Client, TestCase
 
 from accounts.models import CustomUser, Token
-from api.openapi import (
+from api.openapi.spec import (
     build_openapi_spec,
     route_coverage,
     routed_paths,

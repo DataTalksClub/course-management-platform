@@ -9,6 +9,7 @@ from .paths import PATHS_BY_URL_NAME
 from .primitives import auth_required
 from .schemas import SCHEMAS
 
+
 def documented_urlpatterns():
     from api.urls import urlpatterns as api_urlpatterns
 
@@ -155,6 +156,7 @@ def build_openapi_paths():
             method_operations[method] = inspected_operation
         paths[openapi_path] = method_operations
     return paths
+
 
 def build_openapi_spec():
     paths = build_openapi_paths()

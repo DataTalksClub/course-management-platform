@@ -232,6 +232,8 @@ testable service functions.
   the sync package re-export shim.
 - [x] Move Datamailer payload callers to direct owner-module imports and remove
   the payload package re-export shim.
+- [x] Move OpenAPI spec building out of the package root and update callers to
+  import the concrete owner module directly.
 
 ## Current Findings
 
