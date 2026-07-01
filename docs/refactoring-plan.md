@@ -520,6 +520,11 @@ testable service functions.
   Verification:
   `uv run ruff check courses/tests/test_homework.py courses/tests/homework_view_base.py`
   and `uv run python manage.py test courses.tests.test_homework`.
+- [x] Shorten leaderboard completed-project export test by naming the completed
+  project fixture, project-submission fixture, response lookup, and exported
+  project assertions. Verification:
+  `uv run ruff check data/tests/test_leaderboard.py` and
+  `uv run python manage.py test data.tests.test_leaderboard`.
 
 ## Current Findings
 

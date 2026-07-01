@@ -140,8 +140,8 @@ class LeaderboardDataViewTestCase(TestCase):
         alice = data["leaderboard"][0]
         self.assertNotIn("homeworks", alice)
 
-    def test_includes_completed_project_submissions(self):
-        proj = Project.objects.create(
+    def create_completed_project(self):
+        return Project.objects.create(
             course=self.course,
             title="Project 1",
             slug="project-1",
@@ -150,8 +150,11 @@ class LeaderboardDataViewTestCase(TestCase):
             peer_review_due_date=timezone.now(),
             state=ProjectState.COMPLETED.value,
         )
-        ProjectSubmission.objects.create(
-            project=proj,
+
+    def create_completed_project_submission(self):
+        project = self.create_completed_project()
+        return ProjectSubmission.objects.create(
+            project=project,
             student=self.user1,
             enrollment=self.enrollment1,
             project_score=80,
@@ -164,17 +167,28 @@ class LeaderboardDataViewTestCase(TestCase):
             passed=True,
         )
 
+    def leaderboard_alice(self):
         response = self.client.get(self.url)
         data = yaml.safe_load(response.content)
-        alice = data["leaderboard"][0]
+        return data["leaderboard"][0]
+
+    def assert_completed_project_export(self, alice):
         self.assertIn("projects", alice)
         self.assertEqual(len(alice["projects"]), 1)
-        self.assertEqual(alice["projects"][0]["project_score"], 80)
+        project = alice["projects"][0]
+        self.assertEqual(project["project_score"], 80)
         self.assertEqual(
-            alice["projects"][0]["faq_contribution_url"],
+            project["faq_contribution_url"],
             "https://github.com/DataTalksClub/faq/issues/266",
         )
-        self.assertTrue(alice["projects"][0]["passed"])
+        self.assertTrue(project["passed"])
+
+    def test_includes_completed_project_submissions(self):
+        self.create_completed_project_submission()
+
+        alice = self.leaderboard_alice()
+
+        self.assert_completed_project_export(alice)
 
     def test_response_is_cached(self):
         self.client.get(self.url)
