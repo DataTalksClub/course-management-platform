@@ -65,10 +65,32 @@ class CampaignCadminViewTests(TestCase):
             "marketing_markdown": "New copy",
         }
 
+    def campaign_create_payload(self):
+        return {
+            "title": "LLM Zoomcamp",
+            "slug": "llm-zoomcamp",
+            "edition_label": "2026 cohort",
+            "current_course": self.course.id,
+            "is_active": "on",
+            "hero_image_url": "https://example.com/hero.jpg",
+            "video_url": "https://youtu.be/example",
+            "meta_description": "Learn LLMs",
+            "marketing_markdown": "## Register now",
+        }
+
+    def assert_campaign_create_page(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Create registration landing page")
+        self.assertContains(response, self.course.title)
+
     def assert_campaign_edit_page(self, response):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit registration landing page")
         self.assertContains(response, "/register/llm-zoomcamp/")
+
+    def assert_created_campaign_saved(self, campaign):
+        self.assertEqual(campaign.current_course, self.course)
+        self.assertEqual(campaign.marketing_markdown, "## Register now")
 
     def assert_campaign_updated(self, campaign):
         campaign.refresh_from_db()
@@ -130,23 +152,9 @@ class CampaignCadminViewTests(TestCase):
         url = reverse("cadmin_campaign_create")
         response = self.client.get(f"{url}?course={self.course.slug}")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response, "Create registration landing page"
-        )
-        self.assertContains(response, self.course.title)
+        self.assert_campaign_create_page(response)
 
-        payload = {
-            "title": "LLM Zoomcamp",
-            "slug": "llm-zoomcamp",
-            "edition_label": "2026 cohort",
-            "current_course": self.course.id,
-            "is_active": "on",
-            "hero_image_url": "https://example.com/hero.jpg",
-            "video_url": "https://youtu.be/example",
-            "meta_description": "Learn LLMs",
-            "marketing_markdown": "## Register now",
-        }
+        payload = self.campaign_create_payload()
         response = self.client.post(url, payload)
 
         campaign = RegistrationCampaign.objects.get(slug="llm-zoomcamp")
@@ -155,8 +163,7 @@ class CampaignCadminViewTests(TestCase):
             kwargs={"campaign_slug": campaign.slug},
         )
         self.assertRedirects(response, redirect_url)
-        self.assertEqual(campaign.current_course, self.course)
-        self.assertEqual(campaign.marketing_markdown, "## Register now")
+        self.assert_created_campaign_saved(campaign)
 
     def test_campaign_create_non_staff_denied(self):
         self.client.login(**credentials)

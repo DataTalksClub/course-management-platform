@@ -1369,6 +1369,14 @@ Steps:
   functions, repo-wide active-code scans excluding `.tmp` and generated
   migrations (`forbidden_comprehensions=0`, `long_functions=29`),
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten cadmin campaign-create view tests by naming the create payload,
+  create-page assertions, and saved-campaign assertions. Verification:
+  `uv run ruff check cadmin/tests/test_campaign_views.py`,
+  `uv run python manage.py test cadmin.tests.test_campaign_views`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, repo-wide active-code scans excluding `.tmp` and generated
+  migrations (`forbidden_comprehensions=0`, `long_functions=28`),
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
