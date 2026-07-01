@@ -22,12 +22,14 @@ class CoursesAPITestCase(TestCase):
         self.client = Client()
         self.client.defaults["HTTP_AUTHORIZATION"] = f"Token {self.token.key}"
 
+        start_date = timezone.datetime(2026, 1, 15).date()
+        end_date = timezone.datetime(2026, 4, 15).date()
         self.course = Course.objects.create(
             title="ML Zoomcamp",
             slug="ml-zoomcamp",
             description="Machine Learning course",
-            start_date=timezone.datetime(2026, 1, 15).date(),
-            end_date=timezone.datetime(2026, 4, 15).date(),
+            start_date=start_date,
+            end_date=end_date,
             registration_url="https://courses.datatalks.club/ml/register",
             github_repo_url="https://github.com/DataTalksClub/ml-zoomcamp",
         )
@@ -94,17 +96,19 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assert_created_course_payload(data)
-        self.assertTrue(Course.objects.filter(slug="new-course").exists())
+        course_exists = Course.objects.filter(slug="new-course").exists()
+        self.assertTrue(course_exists)
 
     def test_create_course_duplicate_slug(self):
         payload = {
             "slug": self.course.slug,
             "title": "Duplicate",
         }
+        body = json.dumps(payload)
 
         response = self.client.post(
             "/api/courses/",
-            json.dumps(payload),
+            body,
             content_type="application/json",
         )
 
@@ -112,25 +116,28 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.json()["code"], "course_slug_exists")
 
     def create_detail_homework(self):
+        due_date = timezone.now()
         Homework.objects.create(
             course=self.course,
             title="HW1",
             slug="hw1",
             description="",
             instructions_url="https://github.com/DataTalksClub/test/blob/main/homework.md",
-            due_date=timezone.now(),
+            due_date=due_date,
             state=HomeworkState.OPEN.value,
         )
 
     def create_detail_project(self):
+        submission_due_date = timezone.now()
+        peer_review_due_date = timezone.now()
         Project.objects.create(
             course=self.course,
             title="Project 1",
             slug="project-1",
             description="",
             instructions_url="https://github.com/DataTalksClub/test/blob/main/project.md",
-            submission_due_date=timezone.now(),
-            peer_review_due_date=timezone.now(),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
             state=ProjectState.CLOSED.value,
         )
 
@@ -208,12 +215,14 @@ class CoursesAPITestCase(TestCase):
         self.assert_persisted_course_patch()
 
     def test_patch_course_rejects_invalid_date_range(self):
+        payload = {
+            "start_date": "2026-05-01",
+            "end_date": "2026-04-01",
+        }
+        body = json.dumps(payload)
         response = self.client.patch(
             "/api/courses/ml-zoomcamp/",
-            json.dumps({
-                "start_date": "2026-05-01",
-                "end_date": "2026-04-01",
-            }),
+            body,
             content_type="application/json",
         )
 
@@ -221,9 +230,11 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.json()["code"], "validation_error")
 
     def test_patch_course_rejects_invalid_date_format(self):
+        payload = {"start_date": "01/15/2026"}
+        body = json.dumps(payload)
         response = self.client.patch(
             "/api/courses/ml-zoomcamp/",
-            json.dumps({"start_date": "01/15/2026"}),
+            body,
             content_type="application/json",
         )
 
@@ -231,9 +242,11 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.json()["code"], "invalid_date")
 
     def test_patch_course_invalid_field(self):
+        payload = {"slug": "changed"}
+        body = json.dumps(payload)
         response = self.client.patch(
             "/api/courses/ml-zoomcamp/",
-            json.dumps({"slug": "changed"}),
+            body,
             content_type="application/json",
         )
 
@@ -259,17 +272,19 @@ class CoursesAPITestCase(TestCase):
             "slug": "nonstaff-course",
             "title": "Nonstaff Course",
         }
+        create_body = json.dumps(create_payload)
         create_response = client.post(
             "/api/courses/",
-            json.dumps(create_payload),
+            create_body,
             content_type="application/json",
         )
         responses.append(create_response)
 
         patch_payload = {"title": "Changed by nonstaff"}
+        patch_body = json.dumps(patch_payload)
         patch_response = client.patch(
             "/api/courses/ml-zoomcamp/",
-            json.dumps(patch_payload),
+            patch_body,
             content_type="application/json",
         )
         responses.append(patch_response)
@@ -280,9 +295,10 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.json()["code"], "staff_token_required")
 
     def assert_course_unchanged_after_forbidden_mutations(self):
-        self.assertFalse(
-            Course.objects.filter(slug="nonstaff-course").exists()
-        )
+        course_exists = Course.objects.filter(
+            slug="nonstaff-course"
+        ).exists()
+        self.assertFalse(course_exists)
         self.course.refresh_from_db()
         self.assertEqual(self.course.title, "ML Zoomcamp")
 
