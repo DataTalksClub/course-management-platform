@@ -1285,6 +1285,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten shared project score test helpers by splitting peer-review
+  fixture creation, score-project completion assertions, evaluation-score
+  assertions, and submission-score assertions. Verification:
+  `uv run ruff check courses/tests/project_score_base.py courses/tests/test_project_score.py courses/tests/test_project_score_outcomes.py courses/tests/test_project_score_bonus.py courses/tests/test_project_results.py`,
+  `uv run python manage.py test courses.tests.test_project_score courses.tests.test_project_score_outcomes courses.tests.test_project_score_bonus courses.tests.test_project_results`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

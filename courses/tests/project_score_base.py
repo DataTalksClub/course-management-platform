@@ -105,36 +105,46 @@ class ProjectEvaluationTestBase(TestCase):
         peer_reviews = []
 
         for index in range(number_of_peer_reviews):
-            random_suffix = random.randint(0, 1000000)
-            other_user = User.objects.create_user(
-                username=f"student{index}-{random_suffix}",
-                email=f"student{index}{random_suffix}@email.com",
-                password="12345",
-            )
-            other_enrollment = Enrollment.objects.create(
-                student=other_user,
-                course=self.course,
-            )
-            other_submission = ProjectSubmission.objects.create(
-                project=self.project,
-                student=other_user,
-                enrollment=other_enrollment,
-                github_link=f"https://github.com/other_student{index}/project",
-                commit_id=f"abcdefg{index}",
-            )
-            peer_review = PeerReview.objects.create(
-                submission_under_evaluation=self.submission,
-                reviewer=other_submission,
-                state=PeerReviewState.TO_REVIEW.value,
-                optional=optional,
+            other_submission = self.create_peer_review_submission(index)
+            peer_review = self.create_peer_review_assignment(
+                other_submission,
+                optional,
             )
             peer_reviews.append(peer_review)
 
         return peer_reviews
 
-    def assert_evaluation_score(
-        self, answers_and_scores, expected_project_score
-    ):
+    def create_peer_review_student(self, index):
+        random_suffix = random.randint(0, 1000000)
+        return User.objects.create_user(
+            username=f"student{index}-{random_suffix}",
+            email=f"student{index}{random_suffix}@email.com",
+            password="12345",
+        )
+
+    def create_peer_review_submission(self, index):
+        other_user = self.create_peer_review_student(index)
+        other_enrollment = Enrollment.objects.create(
+            student=other_user,
+            course=self.course,
+        )
+        return ProjectSubmission.objects.create(
+            project=self.project,
+            student=other_user,
+            enrollment=other_enrollment,
+            github_link=f"https://github.com/other_student{index}/project",
+            commit_id=f"abcdefg{index}",
+        )
+
+    def create_peer_review_assignment(self, other_submission, optional):
+        return PeerReview.objects.create(
+            submission_under_evaluation=self.submission,
+            reviewer=other_submission,
+            state=PeerReviewState.TO_REVIEW.value,
+            optional=optional,
+        )
+
+    def submit_score_answers(self, answers_and_scores):
         for index, row in enumerate(answers_and_scores):
             answer, expected_score = row
             peer_review = self.peer_reviews[index]
@@ -148,6 +158,7 @@ class ProjectEvaluationTestBase(TestCase):
             peer_review.state = PeerReviewState.SUBMITTED.value
             peer_review.save()
 
+    def assert_score_project_completed(self):
         status, _ = score_project(self.project)
         self.assertEqual(status, ProjectActionStatus.OK)
 
@@ -156,16 +167,26 @@ class ProjectEvaluationTestBase(TestCase):
             self.project.state, ProjectState.COMPLETED.value
         )
 
+    def assert_project_evaluation_score(self, expected_project_score):
         score = ProjectEvaluationScore.objects.filter(
             submission=self.submission, review_criteria=self.criteria
         ).first()
 
         self.assertEqual(score.score, expected_project_score)
 
+    def assert_submission_project_score(self, expected_project_score):
         self.submission.refresh_from_db()
         self.assertEqual(
             self.submission.project_score, expected_project_score
         )
+
+    def assert_evaluation_score(
+        self, answers_and_scores, expected_project_score
+    ):
+        self.submit_score_answers(answers_and_scores)
+        self.assert_score_project_completed()
+        self.assert_project_evaluation_score(expected_project_score)
+        self.assert_submission_project_score(expected_project_score)
 
     def create_reverse_assignments(self, peer_reviews, optional=False):
         other_reviews = []
