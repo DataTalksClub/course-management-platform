@@ -511,6 +511,10 @@ testable service functions.
   user fixture and shared intro-homework fixture. Verification:
   `uv run ruff check courses/tests/test_registration_campaigns.py` and
   `uv run python manage.py test courses.tests.test_registration_campaigns`.
+- [x] Shorten dashboard formatted-time display test by naming the quartile
+  fixture submissions and formatted-field assertions. Verification:
+  `uv run ruff check courses/tests/test_dashboard.py` and
+  `uv run python manage.py test courses.tests.test_dashboard`.
 
 ## Current Findings
 

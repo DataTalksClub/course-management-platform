@@ -271,6 +271,35 @@ class DashboardHomeworkStatsTestCase(TestCase):
         self.assertEqual(hw_stat["submissions_count"], 4)
         self.assertIsNotNone(hw_stat["time_lecture_median"])
 
+    def create_formatted_time_submissions(self):
+        scores = {
+            "time_spent_lectures": 3.0,
+            "time_spent_homework": 4.0,
+            "total_score": 85,
+        }
+        self.create_homework_submission(
+            self.users[0],
+            self.enrollments[0],
+            scores,
+        )
+
+        for index in range(1, 4):
+            scores = {
+                "time_spent_lectures": 3.0 + index,
+                "time_spent_homework": 4.0 + index,
+                "total_score": 85 + index,
+            }
+            self.create_homework_submission(
+                self.users[index],
+                self.enrollments[index],
+                scores,
+            )
+
+    def assert_formatted_time_fields(self, hw_stat):
+        self.assertIn("time_lecture_median_formatted", hw_stat)
+        self.assertIn("time_homework_median_formatted", hw_stat)
+        self.assertIn("time_total_median_formatted", hw_stat)
+
     def test_homework_statistics_calculation(self):
         """Test homework statistics calculation with various data"""
         self.create_homework_stat_submissions()
@@ -394,28 +423,7 @@ class DashboardHomeworkStatsTestCase(TestCase):
 
     def test_homework_formatted_time_display(self):
         """Test that time formatting works correctly"""
-        # Create submission with whole number time
-        self.create_homework_submission(
-            self.users[0],
-            self.enrollments[0],
-            {
-                "time_spent_lectures": 3.0,
-                "time_spent_homework": 4.0,
-                "total_score": 85,
-            },
-        )
-
-        # Create more submissions for quartile calculation
-        for i in range(1, 4):
-            self.create_homework_submission(
-                self.users[i],
-                self.enrollments[i],
-                {
-                    "time_spent_lectures": 3.0 + i,
-                    "time_spent_homework": 4.0 + i,
-                    "total_score": 85 + i,
-                },
-            )
+        self.create_formatted_time_submissions()
 
         url = reverse("dashboard", args=[self.course.slug])
         response = self.client.get(url)
@@ -423,7 +431,4 @@ class DashboardHomeworkStatsTestCase(TestCase):
         hw_stats = response.context["homework_stats"]
         hw_stat = hw_stats[0]
 
-        # Check formatted values exist
-        self.assertIn("time_lecture_median_formatted", hw_stat)
-        self.assertIn("time_homework_median_formatted", hw_stat)
-        self.assertIn("time_total_median_formatted", hw_stat)
+        self.assert_formatted_time_fields(hw_stat)
