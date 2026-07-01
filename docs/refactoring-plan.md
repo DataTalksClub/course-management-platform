@@ -2013,6 +2013,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_datamailer_membership`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name Datamailer outbox test error, attempt, status, and command output
+  values before retry classification or assertions. Verification:
+  `uv run ruff check courses/tests/test_datamailer_outbox.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

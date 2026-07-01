@@ -165,27 +165,36 @@ class DatamailerOutboxTest(TestCase):
         DatamailerSendAudit.objects.create(**audit_data)
 
     def test_outbox_status_for_error_classifies_retryable_errors(self):
-        self.assertEqual(
-            status_for_error(self.http_error(429), self.outbox_attempt()),
-            DatamailerOutboxStatus.RETRYING,
+        rate_limit_error = self.http_error(429)
+        rate_limit_attempt = self.outbox_attempt()
+        rate_limit_status = status_for_error(
+            rate_limit_error,
+            rate_limit_attempt,
         )
-        self.assertEqual(
-            status_for_error(self.http_error(503), self.outbox_attempt()),
-            DatamailerOutboxStatus.RETRYING,
+        self.assertEqual(rate_limit_status, DatamailerOutboxStatus.RETRYING)
+
+        unavailable_error = self.http_error(503)
+        unavailable_attempt = self.outbox_attempt()
+        unavailable_status = status_for_error(
+            unavailable_error,
+            unavailable_attempt,
         )
+        self.assertEqual(unavailable_status, DatamailerOutboxStatus.RETRYING)
 
     def test_outbox_status_for_error_classifies_failed_errors(self):
         network_error = requests.RequestException("network error")
         final_attempt = self.outbox_attempt(attempt_count=3, max_attempts=3)
 
-        self.assertEqual(
-            status_for_error(self.http_error(400), self.outbox_attempt()),
-            DatamailerOutboxStatus.FAILED,
+        bad_request_error = self.http_error(400)
+        bad_request_attempt = self.outbox_attempt()
+        bad_request_status = status_for_error(
+            bad_request_error,
+            bad_request_attempt,
         )
-        self.assertEqual(
-            status_for_error(network_error, final_attempt),
-            DatamailerOutboxStatus.FAILED,
-        )
+        self.assertEqual(bad_request_status, DatamailerOutboxStatus.FAILED)
+
+        final_status = status_for_error(network_error, final_attempt)
+        self.assertEqual(final_status, DatamailerOutboxStatus.FAILED)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch("course_management.datamailer.client.DatamailerClient.erase_contact")
@@ -256,7 +265,8 @@ class DatamailerOutboxTest(TestCase):
         self.assertEqual(event.attempt_count, 2)
         self.assertEqual(upsert_contact.call_count, 2)
         self.assertEqual(upsert_member.call_count, 2)
-        self.assertIn("1 acked", out.getvalue())
+        output = out.getvalue()
+        self.assertIn("1 acked", output)
         self.assert_successful_outbox_dispatch_run()
 
     @override_settings(**DATAMAILER_SETTINGS)
