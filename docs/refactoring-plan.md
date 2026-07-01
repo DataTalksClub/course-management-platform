@@ -1618,6 +1618,16 @@ Steps:
   and `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Move Datamailer project passed-outcome sync data assembly behind a
+  focused helper so the score-send path no longer unpacks eight constructor
+  fields at the call site. Verification:
+  `uv run ruff check course_management/datamailer/sync/score_notifications.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_project_scores`,
+  touched-file scans report `touched_file_high_arg_calls=0`,
+  `touched_file_inline_dict_calls=0`, `touched_file_nested_call_arguments=0`,
+  and `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

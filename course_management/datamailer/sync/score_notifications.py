@@ -123,15 +123,32 @@ def _sync_project_passed_outcome_before_score_send(
     if passed_list_payload is None:
         return True
 
-    passed_list_key, passed_payload = passed_list_payload
-    sync_data = RecipientListSendSyncData(
-        config=config,
-        list_key=passed_list_key,
-        payload=passed_payload,
-        idempotency_key=f"{payload['idempotency_key']}:passed-outcome",
-        ordering_key=passed_list_key,
-        error="Datamailer passed-outcome sync was not acknowledged",
-        audit_payload=payload,
-        audit_list_key=list_key,
+    score_list_payload = (list_key, payload)
+    sync_data = project_passed_outcome_sync_data(
+        config,
+        score_list_payload,
+        passed_list_payload,
     )
     return sync_members_before_recipient_list_send_or_audit(sync_data)
+
+
+def project_passed_outcome_sync_data(
+    config,
+    score_list_payload,
+    passed_list_payload,
+):
+    list_key, payload = score_list_payload
+    passed_list_key, passed_payload = passed_list_payload
+    idempotency_key = f"{payload['idempotency_key']}:passed-outcome"
+    values = {
+        "config": config,
+        "list_key": passed_list_key,
+        "payload": passed_payload,
+        "idempotency_key": idempotency_key,
+        "ordering_key": passed_list_key,
+        "error": "Datamailer passed-outcome sync was not acknowledged",
+        "audit_payload": payload,
+        "audit_list_key": list_key,
+    }
+    sync_data = RecipientListSendSyncData(**values)
+    return sync_data
