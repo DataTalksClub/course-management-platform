@@ -596,6 +596,13 @@ testable service functions.
   `uv run ruff check courses/tests/test_project_assign.py` and
   `uv run python manage.py test courses.tests.test_project_assign`; touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name homework view test-base URLs, enrollment/submission existence checks,
+  and expected option records before request helpers, redirects, or assertions.
+  Verification:
+  `uv run ruff check courses/tests/homework_view_base.py courses/tests/test_homework.py courses/tests/test_homework_submission_view.py`
+  and
+  `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_submission_view`;
+  touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

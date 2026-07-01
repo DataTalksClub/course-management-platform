@@ -167,7 +167,8 @@ class HomeworkDetailViewTestBase(TestCase):
     def get_homework_response(self, login=False):
         if login:
             self.client.login(**credentials)
-        return self.client.get(self.homework_url())
+        url = self.homework_url()
+        return self.client.get(url)
 
     def enable_all_optional_submission_fields(self):
         self.homework.homework_url_field = True
@@ -293,23 +294,23 @@ class HomeworkDetailViewTestBase(TestCase):
 
     def post_homework(self, post_data):
         self.client.login(**credentials)
-        return self.client.post(self.homework_url(), post_data)
+        url = self.homework_url()
+        return self.client.post(url, post_data)
 
     def assert_redirects_to_homework(self, response):
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, self.homework_url())
+        url = self.homework_url()
+        self.assertEqual(response.url, url)
 
     def assert_no_enrollment_or_submission(self):
-        self.assertFalse(
-            Enrollment.objects.filter(
-                student=self.user, course=self.course
-            ).exists()
-        )
-        self.assertFalse(
-            Submission.objects.filter(
-                student=self.user, homework=self.homework
-            ).exists()
-        )
+        enrollment_exists = Enrollment.objects.filter(
+            student=self.user, course=self.course
+        ).exists()
+        self.assertFalse(enrollment_exists)
+        submission_exists = Submission.objects.filter(
+            student=self.user, homework=self.homework
+        ).exists()
+        self.assertFalse(submission_exists)
 
     def get_saved_submission(self):
         return Submission.objects.get(
@@ -317,16 +318,14 @@ class HomeworkDetailViewTestBase(TestCase):
         )
 
     def assert_enrollment_and_submission_exist(self):
-        self.assertTrue(
-            Enrollment.objects.filter(
-                student=self.user, course=self.course
-            ).exists()
-        )
-        self.assertTrue(
-            Submission.objects.filter(
-                student=self.user, homework=self.homework
-            ).exists()
-        )
+        enrollment_exists = Enrollment.objects.filter(
+            student=self.user, course=self.course
+        ).exists()
+        self.assertTrue(enrollment_exists)
+        submission_exists = Submission.objects.filter(
+            student=self.user, homework=self.homework
+        ).exists()
+        self.assertTrue(submission_exists)
 
     def assert_submission_answers(self, submission, expected_answers):
         answers = Answer.objects.filter(submission=submission)
@@ -345,53 +344,69 @@ class HomeworkDetailViewTestBase(TestCase):
     def assert_empty_question_answers(self, question_answers):
         self.assertEqual(len(question_answers), 6)
         self.assertEqual(question_answers[0][0], self.question1)
+        question1_options = self.unselected_options(
+            ["Paris", "London", "Berlin"]
+        )
         self.assertEqual(
             question_answers[0][1]["options"],
-            self.unselected_options(["Paris", "London", "Berlin"]),
+            question1_options,
         )
         self.assertEqual(question_answers[1], (self.question2, {"text": ""}))
         self.assertEqual(question_answers[2][0], self.question3)
+        question3_options = self.unselected_options(["2", "3", "4", "5"])
         self.assertEqual(
             question_answers[2][1]["options"],
-            self.unselected_options(["2", "3", "4", "5"]),
+            question3_options,
         )
         self.assertEqual(question_answers[3][0], self.question4)
+        question4_options = self.unselected_options(["5", "6", "7"])
         self.assertEqual(
             question_answers[3][1]["options"],
-            self.unselected_options(["5", "6", "7"]),
+            question4_options,
         )
         self.assertEqual(question_answers[4], (self.question5, {"text": ""}))
         self.assertEqual(question_answers[5][0], self.question6)
+        question6_options = self.unselected_options(
+            ["Blue", "White", "Red", "Green"]
+        )
         self.assertEqual(
             question_answers[5][1]["options"],
-            self.unselected_options(["Blue", "White", "Red", "Green"]),
+            question6_options,
         )
 
     def assert_saved_question_answers(self, question_answers):
         self.assertEqual(len(question_answers), 6)
         self.assertEqual(question_answers[0][0], self.question1)
+        question1_options = self.selected_options(
+            ["Paris", "London", "Berlin"], {3}
+        )
         self.assertEqual(
             question_answers[0][1]["options"],
-            self.selected_options(["Paris", "London", "Berlin"], {3}),
+            question1_options,
         )
         self.assertEqual(question_answers[1][0], self.question2)
         self.assertEqual(question_answers[1][1]["text"], "Some text")
         self.assertEqual(question_answers[2][0], self.question3)
+        question3_options = self.selected_options(
+            ["2", "3", "4", "5"], {1, 2}
+        )
         self.assertEqual(
             question_answers[2][1]["options"],
-            self.selected_options(["2", "3", "4", "5"], {1, 2}),
+            question3_options,
         )
         self.assertEqual(question_answers[3][0], self.question4)
+        question4_options = self.selected_options(["5", "6", "7"], {1})
         self.assertEqual(
             question_answers[3][1]["options"],
-            self.selected_options(["5", "6", "7"], {1}),
+            question4_options,
         )
         self.assertEqual(question_answers[4][0], self.question5)
         self.assertEqual(question_answers[4][1]["text"], "3.141516")
         self.assertEqual(question_answers[5][0], self.question6)
+        question6_options = self.selected_options(
+            ["Blue", "White", "Red", "Green"], {1, 2, 3}
+        )
         self.assertEqual(
             question_answers[5][1]["options"],
-            self.selected_options(
-                ["Blue", "White", "Red", "Green"], {1, 2, 3}
-            ),
+            question6_options,
         )
