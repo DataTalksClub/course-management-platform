@@ -1799,6 +1799,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_certificate_name`,
   touched-file nested-call scan reports `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name single nested values in small API, cadmin, course-helper, and data
+  test modules instead of nesting route/helper/query calls directly in client
+  calls or assertions. Verification:
+  `uv run ruff check api/tests/test_homework_scoring.py cadmin/tests/test_campaign_views.py courses/tests/test_registration_helpers.py data/tests/test_enrollment.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_homework_scoring cadmin.tests.test_campaign_views courses.tests.test_registration_helpers data.tests.test_enrollment`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

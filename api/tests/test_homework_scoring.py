@@ -11,8 +11,9 @@ class HomeworkScoringAPITestCase(HomeworkAPITestBase):
         homework = self._create_scoreable_homework()
         question = self._create_scored_question(homework)
         submission = self._create_answered_submission(homework, question)
+        url = self._homework_score_url(homework)
 
-        response = self.client.post(self._homework_score_url(homework))
+        response = self.client.post(url)
 
         self._assert_homework_score_response(response)
         submission.refresh_from_db()

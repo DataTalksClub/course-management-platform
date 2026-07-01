@@ -37,7 +37,8 @@ class RegistrationHelperTests(SimpleTestCase):
 
     def test_country_helpers_use_countries_config(self):
         countries = ordered_countries()
+        germany_region = region_for_country("Germany")
 
         self.assertIn("Germany", countries)
-        self.assertEqual(region_for_country("Germany"), "Europe")
+        self.assertEqual(germany_region, "Europe")
         self.assertEqual(COUNTRY_CHOICES[0], ("United States", "United States"))

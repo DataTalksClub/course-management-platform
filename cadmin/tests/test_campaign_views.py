@@ -172,7 +172,8 @@ class CampaignCadminViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(RegistrationCampaign.objects.exists())
+        campaign_exists = RegistrationCampaign.objects.exists()
+        self.assertFalse(campaign_exists)
 
     def test_campaign_edit_staff_allowed(self):
         campaign = self.create_llm_registration_campaign(

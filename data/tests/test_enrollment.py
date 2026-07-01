@@ -50,8 +50,9 @@ class EnrollmentGraduateDataAPITestCase(EnrollmentDataAPIBase):
 
     def test_graduate_data_view(self):
         self.create_graduate_view_scenario()
+        url = self.graduates_url()
 
-        response = self.client.get(self.graduates_url())
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
