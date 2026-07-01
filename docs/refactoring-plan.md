@@ -240,6 +240,8 @@ testable service functions.
   registry modules.
 - [x] Extend the no-lambda cleanup to accounts and timezone helpers with named
   sort-key functions.
+- [x] Replace `courses.models` wildcard package exports with an explicit model
+  export list.
 
 ## Current Findings
 
