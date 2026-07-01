@@ -1,6 +1,6 @@
 from django.db.models import Q, Sum
 
-from courses.models import UserWrappedStatistics
+from courses.models.wrapped import UserWrappedStatistics
 
 from .activity import (
     group_wrapped_activity_by_student,

@@ -1,6 +1,6 @@
 from operator import attrgetter, itemgetter
 
-from courses.models import UserWrappedStatistics
+from courses.models.wrapped import UserWrappedStatistics
 
 from .types import (
     UserWrappedMetrics,

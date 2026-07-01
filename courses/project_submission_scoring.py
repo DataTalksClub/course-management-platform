@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from courses.models import (
+from courses.models.project import (
     CriteriaResponse,
     PeerReview,
     Project,

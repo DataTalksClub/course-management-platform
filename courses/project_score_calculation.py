@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from courses.models import ReviewCriteria
+from courses.models.project import ReviewCriteria
 from courses.project_score_groups import group_peer_reviews
 from courses.project_submission_scoring import (
     ProjectScoringData,

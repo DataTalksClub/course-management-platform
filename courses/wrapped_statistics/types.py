@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from courses.models import WrappedStatistics
+from courses.models.wrapped import WrappedStatistics
 
 
 @dataclass(frozen=True)

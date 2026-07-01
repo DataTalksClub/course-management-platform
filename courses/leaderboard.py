@@ -4,10 +4,10 @@ from time import time
 from django.core.cache import cache
 from django.db.models import Sum
 
-from courses.models import (
-    Enrollment,
+from courses.models.course import Enrollment
+from courses.models.homework import Submission
+from courses.models.project import (
     ProjectSubmission,
-    Submission,
 )
 
 

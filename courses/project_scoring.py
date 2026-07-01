@@ -11,7 +11,7 @@ from course_management.datamailer.sync.memberships import (
     sync_project_submission_to_datamailer,
 )
 
-from courses.models import (
+from courses.models.project import (
     Project,
     ProjectSubmission,
     PeerReview,

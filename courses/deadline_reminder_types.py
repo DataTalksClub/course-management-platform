@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from course_management.datamailer.client import DatamailerConfig
-from courses.models import Course
+from courses.models.course import Course
 
 
 @dataclass(frozen=True)

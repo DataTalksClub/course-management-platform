@@ -1,6 +1,7 @@
 from django.db import transaction
 
-from courses.models import ProjectSubmission, Submission
+from courses.models.homework import Submission
+from courses.models.project import ProjectSubmission
 from courses.leaderboard import update_leaderboard
 
 

@@ -17,7 +17,9 @@ from course_management.datamailer.sync.memberships import (
     remove_registration_from_datamailer as remove_registration_recipient_list,
     sync_enrollment_to_datamailer as sync_enrollment_recipient_list,
 )
-from courses.models import CourseRegistration, Enrollment, ProjectSubmission, Submission
+from courses.models.course import CourseRegistration, Enrollment
+from courses.models.homework import Submission
+from courses.models.project import ProjectSubmission
 
 
 @receiver(post_save, sender=CustomUser)

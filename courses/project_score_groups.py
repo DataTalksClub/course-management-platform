@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 
-from courses.models import CriteriaResponse, PeerReviewState
+from courses.models.project import CriteriaResponse, PeerReviewState
 
 
 @dataclass(frozen=True)

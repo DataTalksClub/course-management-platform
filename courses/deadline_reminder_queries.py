@@ -3,15 +3,17 @@ from datetime import datetime, time, timedelta, timezone as datetime_timezone
 from django.db.models import Q
 
 from courses.deadline_reminder_types import ReminderWindow
-from courses.models import (
-    Enrollment,
+from courses.models.course import Enrollment
+from courses.models.homework import (
     Homework,
     HomeworkState,
+    Submission,
+)
+from courses.models.project import (
     PeerReviewState,
     Project,
     ProjectState,
     ProjectSubmission,
-    Submission,
 )
 
 

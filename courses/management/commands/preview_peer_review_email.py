@@ -13,7 +13,8 @@ import json
 
 from django.core.management.base import BaseCommand, CommandError
 
-from courses.models import Course, Project
+from courses.models.course import Course
+from courses.models.project import Project
 from course_management.datamailer.payloads.peer_review_members import (
     assigned_review_links,
 )

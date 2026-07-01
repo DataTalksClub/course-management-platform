@@ -1,7 +1,7 @@
 import logging
 from time import time
 
-from courses.models import WrappedStatistics
+from courses.models.wrapped import WrappedStatistics
 
 from .activity import wrapped_activity_context
 from .persistence import (
