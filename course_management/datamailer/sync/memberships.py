@@ -3,7 +3,7 @@ from ..payloads.base import (
     contact_payload_for_user,
     enrollment_recipient_list_payload,
 )
-from ..payloads.certificates import (
+from ..payloads.course_graduates import (
     course_graduate_recipient_list_member_payload,
 )
 from ..payloads.project_outcomes import (

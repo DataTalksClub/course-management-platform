@@ -326,6 +326,9 @@ testable service functions.
   scoring mutation module.
 - [x] Split optional project-evaluation add/delete actions out of the project
   evaluation page context module.
+- [x] Split Datamailer certificate availability and course-graduate
+  recipient-list payload builders into direct owner modules and remove the
+  mixed certificate payload module.
 
 ## Current Findings
 
