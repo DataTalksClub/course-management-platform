@@ -61,7 +61,9 @@ def due_outbox_event_ids(limit):
         next_attempt_at__lte=now,
     )
     ordered_event_ids = event_ids.order_by("created_at", "id")
-    return list(ordered_event_ids.values_list("id", flat=True)[:limit])
+    due_ids = ordered_event_ids.values_list("id", flat=True)[:limit]
+    result = list(due_ids)
+    return result
 
 
 def initial_outbox_counts():

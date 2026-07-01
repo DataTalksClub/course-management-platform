@@ -22,7 +22,10 @@ def import_member_jsonl(members):
     for member in members:
         line = json.dumps(member, sort_keys=True, separators=(",", ":"))
         lines.append(line)
-    return ("\n".join(lines) + "\n").encode("utf-8")
+    content = "\n".join(lines)
+    content_with_trailing_newline = f"{content}\n"
+    body = content_with_trailing_newline.encode("utf-8")
+    return body
 
 
 def safe_s3_key_part(value):

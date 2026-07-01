@@ -216,6 +216,8 @@ testable service functions.
   groups with explicit aggregators.
 - [x] Split remaining long dashboard and project-statistics test helpers into
   focused fixture/assertion or score-row groups.
+- [x] Flatten compact Datamailer outbox ID extraction and recipient-list JSONL
+  encoding return expressions into named intermediate steps.
 
 ## Current Findings
 
