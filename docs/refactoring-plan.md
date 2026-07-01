@@ -2955,6 +2955,15 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split Datamailer membership tests into shared membership fixtures,
+  add/upsert tests, removal tests, and project-passed outcome tests.
+  Verification:
+  `uv run ruff check courses/tests/datamailer_membership_base.py courses/tests/test_datamailer_membership.py courses/tests/test_datamailer_membership_removals.py courses/tests/test_datamailer_membership_outcomes.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_membership courses.tests.test_datamailer_membership_removals courses.tests.test_datamailer_membership_outcomes`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
