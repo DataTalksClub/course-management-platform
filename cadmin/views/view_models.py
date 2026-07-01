@@ -44,20 +44,24 @@ PROJECT_SUBMISSION_FILTER_COUNTS = {
 }
 
 
-def project_submission_list_data(project, search_query, status_filter):
-    submissions = (
+def _project_submission_queryset(project, search_query):
+    queryset = (
         ProjectSubmission.objects.filter(project=project)
         .select_related("student", "enrollment")
         .order_by("-submitted_at")
     )
 
     if search_query:
-        submissions = submissions.filter(
+        queryset = queryset.filter(
             Q(student__email__icontains=search_query)
             | Q(student__username__icontains=search_query)
         )
+    return queryset
 
-    submissions = list(submissions)
+
+def project_submission_list_data(project, search_query, status_filter):
+    queryset = _project_submission_queryset(project, search_query)
+    submissions = list(queryset)
     _attach_project_review_counts(project, submissions)
 
     filter_counts = _status_filter_counts(
@@ -127,10 +131,10 @@ ENROLLMENT_FILTER_COUNTS = {
 }
 
 
-def enrollment_list_data(course, search_query, status_filter):
+def _enrollment_queryset(course, search_query):
     homework_count_annotation = Count("submission", distinct=True)
     project_count_annotation = Count("projectsubmission", distinct=True)
-    enrollments = (
+    queryset = (
         Enrollment.objects.filter(course=course)
         .select_related("student")
         .annotate(
@@ -140,13 +144,17 @@ def enrollment_list_data(course, search_query, status_filter):
         .order_by("position_on_leaderboard", "id")
     )
     if search_query:
-        enrollments = enrollments.filter(
+        queryset = queryset.filter(
             Q(student__email__icontains=search_query)
             | Q(student__username__icontains=search_query)
             | Q(display_name__icontains=search_query)
         )
+    return queryset
 
-    enrollments = list(enrollments)
+
+def enrollment_list_data(course, search_query, status_filter):
+    queryset = _enrollment_queryset(course, search_query)
+    enrollments = list(queryset)
     _attach_enrollment_support_flags(enrollments)
 
     filter_counts = _status_filter_counts(

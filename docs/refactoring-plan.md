@@ -88,6 +88,8 @@ testable service functions.
   or constructor calls with named local variables.
 - [x] Decompose project-create API attribute validation into required-input
   and parsed-date value objects.
+- [x] Split cadmin view-model queryset/search construction out of enrollment
+  and project-submission list data assembly.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
