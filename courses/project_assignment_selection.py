@@ -56,9 +56,16 @@ def _review_slot_project_pools(
 ) -> list[list[int]]:
     project_pools = []
     for _ in range(num_projects_to_review):
-        project_pool = list(range(num_submissions))
+        project_pool = _project_pool(num_submissions)
         project_pools.append(project_pool)
     return project_pools
+
+
+def _project_pool(num_submissions: int) -> list[int]:
+    project_pool = []
+    for project_index in range(num_submissions):
+        project_pool.append(project_index)
+    return project_pool
 
 
 def _select_reviewer_assignments(

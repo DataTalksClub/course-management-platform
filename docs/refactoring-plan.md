@@ -530,6 +530,10 @@ testable service functions.
   confirmation assertion. Verification:
   `uv run ruff check e2e/tests/test_03_homework.py` and
   `uv run pytest e2e/tests/test_03_homework.py --collect-only -q`.
+- [x] Flatten peer-review assignment pool construction by replacing nested
+  `list(range(...))` with an explicit named project-pool builder. Verification:
+  `uv run ruff check courses/project_assignment_selection.py` and
+  `uv run python manage.py test courses.tests.test_unit_projects courses.tests.test_project_assign`.
 
 ## Current Findings
 
