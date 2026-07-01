@@ -654,6 +654,12 @@ testable service functions.
   `uv run ruff check e2e/api_client.py e2e/provisioning.py e2e/tests/test_03_homework.py e2e/tests/test_04_project.py`,
   `python -m py_compile e2e/api_client.py e2e/provisioning.py e2e/tests/test_03_homework.py e2e/tests/test_04_project.py`,
   and touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name mock-inbox test dotenv contents and wait-message criteria before
+  file writes or wait-request construction. Verification:
+  `uv run ruff check e2e/tests/test_06_mock_inbox_client.py`,
+  `python -m py_compile e2e/tests/test_06_mock_inbox_client.py`,
+  `uv run pytest e2e/tests/test_06_mock_inbox_client.py -q`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

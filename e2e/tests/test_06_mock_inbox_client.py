@@ -125,17 +125,15 @@ def test_messages_url_appends_api_path():
 
 def test_load_dotenv_sets_missing_values_only(tmp_path, monkeypatch):
     env_file = tmp_path / ".env"
-    env_file.write_text(
-        "\n".join(
-            [
-                "# comment",
-                "E2E_EXISTING=from-file",
-                "E2E_NEW='from file'",
-                "E2E_QUOTED=\"quoted\"",
-                "malformed",
-            ]
-        )
-    )
+    env_lines = [
+        "# comment",
+        "E2E_EXISTING=from-file",
+        "E2E_NEW='from file'",
+        "E2E_QUOTED=\"quoted\"",
+        "malformed",
+    ]
+    env_contents = "\n".join(env_lines)
+    env_file.write_text(env_contents)
     monkeypatch.setenv("E2E_EXISTING", "from-env")
     monkeypatch.delenv("E2E_NEW", raising=False)
     monkeypatch.delenv("E2E_QUOTED", raising=False)
@@ -203,12 +201,13 @@ def test_wait_for_message_matches_template_and_fetches_detail():
     detail_resp = FakeResponse(200, {"message": _summary() | {"html_body": "<p>/homework/hw-1</p>"}})
     client = _client([list_resp, detail_resp])
 
+    criteria = MessageMatchCriteria(
+        template_key="homework-submission-confirmation",
+        subject="Homework submission saved",
+    )
     request = MessageWaitRequest(
         address="e2e+run@mailbox.test",
-        criteria=MessageMatchCriteria(
-            template_key="homework-submission-confirmation",
-            subject="Homework submission saved",
-        ),
+        criteria=criteria,
         timeout=5,
     )
     msg = client.wait_for_message(request)
@@ -219,11 +218,12 @@ def test_wait_for_message_matches_template_and_fetches_detail():
 def test_wait_for_message_skips_non_matching_template():
     other = _summary(template_key="welcome", subject="Welcome")
     client = _client([FakeResponse(200, {"messages": [other]})] * 50)
+    criteria = MessageMatchCriteria(
+        template_key="homework-submission-confirmation",
+    )
     request = MessageWaitRequest(
         address="e2e+run@mailbox.test",
-        criteria=MessageMatchCriteria(
-            template_key="homework-submission-confirmation",
-        ),
+        criteria=criteria,
         timeout=0.2,
         poll_interval=0.01,
     )
@@ -393,12 +393,13 @@ def test_real_wait_for_message_matches_subject_and_fetches_detail():
             FakeResponse(200, {"message": detail}),  # address-scoped detail
         ]
     )
+    criteria = MessageMatchCriteria(
+        subject="Homework submission saved",
+        body_contains="/homework/",
+    )
     request = MessageWaitRequest(
         address="e2e+run@mailer.dtcdev.click",
-        criteria=MessageMatchCriteria(
-            subject="Homework submission saved",
-            body_contains="/homework/",
-        ),
+        criteria=criteria,
         timeout=5,
         poll_interval=0,
     )
