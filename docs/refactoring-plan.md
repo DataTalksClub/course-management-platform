@@ -208,6 +208,8 @@ testable service functions.
   pass it through action upsert/run helpers.
 - [x] Split Datamailer project-passed outcome membership add/remove branches
   out of the sync coordinator.
+- [x] Split Datamailer peer-review assignment public route URL construction
+  out of the assignment URL record builder.
 
 ## Current Findings
 

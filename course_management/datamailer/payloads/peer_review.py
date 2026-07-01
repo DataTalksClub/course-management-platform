@@ -184,33 +184,26 @@ def peer_review_assignment_submissions(project):
     ).order_by("student_id", "-submitted_at", "-id")
 
 
+def public_route_url(route_name, route_kwargs=None):
+    if route_kwargs is None:
+        path = reverse(route_name)
+    else:
+        path = reverse(route_name, kwargs=route_kwargs)
+    url = public_url(path)
+    return url
+
+
 def _peer_review_assignment_urls(course, project) -> dict[str, str]:
-    course_path = reverse("course", kwargs={"course_slug": course.slug})
-    course_url = public_url(course_path)
-
-    project_path = reverse(
-        "project",
-        kwargs={
-            "course_slug": course.slug,
-            "project_slug": project.slug,
-        },
-    )
-    project_url = public_url(project_path)
-
-    evaluations_path = reverse(
-        "projects_eval",
-        kwargs={
-            "course_slug": course.slug,
-            "project_slug": project.slug,
-        },
-    )
-    evaluations_url = public_url(evaluations_path)
-
-    leaderboard_path = reverse("leaderboard", kwargs={"course_slug": course.slug})
-    leaderboard_url = public_url(leaderboard_path)
-
-    profile_path = reverse("account_settings")
-    profile_url = public_url(profile_path)
+    course_kwargs = {"course_slug": course.slug}
+    project_kwargs = {
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+    }
+    course_url = public_route_url("course", course_kwargs)
+    project_url = public_route_url("project", project_kwargs)
+    evaluations_url = public_route_url("projects_eval", project_kwargs)
+    leaderboard_url = public_route_url("leaderboard", course_kwargs)
+    profile_url = public_route_url("account_settings")
 
     return {
         "course_url": course_url,
