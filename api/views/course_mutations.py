@@ -166,9 +166,11 @@ def duplicate_course_slug_response(data):
 
 
 def course_create_values(data):
+    slug = data.get("slug")
+    title = data.get("title")
     values = {
-        "slug": data.get("slug"),
-        "title": data.get("title"),
+        "slug": slug,
+        "title": title,
     }
     for field, default in COURSE_CREATE_DEFAULTS:
         values[field] = data.get(field, default)

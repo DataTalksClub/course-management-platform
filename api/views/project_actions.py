@@ -70,10 +70,11 @@ def project_score_response(project):
         scored_count = scorable_submissions_count
         passed_count = submissions.filter(passed=True).count()
 
+    submissions_count = submissions.count()
     data = project_action_base(project, status, message)
     data.update(
         {
-            "submissions_count": submissions.count(),
+            "submissions_count": submissions_count,
             "scored_submissions_count": scored_count,
             "passed_submissions_count": passed_count,
         }

@@ -65,9 +65,10 @@ def homework_create_attrs(course, homework_data):
     if error:
         return None, error
 
+    description = homework_data.get("description", "")
     attrs = {
         "title": name,
-        "description": homework_data.get("description", ""),
+        "description": description,
         "instructions_url": instructions_url,
         "due_date": due_date,
         "state": HomeworkState.CLOSED.value,

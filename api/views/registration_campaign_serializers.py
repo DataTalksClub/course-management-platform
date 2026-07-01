@@ -27,6 +27,8 @@ def registration_to_dict(registration):
     course_slug = None
     if course:
         course_slug = course.slug
+    role_display = registration.get_role_display()
+    created_at = datetime_to_iso(registration.created_at)
     return {
         "id": registration.id,
         "email": registration.email_normalized,
@@ -36,7 +38,7 @@ def registration_to_dict(registration):
         "country": registration.country,
         "region": registration.region,
         "role": registration.role,
-        "role_display": registration.get_role_display(),
+        "role_display": role_display,
         "comment": registration.comment,
-        "created_at": datetime_to_iso(registration.created_at),
+        "created_at": created_at,
     }

@@ -1589,6 +1589,16 @@ Steps:
   `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name API registration, homework-create, project-action, and
+  course-create values before constructing response or model dictionaries.
+  Verification:
+  `uv run ruff check api/views/registration_campaign_serializers.py api/views/homework_create.py api/views/project_actions.py api/views/course_mutations.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_registration_campaigns api.tests.test_homeworks api.tests.test_project_actions api.tests.test_project_scoring api.tests.test_courses`,
+  touched-file scans report `touched_file_inline_dict_calls=0`,
+  `touched_file_nested_call_arguments=0`, and
+  `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
