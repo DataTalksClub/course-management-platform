@@ -265,6 +265,8 @@ testable service functions.
   dispatch orchestration module.
 - [x] Split project scoring peer-review grouping and submission scoring logic
   out of the public project scoring coordinator.
+- [x] Split Datamailer recipient-list bulk upsert-before-send helpers out of
+  membership sync ownership.
 
 ## Current Findings
 

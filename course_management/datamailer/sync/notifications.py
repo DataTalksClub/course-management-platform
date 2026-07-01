@@ -24,7 +24,7 @@ from ..payloads.send import (
     recipient_list_send_payload,
 )
 from .audit import DatamailerSendAuditData, record_datamailer_send_audit
-from .memberships import (
+from .bulk import (
     RecipientListBulkUpsertData,
     bulk_upsert_recipient_list_members_before_send,
 )
