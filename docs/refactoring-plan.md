@@ -2360,6 +2360,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split most-common homework answer lookup out of the correct-answer fill
+  workflow so the fill function coordinates existing-answer guards,
+  missing-answer handling, and persistence while the queryset logic lives in a
+  named query helper. Verification:
+  `uv run ruff check courses/homework_correct_answers.py courses/tests/test_homework_correct_answers.py cadmin/tests/test_homework_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_correct_answers cadmin.tests.test_homework_views`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -20,6 +20,17 @@ def fill_most_common_answer_as_correct(question: Question) -> None:
         logger.info(f"Correct answer for {question} is already set")
         return
 
+    answer = most_common_answer_text(question)
+    if answer is None:
+        logger.warning(f"No answers for {question}")
+        return
+
+    question.correct_answer = answer
+    question.save()
+    logger.info(f"Updated answer for {question} to {answer}")
+
+
+def most_common_answer_text(question: Question) -> str | None:
     answer_count = Count("answer_text")
     most_common_answer = (
         Answer.objects.filter(
@@ -32,15 +43,9 @@ def fill_most_common_answer_as_correct(question: Question) -> None:
         .order_by("-count")
         .first()
     )
-
     if not most_common_answer:
-        logger.warning(f"No answers for {question}")
-        return
-
-    answer = most_common_answer["answer_text"]
-    question.correct_answer = answer
-    question.save()
-    logger.info(f"Updated answer for {question} to {answer}")
+        return None
+    return most_common_answer["answer_text"]
 
 
 def _is_choice_question(question: Question) -> bool:
