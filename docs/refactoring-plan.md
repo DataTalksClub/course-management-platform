@@ -721,6 +721,12 @@ testable service functions.
   `uv run ruff check api/openapi/content_paths/projects.py`,
   `python -m py_compile api/openapi/content_paths/projects.py`, and
   touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Remove the single-use homework-by-slug query helper and keep the lookup
+  explicit in the upsert coordinator with a named queryset. Verification:
+  `uv run ruff check api/views/homework_upsert.py api/views/homework_upsert_save.py`,
+  `python -m py_compile api/views/homework_upsert.py api/views/homework_upsert_save.py`,
+  `uv run python manage.py test api.tests.test_homeworks`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

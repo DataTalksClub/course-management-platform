@@ -10,11 +10,11 @@ from api.views.homework_upsert_common import (
     VALID_HOMEWORK_STATES,
 )
 from api.views.homework_upsert_save import (
-    homework_by_slug,
     save_homework_upsert,
 )
 from api.views.homework_upsert_validation import validate_homework_upsert
 from courses.models.course import Course
+from courses.models.homework import Homework
 
 
 HOMEWORK_PATCH_FIELDS = {
@@ -44,7 +44,11 @@ HOMEWORK_PATCH_CONFIG = PatchResponseConfig(
 
 
 def homework_upsert_data(course, homework_slug, data):
-    homework = homework_by_slug(course, homework_slug)
+    homework_queryset = Homework.objects.filter(
+        course=course,
+        slug=homework_slug,
+    )
+    homework = homework_queryset.first()
     created = homework is None
 
     error = validate_homework_upsert(data, homework, created)

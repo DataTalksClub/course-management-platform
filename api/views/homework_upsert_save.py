@@ -14,13 +14,6 @@ from courses.models.homework import Homework
 from courses.models.homework import HomeworkState
 
 
-def homework_by_slug(course, homework_slug):
-    return Homework.objects.filter(
-        course=course,
-        slug=homework_slug,
-    ).first()
-
-
 def save_homework_upsert(upsert):
     homework = upsert.homework
     with transaction.atomic():
