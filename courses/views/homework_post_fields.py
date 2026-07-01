@@ -4,10 +4,6 @@ from courses.models.course import Course
 from courses.models.homework import Homework, Submission
 
 
-def post_preview_value(request: HttpRequest, key: str) -> str:
-    return request.POST.get(key, "")
-
-
 def post_preview_learning_links(request: HttpRequest) -> list[str]:
     links = []
     raw_links = request.POST.getlist("learning_in_public_links[]")
@@ -24,10 +20,8 @@ def apply_post_preview_homework_url(
     submission: Submission,
 ) -> None:
     if homework.homework_url_field:
-        submission.homework_link = post_preview_value(
-            request,
-            "homework_url",
-        )
+        homework_url = request.POST.get("homework_url", "")
+        submission.homework_link = homework_url
 
 
 def apply_post_preview_learning_links(
@@ -47,16 +41,12 @@ def apply_post_preview_time_spent(
     submission: Submission,
 ) -> None:
     if homework.time_spent_lectures_field:
-        submission.time_spent_lectures = post_preview_value(
-            request,
-            "time_spent_lectures",
-        )
+        time_spent_lectures = request.POST.get("time_spent_lectures", "")
+        submission.time_spent_lectures = time_spent_lectures
 
     if homework.time_spent_homework_field:
-        submission.time_spent_homework = post_preview_value(
-            request,
-            "time_spent_homework",
-        )
+        time_spent_homework = request.POST.get("time_spent_homework", "")
+        submission.time_spent_homework = time_spent_homework
 
 
 def apply_post_preview_comments(
@@ -65,10 +55,8 @@ def apply_post_preview_comments(
     submission: Submission,
 ) -> None:
     if course.homework_problems_comments_field:
-        submission.problems_comments = post_preview_value(
-            request,
-            "problems_comments",
-        )
+        problems_comments = request.POST.get("problems_comments", "")
+        submission.problems_comments = problems_comments
 
 
 def apply_post_preview_faq_contribution(
@@ -77,10 +65,8 @@ def apply_post_preview_faq_contribution(
     submission: Submission,
 ) -> None:
     if homework.faq_contribution_field:
-        submission.faq_contribution_url = post_preview_value(
-            request,
-            "faq_contribution_url",
-        )
+        faq_contribution_url = request.POST.get("faq_contribution_url", "")
+        submission.faq_contribution_url = faq_contribution_url
 
 
 def apply_homework_post_preview_fields(
