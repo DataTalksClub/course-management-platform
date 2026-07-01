@@ -20,7 +20,7 @@ from courses.registration import (
     youtube_embed_url,
 )
 
-from .forms import CourseRegistrationForm
+from .registration_form import CourseRegistrationForm
 
 
 def campaign_course_is_open(campaign: RegistrationCampaign) -> bool:

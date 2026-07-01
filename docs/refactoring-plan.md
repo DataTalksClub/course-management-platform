@@ -170,6 +170,8 @@ testable service functions.
   the course route/context module.
 - [x] Split project submission confirmation field and context builders out of
   the email delivery module.
+- [x] Split public course registration form and profile-sync helpers out of
+  the generic course view forms module.
 
 ## Current Findings
 
