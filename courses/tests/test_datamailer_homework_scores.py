@@ -191,6 +191,11 @@ class DatamailerHomeworkScoreTest(TestCase):
 
     def assert_homework_score_list_send(self, expectation):
         self.assertEqual(expectation.result["enqueued_count"], 1)
+        self.assert_homework_score_client_calls(expectation)
+        self.assert_homework_score_send_audit(expectation.homework)
+        self.assert_homework_score_outbox_event(expectation.homework)
+
+    def assert_homework_score_client_calls(self, expectation):
         expectation.bulk_upsert.assert_called_once()
         expectation.send_list.assert_called_once()
         self.assertEqual(
@@ -199,18 +204,22 @@ class DatamailerHomeworkScoreTest(TestCase):
         )
         self.assertNotIn("members", expectation.send_list.call_args.args[1])
         self.assertNotIn("list", expectation.send_list.call_args.args[1])
+
+    def assert_homework_score_send_audit(self, homework):
         audit = DatamailerSendAudit.objects.get()
         self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
         self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
         self.assertEqual(
             audit.list_key,
-            homework_submitters_list_key(expectation.homework),
+            homework_submitters_list_key(homework),
         )
         self.assertEqual(audit.template_key, "homework-score-notification")
         self.assertEqual(audit.category_tag, "submission-results")
         self.assertEqual(audit.event, "homework_score_publication")
         self.assertEqual(audit.intended_count, 1)
         self.assertEqual(audit.enqueued_count, 1)
+
+    def assert_homework_score_outbox_event(self, homework):
         event = DatamailerOutboxEvent.objects.get()
         self.assertEqual(
             event.event_type,
@@ -219,7 +228,7 @@ class DatamailerHomeworkScoreTest(TestCase):
         self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
         self.assertEqual(
             event.payload["list_key"],
-            homework_submitters_list_key(expectation.homework),
+            homework_submitters_list_key(homework),
         )
 
     @override_settings(
