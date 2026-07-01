@@ -1438,6 +1438,16 @@ Steps:
   size-threshold scan reports `threshold_violations=0`, comprehension scan
   reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name the Datamailer outbox run failure error before finalizing a failed
+  run, and split successful/failed run finalization into outcome-specific
+  helpers so the main workflow stays below the production threshold.
+  Verification:
+  `uv run ruff check course_management/datamailer_outbox_runs.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox`,
+  touched-file nested-call scan reports `touched_file_nested_call_arguments=0`,
+  size-threshold scan reports `threshold_violations=0`, comprehension scan
+  reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

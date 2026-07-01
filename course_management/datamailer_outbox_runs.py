@@ -26,20 +26,11 @@ def process_due_datamailer_outbox(
     try:
         process_outbox_event_ids(event_ids, counts)
     except Exception as exc:
-        finish_dispatch_run_if_present(
-            run,
-            counts,
-            status=DatamailerOutboxDispatchRunStatus.FAILED,
-            last_error=str(exc),
-        )
+        last_error = str(exc)
+        finish_failed_dispatch_run(run, counts, last_error)
         raise
 
-    finish_dispatch_run_if_present(
-        run,
-        counts,
-        status=DatamailerOutboxDispatchRunStatus.SUCCESS,
-        last_error="",
-    )
+    finish_successful_dispatch_run(run, counts)
     return counts
 
 
@@ -83,6 +74,24 @@ def count_processed_outbox_event(counts, event):
     }
     if event.status in counted_statuses:
         counts[event.status] += 1
+
+
+def finish_failed_dispatch_run(run, counts, last_error):
+    finish_dispatch_run_if_present(
+        run,
+        counts,
+        status=DatamailerOutboxDispatchRunStatus.FAILED,
+        last_error=last_error,
+    )
+
+
+def finish_successful_dispatch_run(run, counts):
+    finish_dispatch_run_if_present(
+        run,
+        counts,
+        status=DatamailerOutboxDispatchRunStatus.SUCCESS,
+        last_error="",
+    )
 
 
 def finish_dispatch_run_if_present(run, counts, *, status, last_error):
