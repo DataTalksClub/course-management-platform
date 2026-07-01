@@ -133,6 +133,9 @@ testable service functions.
   of the sync management command into a shared batch module.
 - [x] Split Datamailer recipient-list import JSONL/S3 upload helpers out of
   the sync management command.
+- [x] Split public project submissions view support into focused listing,
+  viewer-state, display-decoration, and voting modules while keeping the
+  route-level view module thin.
 
 ## Current Findings
 
