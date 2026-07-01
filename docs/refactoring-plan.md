@@ -162,6 +162,8 @@ testable service functions.
   out of the public campaign route module.
 - [x] Split cadmin project submission listing and edit helpers out of the
   project admin action module while preserving notification patch points.
+- [x] Split cadmin Datamailer operations-dashboard and events-list helpers out
+  of the route module.
 
 ## Current Findings
 
