@@ -337,6 +337,8 @@ testable service functions.
   the membership upsert/sync module.
 - [x] Split homework answer correctness rules out of submission score mutation
   so scoring orchestration no longer owns answer parsing/checking.
+- [x] Split public wrapped page lookup/context helpers out of the route module,
+  leaving wrapped views as render boundaries.
 
 ## Current Findings
 
