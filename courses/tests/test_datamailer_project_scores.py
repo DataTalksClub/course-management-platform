@@ -89,10 +89,11 @@ class DatamailerProjectScoreTest(TestCase):
         return Enrollment.objects.create(**defaults)
 
     def create_project_submission(self, project, user, **overrides):
+        enrollment = self.create_enrollment(user, project.course)
         defaults = {
             "project": project,
             "student": user,
-            "enrollment": self.create_enrollment(user, project.course),
+            "enrollment": enrollment,
             "github_link": "https://github.com/example/project",
             "commit_id": "abc123",
         }
@@ -128,16 +129,18 @@ class DatamailerProjectScoreTest(TestCase):
 
     def create_passed_and_failed_project_submissions(self):
         project = self.create_project()
+        passed_user = self.create_user("passed@example.com")
         passed_submission = self.create_project_submission(
             project,
-            self.create_user("passed@example.com"),
+            passed_user,
             github_link="https://github.com/example/passed",
             total_score=98,
             passed=True,
         )
+        failed_user = self.create_user("failed@example.com")
         self.create_project_submission(
             project,
-            self.create_user("failed@example.com"),
+            failed_user,
             github_link="https://github.com/example/failed",
             total_score=50,
             passed=False,
@@ -152,29 +155,32 @@ class DatamailerProjectScoreTest(TestCase):
         project = self.create_project()
         user = self.create_user("project-learner@example.com")
         enrollment = self.create_enrollment(user, project.course)
+        older_submission_time = timezone.now() - timedelta(days=1)
         ProjectSubmission.objects.create(
             project=project,
             student=user,
             enrollment=enrollment,
             github_link="https://github.com/example/old",
-            submitted_at=timezone.now() - timedelta(days=1),
+            submitted_at=older_submission_time,
             total_score=40,
         )
+        latest_submission_time = timezone.now()
         latest_submission = ProjectSubmission.objects.create(
             project=project,
             student=user,
             enrollment=enrollment,
             github_link="https://github.com/example/new",
-            submitted_at=timezone.now(),
+            submitted_at=latest_submission_time,
             total_score=90,
         )
         return project, latest_submission
 
     def create_project_score_submission(self):
         project = self.create_project()
+        user = self.create_user("project-learner@example.com")
         submission = self.create_project_submission(
             project,
-            self.create_user("project-learner@example.com"),
+            user,
             project_score=70,
             project_learning_in_public_score=5,
             project_faq_score=1,
@@ -241,22 +247,24 @@ class DatamailerProjectScoreTest(TestCase):
         self.assertEqual(expectation.result, {"enqueued_count": 1})
         self.assertEqual(expectation.bulk_upsert.call_count, 2)
         expectation.send_list.assert_called_once()
-        self.assertEqual(
-            DatamailerOutboxEvent.objects.filter(
-                event_type="recipient_list.members_bulk_upsert",
-                status=DatamailerOutboxStatus.ACKED,
-            ).count(),
-            2,
+        outbox_event_count = DatamailerOutboxEvent.objects.filter(
+            event_type="recipient_list.members_bulk_upsert",
+            status=DatamailerOutboxStatus.ACKED,
+        ).count()
+        self.assertEqual(outbox_event_count, 2)
+        project_submitters_key = project_submitters_list_key(
+            expectation.project
         )
         self.assertEqual(
             expectation.send_list.call_args.args[0],
-            project_submitters_list_key(expectation.project),
+            project_submitters_key,
         )
         self.assertNotIn("members", expectation.send_list.call_args.args[1])
         self.assertNotIn("list", expectation.send_list.call_args.args[1])
+        project_passed_key = project_passed_list_key(expectation.project)
         self.assertEqual(
             expectation.bulk_upsert.call_args_list[1].args[0],
-            project_passed_list_key(expectation.project),
+            project_passed_key,
         )
         passed_payload = expectation.bulk_upsert.call_args_list[1].args[1]
         self.assertEqual(
@@ -280,7 +288,8 @@ class DatamailerProjectScoreTest(TestCase):
 
         list_key, payload = project_score_notification_payload(project)
 
-        self.assertEqual(list_key, project_submitters_list_key(project))
+        project_submitters_key = project_submitters_list_key(project)
+        self.assertEqual(list_key, project_submitters_key)
         expectation = ScorePayloadExpectation(
             payload=payload,
             template_key="project-score-notification",
@@ -298,8 +307,9 @@ class DatamailerProjectScoreTest(TestCase):
 
         _, payload = project_score_notification_payload(project)
 
+        member = self.single_project_score_member(payload)
         self.assert_latest_project_score_member(
-            self.single_project_score_member(payload),
+            member,
             latest,
         )
 
@@ -316,7 +326,8 @@ class DatamailerProjectScoreTest(TestCase):
 
         list_key, payload = project_passed_recipient_list_payload(project)
 
-        self.assertEqual(list_key, project_passed_list_key(project))
+        project_passed_key = project_passed_list_key(project)
+        self.assertEqual(list_key, project_passed_key)
         self.assertEqual(payload["list"]["type"], "custom")
         self.assertEqual(
             payload["list"]["metadata"]["outcome"], "project_passed"
@@ -357,9 +368,10 @@ class DatamailerProjectScoreTest(TestCase):
         bulk_upsert.return_value = {"updated_count": 0}
         send_list.return_value = {"enqueued_count": 1}
         project = self.create_project()
+        user = self.create_user("project-learner@example.com")
         submission = self.create_project_submission(
             project,
-            self.create_user("project-learner@example.com"),
+            user,
             total_score=98,
             passed=True,
         )

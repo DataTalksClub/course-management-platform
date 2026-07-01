@@ -553,6 +553,13 @@ testable service functions.
   wrapper and shortening the admin-delete method documentation. Verification:
   `uv run ruff check e2e/browser.py` and
   `uv run pytest e2e/tests/test_07_browser_helpers.py --collect-only -q`.
+- [x] Name Datamailer project-score test users, timestamps, list keys, counts,
+  and selected member values before helper calls, assertions, or value-object
+  construction. Verification:
+  `uv run ruff check courses/tests/test_datamailer_project_scores.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_project_scores`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 
 ## Current Findings
 
