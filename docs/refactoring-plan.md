@@ -248,6 +248,8 @@ testable service functions.
   named callbacks and sort keys.
 - [x] Remove additional tiny pass-through helpers from account email extraction,
   homework numeric answer checks, and deadline reminder send payload assembly.
+- [x] Split account authentication, toggle, and token-admin tests out of the
+  oversized account settings test module.
 
 ## Current Findings
 
