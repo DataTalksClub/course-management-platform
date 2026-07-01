@@ -117,10 +117,6 @@ def wrapped_homework_hours(submission):
     return lecture_hours + homework_hours
 
 
-def wrapped_project_hours(submission):
-    return capped_hours(submission.time_spent)
-
-
 def wrapped_total_hours(homework_submissions, project_submissions):
     homework_hours = 0
     for submission in homework_submissions:
@@ -128,7 +124,8 @@ def wrapped_total_hours(homework_submissions, project_submissions):
 
     project_hours = 0
     for submission in project_submissions:
-        project_hours += wrapped_project_hours(submission)
+        time_spent = submission.time_spent
+        project_hours += capped_hours(time_spent)
 
     return round(homework_hours + project_hours, 1)
 

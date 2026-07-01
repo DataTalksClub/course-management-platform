@@ -1686,6 +1686,15 @@ Steps:
   inline-construction scan reports `total_calls=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Remove the trivial `wrapped_project_hours` pass-through helper and name
+  project submission time at the total-hours calculation site. Verification:
+  `uv run ruff check courses/wrapped_statistics/metrics.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_wrapped_statistics courses.tests.test_wrapped_views`,
+  touched-file scans report `touched_file_high_arg_calls=0`,
+  `touched_file_inline_dict_calls=0`, `touched_file_nested_call_arguments=0`,
+  and `touched_file_long_functions=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
