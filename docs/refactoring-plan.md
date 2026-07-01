@@ -233,6 +233,8 @@ testable service functions.
   membership sync entry-point module.
 - [x] Split Datamailer webhook request authentication, JSON parsing, and field
   validation out of the route/persistence module.
+- [x] Split homework submission POST field application and validation helpers
+  out of the submission persistence/callback module.
 - [x] Remove cadmin view-model filter helpers that only forwarded to the
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
