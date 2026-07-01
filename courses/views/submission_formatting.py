@@ -4,7 +4,7 @@ from urllib.parse import urljoin, urlparse
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
-from courses.views.homework_answers import format_submitted_value
+from courses.views.homework_answer_formatting import format_submitted_value
 
 
 def format_submission_lines(items: list[dict[str, Any]]) -> str:

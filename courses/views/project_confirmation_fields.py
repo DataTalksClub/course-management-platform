@@ -1,5 +1,5 @@
 from courses.models.project import Project, ProjectSubmission
-from courses.views.homework_answers import format_hours
+from courses.views.homework_answer_formatting import format_hours
 
 
 def project_repository_submission_field(

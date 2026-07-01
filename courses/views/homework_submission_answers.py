@@ -1,12 +1,12 @@
 from typing import Any
 
 from courses.models.homework import Answer, Question, Submission
-from courses.views.homework_answers import (
-    CHOICE_QUESTION_TYPES,
+from courses.views.homework_answer_formatting import (
     extract_selected_option_indexes,
     format_selected_answer,
     selected_option_value,
 )
+from courses.views.homework_answers import CHOICE_QUESTION_TYPES
 
 
 def homework_submitted_answers(

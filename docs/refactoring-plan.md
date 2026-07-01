@@ -316,6 +316,8 @@ testable service functions.
   the public course-list context module.
 - [x] Split the peer-review assignment selection algorithm out of the project
   assignment state-transition coordinator.
+- [x] Split homework submitted-answer formatting helpers out of the homework
+  answer processing module.
 
 ## Current Findings
 

@@ -3,7 +3,7 @@ from typing import Any
 
 from courses.models.course import Course
 from courses.models.homework import Homework, Submission
-from courses.views.homework_answers import format_hours
+from courses.views.homework_answer_formatting import format_hours
 from courses.views.homework_submission_answers import homework_submitted_answers
 from courses.views.submission_formatting import (
     format_answer_lines,
