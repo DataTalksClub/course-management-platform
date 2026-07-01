@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from typing import Any
 from unittest import mock
 
 from django.test import override_settings
@@ -7,6 +9,14 @@ from courses.tests.project_view_base import (
     ProjectViewTestBase,
     fetch_fresh,
 )
+
+
+@dataclass(frozen=True)
+class InvalidProjectSubmissionExpectation:
+    response: Any
+    db_submission: Any
+    data: dict[str, Any]
+    learning_in_public_links: list[str]
 
 
 class ProjectSubmissionViewTestCase(ProjectViewTestBase):
@@ -221,22 +231,19 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
 
     def assert_invalid_project_submission_preserved(
         self,
-        response,
-        db_submission,
-        data,
-        learning_in_public_links,
+        expectation,
     ):
-        self.assertEqual(response.status_code, 200)
-        submission = response.context["submission"]
+        self.assertEqual(expectation.response.status_code, 200)
+        submission = expectation.response.context["submission"]
         self.assert_submission_form_values(
             submission,
-            data,
-            learning_in_public_links,
+            expectation.data,
+            expectation.learning_in_public_links,
         )
         self.assert_db_submission_unchanged(
-            db_submission,
-            data,
-            learning_in_public_links,
+            expectation.db_submission,
+            expectation.data,
+            expectation.learning_in_public_links,
         )
 
     @mock.patch("requests.head")
@@ -252,12 +259,13 @@ class ProjectSubmissionViewTestCase(ProjectViewTestBase):
 
         response = self.post_project(data)
 
-        self.assert_invalid_project_submission_preserved(
-            response,
-            db_submission,
-            data,
-            learning_in_public_links,
+        expectation = InvalidProjectSubmissionExpectation(
+            response=response,
+            db_submission=db_submission,
+            data=data,
+            learning_in_public_links=learning_in_public_links,
         )
+        self.assert_invalid_project_submission_preserved(expectation)
 
     def test_project_submission_not_accepting_responses(self):
         self.close_project_submissions()

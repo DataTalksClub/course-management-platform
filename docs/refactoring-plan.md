@@ -733,6 +733,12 @@ testable service functions.
   `python -m py_compile scripts/debug_score_project.py`, touched-file
   nested-call scans report `touched_file_nested_calls=0`, and function-length
   scans report no function over 30 lines.
+- [x] Replace the invalid project-submission preservation helper's multi-value
+  argument list with a named expectation object. Verification:
+  `uv run ruff check courses/tests/test_project_submission_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_submission_view`,
+  touched-file helper scans report no five-argument helpers, and repo cleanup
+  gates still allow tests up to 60 lines.
 
 ## Current Findings
 
