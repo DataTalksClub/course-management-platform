@@ -7,7 +7,7 @@ from courses.models.homework import (
     Question,
     QuestionTypes,
 )
-from courses.homework_score_calculation import is_free_form_answer_correct
+from courses.homework_answer_checks import is_free_form_answer_correct
 from courses.views.homework_answer_formatting import (
     extract_selected_option_indexes,
 )

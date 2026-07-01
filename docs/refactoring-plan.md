@@ -335,6 +335,8 @@ testable service functions.
   of batch aggregation, with one owner for recipient-list kinds.
 - [x] Split Datamailer recipient-list membership removal entry points out of
   the membership upsert/sync module.
+- [x] Split homework answer correctness rules out of submission score mutation
+  so scoring orchestration no longer owns answer parsing/checking.
 
 ## Current Findings
 
