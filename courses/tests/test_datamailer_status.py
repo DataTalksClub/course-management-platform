@@ -175,13 +175,8 @@ class DatamailerStatusTest(TestCase):
         self.assertEqual(result, {"message": {"id": 42}})
         message_status.assert_called_once_with(42)
 
-    @override_settings(**DATAMAILER_SETTINGS)
-    @patch("courses.management.commands.datamailer_status.get_email_status")
-    def test_datamailer_status_command_prints_email_history(
-        self,
-        get_status,
-    ):
-        get_status.return_value = {
+    def email_status_response(self):
+        return {
             "status": {
                 "email": "student@example.com",
                 "exists": True,
@@ -207,14 +202,28 @@ class DatamailerStatusTest(TestCase):
             },
         }
 
+    def run_datamailer_status_command(self, *args):
         out = StringIO()
-        call_command("datamailer_status", "student@example.com", stdout=out)
+        call_command("datamailer_status", *args, stdout=out)
+        return out.getvalue()
 
-        output = out.getvalue()
+    def assert_email_history_output(self, output):
         self.assertIn("Email: student@example.com", output)
         self.assertIn("Recent transactional messages:", output)
         self.assertIn("7 welcome sent", output)
         self.assertIn("Recent campaign recipients:\n  none", output)
+
+    @override_settings(**DATAMAILER_SETTINGS)
+    @patch("courses.management.commands.datamailer_status.get_email_status")
+    def test_datamailer_status_command_prints_email_history(
+        self,
+        get_status,
+    ):
+        get_status.return_value = self.email_status_response()
+
+        output = self.run_datamailer_status_command("student@example.com")
+
+        self.assert_email_history_output(output)
         get_status.assert_called_once_with("student@example.com", limit=10)
 
     @override_settings(**DATAMAILER_SETTINGS)

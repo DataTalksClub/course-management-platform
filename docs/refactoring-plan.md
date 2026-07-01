@@ -972,6 +972,10 @@ Steps:
   test module.
 - [x] Split Datamailer status and preference tests out of the oversized
   Datamailer test module.
+- [x] Shorten Datamailer status command tests by naming the command payload,
+  runner, and output assertions. Verification:
+  `uv run ruff check courses/tests/test_datamailer_status.py` and
+  `uv run python manage.py test courses.tests.test_datamailer_status`.
 - [x] Split Datamailer contact and transactional-send tests out of the oversized
   Datamailer test module.
 - [x] Move Datamailer contact backfill command tests into the contact test
