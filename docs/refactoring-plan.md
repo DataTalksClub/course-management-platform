@@ -725,6 +725,8 @@ Steps:
   transactional, and campaign mixins.
 - [x] Split Datamailer outbox dispatch processing and status summary out of
   the enqueue module.
+- [x] Split Datamailer contact sync and contact erase helpers out of the
+  membership sync module.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin

@@ -8,20 +8,22 @@ from .audit import (
     record_datamailer_send_audit,
 )
 from .certificates import send_certificate_availability_notification
+from .contacts import (
+    erase_contact_from_datamailer,
+    handle_contact_sync_error,
+    payload_with_configured_from_email,
+    sync_contact,
+)
 from .memberships import (
     ContactMembershipSyncData,
     RecipientListBulkUpsertData,
     RecipientListMembershipRemoveData,
     bulk_upsert_recipient_list_members_before_send,
     enqueue_recipient_list_bulk_upsert,
-    erase_contact_from_datamailer,
-    handle_contact_sync_error,
-    payload_with_configured_from_email,
     remove_enrollment_from_datamailer,
     remove_homework_submission_from_datamailer,
     remove_project_submission_from_datamailer,
     remove_registration_from_datamailer,
-    sync_contact,
     sync_enrollment_to_datamailer,
     sync_homework_submission_to_datamailer,
     sync_project_passed_outcome_to_datamailer,
