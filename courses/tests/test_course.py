@@ -171,7 +171,7 @@ class CourseDetailViewTests(TestCase):
         self.completed_project = self.create_project(completed_project_data)
 
     def create_project_submissions(self):
-        self.completed_submission = ProjectSubmission.objects.create(
+        ProjectSubmission.objects.create(
             project=self.completed_project,
             student=self.user,
             enrollment=self.enrollment,
@@ -179,7 +179,7 @@ class CourseDetailViewTests(TestCase):
             project_score=85,
         )
 
-        self.open_submission = ProjectSubmission.objects.create(
+        ProjectSubmission.objects.create(
             project=self.open_project,
             student=self.user,
             enrollment=self.enrollment,
@@ -786,153 +786,6 @@ class CourseDetailViewTests(TestCase):
         # certificate_url should be None for unauthenticated users
         self.assertIsNone(response.context["certificate_url"])
         self.assertNotContains(response, "Download Certificate")
-
-    def test_list_all_submissions_view(self):
-        """Test the list all submissions view shows submissions in correct order"""
-        self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "list_all_project_submissions", args=[self.course.slug]
-            )
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/list_all.html")
-
-        # Check that submissions are ordered by score (completed first)
-        submissions = response.context["submissions"]
-        self.assertEqual(len(submissions), 2)
-        self.assertEqual(submissions[0].project, self.completed_project)
-        self.assertEqual(submissions[0].display_score, 85)
-        self.assertEqual(submissions[1].project, self.open_project)
-        self.assertEqual(submissions[1].display_score, -1)
-
-    def test_list_all_submissions_links_student_to_repository(self):
-        """Student names link to repositories and leaderboard stays linked."""
-        response = self.client.get(
-            reverse(
-                "list_all_project_submissions", args=[self.course.slug]
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            reverse(
-                "leaderboard_score_breakdown",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "enrollment_id": self.enrollment.id,
-                },
-            ),
-        )
-        self.assertContains(response, self.completed_submission.github_link)
-        self.assertContains(response, 'aria-label="Open repository"')
-
-    def test_list_all_submissions_links_to_each_project_list(self):
-        """All project submissions page includes project-level jump links."""
-        response = self.client.get(
-            reverse(
-                "list_all_project_submissions", args=[self.course.slug]
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Project lists")
-        self.assertContains(
-            response,
-            reverse(
-                "project_list",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.completed_project.slug,
-                },
-            ),
-        )
-        self.assertContains(
-            response,
-            reverse(
-                "project_list",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.open_project.slug,
-                },
-            ),
-        )
-
-    def test_list_all_submissions_view_is_paginated(self):
-        """Test the list all submissions view limits results per page."""
-        for index in range(30):
-            user = User.objects.create_user(
-                username=f"student-{index}",
-                email=f"student-{index}@example.com",
-                password="12345",
-            )
-            enrollment = Enrollment.objects.create(
-                student=user,
-                course=self.course,
-                display_name=f"Student {index}",
-            )
-            ProjectSubmission.objects.create(
-                project=self.open_project,
-                student=user,
-                enrollment=enrollment,
-                github_link=f"https://github.com/test/repo-{index}",
-            )
-
-        response = self.client.get(
-            reverse(
-                "list_all_project_submissions", args=[self.course.slug]
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["submissions_page"].paginator.count, 32)
-        self.assertEqual(len(response.context["submissions"]), 25)
-        self.assertTrue(response.context["submissions_page"].has_next())
-
-    def test_list_all_submissions_view_unauthorized(self):
-        """Test that unauthorized users can access the submissions list"""
-        response = self.client.get(
-            reverse(
-                "list_all_project_submissions", args=[self.course.slug]
-            )
-        )
-        self.assertEqual(response.status_code, 200)  # see as usual
-
-    def test_submissions_display_format(self):
-        """Test that submissions are displayed with correct format and N/A for unevaluated"""
-        self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "list_all_project_submissions", args=[self.course.slug]
-            )
-        )
-        self.assertEqual(response.status_code, 200)
-
-        submissions = response.context["submissions"]
-        our_submissions = {}
-
-        for submission in submissions:
-            if submission.enrollment.student == self.user:
-                our_submissions[submission.project_id] = submission
-
-        self.assertEqual(len(our_submissions), 2)
-
-        evaluated_submission = our_submissions[
-            self.completed_project.id
-        ]
-        self.assertEqual(
-            evaluated_submission.project, self.completed_project
-        )
-        self.assertEqual(evaluated_submission.display_score, 85)
-        self.assertEqual(
-            evaluated_submission.enrollment.student, self.user
-        )
-
-        open_submission = our_submissions[self.open_project.id]
-        self.assertEqual(open_submission.project, self.open_project)
-        self.assertEqual(open_submission.display_score, -1)
-        self.assertEqual(open_submission.enrollment.student, self.user)
 
     def test_homeworks_sorted_by_due_date(self):
         """Test that homeworks are displayed in order of due date."""

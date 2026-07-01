@@ -83,6 +83,8 @@ testable service functions.
   named values or a dataclass.
 - [x] Split optional homework submission-field tests out of the oversized
   homework detail test module.
+- [x] Split all-project-submissions course page tests out of the oversized
+  course detail test module.
 
 ## Current Findings
 
