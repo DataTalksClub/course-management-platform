@@ -74,11 +74,12 @@ def path_parameters_for_url_name(url_name):
     pattern = pattern_for_url_name(url_name)
     parameters = []
     for name, converter in pattern.pattern.converters.items():
+        schema = parameter_schema_for_converter(converter)
         parameter = {
             "name": name,
             "in": "path",
             "required": True,
-            "schema": parameter_schema_for_converter(converter),
+            "schema": schema,
         }
         parameters.append(parameter)
     return parameters
@@ -136,12 +137,16 @@ def routed_url_names():
 def route_coverage(paths):
     documented = set(paths)
     routed = routed_paths()
+    routed_count = len(routed)
+    documented_count = len(documented)
+    undocumented = sorted(routed - documented)
+    documented_without_route = sorted(documented - routed)
 
     return {
-        "routed_count": len(routed),
-        "documented_count": len(documented),
-        "undocumented": sorted(routed - documented),
-        "documented_without_route": sorted(documented - routed),
+        "routed_count": routed_count,
+        "documented_count": documented_count,
+        "undocumented": undocumented,
+        "documented_without_route": documented_without_route,
     }
 
 
@@ -160,33 +165,52 @@ def build_openapi_paths():
     return paths
 
 
+def openapi_info():
+    description = (
+        "Generated OpenAPI specification for the course management, "
+        "course data export, and operational endpoints. Treat this "
+        "document as the source of truth for agent API usage."
+    )
+    return {
+        "title": "Course Management Platform API",
+        "version": settings.VERSION,
+        "description": description,
+    }
+
+
+def token_auth_security_scheme():
+    return {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Use `Token <token_key>`.",
+    }
+
+
+def openapi_components():
+    token_auth = token_auth_security_scheme()
+    security_schemes = {
+        "TokenAuth": token_auth,
+    }
+    schemas = deepcopy(SCHEMAS)
+    return {
+        "securitySchemes": security_schemes,
+        "schemas": schemas,
+    }
+
+
 def build_openapi_spec():
     paths = build_openapi_paths()
+    info = openapi_info()
+    route_coverage_data = route_coverage(paths)
+    components = openapi_components()
 
     return {
         "openapi": "3.1.0",
-        "info": {
-            "title": "Course Management Platform API",
-            "version": settings.VERSION,
-            "description": (
-                "Generated OpenAPI specification for the course management, "
-                "course data export, and operational endpoints. Treat this "
-                "document as the source of truth for agent API usage."
-            ),
-        },
+        "info": info,
         "paths": paths,
-        "x-route-coverage": route_coverage(paths),
-        "components": {
-            "securitySchemes": {
-                "TokenAuth": {
-                    "type": "apiKey",
-                    "in": "header",
-                    "name": "Authorization",
-                    "description": "Use `Token <token_key>`.",
-                },
-            },
-            "schemas": deepcopy(SCHEMAS),
-        },
+        "x-route-coverage": route_coverage_data,
+        "components": components,
     }
 
 
