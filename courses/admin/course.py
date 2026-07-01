@@ -9,11 +9,13 @@ from unfold.widgets import (
     UnfoldAdminTextareaWidget,
 )
 
-from courses.models import (
+from courses.models.course import (
     Course,
     CourseRegistration,
     LeaderboardComplaint,
     RegistrationCampaign,
+)
+from courses.models.project import (
     ReviewCriteria,
 )
 from courses.leaderboard import update_leaderboard

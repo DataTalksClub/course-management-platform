@@ -3,7 +3,7 @@ from unfold.admin import ModelAdmin
 
 from django.contrib import messages
 
-from courses.models import Project, ReviewCriteria, ProjectState
+from courses.models.project import Project, ProjectState, ReviewCriteria
 
 from courses.project_assignment import (
     assign_peer_reviews_for_project,

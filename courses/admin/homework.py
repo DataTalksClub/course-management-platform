@@ -7,7 +7,7 @@ from unfold.widgets import (
 )
 from django.contrib import messages
 
-from courses.models import Homework, Question, HomeworkState
+from courses.models.homework import Homework, HomeworkState, Question
 
 from courses.assignment_statistics import calculate_homework_statistics
 from courses.scoring import (
