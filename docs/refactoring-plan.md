@@ -2238,6 +2238,13 @@ Steps:
   `uv run python manage.py test cadmin.tests.test_datamailer_views`, broad AST
   cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name Datamailer campaign command argv lists before `call_command(...)`
+  calls so the tests no longer pass long positional command argument lists
+  inline. Verification:
+  `uv run ruff check courses/tests/test_datamailer_campaign_command.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_campaign_command`,
+  broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

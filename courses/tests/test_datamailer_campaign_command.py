@@ -44,7 +44,7 @@ class DatamailerCampaignCommandTest(TestCase):
 
     def run_campaign_command(self):
         out = StringIO()
-        call_command(
+        command_args = [
             "datamailer_campaign",
             "course-start-2026",
             "--subject",
@@ -63,6 +63,9 @@ class DatamailerCampaignCommandTest(TestCase):
             "--test-send",
             "ops@example.com",
             "--queue",
+        ]
+        call_command(
+            *command_args,
             stdout=out,
         )
         return out
@@ -140,17 +143,20 @@ class DatamailerCampaignCommandTest(TestCase):
             CommandError,
             "Provide --html, --html-file, --text, or --text-file.",
         ):
-            call_command(
+            command_args = [
                 "datamailer_campaign",
                 "course-start-2026",
                 "--subject",
                 "Course starts",
+            ]
+            call_command(
+                *command_args,
             )
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_datamailer_campaign_command_requires_category_tag(self):
         with self.assertRaisesMessage(CommandError, "--category-tag is required."):
-            call_command(
+            command_args = [
                 "datamailer_campaign",
                 "course-start-2026",
                 "--subject",
@@ -159,6 +165,9 @@ class DatamailerCampaignCommandTest(TestCase):
                 "Hello learners",
                 "--category-tag",
                 "",
+            ]
+            call_command(
+                *command_args,
             )
 
     @override_settings(**DATAMAILER_SETTINGS)
@@ -167,7 +176,7 @@ class DatamailerCampaignCommandTest(TestCase):
             CommandError,
             "--queue and --cancel cannot be used together.",
         ):
-            call_command(
+            command_args = [
                 "datamailer_campaign",
                 "course-start-2026",
                 "--subject",
@@ -176,6 +185,9 @@ class DatamailerCampaignCommandTest(TestCase):
                 "Hello learners",
                 "--queue",
                 "--cancel",
+            ]
+            call_command(
+                *command_args,
             )
 
     @override_settings(**DATAMAILER_SETTINGS)
@@ -190,11 +202,14 @@ class DatamailerCampaignCommandTest(TestCase):
             CommandError,
             "Datamailer campaign request failed: network error",
         ):
-            call_command(
+            command_args = [
                 "datamailer_campaign",
                 "course-start-2026",
                 "--subject",
                 "Course starts",
                 "--text",
                 "Hello learners",
+            ]
+            call_command(
+                *command_args,
             )
