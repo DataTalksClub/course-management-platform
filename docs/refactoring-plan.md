@@ -142,6 +142,11 @@ testable service functions.
   `uv run ruff check courses/tests/test_homework_submission_integrations.py`
   and
   `uv run python manage.py test courses.tests.test_homework_submission_integrations`.
+- [x] Shorten shared homework detail view question fixtures while preserving
+  creation order. Verification:
+  `uv run ruff check courses/tests/homework_view_base.py courses/tests/test_homework.py courses/tests/test_homework_submission_view.py`
+  and
+  `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_submission_view`.
 - [x] Split cadmin homework view test helpers and submission-edit tests out of
   the oversized cadmin homework view test module.
 - [x] Split all-project-submissions course page tests out of the oversized

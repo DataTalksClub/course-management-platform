@@ -103,7 +103,7 @@ class HomeworkDetailViewTestBase(TestCase):
         )
         return self.create_question(question)
 
-    def create_questions(self):
+    def create_initial_questions(self):
         self.question1 = self.create_multiple_choice_question(
             "What is the capital of France?",
             ["Paris", "London", "Berlin"],
@@ -118,6 +118,8 @@ class HomeworkDetailViewTestBase(TestCase):
             ["2", "3", "4", "5"],
             "1,2,4",
         )
+
+    def create_remaining_questions(self):
         self.question4 = self.create_multiple_choice_question(
             "How many continents are there on Earth?",
             ["5", "6", "7"],
@@ -133,6 +135,10 @@ class HomeworkDetailViewTestBase(TestCase):
             ["Blue", "White", "Red", "Green"],
             "1,2,3",
         )
+
+    def create_questions(self):
+        self.create_initial_questions()
+        self.create_remaining_questions()
         self.questions = [
             self.question1,
             self.question2,
