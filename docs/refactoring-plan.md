@@ -314,6 +314,8 @@ testable service functions.
   payload builders into direct owner modules and remove the mixed module.
 - [x] Split course-list enrollment and registration state decoration out of
   the public course-list context module.
+- [x] Split the peer-review assignment selection algorithm out of the project
+  assignment state-transition coordinator.
 
 ## Current Findings
 

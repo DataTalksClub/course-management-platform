@@ -5,7 +5,7 @@ from collections import defaultdict, Counter
 
 from courses.models import ProjectSubmission
 
-from courses.project_assignment import select_random_assignment
+from courses.project_assignment_selection import select_random_assignment
 
 
 logger = logging.getLogger(__name__)
