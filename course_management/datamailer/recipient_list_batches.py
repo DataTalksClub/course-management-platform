@@ -20,12 +20,14 @@ from course_management.datamailer.payloads.submissions import (
     homework_submission_recipient_list_payload,
     project_submission_recipient_list_payload,
 )
-from courses.models import (
+from courses.models.course import (
     CourseRegistration,
     Enrollment,
+)
+from courses.models.homework import Submission
+from courses.models.project import (
     Project,
     ProjectSubmission,
-    Submission,
 )
 
 
