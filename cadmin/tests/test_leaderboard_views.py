@@ -58,35 +58,55 @@ class LeaderboardCadminViewTests(TestCase):
             password="12345",
         )
 
-    def create_complaint_sorting_target(self, reporter):
-        first_enrollment = LeaderboardEnrollmentData(
+    def create_first_complaint_enrollment(self):
+        enrollment_data = LeaderboardEnrollmentData(
             username="first@test.com",
             display_name="First Student",
             total_score=10,
             position=2,
         )
-        first = self.create_leaderboard_enrollment(first_enrollment)
-        second_enrollment = LeaderboardEnrollmentData(
+        return self.create_leaderboard_enrollment(enrollment_data)
+
+    def create_second_complaint_enrollment(self):
+        enrollment_data = LeaderboardEnrollmentData(
             username="second@test.com",
             display_name="Second Student",
             total_score=20,
             position=1,
         )
-        second = self.create_leaderboard_enrollment(second_enrollment)
-        LeaderboardComplaint.objects.create(
-            enrollment=first,
+        return self.create_leaderboard_enrollment(enrollment_data)
+
+    def create_leaderboard_complaint(
+        self,
+        enrollment,
+        reporter,
+        issue_type,
+        description,
+    ):
+        return LeaderboardComplaint.objects.create(
+            enrollment=enrollment,
+            reporter=reporter,
+            issue_type=issue_type,
+            description=description,
+        )
+
+    def create_complaint_sorting_target(self, reporter):
+        first = self.create_first_complaint_enrollment()
+        second = self.create_second_complaint_enrollment()
+        self.create_leaderboard_complaint(
+            first,
             reporter=reporter,
             issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
             description="Incorrect homework.",
         )
-        LeaderboardComplaint.objects.create(
-            enrollment=second,
+        self.create_leaderboard_complaint(
+            second,
             reporter=reporter,
             issue_type=LeaderboardComplaint.IssueType.PROJECT,
             description="Incorrect project.",
         )
-        LeaderboardComplaint.objects.create(
-            enrollment=second,
+        self.create_leaderboard_complaint(
+            second,
             reporter=reporter,
             issue_type=LeaderboardComplaint.IssueType.LEARNING_IN_PUBLIC,
             description="Incorrect learning links.",
@@ -121,23 +141,14 @@ class LeaderboardCadminViewTests(TestCase):
             display_name="Reported Student",
             total_score=10,
         )
-        complaint = LeaderboardComplaint.objects.create(
-            enrollment=enrollment,
+        complaint = self.create_leaderboard_complaint(
+            enrollment,
             reporter=self.user,
             issue_type=LeaderboardComplaint.IssueType.HOMEWORK,
             description="Incorrect homework.",
         )
-        resolve_url = reverse(
-            "cadmin_leaderboard_complaint_resolve",
-            kwargs={
-                "course_slug": self.course.slug,
-                "complaint_id": complaint.id,
-            },
-        )
-        complaints_url = reverse(
-            "cadmin_leaderboard_complaints",
-            kwargs={"course_slug": self.course.slug},
-        )
+        resolve_url = self.complaint_resolve_url(complaint)
+        complaints_url = self.leaderboard_complaints_url()
 
         response = self.client.post(resolve_url)
 
@@ -145,3 +156,18 @@ class LeaderboardCadminViewTests(TestCase):
         complaint.refresh_from_db()
         self.assertTrue(complaint.resolved)
         self.assertEqual(complaint.resolved_by, self.admin_user)
+
+    def complaint_resolve_url(self, complaint):
+        return reverse(
+            "cadmin_leaderboard_complaint_resolve",
+            kwargs={
+                "course_slug": self.course.slug,
+                "complaint_id": complaint.id,
+            },
+        )
+
+    def leaderboard_complaints_url(self):
+        return reverse(
+            "cadmin_leaderboard_complaints",
+            kwargs={"course_slug": self.course.slug},
+        )

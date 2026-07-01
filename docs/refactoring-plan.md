@@ -1230,6 +1230,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten cadmin leaderboard complaint tests by extracting complaint
+  enrollment fixtures, complaint creation, and complaint URL builders from the
+  longest sorting and resolution scenarios. Verification:
+  `uv run ruff check cadmin/tests/test_leaderboard_views.py`,
+  `uv run python manage.py test cadmin.tests.test_leaderboard_views`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
