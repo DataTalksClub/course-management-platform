@@ -322,6 +322,8 @@ testable service functions.
   dispatch module.
 - [x] Split homework correct-answer maintenance out of the submission scoring
   orchestration module.
+- [x] Split project review-score aggregation out of the project submission
+  scoring mutation module.
 
 ## Current Findings
 
