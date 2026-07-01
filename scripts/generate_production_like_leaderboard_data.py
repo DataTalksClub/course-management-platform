@@ -19,6 +19,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -931,9 +932,13 @@ def seed_selected_courses(args):
 
     for slug in selected_slugs:
         count = args.count or DEFAULT_SELECTED_COURSES.get(slug, 300)
-        run_with_lock_retries(
-            lambda slug=slug, count=count: seed_course(specs_by_slug[slug], count)
-        )
+        callback = partial(seed_selected_course, specs_by_slug, slug, count)
+        run_with_lock_retries(callback)
+
+
+def seed_selected_course(specs_by_slug, slug, count):
+    spec = specs_by_slug[slug]
+    seed_course(spec, count)
 
 
 def main():

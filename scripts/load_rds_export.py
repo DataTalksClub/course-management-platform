@@ -215,7 +215,11 @@ def latest_export(source_dir: Path, pattern: str) -> Path:
         raise SystemExit(
             f"No export DBs found in {source_dir} matching {pattern!r}."
         )
-    return max(candidates, key=lambda path: path.stat().st_mtime)
+    return max(candidates, key=export_modified_time)
+
+
+def export_modified_time(path: Path):
+    return path.stat().st_mtime
 
 
 def run_manage_py(args: list[str], db_path: Path) -> None:
@@ -497,17 +501,18 @@ def print_defaults_used(defaults_used: set[ColumnDefault]) -> None:
         print("Filled local-only columns with Django defaults:")
         sorted_defaults = sorted(
             defaults_used,
-            key=lambda item: (
-                item.table,
-                item.column,
-                repr(item.default),
-            ),
+            key=column_default_sort_key,
         )
         for default_info in sorted_defaults:
             print(
                 f"  {default_info.table}.{default_info.column} "
                 f"= {default_info.default!r}"
             )
+
+
+def column_default_sort_key(item):
+    default_value = repr(item.default)
+    return item.table, item.column, default_value
 
 
 def print_skipped_tables(skipped: list[tuple[str, str]]) -> None:

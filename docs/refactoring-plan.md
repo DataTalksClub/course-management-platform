@@ -244,6 +244,8 @@ testable service functions.
   export list.
 - [x] Move random leaderboard display-name word lists out of Python code and
   into data files loaded by a small helper module.
+- [x] Extend the no-lambda cleanup to maintained e2e and script helpers with
+  named callbacks and sort keys.
 
 ## Current Findings
 

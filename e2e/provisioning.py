@@ -33,6 +33,7 @@ purged.
 
 import time
 from dataclasses import dataclass, field
+from functools import partial
 
 from .api_client import ApiError, CmpApiClient
 from .config import NAMESPACE_PREFIX
@@ -210,20 +211,28 @@ class Provisioner:
         residual: list[str],
     ) -> None:
         projects = self.api.list_projects(slug)
+        close_project = partial(self._close_project_for_delete, slug)
+        delete_project = partial(self._delete_project_for_delete, slug)
         for proj in projects:
             delete_data = CloseDeleteData(
-                close_fn=lambda pid: self.api.update_project(
-                    slug,
-                    pid,
-                    {"state": "CL"},
-                ),
-                delete_fn=lambda pid: self.api.delete_project(slug, pid),
+                close_fn=close_project,
+                delete_fn=delete_project,
                 obj=proj,
                 kind="project",
                 deleted=deleted,
                 residual=residual,
             )
             _close_and_delete(delete_data)
+
+    def _close_project_for_delete(self, slug: str, project_id: int) -> None:
+        self.api.update_project(
+            slug,
+            project_id,
+            {"state": "CL"},
+        )
+
+    def _delete_project_for_delete(self, slug: str, project_id: int):
+        return self.api.delete_project(slug, project_id)
 
     def _delete_homework_prepass(
         self,
@@ -232,20 +241,28 @@ class Provisioner:
         residual: list[str],
     ) -> None:
         homeworks = self.api.list_homeworks(slug)
+        close_homework = partial(self._close_homework_for_delete, slug)
+        delete_homework = partial(self._delete_homework_for_delete, slug)
         for hw in homeworks:
             delete_data = CloseDeleteData(
-                close_fn=lambda hid: self.api.update_homework(
-                    slug,
-                    hid,
-                    {"state": "CL"},
-                ),
-                delete_fn=lambda hid: self.api.delete_homework(slug, hid),
+                close_fn=close_homework,
+                delete_fn=delete_homework,
                 obj=hw,
                 kind="homework",
                 deleted=deleted,
                 residual=residual,
             )
             _close_and_delete(delete_data)
+
+    def _close_homework_for_delete(self, slug: str, homework_id: int) -> None:
+        self.api.update_homework(
+            slug,
+            homework_id,
+            {"state": "CL"},
+        )
+
+    def _delete_homework_for_delete(self, slug: str, homework_id: int):
+        return self.api.delete_homework(slug, homework_id)
 
     def _delete_child_objects(
         self,
