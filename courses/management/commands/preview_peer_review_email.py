@@ -14,8 +14,10 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 
 from courses.models import Course, Project
+from course_management.datamailer.payloads.peer_review_members import (
+    assigned_review_links,
+)
 from course_management.datamailer.payloads.peer_review import (
-    _assigned_review_links,
     peer_review_assignment_notification_payload,
 )
 from course_management.deadlines import format_deadline_for_email
@@ -139,7 +141,7 @@ def submission_preview_lines(submission):
         f"- {submission.student.email}",
         f"    submitted: {submission_submitted_at(submission)}",
     ]
-    links = _assigned_review_links(submission)
+    links = assigned_review_links(submission)
     lines.append(f"    you were assigned {len(links)} projects to review:")
     for i, link in enumerate(links, start=1):
         lines.append(f"      {i}. {link['eval_url']}")

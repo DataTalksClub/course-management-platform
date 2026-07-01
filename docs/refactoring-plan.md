@@ -267,6 +267,8 @@ testable service functions.
   out of the public project scoring coordinator.
 - [x] Split Datamailer recipient-list bulk upsert-before-send helpers out of
   membership sync ownership.
+- [x] Split Datamailer peer-review assignment recipient/member metadata out of
+  the notification payload builder.
 
 ## Current Findings
 
