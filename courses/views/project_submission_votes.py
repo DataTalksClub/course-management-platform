@@ -16,13 +16,7 @@ def project_vote_response(request, course, project):
         response = redirect("login")
         return response
 
-    submission = _project_vote_submission(request, project)
-    vote_action = request.POST.get("action", "vote")
-    update_project_vote(
-        request.user,
-        submission,
-        action=vote_action,
-    )
+    submission = _apply_project_vote(request, project)
 
     if _is_ajax_request(request):
         payload = _project_vote_payload(
@@ -44,6 +38,17 @@ def project_vote_response(request, course, project):
 
 def _is_ajax_request(request):
     return request.headers.get("x-requested-with") == "XMLHttpRequest"
+
+
+def _apply_project_vote(request, project):
+    submission = _project_vote_submission(request, project)
+    vote_action = request.POST.get("action", "vote")
+    update_project_vote(
+        request.user,
+        submission,
+        action=vote_action,
+    )
+    return submission
 
 
 def _project_vote_submission(request, project):

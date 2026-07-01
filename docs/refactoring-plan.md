@@ -2284,6 +2284,15 @@ Steps:
   `uv run python manage.py test courses.tests.test_deadline_reminder_dry_run courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_project courses.tests.test_deadline_reminder_peer_review`,
   broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split project-vote mutation out of the route response selection so the
+  public view coordinates authentication, vote application, and response type
+  without carrying the mutation details inline. Verification:
+  `uv run ruff check courses/views/project_submission_votes.py courses/tests/test_project_voting.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_voting`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
