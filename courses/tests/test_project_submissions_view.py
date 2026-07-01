@@ -48,12 +48,17 @@ class ProjectSubmissionsViewTests(TestCase):
         )
 
     def create_project(self):
+        now = timezone.now()
+        submission_delta = timedelta(days=7)
+        peer_review_delta = timedelta(days=14)
+        submission_due_date = now + submission_delta
+        peer_review_due_date = now + peer_review_delta
         return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
-            submission_due_date=timezone.now() + timedelta(days=7),
-            peer_review_due_date=timezone.now() + timedelta(days=14),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
@@ -91,6 +96,15 @@ class ProjectSubmissionsViewTests(TestCase):
     def project_url(self):
         return reverse(
             "project",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+    def cadmin_project_submissions_url(self):
+        return reverse(
+            "cadmin_project_submissions",
             kwargs={
                 "course_slug": self.course.slug,
                 "project_slug": self.project.slug,
@@ -149,8 +163,9 @@ class ProjectSubmissionsViewTests(TestCase):
 
     def admin_submissions_response(self, project=None):
         self.login_admin()
+        submissions_url = self.project_submissions_url(project)
         return self.client.get(
-            self.project_submissions_url(project),
+            submissions_url,
             follow=True,
         )
 
@@ -168,38 +183,24 @@ class ProjectSubmissionsViewTests(TestCase):
 
     def test_submissions_view_unauthenticated_redirects(self):
         """Test that unauthenticated users are redirected"""
-        response = self.client.get(self.project_submissions_url())
+        submissions_url = self.project_submissions_url()
+        response = self.client.get(submissions_url)
 
         # Should redirect to project view with error message
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(
-            response,
-            reverse(
-                "project",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.project.slug,
-                },
-            ),
-        )
+        project_url = self.project_url()
+        self.assertRedirects(response, project_url)
 
     def test_submissions_view_regular_user_denied(self):
         """Test that regular users cannot access submissions view"""
         self.client.login(**credentials)
-        response = self.client.get(self.project_submissions_url())
+        submissions_url = self.project_submissions_url()
+        response = self.client.get(submissions_url)
 
         # Should redirect to project view with error message
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(
-            response,
-            reverse(
-                "project",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.project.slug,
-                },
-            ),
-        )
+        project_url = self.project_url()
+        self.assertRedirects(response, project_url)
 
     def test_submissions_view_admin_can_access(self):
         """Test that admin users can access submissions view"""
@@ -229,27 +230,21 @@ class ProjectSubmissionsViewTests(TestCase):
     def test_admin_link_visible_to_staff(self):
         """Test that the admin link is visible to staff users"""
         self.login_admin()
-        response = self.client.get(self.project_url())
+        project_url = self.project_url()
+        response = self.client.get(project_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response, "Manage project in cadmin"
         )
-        self.assertContains(
-            response,
-            reverse(
-                "cadmin_project_submissions",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.project.slug,
-                },
-            ),
-        )
+        cadmin_submissions_url = self.cadmin_project_submissions_url()
+        self.assertContains(response, cadmin_submissions_url)
 
     def test_admin_link_not_visible_to_regular_users(self):
         """Test that the admin link is not visible to regular users"""
         self.client.login(**credentials)
-        response = self.client.get(self.project_url())
+        project_url = self.project_url()
+        response = self.client.get(project_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(
@@ -279,15 +274,20 @@ class ProjectSubmissionsViewTests(TestCase):
     def test_copy_emails_button_not_present_when_no_submissions(self):
         """Test that the copy emails button is not present when there are no submissions"""
         # Create a new project with no submissions
+        now = timezone.now()
+        submission_delta = timedelta(days=7)
+        peer_review_delta = timedelta(days=14)
+        submission_due_date = now + submission_delta
+        peer_review_due_date = now + peer_review_delta
         new_project = Project.objects.create(
             course=self.course,
             slug="empty-project",
             title="Empty Project",
-            submission_due_date=timezone.now() + timedelta(days=7),
-            peer_review_due_date=timezone.now() + timedelta(days=14),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
-        
+
         response = self.admin_submissions_response(new_project)
 
         self.assertEqual(response.status_code, 200)

@@ -1963,6 +1963,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_project_eval`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name project-submissions view test due dates and URLs before model
+  creation, client calls, or assertions. Verification:
+  `uv run ruff check courses/tests/test_project_submissions_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_submissions_view`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
