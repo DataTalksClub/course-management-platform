@@ -665,6 +665,11 @@ testable service functions.
   `uv run ruff check scripts/generate_production_like_leaderboard_data.py`,
   `python -m py_compile scripts/generate_production_like_leaderboard_data.py`,
   and touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name e2e browser helper URLs, selector/count values, link limits, and
+  login redirect patterns before Playwright calls. Verification:
+  `uv run ruff check e2e/browser.py`, `python -m py_compile e2e/browser.py`,
+  `uv run pytest e2e/tests/test_07_browser_helpers.py -q`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

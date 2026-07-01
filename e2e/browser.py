@@ -101,7 +101,8 @@ class AdminSession:
         plain ``locator.click()`` acts on the first match even if it is hidden.
         """
         candidates = self.page.locator(selector)
-        for index in range(candidates.count()):
+        candidate_count = candidates.count()
+        for index in range(candidate_count):
             candidate = candidates.nth(index)
             if candidate.is_visible():
                 candidate.click()
@@ -129,7 +130,8 @@ class AdminSession:
 
     # -- auth ------------------------------------------------------------
     def login_admin(self, email: str, password: str) -> None:
-        self.page.goto(self.url("/admin/login/"))
+        login_url = self.url("/admin/login/")
+        self.page.goto(login_url)
         # Django admin login form: fields named username + password.
         self.page.fill("input[name='username']", email)
         self.page.fill("input[name='password']", password)
@@ -148,7 +150,10 @@ class AdminSession:
         We submit a real form so the CSRF cookie/token handshake works the
         same way the admin UI's "Login as user" button does.
         """
-        self.page.goto(self.url(f"/admin/accounts/customuser/{user_id}/change/"))
+        user_change_url = self.url(
+            f"/admin/accounts/customuser/{user_id}/change/"
+        )
+        self.page.goto(user_change_url)
         # The change form template includes the loginas button/form.
         loginas_button = self.page.locator(
             "button[name='login_as'], input[name='login_as'], "
@@ -205,7 +210,8 @@ class AdminSession:
                 });
             }"""
         )
-        self.page.goto(self.url("/admin/"))
+        admin_url = self.url("/admin/")
+        self.page.goto(admin_url)
         self.page.wait_for_load_state("networkidle")
 
     # -- test student management (admin side) ----------------------------
@@ -215,16 +221,15 @@ class AdminSession:
         CustomUserAdmin has ``search_fields = ["email"]`` so the changelist
         ``?q=`` search returns matching rows; we read the edit link id.
         """
-        self.page.goto(
-            self.url(f"/admin/accounts/customuser/?q={email}")
-        )
+        user_search_url = self.url(f"/admin/accounts/customuser/?q={email}")
+        self.page.goto(user_search_url)
         self.page.wait_for_load_state("networkidle")
         link = self.page.locator(
             "a[href*='/admin/accounts/customuser/']"
         ).filter(has_text="")
-        import re
 
-        for i in range(link.count()):
+        link_count = link.count()
+        for i in range(link_count):
             href = link.nth(i).get_attribute("href") or ""
             m = re.search(r"/admin/accounts/customuser/(\d+)/change/", href)
             if m:
@@ -242,7 +247,8 @@ class AdminSession:
         add form. Support both: the smoke flow impersonates the student and
         does not rely on the target user's password for login.
         """
-        self.page.goto(self.url("/admin/accounts/customuser/add/"))
+        user_add_url = self.url("/admin/accounts/customuser/add/")
+        self.page.goto(user_add_url)
         self.page.wait_for_load_state("networkidle")
         self._fill_student_add_form(email, password)
         self.submit_form_containing("input[name='username']")
@@ -297,12 +303,14 @@ class AdminSession:
         ``title``), then read the ``<pk>`` out of that row's change link
         (``/admin/courses/course/<pk>/change/``).
         """
-        self.page.goto(self.url("/admin/courses/course/"))
+        course_list_url = self.url("/admin/courses/course/")
+        self.page.goto(course_list_url)
         self.page.wait_for_load_state("networkidle")
         # Each result row's first cell is an <a> to the change form. Find the
         # row whose visible text contains our slug/title and read its pk.
         rows = self.page.locator("#result_list tbody tr")
-        for i in range(rows.count()):
+        row_count = rows.count()
+        for i in range(row_count):
             row = rows.nth(i)
             try:
                 row_text = row.inner_text()
@@ -316,7 +324,8 @@ class AdminSession:
         return None
 
     def _open_course_delete_confirmation(self, course_pk: int) -> None:
-        self.page.goto(self.url(f"/admin/courses/course/{course_pk}/delete/"))
+        delete_url = self.url(f"/admin/courses/course/{course_pk}/delete/")
+        self.page.goto(delete_url)
         self.page.wait_for_load_state("networkidle")
 
     def _submit_course_delete_confirmation(self) -> bool:
@@ -390,12 +399,15 @@ class AdminSession:
 
     def _fill_learning_in_public_links(self, links: list[str] | None) -> None:
         inputs = self.page.locator("[name='learning_in_public_links[]']")
-        link_values = indexed_values(links, inputs.count())
+        input_count = inputs.count()
+        link_values = indexed_values(links, input_count)
         for index, link in link_values:
             inputs.nth(index).fill(link)
 
     def _homework_submit_selector(self, answers: dict[int, str]) -> str:
-        first_answer_selector = f"[name='answer_{next(iter(answers))}']"
+        answer_ids = iter(answers)
+        first_answer_id = next(answer_ids)
+        first_answer_selector = f"[name='answer_{first_answer_id}']"
         return (
             f"form:has({first_answer_selector}) #submit-button, "
             f"form:has({first_answer_selector}) button[type='submit'], "
@@ -404,11 +416,15 @@ class AdminSession:
 
     def submit_homework(self, data: HomeworkSubmissionData) -> None:
         page = self.page
-        page.goto(self.url(f"/{data.course_slug}/homework/{data.homework_slug}"))
+        homework_url = self.url(
+            f"/{data.course_slug}/homework/{data.homework_slug}"
+        )
+        page.goto(homework_url)
         page.wait_for_load_state("networkidle")
 
         self._fill_homework_form(data)
-        self.click_first_visible(self._homework_submit_selector(data.answers))
+        submit_selector = self._homework_submit_selector(data.answers)
+        self.click_first_visible(submit_selector)
         page.wait_for_load_state("networkidle")
 
     def _fill_homework_form(self, data: HomeworkSubmissionData) -> None:
@@ -437,7 +453,10 @@ class AdminSession:
     # -- project flow ----------------------------------------------------
     def submit_project(self, data: ProjectSubmissionData) -> None:
         page = self.page
-        page.goto(self.url(f"/{data.course_slug}/project/{data.project_slug}"))
+        project_url = self.url(
+            f"/{data.course_slug}/project/{data.project_slug}"
+        )
+        page.goto(project_url)
         page.wait_for_load_state("networkidle")
 
         self._fill_project_required_fields(data.github_link, data.commit_id)
@@ -469,9 +488,10 @@ class AdminSession:
         learning_in_public_links: list[str] | None,
     ) -> None:
         inputs = self.page.locator("[name='learning_in_public_links[]']")
+        input_count = inputs.count()
         link_values = indexed_values(
             learning_in_public_links,
-            inputs.count(),
+            input_count,
         )
         for index, link in link_values:
             inputs.nth(index).fill(link)
@@ -484,7 +504,8 @@ class AdminSession:
         submission so the project becomes deletable again.
         """
         page = self.page
-        page.goto(self.url(f"/{course_slug}/project/{project_slug}"))
+        project_url = self.url(f"/{course_slug}/project/{project_slug}")
+        page.goto(project_url)
         page.evaluate(
             """async () => {
                 function getCookie(name) {
@@ -505,14 +526,15 @@ class AdminSession:
 
     # -- read-only pages -------------------------------------------------
     def open(self, path: str) -> str:
-        self.page.goto(self.url(path))
+        target_url = self.url(path)
+        self.page.goto(target_url)
         self.page.wait_for_load_state("networkidle")
         body = self.page.locator("body")
         body_text = body.inner_text()
         return body_text
 
     def expect_redirect_to_login(self, path: str) -> None:
-        self.page.goto(self.url(path))
-        expect(self.page).to_have_url(
-            __import__("re").compile(r"/login(/|\?|$)")
-        )
+        target_url = self.url(path)
+        self.page.goto(target_url)
+        login_url_pattern = re.compile(r"/login(/|\?|$)")
+        expect(self.page).to_have_url(login_url_pattern)
