@@ -51,8 +51,7 @@ def calculate_project_score(
     project_score = 0
     responses_by_criteria = responses_grouped_by_criteria(reviews)
 
-    criteria_responses = responses_by_criteria.values()
-    for responses in criteria_responses:
+    for responses in responses_by_criteria.values():
         criteria_score, evaluation = score_project_criteria(
             submission, responses
         )

@@ -171,8 +171,7 @@ class ReviewCriteria(models.Model):
     def median_score(self) -> int:
         result = 0
         scores = []
-        options = self.options
-        for option in options:
+        for option in self.options:
             score = option["score"]
             scores.append(score)
 
