@@ -7,22 +7,32 @@ QUESTION_REF = ref("Question")
 QUESTION_ARRAY = array_of(QUESTION_REF)
 QUESTION_CREATE_REF = ref("QuestionCreate")
 QUESTION_CREATE_ARRAY = array_of(QUESTION_CREATE_REF)
+QUESTION_TEXT_PROPERTIES = model_properties(Question, ["id", "text"])
+QUESTION_CREATE_TEXT_PROPERTIES = model_properties(Question, ["text"])
+QUESTION_ANSWER_PROPERTIES = model_properties(
+    Question,
+    ["correct_answer", "scores_for_correct_answer"],
+)
+QUESTION_TYPE_REF = ref("QuestionType")
+ANSWER_TYPE_REF = ref("AnswerType")
+STRING_SCHEMA = {"type": "string"}
+POSSIBLE_ANSWERS_ARRAY = array_of(STRING_SCHEMA)
+DELETE_BLOCKERS_ARRAY = array_of(STRING_SCHEMA)
+ERROR_ARRAY = array_of(JSON)
+QUESTION_CREATE_INLINE_ALLOF = [QUESTION_CREATE_REF]
 
 QUESTION_SCHEMAS = {
     "Question": {
         "type": "object",
         "properties": {
-            **model_properties(Question, ["id", "text"]),
-            "question_type": ref("QuestionType"),
-            "answer_type": ref("AnswerType"),
-            "possible_answers": array_of({"type": "string"}),
-            **model_properties(
-                Question,
-                ["correct_answer", "scores_for_correct_answer"],
-            ),
+            **QUESTION_TEXT_PROPERTIES,
+            "question_type": QUESTION_TYPE_REF,
+            "answer_type": ANSWER_TYPE_REF,
+            "possible_answers": POSSIBLE_ANSWERS_ARRAY,
+            **QUESTION_ANSWER_PROPERTIES,
             "answers_count": {"type": "integer"},
             "can_delete": {"type": "boolean"},
-            "delete_blockers": array_of({"type": "string"}),
+            "delete_blockers": DELETE_BLOCKERS_ARRAY,
         },
     },
     "QuestionsList": {
@@ -38,18 +48,15 @@ QUESTION_SCHEMAS = {
         "type": "object",
         "required": ["text"],
         "properties": {
-            **model_properties(Question, ["text"]),
-            "question_type": ref("QuestionType"),
-            "answer_type": ref("AnswerType"),
-            "possible_answers": array_of({"type": "string"}),
-            **model_properties(
-                Question,
-                ["correct_answer", "scores_for_correct_answer"],
-            ),
+            **QUESTION_CREATE_TEXT_PROPERTIES,
+            "question_type": QUESTION_TYPE_REF,
+            "answer_type": ANSWER_TYPE_REF,
+            "possible_answers": POSSIBLE_ANSWERS_ARRAY,
+            **QUESTION_ANSWER_PROPERTIES,
         },
     },
     "QuestionCreateInline": {
-        "allOf": [ref("QuestionCreate")],
+        "allOf": QUESTION_CREATE_INLINE_ALLOF,
         "description": (
             "Question payload accepted while creating a homework. The current "
             "implementation does not require text for inline questions."
@@ -57,7 +64,7 @@ QUESTION_SCHEMAS = {
     },
     "QuestionCreateRequest": {
         "oneOf": [
-            ref("QuestionCreate"),
+            QUESTION_CREATE_REF,
             QUESTION_CREATE_ARRAY,
         ],
     },
@@ -66,21 +73,18 @@ QUESTION_SCHEMAS = {
         "required": ["created"],
         "properties": {
             "created": QUESTION_ARRAY,
-            "errors": array_of(JSON),
+            "errors": ERROR_ARRAY,
         },
     },
     "QuestionPatch": {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            **model_properties(Question, ["text"]),
-            "question_type": ref("QuestionType"),
-            "answer_type": ref("AnswerType"),
-            "possible_answers": array_of({"type": "string"}),
-            **model_properties(
-                Question,
-                ["correct_answer", "scores_for_correct_answer"],
-            ),
+            **QUESTION_CREATE_TEXT_PROPERTIES,
+            "question_type": QUESTION_TYPE_REF,
+            "answer_type": ANSWER_TYPE_REF,
+            "possible_answers": POSSIBLE_ANSWERS_ARRAY,
+            **QUESTION_ANSWER_PROPERTIES,
         },
     }
 }
