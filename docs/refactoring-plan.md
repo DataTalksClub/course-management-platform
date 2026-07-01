@@ -2257,6 +2257,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_registration_helpers`, broad
   AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Replace remaining wide positional `datetime(...)` test fixture calls with
+  keyword arguments so timestamp fields are explicit and the wide positional call
+  scan has no remaining hits. Verification:
+  `uv run ruff check courses/tests/test_deadlines.py courses/tests/test_wrapped_statistics.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_deadlines courses.tests.test_wrapped_statistics`,
+  broad AST cleanup gates report zero violations, wide positional call scan
+  reports zero hits, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

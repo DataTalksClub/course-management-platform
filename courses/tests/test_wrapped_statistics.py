@@ -25,7 +25,14 @@ from courses.wrapped_statistics.calculator import calculate_wrapped_statistics
 
 
 def in_2025(month=6, day=1):
-    naive_date = datetime(2025, month, day, 12, 0, 0)
+    naive_date = datetime(
+        year=2025,
+        month=month,
+        day=day,
+        hour=12,
+        minute=0,
+        second=0,
+    )
     return timezone.make_aware(naive_date)
 
 
