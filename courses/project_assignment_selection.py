@@ -1,10 +1,19 @@
 import random
+from dataclasses import dataclass
 
 from courses.models.project import (
     PeerReview,
     PeerReviewState,
     ProjectSubmission,
 )
+
+
+@dataclass(frozen=True)
+class ReviewerAssignmentData:
+    reviewer_idx: int
+    reviewer_submission: ProjectSubmission
+    submissions: list[ProjectSubmission]
+    projects_pool: list[list[int]]
 
 
 def select_random_assignment(
@@ -23,15 +32,22 @@ def select_random_assignment(
     projects_pool = _review_slot_project_pools(
         num_submissions, num_projects_to_review
     )
+    return _select_all_reviewer_assignments(submissions_list, projects_pool)
 
+
+def _select_all_reviewer_assignments(
+    submissions: list[ProjectSubmission],
+    projects_pool: list[list[int]],
+) -> list[PeerReview]:
     all_assignments = []
-    for reviewer_idx, reviewer_submission in enumerate(submissions_list):
-        assignments = _select_reviewer_assignments(
-            reviewer_idx,
-            reviewer_submission,
-            submissions_list,
-            projects_pool,
+    for reviewer_idx, reviewer_submission in enumerate(submissions):
+        assignment_data = ReviewerAssignmentData(
+            reviewer_idx=reviewer_idx,
+            reviewer_submission=reviewer_submission,
+            submissions=submissions,
+            projects_pool=projects_pool,
         )
+        assignments = _select_reviewer_assignments(assignment_data)
         all_assignments.extend(assignments)
 
     return all_assignments
@@ -69,33 +85,53 @@ def _project_pool(num_submissions: int) -> list[int]:
 
 
 def _select_reviewer_assignments(
-    reviewer_idx: int,
-    reviewer_submission: ProjectSubmission,
-    submissions: list[ProjectSubmission],
-    projects_pool: list[list[int]],
+    assignment_data: ReviewerAssignmentData,
 ) -> list[PeerReview]:
-    selected = {reviewer_idx}
+    selected = {assignment_data.reviewer_idx}
     assignments = []
-    num_submissions = len(submissions)
+    num_submissions = len(assignment_data.submissions)
 
-    for projects in projects_pool:
-        selected_project_idx = _select_project_for_review(
+    for projects in assignment_data.projects_pool:
+        selected_project_idx = _select_assignment_project_idx(
             projects,
             selected,
             num_submissions,
         )
-        selected.add(selected_project_idx)
-        _remove_project_from_slot_pool(selected_project_idx, projects)
-        selected_project = submissions[selected_project_idx]
-        assignment = PeerReview(
-            submission_under_evaluation=selected_project,
-            reviewer=reviewer_submission,
-            state=PeerReviewState.TO_REVIEW.value,
-            optional=False,
+        assignment = _review_assignment(
+            assignment_data,
+            selected_project_idx,
         )
         assignments.append(assignment)
 
     return assignments
+
+
+def _select_assignment_project_idx(
+    projects: list[int],
+    selected: set[int],
+    num_submissions: int,
+) -> int:
+    selected_project_idx = _select_project_for_review(
+        projects,
+        selected,
+        num_submissions,
+    )
+    selected.add(selected_project_idx)
+    _remove_project_from_slot_pool(selected_project_idx, projects)
+    return selected_project_idx
+
+
+def _review_assignment(
+    assignment_data: ReviewerAssignmentData,
+    selected_project_idx: int,
+) -> PeerReview:
+    selected_project = assignment_data.submissions[selected_project_idx]
+    return PeerReview(
+        submission_under_evaluation=selected_project,
+        reviewer=assignment_data.reviewer_submission,
+        state=PeerReviewState.TO_REVIEW.value,
+        optional=False,
+    )
 
 
 def _select_project_for_review(
