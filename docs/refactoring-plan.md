@@ -624,6 +624,11 @@ testable service functions.
   `uv run ruff check scripts/move_criteria.py`,
   `uv run python scripts/move_criteria.py --help`, and touched-file nested-call
   scans report `touched_file_nested_calls=0`.
+- [x] Name debug-score-project script project-root and submission-items values
+  before path insertion or enumerating submission dictionaries. Verification:
+  `uv run ruff check scripts/debug_score_project.py`,
+  `uv run python scripts/debug_score_project.py --help`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

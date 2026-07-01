@@ -15,9 +15,11 @@ import argparse
 import traceback
 
 from dataclasses import dataclass
+from pathlib import Path
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
@@ -291,7 +293,8 @@ def process_submissions(review_data):
         warnings=warnings,
     )
 
-    for index, item in enumerate(review_data.submissions.items()):
+    submission_items = review_data.submissions.items()
+    for index, item in enumerate(submission_items):
         process_submission_item(processing_data, index, item)
 
     print(f"✓ Processed all {len(review_data.submissions)} submissions")
