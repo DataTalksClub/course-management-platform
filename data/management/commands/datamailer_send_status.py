@@ -5,6 +5,14 @@ from django.db.models import Count, Max, Sum
 
 from data.models import DatamailerSendAudit
 
+SEND_TOTAL_FIELDS = (
+    "total",
+    "intended_count",
+    "enqueued_count",
+    "skipped_count",
+    "idempotent_replay_count",
+)
+
 
 class Command(BaseCommand):
     help = "Show Datamailer send audit counts recorded by CMP."
@@ -115,28 +123,21 @@ def send_audit_aggregate():
 
 def send_audit_totals():
     aggregate = send_audit_aggregate()
-    total = aggregate["total"] or 0
+    totals = {}
+    for field in SEND_TOTAL_FIELDS:
+        value = aggregate[field] or 0
+        totals[field] = value
+
     succeeded_count = DatamailerSendAudit.objects.filter(
         status="succeeded"
     ).count()
     failed_count = DatamailerSendAudit.objects.filter(
         status="failed"
     ).count()
-    intended_count = aggregate["intended_count"] or 0
-    enqueued_count = aggregate["enqueued_count"] or 0
-    skipped_count = aggregate["skipped_count"] or 0
-    idempotent_replay_count = aggregate["idempotent_replay_count"] or 0
-
-    return {
-        "total": total,
-        "succeeded": succeeded_count,
-        "failed": failed_count,
-        "last_send_at": aggregate["last_send_at"],
-        "intended_count": intended_count,
-        "enqueued_count": enqueued_count,
-        "skipped_count": skipped_count,
-        "idempotent_replay_count": idempotent_replay_count,
-    }
+    totals["succeeded"] = succeeded_count
+    totals["failed"] = failed_count
+    totals["last_send_at"] = aggregate["last_send_at"]
+    return totals
 
 
 def recent_failed_sends(limit):

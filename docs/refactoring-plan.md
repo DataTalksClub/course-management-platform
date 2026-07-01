@@ -2264,6 +2264,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_deadlines courses.tests.test_wrapped_statistics`,
   broad AST cleanup gates report zero violations, wide positional call scan
   reports zero hits, `uvx pyrefly check`, and `git diff --check`.
+- [x] Normalize Datamailer send-status command totals with an explicit field
+  tuple and loop, matching the cadmin aggregate cleanup and removing repeated
+  assignment blocks. Verification:
+  `uv run ruff check data/management/commands/datamailer_send_status.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox`, broad
+  AST cleanup gates report zero violations, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
