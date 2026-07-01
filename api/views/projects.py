@@ -12,11 +12,12 @@ from api.crud import (
     detail_response,
     get_course_child_or_404,
 )
-from api.safety import (
-    require_staff_token,
-)
 from api.utils import (
     require_methods,
+)
+from api.views.project_action_routes import (
+    ProjectActionRouteData,
+    project_action_route_response,
 )
 from api.views.project_actions import (
     project_assign_reviews_response,
@@ -131,17 +132,16 @@ def project_assign_reviews_view(request, course_slug, project_id):
     """
     POST /api/courses/<slug>/projects/<id>/assign-reviews/ - Assign reviews.
     """
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_course_child_or_404(
-        Project,
-        course,
-        object_id=project_id,
+    route_data = ProjectActionRouteData(
+        request=request,
+        course_slug=course_slug,
+        project_id=project_id,
     )
-    return project_assign_reviews_response(project)
+    response = project_action_route_response(
+        route_data,
+        project_assign_reviews_response,
+    )
+    return response
 
 
 @token_required
@@ -153,17 +153,16 @@ def project_assign_reviews_by_slug_view(
     """
     POST /api/courses/<slug>/projects/by-slug/<slug>/assign-reviews/ - Assign reviews.
     """
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_course_child_or_404(
-        Project,
-        course,
-        slug=project_slug,
+    route_data = ProjectActionRouteData(
+        request=request,
+        course_slug=course_slug,
+        project_slug=project_slug,
     )
-    return project_assign_reviews_response(project)
+    response = project_action_route_response(
+        route_data,
+        project_assign_reviews_response,
+    )
+    return response
 
 
 @token_required
@@ -173,17 +172,16 @@ def project_score_view(request, course_slug, project_id):
     """
     POST /api/courses/<slug>/projects/<id>/score/ - Score project.
     """
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_course_child_or_404(
-        Project,
-        course,
-        object_id=project_id,
+    route_data = ProjectActionRouteData(
+        request=request,
+        course_slug=course_slug,
+        project_id=project_id,
     )
-    return project_score_response(project)
+    response = project_action_route_response(
+        route_data,
+        project_score_response,
+    )
+    return response
 
 
 @token_required
@@ -193,14 +191,13 @@ def project_score_by_slug_view(request, course_slug, project_slug):
     """
     POST /api/courses/<slug>/projects/by-slug/<slug>/score/ - Score project.
     """
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_course_child_or_404(
-        Project,
-        course,
-        slug=project_slug,
+    route_data = ProjectActionRouteData(
+        request=request,
+        course_slug=course_slug,
+        project_slug=project_slug,
     )
-    return project_score_response(project)
+    response = project_action_route_response(
+        route_data,
+        project_score_response,
+    )
+    return response

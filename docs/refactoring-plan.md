@@ -178,6 +178,8 @@ testable service functions.
   helpers out of the YAML/cache route module.
 - [x] Split API question serialization and mutation helpers out of the route
   module.
+- [x] Split repeated API project action staff-check and lookup coordination
+  into a shared route helper.
 
 ## Current Findings
 
