@@ -12,7 +12,7 @@ from courses.models import (
     RegistrationCampaign,
     Submission,
 )
-from .campaigns import registration_campaign_metrics
+from .campaign_metrics import registration_campaign_metrics
 from .helpers import staff_required
 
 

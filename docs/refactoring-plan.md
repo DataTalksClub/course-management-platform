@@ -158,6 +158,8 @@ testable service functions.
   registration-list helpers out of the public API view module.
 - [x] Split cadmin homework submission listing/search and submission edit
   helpers out of the homework admin action module.
+- [x] Split cadmin campaign form/edit, metrics, and registration-list helpers
+  out of the public campaign route module.
 
 ## Current Findings
 
