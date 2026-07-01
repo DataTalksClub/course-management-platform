@@ -5,12 +5,14 @@ def date_to_iso(value):
 
 
 def course_to_dict(course):
+    start_date = date_to_iso(course.start_date)
+    end_date = date_to_iso(course.end_date)
     return {
         "slug": course.slug,
         "title": course.title,
         "description": course.description,
-        "start_date": date_to_iso(course.start_date),
-        "end_date": date_to_iso(course.end_date),
+        "start_date": start_date,
+        "end_date": end_date,
         "registration_url": course.registration_url,
         "github_repo_url": course.github_repo_url,
         "finished": course.finished,
@@ -71,23 +73,26 @@ def course_project_records(course):
 
 
 def course_homework_to_dict(homework):
+    due_date = homework.due_date.isoformat()
     return {
         "id": homework.id,
         "slug": homework.slug,
         "title": homework.title,
         "instructions_url": homework.instructions_url,
-        "due_date": homework.due_date.isoformat(),
+        "due_date": due_date,
         "state": homework.state,
     }
 
 
 def course_project_to_dict(project):
+    submission_due_date = project.submission_due_date.isoformat()
+    peer_review_due_date = project.peer_review_due_date.isoformat()
     return {
         "id": project.id,
         "slug": project.slug,
         "title": project.title,
         "instructions_url": project.instructions_url,
-        "submission_due_date": project.submission_due_date.isoformat(),
-        "peer_review_due_date": project.peer_review_due_date.isoformat(),
+        "submission_due_date": submission_due_date,
+        "peer_review_due_date": peer_review_due_date,
         "state": project.state,
     }
