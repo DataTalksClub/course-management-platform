@@ -204,7 +204,8 @@ class CourseDetailViewTestBase(TestCase):
     def get_course_response(self, login=False):
         if login:
             self.client.login(**credentials)
-        return self.client.get(self.course_url())
+        course_url = self.course_url()
+        return self.client.get(course_url)
 
     def homeworks_by_slug(self, response):
         homeworks_by_slug = {}
@@ -220,38 +221,50 @@ class CourseDetailViewTestBase(TestCase):
 
     def assert_scored_homework(self, data: ScoredHomeworkExpectation):
         self.assertEqual(data.homework.submitted, data.submitted)
-        self.assertEqual(data.homework.is_scored(), True)
+        is_scored = data.homework.is_scored()
+        self.assertEqual(is_scored, True)
         self.assertEqual(data.homework.state, HomeworkState.SCORED.value)
         self.assertEqual(data.homework.score, data.score)
         self.assertEqual(data.homework.days_until_due, 0)
         if not data.with_submitted_at:
-            self.assertFalse(hasattr(data.homework, "submitted_at"))
+            has_submitted_at = hasattr(data.homework, "submitted_at")
+            self.assertFalse(has_submitted_at)
 
     def assert_open_homework(self, data: OpenHomeworkExpectation):
         self.assertEqual(data.homework.submitted, data.submitted)
         self.assertEqual(data.homework.state, HomeworkState.OPEN.value)
-        self.assertEqual(data.homework.is_scored(), False)
+        is_scored = data.homework.is_scored()
+        self.assertEqual(is_scored, False)
         self.assertEqual(data.homework.score, data.score)
         self.assertEqual(data.homework.days_until_due, data.days_until_due)
 
     def assert_unsubmitted_open_homework(self, homework):
         self.assertFalse(homework.submitted)
-        self.assertFalse(hasattr(homework, "submitted_at"))
-        self.assertEqual(homework.is_scored(), False)
+        has_submitted_at = hasattr(homework, "submitted_at")
+        self.assertFalse(has_submitted_at)
+        is_scored = homework.is_scored()
+        self.assertEqual(is_scored, False)
         self.assertEqual(homework.score, None)
         self.assertEqual(homework.days_until_due, 14)
         self.assertEqual(homework.submissions, [])
 
     def assert_enrollment_profile_links(self, response):
         self.assertContains(response, "account timezone")
+        account_settings_url = (
+            f'{reverse("account_settings")}#display-preferences-section'
+        )
         self.assertContains(
             response,
-            f'{reverse("account_settings")}#display-preferences-section',
+            account_settings_url,
         )
         self.assertContains(response, "Edit course profile")
+        enrollment_url = reverse(
+            "enrollment",
+            kwargs={"course_slug": self.course.slug},
+        )
         self.assertContains(
             response,
-            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
+            enrollment_url,
         )
 
     def assert_no_enrollment_profile_links(self, response):
@@ -259,9 +272,13 @@ class CourseDetailViewTestBase(TestCase):
         self.assertContains(response, "N/A")
         self.assertNotContains(response, "None")
         self.assertNotContains(response, "Edit course profile")
+        enrollment_url = reverse(
+            "enrollment",
+            kwargs={"course_slug": self.course.slug},
+        )
         self.assertNotContains(
             response,
-            reverse("enrollment", kwargs={"course_slug": self.course.slug}),
+            enrollment_url,
         )
 
     def assert_authenticated_homework_summary(self, response):
@@ -381,7 +398,9 @@ class CourseDetailViewTestBase(TestCase):
         return user
 
     def assert_course_page_contains_deadline(self, deadline):
-        response = self.client.get(self.course_url())
+        course_url = self.course_url()
+        response = self.client.get(course_url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
-        self.assertIn(deadline.strftime("%Y-%m-%d"), content)
+        formatted_deadline = deadline.strftime("%Y-%m-%d")
+        self.assertIn(formatted_deadline, content)
