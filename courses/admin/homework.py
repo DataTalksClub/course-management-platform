@@ -17,18 +17,23 @@ from courses.homework_correct_answers import (
 from courses.scoring import score_homework_submissions
 
 
+QUESTION_TEXT_WIDGET = UnfoldAdminTextInputWidget(attrs={"size": "60"})
+QUESTION_POSSIBLE_ANSWERS_WIDGET = UnfoldAdminTextareaWidget(
+    attrs={"cols": 60, "rows": 4}
+)
+QUESTION_CORRECT_ANSWER_WIDGET = UnfoldAdminTextInputWidget(
+    attrs={"size": "20"}
+)
+
+
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
         fields = "__all__"
         widgets = {
-            "text": UnfoldAdminTextInputWidget(attrs={"size": "60"}),
-            "possible_answers": UnfoldAdminTextareaWidget(
-                attrs={"cols": 60, "rows": 4}
-            ),
-            "correct_answer": UnfoldAdminTextInputWidget(
-                attrs={"size": "20"}
-            ),
+            "text": QUESTION_TEXT_WIDGET,
+            "possible_answers": QUESTION_POSSIBLE_ANSWERS_WIDGET,
+            "correct_answer": QUESTION_CORRECT_ANSWER_WIDGET,
         }
 
 

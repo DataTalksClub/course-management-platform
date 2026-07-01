@@ -24,17 +24,21 @@ from courses.validators.criteria_validators import (
 )
 
 
+CRITERIA_DESCRIPTION_WIDGET = UnfoldAdminTextInputWidget(
+    attrs={"size": "60"}
+)
+CRITERIA_OPTIONS_WIDGET = UnfoldAdminTextareaWidget(
+    attrs={"cols": 60, "rows": 4}
+)
+
+
 class CriteriaForm(forms.ModelForm):
     class Meta:
         model = ReviewCriteria
         fields = "__all__"
         widgets = {
-            "description": UnfoldAdminTextInputWidget(
-                attrs={"size": "60"}
-            ),
-            "options": UnfoldAdminTextareaWidget(
-                attrs={"cols": 60, "rows": 4}
-            ),
+            "description": CRITERIA_DESCRIPTION_WIDGET,
+            "options": CRITERIA_OPTIONS_WIDGET,
         }
 
     def clean_options(self):
