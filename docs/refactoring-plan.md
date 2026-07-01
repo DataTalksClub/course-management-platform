@@ -120,6 +120,11 @@ testable service functions.
   wrapped statistics, and import Datamailer request data from its owner module.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
+- [x] Split homework scoring view rendering and warning tests into focused
+  modules with shared scoring-view fixtures. Verification:
+  `uv run ruff check courses/tests/homework_scoring_view_base.py courses/tests/homework_scoring_view_expectations.py courses/tests/test_homework_scoring_view.py courses/tests/test_homework_scoring_view_warnings.py`
+  and
+  `uv run python manage.py test courses.tests.test_homework_scoring_view courses.tests.test_homework_scoring_view_warnings`.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
   named values or a dataclass.
 - [x] Split optional homework submission-field tests out of the oversized
