@@ -173,18 +173,20 @@ class DatamailerHomeworkScoreTest(TestCase):
         homework = self.create_homework()
         user = self.create_user("learner@example.com")
         enrollment = self.create_enrollment(user, homework.course)
+        earlier_submission_time = timezone.now() - timedelta(days=1)
         self.create_homework_submission(
             homework,
             user,
             enrollment=enrollment,
-            submitted_at=timezone.now() - timedelta(days=1),
+            submitted_at=earlier_submission_time,
             total_score=4,
         )
+        latest_submission_time = timezone.now()
         latest_submission = self.create_homework_submission(
             homework,
             user,
             enrollment=enrollment,
-            submitted_at=timezone.now(),
+            submitted_at=latest_submission_time,
             total_score=9,
         )
         return homework, latest_submission
@@ -198,9 +200,12 @@ class DatamailerHomeworkScoreTest(TestCase):
     def assert_homework_score_client_calls(self, expectation):
         expectation.bulk_upsert.assert_called_once()
         expectation.send_list.assert_called_once()
+        expected_list_key = homework_submitters_list_key(
+            expectation.homework
+        )
         self.assertEqual(
             expectation.send_list.call_args.args[0],
-            homework_submitters_list_key(expectation.homework),
+            expected_list_key,
         )
         self.assertNotIn("members", expectation.send_list.call_args.args[1])
         self.assertNotIn("list", expectation.send_list.call_args.args[1])
@@ -209,9 +214,10 @@ class DatamailerHomeworkScoreTest(TestCase):
         audit = DatamailerSendAudit.objects.get()
         self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
         self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+        expected_list_key = homework_submitters_list_key(homework)
         self.assertEqual(
             audit.list_key,
-            homework_submitters_list_key(homework),
+            expected_list_key,
         )
         self.assertEqual(audit.template_key, "homework-score-notification")
         self.assertEqual(audit.category_tag, "submission-results")
@@ -226,9 +232,10 @@ class DatamailerHomeworkScoreTest(TestCase):
             "recipient_list.members_bulk_upsert",
         )
         self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+        expected_list_key = homework_submitters_list_key(homework)
         self.assertEqual(
             event.payload["list_key"],
-            homework_submitters_list_key(homework),
+            expected_list_key,
         )
 
     @override_settings(
@@ -245,8 +252,9 @@ class DatamailerHomeworkScoreTest(TestCase):
             homework
         )
 
+        expected_list_key = homework_submitters_list_key(homework)
         self.assertEqual(
-            list_key, homework_submitters_list_key(homework)
+            list_key, expected_list_key
         )
         expectation = self.homework_score_payload_expectation(payload)
         member = self.assert_score_payload_common(expectation)

@@ -145,9 +145,10 @@ class DatamailerPeerReviewTest(TestCase):
         self.assertEqual(payload["metadata"]["event"], "peer_review_assignment")
         context = payload["context"]
         self.assertEqual(context["number_of_peers_to_evaluate"], 3)
+        peer_review_due_at = project.peer_review_due_date.isoformat()
         self.assertEqual(
             context["peer_review_due_at"],
-            project.peer_review_due_date.isoformat(),
+            peer_review_due_at,
         )
         self.assertEqual(context["deadline_weekday"], "Thursday")
         self.assertEqual(context["deadline_time"], "22:00")
@@ -179,7 +180,8 @@ class DatamailerPeerReviewTest(TestCase):
                 f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
                 item["eval_url"],
             )
-            self.assertTrue(item["eval_url"].startswith("https://"))
+            has_secure_eval_url = item["eval_url"].startswith("https://")
+            self.assertTrue(has_secure_eval_url)
 
     def assert_peer_review_send_audit(self):
         audit = DatamailerSendAudit.objects.get()
@@ -199,7 +201,8 @@ class DatamailerPeerReviewTest(TestCase):
             project
         )
 
-        self.assertEqual(list_key, project_submitters_list_key(project))
+        expected_list_key = project_submitters_list_key(project)
+        self.assertEqual(list_key, expected_list_key)
         self.assert_peer_review_assignment_payload(payload, project)
         self.assert_berlin_reviewer_assignments(payload)
 
@@ -250,14 +253,15 @@ class DatamailerPeerReviewTest(TestCase):
         self.assertEqual(result["enqueued_count"], 4)
         bulk_upsert.assert_called_once()
         send_list.assert_called_once()
+        expected_list_key = project_submitters_list_key(project)
         self.assertEqual(
             bulk_upsert.call_args.args[0],
-            project_submitters_list_key(project),
+            expected_list_key,
         )
         self.assertEqual(len(bulk_upsert.call_args.args[1]["members"]), 4)
         self.assertEqual(
             send_list.call_args.args[0],
-            project_submitters_list_key(project),
+            expected_list_key,
         )
         self.assertNotIn("members", send_list.call_args.args[1])
         self.assertNotIn("list", send_list.call_args.args[1])
