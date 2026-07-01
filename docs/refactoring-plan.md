@@ -263,6 +263,8 @@ testable service functions.
   execution/repair logic out of the management command.
 - [x] Split Datamailer outbox retry and error-classification policy out of the
   dispatch orchestration module.
+- [x] Split project scoring peer-review grouping and submission scoring logic
+  out of the public project scoring coordinator.
 
 ## Current Findings
 
