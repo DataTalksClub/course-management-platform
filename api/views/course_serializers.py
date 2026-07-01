@@ -29,14 +29,13 @@ def course_to_dict(course):
 
 def course_summary_to_dict(course):
     result = course_to_dict(course)
-    hidden_fields = (
+    for field in (
         "social_media_hashtag",
         "faq_document_url",
         "min_projects_to_pass",
         "homework_problems_comments_field",
         "project_passing_score",
-    )
-    for field in hidden_fields:
+    ):
         result.pop(field)
     return result
 

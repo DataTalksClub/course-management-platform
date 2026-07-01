@@ -136,8 +136,7 @@ def validation_error_response(exc):
 
 def missing_course_create_fields(data):
     missing_fields = []
-    required_fields = ("title", "slug")
-    for field in required_fields:
+    for field in ("title", "slug"):
         if not data.get(field):
             missing_fields.append(field)
     return missing_fields

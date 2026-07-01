@@ -173,14 +173,13 @@ class Command(BaseCommand):
         else:
             counts = {}
         summary_parts = []
-        count_keys = (
+        for key in (
             "created",
             "updated",
             "unchanged",
             "skipped",
             "invalid",
-        )
-        for key in count_keys:
+        ):
             if key in counts:
                 summary_part = f"{key}={counts[key]}"
                 summary_parts.append(summary_part)

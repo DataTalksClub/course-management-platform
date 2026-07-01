@@ -172,7 +172,6 @@ class Command(BaseCommand):
         campaign = (responses["upsert"] or {}).get("campaign", {})
         status = campaign.get("status", "unknown")
         self.stdout.write(f"Upserted {external_key}: status={status}")
-        actions = ("preview", "test_send", "queue", "cancel")
-        for action in actions:
+        for action in ("preview", "test_send", "queue", "cancel"):
             if action in responses:
                 self.stdout.write(f"{action}: ok")

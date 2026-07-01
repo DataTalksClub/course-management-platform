@@ -2446,6 +2446,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Replace immediate one-off tuple aliases before loops with direct tuple
+  iteration in course API serialization/mutation helpers and Datamailer
+  commands. Verification:
+  `uv run ruff check api/views/course_serializers.py api/views/course_mutations.py courses/management/commands/datamailer_campaign.py courses/management/commands/sync_datamailer_contacts.py api/tests/test_courses.py courses/tests/test_datamailer_campaign_command.py courses/tests/test_datamailer_contact.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_courses courses.tests.test_datamailer_campaign_command courses.tests.test_datamailer_contact`,
+  touched-file one-off literal-alias scan reports
+  `touched_file_one_off_literal_aliases=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
