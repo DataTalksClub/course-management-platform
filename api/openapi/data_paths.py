@@ -8,7 +8,31 @@ from .primitives import (
     schema_response,
 )
 
-API_HEALTH_RESPONSES = {"200": schema_response("Service status", "Health")}
+API_HEALTH_SUCCESS_RESPONSE = schema_response("Service status", "Health")
+COURSE_NOT_FOUND_RESPONSE = schema_response("Course not found", "Error")
+COURSE_OR_HOMEWORK_NOT_FOUND_RESPONSE = schema_response(
+    "Course or homework not found",
+    "Error",
+)
+COURSE_OR_PROJECT_NOT_FOUND_RESPONSE = schema_response(
+    "Course or project not found",
+    "Error",
+)
+INVALID_REQUEST_RESPONSE = schema_response("Invalid request", "Error")
+INVALID_EVENT_PAYLOAD_RESPONSE = schema_response(
+    "Invalid event payload",
+    "Error",
+)
+INVALID_WEBHOOK_TOKEN_RESPONSE = schema_response(
+    "Invalid webhook token",
+    "Error",
+)
+WEBHOOK_NOT_CONFIGURED_RESPONSE = schema_response(
+    "Webhook not configured",
+    "Error",
+)
+
+API_HEALTH_RESPONSES = {"200": API_HEALTH_SUCCESS_RESPONSE}
 API_HEALTH_DATA = OperationData(
     "api_health",
     ["System"],
@@ -19,9 +43,13 @@ API_HEALTH_DATA = OperationData(
 API_HEALTH_OPERATION = operation(API_HEALTH_DATA)
 
 COURSE_CRITERIA_CONTENT = {"text/yaml": {"schema": {"type": "string"}}}
+COURSE_CRITERIA_SUCCESS_RESPONSE = content_response(
+    "Course criteria YAML",
+    COURSE_CRITERIA_CONTENT,
+)
 COURSE_CRITERIA_RESPONSES = {
-    "200": content_response("Course criteria YAML", COURSE_CRITERIA_CONTENT),
-    "404": schema_response("Course not found", "Error"),
+    "200": COURSE_CRITERIA_SUCCESS_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
 }
 COURSE_CRITERIA_DATA = OperationData(
     "api_course_criteria_yaml",
@@ -33,9 +61,13 @@ COURSE_CRITERIA_DATA = OperationData(
 COURSE_CRITERIA_OPERATION = operation(COURSE_CRITERIA_DATA)
 
 COURSE_LEADERBOARD_CONTENT = {"text/plain": {"schema": {"type": "string"}}}
+COURSE_LEADERBOARD_SUCCESS_RESPONSE = content_response(
+    "Leaderboard YAML",
+    COURSE_LEADERBOARD_CONTENT,
+)
 COURSE_LEADERBOARD_RESPONSES = {
-    "200": content_response("Leaderboard YAML", COURSE_LEADERBOARD_CONTENT),
-    "404": schema_response("Course not found", "Error"),
+    "200": COURSE_LEADERBOARD_SUCCESS_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
 }
 COURSE_LEADERBOARD_DATA = OperationData(
     "api_course_leaderboard",
@@ -46,9 +78,13 @@ COURSE_LEADERBOARD_DATA = OperationData(
 )
 COURSE_LEADERBOARD_OPERATION = operation(COURSE_LEADERBOARD_DATA)
 
+HOMEWORK_SUBMISSIONS_EXPORT_SUCCESS_RESPONSE = response(
+    "Homework submissions export",
+    JSON,
+)
 HOMEWORK_SUBMISSIONS_EXPORT_RESPONSES = {
-    "200": response("Homework submissions export", JSON),
-    "404": schema_response("Course or homework not found", "Error"),
+    "200": HOMEWORK_SUBMISSIONS_EXPORT_SUCCESS_RESPONSE,
+    "404": COURSE_OR_HOMEWORK_NOT_FOUND_RESPONSE,
 }
 HOMEWORK_SUBMISSIONS_EXPORT_DATA = OperationData(
     "api_homework_submissions_export",
@@ -58,9 +94,13 @@ HOMEWORK_SUBMISSIONS_EXPORT_DATA = OperationData(
 )
 HOMEWORK_SUBMISSIONS_EXPORT_OPERATION = operation(HOMEWORK_SUBMISSIONS_EXPORT_DATA)
 
+PROJECT_SUBMISSIONS_EXPORT_SUCCESS_RESPONSE = response(
+    "Project submissions export",
+    JSON,
+)
 PROJECT_SUBMISSIONS_EXPORT_RESPONSES = {
-    "200": response("Project submissions export", JSON),
-    "404": schema_response("Course or project not found", "Error"),
+    "200": PROJECT_SUBMISSIONS_EXPORT_SUCCESS_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
 }
 PROJECT_SUBMISSIONS_EXPORT_DATA = OperationData(
     "api_project_submissions_export",
@@ -70,9 +110,13 @@ PROJECT_SUBMISSIONS_EXPORT_DATA = OperationData(
 )
 PROJECT_SUBMISSIONS_EXPORT_OPERATION = operation(PROJECT_SUBMISSIONS_EXPORT_DATA)
 
+COURSE_GRADUATES_SUCCESS_RESPONSE = schema_response(
+    "Course graduates",
+    "Graduates",
+)
 COURSE_GRADUATES_RESPONSES = {
-    "200": schema_response("Course graduates", "Graduates"),
-    "404": schema_response("Course not found", "Error"),
+    "200": COURSE_GRADUATES_SUCCESS_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
 }
 COURSE_GRADUATES_DATA = OperationData(
     "api_course_graduates",
@@ -82,13 +126,14 @@ COURSE_GRADUATES_DATA = OperationData(
 )
 COURSE_GRADUATES_OPERATION = operation(COURSE_GRADUATES_DATA)
 
+COURSE_CERTIFICATES_SUCCESS_RESPONSE = schema_response(
+    "Certificate update result",
+    "CertificateUpdateResponse",
+)
 COURSE_CERTIFICATES_RESPONSES = {
-    "200": schema_response(
-        "Certificate update result",
-        "CertificateUpdateResponse",
-    ),
-    "400": schema_response("Invalid request", "Error"),
-    "404": schema_response("Course not found", "Error"),
+    "200": COURSE_CERTIFICATES_SUCCESS_RESPONSE,
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
 }
 COURSE_CERTIFICATES_BODY = schema_request_body("CertificateUpdateRequest")
 COURSE_CERTIFICATES_DESCRIPTION = (
@@ -106,14 +151,15 @@ COURSE_CERTIFICATES_DATA = OperationData(
 )
 COURSE_CERTIFICATES_OPERATION = operation(COURSE_CERTIFICATES_DATA)
 
+DATAMAILER_EVENTS_SUCCESS_RESPONSE = schema_response(
+    "Datamailer event accepted",
+    "DatamailerEventAccepted",
+)
 DATAMAILER_EVENTS_RESPONSES = {
-    "200": schema_response(
-        "Datamailer event accepted",
-        "DatamailerEventAccepted",
-    ),
-    "400": schema_response("Invalid event payload", "Error"),
-    "401": schema_response("Invalid webhook token", "Error"),
-    "503": schema_response("Webhook not configured", "Error"),
+    "200": DATAMAILER_EVENTS_SUCCESS_RESPONSE,
+    "400": INVALID_EVENT_PAYLOAD_RESPONSE,
+    "401": INVALID_WEBHOOK_TOKEN_RESPONSE,
+    "503": WEBHOOK_NOT_CONFIGURED_RESPONSE,
 }
 DATAMAILER_EVENTS_BODY = schema_request_body("DatamailerEvent")
 DATAMAILER_EVENTS_DESCRIPTION = (
