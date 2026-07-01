@@ -148,36 +148,44 @@ class DatamailerClientEndpointTest(TestCase):
 
         return cases
 
+    def contact_status_method_case(self):
+        params = {
+            "email": "student@example.com",
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+        }
+        return DatamailerMethodCase(
+            method_name="contact_status",
+            args=("student@example.com",),
+            method="GET",
+            path="/api/contacts/status",
+            params=params,
+            response_payload={"exists": True},
+            expected_result={"exists": True},
+        )
+
+    def contact_history_method_case(self):
+        params = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+            "limit": 5,
+        }
+        return DatamailerMethodCase(
+            method_name="contact_history",
+            args=(42,),
+            kwargs={"limit": 5},
+            method="GET",
+            path="/api/contacts/42/history",
+            params=params,
+            response_payload={"transactional_messages": []},
+            expected_result={"transactional_messages": []},
+        )
+
     def contact_read_method_cases(self):
-        return [
-            DatamailerMethodCase(
-                method_name="contact_status",
-                args=("student@example.com",),
-                method="GET",
-                path="/api/contacts/status",
-                params={
-                    "email": "student@example.com",
-                    "audience": "dtc-courses",
-                    "client": "dtc-courses",
-                },
-                response_payload={"exists": True},
-                expected_result={"exists": True},
-            ),
-            DatamailerMethodCase(
-                method_name="contact_history",
-                args=(42,),
-                kwargs={"limit": 5},
-                method="GET",
-                path="/api/contacts/42/history",
-                params={
-                    "audience": "dtc-courses",
-                    "client": "dtc-courses",
-                    "limit": 5,
-                },
-                response_payload={"transactional_messages": []},
-                expected_result={"transactional_messages": []},
-            ),
-        ]
+        cases = []
+        cases.append(self.contact_status_method_case())
+        cases.append(self.contact_history_method_case())
+        return cases
 
     def contact_method_cases(self):
         cases = []
@@ -243,36 +251,118 @@ class DatamailerClientEndpointTest(TestCase):
             cases.append(case)
         return cases
 
-    def recipient_list_import_method_cases(self):
-        import_payload = {
+    def recipient_list_import_payload(self):
+        return {
             "source_url": "https://storage.example.com/import.jsonl",
             "idempotency_key": "cmp-import-1",
         }
-        return [
-            DatamailerMethodCase(
-                method_name="create_recipient_list_import",
-                args=("ml-zoomcamp-2026:@e", import_payload),
-                method="POST",
-                path="/api/recipient-lists/ml-zoomcamp-2026:@e/imports",
-                json_payload={
-                    "audience": "dtc-courses",
-                    "client": "dtc-courses",
-                    "source_url": "https://storage.example.com/import.jsonl",
-                    "idempotency_key": "cmp-import-1",
-                },
-                response_payload={"ok": True},
-                expected_result={"ok": True},
+
+    def create_recipient_list_import_method_case(self):
+        import_payload = self.recipient_list_import_payload()
+        json_payload = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+            "source_url": "https://storage.example.com/import.jsonl",
+            "idempotency_key": "cmp-import-1",
+        }
+        return DatamailerMethodCase(
+            method_name="create_recipient_list_import",
+            args=("ml-zoomcamp-2026:@e", import_payload),
+            method="POST",
+            path="/api/recipient-lists/ml-zoomcamp-2026:@e/imports",
+            json_payload=json_payload,
+            response_payload={"ok": True},
+            expected_result={"ok": True},
+        )
+
+    def recipient_list_import_status_method_case(self):
+        params = {"audience": "dtc-courses", "client": "dtc-courses"}
+        return DatamailerMethodCase(
+            method_name="recipient_list_import",
+            args=("ml-zoomcamp-2026:@e", 42),
+            method="GET",
+            path="/api/recipient-lists/ml-zoomcamp-2026:@e/imports/42",
+            params=params,
+            response_payload={"ok": True},
+            expected_result={"ok": True},
+        )
+
+    def recipient_list_import_method_cases(self):
+        cases = []
+        cases.append(self.create_recipient_list_import_method_case())
+        cases.append(self.recipient_list_import_status_method_case())
+        return cases
+
+    def transient_transactional_payload(self):
+        member = {"email": "learner@example.com"}
+        members = []
+        members.append(member)
+        return {
+            "template_key": "deadline-reminder",
+            "members": members,
+        }
+
+    def recipient_list_transactional_send_method_case(self):
+        payload = {"template_key": "homework-score-notification"}
+        return DatamailerMethodCase(
+            method_name="send_recipient_list_transactional",
+            args=(
+                "ml-zoomcamp-2026:@e:@homework:homework-1",
+                payload,
             ),
-            DatamailerMethodCase(
-                method_name="recipient_list_import",
-                args=("ml-zoomcamp-2026:@e", 42),
-                method="GET",
-                path="/api/recipient-lists/ml-zoomcamp-2026:@e/imports/42",
-                params={"audience": "dtc-courses", "client": "dtc-courses"},
-                response_payload={"ok": True},
-                expected_result={"ok": True},
+            method="POST",
+            path=(
+                "/api/recipient-lists/"
+                "ml-zoomcamp-2026:@e:@homework:homework-1"
+                "/transactional-send"
             ),
-        ]
+            json_payload=payload,
+            response_payload={"ok": True},
+            expected_result={"ok": True},
+        )
+
+    def transient_transactional_send_method_case(self):
+        transient_payload = self.transient_transactional_payload()
+        return DatamailerMethodCase(
+            method_name="send_transient_recipient_list_transactional",
+            args=(transient_payload,),
+            method="POST",
+            path="/api/transient-recipient-lists/transactional-send",
+            json_payload=transient_payload,
+            response_payload={"ok": True},
+            expected_result={"ok": True},
+        )
+
+    def transactional_send_method_cases(self):
+        cases = []
+        cases.append(self.recipient_list_transactional_send_method_case())
+        cases.append(self.transient_transactional_send_method_case())
+        return cases
+
+    def campaign_upsert_payload(self):
+        return {
+            "subject": "Course starts tomorrow",
+            "html_body": "<p>Hello</p>",
+            "text_body": "Hello",
+        }
+
+    def campaign_upsert_expected_payload(self):
+        payload = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+        }
+        upsert_payload = self.campaign_upsert_payload()
+        payload.update(upsert_payload)
+        return payload
+
+    def campaign_upsert_expectation(self, response, session):
+        return DatamailerRequestExpectation(
+            response=response,
+            session=session,
+            method="PUT",
+            path="/api/campaigns/course-start-2026",
+            json_payload=self.campaign_upsert_expected_payload(),
+        )
 
     def recipient_list_method_cases(self):
         cases = []
@@ -291,39 +381,6 @@ class DatamailerClientEndpointTest(TestCase):
                 path="/api/transactional/messages/42",
                 response_payload={"message": {"id": 42}},
                 expected_result={"message": {"id": 42}},
-            ),
-        ]
-
-    def transactional_send_method_cases(self):
-        transient_payload = {
-            "template_key": "deadline-reminder",
-            "members": [{"email": "learner@example.com"}],
-        }
-        return [
-            DatamailerMethodCase(
-                method_name="send_recipient_list_transactional",
-                args=(
-                    "ml-zoomcamp-2026:@e:@homework:homework-1",
-                    {"template_key": "homework-score-notification"},
-                ),
-                method="POST",
-                path=(
-                    "/api/recipient-lists/"
-                    "ml-zoomcamp-2026:@e:@homework:homework-1"
-                    "/transactional-send"
-                ),
-                json_payload={"template_key": "homework-score-notification"},
-                response_payload={"ok": True},
-                expected_result={"ok": True},
-            ),
-            DatamailerMethodCase(
-                method_name="send_transient_recipient_list_transactional",
-                args=(transient_payload,),
-                method="POST",
-                path="/api/transient-recipient-lists/transactional-send",
-                json_payload=transient_payload,
-                response_payload={"ok": True},
-                expected_result={"ok": True},
             ),
         ]
 
@@ -455,25 +512,9 @@ class DatamailerClientEndpointTest(TestCase):
 
         result = client.upsert_campaign(
             "course-start-2026",
-            {
-                "subject": "Course starts tomorrow",
-                "html_body": "<p>Hello</p>",
-                "text_body": "Hello",
-            },
+            self.campaign_upsert_payload(),
         )
 
         self.assertEqual(result, {"created": True})
-        expectation = DatamailerRequestExpectation(
-            response=response,
-            session=session,
-            method="PUT",
-            path="/api/campaigns/course-start-2026",
-            json_payload={
-                "audience": "dtc-courses",
-                "client": "dtc-courses",
-                "subject": "Course starts tomorrow",
-                "html_body": "<p>Hello</p>",
-                "text_body": "Hello",
-            },
-        )
+        expectation = self.campaign_upsert_expectation(response, session)
         self.assert_datamailer_request(expectation)
