@@ -31,9 +31,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             "due_date": "2026-04-01T23:59:59Z",
             "description": "New homework",
         }
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        request_body = json.dumps(payload)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 201)
@@ -49,9 +51,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             "due_date": "2026-04-01T23:59:59Z",
             "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
         }
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        request_body = json.dumps(payload)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
 
@@ -79,9 +83,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
                 "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
             },
         ]
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        request_body = json.dumps(payload)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 201)
@@ -102,9 +108,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
                 }
             ],
         }
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        request_body = json.dumps(payload)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 201)
@@ -113,9 +121,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
 
     def test_create_homework_missing_fields(self):
         payload = {"name": "No date"}
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        request_body = json.dumps(payload)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
@@ -128,18 +138,23 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             "due_date": "2026-04-01T23:59:59Z",
             "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
         }
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        request_body = json.dumps(payload)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/homeworks/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
 
     def test_patch_homework_state(self):
         hw = self._create_homework()
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        patch_payload = {"state": "OP"}
+        request_body = json.dumps(patch_payload)
         response = self.client.patch(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/",
-            json.dumps({"state": "OP"}),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
@@ -164,9 +179,15 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
     def test_patch_homework_by_slug(self):
         self._create_homework(slug="hw-by-slug")
 
+        url = (
+            f"/api/courses/{self.course.slug}/homeworks/by-slug/"
+            "hw-by-slug/"
+        )
+        patch_payload = {"description": "Updated by slug"}
+        request_body = json.dumps(patch_payload)
         response = self.client.patch(
-            f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-by-slug/",
-            json.dumps({"description": "Updated by slug"}),
+            url,
+            request_body,
             content_type="application/json",
         )
 
@@ -189,9 +210,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             ],
         }
 
+        url = f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/"
+        request_body = json.dumps(payload)
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
 
@@ -228,7 +251,8 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
     def _assert_homework_questions_replaced(self, homework):
         homework.refresh_from_db()
         self.assertEqual(homework.title, "Updated Homework")
-        questions = list(homework.question_set.order_by("id"))
+        ordered_questions = homework.question_set.order_by("id")
+        questions = list(ordered_questions)
         self.assertEqual(len(questions), 1)
         self.assertEqual(questions[0].text, "New question?")
 
@@ -237,8 +261,9 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         payload = self._homework_replacement_payload()
         payload_body = json.dumps(payload)
 
+        url = f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/"
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/",
+            url,
             payload_body,
             content_type="application/json",
         )
@@ -261,9 +286,11 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             ],
         }
 
+        url = f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/"
+        request_body = json.dumps(payload)
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/",
-            json.dumps(payload),
+            url,
+            request_body,
             content_type="application/json",
         )
 
@@ -276,16 +303,17 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         self.assertEqual(hw.title, "Homework 1")
 
     def test_put_homework_invalid_state_does_not_create(self):
+        payload = {
+            "name": "Bad State",
+            "due_date": "2026-04-01T23:59:59Z",
+            "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
+            "state": "XX",
+        }
+        url = f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/"
+        request_body = json.dumps(payload)
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/homeworks/by-slug/hw-put/",
-            json.dumps(
-                {
-                    "name": "Bad State",
-                    "due_date": "2026-04-01T23:59:59Z",
-                    "instructions_url": HOMEWORK_INSTRUCTIONS_URL,
-                    "state": "XX",
-                }
-            ),
+            url,
+            request_body,
             content_type="application/json",
         )
 
@@ -293,17 +321,19 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         self.assertEqual(
             response.json()["code"], "invalid_homework_state"
         )
-        self.assertFalse(
-            Homework.objects.filter(
-                course=self.course, slug="hw-put"
-            ).exists()
-        )
+        homework_exists = Homework.objects.filter(
+            course=self.course, slug="hw-put"
+        ).exists()
+        self.assertFalse(homework_exists)
 
     def test_patch_homework_description(self):
         hw = self._create_homework()
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        patch_payload = {"description": "Updated"}
+        request_body = json.dumps(patch_payload)
         response = self.client.patch(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/",
-            json.dumps({"description": "Updated"}),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
@@ -312,46 +342,51 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
 
     def test_patch_homework_invalid_state(self):
         hw = self._create_homework()
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        patch_payload = {"state": "XX"}
+        request_body = json.dumps(patch_payload)
         response = self.client.patch(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/",
-            json.dumps({"state": "XX"}),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
 
     def test_patch_homework_invalid_field(self):
         hw = self._create_homework()
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        patch_payload = {"id": 999}
+        request_body = json.dumps(patch_payload)
         response = self.client.patch(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/",
-            json.dumps({"id": 999}),
+            url,
+            request_body,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
 
     def test_delete_homework_closed(self):
         hw = self._create_homework(state=HomeworkState.CLOSED.value)
-        response = self.client.delete(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
-        )
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        response = self.client.delete(url)
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Homework.objects.filter(id=hw.id).exists())
+        homework_exists = Homework.objects.filter(id=hw.id).exists()
+        self.assertFalse(homework_exists)
 
     def test_delete_homework_not_closed(self):
         hw = self._create_homework(state=HomeworkState.OPEN.value)
-        response = self.client.delete(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
-        )
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        response = self.client.delete(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "homework_not_closed")
-        self.assertTrue(Homework.objects.filter(id=hw.id).exists())
+        homework_exists = Homework.objects.filter(id=hw.id).exists()
+        self.assertTrue(homework_exists)
 
     def test_delete_homework_with_submissions_is_blocked(self):
         hw = self._create_homework(state=HomeworkState.CLOSED.value)
         submission = self._create_homework_submission(hw)
 
-        response = self.client.delete(
-            f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
-        )
+        url = f"/api/courses/{self.course.slug}/homeworks/{hw.id}/"
+        response = self.client.delete(url)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
@@ -365,10 +400,12 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
             response.json()["details"]["submissions_count"],
             1,
         )
-        self.assertTrue(Homework.objects.filter(id=hw.id).exists())
-        self.assertTrue(
-            Submission.objects.filter(id=submission.id).exists()
-        )
+        homework_exists = Homework.objects.filter(id=hw.id).exists()
+        submission_exists = Submission.objects.filter(
+            id=submission.id
+        ).exists()
+        self.assertTrue(homework_exists)
+        self.assertTrue(submission_exists)
 
     def test_delete_homework_by_slug_closed_without_submissions(self):
         hw = self._create_homework(slug="draft-hw")
@@ -378,4 +415,5 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Homework.objects.filter(id=hw.id).exists())
+        homework_exists = Homework.objects.filter(id=hw.id).exists()
+        self.assertFalse(homework_exists)
