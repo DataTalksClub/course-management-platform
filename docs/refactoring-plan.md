@@ -263,6 +263,8 @@ testable service functions.
   keeping assignment construction explicit before append.
 - [x] Split Datamailer outbox event sender strategies out of the dispatch
   orchestration module.
+- [x] Split Datamailer recipient-list command test helpers and import-by-
+  reference cases out of the oversized recipient-list command test module.
 - [x] Split Datamailer membership outbox event builders out of the public
   membership sync entry-point module.
 - [x] Split Datamailer webhook request authentication, JSON parsing, and field
