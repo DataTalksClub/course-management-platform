@@ -504,17 +504,17 @@ class MockInboxClient(InboxBackend):
 
     @staticmethod
     def _summary_to_message(item: dict, address: str) -> InboxMessage:
-        return InboxMessage(
-            id=item.get("id"),
-            to=item.get("email", address),
-            subject=item.get("subject", ""),
-            template_key=item.get("template_key", ""),
-            status=item.get("status", ""),
-            from_email=item.get("from_email", ""),
-            idempotency_key=item.get("idempotency_key", ""),
-            created_at=item.get("created_at", ""),
-            raw=item,
-        )
+        message_id = item.get("id")
+        recipient = item.get("email", address)
+        subject = item.get("subject", "")
+        message = InboxMessage(id=message_id, to=recipient, subject=subject)
+        message.template_key = item.get("template_key", "")
+        message.status = item.get("status", "")
+        message.from_email = item.get("from_email", "")
+        message.idempotency_key = item.get("idempotency_key", "")
+        message.created_at = item.get("created_at", "")
+        message.raw = item
+        return message
 
     @classmethod
     def _detail_to_message(cls, item: dict) -> InboxMessage:
@@ -676,17 +676,13 @@ class RealInboxClient(InboxBackend):
             recipient = to[0]
         else:
             recipient = address
-        return InboxMessage(
-            # The s3_key is this backend's stable per-message identifier.
-            id=item.get("s3_key"),
-            to=recipient,
-            subject=item.get("subject", ""),
-            # Real MIME has no template_key -- callers match on subject/body.
-            template_key="",
-            from_email=item.get("from_email", ""),
-            created_at=item.get("received_at", ""),
-            raw=item,
-        )
+        message_id = item.get("s3_key")
+        subject = item.get("subject", "")
+        message = InboxMessage(id=message_id, to=recipient, subject=subject)
+        message.from_email = item.get("from_email", "")
+        message.created_at = item.get("received_at", "")
+        message.raw = item
+        return message
 
     @classmethod
     def _detail_to_message(cls, item: dict, address: str) -> InboxMessage:
@@ -694,9 +690,12 @@ class RealInboxClient(InboxBackend):
         message.html_body = item.get("html_body", "") or ""
         message.text_body = item.get("text_body", "") or ""
         # No render context in received MIME; expose the SES verdicts instead.
+        spam_verdict = item.get("spam_verdict", "")
+        virus_verdict = item.get("virus_verdict", "")
+        message_id = item.get("message_id", "")
         message.metadata = {
-            "spam_verdict": item.get("spam_verdict", ""),
-            "virus_verdict": item.get("virus_verdict", ""),
-            "message_id": item.get("message_id", ""),
+            "spam_verdict": spam_verdict,
+            "virus_verdict": virus_verdict,
+            "message_id": message_id,
         }
         return message

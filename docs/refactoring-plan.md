@@ -1485,6 +1485,16 @@ Steps:
   size-threshold scan reports `threshold_violations=0`, comprehension scan
   reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Flatten e2e inbox message parsing so mock and real inbox summaries name
+  response fields before populating `InboxMessage`, and metadata dictionaries
+  no longer inline `item.get(...)` calls. Verification:
+  `uv run ruff check e2e/mock_inbox.py docs/refactoring-plan.md`,
+  `uv run pytest e2e/tests/test_06_mock_inbox_client.py`,
+  touched-file scans report `touched_file_high_arg_calls=0`,
+  `touched_file_nested_call_arguments=0`, and
+  `touched_file_inline_dict_calls=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
