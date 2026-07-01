@@ -296,6 +296,8 @@ def peer_review_assignment_notification_payload(
     course = project.course
     list_key = project_submitters_list_key(project)
     list_data, members = peer_review_assignment_notification_members(project)
+    context = _peer_review_assignment_context(course, project)
+    metadata = _peer_review_assignment_metadata(course, project)
 
     payload = {
         "audience": config.audience,
@@ -305,10 +307,10 @@ def peer_review_assignment_notification_payload(
         "idempotency_key": (
             f"peer-review-assignment:{course.slug}:{project.slug}"
         ),
-        "context": _peer_review_assignment_context(course, project),
+        "context": context,
         "list": list_data,
         "members": members,
-        "metadata": _peer_review_assignment_metadata(course, project),
+        "metadata": metadata,
     }
     if config.from_email:
         payload["from_email"] = config.from_email

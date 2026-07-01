@@ -192,6 +192,17 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
 def registration_confirmation_payload_from_data(
     data: RegistrationConfirmationPayloadData,
 ) -> dict[str, Any]:
+    context = registration_confirmation_context(
+        data.registration,
+        data.campaign,
+        data.course,
+        data.urls,
+    )
+    metadata = registration_confirmation_metadata(
+        data.registration,
+        data.campaign,
+        data.course,
+    )
     return {
         "audience": data.config.audience,
         "client": data.config.client,
@@ -203,17 +214,8 @@ def registration_confirmation_payload_from_data(
         "idempotency_key": (
             f"registration-confirmation:{data.registration.pk}"
         ),
-        "context": registration_confirmation_context(
-            data.registration,
-            data.campaign,
-            data.course,
-            data.urls,
-        ),
-        "metadata": registration_confirmation_metadata(
-            data.registration,
-            data.campaign,
-            data.course,
-        ),
+        "context": context,
+        "metadata": metadata,
     }
 
 
@@ -234,6 +236,7 @@ def registration_contact_payload(registration) -> dict[str, Any] | None:
     if config is None:
         return None
 
+    tags = registration_contact_tags(registration)
     return {
         "email": email,
         "audience": config.audience,
@@ -243,7 +246,7 @@ def registration_contact_payload(registration) -> dict[str, Any] | None:
         "email_validation": {
             "status": "externally_validated",
         },
-        "tags": registration_contact_tags(registration),
+        "tags": tags,
     }
 
 

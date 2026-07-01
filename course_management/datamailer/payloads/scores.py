@@ -245,20 +245,23 @@ def homework_score_notification_payload(
     course = homework.course
     list_key = homework_submitters_list_key(homework)
     list_data, members = homework_score_notification_members(homework)
+    context = _homework_score_notification_context(homework)
+    metadata = _homework_score_notification_metadata(homework)
     payload = {
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.HOMEWORK_SCORE_NOTIFICATION,
         "category_tag": "submission-results",
         "idempotency_key": f"homework-score:{course.slug}:{homework.slug}",
-        "context": _homework_score_notification_context(homework),
+        "context": context,
         "list": list_data,
         "members": members,
-        "metadata": _homework_score_notification_metadata(homework),
+        "metadata": metadata,
     }
     if config.from_email:
         payload["from_email"] = config.from_email
     return list_key, payload
+
 
 def project_score_notification_payload(
     project,
@@ -270,16 +273,18 @@ def project_score_notification_payload(
     course = project.course
     list_key = project_submitters_list_key(project)
     list_data, members = project_score_notification_members(project)
+    context = _project_score_notification_context(project)
+    metadata = _project_score_notification_metadata(project)
     payload = {
         "audience": config.audience,
         "client": config.client,
         "template_key": email_templates.PROJECT_SCORE_NOTIFICATION,
         "category_tag": "submission-results",
         "idempotency_key": f"project-score:{course.slug}:{project.slug}",
-        "context": _project_score_notification_context(project),
+        "context": context,
         "list": list_data,
         "members": members,
-        "metadata": _project_score_notification_metadata(project),
+        "metadata": metadata,
     }
     if config.from_email:
         payload["from_email"] = config.from_email

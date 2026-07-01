@@ -250,6 +250,8 @@ testable service functions.
   homework numeric answer checks, and deadline reminder send payload assembly.
 - [x] Split account authentication, toggle, and token-admin tests out of the
   oversized account settings test module.
+- [x] Flatten remaining Datamailer registration, score, and peer-review payload
+  dictionaries that inlined context, metadata, or tag helper calls.
 
 ## Current Findings
 
