@@ -50,18 +50,22 @@ def projects_view(request, course_slug):
 
 
 def _project_detail_config(project):
-    return DetailResponseConfig(
-        patch=PatchResponseConfig(
-            to_dict=project_to_dict,
-            rules=PROJECT_PATCH_RULES,
-        ),
-        delete=DeleteResponseConfig(
-            closed_state=ProjectState.CLOSED.value,
-            related_queryset=project.projectsubmission_set.all(),
-            related_name="submissions",
-            noun="project",
-        ),
+    patch_config = PatchResponseConfig(
+        to_dict=project_to_dict,
+        rules=PROJECT_PATCH_RULES,
     )
+    related_queryset = project.projectsubmission_set.all()
+    delete_config = DeleteResponseConfig(
+        closed_state=ProjectState.CLOSED.value,
+        related_queryset=related_queryset,
+        related_name="submissions",
+        noun="project",
+    )
+    config = DetailResponseConfig(
+        patch=patch_config,
+        delete=delete_config,
+    )
+    return config
 
 
 def _project_detail_response(

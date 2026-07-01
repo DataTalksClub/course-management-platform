@@ -1,6 +1,7 @@
 # Refactoring Plan
 
 Created: 2026-06-28
+Updated: 2026-07-01
 
 This plan captures the current code-structure findings and a staged path for
 simplifying the codebase without changing user-visible behavior. The goal is to
@@ -33,6 +34,8 @@ testable service functions.
   a cleanup rule. The same applies to simple enum/class/queryset attributes
   used only by the next loop, such as `statuses = DatamailerOutboxStatus.values`;
   use `for status in DatamailerOutboxStatus.values:` directly.
+- Prefer direct imports from the real owner module. Do not keep compatibility
+  re-export modules or fallback import shims after internal callers have moved.
 - Tuple unpacking with one or two values is fine. When a loop unpacks three or
   more positional values, prefer a named structure such as a dataclass, named
   tuple, small object, or explicit dictionary keys so field meaning is visible
@@ -700,6 +703,10 @@ Steps:
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
+- [x] Name API detail config querysets, course create fields, and Datamailer
+  project-passed payload inputs instead of nesting calls inline.
+- [x] Audit compatibility-style imports after package/module moves; no remaining
+  production compatibility shims were found in the current pass.
 - [x] Split Datamailer cadmin view tests out of the oversized cadmin view test
   module.
 - [x] Split leaderboard complaint cadmin view tests out of the oversized cadmin

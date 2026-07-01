@@ -18,10 +18,12 @@ def project_passed_recipient_list_payload(
         return None
 
     list_key = project_passed_list_key(project)
+    list_data = project_passed_list_data(project)
+    members = project_passed_members(project)
     payload = bulk_recipient_list_payload(
         config,
-        project_passed_list_data(project),
-        project_passed_members(project),
+        list_data,
+        members,
     )
     return list_key, payload
 
@@ -79,17 +81,19 @@ def project_passed_member(submission) -> dict[str, Any] | None:
 
 
 def project_passed_member_payload(project, payload) -> dict[str, Any]:
+    member = project_passed_member_payload_data(payload)
     return {
         **payload,
         "list": project_passed_list_data(project),
-        "member": project_passed_member_payload_data(payload),
+        "member": member,
     }
 
 
 def project_passed_member_payload_data(payload) -> dict[str, Any]:
+    metadata = project_passed_member_metadata(payload)
     return {
         **payload["member"],
-        "metadata": project_passed_member_metadata(payload),
+        "metadata": metadata,
     }
 
 
@@ -109,8 +113,9 @@ def project_passed_recipient_list_member_payload(
     project = submission.project
     payload = item.payload
     member_payload = project_passed_member_payload(project, payload)
+    list_key = project_passed_list_key(project)
     return RecipientListMemberPayload(
-        list_key=project_passed_list_key(project),
+        list_key=list_key,
         source_object_key=item.source_object_key,
         payload=member_payload,
     )

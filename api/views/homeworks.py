@@ -76,15 +76,18 @@ def homeworks_view(request, course_slug):
 
 
 def _homework_detail_config(homework):
-    return DetailResponseConfig(
-        patch=HOMEWORK_PATCH_CONFIG,
-        delete=DeleteResponseConfig(
-            closed_state=HomeworkState.CLOSED.value,
-            related_queryset=homework.submission_set.all(),
-            related_name="submissions",
-            noun="homework",
-        ),
+    related_queryset = homework.submission_set.all()
+    delete_config = DeleteResponseConfig(
+        closed_state=HomeworkState.CLOSED.value,
+        related_queryset=related_queryset,
+        related_name="submissions",
+        noun="homework",
     )
+    config = DetailResponseConfig(
+        patch=HOMEWORK_PATCH_CONFIG,
+        delete=delete_config,
+    )
+    return config
 
 
 def _homework_detail_response(
