@@ -133,9 +133,41 @@ class DatamailerHomeworkScoreTest(TestCase):
             "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
         )
 
+    def assert_homework_score_context_urls(self, payload):
+        self.assertEqual(
+            payload["context"]["scores_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
+        )
+        self.assertEqual(
+            payload["context"]["leaderboard_url"],
+            "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
+        )
+
     def single_homework_score_member(self, payload):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
+
+    def create_scored_homework_submission(self):
+        homework = self.create_homework()
+        user = self.create_user("learner@example.com")
+        submission = self.create_homework_submission(
+            homework,
+            user,
+            questions_score=6,
+            learning_in_public_score=2,
+            faq_score=1,
+            total_score=9,
+        )
+        return homework, submission
+
+    def homework_score_payload_expectation(self, payload):
+        return ScorePayloadExpectation(
+            payload=payload,
+            template_key="homework-score-notification",
+            idempotency_key="homework-score:ml-zoomcamp-2026:homework-1",
+            footer_text="you submitted Homework 1",
+            list_type="homework_submitters",
+        )
 
     def create_duplicate_homework_submissions(self):
         homework = self.create_homework()
@@ -198,16 +230,7 @@ class DatamailerHomeworkScoreTest(TestCase):
     def test_homework_score_notification_payload_targets_homework_submitters(
         self,
     ):
-        homework = self.create_homework()
-        user = self.create_user("learner@example.com")
-        submission = self.create_homework_submission(
-            homework,
-            user,
-            questions_score=6,
-            learning_in_public_score=2,
-            faq_score=1,
-            total_score=9,
-        )
+        homework, submission = self.create_scored_homework_submission()
 
         list_key, payload = homework_score_notification_payload(
             homework
@@ -216,22 +239,9 @@ class DatamailerHomeworkScoreTest(TestCase):
         self.assertEqual(
             list_key, homework_submitters_list_key(homework)
         )
-        expectation = ScorePayloadExpectation(
-            payload=payload,
-            template_key="homework-score-notification",
-            idempotency_key="homework-score:ml-zoomcamp-2026:homework-1",
-            footer_text="you submitted Homework 1",
-            list_type="homework_submitters",
-        )
+        expectation = self.homework_score_payload_expectation(payload)
         member = self.assert_score_payload_common(expectation)
-        self.assertEqual(
-            payload["context"]["scores_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
-        )
-        self.assertEqual(
-            payload["context"]["leaderboard_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/leaderboard",
-        )
+        self.assert_homework_score_context_urls(payload)
         self.assert_homework_score_member(member, submission)
 
     @override_settings(**DATAMAILER_SETTINGS)

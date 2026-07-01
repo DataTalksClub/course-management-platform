@@ -1030,6 +1030,11 @@ Steps:
   Datamailer workflow test module.
 - [x] Split Datamailer homework-score publication tests out of the oversized
   Datamailer workflow test module.
+- [x] Shorten Datamailer homework-score payload tests by naming scored
+  submission setup, payload expectations, and context URL assertions.
+  Verification:
+  `uv run ruff check courses/tests/test_datamailer_homework_scores.py` and
+  `uv run python manage.py test courses.tests.test_datamailer_homework_scores`.
 - [x] Rename the remaining Datamailer workflow score tests to a project-score
   test module.
 - [x] Split course leaderboard and score-breakdown tests out of the oversized
