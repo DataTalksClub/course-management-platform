@@ -2225,6 +2225,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_datamailer_outbox`,
   broad AST cleanup gates report zero violations, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Extract homework-create required-field validation from attribute assembly
+  so URL validation, date parsing, slug validation, and record construction are
+  easier to scan independently. Verification:
+  `uv run ruff check api/views/homework_create.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_homeworks`, broad AST cleanup
+  gates report zero violations, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

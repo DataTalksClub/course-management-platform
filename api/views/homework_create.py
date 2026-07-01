@@ -45,15 +45,24 @@ def homework_create_slug(course, homework_data, name):
     return slug, None
 
 
-def homework_create_attrs(course, homework_data):
+def homework_create_required_error(homework_data):
     name = homework_data.get("name")
     due_date_str = homework_data.get("due_date")
     if not name or not due_date_str:
-        return None, "name and due_date are required"
+        return "name and due_date are required"
 
-    instructions_url, error = homework_create_instructions_url(
-        homework_data
-    )
+    return None
+
+
+def homework_create_attrs(course, homework_data):
+    required_error = homework_create_required_error(homework_data)
+    if required_error:
+        return None, required_error
+
+    name = homework_data.get("name")
+    due_date_str = homework_data.get("due_date")
+
+    instructions_url, error = homework_create_instructions_url(homework_data)
     if error:
         return None, error
 
