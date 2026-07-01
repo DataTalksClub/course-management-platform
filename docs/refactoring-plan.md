@@ -2964,6 +2964,15 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split registration-campaign public tests into shared campaign fixtures,
+  registration-page/form tests, course-page prompt tests, and Datamailer
+  notification tests. Verification:
+  `uv run ruff check courses/tests/registration_campaign_base.py courses/tests/test_registration_campaigns.py courses/tests/test_registration_campaign_course_page.py courses/tests/test_registration_campaign_notifications.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_registration_campaigns courses.tests.test_registration_campaign_course_page courses.tests.test_registration_campaign_notifications`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
