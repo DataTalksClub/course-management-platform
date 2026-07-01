@@ -93,6 +93,8 @@ testable service functions.
   dashboard test module.
 - [x] Split course duplication admin tests out of the oversized course detail
   test module.
+- [x] Split project list view tests out of the oversized project evaluation
+  test module.
 
 ## Current Findings
 
