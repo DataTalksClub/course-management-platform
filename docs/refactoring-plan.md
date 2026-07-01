@@ -339,6 +339,8 @@ testable service functions.
   so scoring orchestration no longer owns answer parsing/checking.
 - [x] Split public wrapped page lookup/context helpers out of the route module,
   leaving wrapped views as render boundaries.
+- [x] Split Datamailer homework and project score notification payload builders
+  into direct owner modules and remove the mixed score payload module.
 
 ## Current Findings
 

@@ -15,7 +15,7 @@ from data.models import (
     DatamailerSendAuditType,
 )
 from course_management.datamailer.keys import homework_submitters_list_key
-from course_management.datamailer.payloads.scores import (
+from course_management.datamailer.payloads.homework_scores import (
     homework_score_notification_payload,
 )
 from course_management.datamailer.sync.notifications import (

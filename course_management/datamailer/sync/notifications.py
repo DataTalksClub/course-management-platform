@@ -13,8 +13,10 @@ from ..payloads.project_outcomes import (
 from ..payloads.registration_confirmations import (
     registration_confirmation_payload,
 )
-from ..payloads.scores import (
+from ..payloads.homework_scores import (
     homework_score_notification_payload,
+)
+from ..payloads.project_scores import (
     project_score_notification_payload,
 )
 from .recipient_list_send import (
