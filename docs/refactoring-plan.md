@@ -148,6 +148,8 @@ testable service functions.
   a focused `courses.deadline_reminder_events` module.
 - [x] Split deadline reminder planning helpers by responsibility into type,
   member, query, and event modules.
+- [x] Split deadline reminder command tests into common fixtures plus focused
+  homework, project-submission, peer-review, and dry-run modules.
 - [x] Split API homework list/create serialization helpers out of the oversized
   homework API view module.
 - [x] Split API homework upsert validation and save flow out of the public
@@ -758,7 +760,11 @@ Steps:
 Verification:
 
 ```bash
-uv run python manage.py test courses.tests.test_deadline_reminders
+uv run python manage.py test \
+  courses.tests.test_deadline_reminder_homework \
+  courses.tests.test_deadline_reminder_project \
+  courses.tests.test_deadline_reminder_peer_review \
+  courses.tests.test_deadline_reminder_dry_run
 uv run python manage.py test courses.tests.test_datamailer
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
@@ -798,7 +804,11 @@ Verification:
 uv run python manage.py test courses.tests.test_datamailer
 uv run python manage.py test data.tests.test_datamailer_webhook
 uv run python manage.py test cadmin.tests
-uv run python manage.py test courses.tests.test_deadline_reminders
+uv run python manage.py test \
+  courses.tests.test_deadline_reminder_homework \
+  courses.tests.test_deadline_reminder_project \
+  courses.tests.test_deadline_reminder_peer_review \
+  courses.tests.test_deadline_reminder_dry_run
 uv run python manage.py makemigrations --check --dry-run
 git diff --check
 ```
