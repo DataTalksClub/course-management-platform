@@ -5,6 +5,8 @@ pushes over ``PUT /api/transactional/templates/{key}``. CMP owns the *content*
 here and publishes it with the ``upsert_datamailer_templates`` command.
 """
 
-from course_management.datamailer_templates.definitions import TEMPLATES
+from course_management.datamailer_templates.definitions.registry import (
+    TEMPLATES,
+)
 
 __all__ = ["TEMPLATES"]

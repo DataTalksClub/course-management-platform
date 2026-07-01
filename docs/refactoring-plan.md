@@ -236,6 +236,8 @@ testable service functions.
   import the concrete owner module directly.
 - [x] Move OpenAPI content path/schema aggregation out of package roots into
   explicit registry modules.
+- [x] Move Datamailer template aggregation out of package roots into explicit
+  registry modules.
 
 ## Current Findings
 

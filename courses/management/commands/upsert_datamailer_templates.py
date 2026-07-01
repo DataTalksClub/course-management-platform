@@ -17,7 +17,7 @@ from course_management.datamailer.client import (
     DatamailerConfig,
     DatamailerRequestData,
 )
-from course_management.datamailer_templates import TEMPLATES
+from course_management.datamailer_templates.registry import TEMPLATES
 
 
 def selected_template_keys(template_key):
