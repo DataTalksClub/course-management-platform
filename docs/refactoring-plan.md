@@ -94,6 +94,8 @@ testable service functions.
   data directly into key, list, and URL helpers.
 - [x] Reuse shared Datamailer score-notification URL helpers for project score
   payloads and keep only project results URL assembly local.
+- [x] Split recipient-list sync command option-to-batch construction out of
+  the command handler.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with

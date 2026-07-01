@@ -6,7 +6,9 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
-from course_management.datamailer.recipient_list_batches import build_batches
+from course_management.datamailer.recipient_list_batches import (
+    build_batches as build_recipient_list_batches,
+)
 from course_management.datamailer.recipient_list_sources import (
     PROJECT_FILTER_KINDS,
     RECIPIENT_LIST_KINDS,
@@ -155,12 +157,7 @@ class Command(BaseCommand):
         kind = options["kind"]
         validate_recipient_list_options(kind, options)
 
-        batches = build_batches(
-            kind,
-            course_slug=options["course_slug"],
-            homework_slug=options["homework_slug"],
-            project_slug=options["project_slug"],
-        )
+        batches = self.recipient_list_batches(kind, options)
         if not batches:
             self.stdout.write(
                 "No Datamailer recipient-list members to sync."
@@ -180,6 +177,15 @@ class Command(BaseCommand):
             options=options,
         )
         self.sync_batches(sync_request)
+
+    def recipient_list_batches(self, kind, options):
+        batches = build_recipient_list_batches(
+            kind,
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
+        return batches
 
     def get_datamailer_config(self):
         config = DatamailerConfig.from_settings()
