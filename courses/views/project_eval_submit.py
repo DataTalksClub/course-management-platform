@@ -51,6 +51,24 @@ def closed_project_eval_response(
     return response
 
 
+def project_eval_submission_response(
+    request,
+    page: ProjectEvalSubmitPage,
+):
+    project_eval_post_submission(
+        request,
+        page.project,
+        page.review,
+        page.review_criteria,
+    )
+    response = redirect(
+        "projects_eval",
+        course_slug=page.course.slug,
+        project_slug=page.project.slug,
+    )
+    return response
+
+
 def projects_eval_submit_post_response(
     request,
     page: ProjectEvalSubmitPage,
@@ -69,16 +87,9 @@ def projects_eval_submit_post_response(
             page,
         )
 
-    project_eval_post_submission(
+    response = project_eval_submission_response(
         request,
-        page.project,
-        page.review,
-        page.review_criteria,
-    )
-    response = redirect(
-        "projects_eval",
-        course_slug=page.course.slug,
-        project_slug=page.project.slug,
+        page,
     )
     return response
 

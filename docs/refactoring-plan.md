@@ -192,6 +192,8 @@ testable service functions.
   public statistics view coordinator.
 - [x] Split unauthorized peer-review submit response out of the public
   evaluation submit view coordinator.
+- [x] Split peer-review submit save-and-redirect response out of the POST
+  coordinator.
 
 ## Current Findings
 
