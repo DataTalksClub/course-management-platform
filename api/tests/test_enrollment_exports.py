@@ -125,7 +125,7 @@ class EnrollmentExportsAPITestCase(TestCase):
         enrollment = self.create_enrollment("student@example.com")
 
         with patch(
-            "api.views.enrollment_exports."
+            "api.views.enrollment_certificates."
             "send_certificate_availability_notification"
         ) as send_notification:
             with self.captureOnCommitCallbacks(execute=True):

@@ -22,7 +22,7 @@ from courses.models import (
 
 from accounts.models import CustomUser, Token
 
-from api.views.enrollment_exports import get_passed_enrollments
+from api.views.enrollment_graduates import get_passed_enrollments
 
 
 @dataclass(frozen=True)
@@ -490,7 +490,7 @@ class EnrollmentDataAPITestCase(TestCase):
         )
 
     @patch(
-        "api.views.enrollment_exports."
+        "api.views.enrollment_certificates."
         "send_certificate_availability_notification"
     )
     def test_bulk_update_enrollment_certificates_sends_new_certificate_notifications(

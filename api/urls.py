@@ -3,7 +3,8 @@ from django.urls import path
 from .openapi import openapi_json_view
 from .views import course_exports
 from .views import courses
-from .views import enrollment_exports
+from .views import enrollment_certificates
+from .views import enrollment_graduates
 from .views import health
 from .views import homework_exports
 from .views import homeworks
@@ -48,12 +49,12 @@ urlpatterns = [
     ),
     path(
         "courses/<slug:course_slug>/graduates",
-        enrollment_exports.graduates_data_view,
+        enrollment_graduates.graduates_data_view,
         name="api_course_graduates",
     ),
     path(
         "courses/<slug:course_slug>/certificates",
-        enrollment_exports.bulk_update_enrollment_certificates_view,
+        enrollment_certificates.bulk_update_enrollment_certificates_view,
         name="api_course_certificates",
     ),
     path(

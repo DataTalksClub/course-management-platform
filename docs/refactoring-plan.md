@@ -136,6 +136,8 @@ testable service functions.
 - [x] Split public project submissions view support into focused listing,
   viewer-state, display-decoration, and voting modules while keeping the
   route-level view module thin.
+- [x] Split enrollment export API ownership into direct graduates and
+  certificate-update view modules without a compatibility re-export.
 
 ## Current Findings
 
