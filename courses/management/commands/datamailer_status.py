@@ -164,17 +164,23 @@ class Command(BaseCommand):
         return "-"
 
     def message_status_fields(self, message):
+        sent_at = self.display_value(message["sent_at"])
+        delivered_at = self.display_value(message["delivered_at"])
+        first_opened_at = self.display_value(message["first_opened_at"])
+        first_clicked_at = self.display_value(message["first_clicked_at"])
+        last_error = self.display_value(message["last_error"])
+
         return [
             ("Message ID", message["id"]),
             ("Email", message["email"]),
             ("Template", message["template_key"]),
             ("Status", message["status"]),
             ("Queued/created", message["created_at"]),
-            ("Sent", self.display_value(message["sent_at"])),
-            ("Delivered", self.display_value(message["delivered_at"])),
-            ("Opened", self.display_value(message["first_opened_at"])),
-            ("Clicked", self.display_value(message["first_clicked_at"])),
-            ("Last error", self.display_value(message["last_error"])),
+            ("Sent", sent_at),
+            ("Delivered", delivered_at),
+            ("Opened", first_opened_at),
+            ("Clicked", first_clicked_at),
+            ("Last error", last_error),
         ]
 
     def write_message_status(self, message):

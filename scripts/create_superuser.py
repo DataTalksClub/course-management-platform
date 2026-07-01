@@ -102,16 +102,19 @@ def selected_duplicate_user(email, matches):
 
 def find_or_create_user(email, user_id=None):
     if user_id is not None:
-        return User.objects.get(pk=user_id), False
+        user = User.objects.get(pk=user_id)
+        return user, False
 
     user_queryset = User.objects.filter(email=email)
     matches = list(user_queryset)
     if len(matches) > 1:
-        return selected_duplicate_user(email, matches), False
+        user = selected_duplicate_user(email, matches)
+        return user, False
     if len(matches) == 1:
         return matches[0], False
 
-    return User(username=email, email=email), True
+    user = User(username=email, email=email)
+    return user, True
 
 
 def save_superuser(user, password):

@@ -581,7 +581,9 @@ def course_due_range(spec):
     for _title, due_date in assignment_specs:
         parsed_due_date = parse_date(due_date)
         due_dates.append(parsed_due_date)
-    return min(due_dates).date(), max(due_dates).date()
+    start_date = min(due_dates).date()
+    end_date = max(due_dates).date()
+    return start_date, end_date
 
 
 def ensure_course(spec):

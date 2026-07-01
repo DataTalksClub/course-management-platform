@@ -2435,6 +2435,17 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name Datamailer status display values, selected superuser records, and
+  generated leaderboard course date boundaries before returning tuple records.
+  Verification:
+  `uv run ruff check courses/management/commands/datamailer_status.py scripts/create_superuser.py scripts/generate_production_like_leaderboard_data.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_status`,
+  `uv run python -m py_compile scripts/create_superuser.py scripts/generate_production_like_leaderboard_data.py`,
+  repo-wide tuple-record direct-call scan reports `total=0`, comprehension,
+  size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
