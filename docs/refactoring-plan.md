@@ -208,6 +208,8 @@ testable service functions.
   mixed project evaluation test module.
 - [x] Split cached course leaderboard data and score-breakdown query helpers
   out of the leaderboard view module.
+- [x] Split course leaderboard tests into shared fixtures plus focused
+  leaderboard, score-breakdown, and complaint modules.
 - [x] Split registration campaign API serialization, mutation, and
   registration-list helpers out of the public API view module.
 - [x] Split cadmin homework submission listing/search and submission edit
