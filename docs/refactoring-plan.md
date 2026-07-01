@@ -585,6 +585,11 @@ testable service functions.
   `uv run ruff check courses/tests/test_project_submission_view.py` and
   `uv run python manage.py test courses.tests.test_project_submission_view`;
   touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name registration-campaign test URLs, payloads, due dates, and registration
+  counts before client calls, model creation, or assertions. Verification:
+  `uv run ruff check courses/tests/test_registration_campaigns.py` and
+  `uv run python manage.py test courses.tests.test_registration_campaigns`;
+  touched-file nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

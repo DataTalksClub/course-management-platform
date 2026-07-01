@@ -146,17 +146,19 @@ class RegistrationCampaignPublicTests(TestCase):
         return user
 
     def create_intro_homework(self):
+        due_date = timezone.now()
         return Homework.objects.create(
             course=self.course,
             slug="intro",
             title="Intro",
             description="",
-            due_date=timezone.now(),
+            due_date=due_date,
             state=HomeworkState.OPEN.value,
         )
 
     def test_registration_page_renders_campaign_content(self):
-        response = self.client.get(self.campaign_url())
+        url = self.campaign_url()
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "LLM Zoomcamp")
@@ -172,10 +174,12 @@ class RegistrationCampaignPublicTests(TestCase):
     def test_anonymous_registration_creates_independent_registration(
         self,
     ):
+        url = self.campaign_url()
+        payload = self.registration_payload()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                self.campaign_url(),
-                self.registration_payload(),
+                url,
+                payload,
             )
 
         self.assertEqual(response.status_code, 200)
@@ -199,17 +203,17 @@ class RegistrationCampaignPublicTests(TestCase):
             accepted_newsletter=True,
         )
 
-        response = self.client.post(
-            self.campaign_url(),
-            self.registration_payload(email="student@example.com"),
-        )
+        url = self.campaign_url()
+        payload = self.registration_payload(email="student@example.com")
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
             "You have already registered for this course.",
         )
-        self.assertEqual(CourseRegistration.objects.count(), 1)
+        registration_count = CourseRegistration.objects.count()
+        self.assertEqual(registration_count, 1)
 
     @override_settings(
         DATAMAILER_URL="",
@@ -218,13 +222,12 @@ class RegistrationCampaignPublicTests(TestCase):
         DATAMAILER_AUDIENCE="",
     )
     def test_registration_requires_only_email_and_newsletter_consent(self):
-        response = self.client.post(
-            self.campaign_url(),
-            {
-                "email": "email-only@example.com",
-                "accepted_newsletter": "on",
-            },
-        )
+        url = self.campaign_url()
+        payload = {
+            "email": "email-only@example.com",
+            "accepted_newsletter": "on",
+        }
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
@@ -238,30 +241,29 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assertTrue(registration.accepted_newsletter)
 
     def test_registration_requires_newsletter_consent(self):
-        response = self.client.post(
-            self.campaign_url(),
-            {"email": "email-only@example.com"},
-        )
+        url = self.campaign_url()
+        payload = {"email": "email-only@example.com"}
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
             "This field is required.",
         )
-        self.assertEqual(CourseRegistration.objects.count(), 0)
+        registration_count = CourseRegistration.objects.count()
+        self.assertEqual(registration_count, 0)
 
     def test_logged_in_user_registration_uses_account_email(self):
         user = self.create_signed_user()
         self.client.force_login(user)
 
-        response = self.client.get(self.campaign_url())
+        url = self.campaign_url()
+        response = self.client.get(url)
 
         self.assert_signed_profile_form(response)
 
-        response = self.client.post(
-            self.campaign_url(),
-            self.updated_account_payload(),
-        )
+        payload = self.updated_account_payload()
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
@@ -278,10 +280,9 @@ class RegistrationCampaignPublicTests(TestCase):
         user = self.create_signed_blank_user()
         self.client.force_login(user)
 
-        response = self.client.post(
-            self.campaign_url(),
-            self.blank_optional_logged_in_payload(),
-        )
+        url = self.campaign_url()
+        payload = self.blank_optional_logged_in_payload()
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
         registration = CourseRegistration.objects.get()
@@ -289,16 +290,16 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assert_signed_blank_profile_unchanged(user)
 
     def test_empty_course_redirects_non_staff_to_campaign(self):
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
 
+        redirect_url = reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": self.campaign.slug},
+        )
         self.assertRedirects(
             response,
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            ),
+            redirect_url,
         )
 
     def test_course_with_homework_shows_workspace_and_registration_link(
@@ -306,9 +307,8 @@ class RegistrationCampaignPublicTests(TestCase):
     ):
         self.create_intro_homework()
 
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Register")
@@ -321,9 +321,8 @@ class RegistrationCampaignPublicTests(TestCase):
         self.create_intro_homework()
         self.client.force_login(user)
 
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Register")
@@ -338,9 +337,8 @@ class RegistrationCampaignPublicTests(TestCase):
         self.create_intro_homework()
         self.client.force_login(user)
 
-        response = self.client.get(
-            reverse("course", kwargs={"course_slug": self.course.slug})
-        )
+        url = reverse("course", kwargs={"course_slug": self.course.slug})
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Register")
@@ -366,12 +364,11 @@ class RegistrationCampaignPublicTests(TestCase):
         )
         self.client.force_login(user)
 
-        response = self.client.get(
-            reverse(
-                "registration_campaign",
-                kwargs={"campaign_slug": self.campaign.slug},
-            )
+        url = reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": self.campaign.slug},
         )
+        response = self.client.get(url)
 
         self.assertContains(response, "You are already registered")
         self.assertNotContains(response, 'name="email"')
@@ -391,13 +388,15 @@ class RegistrationCampaignPublicTests(TestCase):
         sync_datamailer,
         send_confirmation,
     ):
+        url = reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": self.campaign.slug},
+        )
+        payload = self.registration_payload()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
-                reverse(
-                    "registration_campaign",
-                    kwargs={"campaign_slug": self.campaign.slug},
-                ),
-                self.registration_payload(),
+                url,
+                payload,
             )
 
         self.assertEqual(response.status_code, 200)
