@@ -91,6 +91,8 @@ testable service functions.
   detail test module.
 - [x] Split dashboard integration and authentication tests out of the oversized
   dashboard test module.
+- [x] Split course duplication admin tests out of the oversized course detail
+  test module.
 
 ## Current Findings
 
