@@ -56,11 +56,12 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self.course.save()
 
     def create_homework(self):
+        due_date = timezone.now()
         return Homework.objects.create(
             course=self.course,
             slug="hw1",
             title="Homework 1",
-            due_date=timezone.now(),
+            due_date=due_date,
             homework_url_field=False,
             time_spent_lectures_field=True,
             time_spent_homework_field=True,
@@ -110,9 +111,10 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         }
 
     def post_homework(self, post_data):
+        homework_url = self.homework_url()
         with self.captureOnCommitCallbacks(execute=True):
             return self.client.post(
-                self.homework_url(),
+                homework_url,
                 post_data,
                 HTTP_HOST="localhost",
             )
@@ -124,12 +126,14 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
 
     def create_project(self):
+        submission_due_date = timezone.now()
+        peer_review_due_date = timezone.now()
         return Project.objects.create(
             course=self.course,
             slug="project",
             title="Project",
-            submission_due_date=timezone.now(),
-            peer_review_due_date=timezone.now(),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
@@ -240,9 +244,10 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         return fields
 
     def assert_submission_fields(self, payload):
+        expected_fields = self.expected_submission_fields()
         self.assertEqual(
             payload["context"]["submission_fields"],
-            self.expected_submission_fields(),
+            expected_fields,
         )
 
     def multiple_choice_answer_record(self):
@@ -313,7 +318,8 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         self,
         send_email,
     ):
-        response = self.post_homework(self.confirmation_post_data())
+        post_data = self.confirmation_post_data()
+        response = self.post_homework(post_data)
 
         self.assertEqual(response.status_code, 302)
         submission = self.get_submission()
@@ -350,12 +356,11 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         }
 
     def assert_submission_exists(self):
-        self.assertTrue(
-            Submission.objects.filter(
-                student=self.user,
-                homework=self.homework,
-            ).exists()
-        )
+        submission_exists = Submission.objects.filter(
+            student=self.user,
+            homework=self.homework,
+        ).exists()
+        self.assertTrue(submission_exists)
 
     @override_settings(PUBLIC_BASE_URL="https://dev.courses.datatalks.club")
     @patch("courses.views.homework_confirmation.send_transactional_email")
@@ -401,11 +406,12 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         send_email.assert_not_called()
 
     def create_previous_homework_submission_with_learning_link(self):
+        due_date = timezone.now()
         previous_homework = Homework.objects.create(
             course=self.course,
             slug="hw0",
             title="Homework 0",
-            due_date=timezone.now(),
+            due_date=due_date,
         )
         Submission.objects.create(
             homework=previous_homework,
@@ -427,12 +433,11 @@ class HomeworkSubmissionIntegrationTest(TestCase):
         )
 
     def assert_current_homework_not_submitted(self):
-        self.assertFalse(
-            Submission.objects.filter(
-                student=self.user,
-                homework=self.homework,
-            ).exists()
-        )
+        submission_exists = Submission.objects.filter(
+            student=self.user,
+            homework=self.homework,
+        ).exists()
+        self.assertFalse(submission_exists)
 
     def test_duplicate_learning_in_public_finder_checks_project_submissions(
         self,
