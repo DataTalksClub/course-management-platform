@@ -312,6 +312,8 @@ testable service functions.
   effects out of the certificate update apply coordinator.
 - [x] Split Datamailer registration confirmation, contact, and recipient-list
   payload builders into direct owner modules and remove the mixed module.
+- [x] Split course-list enrollment and registration state decoration out of
+  the public course-list context module.
 
 ## Current Findings
 
