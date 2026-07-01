@@ -218,41 +218,57 @@ class ProjectViewTestBase(TestCase):
             ),
         )
 
-    def expected_project_submission_fields(self):
+    def expected_project_repository_fields(self):
         fields = []
-        field = {
+        github_field = {
             "key": "github_link",
             "label": "GitHub repository",
             "value": "https://github.com/test/project",
         }
-        fields.append(field)
-        field = {"key": "commit_id", "label": "Commit ID", "value": "1234567"}
-        fields.append(field)
-        field = {
+        fields.append(github_field)
+        commit_field = {
+            "key": "commit_id",
+            "label": "Commit ID",
+            "value": "1234567",
+        }
+        fields.append(commit_field)
+        return fields
+
+    def expected_project_detail_fields(self):
+        fields = []
+        learning_links_field = {
             "key": "learning_in_public_links",
             "label": "Learning in public links",
             "value": "https://example.com/project-notes",
             "values": ["https://example.com/project-notes"],
         }
-        fields.append(field)
-        field = {
+        fields.append(learning_links_field)
+        time_spent_field = {
             "key": "time_spent",
             "label": "Time spent on project",
             "value": "2 hours",
         }
-        fields.append(field)
-        field = {
+        fields.append(time_spent_field)
+        problems_field = {
             "key": "problems_comments",
             "label": "Problems, comments, or feedback",
             "value": "No blockers.",
         }
-        fields.append(field)
-        field = {
+        fields.append(problems_field)
+        faq_field = {
             "key": "faq_contribution_url",
             "label": "FAQ contribution URL",
             "value": "https://github.com/DataTalksClub/faq/pull/266",
         }
-        fields.append(field)
+        fields.append(faq_field)
+        return fields
+
+    def expected_project_submission_fields(self):
+        fields = []
+        for field in self.expected_project_repository_fields():
+            fields.append(field)
+        for field in self.expected_project_detail_fields():
+            fields.append(field)
         return fields
 
     def assert_project_submission_fields(self, payload):

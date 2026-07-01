@@ -483,6 +483,10 @@ testable service functions.
   Verification: `uv run ruff check courses/tests/project_eval_base.py`
   and
   `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`.
+- [x] Split project-submission confirmation expected-field records into
+  repository and project-detail field groups. Verification:
+  `uv run ruff check courses/tests/project_view_base.py` and
+  `uv run python manage.py test courses.tests.test_project_submission_view`.
 
 ## Current Findings
 
