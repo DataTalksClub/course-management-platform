@@ -2990,6 +2990,15 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split project assignment tests into shared project-action fixtures,
+  peer-review assignment tests, and optional evaluation add/delete tests.
+  Verification:
+  `uv run ruff check courses/tests/project_assign_base.py courses/tests/test_project_assign.py courses/tests/test_project_optional_eval.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_assign courses.tests.test_project_optional_eval`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
