@@ -110,6 +110,8 @@ testable service functions.
   calculation-focused `courses/tests/test_project_statistics.py` module.
 - [x] Shorten project detail/submission view tests by reusing route, POST,
   expected-field, and repeated-copy assertion helpers.
+- [x] Split public project detail and submission POST tests into focused
+  modules with shared project-view fixtures in a base module.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
