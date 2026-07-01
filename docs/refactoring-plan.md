@@ -138,6 +138,8 @@ testable service functions.
   route-level view module thin.
 - [x] Split enrollment export API ownership into direct graduates and
   certificate-update view modules without a compatibility re-export.
+- [x] Split the public project detail view into route handling, page-context,
+  and submission-edit modules so the view module only coordinates responses.
 
 ## Current Findings
 

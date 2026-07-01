@@ -493,7 +493,8 @@ class ProjectViewTestCase(TestCase):
             mock.patch("requests.get") as mock_get,
             mock.patch("requests.head") as mock_head,
             mock.patch(
-                "courses.views.project.sync_project_submission_to_datamailer"
+                "courses.views.project_submission_edit."
+                "sync_project_submission_to_datamailer"
             ) as sync_submission,
             mock.patch(
                 "courses.views.project_confirmation.send_transactional_email"
@@ -525,7 +526,8 @@ class ProjectViewTestCase(TestCase):
             mock.patch("requests.get") as mock_get,
             mock.patch("requests.head") as mock_head,
             mock.patch(
-                "courses.views.project.sync_project_submission_to_datamailer"
+                "courses.views.project_submission_edit."
+                "sync_project_submission_to_datamailer"
             ) as sync_submission,
             mock.patch(
                 "courses.views.project_confirmation.send_transactional_email"
