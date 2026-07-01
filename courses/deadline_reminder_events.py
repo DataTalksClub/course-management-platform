@@ -24,9 +24,9 @@ from courses.deadline_reminder_queries import (
     project_submission_reminder_windows,
 )
 from courses.deadline_reminder_specs import (
-    homework_reminder_spec,
-    peer_review_reminder_spec,
-    project_submission_reminder_spec,
+    HOMEWORK_REMINDER_SPEC,
+    PEER_REVIEW_REMINDER_SPEC,
+    PROJECT_SUBMISSION_REMINDER_SPEC,
 )
 from courses.deadline_reminder_types import ReminderEventData
 
@@ -95,7 +95,7 @@ def peer_review_reminder_event(config, spec, project):
 
 
 def homework_events(config, now, course_slug):
-    spec = homework_reminder_spec()
+    spec = HOMEWORK_REMINDER_SPEC
     events = []
     homeworks = homework_reminder_queryset(now, course_slug)
     for homework in homeworks:
@@ -107,7 +107,7 @@ def homework_events(config, now, course_slug):
 
 def project_submission_events(config, now, course_slug):
     events = []
-    spec = project_submission_reminder_spec()
+    spec = PROJECT_SUBMISSION_REMINDER_SPEC
     windows = project_submission_reminder_windows(now)
     projects = project_submission_reminder_queryset(
         windows,
@@ -128,7 +128,7 @@ def project_submission_events(config, now, course_slug):
 
 def peer_review_events(config, now, course_slug):
     events = []
-    spec = peer_review_reminder_spec()
+    spec = PEER_REVIEW_REMINDER_SPEC
     projects = peer_review_reminder_queryset(now, course_slug)
     for project in projects:
         event = peer_review_reminder_event(config, spec, project)
