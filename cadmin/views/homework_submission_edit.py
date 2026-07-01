@@ -1,0 +1,192 @@
+from dataclasses import dataclass
+
+from django.contrib import messages
+from django.http import HttpRequest
+from django.shortcuts import get_object_or_404, redirect, render
+
+from courses.models import Answer, Course, Homework, Question, Submission
+from cadmin.forms import HomeworkSubmissionEditForm
+from cadmin.services import update_homework_submission_from_admin
+from cadmin.views.helpers import first_form_error
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionEditPageData:
+    request: HttpRequest
+    course: Course
+    homework: Homework
+    submission: Submission
+    questions: list
+    questions_with_answers: list
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionEditObjects:
+    course: Course
+    homework: Homework
+    submission: Submission
+
+
+@dataclass(frozen=True)
+class HomeworkSubmissionQuestions:
+    questions: list
+    questions_with_answers: list
+
+
+def homework_submission_edit_response(
+    request, course_slug, homework_slug, submission_id
+):
+    edit_objects = homework_submission_edit_objects(
+        course_slug, homework_slug, submission_id
+    )
+
+    submission_questions = questions_with_submission_answers(
+        edit_objects.homework,
+        edit_objects.submission,
+    )
+    edit_data = HomeworkSubmissionEditPageData(
+        request=request,
+        course=edit_objects.course,
+        homework=edit_objects.homework,
+        submission=edit_objects.submission,
+        questions=submission_questions.questions,
+        questions_with_answers=submission_questions.questions_with_answers,
+    )
+
+    if request.method == "POST":
+        response = handle_homework_submission_edit_post(edit_data)
+        if response is not None:
+            return response
+
+    return homework_submission_edit_render_response(edit_data)
+
+
+def homework_submission_edit_objects(
+    course_slug, homework_slug, submission_id
+):
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+    submission = get_object_or_404(
+        Submission, id=submission_id, homework=homework
+    )
+    return HomeworkSubmissionEditObjects(
+        course=course,
+        homework=homework,
+        submission=submission,
+    )
+
+
+def questions_with_submission_answers(homework, submission):
+    questions = Question.objects.filter(homework=homework).order_by(
+        "id"
+    )
+    answers = Answer.objects.filter(
+        submission=submission
+    ).select_related("question")
+    answer_map = {}
+    for answer in answers:
+        answer_map[answer.question_id] = answer
+
+    questions_with_answers = []
+    for question in questions:
+        answer = answer_map.get(question.id)
+        answer_text = ""
+        if answer is not None:
+            answer_text = answer.answer_text
+        record = {
+            "question": question,
+            "answer": answer,
+            "answer_text": answer_text,
+        }
+        questions_with_answers.append(record)
+    return HomeworkSubmissionQuestions(
+        questions=questions,
+        questions_with_answers=questions_with_answers,
+    )
+
+
+def handle_homework_submission_edit_post(data):
+    form = HomeworkSubmissionEditForm(
+        data.request.POST,
+        submission=data.submission,
+        questions=data.questions,
+    )
+
+    if not form.is_valid():
+        error_message = first_form_error(form)
+        return homework_submission_edit_failed(
+            data,
+            error_message,
+        )
+
+    try:
+        update_homework_submission_from_admin(
+            data.submission,
+            form.cleaned_data,
+        )
+    except Exception as e:
+        return homework_submission_edit_failed(data, e)
+
+    return homework_submission_edit_success(data)
+
+
+def homework_submission_edit_failed(data, message):
+    messages.error(data.request, f"Error updating submission: {message}")
+    return None
+
+
+def homework_submission_edit_success(data):
+    messages.success(
+        data.request,
+        f"Homework submission for {data.submission.student.username} updated successfully",
+    )
+    response = redirect(
+        "cadmin_homework_submissions",
+        course_slug=data.course.slug,
+        homework_slug=data.homework.slug,
+    )
+    return response
+
+
+def homework_submission_edit_render_response(data):
+    context = homework_submission_edit_context(data)
+    response = render(
+        data.request, "cadmin/homework_submission_edit.html", context
+    )
+    return response
+
+
+def homework_submission_edit_context(data):
+    faq_contribution_url, faq_score = homework_submission_faq_data(
+        data.request,
+        data.submission,
+    )
+    learning_in_public_links = data.submission.learning_in_public_links or []
+    learning_in_public_links_text = "\n".join(learning_in_public_links)
+    return {
+        "course": data.course,
+        "homework": data.homework,
+        "submission": data.submission,
+        "questions_with_answers": data.questions_with_answers,
+        "learning_in_public_links_text": learning_in_public_links_text,
+        "faq_contribution_url": faq_contribution_url,
+        "faq_score": faq_score,
+    }
+
+
+def homework_submission_faq_data(request, submission):
+    if request.method == "POST":
+        faq_contribution_url = request.POST.get(
+            "faq_contribution_url", ""
+        ).strip()
+        faq_score = request.POST.get("faq_score", submission.faq_score)
+        return (
+            faq_contribution_url,
+            faq_score,
+        )
+
+    faq_contribution_url = submission.faq_contribution_url or ""
+    faq_score = submission.faq_score
+    return faq_contribution_url, faq_score

@@ -156,6 +156,8 @@ testable service functions.
   out of the leaderboard view module.
 - [x] Split registration campaign API serialization, mutation, and
   registration-list helpers out of the public API view module.
+- [x] Split cadmin homework submission listing/search and submission edit
+  helpers out of the homework admin action module.
 
 ## Current Findings
 
