@@ -55,12 +55,14 @@ class ProjectActionsTestCase(TestCase):
             course=self.course,
         )
 
+        submission_due_date = timezone.now() - timedelta(hours=1)
+        peer_review_due_date = timezone.now() + timedelta(hours=1)
         self.project = Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
-            submission_due_date=timezone.now() - timedelta(hours=1),
-            peer_review_due_date=timezone.now() + timedelta(hours=1),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
         )
 
     def generate_submissions(self, num_submissions):
@@ -98,17 +100,17 @@ class ProjectActionsTestCase(TestCase):
         return assign_peer_reviews_for_project(self.project)
 
     def project_peer_reviews(self):
-        return list(
-            PeerReview.objects.filter(
-                submission_under_evaluation__project=self.project
-            )
+        peer_reviews = PeerReview.objects.filter(
+            submission_under_evaluation__project=self.project
         )
+        return list(peer_reviews)
 
     def assert_no_peer_reviews(self):
         peer_reviews = PeerReview.objects.filter(
             submission_under_evaluation__project=self.project
         )
-        self.assertEqual(peer_reviews.count(), 0)
+        peer_review_count = peer_reviews.count()
+        self.assertEqual(peer_review_count, 0)
 
     def assert_assignment_created(self, num_submissions):
         self.project = fetch_fresh(self.project)
@@ -178,7 +180,8 @@ class ProjectActionsTestCase(TestCase):
         )
 
     def find_optional_eval_candidate_id(self):
-        list_response = self.client.get(self.project_list_url())
+        url = self.project_list_url()
+        list_response = self.client.get(url)
         self.assertEqual(list_response.status_code, 200)
         for submission in list_response.context["submissions"]:
             if not submission.to_evaluate and not submission.own:
@@ -200,7 +203,8 @@ class ProjectActionsTestCase(TestCase):
 
     def add_optional_eval_and_assert_redirect(self, submission):
         self.client.login(**credentials)
-        response = self.client.get(self.add_eval_url(submission.id))
+        url = self.add_eval_url(submission.id)
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
 
     def assert_optional_peer_review_created(self, reviewer, submission):
@@ -212,19 +216,23 @@ class ProjectActionsTestCase(TestCase):
             reviewer=reviewer,
             submission_under_evaluation=submission,
         )
-        self.assertFalse(peer_reviews.exists())
+        peer_review_exists = peer_reviews.exists()
+        self.assertFalse(peer_review_exists)
 
     def delete_peer_review_response(self, peer_review):
         self.client.login(**credentials)
-        return self.client.get(self.delete_eval_url(peer_review.id))
+        url = self.delete_eval_url(peer_review.id)
+        return self.client.get(url)
 
     def assert_peer_review_deleted(self, peer_review):
         reviews = PeerReview.objects.filter(id=peer_review.id)
-        self.assertFalse(reviews.exists())
+        peer_review_exists = reviews.exists()
+        self.assertFalse(peer_review_exists)
 
     def assert_peer_review_still_exists(self, peer_review):
         reviews = PeerReview.objects.filter(id=peer_review.id)
-        self.assertTrue(reviews.exists())
+        peer_review_exists = reviews.exists()
+        self.assertTrue(peer_review_exists)
 
     def test_select_random_assignment(self):
         num_submissions = 10
@@ -296,7 +304,8 @@ class ProjectActionsTestCase(TestCase):
             submission_under_evaluation__project=self.project
         )
         # Should have 4 * 3 = 12 peer reviews
-        self.assertEqual(peer_reviews.count(), 12)
+        peer_review_count = peer_reviews.count()
+        self.assertEqual(peer_review_count, 12)
 
     def test_add_optional_project_eval_flow(self):
         num_submissions = 10
@@ -358,15 +367,20 @@ class ProjectActionsTestCase(TestCase):
 
         self.client.login(**credentials)
 
-        response = self.client.get(self.delete_eval_url(peer_review.id))
+        delete_url = self.delete_eval_url(peer_review.id)
+        response = self.client.get(delete_url)
         self.assertEqual(response.status_code, 302)
+        redirect_url = self.projects_eval_url()
         self.assertRedirects(
             response,
-            self.projects_eval_url(),
+            redirect_url,
             fetch_redirect_response=False,
         )
 
-        self.assertTrue(PeerReview.objects.filter(id=peer_review.id).exists())
+        peer_review_exists = PeerReview.objects.filter(
+            id=peer_review.id
+        ).exists()
+        self.assertTrue(peer_review_exists)
 
     def test_delete_optional_project_eval_optional(self):
         my_submission = self.create_my_submission()
