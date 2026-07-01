@@ -2417,6 +2417,15 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Share Datamailer route-to-public-URL conversion through a named payload
+  URL helper and remove a one-use project score URL wrapper after the shared
+  helper made it unnecessary. Verification:
+  `uv run ruff check course_management/datamailer/payloads/urls.py course_management/datamailer/payloads/score_notifications.py course_management/datamailer/payloads/peer_review.py course_management/datamailer/payloads/project_scores.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_peer_review`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

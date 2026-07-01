@@ -1,25 +1,15 @@
 from typing import Any
 
-from django.urls import reverse
-
 from course_management import email_templates
 from accounts.services.timezones import format_deadline_for_user
 
-from ..client import DatamailerConfig, public_url
+from ..client import DatamailerConfig
 from ..keys import project_submitters_list_key
 from .peer_review_members import (
     peer_review_assignment_notification_members,
 )
 from .score_notifications import add_from_email_if_configured
-
-
-def public_route_url(route_name, route_kwargs=None):
-    if route_kwargs is None:
-        path = reverse(route_name)
-    else:
-        path = reverse(route_name, kwargs=route_kwargs)
-    url = public_url(path)
-    return url
+from .urls import public_route_url
 
 
 def _peer_review_assignment_urls(course, project) -> dict[str, str]:

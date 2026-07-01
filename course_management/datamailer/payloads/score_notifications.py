@@ -1,29 +1,17 @@
-from django.urls import reverse
-
-from ..client import public_url
+from .urls import public_route_url
 
 
 def score_notification_urls(course, assignment, route_name, slug_kwarg):
-    assignment_path = reverse(
-        route_name,
-        kwargs={
-            "course_slug": course.slug,
-            slug_kwarg: assignment.slug,
-        },
-    )
-    assignment_url = public_url(assignment_path)
+    assignment_kwargs = {
+        "course_slug": course.slug,
+        slug_kwarg: assignment.slug,
+    }
+    assignment_url = public_route_url(route_name, assignment_kwargs)
 
-    course_path = reverse("course", kwargs={"course_slug": course.slug})
-    course_url = public_url(course_path)
-
-    leaderboard_path = reverse(
-        "leaderboard",
-        kwargs={"course_slug": course.slug},
-    )
-    leaderboard_url = public_url(leaderboard_path)
-
-    profile_path = reverse("account_settings")
-    profile_url = public_url(profile_path)
+    course_kwargs = {"course_slug": course.slug}
+    course_url = public_route_url("course", course_kwargs)
+    leaderboard_url = public_route_url("leaderboard", course_kwargs)
+    profile_url = public_route_url("account_settings")
 
     return {
         "course_url": course_url,

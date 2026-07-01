@@ -1,10 +1,8 @@
 from typing import Any
 
-from django.urls import reverse
-
 from course_management import email_templates
 
-from ..client import DatamailerConfig, public_url
+from ..client import DatamailerConfig
 from ..keys import project_submitters_list_key
 from .score_members import project_score_notification_members
 from .score_notifications import (
@@ -12,6 +10,7 @@ from .score_notifications import (
     score_notification_footer,
     score_notification_urls,
 )
+from .urls import public_route_url
 
 
 def _project_score_notification_context(project):
@@ -44,7 +43,14 @@ def _project_score_notification_urls(course, project):
         "project_slug",
     )
     project_url = urls["assignment_url"]
-    project_results_url = _project_score_results_url(course, project)
+    project_results_kwargs = {
+        "course_slug": course.slug,
+        "project_slug": project.slug,
+    }
+    project_results_url = public_route_url(
+        "project_results",
+        project_results_kwargs,
+    )
 
     return {
         "course_url": urls["course_url"],
@@ -53,16 +59,6 @@ def _project_score_notification_urls(course, project):
         "leaderboard_url": urls["leaderboard_url"],
         "profile_url": urls["profile_url"],
     }
-
-
-def _project_score_results_url(course, project):
-    project_kwargs = {
-        "course_slug": course.slug,
-        "project_slug": project.slug,
-    }
-    project_results_path = reverse("project_results", kwargs=project_kwargs)
-    project_results_url = public_url(project_results_path)
-    return project_results_url
 
 
 def _project_score_notification_metadata(project):
