@@ -1,4 +1,4 @@
-from .content_schemas import CONTENT_SCHEMAS
+from .content_schemas.registry import CONTENT_SCHEMAS
 from .course_schemas import COURSE_SCHEMAS
 from .integration_schemas import INTEGRATION_SCHEMAS
 

@@ -234,6 +234,8 @@ testable service functions.
   the payload package re-export shim.
 - [x] Move OpenAPI spec building out of the package root and update callers to
   import the concrete owner module directly.
+- [x] Move OpenAPI content path/schema aggregation out of package roots into
+  explicit registry modules.
 
 ## Current Findings
 

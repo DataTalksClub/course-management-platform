@@ -1,4 +1,4 @@
-from .content_paths import CONTENT_PATHS_BY_URL_NAME
+from .content_paths.registry import CONTENT_PATHS_BY_URL_NAME
 from .course_paths import COURSE_PATHS_BY_URL_NAME
 from .data_paths import DATA_PATHS_BY_URL_NAME
 
