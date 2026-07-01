@@ -1325,6 +1325,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten homework deadline reminder helpers by replacing positional
+  user/enrollment tuples with named dataclasses and splitting reminder list,
+  member, and idempotency assertions. Verification:
+  `uv run ruff check courses/tests/deadline_reminder_homework.py courses/tests/test_deadline_reminder_homework.py courses/tests/deadline_reminder_base.py`,
+  `uv run python manage.py test courses.tests.test_deadline_reminder_homework`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
