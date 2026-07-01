@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from django.core.paginator import Page
 from django.http import HttpRequest
 
-from courses.models import Course, Project, ProjectState
+from courses.models.course import Course
+from courses.models.project import Project, ProjectState
 
 from .helpers import paginate_queryset, pagination_querystring
 from .view_models import project_submission_list_data

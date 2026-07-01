@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from django.contrib import messages
 from django.shortcuts import redirect
 
-from courses.models import Course
+from courses.models.course import Course
 from cadmin.forms import RegistrationCampaignForm
 
 from .campaign_datamailer import (

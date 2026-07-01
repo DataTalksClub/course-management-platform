@@ -1,7 +1,8 @@
 from django.contrib import messages
 from django.shortcuts import redirect
 
-from courses.models import ProjectSubmission, Submission
+from courses.models.homework import Submission
+from courses.models.project import ProjectSubmission
 from courses.services.enrollment_flags import (
     set_learning_in_public_disabled,
 )

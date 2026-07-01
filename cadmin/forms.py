@@ -1,6 +1,6 @@
 from django import forms
 
-from courses.models import RegistrationCampaign
+from courses.models.course import RegistrationCampaign
 
 
 class HomeworkSubmissionEditForm(forms.Form):

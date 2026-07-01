@@ -1,4 +1,4 @@
-from courses.models import CourseRegistration
+from courses.models.course import CourseRegistration
 
 from .helpers import count_by
 

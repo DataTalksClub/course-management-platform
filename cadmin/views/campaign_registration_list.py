@@ -4,7 +4,7 @@ from django.core.paginator import Page
 from django.db.models import Q
 from django.http import HttpRequest
 
-from courses.models import CourseRegistration, RegistrationCampaign
+from courses.models.course import CourseRegistration, RegistrationCampaign
 
 from .campaign_metrics import registration_campaign_metrics
 from .helpers import paginate_queryset, pagination_querystring

@@ -1,6 +1,7 @@
 from django.db import transaction
 
-from courses.models import Answer, ProjectEvaluationScore
+from courses.models.homework import Answer
+from courses.models.project import ProjectEvaluationScore
 from courses.leaderboard import update_leaderboard
 from courses.homework_score_calculation import update_score
 

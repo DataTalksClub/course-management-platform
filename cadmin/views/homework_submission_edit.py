@@ -4,7 +4,8 @@ from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models import Answer, Course, Homework, Question, Submission
+from courses.models.course import Course
+from courses.models.homework import Answer, Homework, Question, Submission
 from cadmin.forms import HomeworkSubmissionEditForm
 from cadmin.services import update_homework_submission_from_admin
 from cadmin.views.helpers import first_form_error

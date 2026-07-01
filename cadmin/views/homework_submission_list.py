@@ -4,7 +4,8 @@ from django.core.paginator import Page
 from django.db.models import Q
 from django.http import HttpRequest
 
-from courses.models import Course, Homework, Submission
+from courses.models.course import Course
+from courses.models.homework import Homework, Submission
 from cadmin.views.helpers import pagination_querystring
 
 

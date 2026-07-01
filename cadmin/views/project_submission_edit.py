@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models import (
-    Course,
+from courses.models.course import Course
+from courses.models.project import (
     Project,
     ProjectEvaluationScore,
     ProjectSubmission,

@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
-from courses.models import Enrollment, LeaderboardComplaint
+from courses.models.course import Enrollment, LeaderboardComplaint
 
 
 def complaint_enrollments(course):

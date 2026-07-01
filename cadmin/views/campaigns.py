@@ -1,9 +1,7 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models import (
-    RegistrationCampaign,
-)
+from courses.models.course import RegistrationCampaign
 from cadmin.forms import RegistrationCampaignForm
 from .campaign_forms import (
     campaign_edit_context,

@@ -2,8 +2,8 @@ from collections import defaultdict
 
 from django.db.models import Count, Q
 
-from courses.models import (
-    Enrollment,
+from courses.models.course import Enrollment
+from courses.models.project import (
     PeerReview,
     PeerReviewState,
     ProjectSubmission,
