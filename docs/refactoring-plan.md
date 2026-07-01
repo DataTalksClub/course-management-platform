@@ -150,6 +150,8 @@ testable service functions.
 - [x] Split dashboard metric calculation into common metric, homework,
   project, and context modules, leaving the dashboard view as the route/render
   boundary.
+- [x] Split project evaluation submit context decoration and review persistence
+  out of the route-level submit view.
 
 ## Current Findings
 
