@@ -2350,6 +2350,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Group peer-review assignment notification send state in a
+  `PeerReviewAssignmentSendData` value object and pass that object through
+  readiness and error handling instead of repeatedly threading config,
+  list-key, payload, and project identity as separate arguments. Verification:
+  `uv run ruff check course_management/datamailer/sync/peer_review_notifications.py courses/tests/test_datamailer_peer_review.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_peer_review`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
