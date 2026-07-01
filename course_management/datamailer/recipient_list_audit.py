@@ -121,12 +121,11 @@ def print_drift(write_line, data):
         f"email_mismatches={len(data.drift['email_mismatches'])} "
         f"metadata_mismatches={len(data.drift['metadata_mismatches'])}"
     )
-    drift_labels = (
+    for label in (
         "missing",
         "unexpected",
         "email_mismatches",
         "metadata_mismatches",
-    )
-    for label in drift_labels:
+    ):
         if data.drift[label]:
             write_line(f"{label}: {', '.join(data.drift[label])}")

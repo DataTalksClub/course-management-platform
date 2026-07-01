@@ -79,13 +79,12 @@ def member_field_mismatches(expected, actual, shared_keys, field):
 
 
 def has_member_drift(drift):
-    drift_labels = (
+    for label in (
         "missing",
         "unexpected",
         "email_mismatches",
         "metadata_mismatches",
-    )
-    for label in drift_labels:
+    ):
         if drift[label]:
             return True
     return False
