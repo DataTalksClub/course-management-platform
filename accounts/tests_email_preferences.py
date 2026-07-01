@@ -22,15 +22,15 @@ class AccountEmailPreferencesTestCase(AccountCourseTestCase):
     ):
         update_email_preferences.return_value = True
         self.client.force_login(self.user)
+        url = reverse("account_email_preferences")
+        payload = {"field": "email_deadline_reminders", "value": "false"}
 
-        response = self.client.post(
-            reverse("account_email_preferences"),
-            {"field": "email_deadline_reminders", "value": "false"},
-        )
+        response = self.client.post(url, payload)
 
         self.assertEqual(response.status_code, 200)
+        response_data = response.json()
         self.assertEqual(
-            response.json(),
+            response_data,
             {
                 "field": "email_deadline_reminders",
                 "value": False,
@@ -56,12 +56,14 @@ class AccountEmailPreferencesTestCase(AccountCourseTestCase):
             "email_course_updates": False,
         }
         self.client.force_login(self.user)
+        url = reverse("account_email_preferences")
 
-        response = self.client.get(reverse("account_email_preferences"))
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
+        response_data = response.json()
         self.assertEqual(
-            response.json(),
+            response_data,
             {
                 "preferences": {
                     "email_submission_confirmations": False,
@@ -74,8 +76,9 @@ class AccountEmailPreferencesTestCase(AccountCourseTestCase):
 
     def test_account_email_preferences_unavailable_returns_503(self):
         self.client.force_login(self.user)
+        url = reverse("account_email_preferences")
 
-        response = self.client.get(reverse("account_email_preferences"))
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 503)
 
@@ -90,8 +93,9 @@ class AccountEmailPreferencesTestCase(AccountCourseTestCase):
 
     def test_account_settings_shows_email_preference_categories(self):
         self.client.force_login(self.user)
+        url = reverse("account_settings")
 
-        response = self.client.get(reverse("account_settings"))
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(

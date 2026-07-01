@@ -1742,6 +1742,12 @@ Steps:
   `uv run python manage.py test courses.tests.test_project_submissions_view courses.tests.test_project_voting courses.tests.test_project_view`,
   dataclass small-wrapper scan reviewed, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name URLs, request payloads, and JSON response bodies in account email
+  preference tests instead of nesting `reverse(...)` or `response.json()` calls.
+  Verification:
+  `uv run ruff check accounts/tests_email_preferences.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_email_preferences`,
+  nested-call scan reviewed, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
