@@ -123,6 +123,11 @@
               {% if field.help_text %}
                 <p class="mt-1 text-xs app-muted">{{ field.help_text }}</p>
               {% endif %}
+              {% if field.name == 'email' and user.is_authenticated %}
+                <p class="mt-1 text-xs app-muted">
+                  <a href="{% url 'account_logout' %}?next={{ request.path }}" class="app-link">Log out</a> to use a different email address.
+                </p>
+              {% endif %}
               {% if field.errors %}
                 <div class="mt-1 text-sm app-danger-text">{{ field.errors }}</div>
               {% endif %}
