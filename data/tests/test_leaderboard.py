@@ -1,98 +1,22 @@
 """Tests for the public leaderboard data endpoint."""
 
-from dataclasses import dataclass
-
 import yaml
-from unittest.mock import patch
 
-from django.test import TestCase, Client
-from django.urls import reverse
 from django.utils import timezone
-from django.core.cache import cache
 
-from accounts.models import CustomUser
 from courses.models import (
-    Course,
-    Enrollment,
     Homework,
-    Submission,
     Project,
     ProjectSubmission,
+    Submission,
 )
 from courses.models.homework import HomeworkState
 from courses.models.project import ProjectState
-from courses.leaderboard import update_leaderboard
+
+from .leaderboard_base import LeaderboardDataViewBase
 
 
-@dataclass(frozen=True)
-class LeaderboardEnrollmentData:
-    user: CustomUser
-    display_name: str
-    total_score: int
-    position: int
-
-
-class LeaderboardDataViewTestCase(TestCase):
-
-    def setUp(self):
-        self.client = Client()
-        self.course = self.create_course()
-        self.url = self.course_leaderboard_url()
-        self.user1 = self.create_user("user1")
-        self.user2 = self.create_user("user2")
-        enrollment_data = LeaderboardEnrollmentData(
-            user=self.user1,
-            display_name="Alice",
-            total_score=100,
-            position=1,
-        )
-        self.enrollment1 = self.create_leaderboard_enrollment(
-            enrollment_data
-        )
-        enrollment_data = LeaderboardEnrollmentData(
-            user=self.user2,
-            display_name="Bob",
-            total_score=50,
-            position=2,
-        )
-        self.enrollment2 = self.create_leaderboard_enrollment(
-            enrollment_data
-        )
-
-    def create_course(self):
-        return Course.objects.create(
-            title="Test Course",
-            slug="test-course",
-            description="Test",
-        )
-
-    def course_leaderboard_url(self):
-        return reverse(
-            "api_course_leaderboard",
-            kwargs={"course_slug": self.course.slug},
-        )
-
-    def create_user(self, username):
-        return CustomUser.objects.create(
-            username=username,
-            email=f"{username}@example.com",
-            password="pw",
-        )
-
-    def create_leaderboard_enrollment(
-        self,
-        data,
-    ):
-        return Enrollment.objects.create(
-            student=data.user,
-            course=self.course,
-            display_name=data.display_name,
-            total_score=data.total_score,
-            position_on_leaderboard=data.position,
-        )
-
-    def tearDown(self):
-        cache.clear()
+class LeaderboardDataViewTestCase(LeaderboardDataViewBase):
 
     def test_returns_yaml(self):
         response = self.client.get(self.url)
@@ -231,94 +155,6 @@ class LeaderboardDataViewTestCase(TestCase):
         alice = self.leaderboard_alice()
 
         self.assert_completed_project_export(alice)
-
-    def test_response_is_cached(self):
-        self.client.get(self.url)
-
-        # Modify data - cached response should still be old
-        self.enrollment1.display_name = "Alice Changed"
-        self.enrollment1.save()
-
-        response = self.client.get(self.url)
-        data = yaml.safe_load(response.content)
-        self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
-
-    def create_paginated_leaderboard_entries(self):
-        for i in range(3, 106):
-            user = CustomUser.objects.create(
-                username=f"user{i}", email=f"user{i}@example.com"
-            )
-            Enrollment.objects.create(
-                student=user,
-                course=self.course,
-                display_name=f"User {i}",
-                total_score=100 - i,
-                position_on_leaderboard=i,
-            )
-
-    def leaderboard_data(self, params=None):
-        if params is None:
-            params = {}
-        response = self.client.get(self.url, params)
-        data = yaml.safe_load(response.content)
-        return data
-
-    def assert_first_leaderboard_page(self, data):
-        self.assertEqual(data["page"], 1)
-        self.assertNotIn("page_size", data)
-        self.assertEqual(data["total_entries"], 105)
-        self.assertEqual(data["total_pages"], 2)
-        self.assertTrue(data["has_next"])
-        self.assertEqual(
-            data["next_page"],
-            "/api/courses/test-course/leaderboard.yaml?page=2",
-        )
-        self.assertEqual(data["next_page_number"], 2)
-        self.assertEqual(len(data["leaderboard"]), 100)
-        self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
-        self.assertEqual(data["leaderboard"][-1]["display_name"], "User 100")
-
-    def assert_second_leaderboard_page(self, data):
-        self.assertEqual(data["page"], 2)
-        self.assertEqual(len(data["leaderboard"]), 5)
-        self.assertFalse(data["has_next"])
-        self.assertIsNone(data["next_page"])
-        self.assertIsNone(data["next_page_number"])
-        self.assertEqual(
-            data["previous_page"],
-            "/api/courses/test-course/leaderboard.yaml?page=1",
-        )
-        self.assertEqual(data["previous_page_number"], 1)
-        self.assertEqual(data["leaderboard"][0]["display_name"], "User 101")
-
-    def test_leaderboard_is_paginated(self):
-        self.create_paginated_leaderboard_entries()
-
-        first_page_data = self.leaderboard_data()
-        self.assert_first_leaderboard_page(first_page_data)
-
-        second_page_data = self.leaderboard_data({"page": 2})
-        self.assert_second_leaderboard_page(second_page_data)
-
-    def test_rendered_yaml_response_is_cached(self):
-        self.client.get(self.url)
-
-        with patch("api.views.leaderboard_exports.yaml.dump") as yaml_dump:
-            response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, 200)
-        yaml_dump.assert_not_called()
-
-    def test_cache_invalidation(self):
-        self.client.get(self.url)
-
-        self.enrollment1.display_name = "Alice Changed"
-        self.enrollment1.save()
-        update_leaderboard(self.course)
-
-        response = self.client.get(self.url)
-        data = yaml.safe_load(response.content)
-        self.assertEqual(data["leaderboard"][0]["display_name"], "Alice Changed")
 
     def test_nonexistent_course(self):
         response = self.client.get(

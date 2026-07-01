@@ -2929,6 +2929,14 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split the public leaderboard endpoint tests into shared fixtures, core
+  response/content tests, cache tests, and pagination tests. Verification:
+  `uv run ruff check data/tests/leaderboard_base.py data/tests/test_leaderboard.py data/tests/test_leaderboard_cache.py data/tests/test_leaderboard_pagination.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_leaderboard data.tests.test_leaderboard_cache data.tests.test_leaderboard_pagination`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
