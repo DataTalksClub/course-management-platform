@@ -100,45 +100,33 @@ class PeerReviewReminderTestMixin:
         users,
         enrollments,
     ):
-        reviewer = self.create_peer_review_reminder_submission(
-            project,
-            users.reviewer,
-            enrollments.reviewer,
-            "reviewer",
+        reviewer_data = ProjectSubmissionData(
+            project=project,
+            user=users.reviewer,
+            enrollment=enrollments.reviewer,
+            label="reviewer",
         )
-        author = self.create_peer_review_reminder_submission(
-            project,
-            users.author,
-            enrollments.author,
-            "author",
+        reviewer = self.create_project_submission(reviewer_data)
+        author_data = ProjectSubmissionData(
+            project=project,
+            user=users.author,
+            enrollment=enrollments.author,
+            label="author",
         )
-        opted_out_reviewer = self.create_peer_review_reminder_submission(
-            project,
-            users.opted_out_reviewer,
-            enrollments.opted_out_reviewer,
-            "opted-out",
+        author = self.create_project_submission(author_data)
+        opted_out_data = ProjectSubmissionData(
+            project=project,
+            user=users.opted_out_reviewer,
+            enrollment=enrollments.opted_out_reviewer,
+            label="opted-out",
         )
+        opted_out_reviewer = self.create_project_submission(opted_out_data)
 
         return PeerReviewReminderSubmissions(
             reviewer=reviewer,
             opted_out_reviewer=opted_out_reviewer,
             author=author,
         )
-
-    def create_peer_review_reminder_submission(
-        self,
-        project,
-        user,
-        enrollment,
-        label,
-    ):
-        submission_data = ProjectSubmissionData(
-            project=project,
-            user=user,
-            enrollment=enrollment,
-            label=label,
-        )
-        return self.create_project_submission(submission_data)
 
     def create_pending_peer_reviews(self, submissions):
         self.create_pending_peer_review(
@@ -183,8 +171,9 @@ class PeerReviewReminderTestMixin:
             "deadline-reminders:peer-review:ml-zoomcamp-2026:project-1:24h",
         )
         members_by_email = self.members_by_email(payload)
+        member_emails = set(members_by_email)
         self.assertEqual(
-            set(members_by_email),
+            member_emails,
             {
                 "reviewer@example.com",
                 "opted-out-reviewer@example.com",
