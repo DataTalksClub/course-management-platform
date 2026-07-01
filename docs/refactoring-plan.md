@@ -126,6 +126,8 @@ testable service functions.
   statistics test module.
 - [x] Split homework submission validation tests out of the oversized homework
   detail test module.
+- [x] Split homework detail and submission POST tests into focused modules with
+  shared homework-view fixtures in a base module.
 - [x] Split dashboard integration and authentication tests out of the oversized
   dashboard test module.
 - [x] Split project-statistics dashboard tests out of the mixed dashboard test
