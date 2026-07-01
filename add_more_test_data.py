@@ -150,39 +150,48 @@ def create_questions_for_homework(homework: Homework):
         create_random_question(homework)
 
 
+def random_multiple_choice_answer(question: Question) -> str:
+    num_possible_answers = len(question.get_possible_answers())
+    student_answer_int = random.choice(
+        range(1, num_possible_answers + 1)
+    )
+    student_answer = str(student_answer_int)
+    return student_answer
+
+
+def incorrect_answer_for_question(question: Question) -> str:
+    if question.question_type == QuestionTypes.MULTIPLE_CHOICE.value:
+        return random_multiple_choice_answer(question)
+
+    if question.question_type == QuestionTypes.FREE_FORM.value:
+        return "Incorrect answer"
+
+    if question.question_type == QuestionTypes.FREE_FORM_LONG.value:
+        return "Incorrect long answer"
+
+    return ""
+
+
 def generate_answer(
     question: Question, submission: Submission
 ) -> Answer:
     is_correct = random.choice([True, False])
 
-    student_answer = ""
-
     if is_correct:
         student_answer = question.correct_answer
     else:
-        if (
-            question.question_type
-            == QuestionTypes.MULTIPLE_CHOICE.value
-        ):
-            num_possible_answers = len(question.get_possible_answers())
-            student_answer_int = random.choice(
-                range(1, num_possible_answers + 1)
-            )
-            student_answer = str(student_answer_int)
-        elif question.question_type == QuestionTypes.FREE_FORM.value:
-            student_answer = "Incorrect answer"
-        elif question.question_type == QuestionTypes.FREE_FORM_LONG.value:
-            student_answer = "Incorrect long answer"
+        student_answer = incorrect_answer_for_question(question)
 
     print(
         f"  Answer is correct: {is_correct}, student answer: {student_answer}"
     )
 
-    return Answer.objects.create(
+    answer = Answer.objects.create(
         submission=submission,
         question=question,
         answer_text=student_answer,
     )
+    return answer
 
 
 def create_answers_for_student(submission):

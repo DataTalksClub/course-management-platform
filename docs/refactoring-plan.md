@@ -100,6 +100,8 @@ testable service functions.
   values before constructing payload/outbox event objects.
 - [x] Split account settings, email preference, timezone, and enrollment
   profile tests out of the oversized mixed `accounts/tests.py` module.
+- [x] Decompose answer generation in the `add_more_test_data.py` seed script
+  so answer selection and persistence are separate steps.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
