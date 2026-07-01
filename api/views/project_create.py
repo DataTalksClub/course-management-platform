@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from datetime import datetime
+
 from django.http import JsonResponse
 from django.utils.text import slugify
 
@@ -8,6 +11,19 @@ from api.crud import bulk_create_response
 from api.safety import require_staff_token
 from api.utils import instructions_url_error, parse_date, parse_json_body
 from api.views.project_serializers import project_to_dict
+
+
+@dataclass(frozen=True)
+class ProjectCreateInput:
+    name: str
+    submission_due_str: str
+    peer_review_due_str: str
+
+
+@dataclass(frozen=True)
+class ProjectCreateDates:
+    submission_due_date: datetime
+    peer_review_due_date: datetime
 
 
 def project_create_instructions_url(project_data):
@@ -47,7 +63,7 @@ def project_create_slug(course, project_data, name):
     return slug, None
 
 
-def project_create_attrs(course, project_data):
+def project_create_input(project_data):
     name = project_data.get("name")
     submission_due_str = project_data.get("submission_due_date")
     peer_review_due_str = project_data.get("peer_review_due_date")
@@ -58,28 +74,56 @@ def project_create_attrs(course, project_data):
         )
         return None, error
 
+    input_data = ProjectCreateInput(
+        name=name,
+        submission_due_str=submission_due_str,
+        peer_review_due_str=peer_review_due_str,
+    )
+    return input_data, None
+
+
+def project_create_dates(input_data):
+    submission_due_date = parse_date(input_data.submission_due_str)
+    if submission_due_date is None:
+        error = f"Invalid date format: {input_data.submission_due_str}"
+        return None, error
+
+    peer_review_due_date = parse_date(input_data.peer_review_due_str)
+    if peer_review_due_date is None:
+        error = f"Invalid date format: {input_data.peer_review_due_str}"
+        return None, error
+
+    dates = ProjectCreateDates(
+        submission_due_date=submission_due_date,
+        peer_review_due_date=peer_review_due_date,
+    )
+    return dates, None
+
+
+def project_create_attrs(course, project_data):
+    input_data, error = project_create_input(project_data)
+    if error:
+        return None, error
+
     instructions_url, error = project_create_instructions_url(project_data)
     if error:
         return None, error
 
-    submission_due_date = parse_date(submission_due_str)
-    if submission_due_date is None:
-        return None, f"Invalid date format: {submission_due_str}"
-
-    peer_review_due_date = parse_date(peer_review_due_str)
-    if peer_review_due_date is None:
-        return None, f"Invalid date format: {peer_review_due_str}"
-
-    slug, error = project_create_slug(course, project_data, name)
+    dates, error = project_create_dates(input_data)
     if error:
         return None, error
 
+    slug, error = project_create_slug(course, project_data, input_data.name)
+    if error:
+        return None, error
+
+    description = project_data.get("description", "")
     attrs = {
-        "title": name,
-        "description": project_data.get("description", ""),
+        "title": input_data.name,
+        "description": description,
         "instructions_url": instructions_url,
-        "submission_due_date": submission_due_date,
-        "peer_review_due_date": peer_review_due_date,
+        "submission_due_date": dates.submission_due_date,
+        "peer_review_due_date": dates.peer_review_due_date,
         "state": ProjectState.CLOSED.value,
         "slug": slug,
     }
