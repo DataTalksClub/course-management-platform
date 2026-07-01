@@ -57,22 +57,28 @@ def leaderboard_project_entry(sub):
     return entry
 
 
+def scored_homework_submissions_queryset():
+    queryset = Submission.objects.filter(
+        homework__state=HomeworkState.SCORED.value,
+    )
+    queryset = queryset.select_related("homework")
+    queryset = queryset.order_by("homework__id")
+    return queryset
+
+
+def completed_project_submissions_queryset():
+    queryset = ProjectSubmission.objects.filter(
+        project__state=ProjectState.COMPLETED.value,
+        volunteer_review_only=False,
+    )
+    queryset = queryset.select_related("project")
+    queryset = queryset.order_by("project__id")
+    return queryset
+
+
 def leaderboard_submission_prefetches():
-    scored_submissions = (
-        Submission.objects.filter(
-            homework__state=HomeworkState.SCORED.value,
-        )
-        .select_related("homework")
-        .order_by("homework__id")
-    )
-    completed_project_submissions = (
-        ProjectSubmission.objects.filter(
-            project__state=ProjectState.COMPLETED.value,
-            volunteer_review_only=False,
-        )
-        .select_related("project")
-        .order_by("project__id")
-    )
+    scored_submissions = scored_homework_submissions_queryset()
+    completed_project_submissions = completed_project_submissions_queryset()
     homework_prefetch = Prefetch(
         "submission_set",
         queryset=scored_submissions,

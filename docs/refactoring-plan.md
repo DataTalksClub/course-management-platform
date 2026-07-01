@@ -198,6 +198,8 @@ testable service functions.
   complaint view coordinator.
 - [x] Split optional peer-review creation and self-review guard out of the
   public project-evaluation add route.
+- [x] Split API leaderboard export homework/project queryset builders out of
+  the prefetch coordinator.
 
 ## Current Findings
 
