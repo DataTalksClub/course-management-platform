@@ -249,8 +249,7 @@ class ProjectStatisticsTestCase(TestCase):
         self.assertEqual(stats["total_submissions"], 2)
 
         # All score fields should have None values
-        score_fields = ["project_score", "total_score", "time_spent"]
-        for field in score_fields:
+        for field in ("project_score", "total_score", "time_spent"):
             self.assertIsNone(stats[field]["min"])
             self.assertIsNone(stats[field]["max"])
             self.assertIsNone(stats[field]["avg"])

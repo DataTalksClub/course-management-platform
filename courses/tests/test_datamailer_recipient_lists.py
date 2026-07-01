@@ -224,7 +224,7 @@ class DatamailerRecipientListCommandTest(
 
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_backfill_command_rejects_invalid_options(self):
-        cases = [
+        for args, message in (
             (
                 ("registrations", "--homework-slug", "homework-1"),
                 "--homework-slug can only be used with kind=homework.",
@@ -245,9 +245,7 @@ class DatamailerRecipientListCommandTest(
                 ("registrations", "--import-poll-interval", "0"),
                 "--import-poll-interval must be positive.",
             ),
-        ]
-
-        for args, message in cases:
+        ):
             with self.subTest(args=args):
                 with self.assertRaisesMessage(CommandError, message):
                     call_command("sync_datamailer_recipient_lists", *args)

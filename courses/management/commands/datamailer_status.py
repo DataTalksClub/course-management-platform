@@ -100,7 +100,7 @@ class Command(BaseCommand):
         )
 
     def write_contact_status(self, status):
-        fields = [
+        for label, value in (
             ("Email", status["email"]),
             ("Exists", status["exists"]),
             ("Contact ID", status["contact_id"] or "-"),
@@ -110,8 +110,7 @@ class Command(BaseCommand):
             ("Client verified", status["client"]["verified"]),
             ("Hard bounced", status["hard_bounced"]),
             ("Complained", status["complained"]),
-        ]
-        for label, value in fields:
+        ):
             self.stdout.write(f"{label}: {value}")
 
     def write_history_section(self, title, items, line_formatter):

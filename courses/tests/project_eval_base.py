@@ -276,12 +276,11 @@ class ProjectEvaluationTestBase(TestCase):
             response=criteria_responses[self.criteria3],
             options=best_practices_options,
         )
-        expected_rows = [
+        for expected_row in (
             code_quality_expected,
             documentation_expected,
             best_practices_expected,
-        ]
-        for expected_row in expected_rows:
+        ):
             self.assert_submitted_criteria_pair(expected_row)
 
     def code_quality_options(self):

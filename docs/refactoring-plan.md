@@ -2466,6 +2466,16 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Replace remaining immediate list aliases before loops in Datamailer status
+  output, recipient-list option tests, project-evaluation assertions, and
+  project-statistics score-field assertions. Verification:
+  `uv run ruff check courses/management/commands/datamailer_status.py courses/tests/test_datamailer_status.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_audit.py courses/tests/project_eval_base.py courses/tests/test_project_eval.py courses/tests/test_project_eval_view.py courses/tests/test_project_statistics.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_status courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_audit courses.tests.test_project_eval courses.tests.test_project_eval_view courses.tests.test_project_statistics`,
+  repo-wide immediate-list-alias scan reports `immediate_list_aliases=0`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
