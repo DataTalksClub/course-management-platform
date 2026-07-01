@@ -6,7 +6,7 @@ from django.urls import reverse
 from courses.registration import render_markdown
 
 from ..client import public_url
-from ..preferences import EMAIL_PREFERENCE_CATEGORIES
+from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
 
 
 @dataclass(frozen=True)

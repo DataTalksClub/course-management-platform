@@ -6,7 +6,7 @@ from django.urls import reverse
 from course_management import email_templates
 
 from ..client import DatamailerConfig, public_url
-from ..preferences import EMAIL_PREFERENCE_CATEGORIES
+from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
 from .registration_common import registration_email
 
 

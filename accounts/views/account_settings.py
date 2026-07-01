@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from accounts.forms import AccountSettingsForm
 from accounts.services.timezones import get_timezone_label, is_valid_timezone
 from accounts.views.account_toggles import LOCAL_ACCOUNT_TOGGLE_FIELDS
-from course_management.datamailer.preferences import (
+from course_management.datamailer.preference_categories import (
     EMAIL_PREFERENCE_CATEGORIES,
 )
 from courses.models import Enrollment

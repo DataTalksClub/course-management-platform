@@ -80,6 +80,8 @@ testable service functions.
 
 ## Progress Log
 
+- [x] Split Datamailer email-preference category parsing and payload helpers
+  out of the client service module.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with
