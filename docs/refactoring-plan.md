@@ -2302,6 +2302,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Replace certificate-update lookup parameter groups with a
+  `CertificateUpdateLookups` value object and pass that object through the
+  application flow instead of expanding it into repeated arguments.
+  Verification:
+  `uv run ruff check api/views/enrollment_certificate_updates.py data/tests/test_enrollment_certificates.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_enrollment_certificates`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

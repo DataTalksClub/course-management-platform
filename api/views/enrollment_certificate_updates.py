@@ -38,6 +38,13 @@ class CertificateApplyBatch:
         self.updated.append(result.updated)
 
 
+@dataclass(frozen=True)
+class CertificateUpdateLookups:
+    course_slug: str
+    users_by_email: dict
+    enrollments_by_email: dict
+
+
 def process_certificate_updates(
     course,
     course_slug,
@@ -48,15 +55,14 @@ def process_certificate_updates(
         certificate_updates
     )
 
-    users_by_email, enrollments_by_email = certificate_update_lookups(
+    lookups = certificate_update_lookups(
         course,
+        course_slug,
         valid_updates,
     )
     apply_batch = apply_certificate_updates(
         valid_updates,
-        course_slug,
-        users_by_email,
-        enrollments_by_email,
+        lookups,
     )
     errors.extend(apply_batch.errors)
 
@@ -69,7 +75,7 @@ def process_certificate_updates(
     return apply_batch.updated, errors
 
 
-def certificate_update_lookups(course, valid_updates):
+def certificate_update_lookups(course, course_slug, valid_updates):
     emails = []
     for update in valid_updates:
         emails.append(update["email"])
@@ -87,12 +93,15 @@ def certificate_update_lookups(course, valid_updates):
     for enrollment in enrollments:
         enrollments_by_email[enrollment.student.email] = enrollment
 
-    return users_by_email, enrollments_by_email
+    lookups = CertificateUpdateLookups(
+        course_slug=course_slug,
+        users_by_email=users_by_email,
+        enrollments_by_email=enrollments_by_email,
+    )
+    return lookups
 
 
-def apply_certificate_updates(
-    valid_updates, course_slug, users_by_email, enrollments_by_email
-):
+def apply_certificate_updates(valid_updates, lookups):
     batch = CertificateApplyBatch(
         enrollments_to_update={},
         enrollments_to_notify={},
@@ -103,31 +112,24 @@ def apply_certificate_updates(
     for update in valid_updates:
         result = apply_certificate_update(
             update,
-            course_slug,
-            users_by_email,
-            enrollments_by_email,
+            lookups,
         )
         batch.record(result)
 
     return batch
 
 
-def apply_certificate_update(
-    update,
-    course_slug,
-    users_by_email,
-    enrollments_by_email,
-):
+def apply_certificate_update(update, lookups):
     email = update["email"]
     certificate_path = update["certificate_path"]
 
-    if email not in users_by_email:
+    if email not in lookups.users_by_email:
         error = user_not_found_error(update)
         return CertificateApplyResult(error=error)
 
-    enrollment = enrollments_by_email.get(email)
+    enrollment = lookups.enrollments_by_email.get(email)
     if enrollment is None:
-        error = not_enrolled_error(update, course_slug)
+        error = not_enrolled_error(update, lookups.course_slug)
         return CertificateApplyResult(error=error)
 
     notify = should_notify_certificate_available(
