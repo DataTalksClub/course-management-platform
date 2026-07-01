@@ -129,7 +129,8 @@ class ProjectStatisticsTestCase(TestCase):
         return exists
 
     def assert_created_project_statistics(self, stats):
-        self.assertTrue(self.project_statistics_exists())
+        statistics_exists = self.project_statistics_exists()
+        self.assertTrue(statistics_exists)
         self.assertEqual(stats.project, self.project)
         self.assertEqual(stats.total_submissions, 3)
         self.assertEqual(stats.min_project_score, 10)
@@ -148,9 +149,12 @@ class ProjectStatisticsTestCase(TestCase):
         return submissions_data
 
     def assert_statistics_values(self, stats):
-        self.assertEqual(stats.get_value("project_score", "min"), 10)
-        self.assertEqual(stats.get_value("project_score", "max"), 12)
-        self.assertEqual(stats.get_value("total_score", "avg"), 21.0)
+        min_project_score = stats.get_value("project_score", "min")
+        self.assertEqual(min_project_score, 10)
+        max_project_score = stats.get_value("project_score", "max")
+        self.assertEqual(max_project_score, 12)
+        avg_total_score = stats.get_value("total_score", "avg")
+        self.assertEqual(avg_total_score, 21.0)
 
     def assert_stat_fields_shape(self, stats):
         stat_fields = stats.get_stat_fields()
@@ -296,7 +300,8 @@ class ProjectStatisticsTestCase(TestCase):
     def test_calculate_project_statistics_model_creation(self):
         """Test that calculate_project_statistics creates a ProjectStatistics object"""
         self.create_model_method_submissions()
-        self.assertFalse(self.project_statistics_exists())
+        statistics_exists = self.project_statistics_exists()
+        self.assertFalse(statistics_exists)
 
         stats = calculate_project_statistics(self.project)
 

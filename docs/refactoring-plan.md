@@ -1901,6 +1901,12 @@ Steps:
   `uv run python manage.py test data.tests.test_homework courses.tests.test_load_rds_export_script`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name project-statistics existence checks and statistic value lookups
+  before assertions. Verification:
+  `uv run ruff check courses/tests/test_project_statistics.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_statistics`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
