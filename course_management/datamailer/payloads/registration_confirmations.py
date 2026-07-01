@@ -114,6 +114,23 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
     return registration_confirmation_payload_from_data(payload_data)
 
 
+def registration_confirmation_delivery_fields(
+    data: RegistrationConfirmationPayloadData,
+) -> dict[str, Any]:
+    category = EMAIL_PREFERENCE_CATEGORIES["email_course_updates"]
+    idempotency_key = (
+        f"registration-confirmation:{data.registration.pk}"
+    )
+    return {
+        "audience": data.config.audience,
+        "client": data.config.client,
+        "email": data.email,
+        "template_key": email_templates.REGISTRATION_CONFIRMATION,
+        "category_tag": category["tag"],
+        "idempotency_key": idempotency_key,
+    }
+
+
 def registration_confirmation_payload_from_data(
     data: RegistrationConfirmationPayloadData,
 ) -> dict[str, Any]:
@@ -128,17 +145,7 @@ def registration_confirmation_payload_from_data(
         data.campaign,
         data.course,
     )
-    return {
-        "audience": data.config.audience,
-        "client": data.config.client,
-        "email": data.email,
-        "template_key": email_templates.REGISTRATION_CONFIRMATION,
-        "category_tag": EMAIL_PREFERENCE_CATEGORIES[
-            "email_course_updates"
-        ]["tag"],
-        "idempotency_key": (
-            f"registration-confirmation:{data.registration.pk}"
-        ),
-        "context": context,
-        "metadata": metadata,
-    }
+    payload = registration_confirmation_delivery_fields(data)
+    payload["context"] = context
+    payload["metadata"] = metadata
+    return payload
