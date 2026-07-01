@@ -302,6 +302,8 @@ testable service functions.
   inline recipient-list sync.
 - [x] Split homework POST field preview binding and validation-context
   reconstruction out of the public POST response handler.
+- [x] Split project upsert validation, patch rules, and persistence out of the
+  public project upsert route module.
 
 ## Current Findings
 

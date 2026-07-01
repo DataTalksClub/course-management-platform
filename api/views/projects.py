@@ -13,6 +13,7 @@ from api.crud import (
     detail_response,
     get_course_child_or_404,
 )
+from api.safety import require_staff_token
 from api.utils import (
     require_methods,
 )
@@ -29,9 +30,9 @@ from api.views.project_create import (
     projects_list_response,
 )
 from api.views.project_serializers import project_to_dict
-from api.views.project_upsert import (
+from api.views.project_upsert import upsert_project_by_slug
+from api.views.project_upsert_rules import (
     PROJECT_PATCH_RULES,
-    staff_upsert_project_by_slug,
 )
 
 
@@ -117,9 +118,10 @@ def project_detail_by_slug_view(request, course_slug, project_slug):
     DELETE /api/courses/<slug>/projects/by-slug/<slug>/ - Delete project.
     """
     if request.method == "PUT":
-        return staff_upsert_project_by_slug(
-            request, course_slug, project_slug
-        )
+        staff_error = require_staff_token(request)
+        if staff_error:
+            return staff_error
+        return upsert_project_by_slug(request, course_slug, project_slug)
 
     return _project_detail_response(
         request, course_slug, project_slug=project_slug
