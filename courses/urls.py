@@ -12,6 +12,7 @@ from .views import homework_statistics
 from .views import homework_submissions
 from .views import project
 from .views import project_eval
+from .views import project_eval_actions
 from .views import project_eval_submit
 from .views import project_results
 from .views import project_statistics
@@ -113,12 +114,12 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/add/<int:submission_id>",
-        project_eval.projects_eval_add,
+        project_eval_actions.projects_eval_add,
         name="projects_eval_add",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/delete/<int:review_id>",
-        project_eval.projects_eval_delete,
+        project_eval_actions.projects_eval_delete,
         name="projects_eval_delete",
     ),
 

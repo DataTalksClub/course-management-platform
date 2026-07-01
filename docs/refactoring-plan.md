@@ -324,6 +324,8 @@ testable service functions.
   orchestration module.
 - [x] Split project review-score aggregation out of the project submission
   scoring mutation module.
+- [x] Split optional project-evaluation add/delete actions out of the project
+  evaluation page context module.
 
 ## Current Findings
 
