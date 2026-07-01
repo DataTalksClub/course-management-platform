@@ -23,7 +23,7 @@ from course_management.datamailer.sync.contacts import (
 from course_management.datamailer.sync.memberships import (
     sync_enrollment_to_datamailer,
 )
-from course_management.datamailer_outbox_dispatch import status_for_error
+from course_management.datamailer_outbox_retry import status_for_error
 from courses.models import Course, Enrollment
 
 

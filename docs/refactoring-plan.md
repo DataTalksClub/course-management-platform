@@ -261,6 +261,8 @@ testable service functions.
   view modules with direct URL imports.
 - [x] Split Datamailer recipient-list audit drift comparison and Datamailer
   execution/repair logic out of the management command.
+- [x] Split Datamailer outbox retry and error-classification policy out of the
+  dispatch orchestration module.
 
 ## Current Findings
 
