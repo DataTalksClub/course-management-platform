@@ -89,6 +89,8 @@ testable service functions.
   statistics test module.
 - [x] Split homework submission validation tests out of the oversized homework
   detail test module.
+- [x] Split dashboard integration and authentication tests out of the oversized
+  dashboard test module.
 
 ## Current Findings
 
