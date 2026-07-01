@@ -87,6 +87,8 @@ testable service functions.
   course detail test module.
 - [x] Split project statistics admin-action tests out of the oversized project
   statistics test module.
+- [x] Split homework submission validation tests out of the oversized homework
+  detail test module.
 
 ## Current Findings
 
