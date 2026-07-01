@@ -2738,6 +2738,14 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Name Django bootstrap path strings in maintained scripts instead of
+  nesting `str(project_root)` inside `sys.path.insert(...)`. Verification:
+  `uv run ruff check scripts/score_project.py scripts/debug_score_project.py scripts/score_project_dev.py scripts/create_superuser.py scripts/generate_production_like_leaderboard_data.py scripts/move_criteria.py scripts/analyze_scoring_bug.py`,
+  `python -m py_compile scripts/score_project.py scripts/debug_score_project.py scripts/score_project_dev.py scripts/create_superuser.py scripts/generate_production_like_leaderboard_data.py scripts/move_criteria.py scripts/analyze_scoring_bug.py`,
+  script nested-call scan reports zero hits, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

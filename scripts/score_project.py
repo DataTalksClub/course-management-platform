@@ -16,7 +16,8 @@ from pathlib import Path
 
 # Add parent directory to path so Django can find course_management module.
 project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
+project_root_path = str(project_root)
+sys.path.insert(0, project_root_path)
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")

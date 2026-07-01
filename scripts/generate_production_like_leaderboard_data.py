@@ -23,7 +23,8 @@ from functools import partial
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+root_path = str(ROOT)
+sys.path.insert(0, root_path)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
 
 import django
