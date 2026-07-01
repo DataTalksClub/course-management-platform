@@ -103,10 +103,11 @@ class DatamailerMembershipTest(TestCase):
         return Submission.objects.create(**defaults)
 
     def create_project_submission(self, project, user, **overrides):
+        enrollment = self.create_enrollment(user, project.course)
         defaults = {
             "project": project,
             "student": user,
-            "enrollment": self.create_enrollment(user, project.course),
+            "enrollment": enrollment,
             "github_link": "https://github.com/example/project",
             "commit_id": "abc123",
         }
@@ -115,9 +116,10 @@ class DatamailerMembershipTest(TestCase):
 
     def create_project_submission_removal_fixture(self):
         project = self.create_project()
+        user = self.create_user("student@example.com")
         submission = self.create_project_submission(
             project,
-            self.create_user("student@example.com"),
+            user,
             total_score=98,
             passed=True,
         )
@@ -125,9 +127,10 @@ class DatamailerMembershipTest(TestCase):
 
     def create_failed_project_submission_for_passed_outcome(self):
         project = self.create_project()
+        user = self.create_user("student@example.com")
         submission = self.create_project_submission(
             project,
-            self.create_user("student@example.com"),
+            user,
             total_score=50,
             passed=False,
         )
@@ -150,9 +153,10 @@ class DatamailerMembershipTest(TestCase):
 
     def assert_project_passed_member_upserted(self, upsert_member, project):
         upsert_member.assert_called_once()
+        list_key = project_passed_list_key(project)
         self.assertEqual(
             upsert_member.call_args.args[0],
-            project_passed_list_key(project),
+            list_key,
         )
         payload = upsert_member.call_args.args[2]
         self.assertEqual(payload["member"]["status"], "active")
@@ -168,9 +172,10 @@ class DatamailerMembershipTest(TestCase):
         submission,
     ):
         remove_member.assert_called_once()
+        list_key = project_passed_list_key(project)
         self.assertEqual(
             remove_member.call_args.args[0],
-            project_passed_list_key(project),
+            list_key,
         )
         self.assertEqual(
             remove_member.call_args.args[1],
@@ -184,9 +189,10 @@ class DatamailerMembershipTest(TestCase):
         submission,
     ):
         remove_member.assert_called_once()
+        list_key = homework_submitters_list_key(homework)
         self.assertEqual(
             remove_member.call_args.args[0],
-            homework_submitters_list_key(homework),
+            list_key,
         )
         self.assertEqual(
             remove_member.call_args.args[1],
@@ -205,9 +211,12 @@ class DatamailerMembershipTest(TestCase):
         for call in remove_calls:
             list_key = call.args[0]
             list_keys.append(list_key)
+        project_submitters_key = project_submitters_list_key(project)
+        project_passed_key = project_passed_list_key(project)
+        expected_list_keys = [project_submitters_key, project_passed_key]
         self.assertEqual(
             list_keys,
-            [project_submitters_list_key(project), project_passed_list_key(project)],
+            expected_list_keys,
         )
         for call in remove_calls:
             self.assertEqual(call.args[1], f"project-submission:{submission.pk}")
@@ -219,9 +228,12 @@ class DatamailerMembershipTest(TestCase):
         for call in remove_calls:
             list_key = call.args[0]
             list_keys.append(list_key)
+        course_enrolled_key = course_enrolled_list_key(course)
+        course_graduates_key = course_graduates_list_key(course)
+        expected_list_keys = [course_enrolled_key, course_graduates_key]
         self.assertEqual(
             list_keys,
-            [course_enrolled_list_key(course), course_graduates_list_key(course)],
+            expected_list_keys,
         )
 
         source_object_keys = []
@@ -244,9 +256,10 @@ class DatamailerMembershipTest(TestCase):
 
         member_payload = enrollment_recipient_list_payload(enrollment)
 
+        course_enrolled_key = course_enrolled_list_key(course)
         self.assertEqual(
             member_payload.list_key,
-            course_enrolled_list_key(course),
+            course_enrolled_key,
         )
         self.assertEqual(member_payload.source_object_key, f"user:{user.pk}")
         payload = member_payload.payload
@@ -284,9 +297,10 @@ class DatamailerMembershipTest(TestCase):
 
         upsert_contact.assert_called_once()
         upsert_member.assert_called_once()
+        course_enrolled_key = course_enrolled_list_key(course)
         self.assertEqual(
             upsert_member.call_args.args[0],
-            course_enrolled_list_key(course),
+            course_enrolled_key,
         )
         self.assertEqual(
             upsert_member.call_args.args[1],
@@ -306,17 +320,19 @@ class DatamailerMembershipTest(TestCase):
         upsert_member,
     ):
         homework = self.create_homework()
+        user = self.create_user("student@example.com")
         submission = self.create_homework_submission(
             homework,
-            self.create_user("student@example.com"),
+            user,
         )
 
         sync_homework_submission_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
+        list_key = homework_submitters_list_key(homework)
         expectation = UpsertedRecipientMemberExpectation(
             upsert_member=upsert_member,
-            list_key=homework_submitters_list_key(homework),
+            list_key=list_key,
             source_object_key=f"homework-submission:{submission.pk}",
             list_type="homework_submitters",
         )
@@ -345,9 +361,10 @@ class DatamailerMembershipTest(TestCase):
         sync_project_submission_to_datamailer(submission)
 
         upsert_contact.assert_called_once()
+        list_key = project_submitters_list_key(project)
         expectation = UpsertedRecipientMemberExpectation(
             upsert_member=upsert_member,
-            list_key=project_submitters_list_key(project),
+            list_key=list_key,
             source_object_key=f"project-submission:{submission.pk}",
             list_type="project_submitters",
         )
@@ -385,9 +402,10 @@ class DatamailerMembershipTest(TestCase):
         remove_member,
     ):
         homework = self.create_homework()
+        user = self.create_user("student@example.com")
         submission = self.create_homework_submission(
             homework,
-            self.create_user("student@example.com"),
+            user,
         )
 
         remove_homework_submission_from_datamailer(submission)
