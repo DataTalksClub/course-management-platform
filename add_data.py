@@ -122,11 +122,13 @@ def join_possible_answers(answers: list) -> str:
     return QUESTION_ANSWER_DELIMITER.join(answers)
 
 # Questions for Homework 1
+question11_options = ["3", "4", "5", "6"]
+question11_possible_answers = join_possible_answers(question11_options)
 question11 = Question(
     homework=homework1,
     text="What is 2 + 2?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers=join_possible_answers(["3", "4", "5", "6"]),
+    possible_answers=question11_possible_answers,
     correct_answer="2",
 )
 question11.save()
@@ -138,19 +140,23 @@ question12 = Question(
     correct_answer="",
 )
 question12.save()
+question13_options = ["1", "2", "3", "4", "5"]
+question13_possible_answers = join_possible_answers(question13_options)
 question13 = Question(
     homework=homework1,
     text="Which of these are prime numbers?",
     question_type=QuestionTypes.CHECKBOXES.value,
-    possible_answers=join_possible_answers(["1", "2", "3", "4", "5"]),
+    possible_answers=question13_possible_answers,
     correct_answer="2,3,5",
 )
 question13.save()
+question14_options = ["London", "Paris", "Berlin", "Madrid"]
+question14_possible_answers = join_possible_answers(question14_options)
 question14 = Question(
     homework=homework1,
     text="What is the capital of France?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers=join_possible_answers(["London", "Paris", "Berlin", "Madrid"]),
+    possible_answers=question14_possible_answers,
     correct_answer="2",
 )
 question14.save()
@@ -181,36 +187,42 @@ admin_submission = Submission(
 admin_submission.save()
 
 
-Answer(
+answer = Answer(
     submission=admin_submission,
     question=question11,
     answer_text="3",
-).save()
-Answer(
+)
+answer.save()
+answer = Answer(
     submission=admin_submission,
     question=question12,
     answer_text="E=mc^2",
-).save()
-Answer(
+)
+answer.save()
+answer = Answer(
     submission=admin_submission,
     question=question13,
     answer_text="2,3,4,5",
-).save()
-Answer(
+)
+answer.save()
+answer = Answer(
     submission=admin_submission,
     question=question14,
     answer_text="2",
-).save()
-Answer(
+)
+answer.save()
+answer = Answer(
     submission=admin_submission,
     question=question15,
     answer_text="78.54",
-).save()
-Answer(
+)
+answer.save()
+answer = Answer(
     submission=admin_submission,
     question=question16,
     answer_text="Helium",
-).save()
+)
+answer.save()
 
 
 homework2 = Homework(
@@ -224,48 +236,60 @@ homework2 = Homework(
 homework2.save()
 
 # Creating questions for Homework 2
-Question(
+question21_options = ["50", "75", "100", "125"]
+question21_possible_answers = join_possible_answers(question21_options)
+question21 = Question(
     homework=homework2,
     text="What is the boiling point of water?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers=join_possible_answers(["50", "75", "100", "125"]),
+    possible_answers=question21_possible_answers,
     correct_answer="3",
-).save()
-Question(
+)
+question21.save()
+question22 = Question(
     homework=homework2,
     text="Describe the process of photosynthesis.",
     question_type=QuestionTypes.FREE_FORM.value,
     answer_type=AnswerTypes.ANY.value,
     correct_answer="",
-).save()
-Question(
+)
+question22.save()
+question23_options = ["1", "2", "3", "4", "5", "6"]
+question23_possible_answers = join_possible_answers(question23_options)
+question23 = Question(
     homework=homework2,
     text="Select all even numbers",
     question_type=QuestionTypes.CHECKBOXES.value,
-    possible_answers=join_possible_answers(["1", "2", "3", "4", "5", "6"]),
+    possible_answers=question23_possible_answers,
     correct_answer="2,4,6",
-).save()
-Question(
+)
+question23.save()
+question24_options = ["William Shakespeare", "Charles Dickens", "Mark Twain"]
+question24_possible_answers = join_possible_answers(question24_options)
+question24 = Question(
     homework=homework2,
     text="Who wrote Macbeth?",
     question_type=QuestionTypes.MULTIPLE_CHOICE.value,
-    possible_answers=join_possible_answers(["William Shakespeare", "Charles Dickens", "Mark Twain"]),
+    possible_answers=question24_possible_answers,
     correct_answer="1",
-).save()
-Question(
+)
+question24.save()
+question25 = Question(
     homework=homework2,
     text="Solve for x in 2x + 3 = 11.",
     question_type=QuestionTypes.FREE_FORM.value,
     answer_type=AnswerTypes.INTEGER.value,
     correct_answer="4",
-).save()
-Question(
+)
+question25.save()
+question26 = Question(
     homework=homework2,
     text="Name a programming language used for web development.",
     question_type=QuestionTypes.FREE_FORM.value,
     answer_type=AnswerTypes.CONTAINS_STRING.value,
     correct_answer="JavaScript",
-).save()
+)
+question26.save()
 
 
 project = Project(
