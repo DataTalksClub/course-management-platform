@@ -79,11 +79,15 @@ def homework_public_url(homework):
 
 
 def project_submission_metadata(submission) -> dict[str, Any]:
+    identity_metadata = project_submission_identity_metadata(submission)
+    score_metadata = project_submission_score_metadata(submission)
+    source_metadata = project_submission_source_metadata(submission)
+    status_metadata = project_submission_status_metadata(submission)
     return {
-        **project_submission_identity_metadata(submission),
-        **project_submission_score_metadata(submission),
-        **project_submission_source_metadata(submission),
-        **project_submission_status_metadata(submission),
+        **identity_metadata,
+        **score_metadata,
+        **source_metadata,
+        **status_metadata,
     }
 
 
