@@ -273,6 +273,8 @@ testable service functions.
   registration membership and confirmation payload module.
 - [x] Split Datamailer homework/project score recipient-list member gathering
   out of the score notification payload builder.
+- [x] Split Datamailer recipient-list send sync, audit, and error handling
+  helpers out of notification-specific orchestration.
 
 ## Current Findings
 

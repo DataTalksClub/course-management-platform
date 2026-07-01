@@ -1,12 +1,9 @@
 import logging
-from dataclasses import dataclass
 from typing import Any
 
 import requests
 
-from data.models import DatamailerSendAuditType
-
-from ..client import DatamailerClient, DatamailerConfig
+from ..client import DatamailerConfig
 from ..payloads.peer_review import (
     peer_review_assignment_notification_payload,
 )
@@ -20,39 +17,16 @@ from ..payloads.scores import (
     homework_score_notification_payload,
     project_score_notification_payload,
 )
-from ..payloads.send import (
-    recipient_list_send_payload,
-)
-from .audit import DatamailerSendAuditData, record_datamailer_send_audit
-from .bulk import (
-    RecipientListBulkUpsertData,
-    bulk_upsert_recipient_list_members_before_send,
+from .recipient_list_send import (
+    DatamailerNotificationErrorData,
+    RecipientListSendSyncData,
+    handle_recipient_list_notification_error,
+    send_recipient_list_transactional_and_audit,
+    sync_members_before_recipient_list_send_or_audit,
 )
 from .transactional import send_transactional_email
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class DatamailerNotificationErrorData:
-    config: DatamailerConfig
-    list_key: str
-    payload: dict[str, Any]
-    exc: requests.RequestException
-    log_message: str
-    object_id: int
-
-
-@dataclass(frozen=True)
-class RecipientListSendSyncData:
-    config: DatamailerConfig
-    list_key: str
-    payload: dict[str, Any]
-    idempotency_key: str
-    ordering_key: str
-    error: str
-    audit_payload: dict[str, Any] | None = None
-    audit_list_key: str | None = None
 
 
 def send_registration_confirmation_email(
@@ -90,7 +64,7 @@ def send_homework_score_notification(homework) -> dict[str, Any] | None:
             ),
             object_id=homework.pk,
         )
-        return _handle_recipient_list_notification_error(error_data)
+        return handle_recipient_list_notification_error(error_data)
 
 
 def _send_homework_score_notification_if_ready(config, list_key, payload):
@@ -102,26 +76,11 @@ def _send_homework_score_notification_if_ready(config, list_key, payload):
         ordering_key=list_key,
         error="Datamailer metadata sync was not acknowledged",
     )
-    if not _sync_members_before_recipient_list_send_or_audit(sync_data):
+    if not sync_members_before_recipient_list_send_or_audit(sync_data):
         return None
-    return _send_recipient_list_transactional_and_audit(
+    return send_recipient_list_transactional_and_audit(
         config, list_key, payload
     )
-
-
-def _handle_recipient_list_notification_error(error_data):
-    logger.exception(error_data.log_message, error_data.object_id)
-    error = str(error_data.exc)
-    audit_data = DatamailerSendAuditData(
-        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=error_data.payload,
-        list_key=error_data.list_key,
-        error=error,
-    )
-    record_datamailer_send_audit(audit_data)
-    if error_data.config.strict:
-        raise
-    return None
 
 
 def send_project_score_notification(project) -> dict[str, Any] | None:
@@ -150,7 +109,7 @@ def send_project_score_notification(project) -> dict[str, Any] | None:
             ),
             object_id=project.pk,
         )
-        return _handle_recipient_list_notification_error(error_data)
+        return handle_recipient_list_notification_error(error_data)
 
 
 def _send_project_score_notification_if_ready(
@@ -167,37 +126,15 @@ def _send_project_score_notification_if_ready(
         ordering_key=list_key,
         error="Datamailer metadata sync was not acknowledged",
     )
-    if not _sync_members_before_recipient_list_send_or_audit(sync_data):
+    if not sync_members_before_recipient_list_send_or_audit(sync_data):
         return None
     if not _sync_project_passed_outcome_before_score_send(
         config, project, list_key, payload
     ):
         return None
-    return _send_recipient_list_transactional_and_audit(
+    return send_recipient_list_transactional_and_audit(
         config, list_key, payload
     )
-
-
-def _sync_members_before_recipient_list_send_or_audit(data):
-    bulk_data = RecipientListBulkUpsertData(
-        config=data.config,
-        list_key=data.list_key,
-        payload=data.payload,
-        idempotency_key=data.idempotency_key,
-        ordering_key=data.ordering_key,
-    )
-    synced = bulk_upsert_recipient_list_members_before_send(bulk_data)
-    if synced:
-        return True
-
-    audit_data = DatamailerSendAuditData(
-        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=data.audit_payload or data.payload,
-        list_key=data.audit_list_key or data.list_key,
-        error=data.error,
-    )
-    record_datamailer_send_audit(audit_data)
-    return False
 
 
 def _sync_project_passed_outcome_before_score_send(
@@ -218,25 +155,7 @@ def _sync_project_passed_outcome_before_score_send(
         audit_payload=payload,
         audit_list_key=list_key,
     )
-    return _sync_members_before_recipient_list_send_or_audit(sync_data)
-
-
-def _send_recipient_list_transactional_and_audit(
-    config, list_key, payload
-):
-    client = DatamailerClient(config)
-    send_payload = recipient_list_send_payload(payload)
-    response = client.send_recipient_list_transactional(
-        list_key, send_payload
-    )
-    audit_data = DatamailerSendAuditData(
-        send_type=DatamailerSendAuditType.RECIPIENT_LIST,
-        payload=payload,
-        list_key=list_key,
-        response=response,
-    )
-    record_datamailer_send_audit(audit_data)
-    return response
+    return sync_members_before_recipient_list_send_or_audit(sync_data)
 
 
 def send_peer_review_assignment_notification(
@@ -267,7 +186,7 @@ def send_peer_review_assignment_notification(
             ),
             object_id=project.pk,
         )
-        return _handle_recipient_list_notification_error(error_data)
+        return handle_recipient_list_notification_error(error_data)
 
 
 def _send_peer_review_assignment_notification_if_ready(
@@ -281,8 +200,8 @@ def _send_peer_review_assignment_notification_if_ready(
         ordering_key=list_key,
         error="Datamailer metadata sync was not acknowledged",
     )
-    if not _sync_members_before_recipient_list_send_or_audit(sync_data):
+    if not sync_members_before_recipient_list_send_or_audit(sync_data):
         return None
-    return _send_recipient_list_transactional_and_audit(
+    return send_recipient_list_transactional_and_audit(
         config, list_key, payload
     )
