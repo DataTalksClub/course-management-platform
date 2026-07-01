@@ -127,30 +127,21 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
     def higher_workflow_submission_score_rows(self):
         rows = []
         row = WorkflowSubmissionScores(
-            project_score=12,
-            project_learning_in_public_score=6,
-            peer_review_score=3,
-            peer_review_learning_in_public_score=2,
-            total_score=23,
-            time_spent=12.0,
+            project_score=12, project_learning_in_public_score=6,
+            peer_review_score=3, peer_review_learning_in_public_score=2,
+            total_score=23, time_spent=12.0,
         )
         rows.append(row)
         row = WorkflowSubmissionScores(
-            project_score=10,
-            project_learning_in_public_score=5,
-            peer_review_score=3,
-            peer_review_learning_in_public_score=1,
-            total_score=19,
-            time_spent=10.0,
+            project_score=10, project_learning_in_public_score=5,
+            peer_review_score=3, peer_review_learning_in_public_score=1,
+            total_score=19, time_spent=10.0,
         )
         rows.append(row)
         row = WorkflowSubmissionScores(
-            project_score=15,
-            project_learning_in_public_score=8,
-            peer_review_score=3,
-            peer_review_learning_in_public_score=2,
-            total_score=28,
-            time_spent=15.0,
+            project_score=15, project_learning_in_public_score=8,
+            peer_review_score=3, peer_review_learning_in_public_score=2,
+            total_score=28, time_spent=15.0,
         )
         rows.append(row)
         return rows
@@ -221,6 +212,31 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         self.assertContains(response, "Total score")
         self.assertContains(response, "Time spent on project")
 
+    def create_incomplete_project(self):
+        return Project.objects.create(
+            course=self.course,
+            slug="incomplete-project",
+            title="Incomplete Project",
+            description="Test",
+            submission_due_date=timezone.now() + timedelta(days=1),
+            peer_review_due_date=timezone.now() + timedelta(days=2),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
+    def assert_statistics_link_absent(self, project, view_name):
+        stats_url = reverse(
+            "project_statistics",
+            args=[self.course.slug, project.slug],
+        )
+        page_url = reverse(
+            view_name,
+            args=[self.course.slug, project.slug],
+        )
+        response = self.client.get(page_url)
+
+        self.assertNotContains(response, "Project statistics")
+        self.assertNotContains(response, stats_url)
+
     def test_full_statistics_workflow(self):
         """Test the complete statistics workflow from submission to view"""
         self.create_workflow_submissions()
@@ -262,32 +278,7 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
 
     def test_statistics_links_only_for_completed_projects(self):
         """Test that statistics links only appear for completed projects"""
-        incomplete_project = Project.objects.create(
-            course=self.course,
-            slug="incomplete-project",
-            title="Incomplete Project",
-            description="Test",
-            submission_due_date=timezone.now() + timedelta(days=1),
-            peer_review_due_date=timezone.now() + timedelta(days=2),
-            state=ProjectState.COLLECTING_SUBMISSIONS.value,
-        )
+        incomplete_project = self.create_incomplete_project()
 
-        stats_url = reverse(
-            "project_statistics",
-            args=[self.course.slug, incomplete_project.slug],
-        )
-
-        project_url = reverse(
-            "project", args=[self.course.slug, incomplete_project.slug]
-        )
-        project_response = self.client.get(project_url)
-        self.assertNotContains(project_response, "Project statistics")
-        self.assertNotContains(project_response, stats_url)
-
-        list_url = reverse(
-            "project_list",
-            args=[self.course.slug, incomplete_project.slug],
-        )
-        list_response = self.client.get(list_url)
-        self.assertNotContains(list_response, "Project statistics")
-        self.assertNotContains(list_response, stats_url)
+        self.assert_statistics_link_absent(incomplete_project, "project")
+        self.assert_statistics_link_absent(incomplete_project, "project_list")
