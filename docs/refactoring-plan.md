@@ -635,6 +635,8 @@ Steps:
   oversized Datamailer workflow test module.
 - [x] Split Datamailer peer-review assignment tests out of the oversized
   Datamailer workflow test module.
+- [x] Split Datamailer homework-score publication tests out of the oversized
+  Datamailer workflow test module.
 - [x] Split homework submissions view tests out of the oversized homework test
   module.
 - [x] Split course-list tests out of the oversized course-detail test module.
