@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from dataclasses import dataclass
 
 from django.core.management.base import CommandError
 
@@ -29,6 +30,13 @@ RECIPIENT_LIST_KINDS = [
     "graduates",
 ]
 PROJECT_FILTER_KINDS = {"project", "project-passed"}
+
+
+@dataclass(frozen=True)
+class RecipientListFilters:
+    course_slug: str = ""
+    homework_slug: str = ""
+    project_slug: str = ""
 
 
 def add_member_to_batches(batches, item):
@@ -64,31 +72,35 @@ def add_payload_members_to_batches(batches, list_key, payload):
     batch["members"].extend(payload["members"])
 
 
-def registration_queryset(course_slug):
+def registration_queryset(filters):
     queryset = CourseRegistration.objects.select_related(
         "campaign", "course", "user"
     ).order_by("pk")
+    course_slug = filters.course_slug
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
     return queryset
 
 
-def enrollment_queryset(course_slug):
+def enrollment_queryset(filters):
     queryset = Enrollment.objects.select_related(
         "student",
         "course",
     ).order_by("pk")
+    course_slug = filters.course_slug
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
     return queryset
 
 
-def homework_submission_queryset(course_slug, homework_slug):
+def homework_submission_queryset(filters):
     queryset = Submission.objects.select_related(
         "student",
         "homework",
         "homework__course",
     ).order_by("pk")
+    course_slug = filters.course_slug
+    homework_slug = filters.homework_slug
     if course_slug:
         queryset = queryset.filter(homework__course__slug=course_slug)
     if homework_slug:
@@ -96,12 +108,14 @@ def homework_submission_queryset(course_slug, homework_slug):
     return queryset
 
 
-def project_submission_queryset(course_slug, project_slug):
+def project_submission_queryset(filters):
     queryset = ProjectSubmission.objects.select_related(
         "student",
         "project",
         "project__course",
     ).order_by("pk")
+    course_slug = filters.course_slug
+    project_slug = filters.project_slug
     if course_slug:
         queryset = queryset.filter(project__course__slug=course_slug)
     if project_slug:
@@ -109,11 +123,13 @@ def project_submission_queryset(course_slug, project_slug):
     return queryset
 
 
-def project_queryset(course_slug, project_slug):
+def project_queryset(filters):
     queryset = ProjectSubmission.objects.select_related(
         "project",
         "project__course",
     ).filter(passed=True)
+    course_slug = filters.course_slug
+    project_slug = filters.project_slug
     if course_slug:
         queryset = queryset.filter(project__course__slug=course_slug)
     if project_slug:
@@ -130,13 +146,14 @@ def project_queryset(course_slug, project_slug):
     )
 
 
-def graduates_queryset(course_slug):
+def graduates_queryset(filters):
     queryset = (
         Enrollment.objects.select_related("student", "course")
         .exclude(certificate_url__isnull=True)
         .exclude(certificate_url="")
         .order_by("pk")
     )
+    course_slug = filters.course_slug
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
     return queryset
@@ -144,27 +161,27 @@ def graduates_queryset(course_slug):
 
 RECIPIENT_LIST_SOURCES = {
     "registrations": (
-        lambda c, h, p: registration_queryset(c),
+        registration_queryset,
         registration_recipient_list_payload,
     ),
     "enrollments": (
-        lambda c, h, p: enrollment_queryset(c),
+        enrollment_queryset,
         enrollment_recipient_list_payload,
     ),
     "homework": (
-        lambda c, h, p: homework_submission_queryset(c, h),
+        homework_submission_queryset,
         homework_submission_recipient_list_payload,
     ),
     "project": (
-        lambda c, h, p: project_submission_queryset(c, p),
+        project_submission_queryset,
         project_submission_recipient_list_payload,
     ),
     "project-passed": (
-        lambda c, h, p: project_queryset(c, p),
+        project_queryset,
         project_passed_recipient_list_payload,
     ),
     "graduates": (
-        lambda c, h, p: graduates_queryset(c),
+        graduates_queryset,
         course_graduate_recipient_list_payload,
     ),
 }
@@ -177,9 +194,14 @@ def build_batches(
     if source is None:
         raise CommandError(f"Unknown recipient list kind: {kind}")
 
-    queryset_fn, payload_for = source
+    queryset_for, payload_for = source
     batches = OrderedDict()
-    objects = queryset_fn(course_slug, homework_slug, project_slug)
+    filters = RecipientListFilters(
+        course_slug=course_slug,
+        homework_slug=homework_slug,
+        project_slug=project_slug,
+    )
+    objects = queryset_for(filters)
     for obj in objects:
         item = payload_for(obj)
         if item is None:

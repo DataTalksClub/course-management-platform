@@ -224,6 +224,8 @@ testable service functions.
   helper accept route context arguments directly.
 - [x] Replace deadline reminder context lambdas with named callable context
   objects.
+- [x] Replace lambda-based admin, Datamailer dispatch, commit, and sort-key
+  callbacks with named predicates, shared filters, and helper functions.
 
 ## Current Findings
 

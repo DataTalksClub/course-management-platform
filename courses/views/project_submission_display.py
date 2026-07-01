@@ -57,6 +57,10 @@ def decorate_project_submissions(data):
         _decorate_submission_review_group(review_group_data)
 
 
+def _project_submission_review_group_sort_key(submission):
+    return submission.group_order, submission.list_order
+
+
 def sort_project_submissions_for_view(
     submissions_list,
     *,
@@ -64,12 +68,7 @@ def sort_project_submissions_for_view(
     viewer_state,
 ):
     if _project_submissions_use_review_group_sort(project, viewer_state):
-        submissions_list.sort(
-            key=lambda submission: (
-                submission.group_order,
-                submission.list_order,
-            )
-        )
+        submissions_list.sort(key=_project_submission_review_group_sort_key)
 
 
 def apply_project_group_headings(submissions_page):

@@ -26,10 +26,15 @@ def _scores_by_enrollment(submissions):
     return scores_by_enrollment
 
 
+def _enrollment_leaderboard_sort_key(enrollment):
+    total_score = enrollment.total_score or 0
+    return -total_score, enrollment.id
+
+
 def _rank_enrollments(enrollments):
     enrollments = sorted(
         enrollments,
-        key=lambda x: (-(x.total_score or 0), x.id),
+        key=_enrollment_leaderboard_sort_key,
     )
     for rank, enrollment in enumerate(enrollments, 1):
         enrollment.position_on_leaderboard = rank

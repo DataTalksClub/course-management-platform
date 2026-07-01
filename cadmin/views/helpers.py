@@ -47,10 +47,14 @@ def first_form_error(form):
     return "Invalid form data"
 
 
+def is_authenticated_staff(user):
+    return user.is_authenticated and user.is_staff
+
+
 def staff_required(function):
     """Decorator to require staff/admin access"""
     actual_decorator = user_passes_test(
-        lambda u: u.is_authenticated and u.is_staff,
+        is_authenticated_staff,
         login_url="/accounts/login/",
     )
     return actual_decorator(function)

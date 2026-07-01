@@ -178,18 +178,19 @@ def dashboard_homework_score_ratio(homework, hw_submissions):
     )
 
 
+def _homework_difficulty_sort_key(hw_stat):
+    score_ratio = hw_stat["score_ratio"]
+    submissions_count = hw_stat["submissions_count"]
+    homework_title = hw_stat["homework"].title
+    return score_ratio, -submissions_count, homework_title
+
+
 def dashboard_homework_difficulty_stats(homework_stats):
     difficulty_stats = []
     for hw_stat in homework_stats:
         if hw_stat["score_ratio"] is not None:
             difficulty_stats.append(hw_stat)
-    difficulty_stats.sort(
-        key=lambda hw_stat: (
-            hw_stat["score_ratio"],
-            -hw_stat["submissions_count"],
-            hw_stat["homework"].title,
-        )
-    )
+    difficulty_stats.sort(key=_homework_difficulty_sort_key)
     for rank, hw_stat in enumerate(difficulty_stats, start=1):
         hw_stat["difficulty_rank"] = rank
 

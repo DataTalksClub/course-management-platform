@@ -1,5 +1,6 @@
 import logging
 
+from functools import partial
 from time import time
 
 from django.db import transaction
@@ -72,13 +73,11 @@ def _bulk_update_project_submissions(submissions_to_update):
 
 def _sync_project_submissions_after_commit(submissions_to_update):
     for submission in submissions_to_update:
-        transaction.on_commit(
-            lambda submission=submission: (
-                _sync_scored_project_submission_to_datamailer(
-                    submission
-                )
-            )
+        callback = partial(
+            _sync_scored_project_submission_to_datamailer,
+            submission,
         )
+        transaction.on_commit(callback)
 
 
 def _replace_project_evaluation_scores(submission_ids, all_scores):
