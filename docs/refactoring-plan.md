@@ -304,6 +304,8 @@ testable service functions.
   reconstruction out of the public POST response handler.
 - [x] Split project upsert validation, patch rules, and persistence out of the
   public project upsert route module.
+- [x] Remove the over-abstracted homework-create loader dataclasses and keep
+  the create validation flow explicit and linear.
 
 ## Current Findings
 
