@@ -345,6 +345,8 @@ testable service functions.
   the registration-confirmation notification module.
 - [x] Split registration user-profile update rules out of the registration form
   module.
+- [x] Split public course page data lookup and context builders out of the
+  route module.
 
 ## Current Findings
 
