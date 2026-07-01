@@ -3,6 +3,35 @@ from django import forms
 from courses.models.course import RegistrationCampaign
 
 
+REGISTRATION_CAMPAIGN_TITLE_WIDGET = forms.TextInput(
+    attrs={"class": "form-control"}
+)
+REGISTRATION_CAMPAIGN_SLUG_WIDGET = forms.TextInput(
+    attrs={"class": "form-control"}
+)
+REGISTRATION_CAMPAIGN_EDITION_WIDGET = forms.TextInput(
+    attrs={"class": "form-control"}
+)
+REGISTRATION_CAMPAIGN_COURSE_WIDGET = forms.Select(
+    attrs={"class": "form-control"}
+)
+REGISTRATION_CAMPAIGN_ACTIVE_WIDGET = forms.CheckboxInput(
+    attrs={"class": "form-check-input"}
+)
+REGISTRATION_CAMPAIGN_HERO_URL_WIDGET = forms.URLInput(
+    attrs={"class": "form-control"}
+)
+REGISTRATION_CAMPAIGN_VIDEO_URL_WIDGET = forms.URLInput(
+    attrs={"class": "form-control"}
+)
+REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET = forms.Textarea(
+    attrs={"class": "form-control", "rows": 3}
+)
+REGISTRATION_CAMPAIGN_MARKETING_WIDGET = forms.Textarea(
+    attrs={"class": "form-control", "rows": 14}
+)
+
+
 class HomeworkSubmissionEditForm(forms.Form):
     learning_in_public_links = forms.CharField(required=False)
     faq_contribution_url = forms.CharField(required=False)
@@ -98,19 +127,15 @@ class RegistrationCampaignForm(forms.ModelForm):
             "marketing_markdown",
         ]
         widgets = {
-            "title": forms.TextInput(attrs={"class": "form-control"}),
-            "slug": forms.TextInput(attrs={"class": "form-control"}),
-            "edition_label": forms.TextInput(attrs={"class": "form-control"}),
-            "current_course": forms.Select(attrs={"class": "form-control"}),
-            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "hero_image_url": forms.URLInput(attrs={"class": "form-control"}),
-            "video_url": forms.URLInput(attrs={"class": "form-control"}),
-            "meta_description": forms.Textarea(
-                attrs={"class": "form-control", "rows": 3}
-            ),
-            "marketing_markdown": forms.Textarea(
-                attrs={"class": "form-control", "rows": 14}
-            ),
+            "title": REGISTRATION_CAMPAIGN_TITLE_WIDGET,
+            "slug": REGISTRATION_CAMPAIGN_SLUG_WIDGET,
+            "edition_label": REGISTRATION_CAMPAIGN_EDITION_WIDGET,
+            "current_course": REGISTRATION_CAMPAIGN_COURSE_WIDGET,
+            "is_active": REGISTRATION_CAMPAIGN_ACTIVE_WIDGET,
+            "hero_image_url": REGISTRATION_CAMPAIGN_HERO_URL_WIDGET,
+            "video_url": REGISTRATION_CAMPAIGN_VIDEO_URL_WIDGET,
+            "meta_description": REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET,
+            "marketing_markdown": REGISTRATION_CAMPAIGN_MARKETING_WIDGET,
         }
         labels = {
             "slug": "URL slug",
