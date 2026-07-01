@@ -318,6 +318,8 @@ testable service functions.
   assignment state-transition coordinator.
 - [x] Split homework submitted-answer formatting helpers out of the homework
   answer processing module.
+- [x] Split Datamailer outbox batch-run bookkeeping out of the single-event
+  dispatch module.
 
 ## Current Findings
 

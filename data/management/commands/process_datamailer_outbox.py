@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from course_management.datamailer_outbox_dispatch import (
+from course_management.datamailer_outbox_runs import (
     process_due_datamailer_outbox,
 )
 
