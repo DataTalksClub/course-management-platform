@@ -320,6 +320,8 @@ testable service functions.
   answer processing module.
 - [x] Split Datamailer outbox batch-run bookkeeping out of the single-event
   dispatch module.
+- [x] Split homework correct-answer maintenance out of the submission scoring
+  orchestration module.
 
 ## Current Findings
 

@@ -18,11 +18,10 @@ from courses.models import (
     User,
 )
 
-from courses.scoring import (
-    HomeworkScoringStatus,
-    score_homework_submissions,
+from courses.homework_correct_answers import (
     fill_correct_answers,
 )
+from courses.scoring import HomeworkScoringStatus, score_homework_submissions
 
 
 from .util import join_possible_answers

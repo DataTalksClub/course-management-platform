@@ -10,11 +10,11 @@ from django.contrib import messages
 from courses.models.homework import Homework, HomeworkState, Question
 
 from courses.assignment_statistics import calculate_homework_statistics
-from courses.scoring import (
-    score_homework_submissions,
-    fill_correct_answers,
+from courses.homework_correct_answers import (
     clear_correct_answers,
+    fill_correct_answers,
 )
+from courses.scoring import score_homework_submissions
 
 
 class QuestionForm(forms.ModelForm):

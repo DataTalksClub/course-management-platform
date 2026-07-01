@@ -6,12 +6,11 @@ from course_management.datamailer.sync.notifications import (
 )
 from courses.models.course import Course
 from courses.models.homework import Homework
-from courses.scoring import (
-    HomeworkScoringStatus,
+from courses.homework_correct_answers import (
     clear_correct_answers,
     fill_correct_answers,
-    score_homework_submissions,
 )
+from courses.scoring import HomeworkScoringStatus, score_homework_submissions
 from cadmin.views.homework_submission_edit import (
     homework_submission_edit_response,
 )
