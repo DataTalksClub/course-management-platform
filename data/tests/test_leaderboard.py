@@ -106,12 +106,13 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertEqual(leaderboard[1]["display_name"], "Bob")
 
     def test_includes_scored_homework_submissions(self):
+        homework_due_date = timezone.now()
         homework = Homework.objects.create(
             course=self.course,
             title="HW1",
             slug="hw1",
             description="",
-            due_date=timezone.now(),
+            due_date=homework_due_date,
             state=HomeworkState.SCORED.value,
         )
         Submission.objects.create(
@@ -145,12 +146,13 @@ class LeaderboardDataViewTestCase(TestCase):
         )
 
     def test_excludes_unscored_homework(self):
+        homework_due_date = timezone.now()
         hw = Homework.objects.create(
             course=self.course,
             title="Open HW",
             slug="open-hw",
             description="",
-            due_date=timezone.now(),
+            due_date=homework_due_date,
             state=HomeworkState.OPEN.value,
         )
         Submission.objects.create(
@@ -166,13 +168,15 @@ class LeaderboardDataViewTestCase(TestCase):
         self.assertNotIn("homeworks", alice)
 
     def create_completed_project(self):
+        submission_due_date = timezone.now()
+        peer_review_due_date = timezone.now()
         return Project.objects.create(
             course=self.course,
             title="Project 1",
             slug="project-1",
             description="",
-            submission_due_date=timezone.now(),
-            peer_review_due_date=timezone.now(),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
             state=ProjectState.COMPLETED.value,
         )
 

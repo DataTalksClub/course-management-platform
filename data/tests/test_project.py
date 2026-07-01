@@ -143,16 +143,20 @@ class ProjectDataAPITestCase(TestCase):
         project = self.create_project()
         submission = self.create_project_submission(project)
 
-        response = self.client.get(self.project_export_url(project))
+        export_url = self.project_export_url(project)
+        response = self.client.get(export_url)
 
         self.assertEqual(response.status_code, 200)
         actual_result = response.json()
-        self.assert_fields(actual_result["course"], self.expected_course_data())
+        expected_course = self.expected_course_data()
+        self.assert_fields(actual_result["course"], expected_course)
+        expected_project = self.expected_project_data(project)
         self.assert_fields(
-            actual_result["project"], self.expected_project_data(project)
+            actual_result["project"], expected_project
         )
         self.assertEqual(len(actual_result["submissions"]), 1)
+        expected_submission = self.expected_submission_data(submission)
         self.assert_fields(
             actual_result["submissions"][0],
-            self.expected_submission_data(submission),
+            expected_submission,
         )

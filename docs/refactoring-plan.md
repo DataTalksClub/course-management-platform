@@ -1861,6 +1861,13 @@ Steps:
   `uv run python manage.py test cadmin.tests.test_view_models data.tests.test_course`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name course-list fixture timestamps and text words, Datamailer webhook
+  request/response values, leaderboard fixture timestamps, and project export
+  expected records before calls or assertions. Verification:
+  `uv run ruff check courses/tests/test_course_list.py data/tests/test_datamailer_webhook.py data/tests/test_leaderboard.py data/tests/test_project.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course_list data.tests.test_datamailer_webhook data.tests.test_leaderboard data.tests.test_project`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

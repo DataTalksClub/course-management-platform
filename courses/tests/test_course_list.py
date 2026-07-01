@@ -113,20 +113,23 @@ class CourseListViewTests(TestCase):
             description="Past course summary.",
             finished=True,
         )
+        homework_due_date = timezone.now()
         Homework.objects.create(
             slug="archived-homework",
             course=archive_course,
             title="Archived Homework",
-            due_date=timezone.now(),
+            due_date=homework_due_date,
             state=HomeworkState.SCORED.value,
         )
+        submission_due_date = timezone.now()
+        peer_review_due_date = timezone.now()
         Project.objects.create(
             course=archive_course,
             title="Archived Project",
             slug="archived-project",
             state=ProjectState.COMPLETED.value,
-            submission_due_date=timezone.now(),
-            peer_review_due_date=timezone.now(),
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
         )
         return archive_course
 
@@ -268,7 +271,8 @@ class CourseListViewTests(TestCase):
         course_card = self.course_card_for(response, empty_course)
         self.assertNotIn("Current assignment", course_card)
         self.assertNotIn(">TBA</p>", course_card)
-        course_card_text = " ".join(strip_tags(course_card).split())
+        course_card_words = strip_tags(course_card).split()
+        course_card_text = " ".join(course_card_words)
         self.assertNotIn("Dates to be announced", course_card_text)
         self.assertNotIn("TBA", course_card_text)
 

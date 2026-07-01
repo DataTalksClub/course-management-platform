@@ -11,9 +11,11 @@ from data.models import DatamailerContactEvent
 
 class DatamailerWebhookTest(TestCase):
     def post_event(self, payload, *, token="secret-token"):
+        events_url = reverse("api_datamailer_events")
+        request_body = json.dumps(payload)
         return self.client.post(
-            reverse("api_datamailer_events"),
-            data=json.dumps(payload),
+            events_url,
+            data=request_body,
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -59,11 +61,14 @@ class DatamailerWebhookTest(TestCase):
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
-        self.assertTrue(first.json()["created"])
-        self.assertFalse(second.json()["created"])
-        self.assertEqual(first.json()["duplicate_count"], 0)
-        self.assertEqual(second.json()["duplicate_count"], 1)
-        self.assertEqual(DatamailerContactEvent.objects.count(), 1)
+        first_data = first.json()
+        second_data = second.json()
+        self.assertTrue(first_data["created"])
+        self.assertFalse(second_data["created"])
+        self.assertEqual(first_data["duplicate_count"], 0)
+        self.assertEqual(second_data["duplicate_count"], 1)
+        event_count = DatamailerContactEvent.objects.count()
+        self.assertEqual(event_count, 1)
         event = DatamailerContactEvent.objects.get()
         self.assertEqual(event.email, "student@example.com")
         self.assertEqual(event.event_type, "contact.hard_bounced")
@@ -176,9 +181,11 @@ class DatamailerWebhookTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.json()["preference_updated"])
+        response_data = response.json()
+        self.assertFalse(response_data["preference_updated"])
         user.refresh_from_db()
-        self.assertEqual(DatamailerContactEvent.objects.count(), 1)
+        event_count = DatamailerContactEvent.objects.count()
+        self.assertEqual(event_count, 1)
 
     @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_transactional_failure_event(self):
