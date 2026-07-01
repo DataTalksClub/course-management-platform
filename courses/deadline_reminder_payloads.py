@@ -48,6 +48,7 @@ def transient_recipient_list_send_payload(event):
 def base_context(data):
     formatted_deadline = format_deadline_for_user(data.item.deadline)
     deadline_summary = formatted_deadline["deadline_summary"]
+    deadline_iso = data.item.deadline.isoformat()
     profile_path = reverse("account_settings")
     profile_url = public_url(profile_path)
 
@@ -59,7 +60,7 @@ def base_context(data):
         "item_slug": data.item.item_slug,
         "item_title": data.item.item_title,
         "deadline_at": deadline_summary,
-        "deadline_iso": data.item.deadline.isoformat(),
+        "deadline_iso": deadline_iso,
         "action_url": data.action_url,
         "profile_url": profile_url,
         "notification_category": "deadline reminders",

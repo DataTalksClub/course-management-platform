@@ -9,10 +9,11 @@ class HomeworkDeadlineContext:
 
     def __call__(self, action_url):
         homework = self.homework
+        homework_due_at = homework.due_date.isoformat()
         return {
             "homework_slug": homework.slug,
             "homework_title": homework.title,
-            "homework_due_at": homework.due_date.isoformat(),
+            "homework_due_at": homework_due_at,
             "email_subject": f"Homework deadline soon: {homework.title}",
             "email_preview": "Your homework deadline is within 24 hours.",
             "intro_text": (
@@ -29,10 +30,11 @@ class ProjectSubmissionDeadlineContext:
 
     def __call__(self, action_url):
         project = self.project
+        project_due_at = project.submission_due_date.isoformat()
         return {
             "project_slug": project.slug,
             "project_title": project.title,
-            "project_due_at": project.submission_due_date.isoformat(),
+            "project_due_at": project_due_at,
             "email_subject": f"Project deadline soon: {project.title}",
             "email_preview": "Your project submission deadline is coming up.",
             "intro_text": (
@@ -48,10 +50,11 @@ class PeerReviewDeadlineContext:
 
     def __call__(self, action_url):
         project = self.project
+        peer_review_due_at = project.peer_review_due_date.isoformat()
         return {
             "project_slug": project.slug,
             "project_title": project.title,
-            "peer_review_due_at": project.peer_review_due_date.isoformat(),
+            "peer_review_due_at": peer_review_due_at,
             "email_subject": f"Peer review deadline soon: {project.title}",
             "email_preview": (
                 "Your assigned peer reviews are due within 24 hours."

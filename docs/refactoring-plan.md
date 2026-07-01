@@ -1495,6 +1495,15 @@ Steps:
   `touched_file_inline_dict_calls=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] Name deadline ISO strings before constructing deadline reminder context
+  dictionaries in homework, project-submission, peer-review, and shared
+  reminder payload helpers. Verification:
+  `uv run ruff check courses/deadline_reminder_items.py courses/deadline_reminder_payloads.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_project courses.tests.test_deadline_reminder_peer_review courses.tests.test_deadline_reminder_dry_run`,
+  touched-file inline dictionary-call scan reports
+  `touched_file_inline_dict_calls=0`, size-threshold scan reports
+  `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
