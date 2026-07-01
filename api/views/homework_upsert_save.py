@@ -74,12 +74,11 @@ def apply_homework_text_fields(homework, data):
 
 
 def apply_homework_validated_fields(homework, data):
-    field_applicators = (
+    for apply_field in (
         apply_homework_instructions_url,
         apply_homework_due_date,
         apply_homework_state,
-    )
-    for apply_field in field_applicators:
+    ):
         error = apply_field(homework, data)
         if error:
             return error

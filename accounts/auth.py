@@ -49,12 +49,11 @@ def extract_email(response_data, sociallogin=None):
     response_email_value = response_data.get("email")
     sociallogin_email_value = sociallogin_email(sociallogin)
     notification_email_value = response_data.get("notification_email")
-    email_candidates = (
+    for email in (
         response_email_value,
         sociallogin_email_value,
         notification_email_value,
-    )
-    for email in email_candidates:
+    ):
         if email:
             return email
 

@@ -2456,6 +2456,16 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Replace one-off tuple aliases before loops in account email extraction,
+  homework upsert validation/save helpers, Datamailer webhook validation,
+  registration-campaign filters, and the public registration form. Verification:
+  `uv run ruff check accounts/auth.py api/views/homework_upsert_validation.py api/views/homework_upsert_save.py api/views/datamailer_webhook_validation.py api/views/registration_campaign_registrations.py courses/views/registration_form.py accounts/tests_auth.py api/tests/test_homeworks.py api/tests/test_registration_campaigns.py courses/tests/test_registration_campaigns.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_auth api.tests.test_homeworks api.tests.test_registration_campaigns courses.tests.test_registration_campaigns`,
+  touched-file one-off literal-alias scan reports
+  `touched_file_one_off_literal_aliases=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

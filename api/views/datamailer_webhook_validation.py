@@ -177,13 +177,12 @@ def validate_webhook_authentication(data):
 
 def datamailer_webhook_data(request):
     data = DatamailerWebhookData(request=request)
-    steps = (
+    for step in (
         validate_webhook_configuration,
         validate_webhook_authentication,
         load_webhook_payload,
         load_webhook_fields,
-    )
-    for step in steps:
+    ):
         error = step(data)
         if error is not None:
             return None, error

@@ -28,14 +28,13 @@ def validate_homework_upsert(data, homework, created):
         homework=homework,
         created=created,
     )
-    validators = (
+    for validator in (
         validate_created_homework_fields,
         validate_homework_instructions_url,
         validate_homework_due_date,
         validate_homework_state,
         validate_homework_questions,
-    )
-    for validator in validators:
+    ):
         error = validator(validation_data)
         if error:
             return error

@@ -68,8 +68,7 @@ class CourseRegistrationForm(forms.ModelForm):
         self.configure_authenticated_user()
 
     def configure_optional_fields(self):
-        optional_field_names = ("name", "country", "role", "comment")
-        for field_name in optional_field_names:
+        for field_name in ("name", "country", "role", "comment"):
             self.fields[field_name].required = False
 
     def configure_country_field(self):
