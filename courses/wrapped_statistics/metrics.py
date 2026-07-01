@@ -181,7 +181,7 @@ def wrapped_display_name(student, enrollments):
     return student.username
 
 
-def user_wrapped_metrics(data: UserWrappedStatData):
+def user_wrapped_metrics_values(data: UserWrappedStatData):
     total_points = wrapped_total_points(data.enrollments)
     total_hours = wrapped_total_hours(
         data.homework_submissions,
@@ -200,36 +200,49 @@ def user_wrapped_metrics(data: UserWrappedStatData):
     rank = wrapped_rank(data.student, data.leaderboard_data)
     display_name = wrapped_display_name(data.student, data.enrollments)
 
-    return UserWrappedMetrics(
-        total_points=total_points,
-        total_hours=total_hours,
-        learning_in_public_count=learning_in_public_count,
-        faq_contributions_count=faq_contributions_count,
-        certificates_earned=certificates_earned,
-        courses=courses,
-        rank=rank,
-        display_name=display_name,
-    )
+    values = {
+        "total_points": total_points,
+        "total_hours": total_hours,
+        "learning_in_public_count": learning_in_public_count,
+        "faq_contributions_count": faq_contributions_count,
+        "certificates_earned": certificates_earned,
+        "courses": courses,
+        "rank": rank,
+        "display_name": display_name,
+    }
+    return values
+
+
+def user_wrapped_statistics_values(data, metrics, homework_count, project_count):
+    values = {
+        "wrapped": data.stats,
+        "user": data.student,
+        "total_points": metrics.total_points,
+        "total_hours": metrics.total_hours,
+        "homework_count": homework_count,
+        "project_count": project_count,
+        "peer_reviews_given": data.peer_reviews_count,
+        "learning_in_public_count": metrics.learning_in_public_count,
+        "faq_contributions_count": metrics.faq_contributions_count,
+        "certificates_earned": metrics.certificates_earned,
+        "courses": metrics.courses,
+        "rank": metrics.rank,
+        "display_name": metrics.display_name,
+    }
+    return values
 
 
 def build_user_wrapped_stat(data: UserWrappedStatData):
     """Build an (unsaved) UserWrappedStatistics row for one student."""
-    metrics = user_wrapped_metrics(data)
+    metric_values = user_wrapped_metrics_values(data)
+    metrics = UserWrappedMetrics(**metric_values)
     homework_count = len(data.homework_submissions)
     project_count = len(data.project_submissions)
-
-    return UserWrappedStatistics(
-        wrapped=data.stats,
-        user=data.student,
-        total_points=metrics.total_points,
-        total_hours=metrics.total_hours,
-        homework_count=homework_count,
-        project_count=project_count,
-        peer_reviews_given=data.peer_reviews_count,
-        learning_in_public_count=metrics.learning_in_public_count,
-        faq_contributions_count=metrics.faq_contributions_count,
-        certificates_earned=metrics.certificates_earned,
-        courses=metrics.courses,
-        rank=metrics.rank,
-        display_name=metrics.display_name,
+    values = user_wrapped_statistics_values(
+        data,
+        metrics,
+        homework_count,
+        project_count,
     )
+    user_stat = UserWrappedStatistics(**values)
+    return user_stat
