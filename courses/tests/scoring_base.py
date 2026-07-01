@@ -271,7 +271,8 @@ class HomeworkScoringBase(TestCase):
         self.assert_enrollment_total_score(self.enrollment1, total_score)
 
     def assert_homework_scored(self):
-        self.assertEqual(self.homework.is_scored(), True)
+        homework_is_scored = self.homework.is_scored()
+        self.assertEqual(homework_is_scored, True)
         self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
 
     def leaderboard_students(self):

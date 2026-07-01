@@ -23,7 +23,8 @@ def quiet_tqdm(items, **_kwargs):
 class LoadProjectDataScriptTest(TestCase):
     def run_quiet_import_step(self, import_step, *args):
         with patch("scripts.load_project_data.tqdm", quiet_tqdm):
-            with redirect_stdout(StringIO()):
+            output = StringIO()
+            with redirect_stdout(output):
                 import_step(*args)
 
     def test_create_users_maps_existing_and_created_users(self):

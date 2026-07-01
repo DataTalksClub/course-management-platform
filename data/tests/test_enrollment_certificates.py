@@ -29,7 +29,10 @@ class EnrollmentCertificateAPITestCase(EnrollmentDataAPIBase):
         )
 
     def assert_certificates_reject_get(self):
-        response = self.client.get(self.certificate_url())
+        url = self.certificate_url()
+
+        response = self.client.get(url)
+
         self.assertEqual(response.status_code, 405)
 
     def assert_successful_certificate_notification_result(self, response):

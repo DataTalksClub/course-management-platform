@@ -58,11 +58,12 @@ class DatamailerOutboxAdminTest(TestCase):
         original_message_user = model_admin.message_user
         model_admin.message_user = Mock()
         request = RequestFactory().post("/admin/data/datamaileroutboxevent/")
+        queryset = DatamailerOutboxEvent.objects.all()
 
         try:
             model_admin.requeue_selected_events(
                 request,
-                DatamailerOutboxEvent.objects.all(),
+                queryset,
             )
         finally:
             message_user = model_admin.message_user

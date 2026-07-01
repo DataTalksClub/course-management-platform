@@ -146,7 +146,8 @@ class ProjectStatisticsAdminTestCase(TestCase):
         request.GET = {}
 
         actions = self.admin.get_actions(request)
-        action_names = list(actions.keys())
+        action_keys = actions.keys()
+        action_names = list(action_keys)
         self.assertIn(
             "calculate_statistics_selected_projects", action_names
         )
