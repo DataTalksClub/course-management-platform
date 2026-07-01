@@ -15,9 +15,9 @@ from django.core.management.base import BaseCommand, CommandError
 from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
-    DatamailerRequestData,
 )
-from course_management.datamailer_templates.registry import TEMPLATES
+from course_management.datamailer.client_types import DatamailerRequestData
+from course_management.datamailer_templates.definitions.registry import TEMPLATES
 
 
 def selected_template_keys(template_key):

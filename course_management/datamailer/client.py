@@ -14,7 +14,6 @@ from .client_types import DatamailerRequestData
 __all__ = [
     "DatamailerClient",
     "DatamailerConfig",
-    "DatamailerRequestData",
     "datamailer_enabled",
     "public_url",
 ]

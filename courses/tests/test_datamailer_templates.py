@@ -2,7 +2,7 @@ from django.template import Context, Template
 from django.test import TestCase
 
 from course_management import email_templates
-from course_management.datamailer_templates.registry import TEMPLATES
+from course_management.datamailer_templates.definitions.registry import TEMPLATES
 
 EXPECTED_KEYS = {
     "registration-confirmation",

@@ -114,6 +114,8 @@ testable service functions.
   modules with shared project-view fixtures in a base module.
 - [x] Split project scoring test fixtures and project-results option-vote tests
   out of the oversized project score test module.
+- [x] Remove internal compatibility re-exports for Datamailer templates and
+  wrapped statistics, and import Datamailer request data from its owner module.
 - [x] Split scored homework result view tests out of the oversized homework
   detail test module.
 - [x] Replace remaining large tuple unpacking in project statistics tests with

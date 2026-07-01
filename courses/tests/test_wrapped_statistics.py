@@ -21,7 +21,7 @@ from courses.models import (
     Enrollment,
     UserWrappedStatistics,
 )
-from courses.wrapped_statistics import calculate_wrapped_statistics
+from courses.wrapped_statistics.calculator import calculate_wrapped_statistics
 
 
 def in_2025(month=6, day=1):
