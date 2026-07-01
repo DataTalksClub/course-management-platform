@@ -213,6 +213,10 @@ testable service functions.
   so list and detail pages share it through a direct owner module.
 - [x] Split course API serialization and mutation workflows out of the public
   course API view module, keeping list/detail handlers as coordinators.
+- [x] Shorten API course detail and staff-token tests by naming detail
+  fixtures, payload assertions, non-staff mutation responses, and unchanged
+  state assertions. Verification: `uv run ruff check api/tests/test_courses.py`
+  and `uv run python manage.py test api.tests.test_courses`.
 - [x] Split dashboard metric calculation into common metric, homework,
   project, and context modules, leaving the dashboard view as the route/render
   boundary.

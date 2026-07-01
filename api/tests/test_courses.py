@@ -104,7 +104,7 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "course_slug_exists")
 
-    def test_course_detail(self):
+    def create_detail_homework(self):
         Homework.objects.create(
             course=self.course,
             title="HW1",
@@ -114,6 +114,8 @@ class CoursesAPITestCase(TestCase):
             due_date=timezone.now(),
             state=HomeworkState.OPEN.value,
         )
+
+    def create_detail_project(self):
         Project.objects.create(
             course=self.course,
             title="Project 1",
@@ -125,9 +127,11 @@ class CoursesAPITestCase(TestCase):
             state=ProjectState.CLOSED.value,
         )
 
-        response = self.client.get("/api/courses/ml-zoomcamp/")
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
+    def create_course_detail_fixture(self):
+        self.create_detail_homework()
+        self.create_detail_project()
+
+    def assert_course_detail_payload(self, data):
         self.assertEqual(data["slug"], "ml-zoomcamp")
         self.assertEqual(data["start_date"], "2026-01-15")
         self.assertEqual(data["end_date"], "2026-04-15")
@@ -143,17 +147,27 @@ class CoursesAPITestCase(TestCase):
         self.assertEqual(len(data["projects"]), 1)
         self.assertIn("visible", data)
 
+    def test_course_detail(self):
+        self.create_course_detail_fixture()
+
+        response = self.client.get("/api/courses/ml-zoomcamp/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assert_course_detail_payload(data)
+
     def test_patch_course(self):
+        payload = {
+            "title": "Updated ML Zoomcamp",
+            "start_date": "2026-01-20",
+            "end_date": "2026-04-20",
+            "registration_url": "https://courses.datatalks.club/updated",
+            "github_repo_url": "https://github.com/DataTalksClub/updated",
+            "visible": False,
+        }
         response = self.client.patch(
             "/api/courses/ml-zoomcamp/",
-            json.dumps({
-                "title": "Updated ML Zoomcamp",
-                "start_date": "2026-01-20",
-                "end_date": "2026-04-20",
-                "registration_url": "https://courses.datatalks.club/updated",
-                "github_repo_url": "https://github.com/DataTalksClub/updated",
-                "visible": False,
-            }),
+            json.dumps(payload),
             content_type="application/json",
         )
 
@@ -212,39 +226,53 @@ class CoursesAPITestCase(TestCase):
         response = self.client.get("/api/courses/nonexistent/")
         self.assertEqual(response.status_code, 404)
 
-    def test_course_mutations_require_staff_token(self):
+    def non_staff_client(self):
         non_staff = CustomUser.objects.create(
             username="nonstaff",
             email="nonstaff@example.com",
             password="password",
         )
         token = Token.objects.create(user=non_staff)
-        client = Client(HTTP_AUTHORIZATION=f"Token {token.key}")
+        return Client(HTTP_AUTHORIZATION=f"Token {token.key}")
 
+    def non_staff_course_mutation_responses(self, client):
+        responses = []
+        create_payload = {
+            "slug": "nonstaff-course",
+            "title": "Nonstaff Course",
+        }
         create_response = client.post(
             "/api/courses/",
-            json.dumps({
-                "slug": "nonstaff-course",
-                "title": "Nonstaff Course",
-            }),
+            json.dumps(create_payload),
             content_type="application/json",
         )
+        responses.append(create_response)
+
+        patch_payload = {"title": "Changed by nonstaff"}
         patch_response = client.patch(
             "/api/courses/ml-zoomcamp/",
-            json.dumps({"title": "Changed by nonstaff"}),
+            json.dumps(patch_payload),
             content_type="application/json",
         )
+        responses.append(patch_response)
+        return responses
 
-        self.assertEqual(create_response.status_code, 403)
-        self.assertEqual(
-            create_response.json()["code"], "staff_token_required"
-        )
-        self.assertEqual(patch_response.status_code, 403)
-        self.assertEqual(
-            patch_response.json()["code"], "staff_token_required"
-        )
+    def assert_staff_token_required(self, response):
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "staff_token_required")
+
+    def assert_course_unchanged_after_forbidden_mutations(self):
         self.assertFalse(
             Course.objects.filter(slug="nonstaff-course").exists()
         )
         self.course.refresh_from_db()
         self.assertEqual(self.course.title, "ML Zoomcamp")
+
+    def test_course_mutations_require_staff_token(self):
+        client = self.non_staff_client()
+
+        responses = self.non_staff_course_mutation_responses(client)
+
+        for response in responses:
+            self.assert_staff_token_required(response)
+        self.assert_course_unchanged_after_forbidden_mutations()
