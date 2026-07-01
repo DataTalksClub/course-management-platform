@@ -4,11 +4,14 @@ from accounts.models import CustomUser
 from accounts.services.timezones import build_timezone_options, is_valid_timezone
 
 
+PREFERRED_TIMEZONE_WIDGET = forms.Select(attrs={"class": "form-control"})
+
+
 class AccountSettingsForm(forms.ModelForm):
     preferred_timezone = forms.ChoiceField(
         required=False,
         choices=[],
-        widget=forms.Select(attrs={"class": "form-control"}),
+        widget=PREFERRED_TIMEZONE_WIDGET,
     )
 
     def __init__(self, *args, **kwargs):

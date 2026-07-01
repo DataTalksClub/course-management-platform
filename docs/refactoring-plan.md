@@ -534,6 +534,10 @@ testable service functions.
   `list(range(...))` with an explicit named project-pool builder. Verification:
   `uv run ruff check courses/project_assignment_selection.py` and
   `uv run python manage.py test courses.tests.test_unit_projects courses.tests.test_project_assign`.
+- [x] Name the account settings preferred-timezone widget before passing it
+  into the `ChoiceField` declaration. Verification:
+  `uv run ruff check accounts/forms.py` and
+  `uv run python manage.py test accounts.tests_account_settings accounts.tests_timezone`.
 
 ## Current Findings
 
