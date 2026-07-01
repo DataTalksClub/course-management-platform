@@ -2937,6 +2937,15 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split Datamailer client endpoint-case construction out of the endpoint
+  test class and into contact, recipient-list, transactional, and campaign case
+  modules. Verification:
+  `uv run ruff check courses/tests/test_datamailer_client.py courses/tests/datamailer_client_cases docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_client`,
+  repository cleanup gates report zero five-argument helpers, comprehensions,
+  size-threshold violations, append-construction violations, tuple-unpacking
+  violations, and wide positional calls with the 30-line production threshold
+  and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
