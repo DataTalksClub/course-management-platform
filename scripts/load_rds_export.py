@@ -160,17 +160,19 @@ def add_target_options(parser: argparse.ArgumentParser) -> None:
 
 
 def add_admin_account_options(parser: argparse.ArgumentParser) -> None:
+    default_admin_email = os.getenv("CMP_ADMIN_EMAIL", "alexey@datatalks.club")
     parser.add_argument(
         "--admin-email",
-        default=os.getenv("CMP_ADMIN_EMAIL", "alexey@datatalks.club"),
+        default=default_admin_email,
         help=(
             "Admin email to create/reset after import. "
             "Can also be set with CMP_ADMIN_EMAIL."
         ),
     )
+    default_admin_password = os.getenv("CMP_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
     parser.add_argument(
         "--admin-password",
-        default=os.getenv("CMP_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD),
+        default=default_admin_password,
         help=(
             "Admin password. Defaults to the same password used by "
             f"make data: {DEFAULT_ADMIN_PASSWORD!r}. Can also be set "
@@ -385,8 +387,9 @@ def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
         source_columns=source_columns,
         default_values={},
     )
+    model = data.model_by_table.get(data.table)
     column_data = ColumnCopyData(
-        model=data.model_by_table.get(data.table),
+        model=model,
         table=data.table,
         source_columns=source_columns,
         plan=plan,
@@ -471,7 +474,8 @@ def copy_table_rows(
         for source_row in batch:
             value = row_values(source_row, plan)
             values.append(value)
-        target_cursor.executemany(insert_batch_sql(plan), values)
+        insert_sql = insert_batch_sql(plan)
+        target_cursor.executemany(insert_sql, values)
         row_count += len(values)
 
     return row_count
@@ -660,10 +664,11 @@ def refresh_sqlite_sequences(
     for imported_table in imported:
         table = imported_table.table
         if table_has_single_id_primary_key(cursor, table):
+            max_id = table_max_id(cursor, table)
             upsert_sqlite_sequence(
                 cursor,
                 table,
-                table_max_id(cursor, table),
+                max_id,
             )
 
 
@@ -810,4 +815,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    exit_code = main()
+    raise SystemExit(exit_code)

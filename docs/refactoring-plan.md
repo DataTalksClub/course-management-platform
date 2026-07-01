@@ -670,6 +670,12 @@ testable service functions.
   `uv run ruff check e2e/browser.py`, `python -m py_compile e2e/browser.py`,
   `uv run pytest e2e/tests/test_07_browser_helpers.py -q`, and touched-file
   nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name RDS export loader env defaults, table-model lookup, insert SQL,
+  SQLite sequence max id, and process exit code before parser, copy, sequence,
+  or exit calls. Verification:
+  `uv run ruff check scripts/load_rds_export.py`,
+  `python -m py_compile scripts/load_rds_export.py`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 
