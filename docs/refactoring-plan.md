@@ -206,6 +206,8 @@ testable service functions.
   view coordinator.
 - [x] Group cadmin Datamailer campaign action inputs into a value object and
   pass it through action upsert/run helpers.
+- [x] Split Datamailer project-passed outcome membership add/remove branches
+  out of the sync coordinator.
 
 ## Current Findings
 

@@ -150,6 +150,31 @@ def sync_project_submission_to_datamailer(submission) -> None:
     _sync_contact_and_membership(sync_data)
 
 
+def _sync_project_passed_membership(submission, outcome_payload) -> None:
+    course = submission.project.course
+    contact_payload = contact_payload_for_user(
+        submission.student,
+        course=course,
+    )
+    sync_data = ContactMembershipSyncData(
+        contact_payload=contact_payload,
+        list_payload=outcome_payload,
+        label="project passed outcome",
+        obj=submission,
+    )
+    _sync_contact_and_membership(sync_data)
+
+
+def _remove_project_passed_membership(submission, outcome_payload) -> None:
+    list_payloads = [outcome_payload]
+    remove_data = RecipientListMembershipRemoveData(
+        list_payloads=list_payloads,
+        label="project passed outcome",
+        obj=submission,
+    )
+    _remove_recipient_list_memberships(remove_data)
+
+
 def sync_project_passed_outcome_to_datamailer(submission) -> None:
     config = DatamailerConfig.from_settings()
     if config is None:
@@ -159,27 +184,10 @@ def sync_project_passed_outcome_to_datamailer(submission) -> None:
         submission
     )
     if submission.passed:
-        course = submission.project.course
-        contact_payload = contact_payload_for_user(
-            submission.student,
-            course=course,
-        )
-        sync_data = ContactMembershipSyncData(
-            contact_payload=contact_payload,
-            list_payload=outcome_payload,
-            label="project passed outcome",
-            obj=submission,
-        )
-        _sync_contact_and_membership(sync_data)
+        _sync_project_passed_membership(submission, outcome_payload)
         return
 
-    list_payloads = [outcome_payload]
-    remove_data = RecipientListMembershipRemoveData(
-        list_payloads=list_payloads,
-        label="project passed outcome",
-        obj=submission,
-    )
-    _remove_recipient_list_memberships(remove_data)
+    _remove_project_passed_membership(submission, outcome_payload)
 
 
 def enqueue_recipient_list_bulk_upsert(data):
