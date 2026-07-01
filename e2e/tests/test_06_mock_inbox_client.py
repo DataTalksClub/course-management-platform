@@ -9,6 +9,7 @@ shapes, poll/timeout/clear behaviour). The *live* email assertions
 
 import json
 import os
+from dataclasses import dataclass
 
 import pytest
 import requests
@@ -26,6 +27,13 @@ from e2e.mock_inbox import (
 )
 
 pytestmark = pytest.mark.email
+
+
+@dataclass(frozen=True)
+class RequestCall:
+    method: str
+    url: str
+    kwargs: dict
 
 
 class FakeResponse:
@@ -52,7 +60,7 @@ class FakeSession:
         self.calls = []
 
     def request(self, method, url, **kwargs):
-        call_record = (method, url, kwargs)
+        call_record = RequestCall(method=method, url=url, kwargs=kwargs)
         self.calls.append(call_record)
         result = self._responses.pop(0)
         if isinstance(result, Exception):
@@ -146,11 +154,14 @@ def test_list_messages_sends_bearer_and_params():
     client = _client([FakeResponse(200, {"address": "a", "count": 1, "messages": [_summary()]})])
     messages = client.list_messages("e2e+run@mailbox.test", limit=10)
 
-    method, url, kwargs = client._session.calls[0]
-    assert method == "GET"
-    assert url.endswith("/api/mock-inbox/messages")
-    assert kwargs["params"] == {"address": "e2e+run@mailbox.test", "limit": 10}
-    assert kwargs["headers"]["Authorization"] == "Bearer k-secret"
+    call = client._session.calls[0]
+    assert call.method == "GET"
+    assert call.url.endswith("/api/mock-inbox/messages")
+    assert call.kwargs["params"] == {
+        "address": "e2e+run@mailbox.test",
+        "limit": 10,
+    }
+    assert call.kwargs["headers"]["Authorization"] == "Bearer k-secret"
 
     assert len(messages) == 1
     msg = messages[0]
@@ -262,9 +273,9 @@ def test_retries_on_5xx_then_succeeds():
 def test_clear_sends_delete_with_address_and_returns_count():
     client = _client([FakeResponse(200, {"address": "a", "deleted_count": 3})])
     assert client.clear("e2e+run@mailbox.test") == 3
-    method, url, kwargs = client._session.calls[0]
-    assert method == "DELETE"
-    assert kwargs["json"] == {"address": "e2e+run@mailbox.test"}
+    call = client._session.calls[0]
+    assert call.method == "DELETE"
+    assert call.kwargs["json"] == {"address": "e2e+run@mailbox.test"}
 
 
 def test_clear_is_safe_when_unconfigured():
@@ -332,11 +343,14 @@ def test_real_list_parses_summary_without_template_key():
     )
     messages = client.list_messages("e2e+run@mailer.dtcdev.click", limit=10)
 
-    method, url, kwargs = client._session.calls[0]
-    assert method == "GET"
-    assert url.endswith("/api/inbox/messages")
-    assert kwargs["params"] == {"address": "e2e+run@mailer.dtcdev.click", "limit": 10}
-    assert kwargs["headers"]["Authorization"] == "Bearer k-secret"
+    call = client._session.calls[0]
+    assert call.method == "GET"
+    assert call.url.endswith("/api/inbox/messages")
+    assert call.kwargs["params"] == {
+        "address": "e2e+run@mailer.dtcdev.click",
+        "limit": 10,
+    }
+    assert call.kwargs["headers"]["Authorization"] == "Bearer k-secret"
 
     assert len(messages) == 1
     msg = messages[0]
@@ -360,10 +374,12 @@ def test_real_get_message_for_scopes_by_address_and_loads_bodies():
         "raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1",
     )
 
-    method, url, kwargs = client._session.calls[0]
-    assert method == "GET"
-    assert url.endswith("/api/inbox/messages/raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1")
-    assert kwargs["params"] == {"address": "e2e+run@mailer.dtcdev.click"}
+    call = client._session.calls[0]
+    assert call.method == "GET"
+    assert call.url.endswith(
+        "/api/inbox/messages/raw/s3oudir75a3gb1k2qlht3mianpfvr5h04ltujlo1"
+    )
+    assert call.kwargs["params"] == {"address": "e2e+run@mailer.dtcdev.click"}
     assert msg.body_contains("/homework/")
     assert msg.metadata["spam_verdict"] == "PASS"
 
@@ -390,7 +406,9 @@ def test_real_wait_for_message_matches_subject_and_fetches_detail():
     assert msg.body_contains("/homework/")
     # Detail fetch was address-scoped (the real backend's override).
     detail_call = client._session.calls[1]
-    assert detail_call[2]["params"] == {"address": "e2e+run@mailer.dtcdev.click"}
+    assert detail_call.kwargs["params"] == {
+        "address": "e2e+run@mailer.dtcdev.click"
+    }
 
 
 def test_real_disabled_deployment_raises_inbox_disabled():
@@ -404,10 +422,10 @@ def test_real_disabled_deployment_raises_inbox_disabled():
 def test_real_clear_sends_delete_with_address_and_returns_count():
     client = _real_client([FakeResponse(200, {"address": "a", "deleted_count": 3})])
     assert client.clear("e2e+run@mailer.dtcdev.click") == 3
-    method, url, kwargs = client._session.calls[0]
-    assert method == "DELETE"
-    assert url.endswith("/api/inbox/messages")
-    assert kwargs["json"] == {"address": "e2e+run@mailer.dtcdev.click"}
+    call = client._session.calls[0]
+    assert call.method == "DELETE"
+    assert call.url.endswith("/api/inbox/messages")
+    assert call.kwargs["json"] == {"address": "e2e+run@mailer.dtcdev.click"}
 
 
 # -- config helper ---------------------------------------------------------

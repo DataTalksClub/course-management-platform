@@ -1,9 +1,17 @@
 import json
+from dataclasses import dataclass
 
 import pytest
 import requests
 
 from e2e.api_client import ApiError, ApiRequestData, CmpApiClient
+
+
+@dataclass(frozen=True)
+class RequestCall:
+    method: str
+    url: str
+    kwargs: dict
 
 
 class FakeResponse:
@@ -27,7 +35,7 @@ class FakeSession:
         self.headers = {}
 
     def request(self, method, url, **kwargs):
-        call_record = (method, url, kwargs)
+        call_record = RequestCall(method=method, url=url, kwargs=kwargs)
         self.calls.append(call_record)
         result = self._responses.pop(0)
         if isinstance(result, Exception):
@@ -104,5 +112,5 @@ def test_request_serializes_json_payload():
     )
     client._request(request_data)
 
-    _method, _url, kwargs = client.session.calls[0]
-    assert kwargs["data"] == '{"slug": "ml-zoomcamp"}'
+    call = client.session.calls[0]
+    assert call.kwargs["data"] == '{"slug": "ml-zoomcamp"}'

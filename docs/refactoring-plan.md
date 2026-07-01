@@ -1469,6 +1469,14 @@ Steps:
   size-threshold scan reports `threshold_violations=0`, comprehension scan
   reports `forbidden_comprehensions=0`, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Replace remaining three-value tuple unpacking in active Python files by
+  naming dotenv parsing steps and using request-call/result dataclasses in e2e
+  support tests and the dev scoring script. Verification:
+  `uv run ruff check e2e/config.py e2e/tests/test_06_mock_inbox_client.py e2e/tests/test_07_api_client.py scripts/score_project_dev.py`,
+  `uv run pytest e2e/tests/test_06_mock_inbox_client.py e2e/tests/test_07_api_client.py`,
+  wide tuple-unpacking scan reports `wide_tuple_unpacking=0`,
+  size-threshold scan reports `threshold_violations=0`, comprehension scan reports
+  `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

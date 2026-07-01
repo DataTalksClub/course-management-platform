@@ -15,6 +15,8 @@ import sys
 import argparse
 import time
 import re
+from dataclasses import dataclass
+from typing import Any
 
 # Add parent directory to path so Django can find course_management module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -60,6 +62,13 @@ django.setup()
 
 from courses.models import Project, ProjectSubmission
 from courses.project_scoring import score_project
+
+
+@dataclass(frozen=True)
+class ProjectScoringResult:
+    status: Any
+    message: str
+    elapsed: float
 
 
 def get_project(course_slug, project_slug):
@@ -110,20 +119,25 @@ def print_submission_count(project):
 def run_project_scoring(project):
     print("Running score_project()...")
     print("-" * 80)
-    
+
     start_time = time.time()
     status, message = score_project(project)
     end_time = time.time()
-    
+
     print("-" * 80)
     print()
-    return status, message, end_time - start_time
+    elapsed = end_time - start_time
+    return ProjectScoringResult(
+        status=status,
+        message=message,
+        elapsed=elapsed,
+    )
 
 
-def print_scoring_status(status, message, elapsed):
-    print(f"Status: {status.value}")
-    print(f"Message: {message}")
-    print(f"Time taken: {elapsed:.2f} seconds")
+def print_scoring_status(result):
+    print(f"Status: {result.status.value}")
+    print(f"Message: {result.message}")
+    print(f"Time taken: {result.elapsed:.2f} seconds")
     print()
 
 
@@ -198,8 +212,8 @@ def score_and_display(course_slug, project_slug):
         return
 
     print_submission_count(project)
-    status, message, elapsed = run_project_scoring(project)
-    print_scoring_status(status, message, elapsed)
+    result = run_project_scoring(project)
+    print_scoring_status(result)
     print_scoring_results(project)
 
 

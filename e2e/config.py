@@ -42,7 +42,9 @@ def _dotenv_key_value(raw: str) -> tuple[str, str]:
     line = raw.strip()
     if not line or line.startswith("#") or "=" not in line:
         return "", ""
-    key, _separator, value = line.partition("=")
+    separator_index = line.index("=")
+    key = line[:separator_index]
+    value = line[separator_index + 1 :]
     stripped_key = key.strip()
     stripped_value = value.strip()
     without_double_quotes = stripped_value.strip('"')
