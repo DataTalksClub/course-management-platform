@@ -56,21 +56,24 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
 
         self.login_admin()
 
-        response = self.client.get(self.cadmin_homework_submissions_url())
+        submissions_url = self.cadmin_homework_submissions_url()
+        response = self.client.get(submissions_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "This long answer should only")
         self.assertContains(response, "Open")
+        edit_url = self.homework_submission_edit_url(submission)
         self.assertContains(
             response,
-            self.homework_submission_edit_url(submission),
+            edit_url,
         )
 
     def test_cadmin_homework_submissions_shows_course_actions(self):
         """Homework submissions page exposes the same homework actions as course admin."""
         self.login_admin()
 
-        response = self.client.get(self.cadmin_homework_submissions_url())
+        submissions_url = self.cadmin_homework_submissions_url()
+        response = self.client.get(submissions_url)
 
         self.assertEqual(response.status_code, 200)
         self.assert_homework_submission_actions(response)
@@ -107,13 +110,8 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
             action_url, {"next": "https://example.com/"}
         )
 
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
 
     def test_enrollments_search_finds_records_beyond_first_page(self):
         """Enrollment search is server-side, not limited to the visible page."""
@@ -132,11 +130,12 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         self.client.login(
             username="admin@test.com", password="admin123"
         )
+        enrollments_url = reverse(
+            "cadmin_enrollments",
+            kwargs={"course_slug": self.course.slug},
+        )
         response = self.client.get(
-            reverse(
-                "cadmin_enrollments",
-                kwargs={"course_slug": self.course.slug},
-            ),
+            enrollments_url,
             {"q": "student-29"},
         )
 
@@ -153,14 +152,9 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         self.client.login(
             username="admin@test.com", password="admin123"
         )
+        submissions_url = self.cadmin_homework_submissions_url()
         response = self.client.get(
-            reverse(
-                "cadmin_homework_submissions",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                },
-            ),
+            submissions_url,
             {"q": "hw-student-29"},
         )
 
@@ -188,13 +182,8 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         response = self.client.post(url, follow=True)
 
         # Should redirect to course admin page
-        self.assertRedirects(
-            response,
-            reverse(
-                "cadmin_course",
-                kwargs={"course_slug": self.course.slug},
-            ),
-        )
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
 
         # Check that a message was added
         messages = list(response.context["messages"])
@@ -220,14 +209,16 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         self.create_homework_answer_frequency(question, ["2", "2", "1"])
 
         self.login_admin()
+        action_url = self.homework_action_url(
+            "cadmin_homework_set_correct_answers"
+        )
         response = self.client.post(
-            self.homework_action_url(
-                "cadmin_homework_set_correct_answers"
-            ),
+            action_url,
             follow=True,
         )
 
-        self.assertRedirects(response, self.cadmin_course_url())
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
         question.refresh_from_db()
         self.assertEqual(question.correct_answer, "2")
         messages = list(response.context["messages"])
@@ -249,14 +240,16 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         )
 
         self.login_admin()
+        action_url = self.homework_action_url(
+            "cadmin_homework_clear_correct_answers"
+        )
         response = self.client.post(
-            self.homework_action_url(
-                "cadmin_homework_clear_correct_answers"
-            ),
+            action_url,
             follow=True,
         )
 
-        self.assertRedirects(response, self.cadmin_course_url())
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
         first_question.refresh_from_db()
         second_question.refresh_from_db()
         self.assertEqual(first_question.correct_answer, "")
