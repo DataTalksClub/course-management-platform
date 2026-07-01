@@ -176,6 +176,8 @@ testable service functions.
   queuing out of the route module while preserving the notification patch path.
 - [x] Split API leaderboard export queryset, pagination, and serialization
   helpers out of the YAML/cache route module.
+- [x] Split API question serialization and mutation helpers out of the route
+  module.
 
 ## Current Findings
 
