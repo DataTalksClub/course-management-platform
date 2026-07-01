@@ -1343,6 +1343,15 @@ Steps:
   and 30+ line functions, repo-wide active-code scans excluding `.tmp` and
   generated migrations (`forbidden_comprehensions=0`,
   `long_functions=32`), `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten project-assignment unit tests by naming the fixture-plus-action
+  assignment selector and total-count assertion, while removing the one-line
+  reviewer-count assertion helper. Verification:
+  `uv run ruff check courses/tests/test_unit_projects.py`,
+  `uv run python manage.py test courses.tests.test_unit_projects`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, repo-wide active-code scans excluding `.tmp` and generated
+  migrations (`forbidden_comprehensions=0`, `long_functions=31`),
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

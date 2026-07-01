@@ -27,12 +27,31 @@ class ProjectActionsUnitTestCase(TestCase):
             grouped[assignment.reviewer.id].append(assignment)
         return grouped
 
-    def assert_reviewer_assignment_counts(
+    def select_assignments(
         self,
-        assignments_by_reviewer,
         num_submissions,
+        num_projects_to_review,
     ):
-        self.assertEqual(len(assignments_by_reviewer), num_submissions)
+        submissions = self.generate_submissions(num_submissions)
+
+        return select_random_assignment(
+            submissions=submissions,
+            num_projects_to_review=num_projects_to_review,
+            seed=1,
+        )
+
+    def assert_total_assignment_count(
+        self,
+        assignments,
+        num_submissions,
+        num_projects_to_review,
+    ):
+        expected_number_of_assignments = (
+            num_submissions * num_projects_to_review
+        )
+        self.assertEqual(
+            len(assignments), expected_number_of_assignments
+        )
 
     def assert_reviewer_assignments_are_valid(
         self,
@@ -66,26 +85,19 @@ class ProjectActionsUnitTestCase(TestCase):
         num_submissions = 10
         num_projects_to_review = 3
 
-        submissions = self.generate_submissions(num_submissions)
-
-        assignments = select_random_assignment(
-            submissions=submissions,
-            num_projects_to_review=num_projects_to_review,
-            seed=1,
+        assignments = self.select_assignments(
+            num_submissions,
+            num_projects_to_review,
         )
-
-        expected_number_of_assignments = (
-            num_submissions * num_projects_to_review
-        )
-        self.assertEqual(
-            len(assignments), expected_number_of_assignments
+        self.assert_total_assignment_count(
+            assignments,
+            num_submissions,
+            num_projects_to_review,
         )
 
         assignments_by_reviewer = self.assignments_by_reviewer(assignments)
-        self.assert_reviewer_assignment_counts(
-            assignments_by_reviewer,
-            num_submissions,
-        )
+        self.assertEqual(len(assignments_by_reviewer), num_submissions)
+
         submission_counter = self.assert_reviewer_assignments_are_valid(
             assignments_by_reviewer,
             num_projects_to_review,
@@ -99,11 +111,8 @@ class ProjectActionsUnitTestCase(TestCase):
         num_submissions = 3
         num_projects_to_review = 3
 
-        submissions = self.generate_submissions(num_submissions)
-
         with self.assertRaises(ValueError):
-            select_random_assignment(
-                submissions=submissions,
-                num_projects_to_review=num_projects_to_review,
-                seed=1,
+            self.select_assignments(
+                num_submissions,
+                num_projects_to_review,
             )
