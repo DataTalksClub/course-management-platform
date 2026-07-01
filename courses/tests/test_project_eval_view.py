@@ -12,6 +12,42 @@ from courses.tests.project_eval_base import (
 
 
 class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
+    def open_peer_review_without_submission(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        self.submission.delete()
+
+    def create_volunteer_review(self):
+        volunteer_submission = ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/example/volunteer",
+            commit_id="abcdef1",
+            volunteer_review_only=True,
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=self.other_submission,
+            reviewer=volunteer_submission,
+            note_to_peer="",
+            optional=True,
+        )
+
+    def get_authenticated_eval_view(self):
+        self.client.login(**credentials)
+        return self.client.get(self.eval_view_url())
+
+    def assert_optional_reviews_visible_without_submission(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["has_submission"])
+        self.assertContains(response, "Selected reviews")
+        self.assertContains(
+            response,
+            "these reviews are for practice and feedback",
+        )
+        self.assertContains(response, self.other_enrollment.display_name)
+        self.assertNotContains(response, "Review progress")
+
     def test_eval_view_authenticated_no_submission(self):
         self.project.state = ProjectState.PEER_REVIEWING.value
         self.project.save()
@@ -40,41 +76,12 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
         )
 
     def test_eval_view_shows_optional_reviews_without_submission(self):
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-        self.submission.delete()
-        volunteer_submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/example/volunteer",
-            commit_id="abcdef1",
-            volunteer_review_only=True,
-        )
-        PeerReview.objects.create(
-            submission_under_evaluation=self.other_submission,
-            reviewer=volunteer_submission,
-            note_to_peer="",
-            optional=True,
-        )
+        self.open_peer_review_without_submission()
+        self.create_volunteer_review()
 
-        self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "projects_eval",
-                args=[self.course.slug, self.project.slug],
-            )
-        )
+        response = self.get_authenticated_eval_view()
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["has_submission"])
-        self.assertContains(response, "Selected reviews")
-        self.assertContains(
-            response,
-            "these reviews are for practice and feedback",
-        )
-        self.assertContains(response, self.other_enrollment.display_name)
-        self.assertNotContains(response, "Review progress")
+        self.assert_optional_reviews_visible_without_submission(response)
 
     def test_eval_view_authenticated_with_submission(self):
         self.project.state = ProjectState.PEER_REVIEWING.value

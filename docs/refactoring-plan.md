@@ -492,6 +492,11 @@ testable service functions.
   Verification:
   `uv run ruff check courses/tests/test_load_rds_export_script.py` and
   `uv run python manage.py test courses.tests.test_load_rds_export_script`.
+- [x] Shorten the project-evaluation optional-review view test by naming the
+  no-submission setup, volunteer-review fixture, authenticated request, and
+  expected page assertions. Verification:
+  `uv run ruff check courses/tests/test_project_eval_view.py` and
+  `uv run python manage.py test courses.tests.test_project_eval_view`.
 
 ## Current Findings
 
