@@ -30,11 +30,9 @@ def leaderboard_view(request, course_slug: str):
 def leaderboard_score_breakdown_view(
     request, course_slug: str, enrollment_id: int
 ):
-    enrollments = Enrollment.objects.select_related("student", "course")
-    enrollment = get_object_or_404(
-        enrollments,
-        id=enrollment_id,
-        course__slug=course_slug,
+    enrollment = leaderboard_enrollment(
+        course_slug,
+        enrollment_id,
     )
     context = leaderboard_score_breakdown_context(enrollment, request.user)
 
@@ -82,15 +80,23 @@ def leaderboard_complaint_context(enrollment, form):
     return context
 
 
-@login_required
-def leaderboard_complaint_view(
-    request, course_slug: str, enrollment_id: int
-):
+def leaderboard_enrollment(course_slug: str, enrollment_id: int):
     enrollments = Enrollment.objects.select_related("course", "student")
     enrollment = get_object_or_404(
         enrollments,
         id=enrollment_id,
         course__slug=course_slug,
+    )
+    return enrollment
+
+
+@login_required
+def leaderboard_complaint_view(
+    request, course_slug: str, enrollment_id: int
+):
+    enrollment = leaderboard_enrollment(
+        course_slug,
+        enrollment_id,
     )
 
     if request.method == "POST":

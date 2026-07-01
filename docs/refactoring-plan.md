@@ -2595,6 +2595,17 @@ Steps:
   append-construction, tuple-unpacking, and wide-positional-call cleanup gates
   report zero violations with the 30-line production threshold and 60-line test
   threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Share the leaderboard enrollment lookup between score breakdown and
+  complaint views so both detail views use one named domain lookup and the
+  complaint view no longer carries query construction inline. Verification:
+  `uv run ruff check courses/views/course_leaderboard.py courses/tests/test_course_leaderboard_complaints.py courses/tests/test_course_leaderboard_score_breakdown.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course_leaderboard_complaints courses.tests.test_course_leaderboard_score_breakdown`,
+  touched-file scans report `touched_long_functions=0`,
+  `touched_nested_call_args=0`, `touched_dict_call_values=0`, and
+  `touched_wide_positional_calls=0`, comprehension, size-threshold,
+  append-construction, tuple-unpacking, and wide-positional-call cleanup gates
+  report zero violations with the 30-line production threshold and 60-line test
+  threshold, `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
