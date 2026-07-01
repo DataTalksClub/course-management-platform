@@ -1253,6 +1253,14 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten project eval-submit tests by extracting accepting/closed context
+  assertions, closed-form copy checks, and the project-review close operation
+  from the longest GET scenarios. Verification:
+  `uv run ruff check courses/tests/test_project_eval.py`,
+  `uv run python manage.py test courses.tests.test_project_eval`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
