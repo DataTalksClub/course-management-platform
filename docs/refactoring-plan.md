@@ -254,6 +254,8 @@ testable service functions.
   dictionaries that inlined context, metadata, or tag helper calls.
 - [x] Flatten additional cadmin campaign and Datamailer metadata builders that
   inlined URL, timestamp, list, or payload helper calls inside records.
+- [x] Flatten campaign stats, course duplicate-field, and Datamailer send-status
+  record builders and remove a tiny send-status count wrapper.
 
 ## Current Findings
 

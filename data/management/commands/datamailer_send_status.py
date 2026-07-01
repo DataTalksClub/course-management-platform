@@ -113,13 +113,15 @@ def send_audit_aggregate():
     )
 
 
-def send_status_count(status):
-    return DatamailerSendAudit.objects.filter(status=status).count()
-
-
 def send_audit_totals():
     aggregate = send_audit_aggregate()
     total = aggregate["total"] or 0
+    succeeded_count = DatamailerSendAudit.objects.filter(
+        status="succeeded"
+    ).count()
+    failed_count = DatamailerSendAudit.objects.filter(
+        status="failed"
+    ).count()
     intended_count = aggregate["intended_count"] or 0
     enqueued_count = aggregate["enqueued_count"] or 0
     skipped_count = aggregate["skipped_count"] or 0
@@ -127,8 +129,8 @@ def send_audit_totals():
 
     return {
         "total": total,
-        "succeeded": send_status_count("succeeded"),
-        "failed": send_status_count("failed"),
+        "succeeded": succeeded_count,
+        "failed": failed_count,
         "last_send_at": aggregate["last_send_at"],
         "intended_count": intended_count,
         "enqueued_count": enqueued_count,

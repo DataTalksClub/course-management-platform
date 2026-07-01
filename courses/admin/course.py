@@ -104,9 +104,11 @@ def _duplicate_course(course, current_year):
 
 
 def _course_duplicate_fields(course, current_year):
+    title = _year_rollover_value(course.title, current_year, " ")
+    slug = _year_rollover_value(course.slug, current_year, "-")
     return {
-        "title": _year_rollover_value(course.title, current_year, " "),
-        "slug": _year_rollover_value(course.slug, current_year, "-"),
+        "title": title,
+        "slug": slug,
         "description": course.description,
         "start_date": course.start_date,
         "end_date": course.end_date,

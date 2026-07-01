@@ -56,11 +56,15 @@ def apply_registration_exact_filters(queryset, params):
 
 def registration_campaign_stats(campaign):
     stats_base = CourseRegistration.objects.filter(campaign=campaign)
+    total = stats_base.count()
+    by_role = count_by(stats_base, "role")
+    by_country = count_by(stats_base, "country")
+    by_region = count_by(stats_base, "region")
     return {
-        "total": stats_base.count(),
-        "by_role": count_by(stats_base, "role"),
-        "by_country": count_by(stats_base, "country"),
-        "by_region": count_by(stats_base, "region"),
+        "total": total,
+        "by_role": by_role,
+        "by_country": by_country,
+        "by_region": by_region,
     }
 
 
