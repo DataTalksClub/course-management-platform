@@ -147,6 +147,9 @@ testable service functions.
   so list and detail pages share it through a direct owner module.
 - [x] Split course API serialization and mutation workflows out of the public
   course API view module, keeping list/detail handlers as coordinators.
+- [x] Split dashboard metric calculation into common metric, homework,
+  project, and context modules, leaving the dashboard view as the route/render
+  boundary.
 
 ## Current Findings
 

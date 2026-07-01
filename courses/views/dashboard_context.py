@@ -1,0 +1,55 @@
+import statistics
+
+from courses.models.course import Enrollment
+from courses.views.dashboard_homeworks import (
+    dashboard_homework_stats,
+    dashboard_homework_submissions,
+    dashboard_homeworks,
+)
+from courses.views.dashboard_projects import dashboard_project_stats
+
+
+def dashboard_context(course):
+    total_enrollments = Enrollment.objects.filter(course=course).count()
+    homeworks = dashboard_homeworks(course)
+    homework_submissions = dashboard_homework_submissions(course)
+    homework_stats, homework_difficulty_stats = dashboard_homework_stats(
+        homeworks,
+        homework_submissions,
+        total_enrollments,
+    )
+    raw_avg_total_score = dashboard_avg_total_score(course)
+    avg_total_score = round(raw_avg_total_score, 1)
+    graduates_count = dashboard_graduates_count(course)
+    project_stats = dashboard_project_stats(course, total_enrollments)
+
+    return {
+        "course": course,
+        "total_enrollments": total_enrollments,
+        "avg_total_score": avg_total_score,
+        "project_passing_score": course.project_passing_score,
+        "graduates_count": graduates_count,
+        "homework_stats": homework_stats,
+        "homework_difficulty_stats": homework_difficulty_stats,
+        **project_stats,
+    }
+
+
+def dashboard_avg_total_score(course):
+    enrollments_with_scores = Enrollment.objects.filter(
+        course=course, total_score__isnull=False
+    ).values_list("total_score", flat=True)
+    if enrollments_with_scores:
+        return statistics.mean(enrollments_with_scores)
+    return 0
+
+
+def dashboard_graduates_count(course):
+    return (
+        Enrollment.objects
+        .filter(
+            course=course, certificate_url__isnull=False
+        )
+        .exclude(certificate_url="")
+        .count()
+    )
