@@ -26,16 +26,18 @@ class RecipientListMemberPayload:
 
 
 def contact_base_custom_fields(user) -> dict[str, str]:
+    platform_user_id = str(user.pk)
     return {
-        "course_platform_user_id": str(user.pk),
+        "course_platform_user_id": platform_user_id,
         "username": user.username or "",
     }
 
 
 def contact_course_custom_fields(course) -> dict[str, str]:
+    family_slug = course_family_slug(course)
     return {
         "course_slug": course.slug,
-        "course_family_slug": course_family_slug(course),
+        "course_family_slug": family_slug,
         "course_cohort_slug": course.slug,
         "course_title": course.title,
     }
@@ -89,6 +91,10 @@ def recipient_list_member_payload(data) -> dict[str, Any] | None:
     if config is None:
         return None
 
+    email = data.email.strip().lower()
+    source_metadata = {"source_object_key": data.source_object_key}
+    metadata = data.metadata | source_metadata
+
     return {
         "audience": config.audience,
         "client": config.client,
@@ -98,10 +104,9 @@ def recipient_list_member_payload(data) -> dict[str, Any] | None:
             "metadata": data.metadata,
         },
         "member": {
-            "email": data.email.strip().lower(),
+            "email": email,
             "status": "active",
-            "metadata": data.metadata
-            | {"source_object_key": data.source_object_key},
+            "metadata": metadata,
         },
     }
 
