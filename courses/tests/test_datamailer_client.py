@@ -91,7 +91,7 @@ class DatamailerClientEndpointTest(TestCase):
         )
         self.assert_datamailer_request(expectation)
 
-    def contact_method_cases(self):
+    def contact_write_method_cases(self):
         contact_import_payload = {
             "audience": "dtc-courses",
             "client": "dtc-courses",
@@ -117,19 +117,6 @@ class DatamailerClientEndpointTest(TestCase):
                 expected_result={"counts": {"created": 1}},
             ),
             DatamailerMethodCase(
-                method_name="contact_status",
-                args=("student@example.com",),
-                method="GET",
-                path="/api/contacts/status",
-                params={
-                    "email": "student@example.com",
-                    "audience": "dtc-courses",
-                    "client": "dtc-courses",
-                },
-                response_payload={"exists": True},
-                expected_result={"exists": True},
-            ),
-            DatamailerMethodCase(
                 method_name="erase_contact",
                 args=("student@example.com",),
                 method="POST",
@@ -141,6 +128,23 @@ class DatamailerClientEndpointTest(TestCase):
                 },
                 response_payload={"erased": True},
                 expected_result={"erased": True},
+            ),
+        ]
+
+    def contact_read_method_cases(self):
+        return [
+            DatamailerMethodCase(
+                method_name="contact_status",
+                args=("student@example.com",),
+                method="GET",
+                path="/api/contacts/status",
+                params={
+                    "email": "student@example.com",
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                },
+                response_payload={"exists": True},
+                expected_result={"exists": True},
             ),
             DatamailerMethodCase(
                 method_name="contact_history",
@@ -158,11 +162,15 @@ class DatamailerClientEndpointTest(TestCase):
             ),
         ]
 
-    def recipient_list_method_cases(self):
-        import_payload = {
-            "source_url": "https://storage.example.com/import.jsonl",
-            "idempotency_key": "cmp-import-1",
-        }
+    def contact_method_cases(self):
+        cases = []
+        for case in self.contact_write_method_cases():
+            cases.append(case)
+        for case in self.contact_read_method_cases():
+            cases.append(case)
+        return cases
+
+    def recipient_list_member_write_method_cases(self):
         return [
             DatamailerMethodCase(
                 method_name="upsert_recipient_list_member",
@@ -189,6 +197,10 @@ class DatamailerClientEndpointTest(TestCase):
                 response_payload={"ok": True},
                 expected_result={"ok": True},
             ),
+        ]
+
+    def recipient_list_member_read_method_cases(self):
+        return [
             DatamailerMethodCase(
                 method_name="recipient_list_members",
                 args=("ml-zoomcamp-2026:@e",),
@@ -204,6 +216,22 @@ class DatamailerClientEndpointTest(TestCase):
                 response_payload={"members": []},
                 expected_result={"members": []},
             ),
+        ]
+
+    def recipient_list_member_method_cases(self):
+        cases = []
+        for case in self.recipient_list_member_write_method_cases():
+            cases.append(case)
+        for case in self.recipient_list_member_read_method_cases():
+            cases.append(case)
+        return cases
+
+    def recipient_list_import_method_cases(self):
+        import_payload = {
+            "source_url": "https://storage.example.com/import.jsonl",
+            "idempotency_key": "cmp-import-1",
+        }
+        return [
             DatamailerMethodCase(
                 method_name="create_recipient_list_import",
                 args=("ml-zoomcamp-2026:@e", import_payload),
@@ -229,11 +257,15 @@ class DatamailerClientEndpointTest(TestCase):
             ),
         ]
 
-    def transactional_method_cases(self):
-        transient_payload = {
-            "template_key": "deadline-reminder",
-            "members": [{"email": "learner@example.com"}],
-        }
+    def recipient_list_method_cases(self):
+        cases = []
+        for case in self.recipient_list_member_method_cases():
+            cases.append(case)
+        for case in self.recipient_list_import_method_cases():
+            cases.append(case)
+        return cases
+
+    def transactional_status_method_cases(self):
         return [
             DatamailerMethodCase(
                 method_name="transactional_message_status",
@@ -243,6 +275,14 @@ class DatamailerClientEndpointTest(TestCase):
                 response_payload={"message": {"id": 42}},
                 expected_result={"message": {"id": 42}},
             ),
+        ]
+
+    def transactional_send_method_cases(self):
+        transient_payload = {
+            "template_key": "deadline-reminder",
+            "members": [{"email": "learner@example.com"}],
+        }
+        return [
             DatamailerMethodCase(
                 method_name="send_recipient_list_transactional",
                 args=(
@@ -270,7 +310,15 @@ class DatamailerClientEndpointTest(TestCase):
             ),
         ]
 
-    def campaign_method_cases(self):
+    def transactional_method_cases(self):
+        cases = []
+        for case in self.transactional_status_method_cases():
+            cases.append(case)
+        for case in self.transactional_send_method_cases():
+            cases.append(case)
+        return cases
+
+    def campaign_read_method_cases(self):
         return [
             DatamailerMethodCase(
                 method_name="campaign",
@@ -285,6 +333,22 @@ class DatamailerClientEndpointTest(TestCase):
                     "campaign": {"external_key": "course-start-2026"}
                 },
             ),
+            DatamailerMethodCase(
+                method_name="preview_campaign",
+                args=("course-start-2026",),
+                method="POST",
+                path="/api/campaigns/course-start-2026/preview",
+                json_payload={
+                    "audience": "dtc-courses",
+                    "client": "dtc-courses",
+                },
+                response_payload={"ok": True},
+                expected_result={"ok": True},
+            ),
+        ]
+
+    def campaign_control_method_cases(self):
+        return [
             DatamailerMethodCase(
                 method_name="queue_campaign",
                 args=("course-start-2026",),
@@ -309,18 +373,10 @@ class DatamailerClientEndpointTest(TestCase):
                 response_payload={"ok": True},
                 expected_result={"ok": True},
             ),
-            DatamailerMethodCase(
-                method_name="preview_campaign",
-                args=("course-start-2026",),
-                method="POST",
-                path="/api/campaigns/course-start-2026/preview",
-                json_payload={
-                    "audience": "dtc-courses",
-                    "client": "dtc-courses",
-                },
-                response_payload={"ok": True},
-                expected_result={"ok": True},
-            ),
+        ]
+
+    def campaign_send_method_cases(self):
+        return [
             DatamailerMethodCase(
                 method_name="test_send_campaign",
                 args=("course-start-2026", ["test@example.com"]),
@@ -335,6 +391,16 @@ class DatamailerClientEndpointTest(TestCase):
                 expected_result={"ok": True},
             ),
         ]
+
+    def campaign_method_cases(self):
+        cases = []
+        for case in self.campaign_read_method_cases():
+            cases.append(case)
+        for case in self.campaign_control_method_cases():
+            cases.append(case)
+        for case in self.campaign_send_method_cases():
+            cases.append(case)
+        return cases
 
     def datamailer_method_cases(self):
         cases = []

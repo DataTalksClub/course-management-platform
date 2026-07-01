@@ -212,6 +212,8 @@ testable service functions.
   out of the assignment URL record builder.
 - [x] Split Datamailer registration confirmation course context fields out of
   the confirmation context record builder.
+- [x] Split long Datamailer client endpoint test case lists into endpoint-area
+  groups with explicit aggregators.
 
 ## Current Findings
 
