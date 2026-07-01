@@ -5,6 +5,17 @@ from courses.models.course import Course, Enrollment
 from courses.models.project import PeerReview, Project, ProjectSubmission
 
 
+def volunteer_review_submission_defaults():
+    github_link = (
+        "https://github.com/DataTalksClub/course-management-platform"
+    )
+    defaults = {
+        "github_link": github_link,
+        "commit_id": "volunteer",
+    }
+    return defaults
+
+
 def _project_eval_student_submission(course, project, user):
     student_submission = ProjectSubmission.objects.filter(
         project=project,
@@ -19,18 +30,13 @@ def _project_eval_student_submission(course, project, user):
         student=user,
         course=course,
     )
+    defaults = volunteer_review_submission_defaults()
+    defaults["enrollment"] = enrollment
     student_submission, _ = ProjectSubmission.objects.get_or_create(
         project=project,
         student=user,
         volunteer_review_only=True,
-        defaults={
-            "enrollment": enrollment,
-            "github_link": (
-                "https://github.com/DataTalksClub/"
-                "course-management-platform"
-            ),
-            "commit_id": "volunteer",
-        },
+        defaults=defaults,
     )
     return student_submission
 
