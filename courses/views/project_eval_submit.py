@@ -103,20 +103,33 @@ def project_eval_submit_page(
     )
 
 
+def project_eval_unauthorized_response(
+    request,
+    course_slug,
+    project_slug,
+):
+    messages.error(
+        request,
+        "You are not allowed to evaluate this submission, choose a different one.",
+        extra_tags="homework",
+    )
+    response = redirect(
+        "projects_eval",
+        course_slug=course_slug,
+        project_slug=project_slug,
+    )
+    return response
+
+
 @login_required
 def projects_eval_submit(request, course_slug, project_slug, review_id):
     review = get_object_or_404(PeerReview, id=review_id)
 
     if review.reviewer.student != request.user:
-        messages.error(
+        response = project_eval_unauthorized_response(
             request,
-            "You are not allowed to evaluate this submission, choose a different one.",
-            extra_tags="homework",
-        )
-        response = redirect(
-            "projects_eval",
-            course_slug=course_slug,
-            project_slug=project_slug,
+            course_slug,
+            project_slug,
         )
         return response
 

@@ -190,6 +190,8 @@ testable service functions.
   coordinator.
 - [x] Split homework statistics scored/unscored response paths out of the
   public statistics view coordinator.
+- [x] Split unauthorized peer-review submit response out of the public
+  evaluation submit view coordinator.
 
 ## Current Findings
 
