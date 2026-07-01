@@ -1,10 +1,6 @@
-from dataclasses import dataclass
-from datetime import date
-
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.text import slugify
 
 from accounts.auth import token_required
 from courses.models import Course, Project, PeerReview
@@ -21,7 +17,6 @@ from api.crud import (
     DeleteResponseConfig,
     DetailResponseConfig,
     PatchResponseConfig,
-    bulk_create_response,
     detail_response,
     get_course_child_or_404,
 )
@@ -37,62 +32,11 @@ from api.utils import (
     parse_json_body,
     require_methods,
 )
-
-
-@dataclass(frozen=True)
-class ProjectCreateRequiredValues:
-    name: str
-    submission_due_str: str
-    peer_review_due_str: str
-
-
-@dataclass(frozen=True)
-class ProjectCreateValues:
-    name: str
-    instructions_url: str | None
-    submission_due_date: date
-    peer_review_due_date: date
-
-
-@dataclass(frozen=True)
-class ProjectDueDates:
-    submission_due_date: date
-    peer_review_due_date: date
-
-
-def _project_delete_blockers(proj):
-    blockers = []
-    submissions_count = proj.projectsubmission_set.count()
-    if proj.state != ProjectState.CLOSED.value:
-        blockers.append("not_closed")
-    if submissions_count > 0:
-        blockers.append("has_submissions")
-    return blockers
-
-
-def _project_to_dict(proj):
-    submissions_count = proj.projectsubmission_set.count()
-    delete_blockers = _project_delete_blockers(proj)
-    return {
-        "id": proj.id,
-        "slug": proj.slug,
-        "title": proj.title,
-        "description": proj.description,
-        "instructions_url": proj.instructions_url,
-        "submission_due_date": proj.submission_due_date.isoformat(),
-        "peer_review_due_date": proj.peer_review_due_date.isoformat(),
-        "state": proj.state,
-        "learning_in_public_cap_project": proj.learning_in_public_cap_project,
-        "learning_in_public_cap_review": proj.learning_in_public_cap_review,
-        "number_of_peers_to_evaluate": proj.number_of_peers_to_evaluate,
-        "points_for_peer_review": proj.points_for_peer_review,
-        "time_spent_project_field": proj.time_spent_project_field,
-        "problems_comments_field": proj.problems_comments_field,
-        "faq_contribution_field": proj.faq_contribution_field,
-        "submissions_count": submissions_count,
-        "can_delete": not delete_blockers,
-        "delete_blockers": delete_blockers,
-    }
+from api.views.project_create import (
+    projects_create_response,
+    projects_list_response,
+)
+from api.views.project_serializers import project_to_dict
 
 
 def _project_action_base(project, status, message):
@@ -172,179 +116,6 @@ def _project_score_response(project):
     return response
 
 
-def _project_create_required_values(proj_data):
-    name = proj_data.get("name")
-    submission_due_str = proj_data.get("submission_due_date")
-    peer_review_due_str = proj_data.get("peer_review_due_date")
-    if not name or not submission_due_str or not peer_review_due_str:
-        return (
-            None,
-            "name, submission_due_date, and peer_review_due_date are required",
-        )
-
-    values = ProjectCreateRequiredValues(
-        name=name,
-        submission_due_str=submission_due_str,
-        peer_review_due_str=peer_review_due_str,
-    )
-    return values, None
-
-
-def _project_instructions_url_error(proj_data):
-    instructions_url = proj_data.get("instructions_url")
-    if instructions_url:
-        return instructions_url_error(instructions_url)
-    return None
-
-
-def _project_create_instructions_url(proj_data):
-    instructions_url = proj_data.get("instructions_url")
-    error = _project_instructions_url_error(proj_data)
-    if error:
-        return None, error
-
-    return instructions_url, None
-
-
-def _parse_project_due_dates(submission_due_str, peer_review_due_str):
-    submission_due_date = parse_date(submission_due_str)
-    if submission_due_date is None:
-        return None, f"Invalid date format: {submission_due_str}"
-
-    peer_review_due_date = parse_date(peer_review_due_str)
-    if peer_review_due_date is None:
-        return None, f"Invalid date format: {peer_review_due_str}"
-
-    due_dates = ProjectDueDates(
-        submission_due_date=submission_due_date,
-        peer_review_due_date=peer_review_due_date,
-    )
-    return due_dates, None
-
-
-def _project_slug(proj_data, name):
-    slug = proj_data.get("slug")
-    if slug:
-        return slug
-    generated_slug = slugify(name)
-    return generated_slug
-
-
-def _project_duplicate_error(course, slug):
-    if Project.objects.filter(course=course, slug=slug).exists():
-        return f"Project with slug '{slug}' already exists"
-    return None
-
-
-def _project_create_slug(course, proj_data, name):
-    slug = _project_slug(proj_data, name)
-    error = _project_duplicate_error(course, slug)
-    if error:
-        return None, error
-
-    return slug, None
-
-
-def _project_create_attrs(course, proj_data):
-    required_values, error = _project_create_required_values(proj_data)
-    if error:
-        return None, error
-
-    instructions_url, error = _project_create_instructions_url(proj_data)
-    if error:
-        return None, error
-
-    due_dates, error = _parse_project_due_dates(
-        required_values.submission_due_str,
-        required_values.peer_review_due_str,
-    )
-    if error:
-        return None, error
-
-    values = ProjectCreateValues(
-        name=required_values.name,
-        instructions_url=instructions_url,
-        submission_due_date=due_dates.submission_due_date,
-        peer_review_due_date=due_dates.peer_review_due_date,
-    )
-    return _project_create_attrs_from_values(
-        course,
-        proj_data,
-        values,
-    )
-
-
-def _project_create_attrs_from_values(
-    course,
-    proj_data,
-    values,
-):
-    slug, error = _project_create_slug(course, proj_data, values.name)
-    if error:
-        return None, error
-
-    attrs = _project_create_defaults(proj_data, values)
-    attrs["slug"] = slug
-    return attrs, None
-
-
-def _project_create_defaults(
-    proj_data,
-    values,
-):
-    return {
-        "title": values.name,
-        "description": proj_data.get("description", ""),
-        "instructions_url": values.instructions_url,
-        "submission_due_date": values.submission_due_date,
-        "peer_review_due_date": values.peer_review_due_date,
-        "state": ProjectState.CLOSED.value,
-    }
-
-
-def _create_project(course, proj_data):
-    """Create a single project. Returns (dict, None) or (None, error_str)."""
-    attrs, error = _project_create_attrs(course, proj_data)
-    if error:
-        return None, error
-
-    project = Project.objects.create(
-        course=course,
-        **attrs,
-    )
-
-    return _project_to_dict(project), None
-
-
-def _projects_list_response(course):
-    projects = Project.objects.filter(course=course).order_by("id")
-    project_records = []
-    for project in projects:
-        project_record = _project_to_dict(project)
-        project_records.append(project_record)
-
-    payload = {
-        "projects": project_records,
-    }
-    response = JsonResponse(payload)
-    return response
-
-
-def _projects_create_response(request, course):
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
-
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    return bulk_create_response(
-        data,
-        lambda item: _create_project(course, item),
-    )
-
-
 @token_required
 @csrf_exempt
 @require_methods("GET", "POST")
@@ -356,9 +127,9 @@ def projects_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     if request.method == "GET":
-        return _projects_list_response(course)
+        return projects_list_response(course)
 
-    return _projects_create_response(request, course)
+    return projects_create_response(request, course)
 
 
 PROJECT_PATCH_FIELDS = {
@@ -553,7 +324,7 @@ def _save_project_upsert(project, data, created):
         return error
 
     project.save()
-    project_data = _project_to_dict(project)
+    project_data = project_to_dict(project)
     if created:
         response_status = 201
     else:
@@ -586,7 +357,7 @@ def _upsert_project_by_slug(request, course_slug, project_slug):
 def _project_detail_config(project):
     return DetailResponseConfig(
         patch=PatchResponseConfig(
-            to_dict=_project_to_dict,
+            to_dict=project_to_dict,
             rules=PROJECT_PATCH_RULES,
         ),
         delete=DeleteResponseConfig(
