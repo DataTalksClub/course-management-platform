@@ -26,6 +26,14 @@ class ProjectCreateDates:
     peer_review_due_date: datetime
 
 
+@dataclass(frozen=True)
+class ProjectCreateValues:
+    input_data: ProjectCreateInput
+    instructions_url: str | None
+    dates: ProjectCreateDates
+    slug: str
+
+
 def project_create_instructions_url(project_data):
     instructions_url = project_data.get("instructions_url")
     if not instructions_url:
@@ -101,6 +109,15 @@ def project_create_dates(input_data):
 
 
 def project_create_attrs(course, project_data):
+    values, error = project_create_values(course, project_data)
+    if error:
+        return None, error
+
+    attrs = project_model_attrs(project_data, values)
+    return attrs, None
+
+
+def project_create_values(course, project_data):
     input_data, error = project_create_input(project_data)
     if error:
         return None, error
@@ -117,17 +134,27 @@ def project_create_attrs(course, project_data):
     if error:
         return None, error
 
+    values = ProjectCreateValues(
+        input_data=input_data,
+        instructions_url=instructions_url,
+        dates=dates,
+        slug=slug,
+    )
+    return values, None
+
+
+def project_model_attrs(project_data, values):
     description = project_data.get("description", "")
     attrs = {
-        "title": input_data.name,
+        "title": values.input_data.name,
         "description": description,
-        "instructions_url": instructions_url,
-        "submission_due_date": dates.submission_due_date,
-        "peer_review_due_date": dates.peer_review_due_date,
+        "instructions_url": values.instructions_url,
+        "submission_due_date": values.dates.submission_due_date,
+        "peer_review_due_date": values.dates.peer_review_due_date,
         "state": ProjectState.CLOSED.value,
-        "slug": slug,
+        "slug": values.slug,
     }
-    return attrs, None
+    return attrs
 
 
 def create_project(course, project_data):
