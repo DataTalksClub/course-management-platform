@@ -194,6 +194,7 @@ class DatamailerPeerReviewTest(TestCase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
+        DATAMAILER_FROM_EMAIL="courses",
     )
     def test_peer_review_assignment_payload_includes_links_and_deadline(self):
         project = self.create_peer_review_assignment_fixture()
@@ -203,6 +204,7 @@ class DatamailerPeerReviewTest(TestCase):
 
         expected_list_key = project_submitters_list_key(project)
         self.assertEqual(list_key, expected_list_key)
+        self.assertEqual(payload["from_email"], "courses")
         self.assert_peer_review_assignment_payload(payload, project)
         self.assert_berlin_reviewer_assignments(payload)
 

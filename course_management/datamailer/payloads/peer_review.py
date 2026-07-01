@@ -10,6 +10,7 @@ from ..keys import project_submitters_list_key
 from .peer_review_members import (
     peer_review_assignment_notification_members,
 )
+from .score_notifications import add_from_email_if_configured
 
 
 def public_route_url(route_name, route_kwargs=None):
@@ -148,6 +149,5 @@ def peer_review_assignment_notification_payload(
         "members": members,
         "metadata": metadata,
     }
-    if config.from_email:
-        payload["from_email"] = config.from_email
-    return list_key, payload
+    payload_with_from = add_from_email_if_configured(payload, config)
+    return list_key, payload_with_from
