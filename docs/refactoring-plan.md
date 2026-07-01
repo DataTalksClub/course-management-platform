@@ -154,6 +154,8 @@ testable service functions.
   out of the route-level submit view.
 - [x] Split cached course leaderboard data and score-breakdown query helpers
   out of the leaderboard view module.
+- [x] Split registration campaign API serialization, mutation, and
+  registration-list helpers out of the public API view module.
 
 ## Current Findings
 
