@@ -196,6 +196,8 @@ testable service functions.
   coordinator.
 - [x] Split leaderboard complaint form context construction out of the public
   complaint view coordinator.
+- [x] Split optional peer-review creation and self-review guard out of the
+  public project-evaluation add route.
 
 ## Current Findings
 

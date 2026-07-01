@@ -159,27 +159,20 @@ def _create_optional_peer_review(
     )
 
 
-@login_required
-def projects_eval_add(
-    request, course_slug, project_slug, submission_id
+def _create_optional_peer_review_if_allowed(
+    course,
+    project,
+    user,
+    submission_id,
 ):
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
-    )
-    project_list_response = redirect(
-        "project_list",
-        course_slug=course.slug,
-        project_slug=project.slug,
-    )
     student_submission = _project_eval_student_submission(
         course,
         project,
-        request.user,
+        user,
     )
 
     if student_submission.id == submission_id:
-        return project_list_response
+        return
 
     submission_under_evaluation = _submission_under_project_evaluation(
         project,
@@ -190,7 +183,28 @@ def projects_eval_add(
         submission_under_evaluation,
     )
 
-    return project_list_response
+
+@login_required
+def projects_eval_add(
+    request, course_slug, project_slug, submission_id
+):
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    _create_optional_peer_review_if_allowed(
+        course,
+        project,
+        request.user,
+        submission_id,
+    )
+
+    response = redirect(
+        "project_list",
+        course_slug=course.slug,
+        project_slug=project.slug,
+    )
+    return response
 
 
 @login_required
