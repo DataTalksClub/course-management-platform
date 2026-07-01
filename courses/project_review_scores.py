@@ -64,8 +64,7 @@ def calculate_project_score(
 def responses_grouped_by_criteria(reviews: list[PeerReview]):
     responses_by_criteria = defaultdict(list)
     for review in reviews:
-        responses = review.responses
-        for response in responses:
+        for response in review.responses:
             responses_by_criteria[response.criteria_id].append(response)
     return responses_by_criteria
 
