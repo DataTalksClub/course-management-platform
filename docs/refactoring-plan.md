@@ -1907,6 +1907,13 @@ Steps:
   `uv run python manage.py test courses.tests.test_project_statistics`,
   touched-file nested-call scans report `touched_file_nested_calls=0`,
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Name Datamailer recipient-list keys, command output values, import
+  object prefix checks, and import success messages before expectations or
+  assertions. Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_lists.py courses/tests/datamailer_recipient_lists_base.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`,
+  touched-file nested-call scans report `touched_file_nested_calls=0`,
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

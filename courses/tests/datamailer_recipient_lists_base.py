@@ -154,8 +154,9 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         }
 
     def assert_prepared_one_member(self, out):
+        output = out.getvalue()
         self.assertIn(
-            "Prepared 1 recipient list(s), 1 member(s).", out.getvalue()
+            "Prepared 1 recipient list(s), 1 member(s).", output
         )
 
     def assert_bulk_upsert_member(self, expectation):
@@ -192,11 +193,10 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         s3.put_object.assert_called_once()
         put_kwargs = s3.put_object.call_args.kwargs
         self.assertEqual(put_kwargs["Bucket"], "cmp-imports")
-        self.assertTrue(
-            put_kwargs["Key"].startswith(
-                "datamailer-test/dtc-courses/dtc-courses/registrations/"
-            )
+        key_has_expected_prefix = put_kwargs["Key"].startswith(
+            "datamailer-test/dtc-courses/dtc-courses/registrations/"
         )
+        self.assertTrue(key_has_expected_prefix)
         self.assertEqual(
             put_kwargs["ContentType"],
             "application/x-ndjson",
@@ -227,9 +227,10 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         from course_management.datamailer.keys import registration_list_key
 
         create_import.assert_called_once()
+        expected_list_key = registration_list_key(registration)
         self.assertEqual(
             create_import.call_args.args[0],
-            registration_list_key(registration),
+            expected_list_key,
         )
         payload = create_import.call_args.args[1]
         self.assertEqual(
@@ -238,11 +239,10 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         )
         self.assertEqual(payload["list"]["type"], "registrants")
         self.assertFalse(payload["remove_absent"])
-        self.assertTrue(
-            payload["idempotency_key"].startswith(
-                "cmp-recipient-list-import:registrations:"
-            )
+        has_expected_idempotency_prefix = payload["idempotency_key"].startswith(
+            "cmp-recipient-list-import:registrations:"
         )
+        self.assertTrue(has_expected_idempotency_prefix)
         self.assertNotIn("members", payload)
 
     def configure_successful_import_polling(
@@ -268,13 +268,18 @@ class DatamailerRecipientListCommandTestBase(TestCase):
 
     def assert_import_waited_for_success(self, expectation):
         self.assertEqual(expectation.recipient_list_import.call_count, 2)
+        list_key = course_enrolled_list_key(expectation.course)
         expectation.recipient_list_import.assert_called_with(
-            course_enrolled_list_key(expectation.course),
+            list_key,
             expectation.job_id,
         )
-        self.assertIn(
+        output = expectation.out.getvalue()
+        success_message = (
             f"Import job succeeded for "
-            f"{course_enrolled_list_key(expectation.course)}: "
-            f"job_id={expectation.job_id}",
-            expectation.out.getvalue(),
+            f"{list_key}: "
+            f"job_id={expectation.job_id}"
+        )
+        self.assertIn(
+            success_message,
+            output,
         )

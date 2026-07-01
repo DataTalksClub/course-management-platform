@@ -50,9 +50,10 @@ class DatamailerRecipientListCommandTest(
             course.slug,
         )
 
+        list_key = registration_list_key(registration)
         expectation = BulkUpsertMemberExpectation(
             bulk_upsert=bulk_upsert,
-            list_key=registration_list_key(registration),
+            list_key=list_key,
             source_object_key=f"registration:{registration.pk}",
             list_type="registrants",
         )
@@ -77,9 +78,10 @@ class DatamailerRecipientListCommandTest(
             course.slug,
         )
 
+        list_key = course_enrolled_list_key(course)
         expectation = BulkUpsertMemberExpectation(
             bulk_upsert=bulk_upsert,
-            list_key=course_enrolled_list_key(course),
+            list_key=list_key,
             source_object_key=f"user:{enrollment.student_id}",
             list_type="custom",
         )
@@ -131,7 +133,8 @@ class DatamailerRecipientListCommandTest(
     ):
         reconcile.assert_called_once()
         list_key = reconcile.call_args.args[0]
-        self.assertEqual(list_key, project_passed_list_key(project))
+        expected_list_key = project_passed_list_key(project)
+        self.assertEqual(list_key, expected_list_key)
 
         payload = reconcile.call_args.args[1]
         self.assertEqual(
@@ -165,9 +168,10 @@ class DatamailerRecipientListCommandTest(
             course.slug,
         )
 
+        list_key = course_graduates_list_key(course)
         expectation = BulkUpsertMemberExpectation(
             bulk_upsert=bulk_upsert,
-            list_key=course_graduates_list_key(course),
+            list_key=list_key,
             source_object_key=f"enrollment:{enrollment.pk}",
             outcome="course_graduated",
         )
@@ -190,9 +194,10 @@ class DatamailerRecipientListCommandTest(
         )
 
         bulk_upsert.assert_not_called()
+        output = out.getvalue()
         self.assertIn(
             "ml-zoomcamp-2026: 1 member(s)",
-            out.getvalue(),
+            output,
         )
 
     def create_dry_run_registration(self):
