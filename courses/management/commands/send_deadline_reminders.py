@@ -7,7 +7,7 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.audit import (
     DatamailerSendAuditData,
     record_datamailer_send_audit,
 )

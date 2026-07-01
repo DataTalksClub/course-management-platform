@@ -14,7 +14,7 @@ from course_management.datamailer.keys import project_submitters_list_key
 from course_management.datamailer.payloads import (
     peer_review_assignment_notification_payload,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.notifications import (
     send_peer_review_assignment_notification,
 )
 from courses.models import (

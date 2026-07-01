@@ -9,7 +9,7 @@ from course_management.datamailer.preferences import (
     get_email_preferences_for_user,
     update_email_preferences_for_user,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.status import (
     get_contact_history,
     get_contact_status,
     get_email_status,

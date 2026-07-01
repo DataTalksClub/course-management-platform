@@ -17,8 +17,10 @@ from data.models import (
     DatamailerSendAuditStatus,
     DatamailerSendAuditType,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.contacts import (
     erase_contact_from_datamailer,
+)
+from course_management.datamailer.sync.memberships import (
     sync_enrollment_to_datamailer,
 )
 from course_management.datamailer_outbox_dispatch import status_for_error

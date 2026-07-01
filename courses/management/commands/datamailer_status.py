@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from course_management.datamailer.client import (
     datamailer_enabled,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.status import (
     get_email_status,
     get_transactional_message_status,
 )

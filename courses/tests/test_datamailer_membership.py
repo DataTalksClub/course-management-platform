@@ -14,7 +14,7 @@ from course_management.datamailer.keys import (
 from course_management.datamailer.payloads import (
     enrollment_recipient_list_payload,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.memberships import (
     remove_enrollment_from_datamailer,
     remove_homework_submission_from_datamailer,
     remove_project_submission_from_datamailer,

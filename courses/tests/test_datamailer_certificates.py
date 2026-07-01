@@ -8,7 +8,7 @@ from course_management.datamailer.payloads import (
     certificate_availability_notification_payload,
     course_graduate_recipient_list_payload,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.certificates import (
     send_certificate_availability_notification,
 )
 from courses.models import Course, Enrollment

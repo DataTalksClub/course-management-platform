@@ -228,6 +228,8 @@ testable service functions.
   callbacks with named predicates, shared filters, and helper functions.
 - [x] Replace remaining signal, submission, registration, and defaultdict
   lambdas with explicit callbacks and named/default factories.
+- [x] Move Datamailer sync callers to direct owner-module imports and remove
+  the sync package re-export shim.
 
 ## Current Findings
 

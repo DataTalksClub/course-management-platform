@@ -16,9 +16,11 @@ from course_management.datamailer.payloads import (
     contact_payload_for_user,
     datamailer_send_counts,
 )
-from course_management.datamailer.sync import (
-    send_transactional_email,
+from course_management.datamailer.sync.contacts import (
     sync_contact,
+)
+from course_management.datamailer.sync.transactional import (
+    send_transactional_email,
 )
 from courses.models import Course
 

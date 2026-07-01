@@ -4,7 +4,9 @@ from django.http import HttpRequest
 from django.urls import reverse
 
 from course_management import email_templates
-from course_management.datamailer.sync import send_transactional_email
+from course_management.datamailer.sync.transactional import (
+    send_transactional_email,
+)
 from courses.models import Course, Project, ProjectSubmission, User
 from courses.views.project_confirmation_context import (
     ProjectConfirmationData,

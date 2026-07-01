@@ -13,10 +13,12 @@ from course_management.datamailer.keys import registration_list_key
 from course_management.datamailer.payloads import (
     registration_confirmation_payload,
 )
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.memberships import (
     remove_registration_from_datamailer,
-    send_registration_confirmation_email,
     sync_registration_to_datamailer,
+)
+from course_management.datamailer.sync.notifications import (
+    send_registration_confirmation_email,
 )
 from courses.models import Course, CourseRegistration, RegistrationCampaign
 

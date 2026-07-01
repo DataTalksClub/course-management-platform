@@ -6,9 +6,11 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from course_management.datamailer.sync import (
-    send_registration_confirmation_email,
+from course_management.datamailer.sync.memberships import (
     sync_registration_to_datamailer,
+)
+from course_management.datamailer.sync.notifications import (
+    send_registration_confirmation_email,
 )
 from courses.models import (
     CourseRegistration,

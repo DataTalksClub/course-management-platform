@@ -6,7 +6,7 @@ from time import time
 from django.db import transaction
 from django.utils import timezone
 
-from course_management.datamailer.sync import (
+from course_management.datamailer.sync.memberships import (
     sync_project_passed_outcome_to_datamailer,
     sync_project_submission_to_datamailer,
 )
