@@ -101,6 +101,8 @@ testable service functions.
   member, query, and event modules.
 - [x] Split API homework list/create serialization helpers out of the oversized
   homework API view module.
+- [x] Split API homework upsert validation and save flow out of the public
+  homework API view module.
 
 ## Current Findings
 
