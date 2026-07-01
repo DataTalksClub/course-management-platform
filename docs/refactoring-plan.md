@@ -2379,6 +2379,16 @@ Steps:
   wide-positional-call cleanup gates report zero violations with the 30-line
   production threshold and 60-line test threshold, `uvx pyrefly check`, and
   `git diff --check`.
+- [x] Split multiple-choice homework answer formatting into scored-index
+  selection and option-list construction helpers so the public formatter reads
+  as selected-options, possible answers, correct indices, rendered options, and
+  missing-answer annotation. Verification:
+  `uv run ruff check courses/views/homework_answers.py courses/tests/test_homework_scoring_view.py courses/tests/test_homework_scoring_view_warnings.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_scoring_view courses.tests.test_homework_scoring_view_warnings`,
+  comprehension, size-threshold, append-construction, tuple-unpacking, and
+  wide-positional-call cleanup gates report zero violations with the 30-line
+  production threshold and 60-line test threshold, `uvx pyrefly check`, and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

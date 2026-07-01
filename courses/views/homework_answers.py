@@ -85,12 +85,33 @@ def process_question_options_multiple_choice_or_checkboxes(
 ):
     selected_options = extract_selected_options(answer)
     possible_answers = question.get_possible_answers()
-    correct_indices = (
-        question.get_correct_answer_indices()
-        if homework.is_scored()
-        else []
+    correct_indices = choice_correct_indices(homework, question)
+    options = processed_choice_options(
+        homework,
+        possible_answers,
+        selected_options,
+        correct_indices,
     )
 
+    result = {"options": options}
+    if no_choice_answer_submitted(homework, selected_options):
+        result["no_answer_submitted"] = True
+
+    return result
+
+
+def choice_correct_indices(homework: Homework, question: Question):
+    if not homework.is_scored():
+        return []
+    return question.get_correct_answer_indices()
+
+
+def processed_choice_options(
+    homework: Homework,
+    possible_answers,
+    selected_options,
+    correct_indices,
+):
     options = []
     for index, option in enumerate(possible_answers, start=1):
         option_data = ChoiceOptionData(
@@ -102,12 +123,7 @@ def process_question_options_multiple_choice_or_checkboxes(
         )
         processed_option = process_choice_option(option_data)
         options.append(processed_option)
-
-    result = {"options": options}
-    if no_choice_answer_submitted(homework, selected_options):
-        result["no_answer_submitted"] = True
-
-    return result
+    return options
 
 
 def process_choice_option(data: ChoiceOptionData):
