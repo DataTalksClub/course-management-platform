@@ -140,6 +140,9 @@ testable service functions.
   certificate-update view modules without a compatibility re-export.
 - [x] Split the public project detail view into route handling, page-context,
   and submission-edit modules so the view module only coordinates responses.
+- [x] Split homework upsert API internals into shared rules, validation,
+  question replacement, and persistence modules while keeping the public
+  upsert view module as the coordinator.
 
 ## Current Findings
 
