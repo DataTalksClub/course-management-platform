@@ -609,6 +609,11 @@ testable service functions.
   `uv run ruff check courses/tests/test_homework_submissions.py` and
   `uv run python manage.py test courses.tests.test_homework_submissions`;
   touched-file nested-call scans report `touched_file_nested_calls=0`.
+- [x] Name create-superuser script project-root and email queryset values before
+  path insertion or list conversion. Verification:
+  `uv run ruff check scripts/create_superuser.py`,
+  `uv run python scripts/create_superuser.py --help`, and touched-file
+  nested-call scans report `touched_file_nested_calls=0`.
 
 ## Current Findings
 

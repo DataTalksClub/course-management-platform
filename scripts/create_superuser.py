@@ -11,11 +11,13 @@ import os
 import secrets
 import string
 import sys
+from pathlib import Path
 
 import django
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
 django.setup()
@@ -102,7 +104,8 @@ def find_or_create_user(email, user_id=None):
     if user_id is not None:
         return User.objects.get(pk=user_id), False
 
-    matches = list(User.objects.filter(email=email))
+    user_queryset = User.objects.filter(email=email)
+    matches = list(user_queryset)
     if len(matches) > 1:
         return selected_duplicate_user(email, matches), False
     if len(matches) == 1:
