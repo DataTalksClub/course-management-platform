@@ -1404,6 +1404,15 @@ Steps:
   functions, repo-wide active-code scans excluding `.tmp` and generated
   migrations (`forbidden_comprehensions=0`, `long_functions=24`),
   `uvx pyrefly check`, and `git diff --check`.
+- [x] Shorten homework submissions view tests by naming hidden-answer fixture
+  setup, the authenticated submissions request, and compact-list content
+  assertions. Verification:
+  `uv run ruff check courses/tests/test_homework_submissions.py`,
+  `uv run python manage.py test courses.tests.test_homework_submissions`,
+  touched-file style scans for comprehensions/generators and 30+ line
+  functions, repo-wide active-code scans excluding `.tmp` and generated
+  migrations (`forbidden_comprehensions=0`, `long_functions=23`),
+  `uvx pyrefly check`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

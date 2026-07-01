@@ -178,6 +178,36 @@ class HomeworkSubmissionsViewTests(TestCase):
         self.assertEqual(item["submission"], self.submission)
         self.assertNotIn("answers", item)
 
+    def create_hidden_answer_questions(self):
+        arithmetic_question = AnsweredFreeFormQuestionData(
+            text="What is 2+2?",
+            answer_type=AnswerTypes.INTEGER.value,
+            correct_answer="4",
+            answer_text="4",
+        )
+        self.create_answered_free_form_question(arithmetic_question)
+        capital_question = AnsweredFreeFormQuestionData(
+            text="What is the capital of France?",
+            answer_type=AnswerTypes.EXACT_STRING.value,
+            correct_answer="Paris",
+            answer_text="Paris",
+        )
+        self.create_answered_free_form_question(capital_question)
+
+    def get_admin_submissions_response(self):
+        self.login_admin()
+
+        return self.client.get(self.submissions_url(), follow=True)
+
+    def assert_compact_submission_content(self, content):
+        self.assertIn(self.user.email, content)
+        self.assertIn("Score", content)
+        self.assertIn("Open", content)
+        self.assertIn(self.cadmin_submission_edit_url(), content)
+        self.assertNotIn("What is 2+2?", content)
+        self.assertNotIn("What is the capital of France?", content)
+        self.assertNotIn("Paris", content)
+
     def test_submissions_view_unauthenticated_redirects(self):
         """Test that unauthenticated users are redirected"""
         response = self.client.get(self.submissions_url())
@@ -241,35 +271,14 @@ class HomeworkSubmissionsViewTests(TestCase):
 
     def test_submissions_view_hides_answers_and_links_to_edit_page(self):
         """Test that submissions view keeps answers out of the compact list."""
-        arithmetic_question = AnsweredFreeFormQuestionData(
-            text="What is 2+2?",
-            answer_type=AnswerTypes.INTEGER.value,
-            correct_answer="4",
-            answer_text="4",
-        )
-        self.create_answered_free_form_question(arithmetic_question)
-        capital_question = AnsweredFreeFormQuestionData(
-            text="What is the capital of France?",
-            answer_type=AnswerTypes.EXACT_STRING.value,
-            correct_answer="Paris",
-            answer_text="Paris",
-        )
-        self.create_answered_free_form_question(capital_question)
+        self.create_hidden_answer_questions()
 
-        self.login_admin()
-        response = self.client.get(self.submissions_url(), follow=True)
-
+        response = self.get_admin_submissions_response()
         self.assertEqual(response.status_code, 200)
         self.assert_compact_submission_context(response)
 
         content = response.content.decode("utf-8")
-        self.assertIn(self.user.email, content)
-        self.assertIn("Score", content)
-        self.assertIn("Open", content)
-        self.assertIn(self.cadmin_submission_edit_url(), content)
-        self.assertNotIn("What is 2+2?", content)
-        self.assertNotIn("What is the capital of France?", content)
-        self.assertNotIn("Paris", content)
+        self.assert_compact_submission_content(content)
 
     def test_submissions_view_short_answers_are_hidden(self):
         """Test that short answers are hidden from the compact list."""
