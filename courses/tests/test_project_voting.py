@@ -93,6 +93,33 @@ class ProjectVotingTest(TestCase):
         ).exists()
         self.assertEqual(vote_exists, voted)
 
+    def create_other_submission(self):
+        submission_data = ProjectSubmissionFixtureData(
+            username="other-student",
+            display_name="Other Student",
+            repo="other-project",
+            commit_id="def5678",
+        )
+        return self.create_submission(submission_data)
+
+    def create_third_submission(self):
+        submission_data = ProjectSubmissionFixtureData(
+            username="third-student",
+            display_name="Third Student",
+            repo="third-project",
+            commit_id="ghi9012",
+        )
+        return self.create_submission(submission_data)
+
+    def create_fourth_submission(self):
+        submission_data = ProjectSubmissionFixtureData(
+            username="fourth-student",
+            display_name="Fourth Student",
+            repo="fourth-project",
+            commit_id="jkl3456",
+        )
+        return self.create_submission(submission_data)
+
     def test_project_voting_page_lists_submissions(self):
         self.client.force_login(self.voter)
         response = self.client.get(self.project_list_url())
@@ -152,27 +179,9 @@ class ProjectVotingTest(TestCase):
         self.assertFalse(data["vote_limit_reached"])
 
     def test_user_has_three_votes_per_project(self):
-        other_data = ProjectSubmissionFixtureData(
-            username="other-student",
-            display_name="Other Student",
-            repo="other-project",
-            commit_id="def5678",
-        )
-        other_submission = self.create_submission(other_data)
-        third_data = ProjectSubmissionFixtureData(
-            username="third-student",
-            display_name="Third Student",
-            repo="third-project",
-            commit_id="ghi9012",
-        )
-        third_submission = self.create_submission(third_data)
-        fourth_data = ProjectSubmissionFixtureData(
-            username="fourth-student",
-            display_name="Fourth Student",
-            repo="fourth-project",
-            commit_id="jkl3456",
-        )
-        fourth_submission = self.create_submission(fourth_data)
+        other_submission = self.create_other_submission()
+        third_submission = self.create_third_submission()
+        fourth_submission = self.create_fourth_submission()
         self.client.force_login(self.voter)
 
         self.post_vote(self.submission)

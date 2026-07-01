@@ -1238,6 +1238,13 @@ Steps:
   touched-file style scans for comprehensions/generators, wide loop unpacking,
   and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
   and `git diff --check`.
+- [x] Shorten project voting limit tests by naming the extra submission
+  fixtures used by the three-vote cap scenario. Verification:
+  `uv run ruff check courses/tests/test_project_voting.py`,
+  `uv run python manage.py test courses.tests.test_project_voting`,
+  touched-file style scans for comprehensions/generators, wide loop unpacking,
+  and 30+ line functions, repo-wide comprehension scan, `uvx pyrefly check`,
+  and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
