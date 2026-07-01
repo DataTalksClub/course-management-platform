@@ -222,6 +222,8 @@ testable service functions.
   generic status-filter helper.
 - [x] Remove API bulk-create wrapper callables by letting the shared bulk
   helper accept route context arguments directly.
+- [x] Replace deadline reminder context lambdas with named callable context
+  objects.
 
 ## Current Findings
 
