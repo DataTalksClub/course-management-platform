@@ -343,6 +343,8 @@ testable service functions.
   into direct owner modules and remove the mixed score payload module.
 - [x] Split Datamailer score and peer-review notification send flows out of
   the registration-confirmation notification module.
+- [x] Split registration user-profile update rules out of the registration form
+  module.
 
 ## Current Findings
 
