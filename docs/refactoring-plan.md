@@ -122,6 +122,8 @@ testable service functions.
   recipient-list payload helpers out of the shared payload base module.
 - [x] Split Datamailer project-passed outcome recipient-list payload helpers
   out of the score-notification payload module.
+- [x] Split project score calculation and peer-review grouping helpers out of
+  the project scoring orchestration module.
 
 ## Current Findings
 
