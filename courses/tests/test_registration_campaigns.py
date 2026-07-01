@@ -270,6 +270,24 @@ class RegistrationCampaignPublicTests(TestCase):
         self.assert_logged_in_registration(registration, user)
         self.assert_signed_profile_updated(user)
 
+    def test_logged_in_registration_page_shows_logout_link(self):
+        user = self.create_signed_user()
+        self.client.force_login(user)
+
+        url = self.campaign_url()
+        response = self.client.get(url)
+
+        logout_url = reverse("account_logout")
+        self.assertContains(response, "Log out")
+        self.assertContains(response, f"{logout_url}?next=")
+        self.assertContains(response, "to use a different email address")
+
+    def test_anonymous_registration_page_does_not_show_logout_link(self):
+        url = self.campaign_url()
+        response = self.client.get(url)
+
+        self.assertNotContains(response, "to use a different email address")
+
     @override_settings(
         DATAMAILER_URL="",
         DATAMAILER_API_KEY="",
