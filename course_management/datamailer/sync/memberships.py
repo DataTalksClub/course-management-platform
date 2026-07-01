@@ -9,8 +9,10 @@ from ..payloads.certificates import (
 from ..payloads.project_outcomes import (
     project_passed_recipient_list_member_payload,
 )
-from ..payloads.registrations import (
+from ..payloads.registration_contacts import (
     registration_contact_payload,
+)
+from ..payloads.registration_members import (
     registration_recipient_list_payload,
 )
 from ..payloads.submissions import (

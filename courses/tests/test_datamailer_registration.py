@@ -10,7 +10,7 @@ from data.models import (
     DatamailerSendAuditType,
 )
 from course_management.datamailer.keys import registration_list_key
-from course_management.datamailer.payloads.registrations import (
+from course_management.datamailer.payloads.registration_confirmations import (
     registration_confirmation_payload,
 )
 from course_management.datamailer.sync.memberships import (

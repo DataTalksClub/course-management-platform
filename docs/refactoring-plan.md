@@ -310,6 +310,8 @@ testable service functions.
   expand the create validation flow into named local steps.
 - [x] Split certificate update validation and notification/persistence side
   effects out of the certificate update apply coordinator.
+- [x] Split Datamailer registration confirmation, contact, and recipient-list
+  payload builders into direct owner modules and remove the mixed module.
 
 ## Current Findings
 

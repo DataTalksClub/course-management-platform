@@ -13,7 +13,7 @@ from course_management.datamailer.payloads.certificates import (
 from course_management.datamailer.payloads.project_outcomes import (
     project_passed_recipient_list_payload,
 )
-from course_management.datamailer.payloads.registrations import (
+from course_management.datamailer.payloads.registration_members import (
     registration_recipient_list_payload,
 )
 from course_management.datamailer.payloads.submissions import (

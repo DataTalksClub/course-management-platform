@@ -10,7 +10,7 @@ from ..payloads.peer_review import (
 from ..payloads.project_outcomes import (
     project_passed_recipient_list_payload,
 )
-from ..payloads.registrations import (
+from ..payloads.registration_confirmations import (
     registration_confirmation_payload,
 )
 from ..payloads.scores import (
