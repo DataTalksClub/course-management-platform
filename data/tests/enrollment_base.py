@@ -57,33 +57,13 @@ class CertificateNotificationScenario:
     second_enrollment: Enrollment
 
 
-class EnrollmentDataAPIBase(TestCase):
-    def setUp(self):
-        self.user = CustomUser.objects.create(
-            username="testuser",
-            email="testuser@example.com",
-            password="password",
-        )
-        self.token = Token.objects.create(user=self.user)
-
-        self.course = Course.objects.create(
-            title="Test Course", slug="test-course"
-        )
-
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        self.client = Client()
-        self.client.defaults["HTTP_AUTHORIZATION"] = (
-            f"Token {self.token.key}"
-        )
-
+class EnrollmentCourseFixtureMixin:
     def require_two_projects_to_pass(self):
         self.course.min_projects_to_pass = 2
         self.course.save()
 
+
+class EnrollmentUserFixtureMixin:
     def configure_certificate_user(self):
         self.user.email = "student1@example.com"
         self.user.certificate_name = "Student One"
@@ -117,6 +97,8 @@ class EnrollmentDataAPIBase(TestCase):
             password="password",
         )
 
+
+class EnrollmentProjectFixtureMixin:
     def create_saved_project(self, slug, title):
         now = timezone.now()
         submission_due_date = now + timezone.timedelta(days=7)
@@ -183,6 +165,8 @@ class EnrollmentDataAPIBase(TestCase):
             course=self.course,
         )
 
+
+class EnrollmentURLMixin:
     def graduates_url(self):
         return reverse(
             "api_course_graduates",
@@ -195,6 +179,8 @@ class EnrollmentDataAPIBase(TestCase):
             kwargs={"course_slug": self.course.slug},
         )
 
+
+class EnrollmentCertificateRequestMixin:
     def post_certificates(self, data):
         url = self.certificate_url()
         body = json.dumps(data)
@@ -256,6 +242,8 @@ class EnrollmentDataAPIBase(TestCase):
             response = self.post_certificates(data)
         return response
 
+
+class EnrollmentCertificateAssertionsMixin:
     def assert_certificate_update_result(
         self,
         data: CertificateUpdateExpectation,
@@ -268,3 +256,35 @@ class EnrollmentDataAPIBase(TestCase):
     def assert_certificate_url(self, enrollment, certificate_url):
         enrollment.refresh_from_db()
         self.assertEqual(enrollment.certificate_url, certificate_url)
+
+
+class EnrollmentDataAPIBase(
+    EnrollmentCourseFixtureMixin,
+    EnrollmentUserFixtureMixin,
+    EnrollmentProjectFixtureMixin,
+    EnrollmentURLMixin,
+    EnrollmentCertificateRequestMixin,
+    EnrollmentCertificateAssertionsMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.user = CustomUser.objects.create(
+            username="testuser",
+            email="testuser@example.com",
+            password="password",
+        )
+        self.token = Token.objects.create(user=self.user)
+
+        self.course = Course.objects.create(
+            title="Test Course", slug="test-course"
+        )
+
+        self.enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+
+        self.client = Client()
+        self.client.defaults["HTTP_AUTHORIZATION"] = (
+            f"Token {self.token.key}"
+        )

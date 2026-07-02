@@ -3281,6 +3281,11 @@ Steps:
   Verification:
   `uv run ruff check cadmin/tests/project_view_base.py cadmin/tests/test_project_views.py cadmin/tests/test_project_submission_edit_views.py cadmin/tests/test_project_action_views.py docs/refactoring-plan.md`,
   `uv run python manage.py test cadmin.tests.test_project_views cadmin.tests.test_project_submission_edit_views cadmin.tests.test_project_action_views`.
+- [x] Split the shared enrollment data API test base into focused course,
+  user, project, URL, certificate request, and certificate assertion mixins
+  while keeping the public base class stable. Verification:
+  `uv run ruff check data/tests/enrollment_base.py data/tests/test_enrollment.py data/tests/enrollment_passed_base.py data/tests/test_enrollment_passed.py data/tests/test_enrollment_certificates.py data/tests/test_enrollment_certificate_notifications.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_enrollment data.tests.test_enrollment_passed data.tests.test_enrollment_certificates data.tests.test_enrollment_certificate_notifications`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
