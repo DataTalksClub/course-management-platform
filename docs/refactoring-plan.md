@@ -3361,6 +3361,12 @@ Steps:
   Verification:
   `uv run ruff check courses/management/commands/datamailer_campaign.py courses/tests/test_datamailer_campaign_command.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_campaign_command`.
+- [x] 2026-07-02: Split Datamailer recipient-list sync command parser groups,
+  batch output, and sync assembly out of the command class as module-level
+  functions, leaving the command class focused on option validation and
+  orchestration. Verification:
+  `uv run ruff check courses/management/commands/sync_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
