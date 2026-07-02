@@ -3083,6 +3083,10 @@ Steps:
   preference, event, and callback-status modules. Verification:
   `uv run ruff check data/tests/datamailer_webhook_base.py data/tests/test_datamailer_webhook.py data/tests/test_datamailer_webhook_events.py data/tests/test_datamailer_webhook_preferences.py data/tests/test_datamailer_callback_status.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_datamailer_webhook data.tests.test_datamailer_webhook_events data.tests.test_datamailer_webhook_preferences data.tests.test_datamailer_callback_status`.
+- [x] Split wrapped-statistics tests into shared fixture mixins, platform,
+  user-statistic, and recalculation modules. Verification:
+  `uv run ruff check courses/tests/wrapped_statistics_base.py courses/tests/test_wrapped_statistics.py courses/tests/test_wrapped_user_statistics.py courses/tests/test_wrapped_recalculation.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_wrapped_statistics courses.tests.test_wrapped_user_statistics courses.tests.test_wrapped_recalculation`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
