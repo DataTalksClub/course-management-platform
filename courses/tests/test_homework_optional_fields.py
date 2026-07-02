@@ -40,7 +40,7 @@ class AnswerPostData:
     question6_answers: list[str] | None = None
 
 
-class HomeworkOptionalFieldsTests(TestCase):
+class HomeworkOptionalCourseFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course"
@@ -56,6 +56,8 @@ class HomeworkOptionalFieldsTests(TestCase):
             slug="test-homework",
         )
 
+
+class HomeworkOptionalQuestionFixtureMixin:
     def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -131,13 +133,8 @@ class HomeworkOptionalFieldsTests(TestCase):
             "1,2,3",
         )
 
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.homework = self.create_homework()
-        self.create_questions()
 
+class HomeworkOptionalRequestMixin:
     def homework_url(self):
         return reverse(
             "homework",
@@ -174,6 +171,8 @@ class HomeworkOptionalFieldsTests(TestCase):
         post_data = self.answer_post_data(data, **extra_fields)
         return post_data
 
+
+class HomeworkOptionalSetupMixin:
     def mock_successful_url_checks(self, mock_get, mock_head):
         mock_response = mock.Mock()
         mock_response.status_code = 200
@@ -200,6 +199,8 @@ class HomeworkOptionalFieldsTests(TestCase):
         self.homework.faq_contribution_field = True
         self.homework.save()
 
+
+class HomeworkOptionalPostDataMixin:
     def full_optional_post_data(self):
         learning_links = [
             "https://httpbin.org/status/200",
@@ -231,6 +232,8 @@ class HomeworkOptionalFieldsTests(TestCase):
         )
         return post_data
 
+
+class HomeworkOptionalAssertionMixin:
     def get_saved_submission(self):
         return Submission.objects.get(
             student=self.user,
@@ -282,6 +285,25 @@ class HomeworkOptionalFieldsTests(TestCase):
         self.assertEqual(submission.problems_comments, "")
         self.assertEqual(submission.faq_contribution_url, "")
 
+
+class HomeworkOptionalFieldsBase(
+    HomeworkOptionalCourseFixtureMixin,
+    HomeworkOptionalQuestionFixtureMixin,
+    HomeworkOptionalRequestMixin,
+    HomeworkOptionalSetupMixin,
+    HomeworkOptionalPostDataMixin,
+    HomeworkOptionalAssertionMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.create_questions()
+
+
+class HomeworkOptionalFullFieldsTests(HomeworkOptionalFieldsBase):
     @mock.patch("requests.head")
     @mock.patch("requests.get")
     def test_submit_homework_with_all_fields(self, mock_get, mock_head):
@@ -298,6 +320,8 @@ class HomeworkOptionalFieldsTests(TestCase):
         submission = self.get_saved_submission()
         self.assert_full_optional_submission(submission, post_data)
 
+
+class HomeworkOptionalEmptyFieldsTests(HomeworkOptionalFieldsBase):
     @mock.patch("requests.head")
     @mock.patch("requests.get")
     def test_submit_homework_with_all_fields_optional_empty(

@@ -3175,6 +3175,11 @@ Steps:
   iterable. Verification:
   `uv run ruff check courses/tests/scoring_base.py courses/tests/test_scoring.py courses/tests/test_scoring_leaderboard.py courses/tests/test_homework_correct_answers.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_scoring courses.tests.test_scoring_leaderboard courses.tests.test_homework_correct_answers`.
+- [x] Split optional homework submission-field tests into focused full-field
+  and empty-field scenario classes with shared fixture, request, setup,
+  post-data, and assertion mixins. Verification:
+  `uv run ruff check courses/tests/test_homework_optional_fields.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_optional_fields`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
