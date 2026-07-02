@@ -45,17 +45,13 @@ def _course_graduate_certificate_url(enrollment) -> str:
     return stripped_certificate_url
 
 
-def _course_graduate_source_object_key(enrollment) -> str:
-    return f"enrollment:{enrollment.pk}"
-
-
 def _course_graduate_member_data(enrollment):
     email = normalized_email(enrollment.student.email)
     certificate_url = _course_graduate_certificate_url(enrollment)
     if not email or not certificate_url:
         return None
 
-    source_object_key = _course_graduate_source_object_key(enrollment)
+    source_object_key = f"enrollment:{enrollment.pk}"
     metadata = _course_graduate_metadata(enrollment, certificate_url)
     payload_data = RecipientListMemberPayloadData(
         list_type="custom",
