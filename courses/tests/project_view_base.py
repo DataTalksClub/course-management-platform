@@ -26,22 +26,24 @@ credentials = dict(
 )
 
 
-class ProjectViewTestBase(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = Course.objects.create(
+class ProjectViewFixtureMixin:
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test Course Description",
         )
-        self.enrollment = Enrollment.objects.create(
+
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.user,
             course=self.course,
         )
+
+    def create_project(self):
         submission_due_date = timezone.now() - timedelta(hours=1)
         peer_review_due_date = timezone.now() + timedelta(hours=1)
-        self.project = Project.objects.create(
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -49,6 +51,8 @@ class ProjectViewTestBase(TestCase):
             peer_review_due_date=peer_review_due_date,
         )
 
+
+class ProjectViewRequestMixin:
     def project_url(self):
         return reverse("project", args=[self.course.slug, self.project.slug])
 
@@ -67,12 +71,13 @@ class ProjectViewTestBase(TestCase):
         return data
 
     def project_confirmation_data(self):
+        learning_links = {
+            "learning_in_public_links[]": [
+                "https://example.com/project-notes"
+            ],
+        }
         return self.project_submission_data(
-            **{
-                "learning_in_public_links[]": [
-                    "https://example.com/project-notes"
-                ],
-            },
+            **learning_links,
             time_spent="2",
             problems_comments="No blockers.",
             faq_contribution_url=(
@@ -117,6 +122,14 @@ class ProjectViewTestBase(TestCase):
                 project_url, data, HTTP_HOST="localhost"
             )
 
+    def authenticated_project_response(self):
+        self.client.login(**credentials)
+        project_url = self.project_url()
+        response = self.client.get(project_url)
+        return response
+
+
+class ProjectSubmissionPersistenceMixin:
     def get_project_submission(self):
         return ProjectSubmission.objects.get(
             student=self.user,
@@ -144,6 +157,8 @@ class ProjectViewTestBase(TestCase):
             **data,
         )
 
+
+class ProjectSubmissionAssertionsMixin:
     def assert_project_submission_matches(self, submission, data):
         self.assertEqual(submission.github_link, data["github_link"])
         self.assertEqual(submission.commit_id, data["commit_id"])
@@ -171,6 +186,8 @@ class ProjectViewTestBase(TestCase):
         self.assertNotEqual(submission.commit_id, data["commit_id"])
         self.assertNotEqual(submission.learning_in_public_links, links)
 
+
+class ProjectConfirmationEmailAssertionsMixin:
     def assert_project_confirmation_payload(self, payload, submission):
         self.assertEqual(payload["email"], "test@test.com")
         self.assertEqual(
@@ -219,6 +236,8 @@ class ProjectViewTestBase(TestCase):
             ),
         )
 
+
+class ProjectSubmissionFieldAssertionsMixin:
     def expected_project_repository_fields(self):
         fields = []
         github_field = {
@@ -287,8 +306,19 @@ class ProjectViewTestBase(TestCase):
             ),
         )
 
-    def authenticated_project_response(self):
-        self.client.login(**credentials)
-        project_url = self.project_url()
-        response = self.client.get(project_url)
-        return response
+
+class ProjectViewTestBase(
+    ProjectViewFixtureMixin,
+    ProjectViewRequestMixin,
+    ProjectSubmissionPersistenceMixin,
+    ProjectSubmissionAssertionsMixin,
+    ProjectConfirmationEmailAssertionsMixin,
+    ProjectSubmissionFieldAssertionsMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.project = self.create_project()

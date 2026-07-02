@@ -3186,6 +3186,13 @@ Steps:
   local model imports. Verification:
   `uv run ruff check courses/tests/test_project_submissions_view.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_submissions_view`.
+- [x] Split the shared project view test base into focused fixture, request,
+  submission persistence, submission assertion, confirmation email, and
+  submission-field assertion mixins while keeping the public base class stable.
+  Also named project confirmation learning-link payload before construction.
+  Verification:
+  `uv run ruff check courses/tests/project_view_base.py courses/tests/project_submission_view_base.py courses/tests/test_project_view.py courses/tests/test_project_submission_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_view courses.tests.test_project_submission_view`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
