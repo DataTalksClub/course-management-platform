@@ -60,20 +60,16 @@ def recent_failed_datamailer_sends():
     return sends
 
 
-def failed_datamailer_send_count():
-    failed_count = DatamailerSendAudit.objects.filter(
-        status=DatamailerSendAuditStatus.FAILED,
-    ).count()
-    return failed_count
-
-
 def normalized_send_totals(send_totals):
     totals = {}
     for field in SEND_TOTAL_FIELDS:
         value = send_totals[field] or 0
         totals[field] = value
 
-    failed = failed_datamailer_send_count()
-    totals["failed"] = failed
+    failed_sends = DatamailerSendAudit.objects.filter(
+        status=DatamailerSendAuditStatus.FAILED,
+    )
+    failed_count = failed_sends.count()
+    totals["failed"] = failed_count
 
     return totals
