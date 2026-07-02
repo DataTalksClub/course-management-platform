@@ -20,8 +20,7 @@ class HomeworkState(Enum):
 
 def _build_homework_state_choices():
     choices = []
-    states = HomeworkState
-    for state in states:
+    for state in HomeworkState:
         choice = (state.value, state.name)
         choices.append(choice)
     return choices

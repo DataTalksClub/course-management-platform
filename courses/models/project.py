@@ -26,8 +26,7 @@ class ProjectState(Enum):
 
 def _build_enum_choices(enum_type):
     choices = []
-    states = enum_type
-    for state in states:
+    for state in enum_type:
         choice = (state.value, state.name)
         choices.append(choice)
     return choices
