@@ -3115,6 +3115,10 @@ Steps:
   success, and edge-case modules while removing unused auth setup. Verification:
   `uv run ruff check data/tests/course_criteria_base.py data/tests/test_course.py data/tests/test_course_criteria_yaml_edges.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_course data.tests.test_course_criteria_yaml_edges`.
+- [x] Split registration-campaign API tests into shared campaign helpers,
+  mutation/statistics tests, and auth/staff-token tests. Verification:
+  `uv run ruff check api/tests/registration_campaign_base.py api/tests/test_registration_campaigns.py api/tests/test_registration_campaign_auth.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_registration_campaigns api.tests.test_registration_campaign_auth`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
