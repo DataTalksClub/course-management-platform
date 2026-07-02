@@ -110,7 +110,13 @@ def homework_confirmation_context(
         data.profile_url
     )
     message_context = homework_confirmation_message_context(data)
-    submitted_context = submitted_content.context()
+    submitted_context = {
+        "submission_fields": submitted_content.fields,
+        "submitted_answers": submitted_content.answers,
+        "submitted_fields_text": submitted_content.fields_text,
+        "submitted_answers_text": submitted_content.answers_text,
+        "submission_summary_text": submitted_content.summary_text,
+    }
 
     return {
         **metadata,

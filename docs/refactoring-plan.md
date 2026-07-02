@@ -4946,6 +4946,19 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use
+  `HomeworkSubmittedContent.context()` adapter. Homework confirmation context
+  assembly now maps submitted-content fields directly where the final email
+  context is merged. Verification:
+  `uv run ruff check courses/views/homework_submission_summary.py courses/views/homework_confirmation.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/homework_submission_summary.py courses/views/homework_confirmation.py`,
+  `uv run python manage.py test courses.tests.test_homework_submission_integrations courses.tests.test_homework_submission_learning_links`,
+  removed-method reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

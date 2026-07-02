@@ -20,15 +20,6 @@ class HomeworkSubmittedContent:
     answers_text: str
     summary_text: str
 
-    def context(self) -> dict[str, Any]:
-        return {
-            "submission_fields": self.fields,
-            "submitted_answers": self.answers,
-            "submitted_fields_text": self.fields_text,
-            "submitted_answers_text": self.answers_text,
-            "submission_summary_text": self.summary_text,
-        }
-
 
 def homework_url_submission_field(
     homework: Homework,
