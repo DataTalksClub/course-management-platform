@@ -3099,6 +3099,10 @@ Steps:
   CSRF, and enrollment-button modules. Verification:
   `uv run ruff check cadmin/tests/impersonation_base.py cadmin/tests/test_impersonation_views.py cadmin/tests/test_impersonation_stop_views.py cadmin/tests/test_impersonation_enrollment_views.py docs/refactoring-plan.md`,
   `uv run python manage.py test cadmin.tests.test_impersonation_views cadmin.tests.test_impersonation_stop_views cadmin.tests.test_impersonation_enrollment_views`.
+- [x] Split enrollment certificate export API tests into shared setup, success,
+  mixed-error, and auth modules. Verification:
+  `uv run ruff check api/tests/enrollment_exports_base.py api/tests/test_enrollment_exports.py api/tests/test_enrollment_export_errors.py api/tests/test_enrollment_export_auth.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_enrollment_exports api.tests.test_enrollment_export_errors api.tests.test_enrollment_export_auth`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
