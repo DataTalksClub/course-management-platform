@@ -54,7 +54,12 @@ def create_homework_for_upsert(upsert):
 
 
 def apply_homework_data(homework, data):
-    apply_homework_text_fields(homework, data)
+    title = homework_title_from_data(data)
+    if title is not None:
+        homework.title = title
+
+    if "description" in data:
+        homework.description = data["description"]
 
     error = apply_homework_validated_fields(homework, data)
     if error:
@@ -62,15 +67,6 @@ def apply_homework_data(homework, data):
 
     apply_homework_direct_fields(homework, data)
     return None
-
-
-def apply_homework_text_fields(homework, data):
-    title = homework_title_from_data(data)
-    if title is not None:
-        homework.title = title
-
-    if "description" in data:
-        homework.description = data["description"]
 
 
 def apply_homework_validated_fields(homework, data):
