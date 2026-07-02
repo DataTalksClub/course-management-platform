@@ -3859,6 +3859,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed cadmin project fixture, submission-fixture,
+  submission-list, submission-edit, URL, and assertion mixins into the focused
+  `ProjectCadminViewTestBase`. The project view, submission edit, and project
+  action cadmin tests keep the same shared setup API without a mixin
+  inheritance chain. Verification:
+  `uv run python manage.py test cadmin.tests.test_project_views cadmin.tests.test_project_submission_edit_views cadmin.tests.test_project_action_views`,
+  `uv run ruff check cadmin/tests/project_view_base.py cadmin/tests/test_project_views.py cadmin/tests/test_project_submission_edit_views.py cadmin/tests/test_project_action_views.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -29,7 +29,7 @@ admin_credentials = dict(
 )
 
 
-class ProjectCadminFixtureMixin:
+class ProjectCadminViewTestBase(TestCase):
     def create_review_criteria(self):
         self.criteria1 = ReviewCriteria.objects.create(
             course=self.course,
@@ -55,8 +55,6 @@ class ProjectCadminFixtureMixin:
     def login_admin(self):
         self.client.login(**admin_credentials)
 
-
-class ProjectCadminSubmissionFixtureMixin:
     def create_enrollment(self, student=None):
         return Enrollment.objects.create(
             student=student or self.user,
@@ -83,8 +81,6 @@ class ProjectCadminSubmissionFixtureMixin:
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
-
-class ProjectCadminSubmissionListFixtureMixin:
     def create_project_page_submission(self, index):
         user = User.objects.create_user(
             username=f"project-page-student-{index:02d}",
@@ -121,8 +117,6 @@ class ProjectCadminSubmissionListFixtureMixin:
         for index in range(count):
             self.create_project_search_submission(index)
 
-
-class ProjectCadminSubmissionEditFixtureMixin:
     def create_project_evaluation_scores(self, submission):
         ProjectEvaluationScore.objects.create(
             submission=submission,
@@ -147,8 +141,6 @@ class ProjectCadminSubmissionEditFixtureMixin:
         payload.update(overrides)
         return payload
 
-
-class ProjectCadminUrlMixin:
     def cadmin_project_submissions_url(self):
         kwargs = {
             "course_slug": self.course.slug,
@@ -203,8 +195,6 @@ class ProjectCadminUrlMixin:
         kwargs = {"course_slug": self.course.slug}
         return reverse("cadmin_course", kwargs=kwargs)
 
-
-class ProjectCadminSubmissionAssertionsMixin:
     def assert_project_scores(self, submission):
         self.assertEqual(submission.project_score, 6)
         self.assertEqual(submission.project_faq_score, 5)
@@ -230,16 +220,6 @@ class ProjectCadminSubmissionAssertionsMixin:
         self.assertEqual(criteria1_score.score, 2)
         self.assertEqual(criteria2_score.score, 4)
 
-
-class ProjectCadminViewTestBase(
-    ProjectCadminFixtureMixin,
-    ProjectCadminSubmissionFixtureMixin,
-    ProjectCadminSubmissionListFixtureMixin,
-    ProjectCadminSubmissionEditFixtureMixin,
-    ProjectCadminUrlMixin,
-    ProjectCadminSubmissionAssertionsMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
