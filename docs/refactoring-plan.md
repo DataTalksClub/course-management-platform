@@ -4123,6 +4123,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named project-submissions page counts and dashboard
+  integration homework-stat counts before assertions, keeping the existing
+  focused view-test helpers unchanged. Verification:
+  `uv run python manage.py test courses.tests.test_course_project_submissions courses.tests.test_dashboard_integration`,
+  `uv run ruff check courses/tests/test_course_project_submissions.py courses/tests/test_dashboard_integration.py`,
+  touched-file inline-assertion scan (`touched_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

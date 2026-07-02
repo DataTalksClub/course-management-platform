@@ -133,7 +133,8 @@ class CourseProjectSubmissionsViewBase(TestCase):
         return user_submissions
 
     def assert_submission_order(self, submissions):
-        self.assertEqual(len(submissions), 2)
+        submissions_count = len(submissions)
+        self.assertEqual(submissions_count, 2)
         self.assertEqual(submissions[0].project, self.completed_project)
         self.assertEqual(submissions[0].display_score, 85)
         self.assertEqual(submissions[1].project, self.open_project)
@@ -197,7 +198,8 @@ class CourseProjectSubmissionsPageTestCase(CourseProjectSubmissionsViewBase):
         self.assertEqual(response.status_code, 200)
         submissions_page = response.context["submissions_page"]
         self.assertEqual(submissions_page.paginator.count, 32)
-        self.assertEqual(len(response.context["submissions"]), 25)
+        submissions_count = len(response.context["submissions"])
+        self.assertEqual(submissions_count, 25)
         has_next_page = submissions_page.has_next()
         self.assertTrue(has_next_page)
 
@@ -230,7 +232,8 @@ class CourseProjectSubmissionsDisplayTestCase(CourseProjectSubmissionsViewBase):
         submissions = response.context["submissions"]
         user_submissions = self.user_submissions_by_project(submissions)
 
-        self.assertEqual(len(user_submissions), 2)
+        user_submissions_count = len(user_submissions)
+        self.assertEqual(user_submissions_count, 2)
 
         evaluated_submission = user_submissions[self.completed_project.id]
         self.assert_evaluated_submission(evaluated_submission)

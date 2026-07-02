@@ -135,7 +135,8 @@ class DashboardIntegrationTestCase(TestCase):
 
     def assert_complete_dashboard_counts(self, response):
         self.assertEqual(response.context["total_enrollments"], 4)
-        self.assertEqual(len(response.context["homework_stats"]), 2)
+        homework_stats_count = len(response.context["homework_stats"])
+        self.assertEqual(homework_stats_count, 2)
         self.assertEqual(response.context["project_pass_count"], 3)
         self.assertEqual(response.context["project_fail_count"], 0)
 
