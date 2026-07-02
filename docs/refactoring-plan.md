@@ -3017,6 +3017,10 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/datamailer_project_score_base.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_project_outcomes.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_project_outcomes`.
+- [x] Split project statistics tests into shared statistics fixtures, raw
+  calculation tests, and model creation/update tests. Verification:
+  `uv run ruff check courses/tests/project_statistics_base.py courses/tests/test_project_statistics.py courses/tests/test_project_statistics_model.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_project_statistics_model`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
