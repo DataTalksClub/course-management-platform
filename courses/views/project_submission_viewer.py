@@ -22,7 +22,11 @@ class ProjectViewerState:
 
 def project_viewer_state(project, course, user):
     vote_state = _project_viewer_vote_state(project, course, user)
-    state = _base_project_viewer_state(vote_state)
+    state = ProjectViewerState(
+        voted_submission_ids=vote_state["voted_submission_ids"],
+        project_vote_counts=vote_state["project_vote_counts"],
+        project_votes_left=vote_state["project_votes_left"],
+    )
 
     if not user.is_authenticated:
         return state
@@ -56,16 +60,6 @@ def _project_viewer_vote_state(project, course, user):
         "project_vote_counts": project_vote_counts,
         "project_votes_left": project_votes_left,
     }
-
-
-def _base_project_viewer_state(vote_state):
-    state = ProjectViewerState(
-        voted_submission_ids=vote_state["voted_submission_ids"],
-        project_vote_counts=vote_state["project_vote_counts"],
-        project_votes_left=vote_state["project_votes_left"],
-    )
-    return state
-
 
 def _project_viewer_student_submissions(project, user):
     student_submissions = ProjectSubmission.objects.filter(
