@@ -3087,6 +3087,10 @@ Steps:
   user-statistic, and recalculation modules. Verification:
   `uv run ruff check courses/tests/wrapped_statistics_base.py courses/tests/test_wrapped_statistics.py courses/tests/test_wrapped_user_statistics.py courses/tests/test_wrapped_recalculation.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_wrapped_statistics courses.tests.test_wrapped_user_statistics courses.tests.test_wrapped_recalculation`.
+- [x] Split homework API mutation tests into detail, ID patch, slug patch, and
+  by-slug upsert modules. Verification:
+  `uv run ruff check api/tests/test_homework_mutations.py api/tests/test_homework_upserts.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_homework_mutations api.tests.test_homework_upserts`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
