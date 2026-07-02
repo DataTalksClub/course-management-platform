@@ -130,7 +130,8 @@ def assert_homework_reminder_members(
     expectation,
 ):
     expected_emails = {"eligible@example.com", "opted-out@example.com"}
-    test_case.assertEqual(set(members_by_email), expected_emails)
+    actual_emails = set(members_by_email)
+    test_case.assertEqual(actual_emails, expected_emails)
     eligible_member = members_by_email["eligible@example.com"]
     opted_out_member = members_by_email["opted-out@example.com"]
     test_case.assertEqual(

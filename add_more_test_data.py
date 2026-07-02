@@ -152,7 +152,8 @@ def create_questions_for_homework(homework: Homework):
 
 
 def random_multiple_choice_answer(question: Question) -> str:
-    num_possible_answers = len(question.get_possible_answers())
+    possible_answers = question.get_possible_answers()
+    num_possible_answers = len(possible_answers)
     student_answer_int = random.choice(
         range(1, num_possible_answers + 1)
     )
@@ -224,8 +225,10 @@ for u in range(1, 21):
     user, _ = User.objects.get_or_create(username=username)
 
 
-all_users = list(User.objects.all())
-homeworks = list(Homework.objects.filter(course=course))
+users_queryset = User.objects.all()
+all_users = list(users_queryset)
+homeworks_queryset = Homework.objects.filter(course=course)
+homeworks = list(homeworks_queryset)
 
 for user in all_users:
     enrollment, created = Enrollment.objects.get_or_create(

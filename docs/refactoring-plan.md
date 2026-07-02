@@ -4283,6 +4283,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named remaining simple inline URL, queryset, set, float,
+  possible-answer, and deploy error-message calls in touched tests/scripts
+  instead of passing those calls directly into client requests, assertions,
+  list conversion, length calculation, or `print(...)`. Verification:
+  `uv run python manage.py test api.tests.test_enrollment_export_auth api.tests.test_registration_campaign_auth api.tests.test_registration_campaigns courses.tests.test_deadline_reminder_homework courses.tests.test_homework_optional_fields`,
+  `uv run ruff check add_more_test_data.py api/tests/test_enrollment_export_auth.py api/tests/test_registration_campaign_auth.py api/tests/test_registration_campaigns.py courses/tests/deadline_reminder_homework.py courses/tests/test_homework_optional_fields.py deploy/update_task_def.py`,
+  `uvx pyrefly check`, nested-call scan, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

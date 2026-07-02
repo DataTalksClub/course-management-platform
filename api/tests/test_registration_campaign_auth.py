@@ -33,7 +33,8 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
         create_response = self.post_campaign(client, create_payload)
         patch_payload = {"title": "Changed by nonstaff"}
         patch_response = self.patch_campaign(client, patch_payload)
-        registrations_response = client.get(self.campaign_registrations_url())
+        registrations_url = self.campaign_registrations_url()
+        registrations_response = client.get(registrations_url)
         responses = []
         responses.append(create_response)
         responses.append(patch_response)
@@ -42,7 +43,8 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
 
     def test_registration_campaign_api_requires_auth(self):
         client = Client()
-        response = client.get(self.campaign_list_url())
+        url = self.campaign_list_url()
+        response = client.get(url)
 
         self.assertEqual(response.status_code, 401)
 

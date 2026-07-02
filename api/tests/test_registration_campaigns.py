@@ -34,7 +34,8 @@ class RegistrationCampaignAPITestCase(RegistrationCampaignAPITestBase):
         registration.role = CourseRegistration.Role.DATA_ENGINEER
         registration.save()
 
-        response = self.client.get(self.campaign_registrations_url())
+        url = self.campaign_registrations_url()
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()

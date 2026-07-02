@@ -250,13 +250,15 @@ class HomeworkOptionalFieldsBase(TestCase):
                 "https://github.com/DataTalksClub",
             ],
         )
+        time_spent_lectures = float(post_data["time_spent_lectures"])
         self.assertEqual(
             submission.time_spent_lectures,
-            float(post_data["time_spent_lectures"]),
+            time_spent_lectures,
         )
+        time_spent_homework = float(post_data["time_spent_homework"])
         self.assertEqual(
             submission.time_spent_homework,
-            float(post_data["time_spent_homework"]),
+            time_spent_homework,
         )
         self.assertEqual(
             submission.problems_comments,

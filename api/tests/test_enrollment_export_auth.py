@@ -10,8 +10,9 @@ class EnrollmentExportAuthAPITestCase(EnrollmentExportsAPITestBase):
         client = Client()
         payload = {"certificates": []}
         request_body = json.dumps(payload)
+        url = self.certificates_url()
         response = client.post(
-            self.certificates_url(),
+            url,
             request_body,
             content_type="application/json",
         )

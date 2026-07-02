@@ -84,7 +84,8 @@ def update_task_definition(input_file, new_tag, output_file):
     try:
         update_task_definition_file(input_file, new_tag, output_file)
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as error:
-        print(task_definition_error_message(error, input_file))
+        message = task_definition_error_message(error, input_file)
+        print(message)
         sys.exit(1)
 
     print(f"Updated task definition saved to {output_file}")
