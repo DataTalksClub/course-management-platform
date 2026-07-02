@@ -4228,6 +4228,19 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed single-use homework/project export course-data
+  pass-through helpers while keeping the `model_to_dict(...)` results assigned
+  to named local variables before payload construction. Verification:
+  `uv run python manage.py test data.tests.test_homework data.tests.test_project`,
+  `uv run ruff check api/views/homework_exports.py api/views/project_exports.py`,
+  Python export-helper reference scan
+  (`homework_export_course_data=0`, `project_export_course_data=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

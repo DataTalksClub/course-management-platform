@@ -18,12 +18,6 @@ from courses.models.project import (
 )
 
 
-def project_export_course_data(course):
-    return model_to_dict(
-        course, exclude=["students", "first_homework_scored"]
-    )
-
-
 def project_export_submission_data(submission):
     return {
         "student_id": submission.student_id,
@@ -61,7 +55,9 @@ def project_export_payload(course, project, submissions):
         submission_record = project_export_submission_data(submission)
         submission_records.append(submission_record)
 
-    course_data = project_export_course_data(course)
+    course_data = model_to_dict(
+        course, exclude=["students", "first_homework_scored"]
+    )
     project_data = project_export_project_data(project)
     return {
         "course": course_data,

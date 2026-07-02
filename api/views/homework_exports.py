@@ -19,12 +19,6 @@ from courses.models.homework import (
 )
 
 
-def homework_export_course_data(course):
-    return model_to_dict(
-        course, exclude=["students", "first_homework_scored"]
-    )
-
-
 def homework_export_submission_answers(submission):
     answer_values = submission.answer_set.values(
         "question_id", "answer_text", "is_correct"
@@ -66,7 +60,9 @@ def homework_export_payload(course, homework, submissions):
         submission_record = homework_export_submission_data(submission)
         submission_records.append(submission_record)
 
-    course_data = homework_export_course_data(course)
+    course_data = model_to_dict(
+        course, exclude=["students", "first_homework_scored"]
+    )
     homework_data = model_to_dict(homework)
     return {
         "course": course_data,
