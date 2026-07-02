@@ -6,7 +6,9 @@ from accounts.models import CustomUser, Token
 from courses.models import Course, Enrollment, Project, ProjectSubmission
 
 
-class ProjectDataAPIFixtureMixin:
+class ProjectDataAPITestBase(TestCase):
+    """Shared base for project data export endpoint tests."""
+
     def setUp(self):
         self.user = CustomUser.objects.create(
             username="testuser",
@@ -26,8 +28,6 @@ class ProjectDataAPIFixtureMixin:
             f"Token {self.token.key}"
         )
 
-
-class ProjectDataFactoryMixin:
     def create_project(self):
         submission_due_date = timezone.now() + timezone.timedelta(days=7)
         peer_review_due_date = timezone.now() + timezone.timedelta(days=14)
@@ -59,8 +59,6 @@ class ProjectDataFactoryMixin:
             },
         )
 
-
-class ProjectDataExpectedCourseMixin:
     def expected_course_data(self):
         return {
             "id": self.course.id,
@@ -98,8 +96,6 @@ class ProjectDataExpectedCourseMixin:
             "state": project.state,
         }
 
-
-class ProjectDataExpectedSubmissionMixin:
     def expected_submission_data(self, submission):
         return {
             "student_id": self.user.id,
@@ -124,8 +120,6 @@ class ProjectDataExpectedSubmissionMixin:
             "passed": submission.passed,
         }
 
-
-class ProjectDataAssertionMixin:
     def assert_fields(self, actual, expected):
         for field, expected_value in expected.items():
             self.assertEqual(actual[field], expected_value)
@@ -145,14 +139,3 @@ class ProjectDataAssertionMixin:
             actual_result["submissions"][0],
             expected_submission,
         )
-
-
-class ProjectDataAPITestBase(
-    ProjectDataAPIFixtureMixin,
-    ProjectDataFactoryMixin,
-    ProjectDataExpectedCourseMixin,
-    ProjectDataExpectedSubmissionMixin,
-    ProjectDataAssertionMixin,
-    TestCase,
-):
-    """Shared base for project data export endpoint tests."""
