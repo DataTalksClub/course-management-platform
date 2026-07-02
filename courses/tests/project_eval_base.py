@@ -39,7 +39,7 @@ credentials = dict(
 )
 
 
-class ProjectEvaluationFixtureMixin:
+class ProjectEvaluationTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -78,8 +78,6 @@ class ProjectEvaluationFixtureMixin:
             optional=False,
         )
 
-
-class ProjectReviewCriteriaFixtureMixin:
     def create_review_criteria(
         self, description, options, review_criteria_type
     ):
@@ -159,8 +157,6 @@ class ProjectReviewCriteriaFixtureMixin:
         }
         return responses
 
-
-class ProjectEvaluationRequestMixin:
     def eval_submit_url(self):
         return reverse(
             "projects_eval_submit",
@@ -207,14 +203,10 @@ class ProjectEvaluationRequestMixin:
         eval_submit_url = self.eval_submit_url()
         return self.client.post(eval_submit_url, post_data)
 
-
-class ProjectReviewStateMixin:
     def mark_peer_review_submitted(self):
         self.peer_review.state = PeerReviewState.SUBMITTED.value
         self.peer_review.save()
 
-
-class ProjectCriteriaExpectationMixin:
     def selected_options(self, rows, selected_indexes):
         options = []
         for index, row in enumerate(rows, start=1):
@@ -308,8 +300,6 @@ class ProjectCriteriaExpectationMixin:
     def criteria_responses(self):
         return CriteriaResponse.objects.filter(review=self.peer_review)
 
-
-class ProjectReviewAssertionsMixin:
     def assert_review_saved(self, expected_answers):
         self.peer_review = fetch_fresh(self.peer_review)
         self.assertEqual(
@@ -325,16 +315,6 @@ class ProjectReviewAssertionsMixin:
             response = criteria_responses.get(criteria=criteria)
             self.assertEqual(response.answer, expected_answer)
 
-
-class ProjectEvaluationTestBase(
-    ProjectEvaluationFixtureMixin,
-    ProjectReviewCriteriaFixtureMixin,
-    ProjectEvaluationRequestMixin,
-    ProjectReviewStateMixin,
-    ProjectCriteriaExpectationMixin,
-    ProjectReviewAssertionsMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
