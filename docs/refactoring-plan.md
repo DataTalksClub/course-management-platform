@@ -3039,6 +3039,11 @@ Steps:
   tests, and list-send/audit tests. Verification:
   `uv run ruff check courses/tests/datamailer_homework_score_base.py courses/tests/test_datamailer_homework_scores.py courses/tests/test_datamailer_homework_score_send.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_homework_score_send`.
+- [x] Split unit homework-answer scoring tests by checkbox, multiple-choice,
+  free-form string, numeric, any-answer, and long-answer behavior.
+  Verification:
+  `uv run ruff check courses/tests/test_unit_scoring.py courses/tests/test_unit_scoring_choice.py courses/tests/test_unit_scoring_free_form_strings.py courses/tests/test_unit_scoring_free_form_numeric.py courses/tests/test_unit_scoring_free_form_any.py courses/tests/test_unit_scoring_free_form_long.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_unit_scoring courses.tests.test_unit_scoring_choice courses.tests.test_unit_scoring_free_form_strings courses.tests.test_unit_scoring_free_form_numeric courses.tests.test_unit_scoring_free_form_any courses.tests.test_unit_scoring_free_form_long`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
