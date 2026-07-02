@@ -147,14 +147,16 @@ class HomeworkDataAPITestBase(TestCase):
         )
 
     def assert_submission_data(self, actual_result, submission):
-        self.assertEqual(len(actual_result["submissions"]), 1)
+        submission_count = len(actual_result["submissions"])
+        self.assertEqual(submission_count, 1)
         actual_submission = actual_result["submissions"][0]
         expected_submission = self.expected_submission_data(submission)
         self.assert_fields(actual_submission, expected_submission)
         return actual_submission
 
     def assert_answer_data(self, actual_submission, question, answer):
-        self.assertEqual(len(actual_submission["answers"]), 1)
+        answer_count = len(actual_submission["answers"])
+        self.assertEqual(answer_count, 1)
         expected_answer = self.expected_answer_data(question, answer)
         self.assert_fields(
             actual_submission["answers"][0],

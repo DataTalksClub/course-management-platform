@@ -133,7 +133,8 @@ class ProjectDataAPITestBase(TestCase):
         self.assert_fields(actual_result["project"], expected_project)
 
     def assert_submission_data(self, actual_result, submission):
-        self.assertEqual(len(actual_result["submissions"]), 1)
+        submission_count = len(actual_result["submissions"])
+        self.assertEqual(submission_count, 1)
         expected_submission = self.expected_submission_data(submission)
         self.assert_fields(
             actual_result["submissions"][0],
