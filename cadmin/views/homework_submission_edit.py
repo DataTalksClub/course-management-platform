@@ -112,10 +112,11 @@ def handle_homework_submission_edit_post(data):
 
     if not form.is_valid():
         error_message = first_form_error(form)
-        return homework_submission_edit_failed(
-            data,
-            error_message,
+        messages.error(
+            data.request,
+            f"Error updating submission: {error_message}",
         )
+        return None
 
     try:
         update_homework_submission_from_admin(
@@ -123,14 +124,10 @@ def handle_homework_submission_edit_post(data):
             form.cleaned_data,
         )
     except Exception as e:
-        return homework_submission_edit_failed(data, e)
+        messages.error(data.request, f"Error updating submission: {e}")
+        return None
 
     return homework_submission_edit_success(data)
-
-
-def homework_submission_edit_failed(data, message):
-    messages.error(data.request, f"Error updating submission: {message}")
-    return None
 
 
 def homework_submission_edit_success(data):

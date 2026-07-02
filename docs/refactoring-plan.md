@@ -173,6 +173,21 @@ testable service functions.
   `uv run ruff check courses/tests/homework_view_base.py courses/tests/test_homework.py courses/tests/test_homework_submission_view.py`
   and
   `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_submission_view`.
+- [x] 2026-07-02: Removed the single-use cadmin homework submission edit
+  failure helper. The invalid-form and exception branches now add their error
+  messages directly before returning `None`, while the success redirect helper
+  stays named because it carries the separate successful-update flow.
+  Verification:
+  `uv run ruff check cadmin/views/homework_submission_edit.py docs/refactoring-plan.md`,
+  `python -m py_compile cadmin/views/homework_submission_edit.py`,
+  `uv run python manage.py test cadmin.tests.test_homework_submission_edit_views`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Split cadmin homework view test helpers and submission-edit tests out of
   the oversized cadmin homework view test module.
 - [x] Split all-project-submissions course page tests out of the oversized
@@ -5358,6 +5373,18 @@ These are lower priority than the phases above.
 
 - [ ] Continue splitting long files by ownership when a file accumulates several
   related groups behind a common prefix or feature area.
+- [ ] Later: split `cadmin/views.py` into a `cadmin/views/` package by coherent
+  feature ownership. Keep focused test classes together when their setup and
+  subject are coherent; do not add mixins or base classes just to reduce file
+  length.
+- [ ] Later: move Datamailer `payloads_*` modules into a `payloads/` package
+  and `sync_*` modules into a `sync/` package, preserving public import paths
+  through package `__init__.py` files.
+- [ ] Later: move `api/openapi_*.py` modules into an `openapi/` package,
+  keeping schema/path ownership explicit and preserving existing API docs
+  behavior.
+- [ ] Later: review `courses/registration.py` countries data and move it to a
+  readable config/data file if the Python module is only storing static data.
 - [ ] Audit test-helper inheritance introduced during earlier cleanup and
   collapse it when the base class or mixin layer is only serving line-count
   reduction. Keep long focused test classes intact when their setup and subject
