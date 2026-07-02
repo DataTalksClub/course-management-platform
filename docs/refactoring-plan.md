@@ -26,6 +26,11 @@ testable service functions.
 - Do not add trivial pass-through functions. Extract helpers only when they
   name a real concept, isolate non-trivial branching, or make repeated behavior
   safer.
+- Treat mixins as a smell during cleanup. Do not introduce new mixins to split
+  classes; prefer simpler tests, focused concrete classes, helper functions, or
+  composition with named helper objects. When touching existing mixins, consider
+  replacing them if it reduces complexity without hiding behavior behind
+  pass-through methods.
 - Do not inline constructed values inside `append(...)`. Assign the dictionary,
   object, or function result to a named local variable first, then append it.
 - Avoid compact `sum(...)`/`next(...)` generator expressions when they include
