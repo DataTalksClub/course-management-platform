@@ -4006,6 +4006,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named tuple-shape, criteria-pair, expected-answer, and
+  peer-review counts before assertions in shared project statistics,
+  project evaluation, and project scoring test helpers. Verification:
+  `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_project_statistics_model courses.tests.test_project_eval courses.tests.test_project_eval_view courses.tests.test_project_score courses.tests.test_project_score_bonus courses.tests.test_project_score_outcomes courses.tests.test_project_results`,
+  `uv run ruff check courses/tests/project_statistics_base.py courses/tests/project_eval_base.py courses/tests/project_score_base.py courses/tests/test_project_statistics.py courses/tests/test_project_statistics_model.py courses/tests/test_project_eval.py courses/tests/test_project_eval_view.py courses/tests/test_project_score.py courses/tests/test_project_score_bonus.py courses/tests/test_project_score_outcomes.py courses/tests/test_project_results.py`,
+  touched-file inline-assertion scan (`touched_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

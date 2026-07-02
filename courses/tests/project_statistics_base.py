@@ -149,7 +149,8 @@ class ProjectStatisticsTestBase(TestCase):
 
         first_field = stat_fields[0]
         self.assertIsInstance(first_field, tuple)
-        self.assertEqual(len(first_field), 3)
+        first_field_count = len(first_field)
+        self.assertEqual(first_field_count, 3)
 
         field_name = first_field[0]
         field_stats = first_field[1]
@@ -160,7 +161,8 @@ class ProjectStatisticsTestBase(TestCase):
 
         if field_stats:
             stat_item = field_stats[0]
-            self.assertEqual(len(stat_item), 3)
+            stat_item_count = len(stat_item)
+            self.assertEqual(stat_item_count, 3)
 
     def assert_statistics_string_includes_project(self, stats):
         str_representation = str(stats)

@@ -221,7 +221,8 @@ class ProjectEvaluationTestBase(TestCase):
         return options
 
     def assert_empty_criteria_response_pairs(self, pairs):
-        self.assertEqual(len(pairs), 3)
+        pair_count = len(pairs)
+        self.assertEqual(pair_count, 3)
         expected_criteria = [self.criteria1, self.criteria2, self.criteria3]
         for pair, criteria in zip(pairs, expected_criteria):
             actual_criteria, response = pair
@@ -231,7 +232,8 @@ class ProjectEvaluationTestBase(TestCase):
     def assert_submitted_criteria_response_pairs(
         self, pairs, criteria_responses
     ):
-        self.assertEqual(len(pairs), 3)
+        pair_count = len(pairs)
+        self.assertEqual(pair_count, 3)
         code_quality_options = self.code_quality_options()
         code_quality_expected = ExpectedCriteriaResponse(
             pair=pairs[0],
@@ -310,7 +312,8 @@ class ProjectEvaluationTestBase(TestCase):
         self.assertEqual(self.peer_review.time_spent_reviewing, 3.0)
         criteria_responses = self.criteria_responses()
         criteria_response_count = criteria_responses.count()
-        self.assertEqual(criteria_response_count, len(expected_answers))
+        expected_answer_count = len(expected_answers)
+        self.assertEqual(criteria_response_count, expected_answer_count)
         for criteria, expected_answer in expected_answers.items():
             response = criteria_responses.get(criteria=criteria)
             self.assertEqual(response.answer, expected_answer)

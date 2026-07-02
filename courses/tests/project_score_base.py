@@ -205,7 +205,9 @@ class ProjectEvaluationTestBase(TestCase):
         peer_review.save()
 
     def submit_peer_reviews(self, peer_reviews, answers):
-        self.assertEqual(len(peer_reviews), len(answers))
+        peer_review_count = len(peer_reviews)
+        answer_count = len(answers)
+        self.assertEqual(peer_review_count, answer_count)
         for peer_review, answer in zip(peer_reviews, answers):
             self.submit_peer_review(peer_review, answer)
 
