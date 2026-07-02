@@ -3529,6 +3529,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the homework submission learning-links helper mixin
+  by converting the reused-link fixture, post data, and assertions into module
+  helpers. The focused learning-links test now inherits only from its real
+  integration base. Verification:
+  `uv run python manage.py test courses.tests.test_homework_submission_learning_links`,
+  `uv run ruff check courses/tests/homework_submission_learning_links_helpers.py courses/tests/test_homework_submission_learning_links.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
