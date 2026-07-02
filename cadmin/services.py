@@ -14,7 +14,10 @@ def update_homework_submission_from_admin(submission, cleaned_data):
             submission,
             cleaned_data["answers_by_question"],
         )
-        apply_homework_submission_admin_fields(submission, cleaned_data)
+        submission.learning_in_public_links = cleaned_data[
+            "learning_in_public_links_list"
+        ]
+        submission.faq_contribution_url = cleaned_data["faq_contribution_url"]
         rescore_homework_submission(submission)
         apply_homework_admin_score_overrides(submission, cleaned_data)
 
@@ -32,13 +35,6 @@ def update_homework_answers_from_admin(submission, answers_by_question):
             question=question,
             defaults={"answer_text": answer_text},
         )
-
-
-def apply_homework_submission_admin_fields(submission, cleaned_data):
-    submission.learning_in_public_links = cleaned_data[
-        "learning_in_public_links_list"
-    ]
-    submission.faq_contribution_url = cleaned_data["faq_contribution_url"]
 
 
 def rescore_homework_submission(submission):
