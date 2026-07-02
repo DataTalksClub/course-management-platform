@@ -3091,6 +3091,10 @@ Steps:
   by-slug upsert modules. Verification:
   `uv run ruff check api/tests/test_homework_mutations.py api/tests/test_homework_upserts.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_homework_mutations api.tests.test_homework_upserts`.
+- [x] Split homework data export tests into shared fixture, factory,
+  expectation, and assertion helpers plus a focused endpoint test. Verification:
+  `uv run ruff check data/tests/homework_base.py data/tests/test_homework.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_homework`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
