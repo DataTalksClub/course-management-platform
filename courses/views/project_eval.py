@@ -19,15 +19,6 @@ class ProjectEvalReviewGroups:
     completed_count: int
 
 
-def anonymous_project_eval_context(course, project, eval_closed):
-    return {
-        "course": course,
-        "project": project,
-        "is_authenticated": False,
-        "eval_closed": eval_closed,
-    }
-
-
 def split_project_eval_reviews(reviews):
     assigned_reviews = []
     selected_reviews = []
@@ -87,11 +78,12 @@ def projects_eval_view(request, course_slug, project_slug):
     eval_closed = project.state != ProjectState.PEER_REVIEWING.value
 
     if not is_authenticated:
-        context = anonymous_project_eval_context(
-            course,
-            project,
-            eval_closed,
-        )
+        context = {
+            "course": course,
+            "project": project,
+            "is_authenticated": False,
+            "eval_closed": eval_closed,
+        }
     else:
         context = student_project_eval_context(
             course,
