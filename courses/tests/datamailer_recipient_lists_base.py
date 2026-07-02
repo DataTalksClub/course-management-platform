@@ -173,7 +173,8 @@ class DatamailerRecipientListCommandTestBase(TestCase):
                 payload["list"]["metadata"]["outcome"],
                 expectation.outcome,
             )
-        self.assertEqual(len(payload["members"]), 1)
+        member_count = len(payload["members"])
+        self.assertEqual(member_count, 1)
         self.assertEqual(
             payload["members"][0]["source_object_key"],
             expectation.source_object_key,
@@ -207,7 +208,8 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         for line in lines:
             row = json.loads(line)
             rows.append(row)
-        self.assertEqual(len(rows), 1)
+        row_count = len(rows)
+        self.assertEqual(row_count, 1)
         self.assertEqual(
             rows[0]["source_object_key"],
             f"registration:{registration.pk}",

@@ -106,7 +106,8 @@ class DatamailerHomeworkScoreTestBase(TestCase):
         self.assertNotIn("member_sync", payload)
         self.assertNotIn("remove_absent_members", payload)
         self.assertEqual(payload["list"]["type"], expectation.list_type)
-        self.assertEqual(len(payload["members"]), 1)
+        member_count = len(payload["members"])
+        self.assertEqual(member_count, 1)
         return payload["members"][0]
 
     def assert_homework_score_member(self, member, submission):
@@ -137,7 +138,8 @@ class DatamailerHomeworkScoreTestBase(TestCase):
         )
 
     def single_homework_score_member(self, payload):
-        self.assertEqual(len(payload["members"]), 1)
+        member_count = len(payload["members"])
+        self.assertEqual(member_count, 1)
         return payload["members"][0]
 
     def create_scored_homework_submission(self):

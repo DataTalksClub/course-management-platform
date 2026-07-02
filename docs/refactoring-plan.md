@@ -3982,6 +3982,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named member and row counts before assertions in shared
+  Datamailer homework-score, project-score, and recipient-list test helpers.
+  Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_homework_score_send courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_project_outcomes courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`,
+  `uv run ruff check courses/tests/datamailer_homework_score_base.py courses/tests/datamailer_project_score_base.py courses/tests/datamailer_recipient_lists_base.py courses/tests/test_datamailer_homework_scores.py courses/tests/test_datamailer_homework_score_send.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_project_outcomes.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py`,
+  touched-file inline-assertion scan (`touched_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
