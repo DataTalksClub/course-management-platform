@@ -86,16 +86,12 @@ def update_enrollment_toggle_value(toggle_update):
     invalidate_leaderboard_cache(toggle_update.course.id)
 
 
-def _enrollment_context(course, enrollment, form):
-    return {
+def _render_enrollment_form(request, course, enrollment, form):
+    context = {
         "form": form,
         "course": course,
         "enrollment": enrollment,
     }
-
-
-def _render_enrollment_form(request, course, enrollment, form):
-    context = _enrollment_context(course, enrollment, form)
     response = render(
         request,
         "courses/enrollment.html",
