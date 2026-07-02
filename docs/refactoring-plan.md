@@ -3686,6 +3686,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the local project-evaluation closed-state mixin by
+  converting its single project-closing helper into a module function. The
+  evaluation submit GET and POST tests now inherit only from the focused
+  project-evaluation base. Verification:
+  `uv run python manage.py test courses.tests.test_project_eval`,
+  `uv run ruff check courses/tests/test_project_eval.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

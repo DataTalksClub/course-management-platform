@@ -13,10 +13,9 @@ from courses.tests.project_eval_base import (
 )
 
 
-class ProjectEvaluationClosedStateMixin:
-    def close_project_reviews(self):
-        self.project.state = ProjectState.COMPLETED.value
-        self.project.save()
+def close_project_reviews(project):
+    project.state = ProjectState.COMPLETED.value
+    project.save()
 
 
 class ProjectEvaluationSubmitAuthTestCase(ProjectEvaluationTestBase):
@@ -26,10 +25,7 @@ class ProjectEvaluationSubmitAuthTestCase(ProjectEvaluationTestBase):
         self.assertEqual(response.status_code, 302)
 
 
-class ProjectEvaluationSubmitGetTestCase(
-    ProjectEvaluationClosedStateMixin,
-    ProjectEvaluationTestBase,
-):
+class ProjectEvaluationSubmitGetTestCase(ProjectEvaluationTestBase):
     def assert_eval_submit_accepting_context(self, context):
         self.assertTrue(context["accepting_submissions"])
         self.assertFalse(context["disabled"])
@@ -78,7 +74,7 @@ class ProjectEvaluationSubmitGetTestCase(
     def test_eval_submit_get_authenticated_not_submitted_not_accepting_responses(
         self,
     ):
-        self.close_project_reviews()
+        close_project_reviews(self.project)
 
         response = self.get_eval_submit_response()
         self.assertEqual(response.status_code, 200)
@@ -109,12 +105,9 @@ class ProjectEvaluationSubmitGetTestCase(
         )
 
 
-class ProjectEvaluationSubmitPostTestCase(
-    ProjectEvaluationClosedStateMixin,
-    ProjectEvaluationTestBase,
-):
+class ProjectEvaluationSubmitPostTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_post_not_accepting_responses(self):
-        self.close_project_reviews()
+        close_project_reviews(self.project)
 
         post_data = self.review_post_data()
         response = self.post_eval_submit(post_data)
