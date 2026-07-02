@@ -28,37 +28,39 @@ class PassedSubmissionRowsContext:
     project3: object
 
 
-class PassedSubmissionRowsMixin:
-    def append_primary_user_submissions(self, context):
-        submission = self.create_project_submission(
-            context.project1, self.user, self.enrollment
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project2, self.user, self.enrollment
-        )
-        context.passed_submissions.append(submission)
-
-    def append_other_student_submissions(self, context):
-        submission = self.create_project_submission(
-            context.project1, context.user2, context.enrollment2
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project1, context.user3, context.enrollment3
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project2, context.user3, context.enrollment3
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project3, context.user3, context.enrollment3
-        )
-        context.passed_submissions.append(submission)
+def append_primary_user_submissions(test_case, context):
+    submission = test_case.create_project_submission(
+        context.project1, test_case.user, test_case.enrollment
+    )
+    context.passed_submissions.append(submission)
+    submission = test_case.create_project_submission(
+        context.project2, test_case.user, test_case.enrollment
+    )
+    context.passed_submissions.append(submission)
 
 
-class PassedEnrollmentScenarioMixin(PassedSubmissionRowsMixin):
+def append_other_student_submissions(test_case, context):
+    submission = test_case.create_project_submission(
+        context.project1, context.user2, context.enrollment2
+    )
+    context.passed_submissions.append(submission)
+    submission = test_case.create_project_submission(
+        context.project1, context.user3, context.enrollment3
+    )
+    context.passed_submissions.append(submission)
+    submission = test_case.create_project_submission(
+        context.project2, context.user3, context.enrollment3
+    )
+    context.passed_submissions.append(submission)
+    submission = test_case.create_project_submission(
+        context.project3, context.user3, context.enrollment3
+    )
+    context.passed_submissions.append(submission)
+
+
+class PassedEnrollmentTestBase(EnrollmentDataAPIBase):
+    """Shared base for passed-enrollment helper tests."""
+
     def create_passed_submission_rows(
         self,
         actors,
@@ -78,8 +80,8 @@ class PassedEnrollmentScenarioMixin(PassedSubmissionRowsMixin):
             project2=project2,
             project3=project3,
         )
-        self.append_primary_user_submissions(context)
-        self.append_other_student_submissions(context)
+        append_primary_user_submissions(self, context)
+        append_other_student_submissions(self, context)
         return passed_submissions
 
     def get_passed_enrollment_scenario(self):
@@ -108,10 +110,3 @@ class PassedEnrollmentScenarioMixin(PassedSubmissionRowsMixin):
             enrollment3=enrollment3,
             enrollment4=enrollment4,
         )
-
-
-class PassedEnrollmentTestBase(
-    PassedEnrollmentScenarioMixin,
-    EnrollmentDataAPIBase,
-):
-    """Shared base for passed-enrollment helper tests."""

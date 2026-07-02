@@ -3551,6 +3551,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Flattened passed-enrollment test helper mixins by moving
+  row-building support to module helpers and the scenario setup onto the
+  concrete passed-enrollment test base. The threshold and boundary tests now
+  use a module assertion helper instead of an assertion mixin. Verification:
+  `uv run python manage.py test data.tests.test_enrollment_passed`,
+  `uv run ruff check data/tests/test_enrollment_passed.py data/tests/enrollment_passed_base.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

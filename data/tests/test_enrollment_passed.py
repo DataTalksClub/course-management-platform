@@ -6,27 +6,23 @@ from .enrollment_base import PassedEnrollmentExpectation
 from .enrollment_passed_base import PassedEnrollmentTestBase
 
 
-class PassedEnrollmentAssertionMixin:
-    def assert_enrollments_for_min_projects(
-        self,
-        data: PassedEnrollmentExpectation,
-    ):
-        result = get_passed_enrollments(
-            data.passed_submissions,
-            data.min_projects,
-        )
-        self.assertEqual(len(result), len(data.expected_enrollments))
-        for enrollment in data.expected_enrollments:
-            self.assertIn(enrollment, result)
-        for enrollment in data.missing_enrollments:
-            self.assertNotIn(enrollment, result)
-        return result
-
-
-class PassedEnrollmentThresholdTestCase(
-    PassedEnrollmentAssertionMixin,
-    PassedEnrollmentTestBase,
+def assert_enrollments_for_min_projects(
+    test_case,
+    data: PassedEnrollmentExpectation,
 ):
+    result = get_passed_enrollments(
+        data.passed_submissions,
+        data.min_projects,
+    )
+    test_case.assertEqual(len(result), len(data.expected_enrollments))
+    for enrollment in data.expected_enrollments:
+        test_case.assertIn(enrollment, result)
+    for enrollment in data.missing_enrollments:
+        test_case.assertNotIn(enrollment, result)
+    return result
+
+
+class PassedEnrollmentThresholdTestCase(PassedEnrollmentTestBase):
     def test_get_passed_enrollments_for_two_project_minimum(self):
         scenario = self.get_passed_enrollment_scenario()
         expected_enrollments = []
@@ -42,7 +38,7 @@ class PassedEnrollmentThresholdTestCase(
             missing_enrollments=missing_enrollments,
         )
 
-        self.assert_enrollments_for_min_projects(expectation)
+        assert_enrollments_for_min_projects(self, expectation)
 
     def test_get_passed_enrollments_for_one_project_minimum(self):
         scenario = self.get_passed_enrollment_scenario()
@@ -59,13 +55,10 @@ class PassedEnrollmentThresholdTestCase(
             missing_enrollments=missing_enrollments,
         )
 
-        self.assert_enrollments_for_min_projects(expectation)
+        assert_enrollments_for_min_projects(self, expectation)
 
 
-class PassedEnrollmentBoundaryTestCase(
-    PassedEnrollmentAssertionMixin,
-    PassedEnrollmentTestBase,
-):
+class PassedEnrollmentBoundaryTestCase(PassedEnrollmentTestBase):
     def test_get_passed_enrollments_for_three_project_minimum(self):
         scenario = self.get_passed_enrollment_scenario()
         expected_enrollments = []
@@ -76,7 +69,7 @@ class PassedEnrollmentBoundaryTestCase(
             expected_enrollments=expected_enrollments,
         )
 
-        result = self.assert_enrollments_for_min_projects(expectation)
+        result = assert_enrollments_for_min_projects(self, expectation)
 
         self.assertEqual(result[0], scenario.enrollment3)
 
