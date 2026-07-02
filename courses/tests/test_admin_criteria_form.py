@@ -50,7 +50,8 @@ class CriteriaFormValidationTestCase(TestCase):
         form_is_valid = form.is_valid()
         self.assertFalse(form_is_valid, "Form should be invalid with dict instead of list")
         self.assertIn('options', form.errors)
-        self.assertIn('must be a list', str(form.errors['options']))
+        options_errors = str(form.errors['options'])
+        self.assertIn('must be a list', options_errors)
 
     def test_form_invalid_with_missing_criteria_key(self):
         """Test that form rejects options missing 'criteria' key."""
@@ -67,7 +68,8 @@ class CriteriaFormValidationTestCase(TestCase):
         form_is_valid = form.is_valid()
         self.assertFalse(form_is_valid, "Form should be invalid with missing 'criteria' key")
         self.assertIn('options', form.errors)
-        self.assertIn('criteria', str(form.errors['options']))
+        options_errors = str(form.errors['options'])
+        self.assertIn('criteria', options_errors)
 
     def test_form_invalid_with_missing_score_key(self):
         """Test that form rejects options missing 'score' key."""
@@ -84,7 +86,8 @@ class CriteriaFormValidationTestCase(TestCase):
         form_is_valid = form.is_valid()
         self.assertFalse(form_is_valid, "Form should be invalid with missing 'score' key")
         self.assertIn('options', form.errors)
-        self.assertIn('score', str(form.errors['options']))
+        options_errors = str(form.errors['options'])
+        self.assertIn('score', options_errors)
 
     def test_form_invalid_with_wrong_score_type(self):
         """Test that form rejects non-integer score values."""
@@ -122,6 +125,7 @@ class CriteriaFormValidationTestCase(TestCase):
         criteria = form.save()
         self.assertIsNotNone(criteria.id)
         self.assertEqual(criteria.description, 'Test Criteria')
-        self.assertEqual(len(criteria.options), 3)
+        options_count = len(criteria.options)
+        self.assertEqual(options_count, 3)
         self.assertEqual(criteria.options[0]['criteria'], "Poor")
         self.assertEqual(criteria.options[0]['score'], 0)
