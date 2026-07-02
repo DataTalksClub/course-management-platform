@@ -11,11 +11,6 @@ from course_management.datamailer.keys import (
     project_passed_list_key,
     registration_list_key,
 )
-from courses.models import (
-    Course,
-    CourseRegistration,
-    RegistrationCampaign,
-)
 from courses.tests.datamailer_recipient_lists_base import (
     BulkUpsertMemberExpectation,
     DATAMAILER_SETTINGS,
@@ -23,15 +18,17 @@ from courses.tests.datamailer_recipient_lists_base import (
 )
 
 
-class DatamailerRecipientListCommandTest(
-    DatamailerRecipientListCommandTestBase
-):
+class DatamailerRecipientListCommandMixin:
     def run_recipient_list_command(self, *args):
         out = StringIO()
         call_command("sync_datamailer_recipient_lists", *args, stdout=out)
         return out
 
 
+class DatamailerRecipientListBulkUpsertTest(
+    DatamailerRecipientListCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
@@ -88,6 +85,11 @@ class DatamailerRecipientListCommandTest(
         self.assert_bulk_upsert_member(expectation)
         self.assert_prepared_one_member(out)
 
+
+class DatamailerRecipientListProjectPassedTest(
+    DatamailerRecipientListCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -148,6 +150,11 @@ class DatamailerRecipientListCommandTest(
             f"project-submission:{passed_submission.pk}",
         )
 
+
+class DatamailerRecipientListGraduateTest(
+    DatamailerRecipientListCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -178,6 +185,11 @@ class DatamailerRecipientListCommandTest(
         self.assert_bulk_upsert_member(expectation)
         self.assert_prepared_one_member(out)
 
+
+class DatamailerRecipientListDryRunTest(
+    DatamailerRecipientListCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
@@ -186,7 +198,7 @@ class DatamailerRecipientListCommandTest(
         self,
         bulk_upsert,
     ):
-        self.create_dry_run_registration()
+        self.create_registration()
 
         out = self.run_recipient_list_command(
             "registrations",
@@ -200,28 +212,10 @@ class DatamailerRecipientListCommandTest(
             output,
         )
 
-    def create_dry_run_registration(self):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            current_course=course,
-        )
-        CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
-            email="Student@Example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
 
+class DatamailerRecipientListOptionValidationTest(
+    DatamailerRecipientListCommandTestBase
+):
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_backfill_command_rejects_invalid_options(self):
         for args, message in (

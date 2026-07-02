@@ -3253,6 +3253,12 @@ Steps:
   while keeping the public base class stable. Verification:
   `uv run ruff check courses/tests/dashboard_homework_base.py courses/tests/test_dashboard_homework_stats.py courses/tests/test_dashboard_homework_difficulty.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_dashboard_homework_stats courses.tests.test_dashboard_homework_difficulty`.
+- [x] Split Datamailer recipient-list sync command tests into focused bulk
+  upsert, project-passed reconcile, graduate, dry-run, and option-validation
+  scenario classes. Also reused the shared registration fixture instead of
+  local dry-run model setup. Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_lists.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
