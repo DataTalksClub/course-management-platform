@@ -12,12 +12,17 @@ def list_all_project_submissions_view(request, course_slug: str):
     course = get_object_or_404(Course, slug=course_slug)
     submissions_page = _all_project_submissions_page(course, request)
     projects = _projects_with_submission_counts(course)
-    context = _all_project_submissions_context(
-        course,
-        projects,
-        submissions_page,
-        request.user,
+    page_range = submissions_page.paginator.get_elided_page_range(
+        submissions_page.number
     )
+    context = {
+        "course": course,
+        "projects": projects,
+        "submissions": submissions_page.object_list,
+        "submissions_page": submissions_page,
+        "page_range": page_range,
+        "is_authenticated": request.user.is_authenticated,
+    }
 
     response = render(request, "projects/list_all.html", context)
     return response
@@ -73,22 +78,3 @@ def _all_project_submissions_page(course, request):
     paginator = Paginator(submissions, PROJECT_SUBMISSIONS_PAGE_SIZE)
     page_number = request.GET.get("page")
     return paginator.get_page(page_number)
-
-
-def _all_project_submissions_context(
-    course,
-    projects,
-    submissions_page,
-    user,
-):
-    page_range = submissions_page.paginator.get_elided_page_range(
-        submissions_page.number
-    )
-    return {
-        "course": course,
-        "projects": projects,
-        "submissions": submissions_page.object_list,
-        "submissions_page": submissions_page,
-        "page_range": page_range,
-        "is_authenticated": user.is_authenticated,
-    }
