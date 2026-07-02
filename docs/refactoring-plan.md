@@ -2021,6 +2021,20 @@ Steps:
   and `touched_file_long_functions=0`, size-threshold scan reports
   `threshold_violations=0`, comprehension scan reports
   `forbidden_comprehensions=0`, `uvx pyrefly check`, and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use project-upsert title and description
+  assignment helpers. The title/name fallback and optional description
+  assignment now live directly in `apply_project_data`, before instructions URL
+  validation and generic patch fields. Verification:
+  `uv run ruff check api/views/project_upsert_persistence.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/project_upsert_persistence.py`,
+  `uv run python manage.py test api.tests.test_project_updates api.tests.test_project_creation api.tests.test_projects`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Replace deadline reminder spec factory functions with named static spec
   values and constants so reminder event planning no longer uses trivial
   pass-through factories or nine-field constructor calls. Verification:

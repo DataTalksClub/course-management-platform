@@ -62,18 +62,6 @@ def create_project_from_upsert(course, project_slug, data):
     return project
 
 
-def apply_project_title(project, data):
-    name = data.get("name")
-    title = data.get("title", name)
-    if title is not None:
-        project.title = title
-
-
-def apply_project_description(project, data):
-    if "description" in data:
-        project.description = data["description"]
-
-
 def apply_project_instructions_url(project, data):
     if "instructions_url" not in data:
         return None
@@ -101,8 +89,13 @@ def project_generic_patch_data(data):
 
 
 def apply_project_data(project, data):
-    apply_project_title(project, data)
-    apply_project_description(project, data)
+    name = data.get("name")
+    title = data.get("title", name)
+    if title is not None:
+        project.title = title
+
+    if "description" in data:
+        project.description = data["description"]
 
     error = apply_project_instructions_url(project, data)
     if error:
