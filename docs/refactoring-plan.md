@@ -3012,6 +3012,11 @@ Steps:
   landing-page admin tests, and Datamailer campaign action tests. Verification:
   `uv run ruff check cadmin/tests/campaign_view_base.py cadmin/tests/test_campaign_views.py cadmin/tests/test_campaign_datamailer_views.py docs/refactoring-plan.md`,
   `uv run python manage.py test cadmin.tests.test_campaign_views cadmin.tests.test_campaign_datamailer_views`.
+- [x] Split Datamailer project score tests into shared score fixtures, project
+  score payload tests, and passed-outcome recipient-list/send tests.
+  Verification:
+  `uv run ruff check courses/tests/datamailer_project_score_base.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_project_outcomes.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_project_outcomes`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
