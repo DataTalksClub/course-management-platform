@@ -3355,6 +3355,12 @@ Steps:
   tests. Verification:
   `uv run ruff check courses/tests/datamailer_homework_score_base.py courses/tests/test_datamailer_homework_scores.py courses/tests/test_datamailer_homework_score_send.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_homework_score_send`.
+- [x] 2026-07-02: Split Datamailer campaign command parser groups and response
+  output helpers out of the command class as module-level functions, keeping
+  command handling focused on validation, configuration, and execution.
+  Verification:
+  `uv run ruff check courses/management/commands/datamailer_campaign.py courses/tests/test_datamailer_campaign_command.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_campaign_command`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
