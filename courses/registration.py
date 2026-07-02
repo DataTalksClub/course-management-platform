@@ -81,8 +81,7 @@ def ordered_countries():
 
     top_country_set = set(top_countries)
     remaining_countries = []
-    country_names = COUNTRY_REGION.keys()
-    for country in country_names:
+    for country in COUNTRY_REGION.keys():
         if country not in top_country_set:
             remaining_countries.append(country)
     remaining_countries.sort()
