@@ -228,9 +228,6 @@ class PeerReview(models.Model):
     def __str__(self):
         return f"Peer review {self.id}, state={self.state}"
 
-    def get_criteria_responses(self):
-        return self.criteria_responses.all()
-
 
 class CriteriaResponse(models.Model):
     review = models.ForeignKey(

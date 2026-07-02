@@ -127,7 +127,7 @@ def project_eval_criteria_response_pairs(
 
 def project_eval_responses_by_criteria_id(review):
     responses_by_criteria_id = {}
-    criteria_responses = review.get_criteria_responses()
+    criteria_responses = review.criteria_responses.all()
     for response in criteria_responses:
         responses_by_criteria_id[response.criteria.id] = response
     return responses_by_criteria_id

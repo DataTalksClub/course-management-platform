@@ -4513,6 +4513,18 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the `PeerReview.get_criteria_responses()` pass-through
+  model method and used the `criteria_responses` related manager directly where
+  project evaluation responses are grouped. Verification:
+  `uv run ruff check courses/models/project.py courses/views/project_eval_submit_context.py`,
+  `python -m py_compile courses/models/project.py courses/views/project_eval_submit_context.py`,
+  `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`,
+  pass-through method scan, `uvx pyrefly check`, repository AST cleanup scan
+  excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
