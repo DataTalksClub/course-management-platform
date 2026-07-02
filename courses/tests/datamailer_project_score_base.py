@@ -48,7 +48,7 @@ class ProjectScoreListSendExpectation:
     submission: ProjectSubmission
 
 
-class DatamailerProjectScoreTestBase(TestCase):
+class DatamailerProjectScoreFixtureMixin:
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -91,6 +91,8 @@ class DatamailerProjectScoreTestBase(TestCase):
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
+
+class DatamailerProjectScorePayloadAssertionsMixin:
     def assert_score_payload_common(self, expectation):
         payload = expectation.payload
         self.assertEqual(payload["template_key"], expectation.template_key)
@@ -118,70 +120,9 @@ class DatamailerProjectScoreTestBase(TestCase):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
-    def create_passed_and_failed_project_submissions(self):
-        project = self.create_project()
-        passed_user = self.create_user("passed@example.com")
-        passed_submission = self.create_project_submission(
-            project,
-            passed_user,
-            github_link="https://github.com/example/passed",
-            total_score=98,
-            passed=True,
-        )
-        failed_user = self.create_user("failed@example.com")
-        self.create_project_submission(
-            project,
-            failed_user,
-            github_link="https://github.com/example/failed",
-            total_score=50,
-            passed=False,
-        )
-        return project, passed_submission
-
     def single_project_score_member(self, payload):
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
-
-    def create_duplicate_project_submissions(self):
-        project = self.create_project()
-        user = self.create_user("project-learner@example.com")
-        enrollment = self.create_enrollment(user, project.course)
-        older_submission_time = timezone.now() - timedelta(days=1)
-        ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/old",
-            submitted_at=older_submission_time,
-            total_score=40,
-        )
-        latest_submission_time = timezone.now()
-        latest_submission = ProjectSubmission.objects.create(
-            project=project,
-            student=user,
-            enrollment=enrollment,
-            github_link="https://github.com/example/new",
-            submitted_at=latest_submission_time,
-            total_score=90,
-        )
-        return project, latest_submission
-
-    def create_project_score_submission(self):
-        project = self.create_project()
-        user = self.create_user("project-learner@example.com")
-        submission = self.create_project_submission(
-            project,
-            user,
-            project_score=70,
-            project_learning_in_public_score=5,
-            project_faq_score=1,
-            peer_review_score=18,
-            peer_review_learning_in_public_score=4,
-            total_score=98,
-            reviewed_enough_peers=True,
-            passed=True,
-        )
-        return project, submission
 
     def assert_project_score_member(self, member, submission):
         self.assertEqual(
@@ -234,6 +175,71 @@ class DatamailerProjectScoreTestBase(TestCase):
         )
         self.assertEqual(member["metadata"]["total_score"], 90)
 
+
+class DatamailerProjectScoreScenarioFixtureMixin:
+    def create_passed_and_failed_project_submissions(self):
+        project = self.create_project()
+        passed_user = self.create_user("passed@example.com")
+        passed_submission = self.create_project_submission(
+            project,
+            passed_user,
+            github_link="https://github.com/example/passed",
+            total_score=98,
+            passed=True,
+        )
+        failed_user = self.create_user("failed@example.com")
+        self.create_project_submission(
+            project,
+            failed_user,
+            github_link="https://github.com/example/failed",
+            total_score=50,
+            passed=False,
+        )
+        return project, passed_submission
+
+    def create_duplicate_project_submissions(self):
+        project = self.create_project()
+        user = self.create_user("project-learner@example.com")
+        enrollment = self.create_enrollment(user, project.course)
+        older_submission_time = timezone.now() - timedelta(days=1)
+        ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/old",
+            submitted_at=older_submission_time,
+            total_score=40,
+        )
+        latest_submission_time = timezone.now()
+        latest_submission = ProjectSubmission.objects.create(
+            project=project,
+            student=user,
+            enrollment=enrollment,
+            github_link="https://github.com/example/new",
+            submitted_at=latest_submission_time,
+            total_score=90,
+        )
+        return project, latest_submission
+
+    def create_project_score_submission(self):
+        project = self.create_project()
+        user = self.create_user("project-learner@example.com")
+        submission = self.create_project_submission(
+            project,
+            user,
+            project_score=70,
+            project_learning_in_public_score=5,
+            project_faq_score=1,
+            peer_review_score=18,
+            peer_review_learning_in_public_score=4,
+            total_score=98,
+            reviewed_enough_peers=True,
+            passed=True,
+        )
+        return project, submission
+
+
+class DatamailerProjectScoreListSendAssertionsMixin:
     def assert_project_score_list_send(self, expectation):
         self.assertEqual(expectation.result, {"enqueued_count": 1})
         self.assertEqual(expectation.bulk_upsert.call_count, 2)
@@ -266,3 +272,13 @@ class DatamailerProjectScoreTestBase(TestCase):
             passed_payload["members"][0]["metadata"]["outcome"],
             "project_passed",
         )
+
+
+class DatamailerProjectScoreTestBase(
+    DatamailerProjectScoreFixtureMixin,
+    DatamailerProjectScorePayloadAssertionsMixin,
+    DatamailerProjectScoreScenarioFixtureMixin,
+    DatamailerProjectScoreListSendAssertionsMixin,
+    TestCase,
+):
+    pass

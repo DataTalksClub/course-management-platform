@@ -3270,6 +3270,11 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/test_datamailer_registration.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_registration`.
+- [x] Split the shared Datamailer project score test base into focused fixture,
+  score-payload assertion, project-score scenario fixture, and list-send
+  assertion mixins while keeping the public base class stable. Verification:
+  `uv run ruff check courses/tests/datamailer_project_score_base.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_project_outcomes.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_project_outcomes`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
