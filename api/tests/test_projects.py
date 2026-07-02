@@ -10,7 +10,8 @@ class ProjectsAPITestCase(ProjectAPITestBase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(len(data["projects"]), 1)
+        projects_count = len(data["projects"])
+        self.assertEqual(projects_count, 1)
         self.assertEqual(data["projects"][0]["submissions_count"], 0)
         self.assertTrue(data["projects"][0]["can_delete"])
 

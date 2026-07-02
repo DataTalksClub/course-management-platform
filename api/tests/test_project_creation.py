@@ -25,7 +25,8 @@ class ProjectCreationAPITestCase(ProjectAPITestBase):
 
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertEqual(len(data["created"]), 1)
+        created_count = len(data["created"])
+        self.assertEqual(created_count, 1)
         self.assertEqual(
             data["created"][0]["instructions_url"],
             PROJECT_INSTRUCTIONS_URL,
@@ -82,7 +83,9 @@ class ProjectBulkCreationAPITestCase(ProjectAPITestBase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(len(response.json()["created"]), 2)
+        data = response.json()
+        created_count = len(data["created"])
+        self.assertEqual(created_count, 2)
 
     def test_create_project_missing_fields(self):
         payload = {"name": "No dates"}

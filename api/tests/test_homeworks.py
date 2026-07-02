@@ -14,7 +14,8 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(len(data["homeworks"]), 1)
+        homeworks_count = len(data["homeworks"])
+        self.assertEqual(homeworks_count, 1)
         self.assertEqual(data["homeworks"][0]["slug"], "hw1")
         self.assertEqual(data["homeworks"][0]["submissions_count"], 0)
         self.assertTrue(data["homeworks"][0]["can_delete"])
@@ -34,7 +35,8 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         )
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertEqual(len(data["created"]), 1)
+        created_count = len(data["created"])
+        self.assertEqual(created_count, 1)
         self.assertEqual(data["created"][0]["title"], "Homework 2")
         self.assertIsNone(data["created"][0]["instructions_url"])
         self.assertEqual(data["created"][0]["state"], "CL")
@@ -86,7 +88,8 @@ class HomeworksAPITestCase(HomeworkAPITestBase):
         )
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertEqual(len(data["created"]), 2)
+        created_count = len(data["created"])
+        self.assertEqual(created_count, 2)
 
     def test_create_homework_with_questions(self):
         payload = {

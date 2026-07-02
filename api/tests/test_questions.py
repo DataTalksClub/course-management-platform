@@ -10,7 +10,8 @@ class QuestionsAPITestCase(QuestionAPITestBase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(len(data["questions"]), 1)
+        questions_count = len(data["questions"])
+        self.assertEqual(questions_count, 1)
         self.assertEqual(data["questions"][0]["answers_count"], 0)
         self.assertTrue(data["questions"][0]["can_delete"])
 

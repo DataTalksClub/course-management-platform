@@ -9,7 +9,8 @@ class CoursesListAPITestCase(CourseAPITestBase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(len(data["courses"]), 1)
+        courses_count = len(data["courses"])
+        self.assertEqual(courses_count, 1)
         self.assertEqual(data["courses"][0]["slug"], "ml-zoomcamp")
         self.assertEqual(data["courses"][0]["start_date"], "2026-01-15")
         self.assertEqual(data["courses"][0]["end_date"], "2026-04-15")

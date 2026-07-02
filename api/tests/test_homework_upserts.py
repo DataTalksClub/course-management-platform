@@ -42,7 +42,8 @@ class HomeworkBySlugUpsertTestBase(HomeworkAPITestBase):
         self.assertEqual(homework.title, "Updated Homework")
         ordered_questions = homework.question_set.order_by("id")
         questions = list(ordered_questions)
-        self.assertEqual(len(questions), 1)
+        questions_count = len(questions)
+        self.assertEqual(questions_count, 1)
         self.assertEqual(questions[0].text, "New question?")
 
 

@@ -25,11 +25,15 @@ testable service functions.
   scenarios for the same behavior area. Split test classes only when they cover
   different behavior areas, need different setup, or the shared helpers make
   the tests harder to read. Large case groups can stay together when they test
-  the same feature with the same setup. Do not extract or split those focused
-  case groups just to make the file or class shorter.
+  the same feature with the same setup. The right cleanup for a long but
+  focused test class is usually to leave the class together and simplify the
+  assertions inside it. Do not extract or split those focused case groups just
+  to make the file or class shorter.
 - Keep tests simple. Do not add test inheritance, base classes, or mixins just
   to reduce line counts. Prefer direct setup in the focused test case and
-  small helper functions only when they remove real duplication.
+  small helper functions only when they remove real duplication. When setup is
+  genuinely different, split into separate concrete test classes instead of
+  introducing inheritance.
 - Do not introduce list/dict/set comprehensions during cleanup. Prefer explicit
   loops so filtering, appending, and early exits stay easy to inspect.
 - Use Pyrefly as a whole-repo Python type check during cleanup.
@@ -4054,6 +4058,21 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Clarified the test-structure rule so long focused test
+  classes and same-setup case groups stay together, while cleanup avoids
+  inheritance, base classes, or mixins that only reduce line counts. Named
+  API response collection counts before assertions in course, homework,
+  project, and question API tests without changing test class structure.
+  Verification:
+  `uv run python manage.py test api.tests.test_courses api.tests.test_homeworks api.tests.test_homework_upserts api.tests.test_project_creation api.tests.test_projects api.tests.test_question_creation api.tests.test_questions`,
+  `uv run ruff check api/tests/test_courses.py api/tests/test_homeworks.py api/tests/test_homework_upserts.py api/tests/test_project_creation.py api/tests/test_projects.py api/tests/test_question_creation.py api/tests/test_questions.py`,
+  touched-file inline-assertion scan (`touched_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
@@ -4078,7 +4097,8 @@ These are lower priority than the phases above.
 - [ ] Audit test-helper inheritance introduced during earlier cleanup and
   collapse it when the base class or mixin layer is only serving line-count
   reduction. Keep long focused test classes intact when their setup and subject
-  are coherent.
+  are coherent, and do not split large case groups that exercise the same
+  feature with the same setup.
 - [ ] Move one-time root scripts into `scripts/` or `.tmp/` if they are not
   intended as maintained commands.
 - [ ] Audit `courses/static/courses.css` for component grouping after backend
