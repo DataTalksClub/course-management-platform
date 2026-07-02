@@ -77,15 +77,10 @@ def _account_email_preferences_update_response(request):
     if not datamailer_synced:
         return _email_preferences_unavailable_response()
 
-    return _email_preference_update_success_response(update)
-
-
-def _email_preference_update_success_response(update):
-    response = JsonResponse(
-        {
-            "field": update.field,
-            "value": update.enabled,
-            "datamailer_synced": True,
-        }
-    )
+    payload = {
+        "field": update.field,
+        "value": update.enabled,
+        "datamailer_synced": True,
+    }
+    response = JsonResponse(payload)
     return response
