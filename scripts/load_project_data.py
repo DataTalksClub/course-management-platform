@@ -453,7 +453,8 @@ def bulk_create_mapped(model, pending, target_map):
     for _old_id, obj in pending:
         objects.append(obj)
     created = model.objects.bulk_create(objects)
-    for (old_id, _), created_obj in zip(pending, created):
+    for pending_item, created_obj in zip(pending, created):
+        old_id = pending_item[0]
         target_map[old_id] = created_obj.id
     return []
 

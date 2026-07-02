@@ -3933,6 +3933,19 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Replaced remaining nested wide loop unpacking in leaderboard,
+  dashboard integration, generated leaderboard data, and project-data loading
+  code with named intermediate pair variables. This keeps direct `zip(...)`
+  and `enumerate(...)` use while avoiding loop targets that hide three values
+  behind nested tuple unpacking. Verification:
+  `uv run python manage.py test courses.tests.test_leaderboard courses.tests.test_leaderboard_current_student courses.tests.test_leaderboard_pagination courses.tests.test_leaderboard_score_breakdown_admin courses.tests.test_dashboard_integration courses.tests.test_load_project_data_script`,
+  `uv run ruff check courses/tests/leaderboard_base.py courses/tests/test_dashboard_integration.py courses/tests/test_leaderboard.py courses/tests/test_leaderboard_current_student.py courses/tests/test_leaderboard_pagination.py courses/tests/test_leaderboard_score_breakdown_admin.py scripts/generate_production_like_leaderboard_data.py scripts/load_project_data.py`,
+  `python -m py_compile scripts/generate_production_like_leaderboard_data.py scripts/load_project_data.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

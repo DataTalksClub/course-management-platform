@@ -117,7 +117,9 @@ class LeaderboardTestBase(TestCase):
             (2, 300),
             (1, 320),
         ]
-        for (rank, score), enrollment in zip(expected_scores, enrollments):
+        for expected_score, enrollment in zip(expected_scores, enrollments):
+            rank = expected_score[0]
+            score = expected_score[1]
             enrollment.refresh_from_db()
             self.assertEqual(enrollment.position_on_leaderboard, rank)
             self.assertEqual(enrollment.total_score, score)

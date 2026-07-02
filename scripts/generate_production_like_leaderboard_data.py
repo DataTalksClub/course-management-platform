@@ -611,7 +611,9 @@ def ensure_course(spec):
 
 def ensure_homeworks(course, spec):
     homeworks = []
-    for index, (title, due_date) in enumerate(spec["homeworks"], start=1):
+    for index, homework_due_date in enumerate(spec["homeworks"], start=1):
+        title = homework_due_date[0]
+        due_date = homework_due_date[1]
         homework_slug = stable_slug("homework", title, index)
         description = homework_description(title)
         parsed_due_date = parse_date(due_date)
@@ -632,7 +634,9 @@ def ensure_homeworks(course, spec):
 
 def ensure_projects(course, spec):
     projects = []
-    for index, (title, due_date) in enumerate(spec["projects"], start=1):
+    for index, project_due_date in enumerate(spec["projects"], start=1):
+        title = project_due_date[0]
+        due_date = project_due_date[1]
         project_slug = stable_slug("project", title, index)
         description = f"Production-like generated project: {title}"
         parsed_due_date = parse_date(due_date)

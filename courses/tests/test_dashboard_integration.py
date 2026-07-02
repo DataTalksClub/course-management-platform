@@ -80,8 +80,9 @@ class DashboardIntegrationTestCase(TestCase):
         return users, enrollments
 
     def create_homework_submissions(self, users, enrollments):
-        user_enrollments = zip(users, enrollments)
-        for index, (user, enrollment) in enumerate(user_enrollments):
+        for index, user_enrollment in enumerate(zip(users, enrollments)):
+            user = user_enrollment[0]
+            enrollment = user_enrollment[1]
             Submission.objects.create(
                 homework=self.homework1,
                 student=user,
@@ -103,8 +104,11 @@ class DashboardIntegrationTestCase(TestCase):
     def create_project_submissions(self, users, enrollments):
         first_users = users[:3]
         first_enrollments = enrollments[:3]
-        user_enrollments = zip(first_users, first_enrollments)
-        for index, (user, enrollment) in enumerate(user_enrollments):
+        for index, user_enrollment in enumerate(
+            zip(first_users, first_enrollments)
+        ):
+            user = user_enrollment[0]
+            enrollment = user_enrollment[1]
             total_score = 70 + index * 10
             ProjectSubmission.objects.create(
                 project=self.project,
