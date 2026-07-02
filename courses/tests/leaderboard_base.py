@@ -140,7 +140,8 @@ class LeaderboardTestBase(TestCase):
 
     def assert_first_leaderboard_page(self, response):
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["enrollments"]), 100)
+        enrollment_count = len(response.context["enrollments"])
+        self.assertEqual(enrollment_count, 100)
         self.assertContains(response, "Student 001")
         self.assertNotContains(response, "Student 101")
         self.assertNotContains(response, "Showing 1-100 of 105")
@@ -152,7 +153,8 @@ class LeaderboardTestBase(TestCase):
 
     def assert_second_leaderboard_page(self, response):
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["enrollments"]), 5)
+        enrollment_count = len(response.context["enrollments"])
+        self.assertEqual(enrollment_count, 5)
         self.assertContains(response, "Student 101")
         self.assertNotContains(response, "Student 001")
         self.assertNotContains(response, "Showing 101-105 of 105")

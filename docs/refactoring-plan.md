@@ -4041,6 +4041,19 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Cleared remaining inline assertion calls from shared test
+  base files by naming cadmin homework link counts, leaderboard page
+  enrollment counts, and expected project submission time-spent values.
+  Verification:
+  `uv run python manage.py test cadmin.tests.test_homework_views cadmin.tests.test_homework_submission_edit_views courses.tests.test_leaderboard courses.tests.test_leaderboard_current_student courses.tests.test_leaderboard_pagination courses.tests.test_leaderboard_score_breakdown_admin courses.tests.test_project_view courses.tests.test_project_submission_view courses.tests.test_project_submission_invalid courses.tests.test_project_submission_confirmation`,
+  `uv run ruff check cadmin/tests/homework_view_base.py cadmin/tests/test_homework_views.py cadmin/tests/test_homework_submission_edit_views.py courses/tests/leaderboard_base.py courses/tests/test_leaderboard.py courses/tests/test_leaderboard_current_student.py courses/tests/test_leaderboard_pagination.py courses/tests/test_leaderboard_score_breakdown_admin.py courses/tests/project_view_base.py courses/tests/project_submission_view_base.py courses/tests/test_project_view.py courses/tests/test_project_submission_view.py courses/tests/test_project_submission_invalid.py courses/tests/test_project_submission_confirmation.py`,
+  base-file inline-assertion scan (`base_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

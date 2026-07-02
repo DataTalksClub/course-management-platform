@@ -157,7 +157,8 @@ class ProjectViewTestBase(TestCase):
         self.assertEqual(submission.github_link, data["github_link"])
         self.assertEqual(submission.commit_id, data["commit_id"])
         if "time_spent" in data:
-            self.assertEqual(submission.time_spent, int(data["time_spent"]))
+            expected_time_spent = int(data["time_spent"])
+            self.assertEqual(submission.time_spent, expected_time_spent)
         if "problems_comments" in data:
             self.assertEqual(
                 submission.problems_comments,

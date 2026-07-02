@@ -329,9 +329,11 @@ class HomeworkCadminViewTestBase(TestCase):
         )
 
     def assert_learning_in_public_links(self, submission, expected_links):
+        actual_link_count = len(submission.learning_in_public_links)
+        expected_link_count = len(expected_links)
         self.assertEqual(
-            len(submission.learning_in_public_links),
-            len(expected_links),
+            actual_link_count,
+            expected_link_count,
         )
         for expected_link in expected_links:
             self.assertIn(expected_link, submission.learning_in_public_links)
