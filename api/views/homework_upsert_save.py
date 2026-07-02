@@ -66,7 +66,10 @@ def apply_homework_data(homework, data):
     if error:
         return error
 
-    apply_homework_direct_fields(homework, data)
+    for field in HOMEWORK_DIRECT_UPDATE_FIELDS:
+        if field not in data:
+            continue
+        setattr(homework, field, data[field])
     return None
 
 
@@ -117,10 +120,3 @@ def apply_homework_state(homework, data):
 
     homework.state = data["state"]
     return None
-
-
-def apply_homework_direct_fields(homework, data):
-    for field in HOMEWORK_DIRECT_UPDATE_FIELDS:
-        if field not in data:
-            continue
-        setattr(homework, field, data[field])
