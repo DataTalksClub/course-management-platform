@@ -26,7 +26,8 @@ class WrappedPlatformStatisticsTest(WrappedStatisticsTestBase):
 
     def test_leaderboard(self):
         leaderboard = self.stats.leaderboard
-        self.assertEqual(len(leaderboard), 2)
+        leaderboard_count = len(leaderboard)
+        self.assertEqual(leaderboard_count, 2)
         self.assertEqual(leaderboard[0]["display_name"], "Alice")
         self.assertEqual(leaderboard[0]["rank"], 1)
         self.assertEqual(leaderboard[0]["total_score"], 100)

@@ -25,7 +25,8 @@ class LeaderboardDataViewTestCase(LeaderboardDataViewBase):
         response = self.client.get(self.url)
         data = yaml.safe_load(response.content)
         leaderboard = data["leaderboard"]
-        self.assertEqual(len(leaderboard), 2)
+        leaderboard_count = len(leaderboard)
+        self.assertEqual(leaderboard_count, 2)
         self.assertEqual(leaderboard[0]["display_name"], "Alice")
         self.assertEqual(leaderboard[0]["total_score"], 100)
         self.assertEqual(leaderboard[0]["position"], 1)

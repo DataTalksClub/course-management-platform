@@ -92,8 +92,12 @@ class WrappedViewTests(TestCase):
         self.assertEqual(
             response.context["platform_stats"]["total_points"], 900
         )
+        course_stats_count = len(
+            response.context["platform_stats"]["course_stats"]
+        )
         self.assertEqual(
-            len(response.context["platform_stats"]["course_stats"]), 4
+            course_stats_count,
+            4,
         )
         self.assertEqual(
             response.context["user_stats"]["total_points"], 100

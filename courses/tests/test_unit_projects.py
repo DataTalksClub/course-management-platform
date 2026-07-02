@@ -49,8 +49,10 @@ class ProjectActionsUnitTestCase(TestCase):
         expected_number_of_assignments = (
             num_submissions * num_projects_to_review
         )
+        assignments_count = len(assignments)
         self.assertEqual(
-            len(assignments), expected_number_of_assignments
+            assignments_count,
+            expected_number_of_assignments,
         )
 
     def assert_reviewer_assignments_are_valid(
@@ -69,7 +71,8 @@ class ProjectActionsUnitTestCase(TestCase):
                 ids_to_review.add(submission_id)
                 submission_counter[submission_id] += 1
 
-            self.assertEqual(len(ids_to_review), num_projects_to_review)
+            ids_to_review_count = len(ids_to_review)
+            self.assertEqual(ids_to_review_count, num_projects_to_review)
 
         return submission_counter
 
@@ -96,7 +99,8 @@ class ProjectActionsUnitTestCase(TestCase):
         )
 
         assignments_by_reviewer = self.assignments_by_reviewer(assignments)
-        self.assertEqual(len(assignments_by_reviewer), num_submissions)
+        reviewers_count = len(assignments_by_reviewer)
+        self.assertEqual(reviewers_count, num_submissions)
 
         submission_counter = self.assert_reviewer_assignments_are_valid(
             assignments_by_reviewer,

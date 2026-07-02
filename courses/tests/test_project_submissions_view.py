@@ -226,7 +226,8 @@ class ProjectSubmissionsDisplayTests(ProjectSubmissionsViewTestBase):
         self.assertEqual(context["project"], self.project)
 
         submissions = list(context["submissions"])
-        self.assertEqual(len(submissions), 1)
+        submissions_count = len(submissions)
+        self.assertEqual(submissions_count, 1)
         self.assertEqual(submissions[0], self.submission)
 
     def test_submissions_view_displays_all_submissions(self):
@@ -237,7 +238,8 @@ class ProjectSubmissionsDisplayTests(ProjectSubmissionsViewTestBase):
 
         self.assertEqual(response.status_code, 200)
         submissions = list(response.context["submissions"])
-        self.assertEqual(len(submissions), 2)
+        submissions_count = len(submissions)
+        self.assertEqual(submissions_count, 2)
 
 
 class ProjectSubmissionsAdminLinkTests(ProjectSubmissionsViewTestBase):

@@ -74,7 +74,8 @@ class LeaderboardHomeworkDataViewTestCase(LeaderboardDataViewBase):
 
         alice = data["leaderboard"][0]
         self.assertIn("homeworks", alice)
-        self.assertEqual(len(alice["homeworks"]), 1)
+        homeworks_count = len(alice["homeworks"])
+        self.assertEqual(homeworks_count, 1)
         homework_data = alice["homeworks"][0]
         assert_scored_homework_export(self, homework_data)
 

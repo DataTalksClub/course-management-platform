@@ -32,13 +32,15 @@ class LeaderboardPaginationViewTestCase(LeaderboardDataViewBase):
             "/api/courses/test-course/leaderboard.yaml?page=2",
         )
         self.assertEqual(data["next_page_number"], 2)
-        self.assertEqual(len(data["leaderboard"]), 100)
+        leaderboard_count = len(data["leaderboard"])
+        self.assertEqual(leaderboard_count, 100)
         self.assertEqual(data["leaderboard"][0]["display_name"], "Alice")
         self.assertEqual(data["leaderboard"][-1]["display_name"], "User 100")
 
     def assert_second_leaderboard_page(self, data):
         self.assertEqual(data["page"], 2)
-        self.assertEqual(len(data["leaderboard"]), 5)
+        leaderboard_count = len(data["leaderboard"])
+        self.assertEqual(leaderboard_count, 5)
         self.assertFalse(data["has_next"])
         self.assertIsNone(data["next_page"])
         self.assertIsNone(data["next_page_number"])

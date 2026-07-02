@@ -44,7 +44,8 @@ class LeaderboardProjectDataViewTestCase(LeaderboardDataViewBase):
 
     def assert_completed_project_export(self, alice):
         self.assertIn("projects", alice)
-        self.assertEqual(len(alice["projects"]), 1)
+        projects_count = len(alice["projects"])
+        self.assertEqual(projects_count, 1)
         project = alice["projects"][0]
         self.assertEqual(project["project_score"], 80)
         self.assertEqual(

@@ -19,7 +19,8 @@ def assert_code_quality_criteria(test_case, criteria):
     test_case.assertEqual(criteria["description"], "Code Quality")
     test_case.assertEqual(criteria["type"], "Radio Buttons")
     test_case.assertEqual(criteria["review_criteria_type"], "RB")
-    test_case.assertEqual(len(criteria["options"]), 3)
+    options_count = len(criteria["options"])
+    test_case.assertEqual(options_count, 3)
     test_case.assertEqual(criteria["options"][0]["criteria"], "Poor")
     test_case.assertEqual(criteria["options"][0]["score"], 0)
 
@@ -28,7 +29,8 @@ def assert_features_criteria(test_case, criteria):
     test_case.assertEqual(criteria["description"], "Features Implemented")
     test_case.assertEqual(criteria["type"], "Checkboxes")
     test_case.assertEqual(criteria["review_criteria_type"], "CB")
-    test_case.assertEqual(len(criteria["options"]), 3)
+    options_count = len(criteria["options"])
+    test_case.assertEqual(options_count, 3)
 
 
 def assert_yaml_structure(test_case, parsed_data):
@@ -48,6 +50,7 @@ class CourseCriteriaYAMLViewTestCase(CourseCriteriaYAMLTestBase):
         assert_yaml_structure(self, parsed_data)
         assert_course_data(self, parsed_data, self.course)
         criteria_data = parsed_data["review_criteria"]
-        self.assertEqual(len(criteria_data), 2)
+        criteria_count = len(criteria_data)
+        self.assertEqual(criteria_count, 2)
         assert_code_quality_criteria(self, criteria_data[0])
         assert_features_criteria(self, criteria_data[1])

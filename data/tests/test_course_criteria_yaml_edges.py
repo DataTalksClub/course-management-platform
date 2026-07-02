@@ -23,7 +23,8 @@ class CourseCriteriaYAMLEdgeViewTestCase(CourseCriteriaYAMLTestBase):
         parsed_data = yaml.safe_load(yaml_content)
         self.assertIn("course", parsed_data)
         self.assertIn("review_criteria", parsed_data)
-        self.assertEqual(len(parsed_data["review_criteria"]), 0)
+        criteria_count = len(parsed_data["review_criteria"])
+        self.assertEqual(criteria_count, 0)
 
     def test_course_criteria_yaml_view_nonexistent_course(self):
         url = reverse(
