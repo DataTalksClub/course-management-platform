@@ -140,7 +140,9 @@ def apply_project_submission_optional_post_fields(
         )
 
     if project.time_spent_project_field:
-        apply_project_time_spent(request, project_submission)
+        time_spent = request.POST.get("time_spent")
+        if time_spent is not None and time_spent != "":
+            project_submission.time_spent = tryparsefloat(time_spent)
 
     if project.problems_comments_field:
         problems_comments = request.POST.get("problems_comments", "")
@@ -161,12 +163,3 @@ def apply_project_learning_in_public_links(
         links, project.learning_in_public_cap_project
     )
     project_submission.learning_in_public_links = cleaned_links
-
-
-def apply_project_time_spent(
-    request: HttpRequest,
-    project_submission: ProjectSubmission,
-) -> None:
-    time_spent = request.POST.get("time_spent")
-    if time_spent is not None and time_spent != "":
-        project_submission.time_spent = tryparsefloat(time_spent)
