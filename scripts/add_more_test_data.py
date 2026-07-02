@@ -160,9 +160,8 @@ def create_questions_for_homework(homework: Homework):
 def random_multiple_choice_answer(question: Question) -> str:
     possible_answers = question.get_possible_answers()
     num_possible_answers = len(possible_answers)
-    student_answer_int = random.choice(
-        range(1, num_possible_answers + 1)
-    )
+    possible_answer_numbers = range(1, num_possible_answers + 1)
+    student_answer_int = random.choice(possible_answer_numbers)
     student_answer = str(student_answer_int)
     return student_answer
 

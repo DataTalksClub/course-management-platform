@@ -4384,6 +4384,19 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named remaining nested conversion, random-choice range, timing,
+  and status-message values in touched E2E, seed-script, project-assignment,
+  and homework-scoring helpers. Verification:
+  `uv run ruff check e2e/browser.py scripts/add_more_test_data.py courses/project_assignment.py courses/scoring.py`,
+  `python -m py_compile e2e/browser.py scripts/add_more_test_data.py courses/project_assignment.py courses/scoring.py`,
+  `uv run python manage.py test courses.tests.test_project_assign courses.tests.test_project_optional_eval courses.tests.test_scoring courses.tests.test_homework_scoring_view`,
+  touched-file nested-call scan, touched-file inline tuple/list record scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 
 # How long the peer-review window stays open after submissions close.
 PEER_REVIEW_WINDOW = timedelta(days=7)
+PROJECT_NOT_COLLECTING_SUBMISSIONS_MESSAGE = (
+    "Project is not in 'COLLECTING_SUBMISSIONS' state to assign peer reviews."
+)
+FUTURE_SUBMISSION_DUE_DATE_MESSAGE = (
+    "The submission due date is in the future. "
+    "Update the due date to assign peer reviews."
+)
 
 
 class ProjectActionStatus(Enum):
@@ -47,19 +54,23 @@ def _assignment_precondition_failure(
     if project.state != ProjectState.COLLECTING_SUBMISSIONS.value:
         return (
             ProjectActionStatus.FAIL,
-            "Project is not in 'COLLECTING_SUBMISSIONS' state to assign peer reviews.",
+            PROJECT_NOT_COLLECTING_SUBMISSIONS_MESSAGE,
         )
 
-    if project.submission_due_date > timezone.now():
+    now = timezone.now()
+    if project.submission_due_date > now:
         return (
             ProjectActionStatus.FAIL,
-            "The submission due date is in the future. Update the due date to assign peer reviews.",
+            FUTURE_SUBMISSION_DUE_DATE_MESSAGE,
         )
 
     if submissions_count <= num_evaluations:
+        message = (
+            f"Not enough submissions to assign {num_evaluations} peer reviews each."
+        )
         return (
             ProjectActionStatus.FAIL,
-            f"Not enough submissions to assign {num_evaluations} peer reviews each.",
+            message,
         )
 
     return None
@@ -120,7 +131,11 @@ def assign_peer_reviews_for_project(
         _assign_peer_reviews(data)
         _log_peer_review_assignment(data)
 
+    message = (
+        f"Peer reviews assigned for project {project.id} and state updated to "
+        "'PEER_REVIEWING'."
+    )
     return (
         ProjectActionStatus.OK,
-        f"Peer reviews assigned for project {project.id} and state updated to 'PEER_REVIEWING'.",
+        message,
     )

@@ -387,7 +387,9 @@ class AdminSession:
         elif checkboxes.count() > 0:
             self._check_homework_checkboxes(field, value)
         else:
-            self.page.fill(f"[name='{field}']", str(value))
+            field_selector = f"[name='{field}']"
+            answer_text = str(value)
+            self.page.fill(field_selector, answer_text)
 
     def _fill_optional_homework_field(
         self,
@@ -395,7 +397,8 @@ class AdminSession:
         value: str | float | None,
     ) -> None:
         if value is not None and self.page.locator(selector).count():
-            self.page.fill(selector, str(value))
+            field_text = str(value)
+            self.page.fill(selector, field_text)
 
     def _fill_learning_in_public_links(self, links: list[str] | None) -> None:
         inputs = self.page.locator("[name='learning_in_public_links[]']")
@@ -481,7 +484,8 @@ class AdminSession:
 
     def _fill_optional_project_field(self, selector: str, value) -> None:
         if value is not None and self.page.locator(selector).count():
-            self.page.fill(selector, str(value))
+            field_text = str(value)
+            self.page.fill(selector, field_text)
 
     def _fill_project_learning_links(
         self,

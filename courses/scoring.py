@@ -110,10 +110,12 @@ def _mark_homework_scored(homework):
 
 
 def _homework_scoring_success(homework_id, started_at):
-    logger.info(f"Scored homework in {(time() - started_at):.2f} seconds")
+    duration = time() - started_at
+    logger.info(f"Scored homework in {duration:.2f} seconds")
+    message = f"Homework {homework_id} is scored"
     return (
         HomeworkScoringStatus.OK,
-        f"Homework {homework_id} is scored",
+        message,
     )
 
 
