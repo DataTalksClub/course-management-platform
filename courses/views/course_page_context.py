@@ -79,22 +79,17 @@ def _course_enrollment_progress(user, course: Course) -> dict:
             course=course,
         )
     except Enrollment.DoesNotExist:
-        return _empty_course_enrollment_progress()
+        return {
+            "has_enrollment": False,
+            "total_score": None,
+            "certificate_url": None,
+        }
 
     return {
         "has_enrollment": True,
         "total_score": enrollment.total_score,
         "certificate_url": enrollment.certificate_url,
     }
-
-
-def _empty_course_enrollment_progress() -> dict:
-    return {
-        "has_enrollment": False,
-        "total_score": None,
-        "certificate_url": None,
-    }
-
 
 def _has_course_registration(
     user,
