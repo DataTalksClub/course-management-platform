@@ -4271,6 +4271,18 @@ Steps:
   simplify assertions or helpers instead of introducing inheritance, bases, or
   mixins only to reduce size. Verification: documentation review and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use learning-in-public validation-error
+  wrapper by raising the `ValidationError` directly at the URL validation
+  boundary. Verification:
+  `uv run python manage.py test courses.tests.test_homework_submission_learning_public_validation courses.tests.test_homework_submission_learning_links`,
+  `uv run ruff check courses/views/homework_learning_links.py`,
+  Python reference scan (`_invalid_learning_in_public_link_error=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

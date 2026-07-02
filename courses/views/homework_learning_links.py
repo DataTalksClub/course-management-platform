@@ -6,17 +6,13 @@ from courses.models.homework import Submission
 from courses.models.project import ProjectSubmission
 
 
-def _invalid_learning_in_public_link_error():
-    return ValidationError(
-        "Learning in public links must be valid HTTP or HTTPS URLs."
-    )
-
-
 def _validate_learning_in_public_link(url_validator, link):
     try:
         url_validator(link)
     except ValidationError:
-        raise _invalid_learning_in_public_link_error()
+        raise ValidationError(
+            "Learning in public links must be valid HTTP or HTTPS URLs."
+        )
 
 
 def _is_blank_or_duplicate_link(link, cleaned_links):
