@@ -22,7 +22,29 @@ from courses.models import (
 )
 
 
-class CadminViewModelFixtureMixin:
+class CadminViewModelBase(TestCase):
+    def setUp(self):
+        self.course = Course.objects.create(
+            slug="test-course",
+            title="Test Course",
+            description="Test Course Description",
+        )
+        self.homework = Homework.objects.create(
+            course=self.course,
+            slug="test-homework",
+            title="Test Homework",
+            due_date=timezone.now() + timedelta(days=7),
+            state=HomeworkState.OPEN.value,
+        )
+        self.project = Project.objects.create(
+            course=self.course,
+            slug="test-project",
+            title="Test Project",
+            submission_due_date=timezone.now() + timedelta(days=7),
+            peer_review_due_date=timezone.now() + timedelta(days=14),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
     def create_user(self, username):
         return User.objects.create_user(
             username=username,
@@ -61,8 +83,6 @@ class CadminViewModelFixtureMixin:
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
-
-class CadminViewModelAssertionMixin:
     def assert_item_ids(self, items, expected_items):
         item_ids = []
         for item in items:
@@ -73,34 +93,6 @@ class CadminViewModelAssertionMixin:
         self.assertEqual(
             item_ids,
             expected_item_ids,
-        )
-
-
-class CadminViewModelBase(
-    CadminViewModelFixtureMixin,
-    CadminViewModelAssertionMixin,
-    TestCase,
-):
-    def setUp(self):
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
-        self.homework = Homework.objects.create(
-            course=self.course,
-            slug="test-homework",
-            title="Test Homework",
-            due_date=timezone.now() + timedelta(days=7),
-            state=HomeworkState.OPEN.value,
-        )
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=timezone.now() + timedelta(days=7),
-            peer_review_due_date=timezone.now() + timedelta(days=14),
-            state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
 
