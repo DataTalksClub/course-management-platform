@@ -32,22 +32,6 @@ def toggle_learning_in_public_response(request, course, enrollment):
     return response
 
 
-def enrollment_homework_submissions(enrollment):
-    return (
-        Submission.objects.filter(enrollment=enrollment)
-        .select_related("homework")
-        .order_by("-submitted_at")
-    )
-
-
-def enrollment_project_submissions(enrollment):
-    return (
-        ProjectSubmission.objects.filter(enrollment=enrollment)
-        .select_related("project")
-        .order_by("-submitted_at")
-    )
-
-
 def total_project_lip_score(project_submissions):
     total_score = 0
     for submission in project_submissions:
@@ -65,8 +49,16 @@ def total_homework_lip_score(homework_submissions):
 
 
 def enrollment_edit_context(course, enrollment):
-    homework_submissions = enrollment_homework_submissions(enrollment)
-    project_submissions = enrollment_project_submissions(enrollment)
+    homework_submissions = (
+        Submission.objects.filter(enrollment=enrollment)
+        .select_related("homework")
+        .order_by("-submitted_at")
+    )
+    project_submissions = (
+        ProjectSubmission.objects.filter(enrollment=enrollment)
+        .select_related("project")
+        .order_by("-submitted_at")
+    )
     homework_submissions_count = homework_submissions.count()
     project_submissions_count = project_submissions.count()
     total_homework_score = total_homework_lip_score(homework_submissions)

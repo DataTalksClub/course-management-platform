@@ -877,6 +877,18 @@ testable service functions.
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Remove single-use cadmin enrollment-edit submission queryset
+  wrappers and keep the named querysets directly in the enrollment edit context
+  builder. Verification:
+  `uv run ruff check cadmin/views/enrollment_edit.py docs/refactoring-plan.md`,
+  `python -m py_compile cadmin/views/enrollment_edit.py`,
+  `uv run python manage.py test cadmin.tests.test_impersonation_enrollment_views`,
+  wrapper scan for the removed helpers, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 
