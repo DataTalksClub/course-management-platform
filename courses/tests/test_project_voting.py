@@ -22,7 +22,13 @@ class ProjectSubmissionFixtureData:
     commit_id: str
 
 
-class ProjectVotingFixtureMixin:
+class ProjectVotingBase(TestCase):
+    def setUp(self):
+        self.course = self.create_course()
+        self.project = self.create_project()
+        self.voter = User.objects.create_user(username="voter")
+        self.submission = self.create_initial_submission()
+
     def create_course(self):
         return Course.objects.create(
             slug="course",
@@ -72,16 +78,6 @@ class ProjectVotingFixtureMixin:
         )
 
 
-class ProjectVotingBase(
-    ProjectVotingFixtureMixin,
-    TestCase,
-):
-    def setUp(self):
-        self.course = self.create_course()
-        self.project = self.create_project()
-        self.voter = User.objects.create_user(username="voter")
-        self.submission = self.create_initial_submission()
-
     def project_list_url(self):
         return reverse(
             "project_list",
@@ -107,35 +103,6 @@ class ProjectVotingBase(
             submission=submission
         ).exists()
         self.assertEqual(vote_exists, voted)
-
-
-class ProjectVotingAdditionalSubmissionMixin:
-    def create_other_submission(self):
-        submission_data = ProjectSubmissionFixtureData(
-            username="other-student",
-            display_name="Other Student",
-            repo="other-project",
-            commit_id="def5678",
-        )
-        return self.create_submission(submission_data)
-
-    def create_third_submission(self):
-        submission_data = ProjectSubmissionFixtureData(
-            username="third-student",
-            display_name="Third Student",
-            repo="third-project",
-            commit_id="ghi9012",
-        )
-        return self.create_submission(submission_data)
-
-    def create_fourth_submission(self):
-        submission_data = ProjectSubmissionFixtureData(
-            username="fourth-student",
-            display_name="Fourth Student",
-            repo="fourth-project",
-            commit_id="jkl3456",
-        )
-        return self.create_submission(submission_data)
 
 
 class ProjectVotingPageTestCase(ProjectVotingBase):
@@ -204,10 +171,34 @@ class ProjectVotingActionTestCase(ProjectVotingBase):
         self.assertFalse(data["vote_limit_reached"])
 
 
-class ProjectVotingLimitTestCase(
-    ProjectVotingAdditionalSubmissionMixin,
-    ProjectVotingBase,
-):
+class ProjectVotingLimitTestCase(ProjectVotingBase):
+    def create_other_submission(self):
+        submission_data = ProjectSubmissionFixtureData(
+            username="other-student",
+            display_name="Other Student",
+            repo="other-project",
+            commit_id="def5678",
+        )
+        return self.create_submission(submission_data)
+
+    def create_third_submission(self):
+        submission_data = ProjectSubmissionFixtureData(
+            username="third-student",
+            display_name="Third Student",
+            repo="third-project",
+            commit_id="ghi9012",
+        )
+        return self.create_submission(submission_data)
+
+    def create_fourth_submission(self):
+        submission_data = ProjectSubmissionFixtureData(
+            username="fourth-student",
+            display_name="Fourth Student",
+            repo="fourth-project",
+            commit_id="jkl3456",
+        )
+        return self.create_submission(submission_data)
+
     def test_user_has_three_votes_per_project(self):
         other_submission = self.create_other_submission()
         third_submission = self.create_third_submission()
