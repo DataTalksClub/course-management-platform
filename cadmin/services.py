@@ -70,7 +70,14 @@ def update_project_submission_from_admin(submission, cleaned_data):
             submission,
             cleaned_data["criteria_scores"],
         )
-        apply_project_submission_admin_scores(submission, cleaned_data)
+        submission.project_faq_score = cleaned_data["project_faq_score"]
+        submission.project_learning_in_public_score = cleaned_data[
+            "project_learning_in_public_score"
+        ]
+        submission.peer_review_score = cleaned_data["peer_review_score"]
+        submission.peer_review_learning_in_public_score = cleaned_data[
+            "peer_review_learning_in_public_score"
+        ]
         submission.reviewed_enough_peers = cleaned_data[
             "reviewed_enough_peers"
         ]
@@ -95,14 +102,3 @@ def update_project_criteria_scores_from_admin(submission, criteria_scores):
             defaults={"score": score},
         )
     return project_score
-
-
-def apply_project_submission_admin_scores(submission, cleaned_data):
-    submission.project_faq_score = cleaned_data["project_faq_score"]
-    submission.project_learning_in_public_score = cleaned_data[
-        "project_learning_in_public_score"
-    ]
-    submission.peer_review_score = cleaned_data["peer_review_score"]
-    submission.peer_review_learning_in_public_score = cleaned_data[
-        "peer_review_learning_in_public_score"
-    ]
