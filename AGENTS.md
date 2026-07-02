@@ -27,6 +27,12 @@ uv run python manage.py test
 Push work directly to `main`. Don't create a branch-per-change and open a PR
 for routine work — commit and push straight to `main`.
 
+## Reported bugs
+
+When a user reports a bug, first add or update a focused test that reproduces
+the reported failure. Run that test and confirm it fails for the reported
+reason, then implement the fix and rerun the test to confirm it passes.
+
 ## Design
 
 If your work involves design — templates, CSS, page layout, forms, buttons, or any user-facing UI — you must read [docs/design-system.md](docs/design-system.md) first and follow it. It is the source of truth for layout (rows over columns), page headers, form structure, button placement, and spacing.

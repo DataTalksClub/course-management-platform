@@ -1,8 +1,11 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
+from allauth.account.models import EmailAddress
 from django.test import TestCase
 
-from accounts.auth import extract_email
+from accounts.auth import ConsolidatingSocialAccountAdapter, extract_email
+from accounts.models import CustomUser
 
 
 class ExtractEmailTestCase(TestCase):
@@ -66,3 +69,29 @@ class ExtractEmailTestCase(TestCase):
     def test_extract_email_raises_when_missing(self):
         with self.assertRaises(KeyError):
             extract_email({})
+
+
+class ConsolidatingSocialAccountAdapterTestCase(TestCase):
+    def test_social_login_connects_existing_user_without_email_address(self):
+        email = "alexey@datatalks.club"
+        user = CustomUser.objects.create_user(
+            username=email,
+            email="",
+        )
+        sociallogin = SimpleNamespace(
+            account=SimpleNamespace(extra_data={"email": email}),
+            is_existing=False,
+            email_addresses=[],
+            connect=Mock(),
+        )
+        adapter = ConsolidatingSocialAccountAdapter()
+
+        adapter.pre_social_login(None, sociallogin)
+
+        sociallogin.connect.assert_called_once_with(None, user)
+        user.refresh_from_db()
+        self.assertEqual(user.email, email)
+        email_address = EmailAddress.objects.get(user=user)
+        self.assertEqual(email_address.email, email)
+        self.assertTrue(email_address.primary)
+        self.assertTrue(email_address.verified)

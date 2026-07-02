@@ -103,12 +103,40 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         )
 
         if num_existing_emails == 0:
-            user = self._create_user_for_email(email)
+            user = self._user_matching_email_or_username(email)
+            if user is None:
+                user = self._create_user_for_email(email)
+            else:
+                self._ensure_user_email(user, email)
+                self._ensure_email_address(user, email)
             sociallogin.connect(request, user)
         elif num_existing_emails == 1:
             self._connect_single_existing_user(connection)
         else:
             self._connect_most_recent_user(connection)
+
+    def _user_matching_email_or_username(self, email):
+        user = User.objects.filter(email__iexact=email).first()
+        if user is not None:
+            return user
+
+        return User.objects.filter(username__iexact=email).first()
+
+    def _ensure_user_email(self, user, email):
+        if user.email:
+            return
+
+        user.email = email
+        user.save(update_fields=["email"])
+
+    def _ensure_email_address(self, user, email):
+        email_address = EmailAddress.objects.create(
+            user=user,
+            email=email,
+            primary=True,
+            verified=True,
+        )
+        email_address.save()
 
     def _create_user_for_email(self, email):
         logger.info(
@@ -127,13 +155,7 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         )
         user.save()
 
-        email_address = EmailAddress.objects.create(
-            user=user,
-            email=email,
-            primary=True,
-            verified=True,
-        )
-        email_address.save()
+        self._ensure_email_address(user, email)
         return user
 
     def _connect_single_existing_user(self, connection):
