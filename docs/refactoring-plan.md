@@ -3035,6 +3035,10 @@ Steps:
   and deletion modules. Verification:
   `uv run ruff check api/tests/test_projects.py api/tests/test_project_creation.py api/tests/test_project_updates.py api/tests/test_project_deletion.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_projects api.tests.test_project_creation api.tests.test_project_updates api.tests.test_project_deletion`.
+- [x] Split Datamailer homework score tests into shared score fixtures, payload
+  tests, and list-send/audit tests. Verification:
+  `uv run ruff check courses/tests/datamailer_homework_score_base.py courses/tests/test_datamailer_homework_scores.py courses/tests/test_datamailer_homework_score_send.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_homework_score_send`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
