@@ -326,9 +326,9 @@ for p in projects_for_review:
                 == ReviewCriteriaTypes.CHECKBOXES.value
             ):
                 answers = []
-                for i in range(len(options)):
+                for option_index, _option in enumerate(options, start=1):
                     if random.uniform(0, 1) < 0.3:
-                        answer = str(i + 1)
+                        answer = str(option_index)
                         answers.append(answer)
                 answer = ",".join(answers)
 

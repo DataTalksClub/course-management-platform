@@ -3957,6 +3957,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`), and `git diff --check`.
+- [x] 2026-07-02: Replaced the remaining `range(len(...))` loop in
+  `add_more_test_data.py` peer-review criteria answer generation with
+  `enumerate(..., start=1)`, keeping the option index explicit without
+  indexing through list length. Verification:
+  `uv run ruff check add_more_test_data.py`,
+  `python -m py_compile add_more_test_data.py`, `uvx pyrefly check`,
+  repository `range(len(...))` search, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
