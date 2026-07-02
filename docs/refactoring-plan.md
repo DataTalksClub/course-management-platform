@@ -3127,6 +3127,10 @@ Steps:
   and project export modules. Verification:
   `uv run ruff check data/tests/test_leaderboard.py data/tests/test_leaderboard_homework.py data/tests/test_leaderboard_projects.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_leaderboard data.tests.test_leaderboard_homework data.tests.test_leaderboard_projects`.
+- [x] Split enrollment certificate update tests into mixed bulk, array payload,
+  and notification modules. Verification:
+  `uv run ruff check data/tests/test_enrollment_certificates.py data/tests/test_enrollment_certificate_notifications.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_enrollment_certificates data.tests.test_enrollment_certificate_notifications`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
