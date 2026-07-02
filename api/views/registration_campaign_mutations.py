@@ -97,21 +97,17 @@ def validation_error_response(exc):
     )
 
 
-def invalid_campaign_field_response(field, action):
-    return error_response(
-        f"Cannot {action} field: {field}",
-        "invalid_field",
-        details={"field": field},
-    )
-
-
 def campaign_field_error(data, action):
     unknown_fields = set(data) - CAMPAIGN_FIELDS
     if not unknown_fields:
         return None
 
     field = sorted(unknown_fields)[0]
-    return invalid_campaign_field_response(field, action)
+    return error_response(
+        f"Cannot {action} field: {field}",
+        "invalid_field",
+        details={"field": field},
+    )
 
 
 def campaign_required_fields_error(data):

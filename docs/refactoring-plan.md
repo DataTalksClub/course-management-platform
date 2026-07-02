@@ -4241,6 +4241,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use registration-campaign invalid-field
+  response wrapper by building the error response directly in
+  `campaign_field_error`. Verification:
+  `uv run python manage.py test api.tests.test_registration_campaigns api.tests.test_registration_campaign_auth`,
+  `uv run ruff check api/views/registration_campaign_mutations.py`,
+  Python reference scan (`invalid_campaign_field_response=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
