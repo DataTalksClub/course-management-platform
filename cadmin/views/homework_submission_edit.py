@@ -53,7 +53,11 @@ def homework_submission_edit_response(
         if response is not None:
             return response
 
-    return homework_submission_edit_render_response(edit_data)
+    context = homework_submission_edit_context(edit_data)
+    response = render(
+        request, "cadmin/homework_submission_edit.html", context
+    )
+    return response
 
 
 def homework_submission_edit_objects(
@@ -138,14 +142,6 @@ def homework_submission_edit_success(data):
         "cadmin_homework_submissions",
         course_slug=data.course.slug,
         homework_slug=data.homework.slug,
-    )
-    return response
-
-
-def homework_submission_edit_render_response(data):
-    context = homework_submission_edit_context(data)
-    response = render(
-        data.request, "cadmin/homework_submission_edit.html", context
     )
     return response
 
