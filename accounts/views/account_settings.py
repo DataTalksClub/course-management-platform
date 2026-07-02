@@ -57,7 +57,11 @@ def _preserve_local_account_toggles(data, user):
 
 
 def _account_settings_context(request, user, form):
-    enrollments = _account_settings_enrollments(user)
+    enrollments = (
+        Enrollment.objects.filter(student=user)
+        .select_related("course")
+        .order_by("course__title")
+    )
     preferred_timezone_label = get_timezone_label(user.preferred_timezone)
     browser_timezone_label = _browser_timezone_label(request, user)
 
@@ -68,15 +72,6 @@ def _account_settings_context(request, user, form):
         "browser_timezone_label": browser_timezone_label,
         "email_preference_categories": EMAIL_PREFERENCE_CATEGORIES,
     }
-
-
-def _account_settings_enrollments(user):
-    enrollments = (
-        Enrollment.objects.filter(student=user)
-        .select_related("course")
-        .order_by("course__title")
-    )
-    return enrollments
 
 
 def _browser_timezone_label(request, user):
