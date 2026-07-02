@@ -865,6 +865,18 @@ testable service functions.
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Remove the single-use cadmin campaign-registration queryset
+  wrapper and keep the base queryset in the registrations context-data builder.
+  Verification:
+  `uv run ruff check cadmin/views/campaign_registration_list.py docs/refactoring-plan.md`,
+  `python -m py_compile cadmin/views/campaign_registration_list.py`,
+  `uv run python manage.py test cadmin.tests.test_campaign_views`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 

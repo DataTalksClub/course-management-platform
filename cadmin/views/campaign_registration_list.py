@@ -19,12 +19,6 @@ class CampaignRegistrationsContextData:
     search_query: str
 
 
-def campaign_registration_queryset(campaign):
-    return CourseRegistration.objects.filter(
-        campaign=campaign
-    ).select_related("campaign", "course", "user")
-
-
 def campaign_registration_filters(request):
     raw_role = request.GET.get("role", "")
     raw_country = request.GET.get("country", "")
@@ -81,7 +75,9 @@ def campaign_registrations_context_data(request, campaign):
     raw_search_query = request.GET.get("q", "")
     search_query = raw_search_query.strip()
 
-    registrations = campaign_registration_queryset(campaign)
+    registrations = CourseRegistration.objects.filter(
+        campaign=campaign
+    ).select_related("campaign", "course", "user")
     registrations = apply_campaign_registration_filters(
         registrations, filters
     )
