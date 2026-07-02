@@ -3199,6 +3199,11 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/project_score_base.py courses/tests/test_project_score.py courses/tests/test_project_score_bonus.py courses/tests/test_project_results.py courses/tests/test_project_score_outcomes.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_score courses.tests.test_project_score_bonus courses.tests.test_project_results courses.tests.test_project_score_outcomes`.
+- [x] Split project statistics integration tests into focused class fixture,
+  instance fixture, workflow data, assertion, and navigation mixins while
+  keeping the concrete integration test case stable. Verification:
+  `uv run ruff check courses/tests/test_project_statistics_integration.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_statistics_integration`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

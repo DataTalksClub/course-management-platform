@@ -32,7 +32,7 @@ class WorkflowSubmissionScores:
     time_spent: float
 
 
-class ProjectStatisticsIntegrationTestCase(TestCase):
+class ProjectStatisticsClassFixtureMixin:
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -86,6 +86,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             enrollments.append(enrollment)
         return Enrollment.objects.bulk_create(enrollments)
 
+
+class ProjectStatisticsInstanceFixtureMixin:
     def setUp(self):
         self.client = Client()
         self.shared_enrollment = Enrollment.objects.create(
@@ -102,6 +104,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             time_spent=10.0,
         )
 
+
+class ProjectStatisticsWorkflowDataMixin:
     def lower_workflow_submission_score_rows(self):
         rows = []
         row = WorkflowSubmissionScores(
@@ -192,6 +196,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
             submissions.append(submission)
         return ProjectSubmission.objects.bulk_create(submissions)
 
+
+class ProjectStatisticsAssertionMixin:
     def assert_workflow_statistics(self, stats):
         self.assertIsNotNone(stats)
         self.assertEqual(stats.total_submissions, 5)
@@ -212,6 +218,8 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         self.assertContains(response, "Total score")
         self.assertContains(response, "Time spent on project")
 
+
+class ProjectStatisticsNavigationMixin:
     def create_incomplete_project(self):
         return Project.objects.create(
             course=self.course,
@@ -237,6 +245,15 @@ class ProjectStatisticsIntegrationTestCase(TestCase):
         self.assertNotContains(response, "Project statistics")
         self.assertNotContains(response, stats_url)
 
+
+class ProjectStatisticsIntegrationTestCase(
+    ProjectStatisticsClassFixtureMixin,
+    ProjectStatisticsInstanceFixtureMixin,
+    ProjectStatisticsWorkflowDataMixin,
+    ProjectStatisticsAssertionMixin,
+    ProjectStatisticsNavigationMixin,
+    TestCase,
+):
     def test_full_statistics_workflow(self):
         """Test the complete statistics workflow from submission to view"""
         self.create_workflow_submissions()
