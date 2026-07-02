@@ -92,7 +92,11 @@ def project_results(request, course_slug, project_slug):
 
 def _project_results_context(course, project, user):
     if not user.is_authenticated:
-        return _anonymous_project_results_context(course, project)
+        return {
+            "course": course,
+            "project": project,
+            "is_authenticated": False,
+        }
 
     submissions = ProjectSubmission.objects.filter(
         project=project,
@@ -110,15 +114,6 @@ def _project_results_context(course, project, user):
         "feedback": feedback,
         "is_authenticated": True,
     }
-
-
-def _anonymous_project_results_context(course, project):
-    return {
-        "course": course,
-        "project": project,
-        "is_authenticated": False,
-    }
-
 
 def _project_results_scores(submission):
     scores = ProjectEvaluationScore.objects.filter(submission=submission)
