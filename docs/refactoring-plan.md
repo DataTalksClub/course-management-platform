@@ -4754,6 +4754,19 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use project-results submission query
+  wrapper. The authenticated results context now names the submissions queryset
+  and selected submission directly before loading scores and feedback.
+  Verification:
+  `uv run ruff check courses/views/project_results.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/project_results.py`,
+  `uv run python manage.py test courses.tests.test_project_results courses.tests.test_noindex`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
