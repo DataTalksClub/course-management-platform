@@ -3021,6 +3021,11 @@ Steps:
   calculation tests, and model creation/update tests. Verification:
   `uv run ruff check courses/tests/project_statistics_base.py courses/tests/test_project_statistics.py courses/tests/test_project_statistics_model.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_project_statistics_model`.
+- [x] Split course-detail tests into focused authentication, link/calendar,
+  homework display, project display, enrollment, and dashboard-link modules.
+  Verification:
+  `uv run ruff check courses/tests/test_course.py courses/tests/test_course_links.py courses/tests/test_course_calendar.py courses/tests/test_course_homework_display.py courses/tests/test_course_projects.py courses/tests/test_course_enrollment.py courses/tests/test_course_dashboard_link.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course courses.tests.test_course_links courses.tests.test_course_calendar courses.tests.test_course_homework_display courses.tests.test_course_projects courses.tests.test_course_enrollment courses.tests.test_course_dashboard_link`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
