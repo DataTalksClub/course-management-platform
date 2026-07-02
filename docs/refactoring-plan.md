@@ -4501,6 +4501,18 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use empty table-copy plan wrapper from the
+  RDS export loader and constructed `TableCopyPlan` directly in
+  `build_table_copy_plan`. Verification:
+  `uv run ruff check scripts/load_rds_export.py`,
+  `python -m py_compile scripts/load_rds_export.py`,
+  `uv run python manage.py test courses.tests.test_load_rds_export_script`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -387,19 +387,6 @@ def source_column_names(source_info: list[sqlite3.Row]) -> set[str]:
     return columns
 
 
-def empty_table_copy_plan(
-    table: str,
-    source_columns: set[str],
-) -> TableCopyPlan:
-    plan = TableCopyPlan(
-        table=table,
-        insert_columns=[],
-        source_columns=source_columns,
-        default_values={},
-    )
-    return plan
-
-
 def column_copy_data(
     data: TableCopyBuildData,
     source_columns: set[str],
@@ -419,7 +406,12 @@ def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
     source_info = pragma_table_info(data.source_cursor, data.table)
     target_info = pragma_table_info(data.target_cursor, data.table)
     source_columns = source_column_names(source_info)
-    plan = empty_table_copy_plan(data.table, source_columns)
+    plan = TableCopyPlan(
+        table=data.table,
+        insert_columns=[],
+        source_columns=source_columns,
+        default_values={},
+    )
     column_data = column_copy_data(
         data,
         source_columns,
