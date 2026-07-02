@@ -4793,6 +4793,19 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed two single-use query wrappers from leaderboard score
+  breakdown and submitted-homework answer payload assembly. The consuming
+  context/payload builders now name the querysets and ordering steps directly.
+  Verification:
+  `uv run ruff check courses/views/course_leaderboard_breakdown.py courses/views/homework_submission_answers.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/course_leaderboard_breakdown.py courses/views/homework_submission_answers.py`,
+  `uv run python manage.py test courses.tests.test_course_leaderboard_score_breakdown courses.tests.test_leaderboard_score_breakdown_admin courses.tests.test_homework_submission_integrations`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

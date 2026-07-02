@@ -13,19 +13,13 @@ def homework_submitted_answers(
     submission: Submission,
 ) -> list[dict[str, Any]]:
     answer_payloads = []
-    answers = submitted_homework_answers(submission)
+    answers = Answer.objects.filter(submission=submission)
+    answers = answers.select_related("question")
+    answers = answers.order_by("question_id")
     for answer in answers:
         payload = submitted_answer_payload(answer)
         answer_payloads.append(payload)
     return answer_payloads
-
-
-def submitted_homework_answers(submission: Submission):
-    return (
-        Answer.objects.filter(submission=submission)
-        .select_related("question")
-        .order_by("question_id")
-    )
 
 
 def submitted_answer_payload(answer: Answer) -> dict[str, Any]:
