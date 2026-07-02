@@ -20,6 +20,10 @@ testable service functions.
 - Keep production and application-support functions within one screen. Use 30
   lines as the active-code scan threshold outside tests, and allow test methods
   and test helpers up to 60 lines when the scenario remains readable.
+- Do not split a test class only because it is long. A long test class is
+  acceptable when it has one focused subject and one coherent setup. Split test
+  classes only when they cover different behavior areas, need different setup,
+  or the shared helpers make the tests harder to read.
 - Do not introduce list/dict/set comprehensions during cleanup. Prefer explicit
   loops so filtering, appending, and early exits stay easy to inspect.
 - Use Pyrefly as a whole-repo Python type check during cleanup.
