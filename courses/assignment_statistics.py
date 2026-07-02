@@ -30,17 +30,6 @@ PROJECT_STAT_FIELDS = [
 ]
 
 
-def _empty_field_distribution():
-    return {
-        "min": None,
-        "max": None,
-        "avg": None,
-        "q1": None,
-        "median": None,
-        "q3": None,
-    }
-
-
 def _field_values(submissions_data, field):
     values = []
     for submission in submissions_data:
@@ -52,7 +41,14 @@ def _field_values(submissions_data, field):
 
 def _field_distribution(values):
     if len(values) < 3:
-        return _empty_field_distribution()
+        return {
+            "min": None,
+            "max": None,
+            "avg": None,
+            "q1": None,
+            "median": None,
+            "q3": None,
+        }
 
     quantiles = statistics.quantiles(values, n=4, method="inclusive")
     min_value = min(values)
