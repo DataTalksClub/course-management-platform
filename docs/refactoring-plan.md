@@ -3111,6 +3111,10 @@ Steps:
   expectation, and assertion helpers plus a focused endpoint test. Verification:
   `uv run ruff check data/tests/project_base.py data/tests/test_project.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_project`.
+- [x] Split course criteria YAML export tests into shared criteria fixtures,
+  success, and edge-case modules while removing unused auth setup. Verification:
+  `uv run ruff check data/tests/course_criteria_base.py data/tests/test_course.py data/tests/test_course_criteria_yaml_edges.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_course data.tests.test_course_criteria_yaml_edges`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
