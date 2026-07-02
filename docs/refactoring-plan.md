@@ -3168,6 +3168,13 @@ Steps:
   construction. Verification:
   `uv run ruff check courses/tests/project_eval_base.py courses/tests/test_project_eval.py courses/tests/test_project_eval_view.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`.
+- [x] Split the shared homework scoring test base into focused answer,
+  course/homework, question, student, scoring assertion, answer-set,
+  extra-field, and leaderboard mixins while keeping the public base class
+  stable. Also replaced a one-off `zip(...)` loop alias with a direct loop
+  iterable. Verification:
+  `uv run ruff check courses/tests/scoring_base.py courses/tests/test_scoring.py courses/tests/test_scoring_leaderboard.py courses/tests/test_homework_correct_answers.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_scoring courses.tests.test_scoring_leaderboard courses.tests.test_homework_correct_answers`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

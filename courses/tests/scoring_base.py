@@ -50,7 +50,7 @@ def fetch_fresh(obj):
     return obj.__class__.objects.get(pk=obj.id)
 
 
-class HomeworkScoringBase(TestCase):
+class HomeworkAnswerFixtureMixin:
     def create_answers(self, submission, answers):
         for question, answer_text in zip(self.questions, answers):
             Answer.objects.create(
@@ -79,6 +79,8 @@ class HomeworkScoringBase(TestCase):
             answer_text=answer_text,
         )
 
+
+class HomeworkScoringCourseFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -97,6 +99,8 @@ class HomeworkScoringBase(TestCase):
             state=HomeworkState.OPEN.value,
         )
 
+
+class HomeworkQuestionFixtureMixin:
     def create_free_form_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -183,18 +187,14 @@ class HomeworkScoringBase(TestCase):
         choice_questions = self.create_choice_questions()
         return free_form_questions + choice_questions
 
+
+class HomeworkStudentFixtureMixin:
     def create_students(self):
         self.student1, self.enrollment1 = self.create_student("s1")
         self.student2, self.enrollment2 = self.create_student("s2")
         self.student3, self.enrollment3 = self.create_student("s3")
         self.student4, self.enrollment4 = self.create_student("s4")
         self.student5, self.enrollment5 = self.create_student("s5")
-
-    def setUp(self):
-        self.course = self.create_course()
-        self.homework = self.create_homework()
-        self.questions = self.create_questions()
-        self.create_students()
 
     def create_submission(self, student, enrollment):
         return Submission.objects.create(
@@ -203,6 +203,15 @@ class HomeworkScoringBase(TestCase):
             enrollment=enrollment,
         )
 
+    def create_student(self, name):
+        student = User.objects.create_user(username=name)
+        enrollment = Enrollment.objects.create(
+            course=self.course, student=student
+        )
+        return student, enrollment
+
+
+class HomeworkScoringAssertionMixin:
     def assert_submission_scores(self, submission, expected_score):
         self.assertEqual(submission.total_score, expected_score)
         self.assertEqual(submission.questions_score, expected_score)
@@ -213,6 +222,13 @@ class HomeworkScoringBase(TestCase):
         enrollment = fetch_fresh(enrollment)
         self.assertEqual(enrollment.total_score, expected_score)
 
+    def assert_homework_scored(self):
+        homework_is_scored = self.homework.is_scored()
+        self.assertEqual(homework_is_scored, True)
+        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
+
+
+class HomeworkScoringAnswerSetMixin:
     def scoring_answers_student1(self):
         return [
             "paris",
@@ -243,6 +259,8 @@ class HomeworkScoringBase(TestCase):
             "1,3",
         ]
 
+
+class HomeworkExtraFieldScoringMixin:
     def add_extra_submission_fields(self, submission):
         submission.learning_in_public_links = [
             "https://www.linkedin.com/feed/update/urn:li:activity:7142541710064054272/",
@@ -270,11 +288,8 @@ class HomeworkScoringBase(TestCase):
         self.assertEqual(submission.total_score, total_score)
         self.assert_enrollment_total_score(self.enrollment1, total_score)
 
-    def assert_homework_scored(self):
-        homework_is_scored = self.homework.is_scored()
-        self.assertEqual(homework_is_scored, True)
-        self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
 
+class HomeworkLeaderboardFixtureMixin:
     def leaderboard_students(self):
         return [
             (self.student1, self.enrollment1),
@@ -301,8 +316,10 @@ class HomeworkScoringBase(TestCase):
         students = self.leaderboard_students()
         answer_sets = self.leaderboard_answer_sets()
         expected_scores = self.leaderboard_expected_scores()
-        rows = zip(students, answer_sets, expected_scores)
-        for position, row in enumerate(rows, start=1):
+        for position, row in enumerate(
+            zip(students, answer_sets, expected_scores),
+            start=1,
+        ):
             student, enrollment = row[0]
             answers = row[1]
             score = row[2]
@@ -325,9 +342,20 @@ class HomeworkScoringBase(TestCase):
                 row.position,
             )
 
-    def create_student(self, name):
-        student = User.objects.create_user(username=name)
-        enrollment = Enrollment.objects.create(
-            course=self.course, student=student
-        )
-        return student, enrollment
+
+class HomeworkScoringBase(
+    HomeworkAnswerFixtureMixin,
+    HomeworkScoringCourseFixtureMixin,
+    HomeworkQuestionFixtureMixin,
+    HomeworkStudentFixtureMixin,
+    HomeworkScoringAssertionMixin,
+    HomeworkScoringAnswerSetMixin,
+    HomeworkExtraFieldScoringMixin,
+    HomeworkLeaderboardFixtureMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.questions = self.create_questions()
+        self.create_students()
