@@ -14,7 +14,8 @@ class DashboardHomeworkStatsTestCase(DashboardHomeworkStatsTestBase):
 
         self.assertEqual(response.status_code, 200)
         hw_stats = response.context["homework_stats"]
-        self.assertEqual(len(hw_stats), 1)
+        hw_stats_count = len(hw_stats)
+        self.assertEqual(hw_stats_count, 1)
 
         self.assert_homework_stat_summary(hw_stats[0])
 

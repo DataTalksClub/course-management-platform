@@ -18,7 +18,8 @@ class CourseDetailUnauthenticatedTest(CourseDetailViewTestBase):
 
         self.assertFalse(context["is_authenticated"])
         self.assertEqual(context["course"], self.course)
-        self.assertEqual(len(context["homeworks"]), 3)
+        homeworks_count = len(context["homeworks"])
+        self.assertEqual(homeworks_count, 3)
         self.assertIsNone(context["total_score"])
 
         expected_titles = []

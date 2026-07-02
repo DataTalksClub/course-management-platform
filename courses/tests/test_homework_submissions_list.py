@@ -14,4 +14,5 @@ class HomeworkSubmissionsListTest(HomeworkSubmissionsViewTestBase):
 
         self.assertEqual(response.status_code, 200)
         submissions_data = response.context["submissions_data"]
-        self.assertEqual(len(submissions_data), 2)
+        submissions_count = len(submissions_data)
+        self.assertEqual(submissions_count, 2)

@@ -38,5 +38,6 @@ class HomeworkSubmissionsAccessTest(HomeworkSubmissionsViewTestBase):
         self.assertEqual(context["homework"], self.homework)
 
         submissions_data = context["submissions_data"]
-        self.assertEqual(len(submissions_data), 1)
+        submissions_count = len(submissions_data)
+        self.assertEqual(submissions_count, 1)
         self.assertEqual(submissions_data[0]["submission"], self.submission)

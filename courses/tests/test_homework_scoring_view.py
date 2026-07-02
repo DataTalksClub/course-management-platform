@@ -29,7 +29,8 @@ class HomeworkScoringViewTests(HomeworkScoringViewBase):
         self.assertEqual(response.status_code, 200)
 
         question_answers = response.context["question_answers"]
-        self.assertEqual(len(question_answers), 6)
+        question_answers_count = len(question_answers)
+        self.assertEqual(question_answers_count, 6)
         self.assert_answer_present(question_answers[0], self.question1)
         answer2 = self.assert_answer_present(
             question_answers[1], self.question2
