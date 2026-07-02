@@ -15,7 +15,9 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 # Allow ``import e2e.<module>`` when pytest is invoked from inside e2e/.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+repo_root = Path(__file__).resolve().parent.parent
+repo_root_path = str(repo_root)
+sys.path.insert(0, repo_root_path)
 
 from e2e.api_client import CmpApiClient  # noqa: E402
 from e2e.config import load_settings, Settings  # noqa: E402

@@ -4409,6 +4409,18 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Named the E2E repository root and string path before adding
+  it to `sys.path`, removing the last non-allowed nested-call site from the
+  nested-call scan while leaving allowed `enumerate(zip(...))` test loops
+  intact. Verification: `uv run ruff check e2e/conftest.py`,
+  `python -m py_compile e2e/conftest.py`,
+  `uv run pytest e2e/tests/test_06_mock_inbox_client.py`, nested-call scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
