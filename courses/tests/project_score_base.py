@@ -34,7 +34,7 @@ credentials = dict(
 )
 
 
-class ProjectScoreFixtureMixin:
+class ProjectEvaluationTestBase(TestCase):
     def create_course(self):
         course = Course.objects.create(
             slug="test-course",
@@ -89,7 +89,6 @@ class ProjectScoreFixtureMixin:
             review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )
 
-class ProjectScorePeerReviewFixtureMixin:
     def create_peer_reviews(
         self, number_of_peer_reviews=3, optional=False
     ):
@@ -135,8 +134,6 @@ class ProjectScorePeerReviewFixtureMixin:
             optional=optional,
         )
 
-
-class ProjectScoreSubmissionMixin:
     def submit_score_answers(self, answers_and_scores):
         for index, row in enumerate(answers_and_scores):
             answer, expected_score = row
@@ -152,8 +149,6 @@ class ProjectScoreSubmissionMixin:
             peer_review.state = PeerReviewState.SUBMITTED.value
             peer_review.save()
 
-
-class ProjectScoreAssertionsMixin:
     def assert_score_project_completed(self):
         status, _ = score_project(self.project)
         self.assertEqual(status, ProjectActionStatus.OK)
@@ -184,8 +179,6 @@ class ProjectScoreAssertionsMixin:
         self.assert_project_evaluation_score(expected_project_score)
         self.assert_submission_project_score(expected_project_score)
 
-
-class ProjectScoreReverseReviewMixin:
     def create_reverse_assignments(self, peer_reviews, optional=False):
         other_reviews = []
         for peer_review in peer_reviews:
@@ -241,8 +234,6 @@ class ProjectScoreReverseReviewMixin:
             + review_count * self.project.points_for_peer_review,
         )
 
-
-class ProjectScoreCheckboxMixin:
     def create_checkbox_criteria(self):
         return ReviewCriteria.objects.create(
             course=self.course,
@@ -266,8 +257,6 @@ class ProjectScoreCheckboxMixin:
             peer_review.state = PeerReviewState.SUBMITTED.value
             peer_review.save()
 
-
-class ProjectScoreResultsViewMixin:
     def project_results_response(self):
         self.client.login(**credentials)
         results_url = reverse(
@@ -299,17 +288,6 @@ class ProjectScoreResultsViewMixin:
         self.assertContains(response, "Model evaluation")
         self.assertContains(response, "3 votes")
 
-
-class ProjectEvaluationTestBase(
-    ProjectScoreFixtureMixin,
-    ProjectScorePeerReviewFixtureMixin,
-    ProjectScoreSubmissionMixin,
-    ProjectScoreAssertionsMixin,
-    ProjectScoreReverseReviewMixin,
-    ProjectScoreCheckboxMixin,
-    ProjectScoreResultsViewMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)

@@ -3847,6 +3847,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed project score fixture, peer-review fixture,
+  submission, assertion, reverse-review, checkbox, and results-view mixins
+  into the focused `ProjectEvaluationTestBase` in `project_score_base.py`.
+  The score, bonus, outcome, and results tests keep the same shared setup API
+  without a mixin inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_project_score courses.tests.test_project_score_bonus courses.tests.test_project_score_outcomes courses.tests.test_project_results`,
+  `uv run ruff check courses/tests/project_score_base.py courses/tests/test_project_score.py courses/tests/test_project_score_bonus.py courses/tests/test_project_score_outcomes.py courses/tests/test_project_results.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
