@@ -143,7 +143,8 @@ def apply_project_submission_optional_post_fields(
         apply_project_time_spent(request, project_submission)
 
     if project.problems_comments_field:
-        apply_project_problems_comments(request, project_submission)
+        problems_comments = request.POST.get("problems_comments", "")
+        project_submission.problems_comments = problems_comments.strip()
 
     if project.faq_contribution_field:
         apply_project_faq_contribution_url(request, project_submission)
@@ -168,14 +169,6 @@ def apply_project_time_spent(
     time_spent = request.POST.get("time_spent")
     if time_spent is not None and time_spent != "":
         project_submission.time_spent = tryparsefloat(time_spent)
-
-
-def apply_project_problems_comments(
-    request: HttpRequest,
-    project_submission: ProjectSubmission,
-) -> None:
-    problems_comments = request.POST.get("problems_comments", "")
-    project_submission.problems_comments = problems_comments.strip()
 
 
 def apply_project_faq_contribution_url(
