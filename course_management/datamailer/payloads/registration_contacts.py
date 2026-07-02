@@ -5,14 +5,6 @@ from ..keys import contact_tags_for_course
 from .registration_common import registration_email
 
 
-def registration_contact_tags(registration) -> list[str]:
-    course = registration.course
-    if course is None:
-        return []
-
-    return contact_tags_for_course(course)
-
-
 def registration_contact_payload(registration) -> dict[str, Any] | None:
     email = registration_email(registration)
     if not email:
@@ -22,7 +14,10 @@ def registration_contact_payload(registration) -> dict[str, Any] | None:
     if config is None:
         return None
 
-    tags = registration_contact_tags(registration)
+    course = registration.course
+    tags = []
+    if course is not None:
+        tags = contact_tags_for_course(course)
     return {
         "email": email,
         "audience": config.audience,
