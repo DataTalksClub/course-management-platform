@@ -23,7 +23,7 @@ admin:
 
 
 user:
-	uv run python add_user.py
+	uv run python -m scripts.add_user
 
 
 tests: ## Run tests
@@ -33,13 +33,13 @@ tests:
 
 data: ## Add data to database
 data: migrations
-	uv run python add_data.py
+	uv run python -m scripts.add_data
 
 load_rds_export: ## Load latest /tmp/rds-export/rds-prod-*.db into db/db.sqlite3
 	uv run python scripts/load_rds_export.py
 
 test_data: data
-	uv run python add_more_test_data.py
+	uv run python -m scripts.add_more_test_data
 
 shell: ## Run django shell
 shell:

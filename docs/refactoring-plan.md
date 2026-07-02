@@ -4320,6 +4320,21 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Moved root-level seed/user scripts into the maintained
+  `scripts/` package: `scripts/add_data.py`,
+  `scripts/add_more_test_data.py`, and `scripts/add_user.py`. Updated the
+  Makefile and Docker entrypoint to run them as modules, and added project-root
+  path bootstrap so direct script execution still resolves Django modules.
+  Verification:
+  `uv run ruff check scripts/add_data.py scripts/add_more_test_data.py scripts/add_user.py`,
+  `python -m py_compile scripts/add_data.py scripts/add_more_test_data.py scripts/add_user.py`,
+  `sh -n docker-entrypoint.sh`, `make -n user data test_data`,
+  `uvx pyrefly check`, root tracked script scan, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
@@ -4346,7 +4361,7 @@ These are lower priority than the phases above.
   reduction. Keep long focused test classes intact when their setup and subject
   are coherent, and do not split large case groups that exercise the same
   feature with the same setup.
-- [ ] Move one-time root scripts into `scripts/` or `.tmp/` if they are not
+- [x] Move one-time root scripts into `scripts/` or `.tmp/` if they are not
   intended as maintained commands.
 - [ ] Audit `courses/static/courses.css` for component grouping after backend
   refactors, but only when UI work is planned.

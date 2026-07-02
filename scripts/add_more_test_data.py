@@ -1,11 +1,17 @@
 import os
+import sys
 
 import random
 from dataclasses import dataclass
 from datetime import timedelta
+from pathlib import Path
 
 import django
 from django.utils import timezone
+
+project_root = Path(__file__).resolve().parent.parent
+project_root_path = str(project_root)
+sys.path.insert(0, project_root_path)
 
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE", "course_management.settings"

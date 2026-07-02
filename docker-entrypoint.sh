@@ -11,19 +11,19 @@ else
 fi
 
 if [ ! -f /code/.docker/initialized ]; then
-    echo "First-time setup: running add_data.py"
-    uv run python add_data.py
+    echo "First-time setup: running scripts.add_data"
+    uv run python -m scripts.add_data
     
     if [ $? -ne 0 ]; then
-        echo "Failed to run add_data.py"
+        echo "Failed to run scripts.add_data"
         exit 1
     fi
     
-    echo "First-time setup: running add_more_test_data.py"
-    uv run python add_more_test_data.py
+    echo "First-time setup: running scripts.add_more_test_data"
+    uv run python -m scripts.add_more_test_data
     
     if [ $? -ne 0 ]; then
-        echo "Failed to run add_more_test_data.py"
+        echo "Failed to run scripts.add_more_test_data"
         exit 1
     fi
     
