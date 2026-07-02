@@ -147,7 +147,8 @@ def apply_project_submission_optional_post_fields(
         project_submission.problems_comments = problems_comments.strip()
 
     if project.faq_contribution_field:
-        apply_project_faq_contribution_url(request, project_submission)
+        faq_contribution_url = request.POST.get("faq_contribution_url", "")
+        project_submission.faq_contribution_url = faq_contribution_url.strip()
 
 
 def apply_project_learning_in_public_links(
@@ -169,11 +170,3 @@ def apply_project_time_spent(
     time_spent = request.POST.get("time_spent")
     if time_spent is not None and time_spent != "":
         project_submission.time_spent = tryparsefloat(time_spent)
-
-
-def apply_project_faq_contribution_url(
-    request: HttpRequest,
-    project_submission: ProjectSubmission,
-) -> None:
-    faq_contribution_url = request.POST.get("faq_contribution_url", "")
-    project_submission.faq_contribution_url = faq_contribution_url.strip()

@@ -5113,7 +5113,22 @@ Steps:
 - [x] 2026-07-02: Removed the single-use project problems/comments field helper.
   The comments guard and stripped assignment now live in
   `apply_project_submission_optional_post_fields`, while learning-link cleanup,
-  time-spent parsing, and FAQ URL assignment remain named helpers. Verification:
+  time-spent parsing, and FAQ URL assignment were reviewed separately.
+  Verification:
+  `uv run ruff check courses/views/project_submission_edit.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/project_submission_edit.py`,
+  `uv run python manage.py test courses.tests.test_project_submission_view courses.tests.test_project_view courses.tests.test_project_submission_confirmation`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
+- [x] 2026-07-02: Removed the single-use project FAQ contribution URL field
+  helper. The FAQ URL guard and stripped assignment now live in
+  `apply_project_submission_optional_post_fields`, while learning-link cleanup
+  and time-spent parsing remain named helpers. Verification:
   `uv run ruff check courses/views/project_submission_edit.py docs/refactoring-plan.md`,
   `python -m py_compile courses/views/project_submission_edit.py`,
   `uv run python manage.py test courses.tests.test_project_submission_view courses.tests.test_project_view courses.tests.test_project_submission_confirmation`,
