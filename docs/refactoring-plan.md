@@ -3275,6 +3275,12 @@ Steps:
   assertion mixins while keeping the public base class stable. Verification:
   `uv run ruff check courses/tests/datamailer_project_score_base.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_project_outcomes.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_project_outcomes`.
+- [x] Split the shared cadmin project view test base into focused fixture,
+  submission fixture, submission-list fixture, edit fixture, URL, and
+  submission-assertion mixins while keeping the public base class stable.
+  Verification:
+  `uv run ruff check cadmin/tests/project_view_base.py cadmin/tests/test_project_views.py cadmin/tests/test_project_submission_edit_views.py cadmin/tests/test_project_action_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_project_views cadmin.tests.test_project_submission_edit_views cadmin.tests.test_project_action_views`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
