@@ -3119,6 +3119,10 @@ Steps:
   mutation/statistics tests, and auth/staff-token tests. Verification:
   `uv run ruff check api/tests/registration_campaign_base.py api/tests/test_registration_campaigns.py api/tests/test_registration_campaign_auth.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_registration_campaigns api.tests.test_registration_campaign_auth`.
+- [x] Split account settings tests into shared settings helpers plus auth,
+  overview/profile, and timezone modules. Verification:
+  `uv run ruff check accounts/tests_account_settings_base.py accounts/tests_account_settings.py accounts/tests_account_timezone.py docs/refactoring-plan.md`,
+  `uv run python manage.py test accounts.tests_account_settings accounts.tests_account_timezone`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
