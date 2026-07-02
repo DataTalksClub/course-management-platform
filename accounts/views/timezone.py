@@ -61,11 +61,6 @@ def _timezone_preference_response(timezone_name):
     return response
 
 
-def _save_timezone_preference(user, timezone_name):
-    user.preferred_timezone = timezone_name
-    user.save(update_fields=["preferred_timezone"])
-
-
 @login_required
 @require_POST
 def update_timezone_preference(request):
@@ -87,5 +82,6 @@ def update_timezone_preference(request):
     if passive_update and saved_timezone:
         return _timezone_preference_response(saved_timezone)
 
-    _save_timezone_preference(user, timezone_name)
+    user.preferred_timezone = timezone_name
+    user.save(update_fields=["preferred_timezone"])
     return _timezone_preference_response(user.preferred_timezone)
