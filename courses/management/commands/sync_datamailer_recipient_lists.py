@@ -147,16 +147,6 @@ def add_execution_arguments(parser):
     )
 
 
-def recipient_list_batches(kind, options):
-    batches = build_recipient_list_batches(
-        kind,
-        course_slug=options["course_slug"],
-        homework_slug=options["homework_slug"],
-        project_slug=options["project_slug"],
-    )
-    return batches
-
-
 def write_batch_summary(write_line, batches):
     total_members = 0
     for payload in batches.values():
@@ -207,11 +197,14 @@ class Command(BaseCommand):
         kind = options["kind"]
         validate_recipient_list_options(kind, options)
 
-        batches = recipient_list_batches(kind, options)
+        batches = build_recipient_list_batches(
+            kind,
+            course_slug=options["course_slug"],
+            homework_slug=options["homework_slug"],
+            project_slug=options["project_slug"],
+        )
         if not batches:
-            self.stdout.write(
-                "No Datamailer recipient-list members to sync."
-            )
+            self.stdout.write("No Datamailer recipient-list members to sync.")
             return
 
         write_batch_summary(self.stdout.write, batches)
