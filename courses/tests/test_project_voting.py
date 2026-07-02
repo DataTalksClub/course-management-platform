@@ -22,41 +22,38 @@ class ProjectSubmissionFixtureData:
     commit_id: str
 
 
-class ProjectVotingTest(TestCase):
-    def setUp(self):
-        self.course = Course.objects.create(
+class ProjectVotingFixtureMixin:
+    def create_course(self):
+        return Course.objects.create(
             slug="course",
             title="Course",
             description="Course description",
         )
+
+    def create_project(self):
         submission_due_date = timezone.now()
         peer_review_due_date = timezone.now()
-        self.project = Project.objects.create(
+        return Project.objects.create(
             course=self.course,
             slug="project",
             title="Project",
             submission_due_date=submission_due_date,
             peer_review_due_date=peer_review_due_date,
         )
+
+    def create_initial_submission(self):
         self.student = User.objects.create_user(username="student")
-        self.voter = User.objects.create_user(username="voter")
         self.enrollment = Enrollment.objects.create(
             course=self.course,
             student=self.student,
             display_name="Student",
         )
-        self.submission = ProjectSubmission.objects.create(
+        return ProjectSubmission.objects.create(
             project=self.project,
             student=self.student,
             enrollment=self.enrollment,
             github_link="https://github.com/example/project",
             commit_id="abc1234",
-        )
-
-    def project_list_url(self):
-        return reverse(
-            "project_list",
-            args=[self.course.slug, self.project.slug],
         )
 
     def create_submission(self, data: ProjectSubmissionFixtureData):
@@ -72,6 +69,23 @@ class ProjectVotingTest(TestCase):
             enrollment=enrollment,
             github_link=f"https://github.com/example/{data.repo}",
             commit_id=data.commit_id,
+        )
+
+
+class ProjectVotingBase(
+    ProjectVotingFixtureMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.course = self.create_course()
+        self.project = self.create_project()
+        self.voter = User.objects.create_user(username="voter")
+        self.submission = self.create_initial_submission()
+
+    def project_list_url(self):
+        return reverse(
+            "project_list",
+            args=[self.course.slug, self.project.slug],
         )
 
     def post_vote(self, submission):
@@ -94,6 +108,8 @@ class ProjectVotingTest(TestCase):
         ).exists()
         self.assertEqual(vote_exists, voted)
 
+
+class ProjectVotingAdditionalSubmissionMixin:
     def create_other_submission(self):
         submission_data = ProjectSubmissionFixtureData(
             username="other-student",
@@ -121,6 +137,8 @@ class ProjectVotingTest(TestCase):
         )
         return self.create_submission(submission_data)
 
+
+class ProjectVotingPageTestCase(ProjectVotingBase):
     def test_project_voting_page_lists_submissions(self):
         self.client.force_login(self.voter)
         project_list_url = self.project_list_url()
@@ -131,6 +149,8 @@ class ProjectVotingTest(TestCase):
         self.assertContains(response, "0")
         self.assertContains(response, "Vote")
 
+
+class ProjectVotingActionTestCase(ProjectVotingBase):
     def test_authenticated_user_can_vote_once(self):
         self.client.force_login(self.voter)
 
@@ -183,6 +203,11 @@ class ProjectVotingTest(TestCase):
         self.assertEqual(data["votes_left"], 2)
         self.assertFalse(data["vote_limit_reached"])
 
+
+class ProjectVotingLimitTestCase(
+    ProjectVotingAdditionalSubmissionMixin,
+    ProjectVotingBase,
+):
     def test_user_has_three_votes_per_project(self):
         other_submission = self.create_other_submission()
         third_submission = self.create_third_submission()
@@ -200,6 +225,8 @@ class ProjectVotingTest(TestCase):
         self.assert_submission_voted(third_submission)
         self.assert_submission_voted(fourth_submission, voted=False)
 
+
+class ProjectVotingAllSubmissionsTestCase(ProjectVotingBase):
     def test_all_project_submissions_shows_votes_without_vote_controls(self):
         ProjectVote.objects.create(
             submission=self.submission,

@@ -3324,6 +3324,11 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/datamailer_membership_base.py courses/tests/test_datamailer_membership.py courses/tests/test_datamailer_membership_outcomes.py courses/tests/test_datamailer_membership_removals.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_membership courses.tests.test_datamailer_membership_outcomes courses.tests.test_datamailer_membership_removals`.
+- [x] 2026-07-02: Split project voting tests into fixture/base helpers plus
+  focused page, action, vote-limit, and all-submissions display test cases.
+  Verification:
+  `uv run ruff check courses/tests/test_project_voting.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_voting`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
