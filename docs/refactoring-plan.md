@@ -3053,6 +3053,10 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/leaderboard_base.py courses/tests/test_leaderboard.py courses/tests/test_leaderboard_pagination.py courses/tests/test_leaderboard_current_student.py courses/tests/test_leaderboard_score_breakdown_admin.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_leaderboard courses.tests.test_leaderboard_pagination courses.tests.test_leaderboard_current_student courses.tests.test_leaderboard_score_breakdown_admin`.
+- [x] Split homework submissions view tests into shared submissions fixtures,
+  access, list, admin-link, and hidden-answer modules. Verification:
+  `uv run ruff check courses/tests/homework_submissions_base.py courses/tests/test_homework_submissions.py courses/tests/test_homework_submissions_list.py courses/tests/test_homework_submissions_admin_link.py courses/tests/test_homework_submissions_hidden_answers.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_submissions courses.tests.test_homework_submissions_list courses.tests.test_homework_submissions_admin_link courses.tests.test_homework_submissions_hidden_answers`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
