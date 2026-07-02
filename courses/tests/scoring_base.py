@@ -50,7 +50,7 @@ def fetch_fresh(obj):
     return obj.__class__.objects.get(pk=obj.id)
 
 
-class HomeworkAnswerFixtureMixin:
+class HomeworkScoringBase(TestCase):
     def create_answers(self, submission, answers):
         for question, answer_text in zip(self.questions, answers):
             Answer.objects.create(
@@ -79,8 +79,6 @@ class HomeworkAnswerFixtureMixin:
             answer_text=answer_text,
         )
 
-
-class HomeworkScoringCourseFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -99,8 +97,6 @@ class HomeworkScoringCourseFixtureMixin:
             state=HomeworkState.OPEN.value,
         )
 
-
-class HomeworkQuestionFixtureMixin:
     def create_free_form_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -187,8 +183,6 @@ class HomeworkQuestionFixtureMixin:
         choice_questions = self.create_choice_questions()
         return free_form_questions + choice_questions
 
-
-class HomeworkStudentFixtureMixin:
     def create_students(self):
         self.student1, self.enrollment1 = self.create_student("s1")
         self.student2, self.enrollment2 = self.create_student("s2")
@@ -210,8 +204,6 @@ class HomeworkStudentFixtureMixin:
         )
         return student, enrollment
 
-
-class HomeworkScoringAssertionMixin:
     def assert_submission_scores(self, submission, expected_score):
         self.assertEqual(submission.total_score, expected_score)
         self.assertEqual(submission.questions_score, expected_score)
@@ -227,8 +219,6 @@ class HomeworkScoringAssertionMixin:
         self.assertEqual(homework_is_scored, True)
         self.assertEqual(self.homework.state, HomeworkState.SCORED.value)
 
-
-class HomeworkScoringAnswerSetMixin:
     def scoring_answers_student1(self):
         return [
             "paris",
@@ -260,7 +250,6 @@ class HomeworkScoringAnswerSetMixin:
         ]
 
 
-class HomeworkExtraFieldScoringMixin:
     def add_extra_submission_fields(self, submission):
         submission.learning_in_public_links = [
             "https://www.linkedin.com/feed/update/urn:li:activity:7142541710064054272/",
@@ -289,7 +278,6 @@ class HomeworkExtraFieldScoringMixin:
         self.assert_enrollment_total_score(self.enrollment1, total_score)
 
 
-class HomeworkLeaderboardFixtureMixin:
     def leaderboard_students(self):
         return [
             (self.student1, self.enrollment1),
@@ -342,18 +330,6 @@ class HomeworkLeaderboardFixtureMixin:
                 row.position,
             )
 
-
-class HomeworkScoringBase(
-    HomeworkAnswerFixtureMixin,
-    HomeworkScoringCourseFixtureMixin,
-    HomeworkQuestionFixtureMixin,
-    HomeworkStudentFixtureMixin,
-    HomeworkScoringAssertionMixin,
-    HomeworkScoringAnswerSetMixin,
-    HomeworkExtraFieldScoringMixin,
-    HomeworkLeaderboardFixtureMixin,
-    TestCase,
-):
     def setUp(self):
         self.course = self.create_course()
         self.homework = self.create_homework()

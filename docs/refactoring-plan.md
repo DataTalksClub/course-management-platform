@@ -3921,6 +3921,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed homework scoring answer-fixture, course-fixture,
+  question-fixture, student-fixture, assertion, answer-set, extra-field, and
+  leaderboard mixins into the focused `HomeworkScoringBase`. The scoring,
+  leaderboard, and correct-answer tests keep their existing concrete test
+  classes and shared scoring setup without a mixin chain. Verification:
+  `uv run python manage.py test courses.tests.test_scoring courses.tests.test_scoring_leaderboard courses.tests.test_homework_correct_answers`,
+  `uv run ruff check courses/tests/scoring_base.py courses/tests/test_scoring.py courses/tests/test_scoring_leaderboard.py courses/tests/test_homework_correct_answers.py`,
+  `uvx pyrefly check`, repository test-helper mixin search, repository AST
+  cleanup scan (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
