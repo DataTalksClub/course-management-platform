@@ -147,10 +147,17 @@ def homework_submission_edit_success(data):
 
 
 def homework_submission_edit_context(data):
-    faq_contribution_url, faq_score = homework_submission_faq_data(
-        data.request,
-        data.submission,
-    )
+    if data.request.method == "POST":
+        faq_contribution_url = data.request.POST.get(
+            "faq_contribution_url", ""
+        ).strip()
+        faq_score = data.request.POST.get(
+            "faq_score", data.submission.faq_score
+        )
+    else:
+        faq_contribution_url = data.submission.faq_contribution_url or ""
+        faq_score = data.submission.faq_score
+
     learning_in_public_links = data.submission.learning_in_public_links or []
     learning_in_public_links_text = "\n".join(learning_in_public_links)
     return {
@@ -162,19 +169,3 @@ def homework_submission_edit_context(data):
         "faq_contribution_url": faq_contribution_url,
         "faq_score": faq_score,
     }
-
-
-def homework_submission_faq_data(request, submission):
-    if request.method == "POST":
-        faq_contribution_url = request.POST.get(
-            "faq_contribution_url", ""
-        ).strip()
-        faq_score = request.POST.get("faq_score", submission.faq_score)
-        return (
-            faq_contribution_url,
-            faq_score,
-        )
-
-    faq_contribution_url = submission.faq_contribution_url or ""
-    faq_score = submission.faq_score
-    return faq_contribution_url, faq_score
