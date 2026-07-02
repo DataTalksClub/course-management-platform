@@ -3071,6 +3071,10 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/datamailer_outbox_base.py courses/tests/test_datamailer_outbox.py courses/tests/test_datamailer_outbox_contacts.py courses/tests/test_datamailer_outbox_memberships.py courses/tests/test_datamailer_outbox_status_commands.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_outbox courses.tests.test_datamailer_outbox_contacts courses.tests.test_datamailer_outbox_memberships courses.tests.test_datamailer_outbox_status_commands`.
+- [x] Split course-list tests into shared course-list fixtures, visibility,
+  metadata, assignment-panel, and registration modules. Verification:
+  `uv run ruff check courses/tests/course_list_base.py courses/tests/test_course_list.py courses/tests/test_course_list_metadata.py courses/tests/test_course_list_assignments.py courses/tests/test_course_list_registration.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course_list courses.tests.test_course_list_metadata courses.tests.test_course_list_assignments courses.tests.test_course_list_registration`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
