@@ -3107,6 +3107,10 @@ Steps:
   rendering, link rendering, and pagination modules. Verification:
   `uv run ruff check courses/tests/project_list_view_base.py courses/tests/test_project_list_view.py courses/tests/test_project_list_pagination.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_list_view courses.tests.test_project_list_pagination`.
+- [x] Split project data export tests into shared fixture, factory,
+  expectation, and assertion helpers plus a focused endpoint test. Verification:
+  `uv run ruff check data/tests/project_base.py data/tests/test_project.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_project`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
