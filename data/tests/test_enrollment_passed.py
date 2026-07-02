@@ -14,7 +14,9 @@ def assert_enrollments_for_min_projects(
         data.passed_submissions,
         data.min_projects,
     )
-    test_case.assertEqual(len(result), len(data.expected_enrollments))
+    actual_count = len(result)
+    expected_count = len(data.expected_enrollments)
+    test_case.assertEqual(actual_count, expected_count)
     for enrollment in data.expected_enrollments:
         test_case.assertIn(enrollment, result)
     for enrollment in data.missing_enrollments:
@@ -78,12 +80,14 @@ class PassedEnrollmentBoundaryTestCase(PassedEnrollmentTestBase):
 
         result = get_passed_enrollments(scenario.passed_submissions, 4)
 
-        self.assertEqual(len(result), 0)
+        result_count = len(result)
+        self.assertEqual(result_count, 0)
 
     def test_get_passed_enrollments_without_submissions(self):
         result = get_passed_enrollments([], 1)
 
-        self.assertEqual(len(result), 0)
+        result_count = len(result)
+        self.assertEqual(result_count, 0)
 
     def test_get_passed_enrollments_rejects_zero_minimum(self):
         scenario = self.get_passed_enrollment_scenario()

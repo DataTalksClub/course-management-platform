@@ -87,7 +87,8 @@ class ProjectActionsTestBase(TestCase):
         expected_num_assignments = (
             num_submissions * self.project.number_of_peers_to_evaluate
         )
-        self.assertEqual(len(peer_reviews), expected_num_assignments)
+        peer_review_count = len(peer_reviews)
+        self.assertEqual(peer_review_count, expected_num_assignments)
         self.assert_peer_reviews_distributed(peer_reviews, num_submissions)
 
     def assert_peer_reviews_distributed(self, peer_reviews, num_submissions):
@@ -102,10 +103,12 @@ class ProjectActionsTestBase(TestCase):
             submission_id = peer_review.submission_under_evaluation.id
             peer_reviews_by_submission[submission_id].add(peer_review)
 
-        self.assertEqual(len(peer_reviews_by_submission), num_submissions)
+        peer_review_submission_count = len(peer_reviews_by_submission)
+        self.assertEqual(peer_review_submission_count, num_submissions)
         for reviews in peer_reviews_by_submission.values():
+            review_count = len(reviews)
             self.assertEqual(
-                len(reviews),
+                review_count,
                 self.project.number_of_peers_to_evaluate,
             )
 
