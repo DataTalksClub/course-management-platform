@@ -102,8 +102,10 @@ class CourseAPITestBase(TestCase):
             data["github_repo_url"],
             "https://github.com/DataTalksClub/ml-zoomcamp",
         )
-        self.assertEqual(len(data["homeworks"]), 1)
-        self.assertEqual(len(data["projects"]), 1)
+        homework_count = len(data["homeworks"])
+        self.assertEqual(homework_count, 1)
+        project_count = len(data["projects"])
+        self.assertEqual(project_count, 1)
         self.assertIn("visible", data)
 
     def patch_course_payload(self):
@@ -133,7 +135,8 @@ class CourseAPITestBase(TestCase):
     def assert_persisted_course_patch(self):
         self.course.refresh_from_db()
         self.assertFalse(self.course.visible)
-        self.assertEqual(str(self.course.start_date), "2026-01-20")
+        start_date = str(self.course.start_date)
+        self.assertEqual(start_date, "2026-01-20")
 
     def non_staff_client(self):
         non_staff = CustomUser.objects.create(

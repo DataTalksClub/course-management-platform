@@ -205,7 +205,8 @@ class CourseDetailViewTestBase(TestCase):
 
     def assert_course_context(self, context, authenticated):
         self.assertEqual(context["course"], self.course)
-        self.assertEqual(len(context["homeworks"]), 3)
+        homework_count = len(context["homeworks"])
+        self.assertEqual(homework_count, 3)
         self.assertEqual(context["is_authenticated"], authenticated)
 
     def assert_scored_homework(self, data: ScoredHomeworkExpectation):
@@ -349,7 +350,8 @@ class CourseDetailViewTestBase(TestCase):
 
     def assert_homeworks_in_due_order(self, response):
         homeworks = response.context["homeworks"]
-        self.assertEqual(len(homeworks), 6)
+        homework_count = len(homeworks)
+        self.assertEqual(homework_count, 6)
         homework_slugs = []
         for homework in homeworks:
             homework_slugs.append(homework.slug)

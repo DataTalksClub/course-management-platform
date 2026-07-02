@@ -4018,6 +4018,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named homework/project counts and persisted start-date text
+  before assertions in shared course API and course detail test helpers.
+  Verification:
+  `uv run python manage.py test api.tests.test_courses api.tests.test_course_detail api.tests.test_course_updates api.tests.test_course_auth api.tests.test_course_creation courses.tests.test_course courses.tests.test_course_calendar courses.tests.test_course_certificates courses.tests.test_course_dashboard_link courses.tests.test_course_enrollment courses.tests.test_course_homework_display courses.tests.test_course_links courses.tests.test_course_projects`,
+  `uv run ruff check api/tests/course_api_base.py api/tests/test_courses.py api/tests/test_course_detail.py api/tests/test_course_updates.py api/tests/test_course_auth.py api/tests/test_course_creation.py courses/tests/course_view_base.py courses/tests/test_course.py courses/tests/test_course_calendar.py courses/tests/test_course_certificates.py courses/tests/test_course_dashboard_link.py courses/tests/test_course_enrollment.py courses/tests/test_course_homework_display.py courses/tests/test_course_links.py courses/tests/test_course_projects.py`,
+  touched-file inline-assertion scan (`touched_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
