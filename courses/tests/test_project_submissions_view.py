@@ -22,7 +22,7 @@ credentials = dict(
 )
 
 
-class ProjectSubmissionsFixtureMixin:
+class ProjectSubmissionsViewTestBase(TestCase):
     def create_admin_user(self):
         return User.objects.create_user(
             username="admin@test.com",
@@ -72,8 +72,6 @@ class ProjectSubmissionsFixtureMixin:
             project_learning_in_public_score=5,
         )
 
-
-class ProjectSubmissionsRequestMixin:
     def project_submissions_url(self, project=None):
         return reverse(
             "project_submissions",
@@ -112,8 +110,6 @@ class ProjectSubmissionsRequestMixin:
             follow=True,
         )
 
-
-class ProjectSubmissionsDataMixin:
     def create_user_submission(
         self, index, score=90, commit_id=None
     ):
@@ -172,8 +168,6 @@ class ProjectSubmissionsDataMixin:
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
-
-class ProjectSubmissionsPeerReviewMixin:
     def submission_for_user(self, response, user):
         submissions = list(response.context["submissions"])
         for submission in submissions:
@@ -186,14 +180,6 @@ class ProjectSubmissionsPeerReviewMixin:
         self.assertEqual(user_submission.peer_reviews_completed, 1)
         self.assertEqual(user_submission.peer_reviews_total, 2)
 
-
-class ProjectSubmissionsViewTestBase(
-    ProjectSubmissionsFixtureMixin,
-    ProjectSubmissionsRequestMixin,
-    ProjectSubmissionsDataMixin,
-    ProjectSubmissionsPeerReviewMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
