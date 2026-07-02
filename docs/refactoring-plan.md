@@ -3264,6 +3264,12 @@ Steps:
   the public base class stable. Verification:
   `uv run ruff check courses/tests/project_statistics_base.py courses/tests/test_project_statistics.py courses/tests/test_project_statistics_model.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_project_statistics_model`.
+- [x] Split Datamailer registration tests into shared fixture, confirmation
+  assertion, and membership assertion mixins plus focused confirmation payload,
+  confirmation send, membership sync, and membership removal scenario classes.
+  Verification:
+  `uv run ruff check courses/tests/test_datamailer_registration.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_registration`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -33,7 +33,7 @@ DATAMAILER_SETTINGS = {
 }
 
 
-class DatamailerRegistrationTest(TestCase):
+class DatamailerRegistrationFixtureMixin:
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -83,6 +83,8 @@ class DatamailerRegistrationTest(TestCase):
             accepted_newsletter=True,
         )
 
+
+class DatamailerRegistrationConfirmationAssertionsMixin:
     def configure_registration_confirmation_send_success(self, send):
         send.return_value = {
             "message": {
@@ -126,6 +128,8 @@ class DatamailerRegistrationTest(TestCase):
         self.assertEqual(audit.category_tag, "course-updates")
         self.assertEqual(audit.event, "course_registration")
 
+
+class DatamailerRegistrationSyncAssertionsMixin:
     def assert_registration_contact_synced(self, upsert_contact):
         upsert_contact.assert_called_once()
         self.assertEqual(
@@ -188,6 +192,12 @@ class DatamailerRegistrationTest(TestCase):
             "removed",
         )
 
+
+class DatamailerRegistrationConfirmationPayloadTest(
+    DatamailerRegistrationFixtureMixin,
+    DatamailerRegistrationConfirmationAssertionsMixin,
+    TestCase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -199,6 +209,12 @@ class DatamailerRegistrationTest(TestCase):
 
         self.assert_registration_confirmation_payload(payload, registration)
 
+
+class DatamailerRegistrationConfirmationSendTest(
+    DatamailerRegistrationFixtureMixin,
+    DatamailerRegistrationConfirmationAssertionsMixin,
+    TestCase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -222,6 +238,12 @@ class DatamailerRegistrationTest(TestCase):
         )
         self.assert_registration_confirmation_audit()
 
+
+class DatamailerRegistrationMembershipSyncTest(
+    DatamailerRegistrationFixtureMixin,
+    DatamailerRegistrationSyncAssertionsMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
@@ -242,6 +264,12 @@ class DatamailerRegistrationTest(TestCase):
         self.assert_registration_member_synced(upsert_member, registration)
         self.assert_registration_outbox_event(registration)
 
+
+class DatamailerRegistrationMembershipRemovalTest(
+    DatamailerRegistrationFixtureMixin,
+    DatamailerRegistrationSyncAssertionsMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
