@@ -183,7 +183,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 VERSION = os.getenv(
     "VERSION", "local-development-build-version-not-configured"
 )
-PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 DATAMAILER_URL = os.getenv("DATAMAILER_URL", "")
 DATAMAILER_API_KEY = os.getenv("DATAMAILER_API_KEY", "")
