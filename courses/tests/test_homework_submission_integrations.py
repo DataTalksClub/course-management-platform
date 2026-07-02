@@ -6,27 +6,25 @@ from courses.tests.homework_submission_integration_base import (
     HomeworkSubmissionIntegrationBase,
 )
 from courses.tests.homework_submission_confirmation_helpers import (
-    HomeworkSubmissionConfirmationAnswerExpectationMixin,
-    HomeworkSubmissionConfirmationFieldExpectationMixin,
-    HomeworkSubmissionConfirmationPayloadAssertionMixin,
-    HomeworkSubmissionConfirmationPostDataMixin,
+    assert_confirmation_context,
+    assert_confirmation_payload_basics,
+    assert_confirmation_summary,
+    assert_submission_fields,
+    assert_submitted_answers,
+    confirmation_post_data,
+    datamailer_preference_post_data,
+    public_base_url_post_data,
 )
 
 
-class HomeworkSubmissionConfirmationTest(
-    HomeworkSubmissionConfirmationPostDataMixin,
-    HomeworkSubmissionConfirmationPayloadAssertionMixin,
-    HomeworkSubmissionConfirmationFieldExpectationMixin,
-    HomeworkSubmissionConfirmationAnswerExpectationMixin,
-    HomeworkSubmissionIntegrationBase,
-):
+class HomeworkSubmissionConfirmationTest(HomeworkSubmissionIntegrationBase):
     @override_settings(PUBLIC_BASE_URL="")
     @patch("courses.views.homework_confirmation.send_transactional_email")
     def test_homework_submission_sends_confirmation_email(
         self,
         send_email,
     ):
-        post_data = self.confirmation_post_data()
+        post_data = confirmation_post_data(self)
         response = self.post_homework(post_data)
 
         self.assertEqual(response.status_code, 302)
@@ -34,18 +32,18 @@ class HomeworkSubmissionConfirmationTest(
         send_email.assert_called_once()
         payload = send_email.call_args.args[0]
 
-        self.assert_confirmation_payload_basics(payload, submission)
-        self.assert_confirmation_context(payload, submission)
-        self.assert_submission_fields(payload)
-        self.assert_submitted_answers(payload)
-        self.assert_confirmation_summary(payload)
+        assert_confirmation_payload_basics(self, payload, submission)
+        assert_confirmation_context(self, payload, submission)
+        assert_submission_fields(self, payload)
+        assert_submitted_answers(self, payload)
+        assert_confirmation_summary(self, payload)
 
     @patch("courses.views.homework_confirmation.send_transactional_email")
     def test_homework_submission_uses_datamailer_without_local_preference(
         self,
         send_email,
     ):
-        post_data = self.datamailer_preference_post_data()
+        post_data = datamailer_preference_post_data(self)
 
         response = self.post_homework(post_data)
 
@@ -62,7 +60,7 @@ class HomeworkSubmissionConfirmationTest(
         self,
         send_email,
     ):
-        post_data = self.public_base_url_post_data()
+        post_data = public_base_url_post_data(self)
         response = self.post_homework(post_data)
 
         self.assertEqual(response.status_code, 302)
