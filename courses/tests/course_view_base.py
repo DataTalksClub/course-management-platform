@@ -60,7 +60,7 @@ class OpenHomeworkExpectation:
     days_until_due: int
 
 
-class CourseDetailViewTestBase(TestCase):
+class CourseFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course-2"
@@ -73,6 +73,8 @@ class CourseDetailViewTestBase(TestCase):
             course=self.course,
         )
 
+
+class CourseHomeworkFixtureMixin:
     def create_homework(self, data: HomeworkFixtureData):
         due_date = timezone.now() + timezone.timedelta(days=data.days_due)
         return Homework.objects.create(
@@ -141,6 +143,8 @@ class CourseDetailViewTestBase(TestCase):
             total_score=0,
         )
 
+
+class CourseProjectFixtureMixin:
     def create_project(self, data: ProjectFixtureData):
         submission_due_date = timezone.now() + timezone.timedelta(
             days=data.submission_days
@@ -186,18 +190,8 @@ class CourseDetailViewTestBase(TestCase):
             github_link="https://github.com/test/repo2",
         )
 
-    def setUp(self):
-        cache.clear()
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.enrollment = self.create_enrollment()
-        self.create_homeworks()
-        self.create_questions_for_homeworks()
-        self.create_homework_submissions()
-        self.create_projects()
-        self.create_project_submissions()
 
+class CourseRequestMixin:
     def course_url(self):
         return reverse("course", kwargs={"course_slug": self.course.slug})
 
@@ -207,6 +201,8 @@ class CourseDetailViewTestBase(TestCase):
         course_url = self.course_url()
         return self.client.get(course_url)
 
+
+class CourseHomeworkAssertionsMixin:
     def homeworks_by_slug(self, response):
         homeworks_by_slug = {}
         homeworks = response.context["homeworks"]
@@ -248,6 +244,8 @@ class CourseDetailViewTestBase(TestCase):
         self.assertEqual(homework.days_until_due, 14)
         self.assertEqual(homework.submissions, [])
 
+
+class CourseEnrollmentAssertionsMixin:
     def assert_enrollment_profile_links(self, response):
         self.assertContains(response, "account timezone")
         account_settings_url = (
@@ -281,6 +279,13 @@ class CourseDetailViewTestBase(TestCase):
             enrollment_url,
         )
 
+    def assert_enrolled_course_context(self, response, total_score):
+        self.assertEqual(response.context["total_score"], total_score)
+        self.assertTrue(response.context["has_enrollment"])
+        self.assert_enrollment_profile_links(response)
+
+
+class CourseHomeworkSummaryAssertionsMixin:
     def assert_authenticated_homework_summary(self, response):
         homeworks = self.homeworks_by_slug(response)
         scored_expectation = ScoredHomeworkExpectation(
@@ -326,11 +331,8 @@ class CourseDetailViewTestBase(TestCase):
         unscored_homework = homeworks["unscored-homework"]
         self.assert_unsubmitted_open_homework(unscored_homework)
 
-    def assert_enrolled_course_context(self, response, total_score):
-        self.assertEqual(response.context["total_score"], total_score)
-        self.assertTrue(response.context["has_enrollment"])
-        self.assert_enrollment_profile_links(response)
 
+class CourseHomeworkOrderingFixtureMixin:
     def create_due_homework(self, slug, title, days_due):
         homework_data = HomeworkFixtureData(
             slug=slug,
@@ -367,6 +369,8 @@ class CourseDetailViewTestBase(TestCase):
         self.assertLess(early_pos, middle_pos)
         self.assertLess(middle_pos, late_pos)
 
+
+class CourseProjectReviewFixtureMixin:
     def create_peer_review_project(self):
         submission_due_date = timezone.now() - timezone.timedelta(days=1)
         peer_review_due_date = timezone.now() + timezone.timedelta(days=7)
@@ -404,3 +408,28 @@ class CourseDetailViewTestBase(TestCase):
         content = response.content.decode("utf-8")
         formatted_deadline = deadline.strftime("%Y-%m-%d")
         self.assertIn(formatted_deadline, content)
+
+
+class CourseDetailViewTestBase(
+    CourseFixtureMixin,
+    CourseHomeworkFixtureMixin,
+    CourseProjectFixtureMixin,
+    CourseRequestMixin,
+    CourseHomeworkAssertionsMixin,
+    CourseEnrollmentAssertionsMixin,
+    CourseHomeworkSummaryAssertionsMixin,
+    CourseHomeworkOrderingFixtureMixin,
+    CourseProjectReviewFixtureMixin,
+    TestCase,
+):
+    def setUp(self):
+        cache.clear()
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.create_homeworks()
+        self.create_questions_for_homeworks()
+        self.create_homework_submissions()
+        self.create_projects()
+        self.create_project_submissions()
