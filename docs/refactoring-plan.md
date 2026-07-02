@@ -3123,6 +3123,10 @@ Steps:
   overview/profile, and timezone modules. Verification:
   `uv run ruff check accounts/tests_account_settings_base.py accounts/tests_account_settings.py accounts/tests_account_timezone.py docs/refactoring-plan.md`,
   `uv run python manage.py test accounts.tests_account_settings accounts.tests_account_timezone`.
+- [x] Split leaderboard data export tests into core response, homework export,
+  and project export modules. Verification:
+  `uv run ruff check data/tests/test_leaderboard.py data/tests/test_leaderboard_homework.py data/tests/test_leaderboard_projects.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_leaderboard data.tests.test_leaderboard_homework data.tests.test_leaderboard_projects`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
