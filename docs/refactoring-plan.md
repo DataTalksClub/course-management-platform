@@ -3297,6 +3297,11 @@ Steps:
   fixtures in the existing project-evaluation base. Verification:
   `uv run ruff check courses/tests/test_project_eval.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_eval`.
+- [x] 2026-07-02: Split course project-submission list tests into focused
+  fixture, request, pagination, assertion, page, link, and display classes so
+  the scenario tests stay small. Verification:
+  `uv run ruff check courses/tests/test_course_project_submissions.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course_project_submissions`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

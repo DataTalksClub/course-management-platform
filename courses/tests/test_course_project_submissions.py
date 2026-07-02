@@ -27,15 +27,18 @@ class ProjectFixtureData:
     submission_days: int
 
 
-class CourseProjectSubmissionsViewTests(TestCase):
+class CourseProjectSubmissionFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course-2"
         )
 
     def create_enrollment(self, user=None, display_name=""):
+        student = user
+        if student is None:
+            student = self.user
         return Enrollment.objects.create(
-            student=user or self.user,
+            student=student,
             course=self.course,
             display_name=display_name,
         )
@@ -86,6 +89,11 @@ class CourseProjectSubmissionsViewTests(TestCase):
             github_link="https://github.com/test/repo2",
         )
 
+
+class CourseProjectSubmissionsViewBase(
+    CourseProjectSubmissionFixtureMixin,
+    TestCase,
+):
     def setUp(self):
         cache.clear()
         self.client = Client()
@@ -95,6 +103,8 @@ class CourseProjectSubmissionsViewTests(TestCase):
         self.create_projects()
         self.create_project_submissions()
 
+
+class CourseProjectSubmissionRequestMixin:
     def submissions_url(self):
         return reverse(
             "list_all_project_submissions", args=[self.course.slug]
@@ -106,6 +116,8 @@ class CourseProjectSubmissionsViewTests(TestCase):
         submissions_url = self.submissions_url()
         return self.client.get(submissions_url)
 
+
+class CourseProjectSubmissionPaginationMixin:
     def create_paginated_submissions(self):
         for index in range(30):
             user = User.objects.create_user(
@@ -122,6 +134,8 @@ class CourseProjectSubmissionsViewTests(TestCase):
                 github_link=f"https://github.com/test/repo-{index}",
             )
 
+
+class CourseProjectSubmissionAssertionMixin:
     def user_submissions_by_project(self, submissions):
         user_submissions = {}
         for submission in submissions:
@@ -175,6 +189,13 @@ class CourseProjectSubmissionsViewTests(TestCase):
         self.assertEqual(submission.display_score, -1)
         self.assertEqual(submission.enrollment.student, self.user)
 
+
+class CourseProjectSubmissionsPageTestCase(
+    CourseProjectSubmissionPaginationMixin,
+    CourseProjectSubmissionAssertionMixin,
+    CourseProjectSubmissionRequestMixin,
+    CourseProjectSubmissionsViewBase,
+):
     def test_list_all_submissions_view(self):
         response = self.get_submissions_response(login=True)
 
@@ -183,20 +204,6 @@ class CourseProjectSubmissionsViewTests(TestCase):
 
         submissions = response.context["submissions"]
         self.assert_submission_order(submissions)
-
-    def test_list_all_submissions_links_student_to_repository(self):
-        response = self.get_submissions_response()
-
-        self.assertEqual(response.status_code, 200)
-        self.assert_leaderboard_link(response)
-        self.assertContains(response, self.completed_submission.github_link)
-        self.assertContains(response, 'aria-label="Open repository"')
-
-    def test_list_all_submissions_links_to_each_project_list(self):
-        response = self.get_submissions_response()
-
-        self.assertEqual(response.status_code, 200)
-        self.assert_project_links(response)
 
     def test_list_all_submissions_view_is_paginated(self):
         self.create_paginated_submissions()
@@ -214,6 +221,32 @@ class CourseProjectSubmissionsViewTests(TestCase):
         response = self.get_submissions_response()
         self.assertEqual(response.status_code, 200)
 
+
+class CourseProjectSubmissionsLinkTestCase(
+    CourseProjectSubmissionAssertionMixin,
+    CourseProjectSubmissionRequestMixin,
+    CourseProjectSubmissionsViewBase,
+):
+    def test_list_all_submissions_links_student_to_repository(self):
+        response = self.get_submissions_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_leaderboard_link(response)
+        self.assertContains(response, self.completed_submission.github_link)
+        self.assertContains(response, 'aria-label="Open repository"')
+
+    def test_list_all_submissions_links_to_each_project_list(self):
+        response = self.get_submissions_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_project_links(response)
+
+
+class CourseProjectSubmissionsDisplayTestCase(
+    CourseProjectSubmissionAssertionMixin,
+    CourseProjectSubmissionRequestMixin,
+    CourseProjectSubmissionsViewBase,
+):
     def test_submissions_display_format(self):
         response = self.get_submissions_response(login=True)
         self.assertEqual(response.status_code, 200)
