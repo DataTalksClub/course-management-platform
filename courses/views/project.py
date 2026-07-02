@@ -56,10 +56,6 @@ def closed_project_submission_response(
     return response
 
 
-def is_delete_project_submission_request(request: HttpRequest) -> bool:
-    return "action" in request.POST and request.POST["action"] == "delete"
-
-
 def project_validation_error_response(
     request: HttpRequest,
     course: Course,
@@ -135,7 +131,8 @@ def handle_project_post(request: HttpRequest, course: Course, project: Project):
             request, course, project
         )
 
-    if is_delete_project_submission_request(request):
+    action = request.POST.get("action")
+    if action == "delete":
         response = delete_project_submission_response(
             request,
             course,
