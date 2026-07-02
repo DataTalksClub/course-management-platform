@@ -36,7 +36,8 @@ class DatamailerProjectOutcomeTest(DatamailerProjectScoreTestBase):
         self.assertEqual(
             payload["list"]["metadata"]["outcome"], "project_passed"
         )
-        self.assertEqual(len(payload["members"]), 1)
+        members_count = len(payload["members"])
+        self.assertEqual(members_count, 1)
         member = payload["members"][0]
         self.assertEqual(member["email"], "passed@example.com")
         self.assertEqual(

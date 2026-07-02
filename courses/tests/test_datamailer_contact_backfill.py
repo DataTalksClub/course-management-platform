@@ -79,5 +79,6 @@ class DatamailerContactBackfillTest(DatamailerContactBase):
 
         bulk_import.assert_called_once()
         payload = bulk_import.call_args.args[0]
-        self.assertEqual(len(payload["contacts"]), 1)
+        contacts_count = len(payload["contacts"])
+        self.assertEqual(contacts_count, 1)
         self.assertEqual(payload["contacts"][0]["email"], "active@example.com")

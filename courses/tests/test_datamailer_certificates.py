@@ -134,7 +134,8 @@ def assert_course_graduate_recipient_payload(
         payload["list"]["metadata"]["outcome"],
         "course_graduated",
     )
-    test_case.assertEqual(len(payload["members"]), 1)
+    members_count = len(payload["members"])
+    test_case.assertEqual(members_count, 1)
     member = payload["members"][0]
     test_case.assertEqual(member["email"], "student@example.com")
     test_case.assertEqual(

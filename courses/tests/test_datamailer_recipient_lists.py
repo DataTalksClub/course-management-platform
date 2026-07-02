@@ -140,7 +140,8 @@ class DatamailerRecipientListProjectPassedTest(
             payload["list"]["metadata"]["outcome"],
             "project_passed",
         )
-        self.assertEqual(len(payload["members"]), 1)
+        members_count = len(payload["members"])
+        self.assertEqual(members_count, 1)
         member = payload["members"][0]
         self.assertEqual(
             member["source_object_key"],
