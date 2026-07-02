@@ -4193,6 +4193,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed E2E teardown delete pass-through helpers by passing
+  `delete_project` and `delete_homework` API methods directly into the
+  close/delete prepass. Verification:
+  `uv run ruff check e2e/provisioning.py`,
+  deleted-helper reference scan
+  (`_delete_project_for_delete=0`, `_delete_homework_for_delete=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -213,7 +213,7 @@ class Provisioner:
     ) -> None:
         projects = self.api.list_projects(slug)
         close_project = partial(self._close_project_for_delete, slug)
-        delete_project = partial(self._delete_project_for_delete, slug)
+        delete_project = partial(self.api.delete_project, slug)
         for proj in projects:
             delete_data = CloseDeleteData(
                 close_fn=close_project,
@@ -232,9 +232,6 @@ class Provisioner:
             {"state": "CL"},
         )
 
-    def _delete_project_for_delete(self, slug: str, project_id: int):
-        return self.api.delete_project(slug, project_id)
-
     def _delete_homework_prepass(
         self,
         slug: str,
@@ -243,7 +240,7 @@ class Provisioner:
     ) -> None:
         homeworks = self.api.list_homeworks(slug)
         close_homework = partial(self._close_homework_for_delete, slug)
-        delete_homework = partial(self._delete_homework_for_delete, slug)
+        delete_homework = partial(self.api.delete_homework, slug)
         for hw in homeworks:
             delete_data = CloseDeleteData(
                 close_fn=close_homework,
@@ -261,9 +258,6 @@ class Provisioner:
             homework_id,
             {"state": "CL"},
         )
-
-    def _delete_homework_for_delete(self, slug: str, homework_id: int):
-        return self.api.delete_homework(slug, homework_id)
 
     def _delete_child_objects(
         self,
