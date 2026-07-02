@@ -57,12 +57,7 @@ credentials = dict(
 )
 
 
-class HomeworkCadminViewTestBase(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.create_test_users()
-        self.create_course_work_items()
-
+class HomeworkCadminUserFixtureMixin:
     def create_test_users(self):
         self.user = User.objects.create_user(**credentials)
         self.admin_user = User.objects.create_user(
@@ -72,6 +67,11 @@ class HomeworkCadminViewTestBase(TestCase):
             is_staff=True,
         )
 
+    def login_admin(self):
+        self.client.login(username="admin@test.com", password="admin123")
+
+
+class HomeworkCadminCourseFixtureMixin:
     def create_course_work_items(self):
         self.course = Course.objects.create(
             slug="test-course",
@@ -86,9 +86,6 @@ class HomeworkCadminViewTestBase(TestCase):
             due_date=due_date,
             state=HomeworkState.OPEN.value,
         )
-
-    def login_admin(self):
-        self.client.login(username="admin@test.com", password="admin123")
 
     def create_enrollment(self, student=None):
         student = student or self.user
@@ -128,6 +125,8 @@ class HomeworkCadminViewTestBase(TestCase):
         for index in range(count):
             self.create_homework_search_submission(index)
 
+
+class HomeworkCadminQuestionFixtureMixin:
     def create_free_form_question(self, score=1):
         return Question.objects.create(
             homework=self.homework,
@@ -203,6 +202,8 @@ class HomeworkCadminViewTestBase(TestCase):
         )
         return submission
 
+
+class HomeworkCadminEditFixtureMixin:
     def homework_submission_edit_url(self, submission):
         return reverse(
             "cadmin_homework_submission_edit",
@@ -299,6 +300,8 @@ class HomeworkCadminViewTestBase(TestCase):
         response = self.client.get(url)
         return response
 
+
+class HomeworkCadminEditAssertionsMixin:
     def assert_homework_submission_edit_page(self, response, fixture):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit Homework Submission")
@@ -338,6 +341,8 @@ class HomeworkCadminViewTestBase(TestCase):
         for expected_link in expected_links:
             self.assertIn(expected_link, submission.learning_in_public_links)
 
+
+class HomeworkCadminActionMixin:
     def cadmin_homework_submissions_url(self):
         return reverse(
             "cadmin_homework_submissions",
@@ -411,3 +416,18 @@ class HomeworkCadminViewTestBase(TestCase):
                 "homework_slug": self.homework.slug,
             },
         )
+
+
+class HomeworkCadminViewTestBase(
+    HomeworkCadminUserFixtureMixin,
+    HomeworkCadminCourseFixtureMixin,
+    HomeworkCadminQuestionFixtureMixin,
+    HomeworkCadminEditFixtureMixin,
+    HomeworkCadminEditAssertionsMixin,
+    HomeworkCadminActionMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.create_test_users()
+        self.create_course_work_items()

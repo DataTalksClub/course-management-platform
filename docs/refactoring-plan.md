@@ -3144,6 +3144,11 @@ Steps:
   base class stable. Verification:
   `uv run ruff check courses/tests/homework_view_base.py courses/tests/test_homework.py courses/tests/test_homework_submission_view.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_submission_view`.
+- [x] Split the shared cadmin homework view test base into focused user,
+  course/submission, question, edit, assertion, and action mixins while keeping
+  the public base class stable. Verification:
+  `uv run ruff check cadmin/tests/homework_view_base.py cadmin/tests/test_homework_views.py cadmin/tests/test_homework_submission_edit_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_homework_views cadmin.tests.test_homework_submission_edit_views`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
