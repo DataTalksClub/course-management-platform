@@ -52,12 +52,6 @@ def project_submission_edit_objects(
     )
 
 
-def project_review_criteria(course):
-    criteria = ReviewCriteria.objects.filter(course=course)
-    ordered_criteria = criteria.order_by("id")
-    return ordered_criteria
-
-
 def project_evaluation_score_map(submission):
     scores = ProjectEvaluationScore.objects.filter(submission=submission)
     score_map = {}
@@ -115,7 +109,8 @@ def handle_project_submission_edit_post(data):
 
 
 def project_submission_edit_page_data(request, edit_objects):
-    review_criteria = project_review_criteria(edit_objects.course)
+    criteria = ReviewCriteria.objects.filter(course=edit_objects.course)
+    review_criteria = criteria.order_by("id")
     criteria_with_scores = criteria_with_project_scores(
         review_criteria,
         edit_objects.submission,
