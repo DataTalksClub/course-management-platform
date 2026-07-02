@@ -3286,6 +3286,12 @@ Steps:
   while keeping the public base class stable. Verification:
   `uv run ruff check data/tests/enrollment_base.py data/tests/test_enrollment.py data/tests/enrollment_passed_base.py data/tests/test_enrollment_passed.py data/tests/test_enrollment_certificates.py data/tests/test_enrollment_certificate_notifications.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_enrollment data.tests.test_enrollment_passed data.tests.test_enrollment_certificates data.tests.test_enrollment_certificate_notifications`.
+- [x] Split peer-review badge end-to-end tests into focused fixture,
+  assignment, review-submission, badge-state assertion, and scoring mixins while
+  keeping the concrete progression test focused on the scenario flow.
+  Verification:
+  `uv run ruff check courses/tests/test_peer_review_badge.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_peer_review_badge`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

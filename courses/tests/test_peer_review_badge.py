@@ -126,21 +126,7 @@ class PeerReviewBadgeTests(TestCase):
         self.assert_project_badge("bg-secondary", "Not submitted")
 
 
-class PeerReviewBadgeEndToEndTests(TestCase):
-    """End-to-end test for peer review badge showing progression from red to green"""
-
-    def setUp(self):
-        self.client = Client()
-        self.user = self.create_main_user()
-        self.course = self.create_course()
-        self.enrollment = self.create_enrollment(self.user)
-        self.project = self.create_project()
-        self.main_submission = self.create_main_submission()
-        self.other_submissions = []
-        self.peer_reviews = []
-        self.create_peer_review_assignments()
-        self.criteria = self.create_review_criteria()
-
+class PeerReviewBadgeEndToEndFixtureMixin:
     def create_main_user(self):
         return User.objects.create_user(
             username="main@test.com",
@@ -179,6 +165,8 @@ class PeerReviewBadgeEndToEndTests(TestCase):
             commit_id="main123",
         )
 
+
+class PeerReviewBadgeAssignmentFixtureMixin:
     def create_other_user(self, index):
         return User.objects.create_user(
             username=f"student{index}@test.com",
@@ -223,6 +211,8 @@ class PeerReviewBadgeEndToEndTests(TestCase):
             submitted_at=submitted_at,
         )
 
+
+class PeerReviewBadgeReviewSubmissionMixin:
     def create_review_criteria(self):
         return ReviewCriteria.objects.create(
             course=self.course,
@@ -247,6 +237,8 @@ class PeerReviewBadgeEndToEndTests(TestCase):
         peer_review.submitted_at = timezone.now()
         peer_review.save()
 
+
+class PeerReviewBadgeStateAssertionsMixin:
     def get_badge_state(self):
         """Helper to get current badge state from course view"""
         self.client.login(username="main@test.com", password="12345")
@@ -277,6 +269,8 @@ class PeerReviewBadgeEndToEndTests(TestCase):
             message,
         )
 
+
+class PeerReviewBadgeScoringMixin:
     def move_peer_review_deadline_to_past(self):
         self.project.peer_review_due_date = (
             timezone.now() - timezone.timedelta(hours=1)
@@ -301,6 +295,29 @@ class PeerReviewBadgeEndToEndTests(TestCase):
             ProjectState.COMPLETED.value,
             "Project should be in COMPLETED state after scoring",
         )
+
+
+class PeerReviewBadgeEndToEndTests(
+    PeerReviewBadgeEndToEndFixtureMixin,
+    PeerReviewBadgeAssignmentFixtureMixin,
+    PeerReviewBadgeReviewSubmissionMixin,
+    PeerReviewBadgeStateAssertionsMixin,
+    PeerReviewBadgeScoringMixin,
+    TestCase,
+):
+    """End-to-end test for peer review badge showing progression from red to green"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = self.create_main_user()
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment(self.user)
+        self.project = self.create_project()
+        self.main_submission = self.create_main_submission()
+        self.other_submissions = []
+        self.peer_reviews = []
+        self.create_peer_review_assignments()
+        self.criteria = self.create_review_criteria()
 
     def test_badge_progression_no_reviews_to_all_reviews(self):
         """
