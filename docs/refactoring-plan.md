@@ -3215,6 +3215,12 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/datamailer_recipient_lists_base.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`.
+- [x] Split Datamailer recipient-list import command tests into focused import
+  creation, polling success, polling failure, timeout, and validation scenario
+  classes, and reused the shared registration fixture instead of local model
+  setup. Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_list_imports`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

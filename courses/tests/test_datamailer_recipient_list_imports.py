@@ -6,11 +6,6 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 
 from course_management.datamailer.keys import course_enrolled_list_key
-from courses.models import (
-    Course,
-    CourseRegistration,
-    RegistrationCampaign,
-)
 from courses.tests.datamailer_recipient_lists_base import (
     DATAMAILER_SETTINGS,
     DatamailerRecipientListCommandTestBase,
@@ -18,9 +13,7 @@ from courses.tests.datamailer_recipient_lists_base import (
 )
 
 
-class DatamailerRecipientListImportCommandTest(
-    DatamailerRecipientListCommandTestBase
-):
+class DatamailerEnrollmentImportCommandMixin:
     def run_enrollment_import_by_reference(self, enrollment, *extra_args):
         out = StringIO()
         command_args = [
@@ -37,6 +30,10 @@ class DatamailerRecipientListImportCommandTest(
         )
         return out
 
+
+class DatamailerRecipientListImportCreationTest(
+    DatamailerRecipientListCommandTestBase
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
@@ -82,6 +79,11 @@ class DatamailerRecipientListImportCommandTest(
             command_output,
         )
 
+
+class DatamailerRecipientListImportSuccessTest(
+    DatamailerEnrollmentImportCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
@@ -124,6 +126,11 @@ class DatamailerRecipientListImportCommandTest(
         )
         self.assert_import_waited_for_success(expectation)
 
+
+class DatamailerRecipientListImportFailureTest(
+    DatamailerEnrollmentImportCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
@@ -168,6 +175,11 @@ class DatamailerRecipientListImportCommandTest(
         }
         return {"import_job": import_job}
 
+
+class DatamailerRecipientListImportTimeoutTest(
+    DatamailerEnrollmentImportCommandMixin,
+    DatamailerRecipientListCommandTestBase,
+):
     def configure_processing_import_job(self, recipient_list_import, job_id):
         recipient_list_import.return_value = {
             "import_job": {"id": job_id, "status": "processing"}
@@ -229,21 +241,13 @@ class DatamailerRecipientListImportCommandTest(
 
         self.assert_import_wait_times_out(enrollment, 20)
 
+
+class DatamailerRecipientListImportValidationTest(
+    DatamailerRecipientListCommandTestBase
+):
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_import_by_reference_requires_s3_bucket(self):
-        course = Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            current_course=course,
-        )
-        CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
+        self.create_registration(
             email="student@example.com",
             name="Student One",
         )
