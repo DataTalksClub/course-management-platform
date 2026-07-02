@@ -4880,6 +4880,18 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use registration profile update guard.
+  Registration form saving now reuses the local authenticated-user check before
+  delegating to the profile update helper. Verification:
+  `uv run ruff check courses/views/registration_form.py courses/views/registration_profile.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/registration_form.py courses/views/registration_profile.py`,
+  `uv run python manage.py test courses.tests.test_registration_campaigns courses.tests.test_registration_campaign_course_page courses.tests.test_certificate_name`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

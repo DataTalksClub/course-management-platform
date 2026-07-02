@@ -3,7 +3,6 @@ from django import forms
 from courses.models.course import CourseRegistration
 from courses.registration import region_for_country
 from courses.views.registration_profile import (
-    can_update_registration_user_profile,
     update_user_profile_from_registration,
 )
 
@@ -84,7 +83,7 @@ def registration_email_taken(campaign, email_normalized):
 
 
 def save_registration_user_profile(user, registration):
-    if not can_update_registration_user_profile(user):
+    if not has_authenticated_registration_user(user):
         return
 
     update_fields = update_user_profile_from_registration(

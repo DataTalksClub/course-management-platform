@@ -1,7 +1,3 @@
-def can_update_registration_user_profile(user):
-    return user is not None and user.is_authenticated
-
-
 def update_user_profile_from_registration(user, registration):
     update_fields = []
     profile_values = registration_profile_values(registration)
