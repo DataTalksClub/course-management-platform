@@ -15,7 +15,9 @@ from courses.models import (
 from courses.tests.util import join_possible_answers
 
 
-class HomeworkDataAPIFixtureMixin:
+class HomeworkDataAPITestBase(TestCase):
+    """Shared base for the homework data export endpoint tests."""
+
     def setUp(self):
         self.user = CustomUser.objects.create(
             username="testuser",
@@ -35,8 +37,6 @@ class HomeworkDataAPIFixtureMixin:
             f"Token {self.token.key}"
         )
 
-
-class HomeworkDataFactoryMixin:
     def create_homework(self):
         due_date = timezone.now() + timezone.timedelta(days=7)
         return Homework.objects.create(
@@ -77,8 +77,6 @@ class HomeworkDataFactoryMixin:
             },
         )
 
-
-class HomeworkDataExpectedMixin:
     def expected_course_data(self):
         return {
             "id": self.course.id,
@@ -134,8 +132,6 @@ class HomeworkDataExpectedMixin:
             "is_correct": True,
         }
 
-
-class HomeworkDataAssertionMixin:
     def assert_fields(self, actual, expected):
         for field, expected_value in expected.items():
             self.assertEqual(actual[field], expected_value)
@@ -164,13 +160,3 @@ class HomeworkDataAssertionMixin:
             actual_submission["answers"][0],
             expected_answer,
         )
-
-
-class HomeworkDataAPITestBase(
-    HomeworkDataAPIFixtureMixin,
-    HomeworkDataFactoryMixin,
-    HomeworkDataExpectedMixin,
-    HomeworkDataAssertionMixin,
-    TestCase,
-):
-    """Shared base for the homework data export endpoint tests."""
