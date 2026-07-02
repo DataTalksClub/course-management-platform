@@ -4780,6 +4780,19 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use certificate update success-record
+  wrapper. The apply step now names the `updated` response record directly
+  before building `CertificateApplyResult`, keeping the API response fields
+  visible at the mutation point. Verification:
+  `uv run ruff check api/views/enrollment_certificate_updates.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/enrollment_certificate_updates.py`,
+  `uv run python manage.py test data.tests.test_enrollment_certificates data.tests.test_enrollment_certificate_notifications api.tests.test_enrollment_exports api.tests.test_enrollment_export_errors`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

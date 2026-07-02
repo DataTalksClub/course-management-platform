@@ -141,7 +141,12 @@ def apply_certificate_update(update, lookups):
         certificate_path,
     )
     enrollment.certificate_url = certificate_path
-    updated = certificate_update_result(update, enrollment)
+    updated = {
+        "index": update["index"],
+        "email": update["email"],
+        "enrollment_id": enrollment.id,
+        "certificate_url": update["certificate_path"],
+    }
     return CertificateApplyResult(
         enrollment=enrollment,
         notify=notify,
@@ -183,12 +188,3 @@ def should_notify_certificate_available(enrollment, certificate_path):
     had_certificate = bool(stripped_existing_certificate_url)
     has_new_certificate = bool(stripped_certificate_path)
     return not had_certificate and has_new_certificate
-
-
-def certificate_update_result(update, enrollment):
-    return {
-        "index": update["index"],
-        "email": update["email"],
-        "enrollment_id": enrollment.id,
-        "certificate_url": update["certificate_path"],
-    }
