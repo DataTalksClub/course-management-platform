@@ -4868,6 +4868,18 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use saved-timezone passive-update helper.
+  The timezone preference endpoint now names the passive flag and saved timezone
+  locally before preserving an existing preference. Verification:
+  `uv run ruff check accounts/views/timezone.py docs/refactoring-plan.md`,
+  `python -m py_compile accounts/views/timezone.py`,
+  `uv run python manage.py test accounts.tests_timezone`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

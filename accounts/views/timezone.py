@@ -61,10 +61,6 @@ def _timezone_preference_response(timezone_name):
     return response
 
 
-def _should_keep_saved_timezone(data, user):
-    return data.get("passive") and user.preferred_timezone
-
-
 def _save_timezone_preference(user, timezone_name):
     user.preferred_timezone = timezone_name
     user.save(update_fields=["preferred_timezone"])
@@ -86,8 +82,10 @@ def update_timezone_preference(request):
         return response
 
     user = request.user
-    if _should_keep_saved_timezone(data, user):
-        return _timezone_preference_response(user.preferred_timezone)
+    passive_update = data.get("passive")
+    saved_timezone = user.preferred_timezone
+    if passive_update and saved_timezone:
+        return _timezone_preference_response(saved_timezone)
 
     _save_timezone_preference(user, timezone_name)
     return _timezone_preference_response(user.preferred_timezone)
