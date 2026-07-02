@@ -45,7 +45,9 @@ def project_passed_list_data(project) -> dict[str, Any]:
 def project_passed_members(project) -> list[dict[str, Any]]:
     members = []
     seen_students = set()
-    candidate_submissions = project_passed_candidate_submissions(project)
+    candidate_submissions = project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
     for submission in candidate_submissions:
         if submission.student_id in seen_students:
             continue
@@ -54,12 +56,6 @@ def project_passed_members(project) -> list[dict[str, Any]]:
         if member is not None:
             members.append(member)
     return members
-
-
-def project_passed_candidate_submissions(project):
-    return project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
 
 
 def project_passed_member(submission) -> dict[str, Any] | None:
