@@ -1,117 +1,12 @@
-"""
-Tests for enrollment pass-threshold helper logic.
-"""
-
-from dataclasses import dataclass
+"""Tests for enrollment pass-threshold helper logic."""
 
 from api.views.enrollment_graduates import get_passed_enrollments
 
-from .enrollment_base import (
-    EnrollmentDataAPIBase,
-    PassedEnrollmentExpectation,
-    PassedEnrollmentScenario,
-)
+from .enrollment_base import PassedEnrollmentExpectation
+from .enrollment_passed_base import PassedEnrollmentTestBase
 
 
-@dataclass(frozen=True)
-class PassedSubmissionRowsActors:
-    user2: object
-    user3: object
-    enrollment2: object
-    enrollment3: object
-
-
-@dataclass(frozen=True)
-class PassedSubmissionRowsContext:
-    passed_submissions: list
-    user2: object
-    user3: object
-    enrollment2: object
-    enrollment3: object
-    project1: object
-    project2: object
-    project3: object
-
-
-class PassedEnrollmentAPITestCase(EnrollmentDataAPIBase):
-    def append_primary_user_submissions(self, context):
-        submission = self.create_project_submission(
-            context.project1, self.user, self.enrollment
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project2, self.user, self.enrollment
-        )
-        context.passed_submissions.append(submission)
-
-    def append_other_student_submissions(self, context):
-        submission = self.create_project_submission(
-            context.project1, context.user2, context.enrollment2
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project1, context.user3, context.enrollment3
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project2, context.user3, context.enrollment3
-        )
-        context.passed_submissions.append(submission)
-        submission = self.create_project_submission(
-            context.project3, context.user3, context.enrollment3
-        )
-        context.passed_submissions.append(submission)
-
-    def create_passed_submission_rows(
-        self,
-        actors,
-    ):
-        project1 = self.create_test_project("p1", "P1")
-        project2 = self.create_test_project("p2", "P2")
-        project3 = self.create_test_project("p3", "P3")
-
-        passed_submissions = []
-        context = PassedSubmissionRowsContext(
-            passed_submissions=passed_submissions,
-            user2=actors.user2,
-            user3=actors.user3,
-            enrollment2=actors.enrollment2,
-            enrollment3=actors.enrollment3,
-            project1=project1,
-            project2=project2,
-            project3=project3,
-        )
-        self.append_primary_user_submissions(context)
-        self.append_other_student_submissions(context)
-        return passed_submissions
-
-    def get_passed_enrollment_scenario(self):
-        user2 = self.create_unsaved_student(
-            "student2", "student2@example.com"
-        )
-        user3 = self.create_unsaved_student(
-            "student3", "student3@example.com"
-        )
-        user4 = self.create_unsaved_student(
-            "student4", "student4@example.com"
-        )
-        enrollment2 = self.create_unsaved_enrollment(2, user2)
-        enrollment3 = self.create_unsaved_enrollment(3, user3)
-        enrollment4 = self.create_unsaved_enrollment(4, user4)
-        actors = PassedSubmissionRowsActors(
-            user2=user2,
-            user3=user3,
-            enrollment2=enrollment2,
-            enrollment3=enrollment3,
-        )
-        passed_submissions = self.create_passed_submission_rows(actors)
-        return PassedEnrollmentScenario(
-            passed_submissions=passed_submissions,
-            enrollment2=enrollment2,
-            enrollment3=enrollment3,
-            enrollment4=enrollment4,
-        )
-
+class PassedEnrollmentAssertionMixin:
     def assert_enrollments_for_min_projects(
         self,
         data: PassedEnrollmentExpectation,
@@ -127,47 +22,78 @@ class PassedEnrollmentAPITestCase(EnrollmentDataAPIBase):
             self.assertNotIn(enrollment, result)
         return result
 
-    def assert_min_project_boundaries(self, passed_submissions, enrollment3):
-        result = get_passed_enrollments(passed_submissions, 4)
-        self.assertEqual(len(result), 0)
 
-        result = get_passed_enrollments([], 1)
-        self.assertEqual(len(result), 0)
-
-        with self.assertRaises(AssertionError):
-            get_passed_enrollments(passed_submissions, 0)
-
-        three_project_expectation = PassedEnrollmentExpectation(
-            passed_submissions=passed_submissions,
-            min_projects=3,
-            expected_enrollments=[enrollment3],
-        )
-        result = self.assert_enrollments_for_min_projects(
-            three_project_expectation
-        )
-        self.assertEqual(result[0], enrollment3)
-
-    def test_get_passed_enrollments(self):
+class PassedEnrollmentThresholdTestCase(
+    PassedEnrollmentAssertionMixin,
+    PassedEnrollmentTestBase,
+):
+    def test_get_passed_enrollments_for_two_project_minimum(self):
         scenario = self.get_passed_enrollment_scenario()
-
-        two_project_expectation = PassedEnrollmentExpectation(
+        expected_enrollments = []
+        expected_enrollments.append(self.enrollment)
+        expected_enrollments.append(scenario.enrollment3)
+        missing_enrollments = []
+        missing_enrollments.append(scenario.enrollment2)
+        missing_enrollments.append(scenario.enrollment4)
+        expectation = PassedEnrollmentExpectation(
             passed_submissions=scenario.passed_submissions,
             min_projects=2,
-            expected_enrollments=[self.enrollment, scenario.enrollment3],
-            missing_enrollments=[scenario.enrollment2, scenario.enrollment4],
+            expected_enrollments=expected_enrollments,
+            missing_enrollments=missing_enrollments,
         )
-        self.assert_enrollments_for_min_projects(two_project_expectation)
-        one_project_expectation = PassedEnrollmentExpectation(
+
+        self.assert_enrollments_for_min_projects(expectation)
+
+    def test_get_passed_enrollments_for_one_project_minimum(self):
+        scenario = self.get_passed_enrollment_scenario()
+        expected_enrollments = []
+        expected_enrollments.append(self.enrollment)
+        expected_enrollments.append(scenario.enrollment2)
+        expected_enrollments.append(scenario.enrollment3)
+        missing_enrollments = []
+        missing_enrollments.append(scenario.enrollment4)
+        expectation = PassedEnrollmentExpectation(
             passed_submissions=scenario.passed_submissions,
             min_projects=1,
-            expected_enrollments=[
-                self.enrollment,
-                scenario.enrollment2,
-                scenario.enrollment3,
-            ],
-            missing_enrollments=[scenario.enrollment4],
+            expected_enrollments=expected_enrollments,
+            missing_enrollments=missing_enrollments,
         )
-        self.assert_enrollments_for_min_projects(one_project_expectation)
-        self.assert_min_project_boundaries(
-            scenario.passed_submissions, scenario.enrollment3
+
+        self.assert_enrollments_for_min_projects(expectation)
+
+
+class PassedEnrollmentBoundaryTestCase(
+    PassedEnrollmentAssertionMixin,
+    PassedEnrollmentTestBase,
+):
+    def test_get_passed_enrollments_for_three_project_minimum(self):
+        scenario = self.get_passed_enrollment_scenario()
+        expected_enrollments = []
+        expected_enrollments.append(scenario.enrollment3)
+        expectation = PassedEnrollmentExpectation(
+            passed_submissions=scenario.passed_submissions,
+            min_projects=3,
+            expected_enrollments=expected_enrollments,
         )
+
+        result = self.assert_enrollments_for_min_projects(expectation)
+
+        self.assertEqual(result[0], scenario.enrollment3)
+
+    def test_get_passed_enrollments_for_too_many_projects(self):
+        scenario = self.get_passed_enrollment_scenario()
+
+        result = get_passed_enrollments(scenario.passed_submissions, 4)
+
+        self.assertEqual(len(result), 0)
+
+    def test_get_passed_enrollments_without_submissions(self):
+        result = get_passed_enrollments([], 1)
+
+        self.assertEqual(len(result), 0)
+
+    def test_get_passed_enrollments_rejects_zero_minimum(self):
+        scenario = self.get_passed_enrollment_scenario()
+
+        with self.assertRaises(AssertionError):
+            get_passed_enrollments(scenario.passed_submissions, 0)

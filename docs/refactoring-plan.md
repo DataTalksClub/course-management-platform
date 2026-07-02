@@ -3131,6 +3131,10 @@ Steps:
   and notification modules. Verification:
   `uv run ruff check data/tests/test_enrollment_certificates.py data/tests/test_enrollment_certificate_notifications.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_enrollment_certificates data.tests.test_enrollment_certificate_notifications`.
+- [x] Split passed-enrollment helper tests into shared scenario builders,
+  threshold checks, and boundary checks. Verification:
+  `uv run ruff check data/tests/enrollment_passed_base.py data/tests/test_enrollment_passed.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_enrollment_passed`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
