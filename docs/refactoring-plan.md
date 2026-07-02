@@ -3209,6 +3209,12 @@ Steps:
   the shared cadmin homework base. Verification:
   `uv run ruff check cadmin/tests/test_homework_views.py docs/refactoring-plan.md`,
   `uv run python manage.py test cadmin.tests.test_homework_views`.
+- [x] Split the shared Datamailer recipient-list command test base into
+  fixture, bulk-upsert assertion, import setup, registration-import assertion,
+  and import-polling mixins while keeping the public base class stable.
+  Verification:
+  `uv run ruff check courses/tests/datamailer_recipient_lists_base.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -43,7 +43,7 @@ class ImportWaitExpectation:
     out: StringIO
 
 
-class DatamailerRecipientListCommandTestBase(TestCase):
+class DatamailerRecipientListFixtureMixin:
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -146,6 +146,8 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         )
         return project, passed_submission
 
+
+class DatamailerRecipientListBulkUpsertMixin:
     def configure_bulk_upsert_success(self, bulk_upsert):
         bulk_upsert.return_value = {
             "recipient_list": {
@@ -179,6 +181,8 @@ class DatamailerRecipientListCommandTestBase(TestCase):
             expectation.source_object_key,
         )
 
+
+class DatamailerRecipientListImportSetupMixin:
     def configure_import_by_reference(self, boto3_client, create_import, job_id):
         s3 = boto3_client.return_value
         s3.generate_presigned_url.return_value = (
@@ -189,6 +193,8 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         }
         return s3
 
+
+class DatamailerRegistrationImportAssertionsMixin:
     def assert_registration_import_object(self, s3, registration):
         s3.put_object.assert_called_once()
         put_kwargs = s3.put_object.call_args.kwargs
@@ -245,6 +251,8 @@ class DatamailerRecipientListCommandTestBase(TestCase):
         self.assertTrue(has_expected_idempotency_prefix)
         self.assertNotIn("members", payload)
 
+
+class DatamailerImportPollingAssertionsMixin:
     def configure_successful_import_polling(
         self, recipient_list_import, job_id
     ):
@@ -283,3 +291,14 @@ class DatamailerRecipientListCommandTestBase(TestCase):
             success_message,
             output,
         )
+
+
+class DatamailerRecipientListCommandTestBase(
+    DatamailerRecipientListFixtureMixin,
+    DatamailerRecipientListBulkUpsertMixin,
+    DatamailerRecipientListImportSetupMixin,
+    DatamailerRegistrationImportAssertionsMixin,
+    DatamailerImportPollingAssertionsMixin,
+    TestCase,
+):
+    pass
