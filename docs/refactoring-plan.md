@@ -3026,6 +3026,11 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/test_course.py courses/tests/test_course_links.py courses/tests/test_course_calendar.py courses/tests/test_course_homework_display.py courses/tests/test_course_projects.py courses/tests/test_course_enrollment.py courses/tests/test_course_dashboard_link.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_course courses.tests.test_course_links courses.tests.test_course_calendar courses.tests.test_course_homework_display courses.tests.test_course_projects courses.tests.test_course_enrollment courses.tests.test_course_dashboard_link`.
+- [x] Split dashboard tests into shared dashboard fixtures, basic page tests,
+  empty/error state tests, homework summary tests, and homework difficulty
+  tests. Verification:
+  `uv run ruff check courses/tests/dashboard_view_base.py courses/tests/test_dashboard.py courses/tests/test_dashboard_empty.py courses/tests/dashboard_homework_base.py courses/tests/test_dashboard_homework_stats.py courses/tests/test_dashboard_homework_difficulty.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_dashboard courses.tests.test_dashboard_empty courses.tests.test_dashboard_homework_stats courses.tests.test_dashboard_homework_difficulty`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
