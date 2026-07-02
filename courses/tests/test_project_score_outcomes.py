@@ -38,6 +38,7 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
 
     def test_project_passed(self):
         other_prs = self.submit_required_reverse_reviews()
+        review_count = len(other_prs)
         expected_project_score = 3
         self.use_three_point_project_passing_score()
         answers_and_scores = [("4", 3), ("4", 3), ("1", 0)]
@@ -49,7 +50,7 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
         self.assert_project_score_outcome(
             expected_project_score,
             expected_passed=True,
-            review_count=len(other_prs),
+            review_count=review_count,
         )
 
     @patch("courses.project_scoring._sync_scored_project_submission_to_datamailer")
@@ -73,6 +74,7 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
 
     def test_project_not_passed(self):
         other_prs = self.submit_required_reverse_reviews()
+        review_count = len(other_prs)
         expected_project_score = 0
         self.use_three_point_project_passing_score()
         answers_and_scores = [("4", 3), ("1", 0), ("1", 0)]
@@ -84,7 +86,7 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
         self.assert_project_score_outcome(
             expected_project_score,
             expected_passed=False,
-            review_count=len(other_prs),
+            review_count=review_count,
         )
 
     def test_project_passed_with_optional(self):
@@ -98,6 +100,7 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
             ["4", "3"],
             optional=True,
         )
+        review_count = len(other_prs)
 
         expected_project_score = 3
         self.course.project_passing_score = 3
@@ -109,5 +112,5 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
         )
         self.assert_passed_with_peer_review_scores(
             expected_project_score,
-            len(other_prs),
+            review_count,
         )

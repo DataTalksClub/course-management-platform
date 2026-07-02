@@ -3946,6 +3946,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`), and `git diff --check`.
+- [x] 2026-07-02: Named remaining nested test-helper URL calls and project
+  score review-count values in enrollment certificate exports, registration
+  campaign API tests, and project score outcome tests. Verification:
+  `uv run python manage.py test api.tests.test_enrollment_exports api.tests.test_enrollment_export_auth api.tests.test_enrollment_export_errors api.tests.test_registration_campaigns api.tests.test_registration_campaign_auth courses.tests.test_project_score_outcomes`,
+  `uv run ruff check api/tests/enrollment_exports_base.py api/tests/registration_campaign_base.py api/tests/test_enrollment_exports.py api/tests/test_enrollment_export_auth.py api/tests/test_enrollment_export_errors.py api/tests/test_registration_campaigns.py api/tests/test_registration_campaign_auth.py courses/tests/test_project_score_outcomes.py`,
+  touched-file nested-call scan (`touched_nested_call_args=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

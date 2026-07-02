@@ -28,9 +28,10 @@ class EnrollmentExportsAPITestBase(TestCase):
         return f"/api/courses/{self.course.slug}/certificates"
 
     def post_certificates(self, payload):
+        url = self.certificates_url()
         request_body = json.dumps(payload)
         return self.client.post(
-            self.certificates_url(),
+            url,
             request_body,
             content_type="application/json",
         )
