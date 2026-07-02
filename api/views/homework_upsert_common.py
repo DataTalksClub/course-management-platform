@@ -34,14 +34,6 @@ def homework_title_from_data(data):
     return data.get("title", name)
 
 
-def invalid_instructions_url_response(error):
-    return error_response(
-        error,
-        "invalid_instructions_url",
-        details={"field": "instructions_url"},
-    )
-
-
 def invalid_due_date_response():
     return error_response(
         "Invalid date format for due_date",
@@ -62,5 +54,9 @@ def invalid_homework_state_response():
 def validate_homework_instructions_url_value(instructions_url):
     error = instructions_url_error(instructions_url)
     if error:
-        return invalid_instructions_url_response(error)
+        return error_response(
+            error,
+            "invalid_instructions_url",
+            details={"field": "instructions_url"},
+        )
     return None

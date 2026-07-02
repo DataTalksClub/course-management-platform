@@ -25,10 +25,11 @@ testable service functions.
   scenarios for the same behavior area. Split test classes only when they cover
   different behavior areas, need different setup, or the shared helpers make
   the tests harder to read. Large case groups can stay together when they test
-  the same feature with the same setup. The right cleanup for a long but
-  focused test class is usually to leave the class together and simplify the
-  assertions inside it. Do not extract or split those focused case groups just
-  to make the file or class shorter.
+  the same feature with the same setup, even if the class is longer than the
+  normal threshold. The right cleanup for a long but focused test class is
+  usually to leave the class together and simplify the assertions inside it.
+  Do not extract or split those focused case groups just to make the file or
+  class shorter.
 - Keep tests simple. Do not add test inheritance, base classes, or mixins just
   to reduce line counts. Prefer direct setup in the focused test case and
   small helper functions only when they remove real duplication. When setup is
@@ -4252,6 +4253,23 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
+- [x] 2026-07-02: Removed the single-use homework instructions-url error
+  response wrapper by returning the `error_response(...)` directly from
+  `validate_homework_instructions_url_value`. Verification:
+  `uv run python manage.py test api.tests.test_homework_upserts api.tests.test_homeworks`,
+  `uv run ruff check api/views/homework_upsert_common.py`,
+  Python reference scan (`invalid_instructions_url_response=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
+- [x] 2026-07-02: Clarified the test cleanup rule: long focused test classes
+  and large same-setup case groups should stay together, and cleanup should
+  simplify assertions or helpers instead of introducing inheritance, bases, or
+  mixins only to reduce size. Verification: documentation review and
   `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
