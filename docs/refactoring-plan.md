@@ -5154,6 +5154,20 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use cadmin project edit evaluation-score
+  map helper. `criteria_with_project_scores` now builds the score map directly
+  from the submission before assembling per-criteria score records.
+  Verification:
+  `uv run ruff check cadmin/views/project_submission_edit.py docs/refactoring-plan.md`,
+  `python -m py_compile cadmin/views/project_submission_edit.py`,
+  `uv run python manage.py test cadmin.tests.test_project_submission_edit_views`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] 2026-07-02: Removed the single-use timezone preference save helper. The
   timezone update view now assigns and saves `user.preferred_timezone` directly
   in the successful update branch, while validation and response helpers remain

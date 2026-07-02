@@ -52,16 +52,12 @@ def project_submission_edit_objects(
     )
 
 
-def project_evaluation_score_map(submission):
-    scores = ProjectEvaluationScore.objects.filter(submission=submission)
-    score_map = {}
-    for score in scores:
-        score_map[score.review_criteria_id] = score
-    return score_map
-
-
 def criteria_with_project_scores(review_criteria, submission):
-    evaluation_scores = project_evaluation_score_map(submission)
+    evaluation_scores = {}
+    scores = ProjectEvaluationScore.objects.filter(submission=submission)
+    for score in scores:
+        evaluation_scores[score.review_criteria_id] = score
+
     criteria_scores = []
     for criteria in review_criteria:
         evaluation_score = evaluation_scores.get(criteria.id)
