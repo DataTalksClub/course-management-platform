@@ -13,22 +13,21 @@ from courses.tests.datamailer_recipient_lists_base import (
 )
 
 
-class DatamailerEnrollmentImportCommandMixin:
-    def run_enrollment_import_by_reference(self, enrollment, *extra_args):
-        out = StringIO()
-        command_args = [
-            "sync_datamailer_recipient_lists",
-            "enrollments",
-            "--course-slug",
-            enrollment.course.slug,
-            "--import-by-reference",
-        ]
-        command_args.extend(extra_args)
-        call_command(
-            *command_args,
-            stdout=out,
-        )
-        return out
+def run_enrollment_import_by_reference(enrollment, *extra_args):
+    out = StringIO()
+    command_args = [
+        "sync_datamailer_recipient_lists",
+        "enrollments",
+        "--course-slug",
+        enrollment.course.slug,
+        "--import-by-reference",
+    ]
+    command_args.extend(extra_args)
+    call_command(
+        *command_args,
+        stdout=out,
+    )
+    return out
 
 
 class DatamailerRecipientListImportCreationTest(
@@ -81,8 +80,7 @@ class DatamailerRecipientListImportCreationTest(
 
 
 class DatamailerRecipientListImportSuccessTest(
-    DatamailerEnrollmentImportCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -111,7 +109,7 @@ class DatamailerRecipientListImportSuccessTest(
         )
         enrollment = self.create_enrolled_student()
 
-        out = self.run_enrollment_import_by_reference(
+        out = run_enrollment_import_by_reference(
             enrollment,
             "--wait-for-import",
             "--import-poll-interval",
@@ -128,8 +126,7 @@ class DatamailerRecipientListImportSuccessTest(
 
 
 class DatamailerRecipientListImportFailureTest(
-    DatamailerEnrollmentImportCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -162,7 +159,7 @@ class DatamailerRecipientListImportFailureTest(
             f"{course_enrolled_list_key(enrollment.course)}: "
             "job_id=19; error=bad jsonl",
         ):
-            self.run_enrollment_import_by_reference(
+            run_enrollment_import_by_reference(
                 enrollment,
                 "--wait-for-import",
             )
@@ -177,8 +174,7 @@ class DatamailerRecipientListImportFailureTest(
 
 
 class DatamailerRecipientListImportTimeoutTest(
-    DatamailerEnrollmentImportCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     def configure_processing_import_job(self, recipient_list_import, job_id):
         recipient_list_import.return_value = {
