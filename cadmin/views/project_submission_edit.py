@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 
 from courses.models.course import Course
 from courses.models.project import (
@@ -110,19 +110,6 @@ def handle_project_submission_edit_post(data):
         "cadmin_project_submissions",
         course_slug=data.course.slug,
         project_slug=data.project.slug,
-    )
-    return response
-
-
-def project_submission_edit_response(data):
-    context = {
-        "course": data.course,
-        "project": data.project,
-        "submission": data.submission,
-        "criteria_with_scores": data.criteria_with_scores,
-    }
-    response = render(
-        data.request, "cadmin/project_submission_edit.html", context
     )
     return response
 

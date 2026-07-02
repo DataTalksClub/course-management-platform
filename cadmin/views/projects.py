@@ -24,7 +24,6 @@ from .project_submission_edit import (
     handle_project_submission_edit_post,
     project_submission_edit_objects,
     project_submission_edit_page_data,
-    project_submission_edit_response,
 )
 from .project_submission_list import (
     apply_project_action_flags,
@@ -116,4 +115,13 @@ def project_submission_edit(
         if response is not None:
             return response
 
-    return project_submission_edit_response(edit_data)
+    context = {
+        "course": edit_data.course,
+        "project": edit_data.project,
+        "submission": edit_data.submission,
+        "criteria_with_scores": edit_data.criteria_with_scores,
+    }
+    response = render(
+        request, "cadmin/project_submission_edit.html", context
+    )
+    return response
