@@ -3075,6 +3075,10 @@ Steps:
   metadata, assignment-panel, and registration modules. Verification:
   `uv run ruff check courses/tests/course_list_base.py courses/tests/test_course_list.py courses/tests/test_course_list_metadata.py courses/tests/test_course_list_assignments.py courses/tests/test_course_list_registration.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_course_list courses.tests.test_course_list_metadata courses.tests.test_course_list_assignments courses.tests.test_course_list_registration`.
+- [x] Split Datamailer status tests into shared fixtures, preference, sync, and
+  status-command modules. Verification:
+  `uv run ruff check courses/tests/datamailer_status_base.py courses/tests/test_datamailer_preferences.py courses/tests/test_datamailer_sync_status.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_status courses.tests.test_datamailer_preferences courses.tests.test_datamailer_sync_status`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
