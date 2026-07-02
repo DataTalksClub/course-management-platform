@@ -3103,6 +3103,10 @@ Steps:
   mixed-error, and auth modules. Verification:
   `uv run ruff check api/tests/enrollment_exports_base.py api/tests/test_enrollment_exports.py api/tests/test_enrollment_export_errors.py api/tests/test_enrollment_export_auth.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_enrollment_exports api.tests.test_enrollment_export_errors api.tests.test_enrollment_export_auth`.
+- [x] Split project-list view tests into shared fixtures, authenticated/list
+  rendering, link rendering, and pagination modules. Verification:
+  `uv run ruff check courses/tests/project_list_view_base.py courses/tests/test_project_list_view.py courses/tests/test_project_list_pagination.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_list_view courses.tests.test_project_list_pagination`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
