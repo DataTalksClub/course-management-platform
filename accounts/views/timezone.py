@@ -27,17 +27,10 @@ def _validated_timezone_value(timezone_value):
         return None, "timezone must be a string"
 
     timezone_name = timezone_value.strip()
-    error = _timezone_name_error(timezone_name)
-    if error:
-        return None, error
+    if timezone_name and not is_valid_timezone(timezone_name):
+        return None, "Invalid timezone"
 
     return timezone_name, None
-
-
-def _timezone_name_error(timezone_name):
-    if timezone_name and not is_valid_timezone(timezone_name):
-        return "Invalid timezone"
-    return None
 
 
 def _validated_timezone_name(data):
