@@ -9,11 +9,6 @@ TOP_COUNTRIES_SECTION = "Top Countries"
 YOUTUBE_EMBED_BASE_URL = "https://www.youtube.com/embed"
 
 
-def _countries_config_lines():
-    content = COUNTRIES_CONFIG_PATH.read_text(encoding="utf-8")
-    return content.splitlines()
-
-
 def _country_config_section(line):
     if not line.startswith("["):
         return None
@@ -41,7 +36,8 @@ def _build_countries_config():
     countries_by_region = {}
     section = None
 
-    config_lines = _countries_config_lines()
+    config_content = COUNTRIES_CONFIG_PATH.read_text(encoding="utf-8")
+    config_lines = config_content.splitlines()
     for raw_line in config_lines:
         line = raw_line.strip()
         if not line or line.startswith("#"):

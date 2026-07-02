@@ -4421,6 +4421,17 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use countries config line-reader wrapper
+  from `courses/registration.py` and kept file reading/splitting as named
+  parser steps. Verification: `uv run ruff check courses/registration.py`,
+  `python -m py_compile courses/registration.py`,
+  `uv run python manage.py test courses.tests.test_registration_campaigns courses.tests.test_registration_campaign_course_page`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
