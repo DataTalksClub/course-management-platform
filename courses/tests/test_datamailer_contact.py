@@ -40,7 +40,7 @@ class DatamailerContactTest(DatamailerContactBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_contact_logs_and_continues_on_api_failure(
         self, upsert
@@ -54,7 +54,7 @@ class DatamailerContactTest(DatamailerContactBase):
 
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_STRICT=True)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_contact_can_be_strict(self, upsert):
         upsert.side_effect = requests.RequestException("network error")

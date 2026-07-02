@@ -16,7 +16,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.upsert_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
     def test_campaign_edit_syncs_datamailer_campaign_draft(
         self, upsert_campaign
@@ -39,10 +39,10 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.preview_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.preview_campaign"
     )
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.upsert_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
     def test_campaign_edit_previews_datamailer_campaign(
         self, upsert_campaign, preview_campaign
@@ -73,10 +73,10 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.test_send_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.test_send_campaign"
     )
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.upsert_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
     def test_campaign_edit_sends_datamailer_campaign_test(
         self, upsert_campaign, test_send_campaign
@@ -104,10 +104,10 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.queue_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign"
     )
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.upsert_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
     def test_campaign_edit_queues_datamailer_campaign(
         self, upsert_campaign, queue_campaign
@@ -131,10 +131,10 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.cancel_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.cancel_campaign"
     )
     @patch(
-        "cadmin.views.campaign_datamailer.DatamailerClient.upsert_campaign"
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
     def test_campaign_edit_cancels_datamailer_campaign_without_upsert(
         self, upsert_campaign, cancel_campaign

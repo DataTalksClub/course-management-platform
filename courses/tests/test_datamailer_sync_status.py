@@ -15,7 +15,7 @@ from .datamailer_status_base import DATAMAILER_SETTINGS
 class DatamailerContactSyncStatusTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.contact_status"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.contact_status"
     )
     def test_get_contact_status_uses_datamailer_client(
         self, contact_status
@@ -29,7 +29,7 @@ class DatamailerContactSyncStatusTest(TestCase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.contact_history"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.contact_history"
     )
     def test_get_contact_history_uses_datamailer_client(
         self, contact_history
@@ -73,7 +73,7 @@ class DatamailerContactSyncStatusTest(TestCase):
 class DatamailerMessageSyncStatusTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.transactional_message_status"
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.transactional_message_status"
     )
     def test_get_transactional_message_status_uses_datamailer_client(
         self,

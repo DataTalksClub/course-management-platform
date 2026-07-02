@@ -19,7 +19,7 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.remove_recipient_list_member"
     )
     def test_remove_enrollment_removes_enrolled_and_graduate_members(
         self,
@@ -39,7 +39,7 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.remove_recipient_list_member"
     )
     def test_remove_homework_submission_deletes_submitter_member(
         self,
@@ -62,7 +62,7 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.remove_recipient_list_member"
     )
     def test_remove_project_submission_removes_submitter_and_passed_members(
         self,

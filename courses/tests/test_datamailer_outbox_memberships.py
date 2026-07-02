@@ -18,10 +18,10 @@ from courses.tests.datamailer_outbox_base import (
 class DatamailerOutboxMembershipTest(DatamailerOutboxTestBase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_membership_sync_failure_records_retryable_outbox_event(
         self,
@@ -36,10 +36,10 @@ class DatamailerOutboxMembershipTest(DatamailerOutboxTestBase):
 class DatamailerOutboxProcessingTest(DatamailerOutboxTestBase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_process_datamailer_outbox_retries_due_events(
         self,

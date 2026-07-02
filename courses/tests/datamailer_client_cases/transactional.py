@@ -14,6 +14,7 @@ def transient_transactional_payload():
 def recipient_list_transactional_send_method_case():
     payload = {"template_key": "homework-score-notification"}
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="send_recipient_list_transactional",
         args=("ml-zoomcamp-2026:@e:@homework:homework-1", payload),
         method="POST",
@@ -31,6 +32,7 @@ def recipient_list_transactional_send_method_case():
 def transient_transactional_send_method_case():
     payload = transient_transactional_payload()
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="send_transient_recipient_list_transactional",
         args=(payload,),
         method="POST",
@@ -54,6 +56,7 @@ def transactional_status_method_cases():
     cases = []
     response_payload = {"message": {"id": 42}}
     case = DatamailerMethodCase(
+        endpoint_name="transactional",
         method_name="transactional_message_status",
         args=(42,),
         method="GET",

@@ -4,6 +4,7 @@ from .types import DatamailerMethodCase
 def upsert_recipient_list_member_method_case():
     member_payload = {"email": "student@example.com"}
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="upsert_recipient_list_member",
         args=("ml-zoomcamp-2026", "registration:42", member_payload),
         method="PUT",
@@ -20,6 +21,7 @@ def remove_recipient_list_member_method_case():
         "client": "dtc-courses",
     }
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="remove_recipient_list_member",
         args=("ml-zoomcamp-2026", "registration:42"),
         method="DELETE",
@@ -48,6 +50,7 @@ def recipient_list_members_method_case():
     }
     kwargs = {"limit": 500}
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="recipient_list_members",
         args=("ml-zoomcamp-2026:@e",),
         kwargs=kwargs,
@@ -91,6 +94,7 @@ def create_recipient_list_import_method_case():
         "idempotency_key": "cmp-import-1",
     }
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="create_recipient_list_import",
         args=("ml-zoomcamp-2026:@e", import_payload),
         method="POST",
@@ -104,6 +108,7 @@ def create_recipient_list_import_method_case():
 def recipient_list_import_status_method_case():
     params = {"audience": "dtc-courses", "client": "dtc-courses"}
     return DatamailerMethodCase(
+        endpoint_name="recipient_lists",
         method_name="recipient_list_import",
         args=("ml-zoomcamp-2026:@e", 42),
         method="GET",

@@ -115,7 +115,7 @@ def create_import_job_response(import_data):
         "list": import_data.payload["list"],
         "remove_absent": import_data.options.remove_absent,
     }
-    response = import_data.client.create_recipient_list_import(
+    response = import_data.client.recipient_lists.create_recipient_list_import(
         import_data.list_key,
         import_payload,
     )
@@ -162,7 +162,7 @@ def wait_for_import_job(data, write):
 
 
 def import_job(client, list_key, job_id):
-    response = client.recipient_list_import(list_key, job_id)
+    response = client.recipient_lists.recipient_list_import(list_key, job_id)
     response_body = response or {}
     import_job_data = response_body.get("import_job", {})
     return import_job_data

@@ -99,7 +99,7 @@ def campaign_payload(options):
 
 def run_campaign_requests(data):
     payload = campaign_payload(data.options)
-    upsert_response = data.client.upsert_campaign(
+    upsert_response = data.client.campaigns.upsert_campaign(
         data.external_key,
         payload,
     )
@@ -115,14 +115,14 @@ def run_campaign_actions(data):
     responses = {}
     options = data.options
     if options["preview"]:
-        responses["preview"] = data.client.preview_campaign(data.external_key)
+        responses["preview"] = data.client.campaigns.preview_campaign(data.external_key)
     if options["test_send"]:
-        responses["test_send"] = data.client.test_send_campaign(
+        responses["test_send"] = data.client.campaigns.test_send_campaign(
             data.external_key,
             options["test_send"],
         )
     if options["queue"]:
-        responses["queue"] = data.client.queue_campaign(data.external_key)
+        responses["queue"] = data.client.campaigns.queue_campaign(data.external_key)
     if options["cancel"]:
-        responses["cancel"] = data.client.cancel_campaign(data.external_key)
+        responses["cancel"] = data.client.campaigns.cancel_campaign(data.external_key)
     return responses

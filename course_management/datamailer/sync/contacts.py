@@ -42,7 +42,7 @@ def sync_contact(user, course=None) -> None:
     payload = payload_with_configured_from_email(payload, config)
 
     try:
-        client.upsert_contact(payload)
+        client.contacts.upsert_contact(payload)
     except requests.RequestException:
         handle_contact_sync_error(config, user)
 

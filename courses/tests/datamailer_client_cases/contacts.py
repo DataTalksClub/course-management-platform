@@ -4,6 +4,7 @@ from .types import DatamailerMethodCase
 def upsert_contact_method_case():
     payload = {"email": "student@example.com"}
     return DatamailerMethodCase(
+        endpoint_name="contacts",
         method_name="upsert_contact",
         args=(payload,),
         method="POST",
@@ -24,6 +25,7 @@ def bulk_import_contacts_method_case():
         "contacts": contacts,
     }
     return DatamailerMethodCase(
+        endpoint_name="contacts",
         method_name="bulk_import_contacts",
         args=(contact_import_payload,),
         method="POST",
@@ -41,6 +43,7 @@ def erase_contact_method_case():
         "client": "dtc-courses",
     }
     return DatamailerMethodCase(
+        endpoint_name="contacts",
         method_name="erase_contact",
         args=("student@example.com",),
         method="POST",
@@ -73,6 +76,7 @@ def contact_status_method_case():
         "client": "dtc-courses",
     }
     return DatamailerMethodCase(
+        endpoint_name="contacts",
         method_name="contact_status",
         args=("student@example.com",),
         method="GET",
@@ -91,6 +95,7 @@ def contact_history_method_case():
     }
     kwargs = {"limit": 5}
     return DatamailerMethodCase(
+        endpoint_name="contacts",
         method_name="contact_history",
         args=(42,),
         kwargs=kwargs,

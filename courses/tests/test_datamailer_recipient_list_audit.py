@@ -157,10 +157,10 @@ class DatamailerRecipientListAuditNoDriftTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.reconcile_recipient_list_members"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_members"
     )
     def test_recipient_list_audit_reports_no_drift(
         self,
@@ -196,10 +196,10 @@ class DatamailerRecipientListAuditRepairTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.reconcile_recipient_list_members"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_members"
     )
     def test_recipient_list_audit_can_repair_drift(
         self,
@@ -234,7 +234,7 @@ class DatamailerRecipientListAuditListingErrorTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_members"
     )
     def test_recipient_list_audit_rejects_truncated_member_listing(
         self,
@@ -256,7 +256,7 @@ class DatamailerRecipientListAuditListingErrorTest(
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_members"
     )
     def test_recipient_list_audit_wraps_member_listing_errors(
         self,

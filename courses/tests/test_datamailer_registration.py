@@ -220,7 +220,7 @@ class DatamailerRegistrationConfirmationSendTest(
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     def test_send_registration_confirmation_email_uses_transactional_send(
         self, send
@@ -246,10 +246,10 @@ class DatamailerRegistrationMembershipSyncTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_registration_adds_contact_and_registrant_member(
         self,
@@ -272,7 +272,7 @@ class DatamailerRegistrationMembershipRemovalTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.remove_recipient_list_member"
     )
     def test_remove_registration_deletes_registrant_member(
         self,

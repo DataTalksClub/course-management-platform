@@ -1,9 +1,17 @@
 from typing import Any
 
-from .client_types import DatamailerRequestData
+from .client_types import DatamailerRequest, DatamailerRequestData
 
 
-class DatamailerCampaignClientMixin:
+class DatamailerCampaignClient:
+    def __init__(
+        self,
+        config: Any,
+        request: DatamailerRequest,
+    ):
+        self.config = config
+        self.request = request
+
     def upsert_campaign(
         self,
         external_key: str,

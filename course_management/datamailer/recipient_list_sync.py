@@ -95,10 +95,10 @@ def sync_inline_recipient_list_batch(data, list_key, payload):
 def sync_inline_batch(data):
     try:
         if data.reconcile:
-            return data.client.reconcile_recipient_list_members(
+            return data.client.recipient_lists.reconcile_recipient_list_members(
                 data.list_key, data.payload
             )
-        return data.client.bulk_upsert_recipient_list_members(
+        return data.client.recipient_lists.bulk_upsert_recipient_list_members(
             data.list_key, data.payload
         )
     except requests.RequestException as exc:

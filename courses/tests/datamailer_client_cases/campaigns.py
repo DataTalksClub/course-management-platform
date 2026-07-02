@@ -41,6 +41,7 @@ def campaign_detail_method_case():
     params = campaign_case_scope_payload()
     response_payload = {"campaign": {"external_key": "course-start-2026"}}
     return DatamailerMethodCase(
+        endpoint_name="campaigns",
         method_name="campaign",
         args=("course-start-2026",),
         method="GET",
@@ -54,6 +55,7 @@ def campaign_detail_method_case():
 def campaign_preview_method_case():
     json_payload = campaign_case_scope_payload()
     return DatamailerMethodCase(
+        endpoint_name="campaigns",
         method_name="preview_campaign",
         args=("course-start-2026",),
         method="POST",
@@ -76,6 +78,7 @@ def campaign_read_method_cases():
 def queue_campaign_method_case():
     json_payload = campaign_case_scope_payload()
     return DatamailerMethodCase(
+        endpoint_name="campaigns",
         method_name="queue_campaign",
         args=("course-start-2026",),
         method="POST",
@@ -89,6 +92,7 @@ def queue_campaign_method_case():
 def cancel_campaign_method_case():
     json_payload = campaign_case_scope_payload()
     return DatamailerMethodCase(
+        endpoint_name="campaigns",
         method_name="cancel_campaign",
         args=("course-start-2026",),
         method="POST",
@@ -116,6 +120,7 @@ def campaign_test_send_method_case():
         "emails": emails,
     }
     return DatamailerMethodCase(
+        endpoint_name="campaigns",
         method_name="test_send_campaign",
         args=("course-start-2026", emails),
         method="POST",

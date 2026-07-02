@@ -1,9 +1,17 @@
 from typing import Any
 
-from .client_types import DatamailerRequestData
+from .client_types import DatamailerRequest, DatamailerRequestData
 
 
-class DatamailerContactClientMixin:
+class DatamailerContactClient:
+    def __init__(
+        self,
+        config: Any,
+        request: DatamailerRequest,
+    ):
+        self.config = config
+        self.request = request
+
     def upsert_contact(
         self, payload: dict[str, Any]
     ) -> dict[str, Any] | None:

@@ -59,7 +59,9 @@ class DatamailerClientEndpointTest(TestCase):
         client = DatamailerClient(config, session=session)
 
         kwargs = method_case.kwargs or {}
-        result = getattr(client, method_case.method_name)(
+        endpoint = getattr(client, method_case.endpoint_name)
+        method = getattr(endpoint, method_case.method_name)
+        result = method(
             *method_case.args,
             **kwargs,
         )
@@ -99,7 +101,7 @@ class DatamailerClientEndpointTest(TestCase):
         client = DatamailerClient(config, session=session)
 
         payload = campaign_upsert_payload()
-        result = client.upsert_campaign(
+        result = client.campaigns.upsert_campaign(
             "course-start-2026",
             payload,
         )

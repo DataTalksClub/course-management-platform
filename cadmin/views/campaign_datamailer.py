@@ -99,7 +99,7 @@ def sync_datamailer_campaign_action(request, client, external_key):
 
 
 def preview_datamailer_campaign_action(request, client, external_key):
-    preview = client.preview_campaign(external_key)
+    preview = client.campaigns.preview_campaign(external_key)
     messages.success(request, "Datamailer campaign preview rendered.")
     return preview, False
 
@@ -108,7 +108,7 @@ def test_send_datamailer_campaign_action(request, client, external_key):
     raw_recipients = request.POST.get("test_recipients", "")
     recipients = parse_test_recipients(raw_recipients)
     recipient_count = len(recipients)
-    client.test_send_campaign(external_key, recipients)
+    client.campaigns.test_send_campaign(external_key, recipients)
     messages.success(
         request,
         f"Datamailer test send queued for {recipient_count} recipient(s).",
@@ -117,7 +117,7 @@ def test_send_datamailer_campaign_action(request, client, external_key):
 
 
 def queue_datamailer_campaign_action(request, client, external_key):
-    response = client.queue_campaign(external_key)
+    response = client.campaigns.queue_campaign(external_key)
     recipient_count = datamailer_campaign_queue_recipient_count(response)
     messages.success(
         request,
@@ -127,7 +127,7 @@ def queue_datamailer_campaign_action(request, client, external_key):
 
 
 def cancel_datamailer_campaign_action(request, client, external_key):
-    client.cancel_campaign(external_key)
+    client.campaigns.cancel_campaign(external_key)
     messages.success(request, "Datamailer campaign cancelled.")
     return None, True
 
@@ -155,7 +155,7 @@ def upsert_datamailer_campaign_if_needed(data):
         return
 
     payload = registration_campaign_datamailer_payload(data.campaign)
-    data.client.upsert_campaign(data.external_key, payload)
+    data.client.campaigns.upsert_campaign(data.external_key, payload)
 
 
 def perform_datamailer_campaign_action(data):

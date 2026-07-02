@@ -73,7 +73,7 @@ def audit_list(data, write_line):
 
 def list_members(data):
     try:
-        return data.client.recipient_list_members(
+        return data.client.recipient_lists.recipient_list_members(
             data.list_key,
             include_removed=False,
             limit=data.limit,
@@ -96,7 +96,7 @@ def ensure_complete_response(response, list_key, limit):
 
 def repair_list(data, write_line):
     try:
-        repair_response = data.client.reconcile_recipient_list_members(
+        repair_response = data.client.recipient_lists.reconcile_recipient_list_members(
             data.list_key,
             data.payload,
         )

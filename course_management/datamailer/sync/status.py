@@ -16,7 +16,7 @@ def get_contact_status(email: str) -> dict[str, Any] | None:
     client = DatamailerClient(config)
 
     try:
-        return client.contact_status(email)
+        return client.contacts.contact_status(email)
     except requests.RequestException:
         logger.exception("Datamailer contact status lookup failed")
         if config.strict:
@@ -36,7 +36,7 @@ def get_contact_history(
     client = DatamailerClient(config)
 
     try:
-        return client.contact_history(contact_id, limit=limit)
+        return client.contacts.contact_history(contact_id, limit=limit)
     except requests.RequestException:
         logger.exception("Datamailer contact history lookup failed")
         if config.strict:
@@ -73,7 +73,7 @@ def get_transactional_message_status(
     client = DatamailerClient(config)
 
     try:
-        return client.transactional_message_status(message_id)
+        return client.transactional.transactional_message_status(message_id)
     except requests.RequestException:
         logger.exception(
             "Datamailer transactional message status lookup failed"

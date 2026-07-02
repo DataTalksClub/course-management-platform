@@ -82,7 +82,7 @@ def send_recipient_list_transactional_and_audit(
 ):
     client = DatamailerClient(config)
     send_payload = recipient_list_send_payload(payload)
-    response = client.send_recipient_list_transactional(
+    response = client.recipient_lists.send_recipient_list_transactional(
         list_key, send_payload
     )
     audit_data = DatamailerSendAuditData(

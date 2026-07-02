@@ -21,9 +21,13 @@ testable service functions.
   lines as the active-code scan threshold outside tests, and allow test methods
   and test helpers up to 60 lines when the scenario remains readable.
 - Do not split a test class only because it is long. A long test class is
-  acceptable when it has one focused subject and one coherent setup. Split test
-  classes only when they cover different behavior areas, need different setup,
-  or the shared helpers make the tests harder to read.
+  acceptable when it has one focused subject, one coherent setup, and related
+  scenarios for the same behavior area. Split test classes only when they cover
+  different behavior areas, need different setup, or the shared helpers make
+  the tests harder to read.
+- Keep tests simple. Do not add test inheritance, base classes, or mixins just
+  to reduce line counts. Prefer direct setup in the focused test case and
+  small helper functions only when they remove real duplication.
 - Do not introduce list/dict/set comprehensions during cleanup. Prefer explicit
   loops so filtering, appending, and early exits stay easy to inspect.
 - Use Pyrefly as a whole-repo Python type check during cleanup.
@@ -3372,6 +3376,20 @@ Steps:
   command class as module-level functions. Verification:
   `uv run ruff check courses/management/commands/sync_datamailer_contacts.py courses/tests/test_datamailer_contact_backfill.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_contact_backfill`.
+- [x] 2026-07-02: Tightened the test cleanup rule so long focused test classes
+  remain acceptable, and test inheritance, base classes, and mixins are not
+  introduced just to reduce line counts.
+- [x] 2026-07-02: Replaced Datamailer client mixins with concrete endpoint
+  clients owned by `DatamailerClient.contacts`,
+  `DatamailerClient.recipient_lists`, `DatamailerClient.transactional`, and
+  `DatamailerClient.campaigns`; updated production callers and mocks to use
+  those endpoint clients directly. Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_client courses.tests.test_datamailer_contact courses.tests.test_datamailer_contact_backfill courses.tests.test_datamailer_membership courses.tests.test_datamailer_membership_outcomes courses.tests.test_datamailer_membership_removals courses.tests.test_datamailer_outbox_contacts courses.tests.test_datamailer_outbox_memberships courses.tests.test_datamailer_outbox_status_commands courses.tests.test_datamailer_preferences courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports courses.tests.test_datamailer_recipient_list_audit courses.tests.test_datamailer_sync_status courses.tests.test_datamailer_transactional courses.tests.test_datamailer_campaign_command courses.tests.test_datamailer_certificates courses.tests.test_datamailer_registration courses.tests.test_datamailer_peer_review courses.tests.test_datamailer_project_outcomes courses.tests.test_datamailer_homework_score_send courses.tests.test_deadline_reminder_dry_run courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_peer_review courses.tests.test_deadline_reminder_project cadmin.tests.test_campaign_datamailer_views`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
@@ -3393,8 +3411,10 @@ These are lower priority than the phases above.
 
 - [ ] Continue splitting long files by ownership when a file accumulates several
   related groups behind a common prefix or feature area.
-- [ ] Split very large test classes into scenario-focused files after production
-  code stabilizes.
+- [ ] Audit test-helper inheritance introduced during earlier cleanup and
+  collapse it when the base class or mixin layer is only serving line-count
+  reduction. Keep long focused test classes intact when their setup and subject
+  are coherent.
 - [ ] Move one-time root scripts into `scripts/` or `.tmp/` if they are not
   intended as maintained commands.
 - [ ] Audit `courses/static/courses.css` for component grouping after backend

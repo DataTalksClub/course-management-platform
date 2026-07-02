@@ -56,10 +56,10 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_enrollment_adds_contact_and_enrolled_member(
         self,
@@ -86,10 +86,10 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_homework_submission_adds_submitter_member(
         self,
@@ -117,10 +117,10 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_project_submission_adds_submitter_member(
         self,

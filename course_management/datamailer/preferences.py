@@ -35,7 +35,7 @@ def _contact_preferences_response(user, email, config):
     client = DatamailerClient(config)
     try:
         category_tags = email_preference_category_tags()
-        return client.contact_preferences(
+        return client.contacts.contact_preferences(
             email,
             category_tags=category_tags,
         )
@@ -71,7 +71,7 @@ def _log_preference_update_error(user):
 def _send_email_preference_update(user, email, config, categories):
     client = DatamailerClient(config)
     try:
-        client.update_contact_preferences(email, categories)
+        client.contacts.update_contact_preferences(email, categories)
     except requests.RequestException:
         _log_preference_update_error(user)
         if config.strict:

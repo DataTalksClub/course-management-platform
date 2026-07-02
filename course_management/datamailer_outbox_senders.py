@@ -4,7 +4,7 @@ from typing import Any
 def upsert_contact_if_present(client, payload):
     contact_payload = payload.get("contact_payload")
     if contact_payload:
-        client.upsert_contact(contact_payload)
+        client.contacts.upsert_contact(contact_payload)
 
 
 def send_recipient_list_member_upsert_event(client, payload):
@@ -12,7 +12,7 @@ def send_recipient_list_member_upsert_event(client, payload):
     list_key = payload["list_key"]
     source_object_key = payload["source_object_key"]
     member_payload = payload["member_payload"]
-    return client.upsert_recipient_list_member(
+    return client.recipient_lists.upsert_recipient_list_member(
         list_key,
         source_object_key,
         member_payload,
@@ -22,13 +22,16 @@ def send_recipient_list_member_upsert_event(client, payload):
 def send_recipient_list_member_remove_event(client, payload):
     list_key = payload["list_key"]
     source_object_key = payload["source_object_key"]
-    return client.remove_recipient_list_member(list_key, source_object_key)
+    return client.recipient_lists.remove_recipient_list_member(
+        list_key,
+        source_object_key,
+    )
 
 
 def send_recipient_list_members_bulk_upsert_event(client, payload):
     list_key = payload["list_key"]
     member_sync_payload = payload["member_sync_payload"]
-    return client.bulk_upsert_recipient_list_members(
+    return client.recipient_lists.bulk_upsert_recipient_list_members(
         list_key,
         member_sync_payload,
     )
@@ -36,7 +39,7 @@ def send_recipient_list_members_bulk_upsert_event(client, payload):
 
 def send_contact_erase_event(client, payload):
     email = payload["email"]
-    return client.erase_contact(email)
+    return client.contacts.erase_contact(email)
 
 
 DATAMAILER_OUTBOX_EVENT_SENDERS = {

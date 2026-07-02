@@ -5,10 +5,10 @@ from urllib.parse import urljoin
 import requests
 from django.conf import settings
 
-from .client_campaigns import DatamailerCampaignClientMixin
-from .client_contacts import DatamailerContactClientMixin
-from .client_recipient_lists import DatamailerRecipientListClientMixin
-from .client_transactional import DatamailerTransactionalClientMixin
+from .client_campaigns import DatamailerCampaignClient
+from .client_contacts import DatamailerContactClient
+from .client_recipient_lists import DatamailerRecipientListClient
+from .client_transactional import DatamailerTransactionalClient
 from .client_types import DatamailerRequestData
 
 
@@ -44,12 +44,7 @@ class DatamailerConfig:
         )
 
 
-class DatamailerClient(
-    DatamailerContactClientMixin,
-    DatamailerRecipientListClientMixin,
-    DatamailerTransactionalClientMixin,
-    DatamailerCampaignClientMixin,
-):
+class DatamailerClient:
     def __init__(
         self,
         config: DatamailerConfig,
@@ -57,6 +52,16 @@ class DatamailerClient(
     ):
         self.config = config
         self.session = session or requests.Session()
+        self.contacts = DatamailerContactClient(config, self.request)
+        self.recipient_lists = DatamailerRecipientListClient(
+            config,
+            self.request,
+        )
+        self.transactional = DatamailerTransactionalClient(
+            config,
+            self.request,
+        )
+        self.campaigns = DatamailerCampaignClient(config, self.request)
 
     def request(self, data: DatamailerRequestData) -> dict[str, Any] | None:
         url = f"{self.config.url}{data.path}"

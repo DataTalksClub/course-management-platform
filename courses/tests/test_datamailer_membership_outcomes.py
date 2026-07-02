@@ -14,10 +14,10 @@ from courses.tests.datamailer_membership_base import (
 class DatamailerMembershipOutcomeTest(DatamailerMembershipBase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_sync_project_passed_outcome_upserts_passed_member(
         self,
@@ -33,7 +33,7 @@ class DatamailerMembershipOutcomeTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.remove_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.remove_recipient_list_member"
     )
     def test_sync_project_passed_outcome_removes_failed_member(
         self,

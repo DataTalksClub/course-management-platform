@@ -15,10 +15,10 @@ from courses.tests.datamailer_outbox_base import (
 class DatamailerOutboxStatusCommandTest(DatamailerOutboxTestBase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.upsert_contact"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
     def test_datamailer_outbox_status_reports_counts_and_last_error(
         self,

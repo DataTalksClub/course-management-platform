@@ -14,7 +14,7 @@ from courses.tests.datamailer_contact_base import (
 class DatamailerContactBackfillTest(DatamailerContactBase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.bulk_import_contacts"
     )
     def test_contact_backfill_command_bulk_imports_users(
         self,
@@ -36,7 +36,7 @@ class DatamailerContactBackfillTest(DatamailerContactBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.bulk_import_contacts"
     )
     def test_contact_backfill_command_dry_run_does_not_call_datamailer(
         self,
@@ -57,7 +57,7 @@ class DatamailerContactBackfillTest(DatamailerContactBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.bulk_import_contacts"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.bulk_import_contacts"
     )
     def test_contact_backfill_command_can_limit_to_active_users(
         self,

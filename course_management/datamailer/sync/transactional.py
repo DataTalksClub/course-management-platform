@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def send_transactional_and_audit(config, payload):
     client = DatamailerClient(config)
-    response = client.send_transactional(payload)
+    response = client.transactional.send_transactional(payload)
     audit_data = DatamailerSendAuditData(
         send_type=DatamailerSendAuditType.TRANSACTIONAL,
         payload=payload,

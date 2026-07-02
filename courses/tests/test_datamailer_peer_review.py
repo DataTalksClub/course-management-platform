@@ -254,10 +254,10 @@ class DatamailerPeerReviewNotificationSendTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_recipient_list_transactional"
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
     )
     def test_send_peer_review_assignment_notification_uses_list_send(
         self,

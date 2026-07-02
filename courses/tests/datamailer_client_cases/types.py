@@ -14,6 +14,7 @@ class DatamailerRequestExpectation:
 
 @dataclass(frozen=True)
 class DatamailerMethodCase:
+    endpoint_name: str
     method_name: str
     args: tuple
     method: str

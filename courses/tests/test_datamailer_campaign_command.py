@@ -108,16 +108,16 @@ class DatamailerCampaignCommandTest(TestCase):
     def test_datamailer_campaign_command_upserts_and_runs_actions(self):
         with (
             patch(
-                "course_management.datamailer.client.DatamailerClient.upsert_campaign"
+                "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
             ) as upsert_campaign,
             patch(
-                "course_management.datamailer.client.DatamailerClient.preview_campaign"
+                "course_management.datamailer.client_campaigns.DatamailerCampaignClient.preview_campaign"
             ) as preview_campaign,
             patch(
-                "course_management.datamailer.client.DatamailerClient.test_send_campaign"
+                "course_management.datamailer.client_campaigns.DatamailerCampaignClient.test_send_campaign"
             ) as test_send_campaign,
             patch(
-                "course_management.datamailer.client.DatamailerClient.queue_campaign"
+                "course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign"
             ) as queue_campaign,
         ):
             mocks = CampaignCommandMocks(
@@ -191,7 +191,7 @@ class DatamailerCampaignCommandTest(TestCase):
             )
 
     @override_settings(**DATAMAILER_SETTINGS)
-    @patch("course_management.datamailer.client.DatamailerClient.upsert_campaign")
+    @patch("course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign")
     def test_datamailer_campaign_command_wraps_request_errors(
         self,
         upsert_campaign,

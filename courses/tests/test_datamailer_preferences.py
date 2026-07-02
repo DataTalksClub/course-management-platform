@@ -20,7 +20,7 @@ class DatamailerPreferencesTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.contact_preferences"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.contact_preferences"
     )
     def test_get_email_preferences_for_user_reads_datamailer_categories(
         self,
@@ -36,7 +36,7 @@ class DatamailerPreferencesTest(
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client.DatamailerClient.update_contact_preferences"
+        "course_management.datamailer.client_contacts.DatamailerContactClient.update_contact_preferences"
     )
     def test_update_email_preferences_for_user_writes_datamailer_categories(
         self,

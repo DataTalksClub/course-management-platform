@@ -20,7 +20,7 @@ from courses.tests.datamailer_contact_base import (
 class DatamailerTransactionalTest(DatamailerContactBase):
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     def test_send_transactional_email_uses_datamailer_client(
         self, send
@@ -36,7 +36,7 @@ class DatamailerTransactionalTest(DatamailerContactBase):
 
     @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     def test_send_transactional_email_audits_api_failure(self, send):
         send.side_effect = requests.RequestException("network error")
@@ -57,7 +57,7 @@ class DatamailerTransactionalTest(DatamailerContactBase):
         DATAMAILER_FROM_EMAIL="courses",
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     def test_send_transactional_email_adds_configured_from_email(
         self, send
@@ -84,7 +84,7 @@ class DatamailerTransactionalTest(DatamailerContactBase):
         DATAMAILER_FROM_EMAIL="courses",
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transactional"
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     def test_send_transactional_email_keeps_explicit_from_email(
         self, send

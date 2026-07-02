@@ -87,7 +87,7 @@ def contact_import_payload(data):
 def sync_contact_batch(data):
     payload = contact_import_payload(data)
     try:
-        return data.client.bulk_import_contacts(payload)
+        return data.client.contacts.bulk_import_contacts(payload)
     except requests.RequestException as exc:
         if data.config.strict:
             raise

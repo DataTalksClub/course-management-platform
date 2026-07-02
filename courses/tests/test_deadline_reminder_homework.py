@@ -21,7 +21,7 @@ class HomeworkDeadlineReminderCommandTest(
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.client.DatamailerClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_transient_recipient_list_transactional"
     )
     def test_homework_deadline_reminder_sends_transient_eligible_learners(
         self,

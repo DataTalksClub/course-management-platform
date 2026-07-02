@@ -54,7 +54,7 @@ def event_send_suffix(response):
 def send_reminder_event(client, config, event):
     payload = transient_recipient_list_send_payload(event)
     try:
-        response = client.send_transient_recipient_list_transactional(
+        response = client.recipient_lists.send_transient_recipient_list_transactional(
             payload,
         )
     except requests.RequestException as exc:

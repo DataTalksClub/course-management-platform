@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -8,3 +9,6 @@ class DatamailerRequestData:
     path: str
     json: dict[str, Any] | None = None
     params: dict[str, Any] | None = None
+
+
+DatamailerRequest = Callable[[DatamailerRequestData], dict[str, Any] | None]
