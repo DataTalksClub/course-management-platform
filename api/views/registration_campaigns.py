@@ -1,96 +1,48 @@
-from django.core.exceptions import ValidationError
-from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.auth import token_required
-from api.safety import error_response, require_staff_token
-from api.utils import parse_json_body, require_methods
-from courses.models import Course, CourseRegistration, RegistrationCampaign
+from api.safety import require_staff_token
+from api.utils import require_methods
+from api.views.registration_campaign_mutations import (
+    apply_campaign_patch,
+    clean_campaign_payload,
+    created_campaign,
+)
+from api.views.registration_campaign_registrations import (
+    registration_campaign_registrations_payload,
+)
+from api.views.registration_campaign_serializers import campaign_to_dict
+from courses.models.course import RegistrationCampaign
 
 
-CAMPAIGN_FIELDS = {
-    "slug",
-    "title",
-    "edition_label",
-    "current_course",
-    "is_active",
-    "marketing_markdown",
-    "meta_description",
-    "hero_image_url",
-    "video_url",
-}
+def campaigns_list_response():
+    campaigns = RegistrationCampaign.objects.select_related(
+        "current_course"
+    ).order_by("title", "slug")
+    campaign_records = []
+    for campaign in campaigns:
+        campaign_record = campaign_to_dict(campaign)
+        campaign_records.append(campaign_record)
+
+    payload = {"registration_campaigns": campaign_records}
+    response = JsonResponse(payload)
+    return response
 
 
-def _datetime_to_iso(value):
-    if value is None:
-        return None
-    return value.isoformat()
+def campaign_create_response(request):
+    data, err = clean_campaign_payload(request, action="set")
+    if err:
+        return err
 
+    campaign, error = created_campaign(data)
+    if error:
+        return error
 
-def _campaign_to_dict(campaign):
-    return {
-        "slug": campaign.slug,
-        "title": campaign.title,
-        "edition_label": campaign.edition_label,
-        "current_course": (
-            campaign.current_course.slug if campaign.current_course else None
-        ),
-        "is_active": campaign.is_active,
-        "marketing_markdown": campaign.marketing_markdown,
-        "meta_description": campaign.meta_description,
-        "hero_image_url": campaign.hero_image_url,
-        "video_url": campaign.video_url,
-    }
-
-
-def _registration_to_dict(registration):
-    return {
-        "id": registration.id,
-        "email": registration.email_normalized,
-        "name": registration.name,
-        "campaign": registration.campaign.slug,
-        "course": registration.course.slug if registration.course else None,
-        "country": registration.country,
-        "region": registration.region,
-        "role": registration.role,
-        "role_display": registration.get_role_display(),
-        "comment": registration.comment,
-        "created_at": _datetime_to_iso(registration.created_at),
-    }
-
-
-def _normalize_campaign_data(data):
-    result = data.copy()
-
-    if "current_course" in result:
-        slug = result.pop("current_course")
-        if slug in ("", None):
-            result["current_course"] = None
-        else:
-            try:
-                result["current_course"] = Course.objects.get(slug=slug)
-            except Course.DoesNotExist:
-                return None, error_response(
-                    f"Course with slug '{slug}' does not exist",
-                    "course_not_found",
-                    details={"current_course": slug},
-                )
-
-    return result, None
-
-
-def _validation_error_response(exc):
-    if hasattr(exc, "message_dict"):
-        details = exc.message_dict
-    else:
-        details = {"errors": exc.messages}
-    return error_response(
-        "Registration campaign validation failed",
-        "validation_error",
-        details=details,
-    )
+    campaign_data = campaign_to_dict(campaign)
+    response = JsonResponse(campaign_data, status=201)
+    return response
 
 
 @token_required
@@ -98,58 +50,36 @@ def _validation_error_response(exc):
 @require_methods("GET", "POST")
 def registration_campaigns_view(request):
     if request.method == "GET":
-        campaigns = RegistrationCampaign.objects.select_related(
-            "current_course"
-        ).order_by("title", "slug")
-        return JsonResponse(
-            {"registration_campaigns": [_campaign_to_dict(c) for c in campaigns]}
-        )
+        return campaigns_list_response()
 
     staff_error = require_staff_token(request)
     if staff_error:
         return staff_error
 
-    data, err = parse_json_body(request)
+    return campaign_create_response(request)
+
+
+def campaign_patch_response(request, campaign):
+    data, err = clean_campaign_payload(request, action="update")
     if err:
         return err
 
-    unknown_fields = set(data) - CAMPAIGN_FIELDS
-    if unknown_fields:
-        field = sorted(unknown_fields)[0]
-        return error_response(
-            f"Cannot set field: {field}",
-            "invalid_field",
-            details={"field": field},
-        )
-
-    data, err = _normalize_campaign_data(data)
+    err = apply_campaign_patch(campaign, data)
     if err:
         return err
 
-    title = data.get("title")
-    slug = data.get("slug")
-    if not title or not slug:
-        return error_response(
-            "title and slug are required",
-            "missing_required_fields",
-        )
-
-    campaign = RegistrationCampaign(**data)
-    try:
-        campaign.full_clean()
-    except ValidationError as exc:
-        return _validation_error_response(exc)
-
-    campaign.save()
-    return JsonResponse(_campaign_to_dict(campaign), status=201)
+    campaign_data = campaign_to_dict(campaign)
+    response = JsonResponse(campaign_data)
+    return response
 
 
 @token_required
 @csrf_exempt
 @require_methods("GET", "PATCH")
 def registration_campaign_detail_view(request, campaign_slug):
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
     campaign = get_object_or_404(
-        RegistrationCampaign.objects.select_related("current_course"),
+        campaigns,
         slug=campaign_slug,
     )
 
@@ -158,45 +88,11 @@ def registration_campaign_detail_view(request, campaign_slug):
         if staff_error:
             return staff_error
 
-        data, err = parse_json_body(request)
-        if err:
-            return err
+        return campaign_patch_response(request, campaign)
 
-        unknown_fields = set(data) - CAMPAIGN_FIELDS
-        if unknown_fields:
-            field = sorted(unknown_fields)[0]
-            return error_response(
-                f"Cannot update field: {field}",
-                "invalid_field",
-                details={"field": field},
-            )
-
-        data, err = _normalize_campaign_data(data)
-        if err:
-            return err
-
-        for field, value in data.items():
-            setattr(campaign, field, value)
-
-        try:
-            campaign.full_clean()
-        except ValidationError as exc:
-            return _validation_error_response(exc)
-
-        campaign.save()
-        return JsonResponse(_campaign_to_dict(campaign))
-
-    return JsonResponse(_campaign_to_dict(campaign))
-
-
-def _count_by(queryset, field):
-    return [
-        {"value": item[field] or "", "count": item["count"]}
-        for item in queryset.values(field).annotate(count=Count("id")).order_by(
-            "-count",
-            field,
-        )
-    ]
+    campaign_data = campaign_to_dict(campaign)
+    response = JsonResponse(campaign_data)
+    return response
 
 
 @token_required
@@ -207,45 +103,11 @@ def registration_campaign_registrations_view(request, campaign_slug):
         return staff_error
 
     campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
-    registrations = CourseRegistration.objects.filter(
-        campaign=campaign
-    ).select_related("campaign", "course")
-
-    search = request.GET.get("q", "").strip()
-    if search:
-        registrations = registrations.filter(
-            Q(email_normalized__icontains=search)
-            | Q(name__icontains=search)
-        )
-
-    for field in ("role", "country", "region"):
-        value = request.GET.get(field, "").strip()
-        if value:
-            registrations = registrations.filter(**{field: value})
-
-    stats_base = CourseRegistration.objects.filter(campaign=campaign)
-    stats = {
-        "total": stats_base.count(),
-        "by_role": _count_by(stats_base, "role"),
-        "by_country": _count_by(stats_base, "country"),
-        "by_region": _count_by(stats_base, "region"),
-    }
-
-    try:
-        limit = min(int(request.GET.get("limit", 100)), 500)
-    except ValueError:
-        return error_response(
-            "limit must be an integer",
-            "invalid_limit",
-            details={"field": "limit"},
-        )
-    return JsonResponse(
-        {
-            "campaign": _campaign_to_dict(campaign),
-            "stats": stats,
-            "registrations": [
-                _registration_to_dict(registration)
-                for registration in registrations.order_by("-created_at")[:limit]
-            ],
-        }
+    payload, err = registration_campaign_registrations_payload(
+        campaign,
+        request.GET,
     )
+    if err:
+        return err
+    response = JsonResponse(payload)
+    return response

@@ -8,14 +8,13 @@ script creates a fresh migrated Django SQLite database, copies rows from
 the export into that schema, validates it, and swaps it into db/db.sqlite3.
 """
 
-from __future__ import annotations
-
 import argparse
 import os
 import shutil
 import sqlite3
 import subprocess
 import sys
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -26,18 +25,90 @@ DEFAULT_PATTERN = "rds-prod-*.db"
 DEFAULT_TARGET = PROJECT_ROOT / "db" / "db.sqlite3"
 DEFAULT_WORK_DIR = PROJECT_ROOT / ".tmp"
 DEFAULT_ADMIN_PASSWORD = "admin"
+SKIP_TABLES = {"sqlite_sequence", "django_migrations"}
 
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT_PATH = str(PROJECT_ROOT)
+
+if PROJECT_ROOT_PATH not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT_PATH)
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Load a converted RDS SQLite export into the local Django "
-            "SQLite database."
-        )
-    )
+@dataclass
+class TableCopyPlan:
+    table: str
+    insert_columns: list[str]
+    source_columns: set[str]
+    default_values: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ImportedTable:
+    table: str
+    rows: int
+    columns: int
+
+
+@dataclass(frozen=True)
+class ColumnDefault:
+    table: str
+    column: str
+    default: Any
+
+
+@dataclass
+class CopySummary:
+    imported: list[ImportedTable] = field(default_factory=list)
+    skipped: list[tuple[str, str]] = field(default_factory=list)
+    defaults_used: set[ColumnDefault] = field(default_factory=set)
+
+
+@dataclass(frozen=True)
+class ColumnCopyData:
+    model: Any
+    table: str
+    source_columns: set[str]
+    plan: TableCopyPlan
+    defaults_used: set[ColumnDefault]
+
+
+@dataclass(frozen=True)
+class TableCopyBuildData:
+    table: str
+    source_cursor: sqlite3.Cursor
+    target_cursor: sqlite3.Cursor
+    model_by_table: dict[str, Any]
+    defaults_used: set[ColumnDefault]
+
+
+@dataclass(frozen=True)
+class SourceTableCopyData:
+    table: str
+    source_cursor: sqlite3.Cursor
+    target_cursor: sqlite3.Cursor
+    target_tables: set[str]
+    model_by_table: dict[str, Any]
+    summary: CopySummary
+
+
+@dataclass(frozen=True)
+class TableCopyRunData:
+    source_tables: list[str]
+    source_cursor: sqlite3.Cursor
+    target_cursor: sqlite3.Cursor
+    target_tables: set[str]
+    model_by_table: dict[str, Any]
+    summary: CopySummary
+
+
+@dataclass
+class ImportPaths:
+    source_db: Path
+    rebuilt_db: Path
+    target_db: Path
+    work_dir: Path
+
+
+def add_source_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--source-db",
         type=Path,
@@ -58,6 +129,14 @@ def parse_args() -> argparse.Namespace:
             f"Default: {DEFAULT_PATTERN}"
         ),
     )
+
+
+def add_target_options(parser: argparse.ArgumentParser) -> None:
+    add_target_path_options(parser)
+    add_target_behavior_options(parser)
+
+
+def add_target_path_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--target-db",
         type=Path,
@@ -73,6 +152,9 @@ def parse_args() -> argparse.Namespace:
             f"Default: {DEFAULT_WORK_DIR}"
         ),
     )
+
+
+def add_target_behavior_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--no-replace",
         action="store_true",
@@ -85,23 +167,31 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Keep the rebuilt DB in .tmp after replacing the target.",
     )
+
+
+def add_admin_account_options(parser: argparse.ArgumentParser) -> None:
+    default_admin_email = os.getenv("CMP_ADMIN_EMAIL", "alexey@datatalks.club")
     parser.add_argument(
         "--admin-email",
-        default=os.getenv("CMP_ADMIN_EMAIL", "alexey@datatalks.club"),
+        default=default_admin_email,
         help=(
             "Admin email to create/reset after import. "
             "Can also be set with CMP_ADMIN_EMAIL."
         ),
     )
+    default_admin_password = os.getenv("CMP_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
     parser.add_argument(
         "--admin-password",
-        default=os.getenv("CMP_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD),
+        default=default_admin_password,
         help=(
             "Admin password. Defaults to the same password used by "
             f"make data: {DEFAULT_ADMIN_PASSWORD!r}. Can also be set "
             "with CMP_ADMIN_PASSWORD."
         ),
     )
+
+
+def add_admin_control_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--admin-user-id",
         type=int,
@@ -116,6 +206,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not create/reset an admin user after import.",
     )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Load a converted RDS SQLite export into the local Django "
+            "SQLite database."
+        )
+    )
+    add_source_options(parser)
+    add_target_options(parser)
+    add_admin_account_options(parser)
+    add_admin_control_options(parser)
+    return parser
+
+
+def parse_args() -> argparse.Namespace:
+    parser = build_parser()
     return parser.parse_args()
 
 
@@ -124,16 +232,20 @@ def sqlite_url(path: Path) -> str:
 
 
 def latest_export(source_dir: Path, pattern: str) -> Path:
-    candidates = [
-        path
-        for path in source_dir.glob(pattern)
-        if path.is_file() and path.stat().st_size > 0
-    ]
+    candidates = []
+    matching_paths = source_dir.glob(pattern)
+    for path in matching_paths:
+        if path.is_file() and path.stat().st_size > 0:
+            candidates.append(path)
     if not candidates:
         raise SystemExit(
             f"No export DBs found in {source_dir} matching {pattern!r}."
         )
-    return max(candidates, key=lambda path: path.stat().st_mtime)
+    return max(candidates, key=export_modified_time)
+
+
+def export_modified_time(path: Path):
+    return path.stat().st_mtime
 
 
 def run_manage_py(args: list[str], db_path: Path) -> None:
@@ -159,41 +271,49 @@ def setup_django() -> dict[str, Any]:
 
     django.setup()
 
-    return {
-        model._meta.db_table: model
-        for model in apps.get_models(include_auto_created=True)
-    }
+    model_by_table = {}
+    models = apps.get_models(include_auto_created=True)
+    for model in models:
+        table = model._meta.db_table
+        model_by_table[table] = model
+    return model_by_table
 
 
 def django_field_default(model: Any, column: str) -> tuple[bool, Any]:
     from django.db.models import NOT_PROVIDED
 
-    if model is None:
+    model_field = django_field_for_column(model, column)
+    if model_field is None:
         return False, None
-
-    for field in model._meta.fields:
-        if field.column != column:
-            continue
-
-        if field.default is not NOT_PROVIDED:
-            default = (
-                field.default()
-                if callable(field.default)
-                else field.default
-            )
-            return True, default
-
-        if field.null:
-            return True, None
-
-        return False, None
-
+    if model_field.default is not NOT_PROVIDED:
+        if callable(model_field.default):
+            default = model_field.default()
+        else:
+            default = model_field.default
+        return True, default
+    if model_field.null:
+        return True, None
     return False, None
+
+
+def django_field_for_column(model: Any, column: str):
+    if model is None:
+        return None
+    model_fields = model._meta.fields
+    for model_field in model_fields:
+        if model_field.column == column:
+            return model_field
+    return None
 
 
 def table_names(cursor: sqlite3.Cursor) -> set[str]:
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    return {row[0] for row in cursor.fetchall()}
+    names = set()
+    rows = cursor.fetchall()
+    for row in rows:
+        name = row[0]
+        names.add(name)
+    return names
 
 
 def pragma_table_info(
@@ -204,182 +324,410 @@ def pragma_table_info(
     return cursor.fetchall()
 
 
-def copy_rows(source_db: Path, target_db: Path) -> None:
-    model_by_table = setup_django()
-
+def connect_databases(
+    source_db: Path,
+    target_db: Path,
+) -> tuple[sqlite3.Connection, sqlite3.Connection]:
     source = sqlite3.connect(source_db)
     target = sqlite3.connect(target_db)
     source.row_factory = sqlite3.Row
     target.row_factory = sqlite3.Row
+    return source, target
 
-    source_cursor = source.cursor()
-    target_cursor = target.cursor()
 
-    source_tables = sorted(table_names(source_cursor))
-    target_tables = table_names(target_cursor)
+def missing_required_columns(
+    target_info: list[sqlite3.Row],
+    column_data: ColumnCopyData,
+) -> list[str]:
+    missing_required: list[str] = []
 
-    skip_tables = {"sqlite_sequence", "django_migrations"}
-    imported: list[tuple[str, int, int]] = []
-    skipped: list[tuple[str, str]] = []
-    defaults_used: set[tuple[str, str, Any]] = set()
-
-    target_cursor.execute("PRAGMA foreign_keys=OFF")
-
-    for table in source_tables:
-        if table in skip_tables:
-            skipped.append((table, "managed by local migrations"))
-            continue
-
-        if table not in target_tables:
-            skipped.append((table, "not in local Django schema"))
-            continue
-
-        source_info = pragma_table_info(source_cursor, table)
-        target_info = pragma_table_info(target_cursor, table)
-        source_columns = {row["name"] for row in source_info}
-        insert_columns: list[str] = []
-        default_values: dict[str, Any] = {}
-        missing_required: list[str] = []
-        model = model_by_table.get(table)
-
-        for column_info in target_info:
-            column = column_info["name"]
-            not_null = bool(column_info["notnull"])
-            db_default = column_info["dflt_value"]
-            is_primary_key = bool(column_info["pk"])
-
-            if column in source_columns:
-                insert_columns.append(column)
-                continue
-
-            if is_primary_key:
-                continue
-
-            has_default, default = django_field_default(model, column)
-            if has_default:
-                insert_columns.append(column)
-                default_values[column] = default
-                defaults_used.add((table, column, default))
-            elif not not_null or db_default is not None:
-                continue
-            else:
-                missing_required.append(column)
-
-        if missing_required:
-            raise RuntimeError(
-                f"{table}: source export is missing required local "
-                f"columns without defaults: {missing_required}"
-            )
-
-        if not insert_columns:
-            skipped.append((table, "no insertable columns"))
-            continue
-
-        quoted_columns = ", ".join(
-            f'"{column}"' for column in insert_columns
+    for column_info in target_info:
+        missing_column = apply_column_copy_plan(
+            column_info,
+            column_data,
         )
-        placeholders = ", ".join("?" for _ in insert_columns)
-        source_select_columns = [
-            column
-            for column in insert_columns
-            if column in source_columns
-        ]
-        quoted_select_columns = ", ".join(
-            f'"{column}"' for column in source_select_columns
+        if missing_column:
+            missing_required.append(missing_column)
+
+    return missing_required
+
+
+def apply_column_copy_plan(
+    column_info: sqlite3.Row,
+    data: ColumnCopyData,
+) -> str:
+    column = column_info["name"]
+    if column in data.source_columns:
+        data.plan.insert_columns.append(column)
+        return ""
+    if bool(column_info["pk"]):
+        return ""
+
+    has_default, default = django_field_default(data.model, column)
+    if has_default:
+        data.plan.insert_columns.append(column)
+        data.plan.default_values[column] = default
+        default_info = ColumnDefault(data.table, column, default)
+        data.defaults_used.add(default_info)
+        return ""
+    if column_allows_local_value(column_info):
+        return ""
+    return column
+
+
+def column_allows_local_value(column_info: sqlite3.Row) -> bool:
+    return not bool(column_info["notnull"]) or column_info["dflt_value"] is not None
+
+
+def source_column_names(source_info: list[sqlite3.Row]) -> set[str]:
+    columns = set()
+    for row in source_info:
+        column = row["name"]
+        columns.add(column)
+    return columns
+
+
+def column_copy_data(
+    data: TableCopyBuildData,
+    source_columns: set[str],
+    plan: TableCopyPlan,
+) -> ColumnCopyData:
+    model = data.model_by_table.get(data.table)
+    return ColumnCopyData(
+        model=model,
+        table=data.table,
+        source_columns=source_columns,
+        plan=plan,
+        defaults_used=data.defaults_used,
+    )
+
+
+def build_table_copy_plan(data: TableCopyBuildData) -> TableCopyPlan:
+    source_info = pragma_table_info(data.source_cursor, data.table)
+    target_info = pragma_table_info(data.target_cursor, data.table)
+    source_columns = source_column_names(source_info)
+    plan = TableCopyPlan(
+        table=data.table,
+        insert_columns=[],
+        source_columns=source_columns,
+        default_values={},
+    )
+    column_data = column_copy_data(
+        data,
+        source_columns,
+        plan,
+    )
+    missing_required = missing_required_columns(
+        target_info,
+        column_data,
+    )
+
+    if missing_required:
+        raise RuntimeError(
+            f"{data.table}: source export is missing required local "
+            f"columns without defaults: {missing_required}"
         )
 
-        target_cursor.execute(f'DELETE FROM "{table}"')
-        source_cursor.execute(
-            f'SELECT {quoted_select_columns} FROM "{table}"'
-        )
+    return plan
 
-        row_count = 0
-        while True:
-            batch = source_cursor.fetchmany(5000)
-            if not batch:
-                break
 
-            values = [
-                tuple(
-                    source_row[column]
-                    if column in source_columns
-                    else default_values[column]
-                    for column in insert_columns
-                )
-                for source_row in batch
-            ]
-            target_cursor.executemany(
-                f'INSERT INTO "{table}" ({quoted_columns}) '
-                f"VALUES ({placeholders})",
-                values,
-            )
-            row_count += len(values)
+def quoted_csv(columns: list[str]) -> str:
+    quoted_columns = []
+    for column in columns:
+        quoted_column = f'"{column}"'
+        quoted_columns.append(quoted_column)
+    return ", ".join(quoted_columns)
 
-        imported.append((table, row_count, len(insert_columns)))
 
-    target.commit()
-    refresh_sqlite_sequences(target_cursor, imported)
-    target.commit()
+def table_source_columns(plan: TableCopyPlan) -> list[str]:
+    columns = []
+    insert_columns = plan.insert_columns
+    for column in insert_columns:
+        if column in plan.source_columns:
+            columns.append(column)
+    return columns
 
+
+def row_values(
+    source_row: sqlite3.Row,
+    plan: TableCopyPlan,
+) -> tuple[Any, ...]:
+    values = []
+    insert_columns = plan.insert_columns
+    for column in insert_columns:
+        if column in plan.source_columns:
+            value = source_row[column]
+        else:
+            value = plan.default_values[column]
+        values.append(value)
+    return tuple(values)
+
+
+def insert_batch_sql(plan: TableCopyPlan) -> str:
+    placeholders = []
+    insert_columns = plan.insert_columns
+    for _column in insert_columns:
+        placeholders.append("?")
+    placeholder_sql = ", ".join(placeholders)
+    return (
+        f'INSERT INTO "{plan.table}" ({quoted_csv(plan.insert_columns)}) '
+        f"VALUES ({placeholder_sql})"
+    )
+
+
+def copy_table_rows(
+    source_cursor: sqlite3.Cursor,
+    target_cursor: sqlite3.Cursor,
+    plan: TableCopyPlan,
+) -> int:
+    source_select_columns = table_source_columns(plan)
+    target_cursor.execute(f'DELETE FROM "{plan.table}"')
+    source_cursor.execute(
+        f'SELECT {quoted_csv(source_select_columns)} FROM "{plan.table}"'
+    )
+
+    row_count = 0
+    while True:
+        batch = source_cursor.fetchmany(5000)
+        if not batch:
+            break
+
+        values = []
+        for source_row in batch:
+            value = row_values(source_row, plan)
+            values.append(value)
+        insert_sql = insert_batch_sql(plan)
+        target_cursor.executemany(insert_sql, values)
+        row_count += len(values)
+
+    return row_count
+
+
+def validate_foreign_keys(target_cursor: sqlite3.Cursor) -> None:
     target_cursor.execute("PRAGMA foreign_keys=ON")
     violations = target_cursor.execute(
         "PRAGMA foreign_key_check"
     ).fetchall()
     if violations:
-        details = "\n".join(str(tuple(row)) for row in violations[:20])
+        detail_lines = []
+        violation_sample = violations[:20]
+        for row in violation_sample:
+            row_values = tuple(row)
+            detail = str(row_values)
+            detail_lines.append(detail)
+        details = "\n".join(detail_lines)
         raise RuntimeError(
             "Foreign-key check failed with "
             f"{len(violations)} violations:\n"
             f"{details}"
         )
 
-    print(f"Imported {len(imported)} tables from {source_db}:")
-    for table, rows, columns in imported:
-        print(f"  {table}: {rows} rows, {columns} columns")
 
+def print_copy_summary(source_db: Path, summary: CopySummary) -> None:
+    print_imported_tables(source_db, summary.imported)
+    print_defaults_used(summary.defaults_used)
+    print_skipped_tables(summary.skipped)
+
+
+def print_imported_tables(
+    source_db: Path,
+    imported: list[ImportedTable],
+) -> None:
+    print(f"Imported {len(imported)} tables from {source_db}:")
+    for imported_table in imported:
+        print(
+            f"  {imported_table.table}: "
+            f"{imported_table.rows} rows, "
+            f"{imported_table.columns} columns"
+        )
+
+
+def print_defaults_used(defaults_used: set[ColumnDefault]) -> None:
     if defaults_used:
         print("Filled local-only columns with Django defaults:")
-        for table, column, default in sorted(defaults_used):
-            print(f"  {table}.{column} = {default!r}")
+        sorted_defaults = sorted(
+            defaults_used,
+            key=column_default_sort_key,
+        )
+        for default_info in sorted_defaults:
+            print(
+                f"  {default_info.table}.{default_info.column} "
+                f"= {default_info.default!r}"
+            )
 
+
+def column_default_sort_key(item):
+    default_value = repr(item.default)
+    return item.table, item.column, default_value
+
+
+def print_skipped_tables(skipped: list[tuple[str, str]]) -> None:
     if skipped:
         print("Skipped tables:")
         for table, reason in skipped:
             print(f"  {table}: {reason}")
 
-    source.close()
-    target.close()
+
+def source_table_skip_reason(data: SourceTableCopyData) -> str | None:
+    if data.table in SKIP_TABLES:
+        return "managed by local migrations"
+
+    if data.table not in data.target_tables:
+        return "not in local Django schema"
+
+    return None
+
+
+def skip_source_table(data: SourceTableCopyData, reason: str) -> None:
+    skipped_table = (data.table, reason)
+    data.summary.skipped.append(skipped_table)
+
+
+def execute_table_copy_plan(
+    data: SourceTableCopyData,
+    plan: TableCopyPlan,
+) -> None:
+    row_count = copy_table_rows(
+        data.source_cursor,
+        data.target_cursor,
+        plan,
+    )
+    inserted_columns_count = len(plan.insert_columns)
+    imported_table = ImportedTable(
+        data.table,
+        row_count,
+        inserted_columns_count,
+    )
+    data.summary.imported.append(imported_table)
+
+
+def copy_source_table(data: SourceTableCopyData) -> None:
+    skip_reason = source_table_skip_reason(data)
+    if skip_reason is not None:
+        skip_source_table(data, skip_reason)
+        return
+
+    build_data = TableCopyBuildData(
+        table=data.table,
+        source_cursor=data.source_cursor,
+        target_cursor=data.target_cursor,
+        model_by_table=data.model_by_table,
+        defaults_used=data.summary.defaults_used,
+    )
+    plan = build_table_copy_plan(build_data)
+
+    if not plan.insert_columns:
+        skip_source_table(data, "no insertable columns")
+        return
+
+    execute_table_copy_plan(data, plan)
+
+
+def copy_source_tables(data: TableCopyRunData) -> None:
+    for table in data.source_tables:
+        table_data = SourceTableCopyData(
+            table=table,
+            source_cursor=data.source_cursor,
+            target_cursor=data.target_cursor,
+            target_tables=data.target_tables,
+            model_by_table=data.model_by_table,
+            summary=data.summary,
+        )
+        copy_source_table(table_data)
+
+
+def table_copy_run_data(
+    source: sqlite3.Connection,
+    target: sqlite3.Connection,
+    model_by_table: dict[str, Any],
+) -> TableCopyRunData:
+    source_cursor = source.cursor()
+    target_cursor = target.cursor()
+    source_table_names = table_names(source_cursor)
+    source_tables = sorted(source_table_names)
+    target_tables = table_names(target_cursor)
+    summary = CopySummary()
+    return TableCopyRunData(
+        source_tables=source_tables,
+        source_cursor=source_cursor,
+        target_cursor=target_cursor,
+        target_tables=target_tables,
+        model_by_table=model_by_table,
+        summary=summary,
+    )
+
+
+def copy_rows(source_db: Path, target_db: Path) -> None:
+    model_by_table = setup_django()
+    source, target = connect_databases(source_db, target_db)
+
+    try:
+        copy_data = table_copy_run_data(source, target, model_by_table)
+        copy_data.target_cursor.execute("PRAGMA foreign_keys=OFF")
+        copy_source_tables(copy_data)
+
+        target.commit()
+        refresh_sqlite_sequences(
+            copy_data.target_cursor,
+            copy_data.summary.imported,
+        )
+        target.commit()
+        validate_foreign_keys(copy_data.target_cursor)
+        print_copy_summary(source_db, copy_data.summary)
+    finally:
+        source.close()
+        target.close()
 
 
 def refresh_sqlite_sequences(
-    cursor: sqlite3.Cursor, imported: list[tuple[str, int, int]]
+    cursor: sqlite3.Cursor, imported: list[ImportedTable]
 ) -> None:
+    if not sqlite_sequence_exists(cursor):
+        return
+
+    for imported_table in imported:
+        table = imported_table.table
+        if table_has_single_id_primary_key(cursor, table):
+            max_id = table_max_id(cursor, table)
+            upsert_sqlite_sequence(
+                cursor,
+                table,
+                max_id,
+            )
+
+
+def sqlite_sequence_exists(cursor: sqlite3.Cursor) -> bool:
     cursor.execute(
         "SELECT name FROM sqlite_master "
         "WHERE type='table' AND name='sqlite_sequence'"
     )
-    if cursor.fetchone() is None:
-        return
+    return cursor.fetchone() is not None
 
-    for table, _rows, _columns in imported:
-        table_info = pragma_table_info(cursor, table)
-        primary_keys = [
-            row["name"] for row in table_info if row["pk"] == 1
-        ]
-        if primary_keys != ["id"]:
-            continue
 
-        cursor.execute(f'SELECT COALESCE(MAX(id), 0) FROM "{table}"')
-        max_id = cursor.fetchone()[0]
+def table_has_single_id_primary_key(cursor: sqlite3.Cursor, table: str) -> bool:
+    table_info = pragma_table_info(cursor, table)
+    primary_keys = []
+    for row in table_info:
+        if row["pk"] == 1:
+            primary_keys.append(row["name"])
+    return primary_keys == ["id"]
+
+
+def table_max_id(cursor: sqlite3.Cursor, table: str) -> int:
+    cursor.execute(f'SELECT COALESCE(MAX(id), 0) FROM "{table}"')
+    return cursor.fetchone()[0]
+
+
+def upsert_sqlite_sequence(cursor: sqlite3.Cursor, table: str, max_id: int) -> None:
+    cursor.execute(
+        "UPDATE sqlite_sequence SET seq=? WHERE name=?",
+        (max_id, table),
+    )
+    if cursor.rowcount == 0:
         cursor.execute(
-            "UPDATE sqlite_sequence SET seq=? WHERE name=?",
-            (max_id, table),
+            "INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)",
+            (table, max_id),
         )
-        if cursor.rowcount == 0:
-            cursor.execute(
-                "INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)",
-                (table, max_id),
-            )
 
 
 def validate_rebuilt_db(db_path: Path) -> None:
@@ -402,9 +750,12 @@ def create_admin_user(db_path: Path, args: argparse.Namespace) -> None:
         args.admin_email,
     ]
     if args.admin_password:
-        command.extend(["--password", args.admin_password])
+        command.append("--password")
+        command.append(args.admin_password)
     if args.admin_user_id is not None:
-        command.extend(["--user-id", str(args.admin_user_id)])
+        admin_user_id = str(args.admin_user_id)
+        command.append("--user-id")
+        command.append(admin_user_id)
 
     print(f"Creating/resetting admin user: {args.admin_email}")
     subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=True)
@@ -427,8 +778,7 @@ def replace_target(
     return backup_db
 
 
-def main() -> int:
-    args = parse_args()
+def resolve_import_paths(args: argparse.Namespace) -> ImportPaths:
     source_db = (
         args.source_db.resolve()
         if args.source_db
@@ -441,34 +791,56 @@ def main() -> int:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     rebuilt_db = work_dir / f"rds-import-{timestamp}.db"
 
-    print(f"Source export: {source_db}")
-    print(f"Rebuilt DB:    {rebuilt_db}")
-    print(f"Target DB:     {target_db}")
+    return ImportPaths(
+        source_db=source_db,
+        rebuilt_db=rebuilt_db,
+        target_db=target_db,
+        work_dir=work_dir,
+    )
 
-    migrate_empty_db(rebuilt_db)
-    copy_rows(source_db, rebuilt_db)
-    create_admin_user(rebuilt_db, args)
-    validate_rebuilt_db(rebuilt_db)
+
+def print_import_paths(paths: ImportPaths) -> None:
+    print(f"Source export: {paths.source_db}")
+    print(f"Rebuilt DB:    {paths.rebuilt_db}")
+    print(f"Target DB:     {paths.target_db}")
+
+
+def rebuild_database(paths: ImportPaths, args: argparse.Namespace) -> None:
+    migrate_empty_db(paths.rebuilt_db)
+    copy_rows(paths.source_db, paths.rebuilt_db)
+    create_admin_user(paths.rebuilt_db, args)
+    validate_rebuilt_db(paths.rebuilt_db)
+
+
+def replace_rebuilt_database(paths: ImportPaths, args: argparse.Namespace) -> None:
+    backup_db = replace_target(paths.rebuilt_db, paths.target_db, paths.work_dir)
+    if backup_db:
+        print(f"Backed up previous DB to: {backup_db}")
+    print(f"Loaded rebuilt export into: {paths.target_db}")
+
+    if args.keep_rebuilt:
+        print(f"Kept rebuilt DB at: {paths.rebuilt_db}")
+    else:
+        paths.rebuilt_db.unlink(missing_ok=True)
+
+
+def main() -> int:
+    args = parse_args()
+    paths = resolve_import_paths(args)
+    print_import_paths(paths)
+    rebuild_database(paths, args)
 
     if args.no_replace:
         print(
             "Built and validated DB without replacing target: "
-            f"{rebuilt_db}"
+            f"{paths.rebuilt_db}"
         )
         return 0
 
-    backup_db = replace_target(rebuilt_db, target_db, work_dir)
-    if backup_db:
-        print(f"Backed up previous DB to: {backup_db}")
-    print(f"Loaded rebuilt export into: {target_db}")
-
-    if args.keep_rebuilt:
-        print(f"Kept rebuilt DB at: {rebuilt_db}")
-    else:
-        rebuilt_db.unlink(missing_ok=True)
-
+    replace_rebuilt_database(paths, args)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    exit_code = main()
+    raise SystemExit(exit_code)

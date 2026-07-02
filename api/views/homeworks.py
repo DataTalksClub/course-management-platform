@@ -1,11 +1,10 @@
-from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.text import slugify
 
 from accounts.auth import token_required
-from courses.models import Course, Homework, Question
+from courses.models.course import Course
+from courses.models.homework import Homework
 from courses.models.homework import HomeworkState
 from courses.scoring import (
     HomeworkScoringStatus,
@@ -13,143 +12,52 @@ from courses.scoring import (
 )
 
 from api.crud import (
-    bulk_create_response,
+    DeleteResponseConfig,
+    DetailResponseConfig,
     detail_response,
     get_course_child_or_404,
 )
 from api.safety import (
-    error_response,
     require_staff_token,
 )
 from api.utils import (
-    instructions_url_error,
-    parse_date,
-    parse_json_body,
     require_methods,
 )
-
-
-def _homework_delete_blockers(hw):
-    blockers = []
-    submissions_count = hw.submission_set.count()
-    if hw.state != HomeworkState.CLOSED.value:
-        blockers.append("not_closed")
-    if submissions_count > 0:
-        blockers.append("has_submissions")
-    return blockers
-
-
-def _homework_to_dict(hw):
-    submissions_count = hw.submission_set.count()
-    delete_blockers = _homework_delete_blockers(hw)
-    return {
-        "id": hw.id,
-        "slug": hw.slug,
-        "title": hw.title,
-        "description": hw.description,
-        "instructions_url": hw.instructions_url,
-        "due_date": hw.due_date.isoformat(),
-        "state": hw.state,
-        "learning_in_public_cap": hw.learning_in_public_cap,
-        "homework_url_field": hw.homework_url_field,
-        "time_spent_lectures_field": hw.time_spent_lectures_field,
-        "time_spent_homework_field": hw.time_spent_homework_field,
-        "faq_contribution_field": hw.faq_contribution_field,
-        "questions_count": hw.question_set.count(),
-        "submissions_count": submissions_count,
-        "can_delete": not delete_blockers,
-        "delete_blockers": delete_blockers,
-    }
+from api.views.homework_create import (
+    homeworks_create_response,
+    homeworks_list_response,
+)
+from api.views.homework_upsert import (
+    HOMEWORK_PATCH_CONFIG,
+    staff_upsert_homework_by_slug,
+)
 
 
 def _homework_score_response(homework):
     status, message = score_homework_submissions(homework.id)
     homework.refresh_from_db()
     submissions_count = homework.submission_set.count()
-    response_status = 200 if status == HomeworkScoringStatus.OK else 400
-    return JsonResponse(
-        {
-            "status": status.name,
-            "message": message,
-            "homework_id": homework.id,
-            "homework_slug": homework.slug,
-            "state": homework.state,
-            "submissions_count": submissions_count,
-            "rescored_submissions_count": (
-                submissions_count
-                if status == HomeworkScoringStatus.OK
-                else 0
-            ),
-        },
-        status=response_status,
-    )
+    if status == HomeworkScoringStatus.OK:
+        response_status = 200
+    else:
+        response_status = 400
 
+    if status == HomeworkScoringStatus.OK:
+        rescored_submissions_count = submissions_count
+    else:
+        rescored_submissions_count = 0
 
-def _create_homework(course, hw_data):
-    """Create a homework. Returns (dict, None) or (None, error_str)."""
-    name = hw_data.get("name")
-    due_date_str = hw_data.get("due_date")
-
-    if not name or not due_date_str:
-        return None, "name and due_date are required"
-
-    instructions_url = hw_data.get("instructions_url")
-    if instructions_url and (
-        error := instructions_url_error(instructions_url)
-    ):
-        return None, error
-
-    due_date = parse_date(due_date_str)
-    if due_date is None:
-        return None, f"Invalid date format: {due_date_str}"
-
-    slug = hw_data.get("slug") or slugify(name)
-
-    if Homework.objects.filter(course=course, slug=slug).exists():
-        return None, f"Homework with slug '{slug}' already exists"
-
-    homework = Homework.objects.create(
-        course=course,
-        slug=slug,
-        title=name,
-        description=hw_data.get("description", ""),
-        instructions_url=instructions_url,
-        due_date=due_date,
-        state=HomeworkState.CLOSED.value,
-    )
-
-    # Create questions if provided
-    questions_data = hw_data.get("questions", [])
-    for q_data in questions_data:
-        Question.objects.create(
-            homework=homework,
-            text=q_data.get("text", ""),
-            question_type=q_data.get("question_type", "FF"),
-            answer_type=q_data.get("answer_type"),
-            possible_answers="\n".join(
-                q_data.get("possible_answers", [])
-            ),
-            correct_answer=q_data.get("correct_answer", ""),
-            scores_for_correct_answer=q_data.get(
-                "scores_for_correct_answer", 1
-            ),
-        )
-
-    return _homework_to_dict(homework), None
-
-
-def _create_question(homework, q_data):
-    Question.objects.create(
-        homework=homework,
-        text=q_data.get("text", ""),
-        question_type=q_data.get("question_type", "FF"),
-        answer_type=q_data.get("answer_type"),
-        possible_answers="\n".join(q_data.get("possible_answers", [])),
-        correct_answer=q_data.get("correct_answer", ""),
-        scores_for_correct_answer=q_data.get(
-            "scores_for_correct_answer", 1
-        ),
-    )
+    payload = {
+        "status": status.name,
+        "message": message,
+        "homework_id": homework.id,
+        "homework_slug": homework.slug,
+        "state": homework.state,
+        "submissions_count": submissions_count,
+        "rescored_submissions_count": rescored_submissions_count,
+    }
+    response = JsonResponse(payload, status=response_status)
+    return response
 
 
 @token_required
@@ -163,217 +71,24 @@ def homeworks_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
     if request.method == "GET":
-        homeworks = Homework.objects.filter(course=course).order_by(
-            "id"
-        )
-        return JsonResponse(
-            {
-                "homeworks": [
-                    _homework_to_dict(hw) for hw in homeworks
-                ],
-            }
-        )
+        return homeworks_list_response(course)
 
-    # POST
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
+    return homeworks_create_response(request, course)
 
-    data, err = parse_json_body(request)
-    if err:
-        return err
 
-    return bulk_create_response(
-        data,
-        lambda item: _create_homework(course, item),
+def _homework_detail_config(homework):
+    related_queryset = homework.submission_set.all()
+    delete_config = DeleteResponseConfig(
+        closed_state=HomeworkState.CLOSED.value,
+        related_queryset=related_queryset,
+        related_name="submissions",
+        noun="homework",
     )
-
-
-HOMEWORK_PATCH_FIELDS = {
-    "title",
-    "description",
-    "due_date",
-    "state",
-    "instructions_url",
-    "learning_in_public_cap",
-    "homework_url_field",
-    "time_spent_lectures_field",
-    "time_spent_homework_field",
-    "faq_contribution_field",
-}
-
-VALID_HOMEWORK_STATES = {s.value for s in HomeworkState}
-
-
-def _apply_homework_data(homework, data):
-    title = data.get("title", data.get("name"))
-    if title is not None:
-        homework.title = title
-
-    if "description" in data:
-        homework.description = data["description"]
-
-    if "instructions_url" in data:
-        error = instructions_url_error(data["instructions_url"])
-        if error:
-            return error_response(
-                error,
-                "invalid_instructions_url",
-                details={"field": "instructions_url"},
-            )
-        homework.instructions_url = data["instructions_url"]
-
-    if "due_date" in data:
-        due_date = parse_date(data["due_date"])
-        if due_date is None:
-            return error_response(
-                "Invalid date format for due_date",
-                "invalid_date_format",
-                details={"field": "due_date"},
-            )
-        homework.due_date = due_date
-
-    for field in (
-        "state",
-        "learning_in_public_cap",
-        "homework_url_field",
-        "time_spent_lectures_field",
-        "time_spent_homework_field",
-        "faq_contribution_field",
-    ):
-        if field not in data:
-            continue
-        value = data[field]
-        if field == "state" and value not in VALID_HOMEWORK_STATES:
-            return error_response(
-                f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
-                "invalid_homework_state",
-                details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
-            )
-        setattr(homework, field, value)
-
-    return None
-
-
-def _homework_questions_replace_error(homework):
-    if _homework_delete_blockers(homework):
-        return error_response(
-            "Questions can only be replaced for closed homeworks with no submissions",
-            "homework_questions_replace_blocked",
-            details={
-                "delete_blockers": _homework_delete_blockers(homework)
-            },
-        )
-
-    answered_questions = homework.question_set.filter(
-        answer__isnull=False
-    ).distinct()
-    if answered_questions.exists():
-        return error_response(
-            "Cannot replace questions with existing answers",
-            "homework_questions_have_answers",
-            details={
-                "answered_questions_count": answered_questions.count()
-            },
-        )
-
-    return None
-
-
-def _replace_homework_questions(homework, questions_data):
-    error = _homework_questions_replace_error(homework)
-    if error:
-        return error
-
-    homework.question_set.all().delete()
-    for q_data in questions_data:
-        _create_question(homework, q_data)
-    return None
-
-
-def _validate_homework_upsert(data, homework, created):
-    """Validate an upsert payload. Returns an error response, or None if ok."""
-    title = data.get("title", data.get("name"))
-    if created and (not title or not data.get("due_date")):
-        return error_response(
-            "title/name and due_date are required",
-            "missing_required_fields",
-        )
-
-    if "instructions_url" in data:
-        error = instructions_url_error(data.get("instructions_url"))
-        if error:
-            return error_response(
-                error,
-                "invalid_instructions_url",
-                details={"field": "instructions_url"},
-            )
-
-    if "due_date" in data and parse_date(data["due_date"]) is None:
-        return error_response(
-            "Invalid date format for due_date",
-            "invalid_date_format",
-            details={"field": "due_date"},
-        )
-
-    if "state" in data and data["state"] not in VALID_HOMEWORK_STATES:
-        return error_response(
-            f"Invalid state. Must be one of: {sorted(VALID_HOMEWORK_STATES)}",
-            "invalid_homework_state",
-            details={"valid_states": sorted(VALID_HOMEWORK_STATES)},
-        )
-
-    if homework is not None and "questions" in data:
-        return _homework_questions_replace_error(homework)
-
-    return None
-
-
-def _upsert_homework_by_slug(request, course_slug, homework_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    data, err = parse_json_body(request)
-    if err:
-        return err
-
-    homework = Homework.objects.filter(
-        course=course,
-        slug=homework_slug,
-    ).first()
-    created = homework is None
-
-    error = _validate_homework_upsert(data, homework, created)
-    if error:
-        return error
-
-    title = data.get("title", data.get("name"))
-    with transaction.atomic():
-        if created:
-            homework = Homework.objects.create(
-                course=course,
-                slug=homework_slug,
-                title=title,
-                description=data.get("description", ""),
-                instructions_url=data.get("instructions_url"),
-                due_date=parse_date(data["due_date"]),
-                state=HomeworkState.CLOSED.value,
-            )
-
-        error = _apply_homework_data(homework, data)
-        if error:
-            return error
-
-        homework.save()
-
-        if "questions" in data:
-            error = _replace_homework_questions(
-                homework, data["questions"]
-            )
-            if error:
-                return error
-
-    return JsonResponse(
-        _homework_to_dict(homework), status=201 if created else 200
+    config = DetailResponseConfig(
+        patch=HOMEWORK_PATCH_CONFIG,
+        delete=delete_config,
     )
+    return config
 
 
 def _homework_detail_response(
@@ -390,18 +105,11 @@ def _homework_detail_response(
         object_id=homework_id,
         slug=homework_slug,
     )
+    config = _homework_detail_config(homework)
     return detail_response(
         request,
         homework,
-        to_dict=_homework_to_dict,
-        allowed_fields=HOMEWORK_PATCH_FIELDS,
-        valid_states=VALID_HOMEWORK_STATES,
-        invalid_state_code="invalid_homework_state",
-        date_fields={"due_date"},
-        closed_state=HomeworkState.CLOSED.value,
-        related_queryset=homework.submission_set.all(),
-        related_name="submissions",
-        noun="homework",
+        config,
     )
 
 
@@ -430,11 +138,7 @@ def homework_detail_by_slug_view(request, course_slug, homework_slug):
     DELETE /api/courses/<slug>/homeworks/by-slug/<slug>/ - Delete homework.
     """
     if request.method == "PUT":
-        staff_error = require_staff_token(request)
-        if staff_error:
-            return staff_error
-
-        return _upsert_homework_by_slug(
+        return staff_upsert_homework_by_slug(
             request, course_slug, homework_slug
         )
 

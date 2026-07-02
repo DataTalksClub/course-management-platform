@@ -6,21 +6,22 @@ single ``RunState`` object threads data between test modules. Each test file
 maps to a numbered scenario from issue #194 and is named to sort in order.
 """
 
-from __future__ import annotations
-
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+from playwright.sync_api import sync_playwright
 
 # Allow ``import e2e.<module>`` when pytest is invoked from inside e2e/.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+repo_root = Path(__file__).resolve().parent.parent
+repo_root_path = str(repo_root)
+sys.path.insert(0, repo_root_path)
 
 from e2e.api_client import CmpApiClient  # noqa: E402
 from e2e.config import load_settings, Settings  # noqa: E402
-from e2e.mock_inbox import MockInboxClient, RealInboxClient  # noqa: E402
+from e2e.mock_inbox import InboxClientConfig, MockInboxClient, RealInboxClient  # noqa: E402
 from e2e.provisioning import (  # noqa: E402
     ProvisionedCourse,
     Provisioner,
@@ -47,9 +48,10 @@ def settings() -> Settings:
 
 @pytest.fixture(scope="session")
 def api(settings: Settings) -> CmpApiClient:
+    api_token = settings.require_api_token()
     return CmpApiClient(
         settings.base_url,
-        settings.require_api_token(),
+        api_token,
         timeout=settings.request_timeout,
     )
 
@@ -61,12 +63,20 @@ def provisioner(api: CmpApiClient) -> Provisioner:
 
 @pytest.fixture(scope="session")
 def mock_inbox(settings: Settings) -> MockInboxClient:
-    return MockInboxClient(settings.mock_inbox_url, settings.mock_inbox_api_key)
+    config = InboxClientConfig(
+        base_url=settings.mock_inbox_url,
+        api_key=settings.mock_inbox_api_key,
+    )
+    return MockInboxClient(config)
 
 
 @pytest.fixture(scope="session")
 def real_inbox(settings: Settings) -> RealInboxClient:
-    return RealInboxClient(settings.real_inbox_url, settings.real_inbox_api_key)
+    config = InboxClientConfig(
+        base_url=settings.real_inbox_url,
+        api_key=settings.real_inbox_api_key,
+    )
+    return RealInboxClient(config)
 
 
 @pytest.fixture(scope="session")
@@ -83,14 +93,23 @@ def email_backend(request):
     backend = getattr(request, "param", None)
     if backend is None:
         marker = request.node.get_closest_marker("mock_inbox")
-        backend = "mock" if marker else "real"
-    fixture_name = "real_inbox" if backend == "real" else "mock_inbox"
+        if marker:
+            backend = "mock"
+        else:
+            backend = "real"
+    if backend == "real":
+        fixture_name = "real_inbox"
+    else:
+        fixture_name = "mock_inbox"
     return request.getfixturevalue(fixture_name)
 
 
 @pytest.fixture(scope="session")
 def run_state() -> RunState:
-    return RunState(namespace=make_namespace(int(time.time())))
+    current_time = time.time()
+    timestamp = int(current_time)
+    namespace = make_namespace(timestamp)
+    return RunState(namespace=namespace)
 
 
 @pytest.fixture(scope="session")
@@ -98,10 +117,11 @@ def due_dates() -> dict:
     """ISO dates used for scoreable homework/project fixtures."""
     past = time.gmtime(time.time() - 24 * 3600)
     fmt = "%Y-%m-%d"
+    past_date = time.strftime(fmt, past)
     return {
-        "homework_due": time.strftime(fmt, past),
-        "project_due": time.strftime(fmt, past),
-        "peer_review_due": time.strftime(fmt, past),
+        "homework_due": past_date,
+        "project_due": past_date,
+        "peer_review_due": past_date,
     }
 
 
@@ -111,12 +131,8 @@ def due_dates() -> dict:
 # build our own session-scoped page from the sync API.
 @pytest.fixture(scope="session")
 def admin_page(settings: Settings):
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:  # pragma: no cover
-        pytest.skip("Playwright is not installed")
-
-    headless_env = __import__("os").environ.get("E2E_HEADLESS", "1")
+    os_module = __import__("os")
+    headless_env = os_module.environ.get("E2E_HEADLESS", "1")
     headless = headless_env not in ("0", "false", "False")
 
     with sync_playwright() as p:

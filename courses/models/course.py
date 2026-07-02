@@ -197,7 +197,9 @@ class CourseRegistration(models.Model):
         ordering = ["-created_at"]
 
     def save(self, *args, **kwargs):
-        self.email_normalized = (self.email or "").strip().lower()
+        raw_email = self.email or ""
+        email_stripped = raw_email.strip()
+        self.email_normalized = email_stripped.lower()
         if self.campaign and self.course_id is None:
             self.course = self.campaign.current_course
         super().save(*args, **kwargs)

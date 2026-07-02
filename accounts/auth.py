@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 from functools import wraps
 
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
@@ -19,28 +20,42 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-def generate_random_password(
-    length=12,
-    allowed_chars="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-):
-    return get_random_string(
-        length=length, allowed_chars=allowed_chars
+@dataclass(frozen=True)
+class SocialLoginConnection:
+    request: object
+    sociallogin: object
+    email: str
+    existing_emails: object
+
+
+def verified_social_email(email_addresses):
+    for email_address in email_addresses:
+        if email_address.verified:
+            return email_address.email
+    return None
+
+
+def sociallogin_email(sociallogin):
+    if not sociallogin or not sociallogin.email_addresses:
+        return None
+
+    return (
+        verified_social_email(sociallogin.email_addresses)
+        or sociallogin.email_addresses[0].email
     )
 
 
 def extract_email(response_data, sociallogin=None):
-    if response_data.get("email"):
-        return response_data["email"]
-
-    # GitHub-specific (via allauth fetch)
-    if sociallogin and sociallogin.email_addresses:
-        verified = [e for e in sociallogin.email_addresses if e.verified]
-        if verified:
-            return verified[0].email
-        return sociallogin.email_addresses[0].email
-
-    if response_data.get("notification_email"):
-        return response_data["notification_email"]
+    response_email_value = response_data.get("email")
+    sociallogin_email_value = sociallogin_email(sociallogin)
+    notification_email_value = response_data.get("notification_email")
+    for email in (
+        response_email_value,
+        sociallogin_email_value,
+        notification_email_value,
+    ):
+        if email:
+            return email
 
     raise KeyError("Email not found in response data")
 
@@ -58,101 +73,129 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
 
         email = None
         try:
-            email = extract_email(response_data, sociallogin=sociallogin)
-            logger.info(f"Extracted email {email} from OAuth response")
-            if email is None or len(email) == 0:
+            email = self._sociallogin_email(response_data, sociallogin)
+            if not email:
                 logger.info("No email found in social account data")
                 return
 
-            existing_emails = EmailAddress.objects.filter(
-                email__iexact=email
-            )
-            num_existing_emails = existing_emails.count()
-            logger.info(f"Found {num_existing_emails} existing users for email {email}")
-
-            if num_existing_emails == 0:
-                # No existing user with this email, so create a new one
-                logger.info(
-                    f"No existing user found with email {email}, creating a new one"
-                )
-
-                password = generate_random_password()
-                user = User.objects.create_user(
-                    username=email, email=email, password=password
-                )
-                user.save()
-
-                email_address = EmailAddress.objects.create(
-                    user=user,
-                    email=email,
-                    primary=True,
-                    verified=True,
-                )
-
-                email_address.save()
-
-                # Link the new social login to the new user
-                sociallogin.connect(request, user)
-
-            if num_existing_emails == 1:
-                # Link the new social login to the existing user
-                first_email = existing_emails.first()
-                user = first_email.user
-
-                logger.info(
-                    f"Found existing user with email {email}, connecting to it"
-                )
-                sociallogin.connect(request, user)
-
-            if num_existing_emails > 1:
-                # Multiple users found with the same email
-                logger.warning(
-                    f"Multiple users found with email {email} - attempting to link to the most recently active account."
-                )
-                # Logic to select the most recently active account
-                most_recent_user = self.select_most_recent_user(
-                    existing_emails
-                )
-                if most_recent_user:
-                    logger.info(
-                        f"Found existing user with email {email}, connecting to it"
-                    )
-                    sociallogin.connect(request, most_recent_user)
-
+            self._connect_sociallogin_by_email(request, sociallogin, email)
         except EmailAddress.DoesNotExist:
             logger.error(f"No user found with email {email}")
         except KeyError:
             logger.error("Email key not found in social account data")
 
+    def _sociallogin_email(self, response_data, sociallogin):
+        email = extract_email(response_data, sociallogin=sociallogin)
+        logger.info(f"Extracted email {email} from OAuth response")
+        return email
+
+    def _connect_sociallogin_by_email(self, request, sociallogin, email):
+        existing_emails = EmailAddress.objects.filter(email__iexact=email)
+        num_existing_emails = existing_emails.count()
+        logger.info(
+            f"Found {num_existing_emails} existing users for email {email}"
+        )
+        connection = SocialLoginConnection(
+            request=request,
+            sociallogin=sociallogin,
+            email=email,
+            existing_emails=existing_emails,
+        )
+
+        if num_existing_emails == 0:
+            user = self._create_user_for_email(email)
+            sociallogin.connect(request, user)
+        elif num_existing_emails == 1:
+            self._connect_single_existing_user(connection)
+        else:
+            self._connect_most_recent_user(connection)
+
+    def _create_user_for_email(self, email):
+        logger.info(
+            f"No existing user found with email {email}, creating a new one"
+        )
+        password_chars = (
+            "abcdefghijklmnopqrstuvwxyz"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "0123456789"
+        )
+        password = get_random_string(length=12, allowed_chars=password_chars)
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
+        )
+        user.save()
+
+        email_address = EmailAddress.objects.create(
+            user=user,
+            email=email,
+            primary=True,
+            verified=True,
+        )
+        email_address.save()
+        return user
+
+    def _connect_single_existing_user(self, connection):
+        user = connection.existing_emails.first().user
+        logger.info(
+            f"Found existing user with email {connection.email}, connecting to it"
+        )
+        connection.sociallogin.connect(connection.request, user)
+
+    def _connect_most_recent_user(self, connection):
+        logger.warning(
+            f"Multiple users found with email {connection.email} - "
+            "attempting to link to the most recently active account."
+        )
+        most_recent_user = self.select_most_recent_user(
+            connection.existing_emails
+        )
+        if most_recent_user:
+            logger.info(
+                f"Found existing user with email {connection.email}, connecting to it"
+            )
+            connection.sociallogin.connect(
+                connection.request, most_recent_user
+            )
+
+    @staticmethod
+    def most_recent_user_key(user):
+        return user.last_login or user.date_joined
+
     @staticmethod
     def select_most_recent_user(email_addresses):
         # Assuming 'last_login' can be used to determine the most recently active user
-        users = [
-            email.user for email in email_addresses if email.user
-        ]
+        users = []
+        for email in email_addresses:
+            user = email.user
+            if user:
+                users.append(user)
         return max(
             users,
-            key=lambda user: (user.last_login or user.date_joined),
+            key=ConsolidatingSocialAccountAdapter.most_recent_user_key,
             default=None,
         )
-
-
-
 
 def token_required(f):
     @wraps(f)
     def decorated(request, *args, **kwargs):
-        token_key = request.headers.get('Authorization')
+        token_key = request.headers.get("Authorization")
         if token_key:
-            token_key = token_key.replace('Token ', '', 1)  # Assuming the token is sent as "Token <token_key>"
+            token_key = token_key.replace("Token ", "", 1)
             try:
                 token = Token.objects.get(key=token_key)
                 request.user = token.user
             except Token.DoesNotExist:
-                return JsonResponse({'error': 'Invalid token'}, status=401)
+                payload = {"error": "Invalid token"}
+                response = JsonResponse(payload, status=401)
+                return response
         else:
-            return JsonResponse({'error': 'Authentication token required'}, status=401)
+            payload = {"error": "Authentication token required"}
+            response = JsonResponse(payload, status=401)
+            return response
 
         return f(request, *args, **kwargs)
+
     decorated.requires_token_auth = True
     return decorated

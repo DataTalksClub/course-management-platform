@@ -71,7 +71,12 @@ class CustomUser(AbstractUser):
     )
     def __str__(self):
         # safest is to display something stable
-        return self.username or self.email or str(self.pk)
+        if self.username:
+            return self.username
+        if self.email:
+            return self.email
+        pk_text = str(self.pk)
+        return pk_text
 
 
 class Token(models.Model):

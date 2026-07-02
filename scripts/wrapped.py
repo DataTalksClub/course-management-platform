@@ -8,7 +8,7 @@ django.setup()
 
 
 # 1. Run calculation script manually
-from courses.scoring import calculate_wrapped_statistics
+from courses.wrapped_statistics.calculator import calculate_wrapped_statistics
 
 stats = calculate_wrapped_statistics(year=2025, force=True)
 

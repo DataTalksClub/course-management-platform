@@ -8,8 +8,11 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .course import Course, Enrollment
-from .stat_display import build_stat_fields
-from courses.validators import validate_url_200, validate_review_criteria_options
+from .stat_display import build_stat_fields, project_stat_sections
+from courses.validators.criteria_validators import (
+    validate_review_criteria_options,
+)
+from courses.validators.custom_url_validators import validate_url_200
 
 User = get_user_model()
 
@@ -19,6 +22,17 @@ class ProjectState(Enum):
     COLLECTING_SUBMISSIONS = "CS"
     PEER_REVIEWING = "PR"
     COMPLETED = "CO"
+
+
+def _build_enum_choices(enum_type):
+    choices = []
+    for state in enum_type:
+        choice = (state.value, state.name)
+        choices.append(choice)
+    return choices
+
+
+PROJECT_STATE_CHOICES = _build_enum_choices(ProjectState)
 
 
 class Project(models.Model):
@@ -52,7 +66,7 @@ class Project(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=[(state.value, state.name) for state in ProjectState],
+        choices=PROJECT_STATE_CHOICES,
         default=ProjectState.COLLECTING_SUBMISSIONS.value,
     )
 
@@ -158,14 +172,17 @@ class ReviewCriteria(models.Model):
 
     def median_score(self) -> int:
         result = 0
-        scores = [option["score"] for option in self.options]
+        scores = []
+        for option in self.options:
+            score = option["score"]
+            scores.append(score)
 
         if self.review_criteria_type == ReviewCriteriaTypes.RADIO_BUTTONS.value:
             result = statistics.median(scores)
 
         if self.review_criteria_type == ReviewCriteriaTypes.CHECKBOXES.value:
-            result = sum(scores) / 2 # just give the middle score
-    
+            result = sum(scores) / 2  # just give the middle score
+
         return math.ceil(result)
 
     def __str__(self):
@@ -175,6 +192,9 @@ class ReviewCriteria(models.Model):
 class PeerReviewState(Enum):
     TO_REVIEW = "TR"
     SUBMITTED = "SU"
+
+
+PEER_REVIEW_STATE_CHOICES = _build_enum_choices(PeerReviewState)
 
 
 class PeerReview(models.Model):
@@ -201,17 +221,12 @@ class PeerReview(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=[
-            (state.value, state.name) for state in PeerReviewState
-        ],
+        choices=PEER_REVIEW_STATE_CHOICES,
         default=PeerReviewState.TO_REVIEW.value,
     )
 
     def __str__(self):
         return f"Peer review {self.id}, state={self.state}"
-
-    def get_criteria_responses(self):
-        return self.criteria_responses.all()
 
 
 class CriteriaResponse(models.Model):
@@ -232,13 +247,25 @@ class CriteriaResponse(models.Model):
             return [0]
 
         answers = self.answer.split(",")
-        answer_idx = [int(s) - 1 for s in answers]
-        scores = [criteria.options[i]["score"] for i in answer_idx]
+        answer_indices = []
+        for answer in answers:
+            answer_index = int(answer) - 1
+            answer_indices.append(answer_index)
+
+        scores = []
+        for answer_index in answer_indices:
+            option = criteria.options[answer_index]
+            score = option["score"]
+            scores.append(score)
 
         return scores
 
     def get_score(self):
-        return sum(self.get_scores())
+        total_score = 0
+        scores = self.get_scores()
+        for score in scores:
+            total_score += score
+        return total_score
 
     def __str__(self):
         return f"{self.criteria.description}: {self.answer}"
@@ -321,14 +348,8 @@ class ProjectStatistics(models.Model):
         return getattr(self, attribute_name)
 
     def get_stat_fields(self):
-        return build_stat_fields(self, [
-            ("project_score", "Project score", "fas fa-project-diagram"),
-            ("project_learning_in_public_score", "Project learning in public score", "fas fa-globe"),
-            ("peer_review_score", "Peer review score", "fas fa-users"),
-            ("peer_review_learning_in_public_score", "Peer review learning in public score", "fas fa-share-alt"),
-            ("total_score", "Total score", "fas fa-star"),
-            ("time_spent", "Time spent on project", "fas fa-clock"),
-        ])
+        sections = project_stat_sections()
+        return build_stat_fields(self, sections)
 
     def __str__(self):
         return f"Statistics for {self.project.slug}"

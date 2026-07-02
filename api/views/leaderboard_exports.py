@@ -11,34 +11,18 @@ import yaml
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.core.cache import cache
-from django.core.paginator import Paginator
-from django.db.models import Prefetch
-from django.db.models.functions import Coalesce
-from django.db.models import Value
 from django.views.decorators.http import require_GET
 
-from courses.models import (
-    Course,
-    Enrollment,
-    Submission,
-    ProjectSubmission,
+from api.views.leaderboard_export_data import (
+    build_leaderboard_data,
 )
-from courses.models.homework import HomeworkState
-from courses.models.project import ProjectState
+from courses.models.course import Course
 
 logger = logging.getLogger(__name__)
 
 LEADERBOARD_DATA_CACHE_TTL = 86400  # 24 hours; also invalidated by update_leaderboard()
 LEADERBOARD_YAML_CACHE_TTL = LEADERBOARD_DATA_CACHE_TTL
-LEADERBOARD_DATA_PAGE_SIZE = 100
-
-
-try:
-    YamlDumper = yaml.CSafeDumper
-except AttributeError:
-    YamlDumper = yaml.SafeDumper
 
 
 def _get_positive_int(value, default, maximum=None):
@@ -59,149 +43,23 @@ def _get_cache_version(course):
     return cache.get(version_key, 1)
 
 
-def _leaderboard_yaml_page_url(course, page_number):
-    url = reverse(
-        "api_course_leaderboard",
-        kwargs={"course_slug": course.slug},
+def _cached_leaderboard_data(course, page, cache_version):
+    data_cache_key = (
+        f"leaderboard_data:{course.id}:v{cache_version}:"
+        f"page:{page}"
     )
-    return f"{url}?page={page_number}"
+    data = cache.get(data_cache_key)
+    if data is not None:
+        logger.info("Cache hit for leaderboard data of course %s", course.slug)
+        return data
+
+    logger.info("Cache miss for leaderboard data of course %s", course.slug)
+    data = build_leaderboard_data(course, page)
+    cache.set(data_cache_key, data, LEADERBOARD_DATA_CACHE_TTL)
+    return data
 
 
-def _leaderboard_homework_entry(sub):
-    """Score breakdown for one scored homework submission."""
-    entry = {
-        "homework": sub.homework.title,
-        "homework_slug": sub.homework.slug,
-        "total_score": sub.total_score,
-        "questions_score": sub.questions_score,
-        "faq_score": sub.faq_score,
-        "learning_in_public_score": sub.learning_in_public_score,
-    }
-    if sub.homework_link:
-        entry["homework_link"] = sub.homework_link
-    if sub.faq_contribution_url:
-        entry["faq_contribution_url"] = sub.faq_contribution_url
-    if sub.learning_in_public_links:
-        entry["learning_in_public_links"] = sub.learning_in_public_links
-    return entry
-
-
-def _leaderboard_project_entry(sub):
-    """Score breakdown for one completed project submission."""
-    entry = {
-        "project": sub.project.title,
-        "project_slug": sub.project.slug,
-        "total_score": sub.total_score,
-        "project_score": sub.project_score,
-        "peer_review_score": sub.peer_review_score,
-        "project_learning_in_public_score": sub.project_learning_in_public_score,
-        "peer_review_learning_in_public_score": sub.peer_review_learning_in_public_score,
-        "project_faq_score": sub.project_faq_score,
-        "passed": sub.passed,
-    }
-    if sub.github_link:
-        entry["github_link"] = sub.github_link
-    if sub.faq_contribution_url:
-        entry["faq_contribution_url"] = sub.faq_contribution_url
-    if sub.learning_in_public_links:
-        entry["learning_in_public_links"] = sub.learning_in_public_links
-    return entry
-
-
-def _build_leaderboard_data(course, page_number):
-    """Build the full leaderboard JSON structure with score breakdowns."""
-    enrollments = (
-        Enrollment.objects.filter(
-            course=course,
-            display_on_leaderboard=True,
-        )
-        .select_related("student")
-        .prefetch_related(
-            Prefetch(
-                "submission_set",
-                queryset=Submission.objects.filter(
-                    homework__state=HomeworkState.SCORED.value,
-                ).select_related("homework").order_by("homework__id"),
-                to_attr="scored_submissions",
-            ),
-            Prefetch(
-                "projectsubmission_set",
-                queryset=ProjectSubmission.objects.filter(
-                    project__state=ProjectState.COMPLETED.value,
-                    volunteer_review_only=False,
-                ).select_related("project").order_by("project__id"),
-                to_attr="completed_project_submissions",
-            ),
-        )
-        .order_by(
-            Coalesce("position_on_leaderboard", Value(999999)),
-            "id",
-        )
-    )
-
-    paginator = Paginator(enrollments, LEADERBOARD_DATA_PAGE_SIZE)
-    page_obj = paginator.get_page(page_number)
-
-    results = []
-    for enrollment in page_obj.object_list:
-        hw_data = [
-            _leaderboard_homework_entry(sub)
-            for sub in enrollment.scored_submissions
-        ]
-        proj_data = [
-            _leaderboard_project_entry(sub)
-            for sub in enrollment.completed_project_submissions
-        ]
-
-        entry = {
-            "position": enrollment.position_on_leaderboard,
-            "display_name": enrollment.display_name,
-            "total_score": enrollment.total_score,
-        }
-        if hw_data:
-            entry["homeworks"] = hw_data
-        if proj_data:
-            entry["projects"] = proj_data
-
-        results.append(entry)
-
-    next_page_number = (
-        page_obj.next_page_number() if page_obj.has_next() else None
-    )
-    previous_page_number = (
-        page_obj.previous_page_number() if page_obj.has_previous() else None
-    )
-
-    return {
-        "course": course.slug,
-        "page": page_obj.number,
-        "total_pages": paginator.num_pages,
-        "total_entries": paginator.count,
-        "has_next": page_obj.has_next(),
-        "has_previous": page_obj.has_previous(),
-        "next_page": (
-            _leaderboard_yaml_page_url(course, next_page_number)
-            if next_page_number
-            else None
-        ),
-        "next_page_number": next_page_number,
-        "previous_page": (
-            _leaderboard_yaml_page_url(course, previous_page_number)
-            if previous_page_number
-            else None
-        ),
-        "previous_page_number": previous_page_number,
-        "leaderboard": results,
-    }
-
-
-@require_GET
-def leaderboard_data_view(request, course_slug: str):
-    """Public endpoint returning the full leaderboard with score breakdowns."""
-    course = get_object_or_404(Course, slug=course_slug)
-    page = _get_positive_int(request.GET.get("page"), 1)
-    cache_version = _get_cache_version(course)
-
+def _cached_leaderboard_yaml(course, page, cache_version):
     yaml_cache_key = (
         f"leaderboard_yaml:{course.id}:v{cache_version}:"
         f"page:{page}"
@@ -209,28 +67,29 @@ def leaderboard_data_view(request, course_slug: str):
     yaml_content = cache.get(yaml_cache_key)
     if yaml_content is not None:
         logger.info("Cache hit for leaderboard YAML of course %s", course.slug)
-        return HttpResponse(yaml_content, content_type="text/plain; charset=utf-8")
+        return yaml_content
 
-    data_cache_key = (
-        f"leaderboard_data:{course.id}:v{cache_version}:"
-        f"page:{page}"
-    )
-    data = cache.get(data_cache_key)
-
-    if data is None:
-        logger.info("Cache miss for leaderboard data of course %s", course.slug)
-        data = _build_leaderboard_data(course, page)
-        cache.set(data_cache_key, data, LEADERBOARD_DATA_CACHE_TTL)
-    else:
-        logger.info("Cache hit for leaderboard data of course %s", course.slug)
-
-    yaml_content = yaml.dump(
+    data = _cached_leaderboard_data(course, page, cache_version)
+    yaml_content = yaml.safe_dump(
         data,
-        Dumper=YamlDumper,
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False,
     )
     cache.set(yaml_cache_key, yaml_content, LEADERBOARD_YAML_CACHE_TTL)
+    return yaml_content
 
-    return HttpResponse(yaml_content, content_type="text/plain; charset=utf-8")
+
+@require_GET
+def leaderboard_data_view(request, course_slug: str):
+    """Public endpoint returning the full leaderboard with score breakdowns."""
+    course = get_object_or_404(Course, slug=course_slug)
+    page_value = request.GET.get("page")
+    page = _get_positive_int(page_value, 1)
+    cache_version = _get_cache_version(course)
+    yaml_content = _cached_leaderboard_yaml(course, page, cache_version)
+    response = HttpResponse(
+        yaml_content,
+        content_type="text/plain; charset=utf-8",
+    )
+    return response

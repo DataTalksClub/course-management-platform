@@ -96,7 +96,8 @@ class CertificateNameTests(TestCase):
             user=self.user,
         )
 
-        self.assertTrue(form.is_valid())
+        form_is_valid = form.is_valid()
+        self.assertTrue(form_is_valid)
         form.save()
 
         self.user.refresh_from_db()

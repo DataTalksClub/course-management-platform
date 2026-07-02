@@ -1,271 +1,102 @@
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
 import bleach
 import mistune
 
-COUNTRIES_BY_REGION = {
-    "Africa": [
-        "Algeria",
-        "Angola",
-        "Benin",
-        "Botswana",
-        "Burkina Faso",
-        "Burundi",
-        "Cabo Verde",
-        "Cameroon",
-        "Central African Republic",
-        "Chad",
-        "Comoros",
-        "Congo",
-        "Democratic Republic of the Congo",
-        "Cote d'Ivoire",
-        "Djibouti",
-        "Egypt",
-        "Equatorial Guinea",
-        "Eritrea",
-        "Eswatini",
-        "Ethiopia",
-        "Gabon",
-        "Gambia",
-        "Ghana",
-        "Guinea",
-        "Guinea-Bissau",
-        "Kenya",
-        "Lesotho",
-        "Liberia",
-        "Libya",
-        "Madagascar",
-        "Malawi",
-        "Mali",
-        "Mauritania",
-        "Mauritius",
-        "Morocco",
-        "Mozambique",
-        "Namibia",
-        "Niger",
-        "Nigeria",
-        "Rwanda",
-        "Sao Tome and Principe",
-        "Senegal",
-        "Seychelles",
-        "Sierra Leone",
-        "Somalia",
-        "South Africa",
-        "South Sudan",
-        "Sudan",
-        "Tanzania",
-        "Togo",
-        "Tunisia",
-        "Uganda",
-        "Zambia",
-        "Zimbabwe",
-    ],
-    "North America": [
-        "Canada",
-        "United States",
-        "United States of America",
-        "Mexico",
-        "Bermuda",
-        "Greenland",
-        "Saint Pierre and Miquelon",
-        "Belize",
-        "Costa Rica",
-        "El Salvador",
-        "Guatemala",
-        "Honduras",
-        "Nicaragua",
-        "Panama",
-        "Cuba",
-        "Dominican Republic",
-        "Haiti",
-        "Jamaica",
-        "Trinidad and Tobago",
-        "Barbados",
-        "Bahamas",
-        "Grenada",
-        "Saint Lucia",
-        "Saint Vincent and the Grenadines",
-        "Dominica",
-        "Antigua and Barbuda",
-        "Saint Kitts and Nevis",
-        "Puerto Rico",
-        "Curacao",
-        "Aruba",
-        "Cayman Islands",
-    ],
-    "South America": [
-        "Argentina",
-        "Bolivia",
-        "Brazil",
-        "Chile",
-        "Colombia",
-        "Ecuador",
-        "Guyana",
-        "Paraguay",
-        "Peru",
-        "Suriname",
-        "Uruguay",
-        "Venezuela",
-        "French Guiana",
-        "Falkland Islands",
-    ],
-    "Asia": [
-        "Afghanistan",
-        "Armenia",
-        "Azerbaijan",
-        "Bahrain",
-        "Bangladesh",
-        "Bhutan",
-        "Brunei",
-        "Cambodia",
-        "China",
-        "Georgia",
-        "India",
-        "Indonesia",
-        "Iran",
-        "Iraq",
-        "Israel",
-        "Japan",
-        "Jordan",
-        "Kazakhstan",
-        "Kuwait",
-        "Kyrgyzstan",
-        "Laos",
-        "Lebanon",
-        "Malaysia",
-        "Maldives",
-        "Mongolia",
-        "Myanmar",
-        "Nepal",
-        "North Korea",
-        "Oman",
-        "Pakistan",
-        "Palestine",
-        "Philippines",
-        "Qatar",
-        "Saudi Arabia",
-        "Singapore",
-        "South Korea",
-        "Sri Lanka",
-        "Syria",
-        "Tajikistan",
-        "Thailand",
-        "Timor-Leste",
-        "Turkey",
-        "Turkmenistan",
-        "United Arab Emirates",
-        "Uzbekistan",
-        "Vietnam",
-        "Yemen",
-    ],
-    "Europe": [
-        "Albania",
-        "Andorra",
-        "Austria",
-        "Belarus",
-        "Belgium",
-        "Bosnia and Herzegovina",
-        "Bulgaria",
-        "Croatia",
-        "Cyprus",
-        "Czechia",
-        "Denmark",
-        "Estonia",
-        "Finland",
-        "France",
-        "Germany",
-        "Greece",
-        "Hungary",
-        "Iceland",
-        "Ireland",
-        "Italy",
-        "Kosovo",
-        "Latvia",
-        "Liechtenstein",
-        "Lithuania",
-        "Luxembourg",
-        "Malta",
-        "Moldova",
-        "Monaco",
-        "Montenegro",
-        "Netherlands",
-        "North Macedonia",
-        "Norway",
-        "Poland",
-        "Portugal",
-        "Romania",
-        "Russia",
-        "San Marino",
-        "Serbia",
-        "Slovakia",
-        "Slovenia",
-        "Spain",
-        "Sweden",
-        "Switzerland",
-        "Ukraine",
-        "United Kingdom",
-        "Vatican City",
-    ],
-    "Oceania": [
-        "Australia",
-        "New Zealand",
-        "Fiji",
-        "Papua New Guinea",
-        "Solomon Islands",
-        "Vanuatu",
-        "Samoa",
-        "Tonga",
-        "Kiribati",
-        "Tuvalu",
-        "Nauru",
-        "Micronesia",
-        "Palau",
-        "Marshall Islands",
-        "New Caledonia",
-    ],
-}
+COUNTRIES_CONFIG_PATH = Path(__file__).with_name("countries.txt")
+TOP_COUNTRIES_SECTION = "Top Countries"
+YOUTUBE_EMBED_BASE_URL = "https://www.youtube.com/embed"
 
-COUNTRY_REGION = {
-    country: region
-    for region, countries in COUNTRIES_BY_REGION.items()
-    for country in countries
-}
 
-TOP_COUNTRIES = [
-    "United States",
-    "Canada",
-    "Germany",
-    "United Kingdom",
-    "France",
-    "Spain",
-    "Poland",
-    "India",
-    "Egypt",
-    "Tunisia",
-    "Nigeria",
-    "Brazil",
-    "Pakistan",
-    "Indonesia",
-    "Kenya",
-    "Australia",
-    "Morocco",
-    "Singapore",
-    "Argentina",
-    "Algeria",
-]
+def _country_config_section(line):
+    if not line.startswith("["):
+        return None
+    if not line.endswith("]"):
+        return None
+
+    section = line[1:-1].strip()
+    return section
+
+
+def _add_country_to_config(countries_by_region, top_countries, section, country):
+    if section is None:
+        return
+
+    if section == TOP_COUNTRIES_SECTION:
+        top_countries.append(country)
+        return
+
+    region_countries = countries_by_region.setdefault(section, [])
+    region_countries.append(country)
+
+
+def _build_countries_config():
+    top_countries = []
+    countries_by_region = {}
+    section = None
+
+    config_content = COUNTRIES_CONFIG_PATH.read_text(encoding="utf-8")
+    config_lines = config_content.splitlines()
+    for raw_line in config_lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        section_name = _country_config_section(line)
+        if section_name:
+            section = section_name
+            if section != TOP_COUNTRIES_SECTION:
+                countries_by_region[section] = []
+            continue
+
+        _add_country_to_config(countries_by_region, top_countries, section, line)
+
+    return countries_by_region, top_countries
+
+
+COUNTRIES_BY_REGION, TOP_COUNTRIES = _build_countries_config()
+
+
+def _build_country_region_map():
+    country_region = {}
+    for region, countries in COUNTRIES_BY_REGION.items():
+        for country in countries:
+            country_region[country] = region
+    return country_region
+
+
+COUNTRY_REGION = _build_country_region_map()
 
 
 def ordered_countries():
-    top_countries = [
-        country for country in TOP_COUNTRIES if country in COUNTRY_REGION
-    ]
-    remaining_countries = sorted(
-        country
-        for country in COUNTRY_REGION
-        if country not in set(top_countries)
-    )
-    return [*top_countries, *remaining_countries]
+    top_countries = []
+    for country in TOP_COUNTRIES:
+        if country in COUNTRY_REGION:
+            top_countries.append(country)
+
+    top_country_set = set(top_countries)
+    remaining_countries = []
+    for country in COUNTRY_REGION.keys():
+        if country not in top_country_set:
+            remaining_countries.append(country)
+    remaining_countries.sort()
+
+    countries = list(top_countries)
+    countries.extend(remaining_countries)
+    return countries
 
 
-COUNTRY_CHOICES = [(country, country) for country in ordered_countries()]
+def _build_country_choices():
+    country_choices = []
+    countries = ordered_countries()
+    for country in countries:
+        country_choice = (country, country)
+        country_choices.append(country_choice)
+    return country_choices
+
+
+COUNTRY_CHOICES = _build_country_choices()
 
 ALLOWED_MARKDOWN_TAGS = [
     "a",
@@ -305,16 +136,46 @@ def render_markdown(markdown_text):
     )
 
 
+def _youtube_watch_video_id(url):
+    parsed_url = urlparse(url)
+    if "youtube.com" not in parsed_url.netloc:
+        return None
+    if parsed_url.path != "/watch":
+        return None
+
+    query = parse_qs(parsed_url.query)
+    video_ids = query.get("v", [])
+    if not video_ids:
+        return None
+
+    video_id = video_ids[0]
+    return video_id
+
+
+def _youtu_be_video_id(url):
+    parsed_url = urlparse(url)
+    if "youtu.be" not in parsed_url.netloc:
+        return None
+
+    video_id = parsed_url.path.lstrip("/")
+    if not video_id:
+        return None
+
+    return video_id
+
+
 def youtube_embed_url(url):
     if not url:
         return ""
 
-    if "youtube.com/watch" in url and "v=" in url:
-        video_id = url.split("v=", 1)[1].split("&", 1)[0]
-        return f"https://www.youtube.com/embed/{video_id}"
+    video_id = _youtube_watch_video_id(url)
+    if video_id:
+        embed_url = f"{YOUTUBE_EMBED_BASE_URL}/{video_id}"
+        return embed_url
 
-    if "youtu.be/" in url:
-        video_id = url.rsplit("/", 1)[-1].split("?", 1)[0]
-        return f"https://www.youtube.com/embed/{video_id}"
+    video_id = _youtu_be_video_id(url)
+    if video_id:
+        embed_url = f"{YOUTUBE_EMBED_BASE_URL}/{video_id}"
+        return embed_url
 
     return url

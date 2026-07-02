@@ -1,176 +1,9 @@
-import logging
-
-import random
-from unittest.mock import patch
-
-from django.urls import reverse
-from django.test import TestCase, Client
-from django.utils import timezone
-from datetime import timedelta
-
-from courses.models import (
-    User,
-    Course,
-    Project,
-    ProjectSubmission,
-    Enrollment,
-    PeerReview,
-    PeerReviewState,
-    CriteriaResponse,
-    ReviewCriteria,
-    ReviewCriteriaTypes,
-    ProjectState,
-    ProjectEvaluationScore,
-)
+from courses.project_assignment import ProjectActionStatus
+from courses.project_scoring import score_project
+from courses.tests.project_score_base import ProjectEvaluationTestBase
 
 
-from courses.projects import score_project, ProjectActionStatus
-
-logger = logging.getLogger(__name__)
-
-
-def fetch_fresh(obj):
-    return obj.__class__.objects.get(pk=obj.id)
-
-
-credentials = dict(
-    username="test@test.com",
-    email="test@test.com",
-    password="12345",
-)
-
-
-class ProjectEvaluationTestCase(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        self.user = User.objects.create_user(**credentials)
-
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
-
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        # Set the course's project passing score
-        self.course.project_passing_score = 70
-        self.course.save()
-
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=timezone.now() - timedelta(days=2),
-            peer_review_due_date=timezone.now() - timedelta(hours=1),
-            state=ProjectState.PEER_REVIEWING.value,
-            points_for_peer_review=10,
-            learning_in_public_cap_project=5,
-            learning_in_public_cap_review=3,
-            number_of_peers_to_evaluate=3,
-        )
-
-        self.submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/user/project",
-            commit_id="1234567",
-        )
-
-        self.criteria = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Code quality",
-            options=[
-                {"criteria": "Poor", "score": 0},
-                {"criteria": "Satisfactory", "score": 1},
-                {"criteria": "Good", "score": 2},
-                {"criteria": "Excellent", "score": 3},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
-
-        self.peer_reviews = self.create_peer_reviews(3, optional=False)
-
-    def create_peer_reviews(
-        self, number_of_peer_reviews=3, optional=False
-    ):
-        peer_reviews = []
-
-        for i in range(number_of_peer_reviews):
-            rnd = random.randint(0, 1000000)
-
-            other_user = User.objects.create_user(
-                username=f"student{i}-{rnd}",
-                email=f"student{i}{rnd}@email.com",
-                password="12345",
-            )
-            other_enrollment = Enrollment.objects.create(
-                student=other_user,
-                course=self.course,
-            )
-            other_submission = ProjectSubmission.objects.create(
-                project=self.project,
-                student=other_user,
-                enrollment=other_enrollment,
-                github_link=f"https://github.com/other_student{i}/project",
-                commit_id=f"abcdefg{i}",
-            )
-            pr = PeerReview.objects.create(
-                submission_under_evaluation=self.submission,
-                reviewer=other_submission,
-                state=PeerReviewState.TO_REVIEW.value,
-                optional=optional,
-            )
-            peer_reviews.append(pr)
-
-        return peer_reviews
-
-    def assert_evaluation_score(
-        self, answers_and_scores, expected_project_score
-    ):
-        for i, (answer, expected_score) in enumerate(
-            answers_and_scores
-        ):
-            pr = self.peer_reviews[i]
-
-            print(
-                f"processing peer review {pr.id}, answer={answer}, expected_score={expected_score}"
-            )
-            response = CriteriaResponse.objects.create(
-                review=pr,
-                criteria=self.criteria,
-                answer=answer,
-            )
-            self.assertEqual([expected_score], response.get_scores())
-
-            pr.state = PeerReviewState.SUBMITTED.value
-            pr.save()
-
-        status, message = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
-        self.project.refresh_from_db()
-        self.assertEqual(
-            self.project.state, ProjectState.COMPLETED.value
-        )
-
-        score = ProjectEvaluationScore.objects.filter(
-            submission=self.submission, review_criteria=self.criteria
-        ).first()
-
-        self.assertEqual(score.score, expected_project_score)
-
-        self.submission.refresh_from_db()
-        print(self.submission.project_score)
-        print(self.submission.total_score)
-        self.assertEqual(
-            self.submission.project_score, expected_project_score
-        )
+class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
 
     def test_project_evaluation_complete_list_top_score(self):
         answers_and_scores = [("4", 3), ("4", 3), ("3", 2)]
@@ -179,42 +12,34 @@ class ProjectEvaluationTestCase(TestCase):
             answers_and_scores, expected_project_score
         )
 
-    def test_project_evaluation_complete_mediam(self):
-        answers = ["4", "4", "1"]
-        scores = [3, 3, 0]
+    def test_project_evaluation_complete_median(self):
+        answers_and_scores = [("4", 3), ("4", 3), ("1", 0)]
         expected_project_score = 3
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
     def test_project_evaluation_two_submissions(self):
-        answers = ["4", "2"]
-        scores = [3, 1]
+        answers_and_scores = [("4", 3), ("2", 1)]
         expected_project_score = 2
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
     def test_project_evaluation_two_submissions_round_up(self):
-        answers = ["4", "1"]
-        scores = [3, 0]
+        answers_and_scores = [("4", 3), ("1", 0)]
         expected_project_score = 2
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
 
     def test_project_evaluation_one_submission(self):
-        answers = ["4"]
-        scores = [3]
+        answers_and_scores = [("4", 3)]
         expected_project_score = 3
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
@@ -222,37 +47,12 @@ class ProjectEvaluationTestCase(TestCase):
     def test_project_evaluation_zero_submissions_get_median_score_rounded_up(
         self,
     ):
-        answers = []
-        scores = []
+        answers_and_scores = []
         expected_project_score = 2
 
-        answers_and_scores = list(zip(answers, scores))
         self.assert_evaluation_score(
             answers_and_scores, expected_project_score
         )
-
-    def create_reverse_assignments(self, peer_reviews, optional=False):
-        other_prs = []
-        for pr in peer_reviews:
-            other_pr = PeerReview.objects.create(
-                submission_under_evaluation=pr.reviewer,
-                reviewer=self.submission,
-                state=PeerReviewState.TO_REVIEW.value,
-                optional=optional,
-            )
-            other_prs.append(other_pr)
-        return other_prs
-
-    def submit_peer_review(self, pr, answer):
-        response = CriteriaResponse.objects.create(
-            review=pr,
-            criteria=self.criteria,
-            answer=answer,
-        )
-        self.assertEqual([int(answer) - 1], response.get_scores())
-
-        pr.state = PeerReviewState.SUBMITTED.value
-        pr.save()
 
     def test_project_not_enough_projects_evaluated(self):
         other_prs = self.create_reverse_assignments(self.peer_reviews)
@@ -302,275 +102,9 @@ class ProjectEvaluationTestCase(TestCase):
             3 * self.project.points_for_peer_review,
         )
 
-    def test_learning_in_public_project(self):
-        self.submission.learning_in_public_links = [
-            "https://example1.com",
-            "https://example2.com",
-            "https://example3.com",
-        ]
-        self.submission.save()
-
-        status, _ = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
-        self.submission.refresh_from_db()
-        self.assertEqual(
-            self.submission.project_learning_in_public_score, 3
-        )
-
-    def test_learning_in_public_peer_review(self):
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-
-        pr1 = other_prs[0]
-        pr1.learning_in_public_links = [
-            "https://example1.com",
-            "https://example2.com",
-            "https://example3.com",
-        ]
-        self.submit_peer_review(pr1, "4")
-
-        pr2 = other_prs[1]
-        pr2.learning_in_public_links = [
-            "https://example4.com",
-            "https://example5.com",
-        ]
-        self.submit_peer_review(pr2, "3")
-
-        pr3 = other_prs[2]
-        pr3.learning_in_public_links = ["https://example6.com"]
-        self.submit_peer_review(pr3, "2")
-
-        status, _ = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
-        self.submission.refresh_from_db()
-
-        self.assertTrue(self.submission.reviewed_enough_peers)
-
-        self.assertEqual(
-            self.submission.peer_review_score,
-            3 * self.project.points_for_peer_review,
-        )
-
-        self.assertEqual(
-            self.submission.peer_review_learning_in_public_score,
-            3 + 2 + 1,
-        )
-
-    def test_project_faq_score_contributed(self):
-        self.submission.faq_contribution_url = "https://github.com/DataTalksClub/faq/pull/266"
-        self.submission.save()
-
-        status, _ = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
-        self.submission.refresh_from_db()
-        self.assertEqual(self.submission.project_faq_score, 1)
-
-    def test_project_faq_score_not_contributed(self):
-        self.submission.faq_contribution_url = ""
-        self.submission.save()
-
-        status, _ = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
-        self.submission.refresh_from_db()
-        self.assertEqual(self.submission.project_faq_score, 0)
-
-    def test_project_passed(self):
-        # 3 peers evaluated
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-
-        self.submit_peer_review(other_prs[0], "4")
-        self.submit_peer_review(other_prs[1], "3")
-        self.submit_peer_review(other_prs[2], "3")
-
-        # received good score
-        answers = ["4", "4", "1"]
-        scores = [3, 3, 0]
-        expected_project_score = 3
-
-        self.course.project_passing_score = 3
-        self.course.save()
-
-        answers_and_scores = list(zip(answers, scores))
-
-        # also does the scoring
-        self.assert_evaluation_score(
-            answers_and_scores, expected_project_score
-        )
-
-        self.submission.refresh_from_db()
-        self.assertTrue(self.submission.passed)
-
-        self.assertEqual(
-            self.submission.project_score, expected_project_score
-        )
-        self.assertEqual(
-            self.submission.peer_review_score,
-            3 * self.project.points_for_peer_review,
-        )
-        self.assertEqual(
-            self.submission.total_score,
-            expected_project_score
-            + 3 * self.project.points_for_peer_review,
-        )
-
-    @patch("courses.projects._sync_scored_project_submission_to_datamailer")
-    def test_project_scoring_syncs_datamailer_after_commit(self, sync):
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-        self.submit_peer_review(other_prs[0], "4")
-        self.submit_peer_review(other_prs[1], "3")
-        self.submit_peer_review(other_prs[2], "3")
-        answers_and_scores = [("4", 3), ("4", 3), ("3", 2)]
-
-        with self.captureOnCommitCallbacks(execute=True):
-            self.assert_evaluation_score(answers_and_scores, 3)
-
-        self.assertEqual(sync.call_count, 4)
-        synced_submission_ids = {call.args[0].pk for call in sync.call_args_list}
-        self.assertIn(self.submission.pk, synced_submission_ids)
-
-    def test_project_not_passed(self):
-        # 3 peers evaluated
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-
-        self.submit_peer_review(other_prs[0], "4")
-        self.submit_peer_review(other_prs[1], "3")
-        self.submit_peer_review(other_prs[2], "3")
-
-        # received one good score and two bad scores
-        answers = ["4", "1", "1"]
-        scores = [3, 0, 0]
-        expected_project_score = 0
-
-        self.course.project_passing_score = 3
-        self.course.save()
-
-        answers_and_scores = list(zip(answers, scores))
-
-        # also does the scoring
-        self.assert_evaluation_score(
-            answers_and_scores, expected_project_score
-        )
-
-        self.submission.refresh_from_db()
-        self.assertFalse(self.submission.passed)
-
-        self.assertEqual(
-            self.submission.project_score, expected_project_score
-        )
-        self.assertEqual(
-            self.submission.peer_review_score,
-            3 * self.project.points_for_peer_review,
-        )
-        self.assertEqual(
-            self.submission.total_score,
-            expected_project_score
-            + 3 * self.project.points_for_peer_review,
-        )
-
     def test_not_scoring_when_passing_score_is_0(self):
         self.course.project_passing_score = 0
         self.course.save()
 
         status, _ = score_project(self.project)
         self.assertEqual(status, ProjectActionStatus.FAIL)
-
-    def test_project_results_shows_review_option_vote_counts(self):
-        checkbox_criteria = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Project implementation",
-            options=[
-                {"criteria": "Data cleaning", "score": 1},
-                {"criteria": "Feature engineering", "score": 1},
-                {"criteria": "Model evaluation", "score": 1},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
-        )
-        answers = ["1,3", "2,3", "3"]
-
-        for peer_review, answer in zip(self.peer_reviews, answers):
-            CriteriaResponse.objects.create(
-                review=peer_review,
-                criteria=checkbox_criteria,
-                answer=answer,
-            )
-            peer_review.state = PeerReviewState.SUBMITTED.value
-            peer_review.save()
-
-        status, _ = score_project(self.project)
-        self.assertEqual(status, ProjectActionStatus.OK)
-
-        self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "project_results",
-                args=[self.course.slug, self.project.slug],
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        score = response.context["scores"][0]
-        option_votes = {
-            option["criteria"]: option["votes"]
-            for option in score.option_vote_counts
-        }
-        self.assertEqual(
-            option_votes,
-            {
-                "Data cleaning": 1,
-                "Feature engineering": 1,
-                "Model evaluation": 3,
-            },
-        )
-        self.assertContains(response, "Data cleaning")
-        self.assertContains(response, "Feature engineering")
-        self.assertContains(response, "Model evaluation")
-        self.assertContains(response, "3 votes")
-
-    def test_project_passed_with_optional(self):
-        # 3 mandatory peers evaluated
-        other_prs = self.create_reverse_assignments(self.peer_reviews)
-
-        self.submit_peer_review(other_prs[0], "4")
-        self.submit_peer_review(other_prs[1], "3")
-        self.submit_peer_review(other_prs[2], "3")
-
-        # two optional evaluations
-        optional_reviews = self.create_peer_reviews(2, optional=True)
-        optional_prs = self.create_reverse_assignments(optional_reviews, optional=True)
-
-        self.submit_peer_review(optional_prs[0], "4")
-        self.submit_peer_review(optional_prs[1], "3")
-
-        # received good score
-        answers = ["4", "4", "1"]
-        scores = [3, 3, 0]
-        expected_project_score = 3
-
-        self.course.project_passing_score = 3
-        self.course.save()
-
-        answers_and_scores = list(zip(answers, scores))
-
-        # also does the scoring
-        self.assert_evaluation_score(
-            answers_and_scores, expected_project_score
-        )
-
-        self.submission.refresh_from_db()
-        self.assertTrue(self.submission.passed)
-
-        # gets scores only for mandatory reviews
-        num_reviews = len(other_prs)
-
-        self.assertEqual(
-            self.submission.peer_review_score,
-            num_reviews * self.project.points_for_peer_review,
-        )
-        self.assertEqual(
-            self.submission.total_score,
-            expected_project_score
-            + num_reviews * self.project.points_for_peer_review,
-        )

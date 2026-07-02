@@ -10,50 +10,51 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
 
-from courses.models import (
-    Course,
-    ReviewCriteria,
-)
+from courses.models.course import Course
+from courses.models.project import ReviewCriteria
+
+
+def _review_criteria_export_data(criteria):
+    return {
+        'description': criteria.description,
+        'type': dict(criteria.REVIEW_CRITERIA_TYPES)[
+            criteria.review_criteria_type
+        ],
+        'review_criteria_type': criteria.review_criteria_type,
+        'options': criteria.options
+    }
+
+
+def _course_criteria_export_data(course):
+    review_criteria = []
+    criteria_records = ReviewCriteria.objects.filter(course=course).order_by("id")
+    for criteria in criteria_records:
+        criteria_record = _review_criteria_export_data(criteria)
+        review_criteria.append(criteria_record)
+
+    return {
+        "course": {
+            "slug": course.slug,
+            "title": course.title,
+            "description": course.description,
+        },
+        "review_criteria": review_criteria,
+    }
 
 
 @require_GET
 def course_criteria_yaml_view(request, course_slug: str):
-    """Return project criteria for a course in YAML format (public endpoint, no auth required)."""
+    """Return project criteria for a course in YAML format."""
     course = get_object_or_404(Course, slug=course_slug)
-
-    # Get all review criteria for the course
-    review_criteria = ReviewCriteria.objects.filter(
-        course=course
-    ).order_by('id')
-
-    # Convert criteria to a structured format for YAML export
-    criteria_data = {
-        'course': {
-            'slug': course.slug,
-            'title': course.title,
-            'description': course.description,
-        },
-        'review_criteria': []
-    }
-
-    for criteria in review_criteria:
-        criteria_dict = {
-            'description': criteria.description,
-            'type': dict(criteria.REVIEW_CRITERIA_TYPES)[criteria.review_criteria_type],
-            'review_criteria_type': criteria.review_criteria_type,
-            'options': criteria.options
-        }
-        criteria_data['review_criteria'].append(criteria_dict)
-
-    # Convert to YAML
-    yaml_content = yaml.dump(
-        criteria_data,
+    export_data = _course_criteria_export_data(course)
+    criteria_yaml = yaml.safe_dump(
+        export_data,
         default_flow_style=False,
         allow_unicode=True,
-        sort_keys=False
+        sort_keys=False,
     )
-
-    # Return as HTTP response with content type that displays in browser
-    response = HttpResponse(yaml_content, content_type='text/plain; charset=utf-8')
-
+    response = HttpResponse(
+        criteria_yaml,
+        content_type="text/plain; charset=utf-8",
+    )
     return response

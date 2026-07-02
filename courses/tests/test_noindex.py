@@ -20,28 +20,24 @@ logger = logging.getLogger(__name__)
 class NoIndexMetaTagTestCase(TestCase):
     """Test that noindex meta tag is present on thin pages."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.client = Client()
-        
-        # Create a course
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test course description",
         )
-        
-        # Create a homework
-        self.homework = Homework.objects.create(
+
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             slug="test-homework",
             title="Test Homework",
             due_date=timezone.now() - timedelta(days=1),
-            state="SC",  # SCORED state
+            state="SC",
         )
-        
-        # Create a project
-        self.project = Project.objects.create(
+
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -49,28 +45,37 @@ class NoIndexMetaTagTestCase(TestCase):
             peer_review_due_date=timezone.now() + timedelta(days=14),
             state=ProjectState.COMPLETED.value,
         )
-        
-        # Create a user and enrollment
+
+    def create_user_and_enrollment(self):
         self.credentials = {
             "username": "test@test.com",
             "email": "test@test.com",
-            "password": "testpass123"
+            "password": "testpass123",
         }
         self.user = User.objects.create_user(**self.credentials)
-        self.enrollment = Enrollment.objects.create(
+        return Enrollment.objects.create(
             student=self.user,
             course=self.course,
-            display_name="Test User"
+            display_name="Test User",
         )
-        
-        # Create a project submission
-        self.project_submission = ProjectSubmission.objects.create(
+
+    def create_project_submission(self):
+        return ProjectSubmission.objects.create(
             project=self.project,
             student=self.user,
             enrollment=self.enrollment,
             github_link="https://github.com/test/test",
             commit_id="abc123",
         )
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.client = Client()
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.project = self.create_project()
+        self.enrollment = self.create_user_and_enrollment()
+        self.project_submission = self.create_project_submission()
 
     def test_leaderboard_score_breakdown_has_noindex(self):
         """Test that leaderboard score breakdown page has noindex meta tag."""

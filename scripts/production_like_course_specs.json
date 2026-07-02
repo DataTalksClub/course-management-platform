@@ -1,0 +1,558 @@
+[
+  {
+    "slug": "de-zoomcamp-2026",
+    "title": "Data Engineering Zoomcamp 2026",
+    "finished": false,
+    "homeworks": [
+      [
+        "Homework 1: Docker, SQL and Terraform",
+        "2026-01-26T23:59:59+00:00"
+      ],
+      [
+        "Homework 2: Workflow Orchestration",
+        "2026-02-02T23:59:59+00:00"
+      ],
+      [
+        "Homework 3: Data Warehousing",
+        "2026-02-09T23:59:59+00:00"
+      ],
+      [
+        "Homework 4: Analytics Engineering",
+        "2026-02-16T23:59:59+00:00"
+      ],
+      [
+        "Homework 5: Data Platforms",
+        "2026-02-28T23:59:59+00:00"
+      ],
+      [
+        "Workshop 1: Ingestion with dlt",
+        "2026-03-02T23:59:59+00:00"
+      ],
+      [
+        "Homework 6: Batch",
+        "2026-03-09T23:59:59+00:00"
+      ],
+      [
+        "Homework 7: Streaming",
+        "2026-03-19T23:59:59+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project Attempt 1",
+        "2026-04-08T23:59:59+00:00"
+      ],
+      [
+        "Project Attempt 2",
+        "2026-04-27T23:59:59+00:00"
+      ],
+      [
+        "Last Project Attempt",
+        "2026-05-04T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "ai-dev-tools-2025",
+    "title": "AI Dev Tools Zoomcamp 2025",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Introduction",
+        "2025-11-27T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: End-To-End Project",
+        "2025-12-08T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: MCP",
+        "2026-01-05T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project Attempt 1",
+        "2026-01-28T23:00:00+00:00"
+      ],
+      [
+        "Project Attempt 2",
+        "2026-02-02T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "ml-zoomcamp-2025",
+    "title": "Machine Learning Zoomcamp 2025",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Introduction to Machine Learning",
+        "2025-10-01T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Machine Learning for Regression",
+        "2025-10-08T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Machine Learning for Classification",
+        "2025-10-15T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Evaluation Metrics for Classification",
+        "2025-10-20T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Deploying Machine Learning Models",
+        "2025-10-30T23:00:00+00:00"
+      ],
+      [
+        "Homework 6: Decision Trees and Ensemble Learning",
+        "2025-11-08T23:00:00+00:00"
+      ],
+      [
+        "Homework 8: Neural Networks and Deep Learning",
+        "2025-12-01T23:00:00+00:00"
+      ],
+      [
+        "Homework 9: Serverless Deep Learning",
+        "2025-12-08T23:00:00+00:00"
+      ],
+      [
+        "Homework 10: Kubernetes",
+        "2025-12-15T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Midterm Project",
+        "2025-11-27T23:00:00+00:00"
+      ],
+      [
+        "Capstone 1",
+        "2026-01-12T23:00:00+00:00"
+      ],
+      [
+        "Capstone 2",
+        "2026-01-26T23:00:00+00:00"
+      ],
+      [
+        "Capstone 3",
+        "2026-02-09T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "llm-zoomcamp-2025",
+    "title": "LLM Zoomcamp 2025",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Introduction",
+        "2025-06-16T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Vector Search",
+        "2025-06-30T23:00:00+00:00"
+      ],
+      [
+        "dlt Workshop",
+        "2025-07-10T23:00:00+00:00"
+      ],
+      [
+        "Agents",
+        "2025-08-10T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Evaluation",
+        "2025-08-11T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project 1",
+        "2025-09-29T23:00:00+00:00"
+      ],
+      [
+        "Project 2",
+        "2025-10-20T23:00:00+00:00"
+      ],
+      [
+        "Project 3",
+        "2025-10-26T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "sma-zoomcamp-2025",
+    "title": "Stock Markets Analytics Zoomcamp 2025",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Intro and Data Sources",
+        "2025-06-04T22:59:59+00:00"
+      ],
+      [
+        "Homework 2: Working with Data in Pandas",
+        "2025-06-23T22:59:59+00:00"
+      ],
+      [
+        "Homework 3: Modeling for Financial Time Series",
+        "2025-07-14T23:59:59+00:00"
+      ],
+      [
+        "Homework 4: Trading Simulation",
+        "2025-08-04T22:59:59+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project Attempt 1",
+        "2025-09-03T23:59:59+00:00"
+      ],
+      [
+        "Project Attempt 2",
+        "2025-09-30T23:59:59+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "mlops-zoomcamp-2025",
+    "title": "MLOps Zoomcamp 2025",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Introduction",
+        "2025-05-19T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Experiment Tracking",
+        "2025-05-26T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Training Pipelines",
+        "2025-06-09T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Deployment",
+        "2025-06-16T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Monitoring",
+        "2025-06-23T23:00:00+00:00"
+      ],
+      [
+        "Homework 6: Best Practices",
+        "2025-06-30T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Attempt 1",
+        "2025-07-23T23:00:00+00:00"
+      ],
+      [
+        "Attempt 2",
+        "2025-08-11T23:00:00+00:00"
+      ],
+      [
+        "Attempt 3",
+        "2025-08-29T17:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "de-zoomcamp-2025",
+    "title": "Data Engineering Zoomcamp 2025",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Docker, SQL and Terraform",
+        "2025-01-27T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Workflow Orchestration",
+        "2025-02-05T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Data Warehousing",
+        "2025-02-12T23:00:00+00:00"
+      ],
+      [
+        "Workshop 1: Ingestion with dlt",
+        "2025-02-16T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Analytics Engineering",
+        "2025-02-26T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Batch",
+        "2025-03-06T23:00:00+00:00"
+      ],
+      [
+        "Homework 6: Streaming",
+        "2025-03-17T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project Attempt 1",
+        "2025-04-07T23:00:00+00:00"
+      ],
+      [
+        "Project Attempt 2",
+        "2025-04-28T23:00:00+00:00"
+      ],
+      [
+        "Project Attempt 3",
+        "2025-05-05T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "ml-zoomcamp-2024",
+    "title": "Machine Learning Zoomcamp 2024",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Introduction to Machine Learning",
+        "2024-09-30T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Machine Learning for Regression",
+        "2024-10-09T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Machine Learning for Classification",
+        "2024-10-16T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Evaluation Metrics for Classification",
+        "2024-10-21T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Deploying Machine Learning Models",
+        "2024-10-28T23:00:00+00:00"
+      ],
+      [
+        "Homework 6: Decision Trees and Ensemble Learning",
+        "2024-11-04T23:00:00+00:00"
+      ],
+      [
+        "Homework 8: Neural Networks and Deep Learning",
+        "2024-12-06T23:00:00+00:00"
+      ],
+      [
+        "Homework 9: Serverless Deep Learning",
+        "2024-12-11T23:00:00+00:00"
+      ],
+      [
+        "Homework 10: Kubernetes and TensorFlow Serving",
+        "2024-12-20T23:00:00+00:00"
+      ],
+      [
+        "ML Zoomcamp 2024 Competition",
+        "2025-02-10T23:00:00+00:00"
+      ],
+      [
+        "Article",
+        "2025-02-10T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Midterm Project",
+        "2024-12-06T23:00:00+00:00"
+      ],
+      [
+        "Capstone 1",
+        "2025-01-20T23:00:00+00:00"
+      ],
+      [
+        "Capstone 2",
+        "2025-02-10T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "llm-zoomcamp-2024",
+    "title": "LLM Zoomcamp 2024",
+    "finished": true,
+    "homeworks": [
+      [
+        "Saturn Cloud",
+        "2024-06-24T23:00:00+00:00"
+      ],
+      [
+        "Homework 1: Introduction",
+        "2024-07-01T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Open-Source LLMs",
+        "2024-07-08T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Vector Search",
+        "2024-07-18T23:00:00+00:00"
+      ],
+      [
+        "Workshop: Open-Source Data Ingestion for RAGs with dlt",
+        "2024-07-28T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Evaluation and monitoring",
+        "2024-08-05T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Ingestion pipeline",
+        "2024-08-19T23:00:00+00:00"
+      ],
+      [
+        "LLM Zoomcamp 2024 Competition",
+        "2024-10-14T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project attempt 1",
+        "2024-09-23T23:00:00+00:00"
+      ],
+      [
+        "Project attempt 2",
+        "2024-10-14T23:00:00+00:00"
+      ],
+      [
+        "Project attempt 3",
+        "2024-11-04T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "mlops-zoomcamp-2024",
+    "title": "MLOps Zoomcamp 2024",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Introduction",
+        "2024-05-23T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Experiment Tracking",
+        "2024-05-29T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Training Pipelines",
+        "2024-06-10T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Deployment",
+        "2024-06-17T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Monitoring",
+        "2024-06-27T23:00:00+00:00"
+      ],
+      [
+        "Homework 6: Best Practices",
+        "2024-07-08T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project attempt 1",
+        "2024-08-01T23:00:00+00:00"
+      ],
+      [
+        "Project attempt 2",
+        "2024-08-26T23:00:00+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "sma-zoomcamp-2024",
+    "title": "Stock Markets Analytics Zoomcamp 2024",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Intro and Data Sources",
+        "2024-04-24T23:59:59+00:00"
+      ],
+      [
+        "Homework 2: Working with Data in Pandas",
+        "2024-05-09T23:59:59+00:00"
+      ],
+      [
+        "Homework 3: Modeling for Financial Time Series",
+        "2024-05-26T23:59:59+00:00"
+      ],
+      [
+        "Homework 4: Trading Simulation",
+        "2024-06-16T23:59:59+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project Attempt 1",
+        "2024-07-22T23:59:59+00:00"
+      ],
+      [
+        "Project Attempt 2",
+        "2024-08-19T23:59:59+00:00"
+      ]
+    ]
+  },
+  {
+    "slug": "de-zoomcamp-2024",
+    "title": "Data Engineering Zoomcamp 2024",
+    "finished": true,
+    "homeworks": [
+      [
+        "Homework 1: Pre-Requisites (Docker, Terraform, SQL)",
+        "2024-01-31T23:00:00+00:00"
+      ],
+      [
+        "Homework 2: Mage",
+        "2024-02-08T23:00:00+00:00"
+      ],
+      [
+        "Homework 3: Data Warehouse",
+        "2024-02-14T23:00:00+00:00"
+      ],
+      [
+        "Homework 4: Analytics Engineering",
+        "2024-02-24T23:00:00+00:00"
+      ],
+      [
+        "Workshop 1: Data Ingestion",
+        "2024-02-26T23:00:00+00:00"
+      ],
+      [
+        "Homework 5: Batch processing",
+        "2024-03-06T23:00:00+00:00"
+      ],
+      [
+        "Workshop 2: Streaming with SQL",
+        "2024-03-18T23:00:00+00:00"
+      ],
+      [
+        "Homework 6: Streaming",
+        "2024-04-08T23:00:00+00:00"
+      ],
+      [
+        "Public Leaderboard",
+        "2024-05-07T23:00:00+00:00"
+      ]
+    ],
+    "projects": [
+      [
+        "Project Attempt 1",
+        "2024-04-08T23:00:00+00:00"
+      ],
+      [
+        "Project Attempt 2",
+        "2024-04-28T23:00:00+00:00"
+      ]
+    ]
+  }
+]

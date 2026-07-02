@@ -1,14 +1,28 @@
 from django.urls import path
 
 from .views import course
+from .views import course_calendar
+from .views import course_enrollment
+from .views import course_leaderboard
+from .views import course_list
+from .views import course_project_submissions
+from .views import dashboard
 from .views import homework
+from .views import homework_statistics
+from .views import homework_submissions
 from .views import project
+from .views import project_eval
+from .views import project_eval_actions
+from .views import project_eval_submit
+from .views import project_results
+from .views import project_statistics
+from .views import project_submissions
 from .views import registration
 from .views import wrapped
 
 
 urlpatterns = [
-    path("", course.course_list, name="course_list"),
+    path("", course_list.course_list, name="course_list"),
     path(
         "register/<slug:campaign_slug>/",
         registration.registration_campaign_view,
@@ -18,7 +32,7 @@ urlpatterns = [
     path("wrapped/<int:year>/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
     path(
         "<slug:course_slug>/calendar.ics",
-        course.course_calendar_view,
+        course_calendar.course_calendar_view,
         name="course_calendar",
     ),
     path(
@@ -28,37 +42,37 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/projects",
-        course.list_all_project_submissions_view,
+        course_project_submissions.list_all_project_submissions_view,
         name="list_all_project_submissions",
     ),
     path(
         "<slug:course_slug>/leaderboard",
-        course.leaderboard_view,
+        course_leaderboard.leaderboard_view,
         name="leaderboard",
     ),
     path(
         "<slug:course_slug>/leaderboard/<int:enrollment_id>/",
-        course.leaderboard_score_breakdown_view,
+        course_leaderboard.leaderboard_score_breakdown_view,
         name="leaderboard_score_breakdown",
     ),
     path(
         "<slug:course_slug>/leaderboard/<int:enrollment_id>/report",
-        course.leaderboard_complaint_view,
+        course_leaderboard.leaderboard_complaint_view,
         name="leaderboard_complaint",
     ),
     path(
         "<slug:course_slug>/enrollment/toggle",
-        course.update_enrollment_toggle,
+        course_enrollment.update_enrollment_toggle,
         name="update_enrollment_toggle",
     ),
     path(
         "<slug:course_slug>/enrollment",
-        course.enrollment_view,
+        course_enrollment.enrollment_view,
         name="enrollment",
     ),
     path(
         "<slug:course_slug>/dashboard",
-        course.dashboard_view,
+        dashboard.dashboard_view,
         name="dashboard",
     ),
 
@@ -70,42 +84,42 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/list",
-        project.projects_list_view,
+        project_submissions.projects_list_view,
         name="project_list",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval",
-        project.projects_eval_view,
+        project_eval.projects_eval_view,
         name="projects_eval",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/results",
-        project.project_results,
+        project_results.project_results,
         name="project_results",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/stats",
-        project.project_statistics,
+        project_statistics.project_statistics,
         name="project_statistics",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/submissions",
-        project.project_submissions,
+        project_submissions.project_submissions,
         name="project_submissions",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/<int:review_id>",
-        project.projects_eval_submit,
+        project_eval_submit.projects_eval_submit,
         name="projects_eval_submit",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/add/<int:submission_id>",
-        project.projects_eval_add,
+        project_eval_actions.projects_eval_add,
         name="projects_eval_add",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/eval/delete/<int:review_id>",
-        project.projects_eval_delete,
+        project_eval_actions.projects_eval_delete,
         name="projects_eval_delete",
     ),
 
@@ -117,12 +131,12 @@ urlpatterns = [
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/stats",
-        homework.homework_statistics,
+        homework_statistics.homework_statistics,
         name="homework_statistics",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/submissions",
-        homework.homework_submissions,
+        homework_submissions.homework_submissions,
         name="homework_submissions",
     ),
 ]

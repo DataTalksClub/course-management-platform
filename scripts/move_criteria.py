@@ -23,9 +23,13 @@ Usage:
 import os
 import sys
 import argparse
+from dataclasses import dataclass
+from pathlib import Path
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+project_root_path = str(project_root)
+sys.path.insert(0, project_root_path)
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
@@ -36,9 +40,152 @@ django.setup()
 from courses.models import Course, ReviewCriteria
 
 
+@dataclass(frozen=True)
+class CriteriaCopyData:
+    criteria: ReviewCriteria
+    dest_course: Course
+    existing_keys: set[tuple[str, str]]
+    dry_run: bool
+    delete_from_source: bool
+    to_delete: list[ReviewCriteria]
+
+
+@dataclass(frozen=True)
+class CriteriaCopyBatchData:
+    source_criteria: list[ReviewCriteria]
+    dest_course: Course
+    existing_keys: set[tuple[str, str]]
+    dry_run: bool
+    delete_from_source: bool
+    to_delete: list[ReviewCriteria]
+
+
+@dataclass(frozen=True)
+class MigrationSummaryData:
+    created: list[ReviewCriteria]
+    deleted: list[ReviewCriteria]
+    dest_course: Course
+    dry_run: bool
+    delete_in_source: bool
+
+
 def list_criteria(course: Course) -> list[ReviewCriteria]:
     """List all criteria for a course."""
-    return list(course.reviewcriteria_set.all().order_by('id'))
+    ordered_criteria = course.reviewcriteria_set.all().order_by("id")
+    return list(ordered_criteria)
+
+
+def criteria_key(criteria: ReviewCriteria) -> tuple[str, str]:
+    return criteria.description, criteria.review_criteria_type
+
+
+def existing_criteria_keys(
+    criteria_list: list[ReviewCriteria],
+) -> set[tuple[str, str]]:
+    keys = set()
+    for criteria in criteria_list:
+        key = criteria_key(criteria)
+        keys.add(key)
+    return keys
+
+
+def copied_criteria_for_dry_run(
+    criteria: ReviewCriteria,
+    delete_from_source: bool,
+    to_delete: list[ReviewCriteria],
+) -> ReviewCriteria:
+    print(f"  + Would create: {criteria.description}")
+    if delete_from_source:
+        to_delete.append(criteria)
+    return criteria
+
+
+def create_copied_criteria(
+    criteria: ReviewCriteria,
+    dest_course: Course,
+    delete_from_source: bool,
+    to_delete: list[ReviewCriteria],
+) -> ReviewCriteria:
+    new_criteria = ReviewCriteria.objects.create(
+        course=dest_course,
+        description=criteria.description,
+        options=criteria.options,
+        review_criteria_type=criteria.review_criteria_type,
+    )
+    print(f"  ✓ Created: {new_criteria.description}")
+    if delete_from_source:
+        to_delete.append(criteria)
+    return new_criteria
+
+
+def copy_single_criteria(data: CriteriaCopyData) -> ReviewCriteria | None:
+    if criteria_key(data.criteria) in data.existing_keys:
+        print(f"  ⊘ Skipping existing: {data.criteria.description}")
+        return None
+
+    if data.dry_run:
+        return copied_criteria_for_dry_run(
+            data.criteria,
+            data.delete_from_source,
+            data.to_delete,
+        )
+
+    return create_copied_criteria(
+        data.criteria,
+        data.dest_course,
+        data.delete_from_source,
+        data.to_delete,
+    )
+
+
+def delete_source_criteria(
+    criteria_list: list[ReviewCriteria],
+    dry_run: bool,
+) -> None:
+    if dry_run or not criteria_list:
+        return
+
+    print()
+    for criteria in criteria_list:
+        print(f"  ✗ Deleting from source: {criteria.description}")
+        criteria.delete()
+
+
+def copy_source_criteria(data: CriteriaCopyBatchData) -> list[ReviewCriteria]:
+    created = []
+    for criteria in data.source_criteria:
+        copy_data = CriteriaCopyData(
+            criteria=criteria,
+            dest_course=data.dest_course,
+            existing_keys=data.existing_keys,
+            dry_run=data.dry_run,
+            delete_from_source=data.delete_from_source,
+            to_delete=data.to_delete,
+        )
+        copied = copy_single_criteria(copy_data)
+        if copied is not None:
+            created.append(copied)
+    return created
+
+
+def build_criteria_copy_batch(
+    source_course: Course,
+    dest_course: Course,
+    dry_run: bool,
+    delete_from_source: bool,
+) -> CriteriaCopyBatchData:
+    source_criteria = list_criteria(source_course)
+    dest_existing = list_criteria(dest_course)
+    existing_keys = existing_criteria_keys(dest_existing)
+    to_delete = []
+    return CriteriaCopyBatchData(
+        source_criteria=source_criteria,
+        dest_course=dest_course,
+        existing_keys=existing_keys,
+        dry_run=dry_run,
+        delete_from_source=delete_from_source,
+        to_delete=to_delete,
+    )
 
 
 def copy_criteria(
@@ -54,51 +201,21 @@ def copy_criteria(
 
     Returns a tuple of (created_criteria, deleted_criteria).
     """
-    source_criteria = list_criteria(source_course)
-    dest_existing = list_criteria(dest_course)
+    batch_data = build_criteria_copy_batch(
+        source_course=source_course,
+        dest_course=dest_course,
+        dry_run=dry_run,
+        delete_from_source=delete_from_source,
+    )
+    created = copy_source_criteria(batch_data)
 
-    # Build set of existing (description, type) tuples for quick lookup
-    existing_keys = {
-        (c.description, c.review_criteria_type)
-        for c in dest_existing
-    }
+    if delete_from_source:
+        delete_source_criteria(batch_data.to_delete, dry_run)
 
-    created = []
-    to_delete = []
-
-    for criteria in source_criteria:
-        key = (criteria.description, criteria.review_criteria_type)
-        if key in existing_keys:
-            print(f"  ⊘ Skipping existing: {criteria.description}")
-            continue
-
-        if dry_run:
-            print(f"  + Would create: {criteria.description}")
-            created.append(criteria)
-            if delete_from_source:
-                to_delete.append(criteria)
-        else:
-            new_criteria = ReviewCriteria.objects.create(
-                course=dest_course,
-                description=criteria.description,
-                options=criteria.options,
-                review_criteria_type=criteria.review_criteria_type,
-            )
-            print(f"  ✓ Created: {new_criteria.description}")
-            created.append(new_criteria)
-            if delete_from_source:
-                to_delete.append(criteria)
-
-    if delete_from_source and to_delete and not dry_run:
-        print()
-        for criteria in to_delete:
-            print(f"  ✗ Deleting from source: {criteria.description}")
-            criteria.delete()
-
-    return created, to_delete
+    return created, batch_data.to_delete
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(
         description="Move/copy review criteria from one course to another"
     )
@@ -122,23 +239,22 @@ def main():
         action="store_true",
         help="Delete criteria from source course after copying"
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
 
-    # Get source course
+def get_course(slug: str, label: str) -> Course:
     try:
-        source_course = Course.objects.get(slug=args.source_course)
+        return Course.objects.get(slug=slug)
     except Course.DoesNotExist:
-        print(f"Error: Source course '{args.source_course}' not found")
+        print(f"Error: {label} course '{slug}' not found")
         sys.exit(1)
 
-    # Get destination course
-    try:
-        dest_course = Course.objects.get(slug=args.dest_course)
-    except Course.DoesNotExist:
-        print(f"Error: Destination course '{args.dest_course}' not found")
-        sys.exit(1)
 
+def print_migration_header(
+    source_course: Course,
+    dest_course: Course,
+    dry_run: bool,
+) -> None:
     print("=" * 60)
     print("Criteria Migration")
     print("=" * 60)
@@ -153,9 +269,33 @@ def main():
     print(f"Destination criteria count: {len(dest_criteria)}")
     print()
 
-    if args.dry_run:
+    if dry_run:
         print("DRY RUN - No changes will be made")
         print()
+
+
+def print_migration_summary(data: MigrationSummaryData) -> None:
+    print("-" * 60)
+    if data.dry_run:
+        print(f"Would create {len(data.created)} criteria")
+        if data.delete_in_source:
+            print(f"Would delete {len(data.deleted)} criteria from source")
+    else:
+        print(f"Created {len(data.created)} criteria")
+        if data.delete_in_source:
+            print(f"Deleted {len(data.deleted)} criteria from source")
+
+    if not data.dry_run:
+        dest_criteria_after = list_criteria(data.dest_course)
+        print(f"Destination course now has {len(dest_criteria_after)} criteria")
+
+
+def main():
+    args = parse_args()
+    source_course = get_course(args.source_course, "Source")
+    dest_course = get_course(args.dest_course, "Destination")
+
+    print_migration_header(source_course, dest_course, args.dry_run)
 
     print("Migrating criteria:")
     print("-" * 60)
@@ -167,20 +307,14 @@ def main():
         delete_from_source=args.delete_in_source
     )
 
-    print("-" * 60)
-    if args.dry_run:
-        print(f"Would create {len(created)} criteria")
-        if args.delete_in_source:
-            print(f"Would delete {len(deleted)} criteria from source")
-    else:
-        print(f"Created {len(created)} criteria")
-        if args.delete_in_source:
-            print(f"Deleted {len(deleted)} criteria from source")
-
-    # Show updated destination criteria
-    if not args.dry_run:
-        dest_criteria_after = list_criteria(dest_course)
-        print(f"Destination course now has {len(dest_criteria_after)} criteria")
+    summary_data = MigrationSummaryData(
+        created=created,
+        deleted=deleted,
+        dest_course=dest_course,
+        dry_run=args.dry_run,
+        delete_in_source=args.delete_in_source,
+    )
+    print_migration_summary(summary_data)
 
 
 if __name__ == "__main__":

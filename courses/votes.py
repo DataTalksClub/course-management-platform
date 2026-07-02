@@ -1,6 +1,6 @@
 from django.db.models import Count
 
-from courses.models import ProjectVote
+from courses.models.project import ProjectVote
 
 
 PROJECT_VOTES_PER_PROJECT = 3
@@ -37,24 +37,30 @@ def get_voted_submission_ids(user, course) -> set[int]:
     if not user.is_authenticated:
         return set()
 
-    return set(
-        ProjectVote.objects.filter(
-            voter=user,
-            submission__project__course=course,
-        ).values_list("submission_id", flat=True)
+    votes = ProjectVote.objects.filter(
+        voter=user,
+        submission__project__course=course,
     )
+    submission_ids = votes.values_list("submission_id", flat=True)
+    return set(submission_ids)
 
 
 def get_project_vote_counts(user, course) -> dict[int, int]:
     if not user.is_authenticated:
         return {}
 
-    return {
-        row["submission__project_id"]: row["count"]
-        for row in ProjectVote.objects.filter(
+    project_vote_counts = {}
+    vote_count_annotation = Count("id")
+    rows = (
+        ProjectVote.objects.filter(
             voter=user,
             submission__project__course=course,
         )
         .values("submission__project_id")
-        .annotate(count=Count("id"))
-    }
+        .annotate(count=vote_count_annotation)
+    )
+    for row in rows:
+        project_id = row["submission__project_id"]
+        vote_count = row["count"]
+        project_vote_counts[project_id] = vote_count
+    return project_vote_counts

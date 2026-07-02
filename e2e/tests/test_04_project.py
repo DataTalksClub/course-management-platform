@@ -12,11 +12,10 @@ student smoke run exercises the assign/score endpoints and asserts they
 succeed and return sane counts, rather than requiring assigned reviews.
 """
 
-from __future__ import annotations
-
 import pytest
 
-from e2e.mock_inbox import InboxDisabled
+from e2e.browser import ProjectSubmissionData
+from e2e.mock_inbox import InboxDisabled, MessageMatchCriteria, MessageWaitRequest
 
 pytestmark = pytest.mark.project
 
@@ -25,9 +24,9 @@ def test_submit_project_via_ui(admin_session, run_state):
     assert run_state.student_user_id, "Student/impersonation required first."
     assert run_state.course and run_state.course.project_slug
 
-    admin_session.submit_project(
-        run_state.course.slug,
-        run_state.course.project_slug,
+    submission_data = ProjectSubmissionData(
+        course_slug=run_state.course.slug,
+        project_slug=run_state.course.project_slug,
         github_link="https://github.com/DataTalksClub/course-management-platform",
         commit_id="4ce0ca4",
         certificate_name="E2E Smoke Student",
@@ -36,6 +35,7 @@ def test_submit_project_via_ui(admin_session, run_state):
             f"https://twitter.com/e2e/{run_state.namespace}-proj"
         ],
     )
+    admin_session.submit_project(submission_data)
     run_state.project_submitted = True
 
     body = admin_session.page.locator("body").inner_text()
@@ -50,9 +50,16 @@ def test_project_submission_recorded_in_api(api, run_state):
         run_state.course.slug, run_state.course.project_slug
     )
     submissions = data.get("submissions", [])
-    assert any(
-        run_state.student_email in str(s) for s in submissions
-    ), f"No project submission for {run_state.student_email}: {submissions!r}"
+    assert _has_project_submission(submissions, run_state.student_email), (
+        f"No project submission for {run_state.student_email}: {submissions!r}"
+    )
+
+
+def _has_project_submission(submissions, student_email):
+    for submission in submissions:
+        if student_email in str(submission):
+            return True
+    return False
 
 
 # Confirmation-email contract (from courses/views/project.py, read-only):
@@ -60,6 +67,31 @@ def test_project_submission_recorded_in_api(api, run_state):
 #   subject      = "Project submission saved: <project title>"
 #   context      = {update_url, profile_url, course_slug, project_slug, ...}
 PROJECT_CONFIRMATION_TEMPLATE = "project-submission-confirmation"
+
+
+def _assert_project_confirmation(backend, run_state):
+    # The real SES-inbound backend has no template_key (parsed from raw MIME);
+    # match on subject + body. Only the mock store carries a template_key.
+    expected_template = (
+        PROJECT_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
+    )
+    criteria = MessageMatchCriteria(
+        template_key=expected_template,
+        subject="Project submission saved",
+    )
+    request = MessageWaitRequest(
+        address=run_state.student_email,
+        criteria=criteria,
+        timeout=120,
+    )
+    message = backend.wait_for_message(request)
+    assert "E2E Project 1" in message.subject
+    if expected_template:
+        assert message.template_key == expected_template
+    assert message.body_contains("/project/"), (
+        "Project confirmation email missing update link "
+        f"(subject={message.subject!r})."
+    )
 
 
 @pytest.mark.email
@@ -82,25 +114,8 @@ def test_project_confirmation_email(email_backend, run_state):
             "Real inbox disabled on this deployment (REAL_INBOX_ENABLED off); "
             "enable REAL_INBOX_* on the Datamailer deployment to verify receipt."
         )
-    # The real SES-inbound backend has no template_key (parsed from raw MIME);
-    # match on subject + body. Only the mock store carries a template_key.
-    expected_template = (
-        PROJECT_CONFIRMATION_TEMPLATE if email_backend.name == "mock" else None
-    )
     try:
-        message = email_backend.wait_for_message(
-            run_state.student_email,
-            template_key=expected_template,
-            subject="Project submission saved",
-            timeout=120,
-        )
-        assert "E2E Project 1" in message.subject
-        if expected_template:
-            assert message.template_key == expected_template
-        assert message.body_contains("/project/"), (
-            "Project confirmation email missing update link "
-            f"(subject={message.subject!r})."
-        )
+        _assert_project_confirmation(email_backend, run_state)
     finally:
         email_backend.clear(run_state.student_email)
 
@@ -135,10 +150,16 @@ def test_score_project(api, run_state):
     assert submissions, "No project submissions to score."
     sample = str(submissions[0]).lower()
     # The export documents project/faq/learning-in-public/peer-review scores.
-    assert any(
-        token in sample
-        for token in ("score", "peer", "passed")
-    ), f"Score components not present in submission export: {submissions[0]!r}"
+    assert _sample_has_score_components(sample), (
+        f"Score components not present in submission export: {submissions[0]!r}"
+    )
+
+
+def _sample_has_score_components(sample):
+    for token in ("score", "peer", "passed"):
+        if token in sample:
+            return True
+    return False
 
 
 def test_leaderboard_and_project_stats_update(api, run_state):

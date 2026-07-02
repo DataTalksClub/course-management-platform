@@ -1,68 +1,16 @@
-import logging
-
-from unittest import mock
-from django.urls import reverse
-from django.test import TestCase, Client, override_settings
-from django.utils import timezone
-from datetime import timedelta
-
 from courses.models import (
-    User,
-    Course,
-    Project,
     ProjectSubmission,
     ProjectState,
-    Enrollment,
+)
+from courses.tests.project_view_base import (
+    ProjectViewTestBase,
 )
 
-
-logger = logging.getLogger(__name__)
-
-
-def fetch_fresh(obj):
-    return obj.__class__.objects.get(pk=obj.id)
-
-
-credentials = dict(
-    username="test@test.com",
-    email="test@test.com",
-    password="12345",
-)
-
-
-class ProjectViewTestCase(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-        self.user = User.objects.create_user(**credentials)
-
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
-
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=timezone.now() - timedelta(hours=1),
-            peer_review_due_date=timezone.now() + timedelta(hours=1),
-        )
+class ProjectViewTestCase(ProjectViewTestBase):
 
     def test_project_detail_unauthenticated_no_submission(self):
-        """
-        Test the project details view for unauthenticated users with no submissions.
-        """
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        project_url = self.project_url()
+        response = self.client.get(project_url)
         self.assertEqual(response.status_code, 200)
 
         context = response.context
@@ -83,10 +31,8 @@ class ProjectViewTestCase(TestCase):
         )
         self.project.save()
 
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        project_url = self.project_url()
+        response = self.client.get(project_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Instructions")
@@ -97,31 +43,11 @@ class ProjectViewTestCase(TestCase):
         self.project.instructions_url = ""
         self.project.save()
 
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        project_url = self.project_url()
+        response = self.client.get(project_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Instructions")
-
-    # def test_project_detail_authenticated_with_submission(self):
-    #     self.client.login(
-    #         username=credentials["username"],
-    #         password=credentials["password"],
-    #     )
-    #     url = reverse(
-    #         "project", args=[self.course.slug, self.project.slug]
-    #     )
-    #     response = self.client.get(url)
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertIn("submission", response.context)
-
-    #     context = response.context
-    #     submission = context["submission"]
-
-    #     self.assertIsNotNone(submission)
-    # More assertions here for the submission details...
 
     def test_project_detail_authenticated_certificate_name_is_used(
         self,
@@ -131,34 +57,20 @@ class ProjectViewTestCase(TestCase):
         self.user.certificate_name = "Certificate Name"
         self.user.save()
 
-        self.client.login(
-            username=credentials["username"],
-            password=credentials["password"],
-        )
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        response = self.authenticated_project_response()
         self.assertEqual(response.status_code, 200)
 
         context = response.context
-        ceritificate_name = context["ceritificate_name"]
+        certificate_name = context["certificate_name"]
 
-        self.assertEqual(ceritificate_name, "Certificate Name")
+        self.assertEqual(certificate_name, "Certificate Name")
 
     def test_project_detail_authenticated_without_submission(self):
         self.project.learning_in_public_cap_project = 7
         self.project.faq_contribution_field = True
         self.project.save()
 
-        self.client.login(
-            username=credentials["username"],
-            password=credentials["password"],
-        )
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        response = self.authenticated_project_response()
         self.assertEqual(response.status_code, 200)
 
         context = response.context
@@ -177,14 +89,7 @@ class ProjectViewTestCase(TestCase):
             response,
             "https://datatalks.club/docs/courses/faq/",
         )
-        self.assertContains(
-            response,
-            (
-                "You can save your project now and keep working on it. "
-                "Update the commit ID before the deadline when you have "
-                "a newer version."
-            ),
-        )
+        self.assert_save_submission_copy(response)
 
     def test_project_detail_authenticated_with_submission_copy(self):
         ProjectSubmission.objects.create(
@@ -195,33 +100,18 @@ class ProjectViewTestCase(TestCase):
             commit_id="abc1234",
         )
 
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        response = self.authenticated_project_response()
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Last saved at:")
         self.assertContains(response, "Update submission")
-        self.assertContains(
-            response,
-            (
-                "You can save your project now and keep working on it. "
-                "Update the commit ID before the deadline when you have "
-                "a newer version."
-            ),
-        )
+        self.assert_save_submission_copy(response)
 
     def test_project_detail_when_peer_reviewing(self):
         self.project.state = ProjectState.PEER_REVIEWING.value
         self.project.save()
 
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        response = self.authenticated_project_response()
         self.assertEqual(response.status_code, 200)
 
         context = response.context
@@ -230,17 +120,10 @@ class ProjectViewTestCase(TestCase):
         self.assertTrue(context["disabled"])
 
     def test_project_detail_with_scored_project(self):
-        """
-        Test the project details view with a project that has been scored.
-        """
         self.project.state = ProjectState.COMPLETED.value
         self.project.save()
 
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        response = self.client.get(url)
+        response = self.authenticated_project_response()
         self.assertEqual(response.status_code, 200)
         self.assertIn("project", response.context)
         # Check if the context has 'disabled' as True
@@ -255,557 +138,3 @@ class ProjectViewTestCase(TestCase):
             "Submission details",
             status_code=200,
         )
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_post_no_submissions(
-        self, mock_get, mock_head
-    ):
-        """
-        Test posting a project submission when there are no existing submissions.
-        """
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://httpbin.org/status/200",
-            "commit_id": "1234567",
-            "time_spent": "2",
-            "problems_comments": "Encountered an issue with...",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
-        }
-        response = self.client.post(url, data)
-
-        self.assertEqual(response.status_code, 302)
-
-        submissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-
-        self.assertEqual(submissions.count(), 1)
-
-        submission = submissions.first()
-
-        self.assertEqual(submission.github_link, data["github_link"])
-        self.assertEqual(submission.commit_id, data["commit_id"])
-        self.assertEqual(submission.time_spent, int(data["time_spent"]))
-        self.assertEqual(
-            submission.problems_comments, data["problems_comments"]
-        )
-        self.assertEqual(
-            submission.faq_contribution_url,
-            data["faq_contribution_url"],
-        )
-
-    @override_settings(PUBLIC_BASE_URL="")
-    @mock.patch("courses.views.project.send_transactional_email")
-    @mock.patch(
-        "courses.views.project.sync_project_submission_to_datamailer"
-    )
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_sends_confirmation_email(
-        self, mock_get, mock_head, sync_submission, send_email
-    ):
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/test/project",
-            "commit_id": "1234567",
-            "learning_in_public_links[]": [
-                "https://example.com/project-notes"
-            ],
-            "time_spent": "2",
-            "problems_comments": "No blockers.",
-            "faq_contribution_url": (
-                "https://github.com/DataTalksClub/faq/pull/266"
-            ),
-        }
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                url, data, HTTP_HOST="localhost"
-            )
-
-        self.assertEqual(response.status_code, 302)
-        submission = ProjectSubmission.objects.get(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-        sync_submission.assert_called_once_with(submission)
-        send_email.assert_called_once()
-        payload = send_email.call_args.args[0]
-        self.assertEqual(payload["email"], "test@test.com")
-        self.assertEqual(
-            payload["template_key"],
-            "project-submission-confirmation",
-        )
-        self.assertEqual(payload["category_tag"], "submission-results")
-        self.assertEqual(
-            payload["idempotency_key"],
-            (
-                f"project-submission:{submission.id}:"
-                f"{submission.submitted_at.isoformat()}"
-            ),
-        )
-        self.assertEqual(
-            payload["context"]["submission_id"],
-            submission.id,
-        )
-        self.assertEqual(
-            payload["context"]["course_slug"], "test-course"
-        )
-        self.assertEqual(
-            payload["context"]["project_slug"],
-            "test-project",
-        )
-        self.assertEqual(
-            payload["context"]["update_url"],
-            "http://localhost/test-course/project/test-project",
-        )
-        self.assertEqual(
-            payload["context"]["profile_url"],
-            "http://localhost/accounts/settings/",
-        )
-        self.assertEqual(
-            payload["context"]["notification_category"],
-            "homework and project submissions",
-        )
-        self.assertIn(
-            "homework and project submission emails",
-            payload["context"]["notification_footer_text"],
-        )
-        self.assertEqual(
-            payload["context"]["intro_text"],
-            (
-                "Your project submission for Test Project in "
-                "Test Course was saved."
-            ),
-        )
-        self.assertEqual(
-            payload["context"]["submission_fields"],
-            [
-                {
-                    "key": "github_link",
-                    "label": "GitHub repository",
-                    "value": "https://github.com/test/project",
-                },
-                {
-                    "key": "commit_id",
-                    "label": "Commit ID",
-                    "value": "1234567",
-                },
-                {
-                    "key": "learning_in_public_links",
-                    "label": "Learning in public links",
-                    "value": "https://example.com/project-notes",
-                    "values": ["https://example.com/project-notes"],
-                },
-                {
-                    "key": "time_spent",
-                    "label": "Time spent on project",
-                    "value": "2 hours",
-                },
-                {
-                    "key": "problems_comments",
-                    "label": "Problems, comments, or feedback",
-                    "value": "No blockers.",
-                },
-                {
-                    "key": "faq_contribution_url",
-                    "label": "FAQ contribution URL",
-                    "value": (
-                        "https://github.com/DataTalksClub/faq/pull/266"
-                    ),
-                },
-            ],
-        )
-        self.assertIn(
-            "GitHub repository: https://github.com/test/project",
-            payload["context"]["submission_summary_text"],
-        )
-        self.assertEqual(
-            payload["metadata"]["event"],
-            "project_submission",
-        )
-
-    @mock.patch("courses.views.project.send_transactional_email")
-    @mock.patch(
-        "courses.views.project.sync_project_submission_to_datamailer"
-    )
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_uses_datamailer_without_local_preference(
-        self, mock_get, mock_head, sync_submission, send_email
-    ):
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                url,
-                {
-                    "github_link": "https://github.com/test/project",
-                    "commit_id": "1234567",
-                },
-                HTTP_HOST="localhost",
-            )
-
-        self.assertEqual(response.status_code, 302)
-        submission = ProjectSubmission.objects.get(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-        sync_submission.assert_called_once_with(submission)
-        send_email.assert_called_once()
-        payload = send_email.call_args.args[0]
-        self.assertEqual(payload["email"], "test@test.com")
-        self.assertEqual(payload["category_tag"], "submission-results")
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_post_creates_enrollment(
-        self, mock_get, mock_head
-    ):
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.enrollment.delete()
-
-        enrollments = Enrollment.objects.filter(
-            student=self.user,
-            course=self.course,
-        )
-
-        self.assertEqual(enrollments.count(), 0)
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/existing/repo",
-            "commit_id": "1234567",
-            "time_spent": "2",
-            "problems_comments": "Encountered an issue with...",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
-        }
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 302)
-
-        self.assertEqual(enrollments.count(), 1)
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_post_with_submissions(
-        self, mock_get, mock_head
-    ):
-        """
-        Test posting a project submission when there are existing submissions.
-        """
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-
-        # Create an initial submission
-        submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/existing/repo",
-            commit_id="123456a",
-        )
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/existing/repo",
-            "commit_id": "123456e",
-            "time_spent": "3",
-            "problems_comments": "No issues encountered.",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/issues/266",
-        }
-
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 302)
-
-        # no duplicate submissions
-        count_sumissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        ).count()
-
-        self.assertEqual(count_sumissions, 1)
-
-        submission = fetch_fresh(submission)
-        self.assertEqual(submission.github_link, data["github_link"])
-        self.assertEqual(submission.commit_id, data["commit_id"])
-        self.assertEqual(submission.time_spent, int(data["time_spent"]))
-        self.assertEqual(
-            submission.problems_comments, data["problems_comments"]
-        )
-        self.assertEqual(
-            submission.faq_contribution_url,
-            data["faq_contribution_url"],
-        )
-
-    def test_remove_project_submission(self):
-        self.client.login(**credentials)
-
-        # Create an initial submission
-        ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/existing/repo",
-            commit_id="123456a",
-        )
-
-        count_sumissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        ).count()
-
-        self.assertEqual(count_sumissions, 1)
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/existing/repo",
-            "commit_id": "123456e",
-            "time_spent": "3",
-            "problems_comments": "No issues encountered.",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/issues/266",
-            "action": "delete",
-        }
-
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 302)
-
-        count_sumissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        ).count()
-
-        self.assertEqual(count_sumissions, 0)
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_with_certificate_name(
-        self, mock_get, mock_head
-    ):
-        """
-        Test that submitting a project with certificate name saves it to the user.
-        """
-        mock_response = mock.Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-
-        self.user.certificate_name = None
-        self.user.save()
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/test/repo",
-            "commit_id": "abcd123",
-            "certificate_name": "John Doe",
-        }
-        response = self.client.post(url, data)
-
-        self.assertEqual(response.status_code, 302)
-
-        self.user.refresh_from_db()
-
-        self.assertEqual(self.user.certificate_name, "John Doe")
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_existing_submission_post_with_invalid_link_preserves_form_values(
-        self, mock_get, mock_head
-    ):
-        mock_response = mock.Mock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.project.learning_in_public_cap_project = 7
-        self.project.save()
-
-        self.client.login(**credentials)
-
-        db_submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/alexeygrigorev/llm-rag-workshop",
-            commit_id="123456a",
-            learning_in_public_links=[
-                "https://example.com/post-1",
-                "https://example.com/post-2",
-            ],
-        )
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-        learning_in_public_links = [
-            "https://example.com/post-1",
-            "https://example.com/post-2",
-            "https://example.com/post-3",
-        ]
-        data = {
-            "github_link": "https://github.com/alexeygrigorev/404",
-            "commit_id": "123456f",
-            "learning_in_public_links[]": learning_in_public_links,
-        }
-
-        response = self.client.post(url, data)
-
-        self.assertEqual(response.status_code, 200)
-        submission = response.context["submission"]
-        self.assertEqual(submission.github_link, data["github_link"])
-        self.assertEqual(submission.commit_id, data["commit_id"])
-        self.assertEqual(
-            submission.learning_in_public_links,
-            learning_in_public_links,
-        )
-
-        db_submission.refresh_from_db()
-        self.assertNotEqual(
-            db_submission.github_link, data["github_link"]
-        )
-        self.assertNotEqual(db_submission.commit_id, data["commit_id"])
-        self.assertNotEqual(
-            db_submission.learning_in_public_links,
-            learning_in_public_links,
-        )
-
-    def test_project_submission_not_accepting_responses(self):
-        """
-        Test posting a project submission when there are no existing submissions.
-        """
-
-        self.client.login(**credentials)
-
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/existing/repo",
-            "commit_id": "1234567",
-            "time_spent": "2",
-            "problems_comments": "Encountered an issue with...",
-            "faq_contribution_url": "https://github.com/DataTalksClub/faq/pull/266",
-        }
-        response = self.client.post(url, data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            "Project submission form is closed.",
-            status_code=200,
-        )
-        self.assertNotContains(
-            response,
-            "Submission details",
-            status_code=200,
-        )
-
-        submissions = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-
-        self.assertEqual(submissions.count(), 0)
-
-    @mock.patch("requests.head")
-    @mock.patch("requests.get")
-    def test_project_submission_post_invalid_link_no_submission(
-        self, mock_get, mock_head
-    ):
-        """
-        When the link is invalid and there's no submission yet,
-        no submission is created
-        """
-        mock_response = mock.Mock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
-        mock_head.return_value = mock_response
-
-        self.client.login(**credentials)
-        url = reverse(
-            "project", args=[self.course.slug, self.project.slug]
-        )
-
-        data = {
-            "github_link": "https://github.com/alexeygrigorev/404",
-            "commit_id": "1234567",
-        }
-        response = self.client.post(url, data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.context["submission"].github_link,
-            data["github_link"],
-        )
-        self.assertEqual(
-            response.context["submission"].commit_id,
-            data["commit_id"],
-        )
-
-        submission = ProjectSubmission.objects.filter(
-            student=self.user,
-            project=self.project,
-            enrollment=self.enrollment,
-        )
-
-        self.assertFalse(submission.exists())

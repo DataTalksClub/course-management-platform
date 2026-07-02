@@ -12,11 +12,63 @@ from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
 
-from courses.models import (
-    Course,
-    Homework,
+from courses.models.course import Course
+from courses.models.homework import (
     Answer,
+    Homework,
 )
+
+
+def homework_export_submission_answers(submission):
+    answer_values = submission.answer_set.values(
+        "question_id", "answer_text", "is_correct"
+    )
+    return list(answer_values)
+
+
+def homework_export_submission_data(submission):
+    answers = homework_export_submission_answers(submission)
+    return {
+        "student_id": submission.student_id,
+        "homework_link": submission.homework_link,
+        "learning_in_public_links": submission.learning_in_public_links,
+        "time_spent_lectures": submission.time_spent_lectures,
+        "time_spent_homework": submission.time_spent_homework,
+        "problems_comments": submission.problems_comments,
+        "faq_contribution_url": submission.faq_contribution_url,
+        "questions_score": submission.questions_score,
+        "faq_score": submission.faq_score,
+        "learning_in_public_score": submission.learning_in_public_score,
+        "total_score": submission.total_score,
+        "answers": answers,
+    }
+
+
+def homework_export_submissions(homework):
+    answers_queryset = Answer.objects.all()
+    answers_prefetch = Prefetch(
+        "answer_set", queryset=answers_queryset
+    )
+    submissions = homework.submission_set.prefetch_related(answers_prefetch)
+    all_submissions = submissions.all()
+    return all_submissions
+
+
+def homework_export_payload(course, homework, submissions):
+    submission_records = []
+    for submission in submissions:
+        submission_record = homework_export_submission_data(submission)
+        submission_records.append(submission_record)
+
+    course_data = model_to_dict(
+        course, exclude=["students", "first_homework_scored"]
+    )
+    homework_data = model_to_dict(homework)
+    return {
+        "course": course_data,
+        "homework": homework_data,
+        "submissions": submission_records,
+    }
 
 
 @require_GET
@@ -28,44 +80,8 @@ def homework_data_view(request, course_slug: str, homework_slug: str):
     homework = get_object_or_404(
         Homework, course=course, slug=homework_slug
     )
+    submissions = homework_export_submissions(homework)
 
-    answers_prefetch = Prefetch(
-        "answer_set", queryset=Answer.objects.all()
-    )
-    submissions = homework.submission_set.prefetch_related(
-        answers_prefetch
-    ).all()
-
-    course_data = model_to_dict(
-        course, exclude=["students", "first_homework_scored"]
-    )
-
-    submission_data = []
-    for submission in submissions:
-        submission_dict = {
-            "student_id": submission.student_id,
-            "homework_link": submission.homework_link,
-            "learning_in_public_links": submission.learning_in_public_links,
-            "time_spent_lectures": submission.time_spent_lectures,
-            "time_spent_homework": submission.time_spent_homework,
-            "problems_comments": submission.problems_comments,
-            "faq_contribution_url": submission.faq_contribution_url,
-            "questions_score": submission.questions_score,
-            "faq_score": submission.faq_score,
-            "learning_in_public_score": submission.learning_in_public_score,
-            "total_score": submission.total_score,
-            "answers": list(
-                submission.answer_set.values(
-                    "question_id", "answer_text", "is_correct"
-                )
-            ),
-        }
-        submission_data.append(submission_dict)
-
-    result = {
-        "course": course_data,
-        "homework": model_to_dict(homework),
-        "submissions": submission_data,
-    }
-
-    return JsonResponse(result)
+    payload = homework_export_payload(course, homework, submissions)
+    response = JsonResponse(payload)
+    return response

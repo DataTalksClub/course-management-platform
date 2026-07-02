@@ -15,7 +15,7 @@ from courses.models import (
     ProjectSubmission,
 )
 
-from courses.scoring import (
+from courses.homework_score_calculation import (
     update_learning_in_public_score,
 )
 from courses.services.enrollment_flags import (
@@ -26,39 +26,38 @@ logger = logging.getLogger(__name__)
 
 
 class DisableLearningInPublicTestCase(TestCase):
-    def setUp(self):
-        # Create test course
-        self.course = Course.objects.create(
+    def create_course(self):
+        return Course.objects.create(
             slug="test-course",
             title="Test Course",
             description="Test Course Description",
         )
 
-        # Create test students
-        self.student1 = User.objects.create_user(
+    def create_student(self):
+        return User.objects.create_user(
             username="student1",
             email="student1@test.com",
-            password="testpass123"
+            password="testpass123",
         )
 
-        # Create enrollments
-        self.enrollment1 = Enrollment.objects.create(
+    def create_enrollment(self):
+        return Enrollment.objects.create(
             student=self.student1,
-            course=self.course
+            course=self.course,
         )
 
-        # Create homework
-        self.homework = Homework.objects.create(
+    def create_homework(self):
+        return Homework.objects.create(
             course=self.course,
             slug="test-homework",
             title="Test Homework",
             due_date=timezone.now() + timedelta(days=7),
             state=HomeworkState.OPEN.value,
-            learning_in_public_cap=3
+            learning_in_public_cap=3,
         )
 
-        # Create project
-        self.project = Project.objects.create(
+    def create_project(self):
+        return Project.objects.create(
             course=self.course,
             slug="test-project",
             title="Test Project",
@@ -67,8 +66,53 @@ class DisableLearningInPublicTestCase(TestCase):
             peer_review_due_date=timezone.now() + timedelta(days=21),
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
             learning_in_public_cap_project=14,
-            learning_in_public_cap_review=2
+            learning_in_public_cap_review=2,
         )
+
+    def create_scored_homework_submission(self):
+        return Submission.objects.create(
+            homework=self.homework,
+            student=self.student1,
+            enrollment=self.enrollment1,
+            learning_in_public_links=[
+                "http://link1.com",
+                "http://link2.com",
+            ],
+            learning_in_public_score=2,
+            questions_score=5,
+            faq_score=1,
+            total_score=8,
+        )
+
+    def create_scored_project_submission(self):
+        return ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.student1,
+            enrollment=self.enrollment1,
+            learning_in_public_links=["http://link1.com"],
+            project_learning_in_public_score=1,
+            peer_review_learning_in_public_score=2,
+            project_score=10,
+            total_score=13,
+        )
+
+    def assert_homework_learning_in_public_zeroed(self, submission):
+        submission.refresh_from_db()
+        self.assertEqual(submission.learning_in_public_score, 0)
+        self.assertEqual(submission.total_score, 6)
+
+    def assert_project_learning_in_public_zeroed(self, submission):
+        submission.refresh_from_db()
+        self.assertEqual(submission.project_learning_in_public_score, 0)
+        self.assertEqual(submission.peer_review_learning_in_public_score, 0)
+        self.assertEqual(submission.total_score, 10)
+
+    def setUp(self):
+        self.course = self.create_course()
+        self.student1 = self.create_student()
+        self.enrollment1 = self.create_enrollment()
+        self.homework = self.create_homework()
+        self.project = self.create_project()
 
     def test_enrollment_has_disable_field(self):
         """Test that enrollment has disable_learning_in_public field"""
@@ -87,7 +131,11 @@ class DisableLearningInPublicTestCase(TestCase):
             homework=self.homework,
             student=self.student1,
             enrollment=self.enrollment1,
-            learning_in_public_links=["http://link1.com", "http://link2.com", "http://link3.com"]
+            learning_in_public_links=[
+                "http://link1.com",
+                "http://link2.com",
+                "http://link3.com",
+            ],
         )
         
         # Score normally - should get 3 points
@@ -106,40 +154,13 @@ class DisableLearningInPublicTestCase(TestCase):
 
     def test_zeroing_scores_when_disabling(self):
         """Test that disabling learning in public zeros out all scores"""
-        # Create submissions with learning in public scores
-        submission1 = Submission.objects.create(
-            homework=self.homework,
-            student=self.student1,
-            enrollment=self.enrollment1,
-            learning_in_public_links=["http://link1.com", "http://link2.com"],
-            learning_in_public_score=2,
-            questions_score=5,
-            faq_score=1,
-            total_score=8
-        )
-        
-        project_submission1 = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.student1,
-            enrollment=self.enrollment1,
-            learning_in_public_links=["http://link1.com"],
-            project_learning_in_public_score=1,
-            peer_review_learning_in_public_score=2,
-            project_score=10,
-            total_score=13
-        )
-        
+        submission = self.create_scored_homework_submission()
+        project_submission = self.create_scored_project_submission()
+
         set_learning_in_public_disabled(self.enrollment1, True)
-        
-        # Verify scores are zeroed
-        submission1.refresh_from_db()
-        self.assertEqual(submission1.learning_in_public_score, 0)
-        self.assertEqual(submission1.total_score, 6)  # 5 + 1 (questions + faq, no LiP)
-        
-        project_submission1.refresh_from_db()
-        self.assertEqual(project_submission1.project_learning_in_public_score, 0)
-        self.assertEqual(project_submission1.peer_review_learning_in_public_score, 0)
-        self.assertEqual(project_submission1.total_score, 10)  # Only project score
+
+        self.assert_homework_learning_in_public_zeroed(submission)
+        self.assert_project_learning_in_public_zeroed(project_submission)
 
     def test_reenabling_does_not_recreate_scores(self):
         submission = Submission.objects.create(

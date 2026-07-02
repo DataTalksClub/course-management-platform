@@ -3,15 +3,15 @@ from unfold.admin import ModelAdmin
 
 from django.contrib import messages
 
-from courses.models import Project, ReviewCriteria, ProjectState
+from courses.models.project import Project, ProjectState, ReviewCriteria
 
-from courses.projects import (
+from courses.project_assignment import (
     assign_peer_reviews_for_project,
-    score_project,
     ProjectActionStatus,
 )
+from courses.project_scoring import score_project
 
-from courses.scoring import calculate_project_statistics
+from courses.assignment_statistics import calculate_project_statistics
 
 
 def assign_peer_reviews_for_project_admin(
@@ -88,6 +88,4 @@ class ProjectAdmin(ModelAdmin):
     list_filter = ["course__slug"]
 
 
-@admin.register(ReviewCriteria)
-class ReviewCriteriaAdmin(ModelAdmin):
-    pass
+admin.site.register(ReviewCriteria, ModelAdmin)

@@ -6,8 +6,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .course import Course, Enrollment
-from .stat_display import build_stat_fields
-from courses.validators import validate_url_200
+from .stat_display import build_stat_fields, homework_stat_sections
+from courses.validators.custom_url_validators import validate_url_200
 
 User = get_user_model()
 
@@ -16,6 +16,17 @@ class HomeworkState(Enum):
     CLOSED = "CL"
     OPEN = "OP"
     SCORED = "SC"
+
+
+def _build_homework_state_choices():
+    choices = []
+    for state in HomeworkState:
+        choice = (state.value, state.name)
+        choices.append(choice)
+    return choices
+
+
+HOMEWORK_STATE_CHOICES = _build_homework_state_choices()
 
 
 class Homework(models.Model):
@@ -53,7 +64,7 @@ class Homework(models.Model):
 
     state = models.CharField(
         max_length=2,
-        choices=[(state.value, state.name) for state in HomeworkState],
+        choices=HOMEWORK_STATE_CHOICES,
         default=HomeworkState.OPEN.value,
     )
 
@@ -119,32 +130,57 @@ class Question(models.Model):
         if not self.possible_answers:
             return []
 
-        split = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
-        split = [s.strip() for s in split]  # remove /r if present
-        return split
+        possible_answers = []
+        raw_answers = self.possible_answers.split(QUESTION_ANSWER_DELIMITER)
+        for raw_answer in raw_answers:
+            possible_answer = raw_answer.strip()
+            possible_answers.append(possible_answer)
+        return possible_answers
+
+    def has_choice_answers(self):
+        return self.question_type in {
+            QuestionTypes.CHECKBOXES.value,
+            QuestionTypes.MULTIPLE_CHOICE.value,
+        }
+
+    def zero_based_correct_answer_indices(self):
+        if not self.correct_answer:
+            return []
+
+        indices_raw = self.correct_answer.split(",")
+        indices = []
+        for index_raw in indices_raw:
+            index = int(index_raw) - 1
+            indices.append(index)
+        return indices
+
+    def get_choice_correct_answer(self):
+        possible_answers = self.get_possible_answers()
+        correct_answers = set()
+        correct_answer_indices = self.zero_based_correct_answer_indices()
+        for index in correct_answer_indices:
+            correct_answer = possible_answers[index]
+            correct_answers.add(correct_answer)
+        return correct_answers
 
     def get_correct_answer(self):
-        if (self.question_type == QuestionTypes.CHECKBOXES.value) or (
-            self.question_type == QuestionTypes.MULTIPLE_CHOICE.value
-        ):
-            if not self.correct_answer:
-                return set()
+        if self.has_choice_answers():
+            return self.get_choice_correct_answer()
 
-            indicies_raw = self.correct_answer.split(",")
-            indicies = [int(index) - 1 for index in indicies_raw]
-            possible_answers = self.get_possible_answers()
-            result = {possible_answers[i] for i in indicies}
-            return result
-
-        return self.correct_answer or ""
+        if self.correct_answer:
+            return self.correct_answer
+        return ""
 
     def get_correct_answer_indices(self):
         if not self.correct_answer:
             return set()
 
-        indicies_raw = self.correct_answer.split(",")
-        indicies = {int(index) for index in indicies_raw}
-        return indicies
+        indices_raw = self.correct_answer.split(",")
+        indices = set()
+        for index_raw in indices_raw:
+            index = int(index_raw)
+            indices.add(index)
+        return indices
 
     def __str__(self):
         return f"{self.homework.course.title} / {self.homework.title} - {self.text}"
@@ -266,13 +302,8 @@ class HomeworkStatistics(models.Model):
         return getattr(self, attribute_name)
 
     def get_stat_fields(self):
-        return build_stat_fields(self, [
-            ("questions_score", "Questions score", "fas fa-question-circle"),
-            ("total_score", "Total score", "fas fa-star"),
-            ("time_spent_lectures", "Time spent on lectures", "fas fa-book-reader"),
-            ("time_spent_homework", "Time spent on homework", "fas fa-clock"),
-            ("learning_in_public_score", "Learning in public score", "fas fa-globe"),
-        ])
+        sections = homework_stat_sections()
+        return build_stat_fields(self, sections)
 
     def __str__(self):
         return f"Statistics for {self.homework.slug}"

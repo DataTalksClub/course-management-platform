@@ -13,10 +13,14 @@ import os
 import sys
 import json
 import argparse
+from dataclasses import dataclass
 from datetime import datetime
 
 # Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+script_path = os.path.abspath(__file__)
+script_dir = os.path.dirname(script_path)
+project_root = os.path.dirname(script_dir)
+sys.path.insert(0, project_root)
 
 # Setup Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
@@ -39,6 +43,26 @@ from courses.models import (
 User = get_user_model()
 
 
+@dataclass
+class ProjectExportData:
+    course: Course
+    project: Project
+    submissions: object
+    peer_reviews: object
+    criteria_responses: object
+    review_criteria: object
+    evaluation_scores: object
+    enrollments: object
+    users: object
+
+
+@dataclass(frozen=True)
+class JsonlCollectionData:
+    record_type: str
+    items: object
+    extractor: object
+
+
 def serialize_datetime(obj):
     """Helper to serialize datetime objects"""
     if isinstance(obj, datetime):
@@ -59,11 +83,12 @@ def extract_user_data(user):
 
 def extract_enrollment_data(enrollment):
     """Extract enrollment data"""
+    enrollment_date = serialize_datetime(enrollment.enrollment_date)
     return {
         "id": enrollment.id,
         "student_id": enrollment.student.id,
         "course_id": enrollment.course.id,
-        "enrollment_date": serialize_datetime(enrollment.enrollment_date),
+        "enrollment_date": enrollment_date,
         "display_name": enrollment.display_name,
         "display_on_leaderboard": enrollment.display_on_leaderboard,
         "position_on_leaderboard": enrollment.position_on_leaderboard,
@@ -97,15 +122,17 @@ def extract_course_data(course):
 
 def extract_project_data(project):
     """Extract project data"""
+    submission_due_date = serialize_datetime(project.submission_due_date)
+    peer_review_due_date = serialize_datetime(project.peer_review_due_date)
     return {
         "id": project.id,
         "course_id": project.course.id,
         "slug": project.slug,
         "title": project.title,
         "description": project.description,
-        "submission_due_date": serialize_datetime(project.submission_due_date),
+        "submission_due_date": submission_due_date,
         "learning_in_public_cap_project": project.learning_in_public_cap_project,
-        "peer_review_due_date": serialize_datetime(project.peer_review_due_date),
+        "peer_review_due_date": peer_review_due_date,
         "time_spent_project_field": project.time_spent_project_field,
         "problems_comments_field": project.problems_comments_field,
         "faq_contribution_field": project.faq_contribution_field,
@@ -131,6 +158,7 @@ def extract_review_criteria_data(criteria):
 
 def extract_submission_data(submission):
     """Extract project submission data"""
+    submitted_at = serialize_datetime(submission.submitted_at)
     return {
         "id": submission.id,
         "project_id": submission.project.id,
@@ -142,7 +170,7 @@ def extract_submission_data(submission):
         "faq_contribution_url": submission.faq_contribution_url,
         "time_spent": submission.time_spent,
         "problems_comments": submission.problems_comments,
-        "submitted_at": serialize_datetime(submission.submitted_at),
+        "submitted_at": submitted_at,
         "project_score": submission.project_score,
         "project_faq_score": submission.project_faq_score,
         "project_learning_in_public_score": submission.project_learning_in_public_score,
@@ -156,6 +184,7 @@ def extract_submission_data(submission):
 
 def extract_peer_review_data(review):
     """Extract peer review data"""
+    submitted_at = serialize_datetime(review.submitted_at)
     return {
         "id": review.id,
         "submission_under_evaluation_id": review.submission_under_evaluation.id,
@@ -165,7 +194,7 @@ def extract_peer_review_data(review):
         "time_spent_reviewing": review.time_spent_reviewing,
         "problems_comments": review.problems_comments,
         "optional": review.optional,
-        "submitted_at": serialize_datetime(review.submitted_at),
+        "submitted_at": submitted_at,
         "state": review.state,
     }
 
@@ -190,169 +219,279 @@ def extract_evaluation_score_data(score):
     }
 
 
-def pull_project_data(course_slug, project_slug, output_file=None):
-    """
-    Pull all data associated with a project
-    
-    Args:
-        course_slug: The course slug (e.g., 'ml-zoomcamp-2025')
-        project_slug: The project slug (e.g., 'midterm')
-        output_file: Output file path (defaults to data_prod/project_data_{course}_{project}.jsonl)
-    """
-    
-    # Default output file name
+def default_output_file(course_slug, project_slug):
+    os.makedirs("data_prod", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return (
+        f"data_prod/project_data_{course_slug}_{project_slug}_{timestamp}.jsonl"
+    )
+
+
+def resolve_output_file(course_slug, project_slug, output_file):
     if output_file is None:
-        # Create data_prod directory if it doesn't exist
-        os.makedirs("data_prod", exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"data_prod/project_data_{course_slug}_{project_slug}_{timestamp}.jsonl"
-    
+        return default_output_file(course_slug, project_slug)
+    return output_file
+
+
+def print_pull_header(course_slug, project_slug, output_file):
     print(f"Pulling data for project: {course_slug}/{project_slug}")
     print(f"Output file: {output_file}")
     print("-" * 80)
-    
-    # Get the course
+
+
+def get_course(course_slug):
     try:
         course = Course.objects.get(slug=course_slug)
         print(f"✓ Found course: {course.title}")
+        return course
     except Course.DoesNotExist:
         print(f"✗ Course not found: {course_slug}")
-        return
-    
-    # Get the project
+        return None
+
+
+def get_project(course, project_slug):
     try:
         project = Project.objects.get(course=course, slug=project_slug)
         print(f"✓ Found project: {project.title}")
         print(f"  State: {project.state}")
         print(f"  Points to pass: {project.points_to_pass}")
+        return project
     except Project.DoesNotExist:
         print(f"✗ Project not found: {project_slug}")
-        return
-    
-    # Get all submissions for this project
-    submissions = ProjectSubmission.objects.filter(project=project).select_related(
-        'student', 'enrollment'
+        return None
+
+
+def project_submissions(project):
+    submissions = (
+        ProjectSubmission.objects.filter(project=project)
+        .select_related("student", "enrollment")
     )
     print(f"✓ Found {submissions.count()} submissions")
-    
-    # Get all peer reviews
+    return submissions
+
+
+def project_peer_reviews(project):
     peer_reviews = PeerReview.objects.filter(
         submission_under_evaluation__project=project
-    ).select_related('submission_under_evaluation', 'reviewer')
+    ).select_related("submission_under_evaluation", "reviewer")
     print(f"✓ Found {peer_reviews.count()} peer reviews")
-    
-    # Get all criteria responses
+    return peer_reviews
+
+
+def project_criteria_responses(peer_reviews):
     criteria_responses = CriteriaResponse.objects.filter(
         review__in=peer_reviews
-    ).select_related('review', 'criteria')
+    ).select_related("review", "criteria")
     print(f"✓ Found {criteria_responses.count()} criteria responses")
-    
-    # Get all review criteria for this course
+    return criteria_responses
+
+
+def project_review_criteria(course):
     review_criteria = ReviewCriteria.objects.filter(course=course)
     print(f"✓ Found {review_criteria.count()} review criteria")
-    
-    # Get all evaluation scores
+    return review_criteria
+
+
+def project_evaluation_scores(submissions):
     evaluation_scores = ProjectEvaluationScore.objects.filter(
         submission__in=submissions
-    ).select_related('submission', 'review_criteria')
+    ).select_related("submission", "review_criteria")
     print(f"✓ Found {evaluation_scores.count()} evaluation scores")
-    
-    # Get all enrollments
+    return evaluation_scores
+
+
+def project_enrollments(submissions):
+    enrollment_ids = submissions.values_list("enrollment_id", flat=True)
     enrollments = Enrollment.objects.filter(
-        id__in=submissions.values_list('enrollment_id', flat=True)
-    ).select_related('student', 'course')
+        id__in=enrollment_ids
+    ).select_related("student", "course")
     print(f"✓ Found {enrollments.count()} enrollments")
-    
-    # Get all users
-    user_ids = set(submissions.values_list('student_id', flat=True))
+    return enrollments
+
+
+def project_users(submissions):
+    student_ids = submissions.values_list("student_id", flat=True)
+    user_ids = set(student_ids)
     users = User.objects.filter(id__in=user_ids)
     print(f"✓ Found {users.count()} users")
-    
+    return users
+
+
+def collect_project_export_data(course, project):
+    submissions = project_submissions(project)
+    peer_reviews = project_peer_reviews(project)
+    criteria_responses = project_criteria_responses(peer_reviews)
+    review_criteria = project_review_criteria(course)
+    evaluation_scores = project_evaluation_scores(submissions)
+    enrollments = project_enrollments(submissions)
+    users = project_users(submissions)
+
+    return ProjectExportData(
+        course=course,
+        project=project,
+        submissions=submissions,
+        peer_reviews=peer_reviews,
+        criteria_responses=criteria_responses,
+        review_criteria=review_criteria,
+        evaluation_scores=evaluation_scores,
+        enrollments=enrollments,
+        users=users,
+    )
+
+
+def write_jsonl_record(file, record_type, data):
+    file.write(json.dumps({"type": record_type, "data": data}) + "\n")
+
+
+def write_metadata(file, course_slug, project_slug):
+    extracted_at = datetime.now().isoformat()
+    file.write(json.dumps({
+        "type": "metadata",
+        "extracted_at": extracted_at,
+        "course_slug": course_slug,
+        "project_slug": project_slug,
+    }) + "\n")
+
+
+def write_jsonl_collection(file, record_type, items, extractor):
+    for item in items:
+        record_data = extractor(item)
+        write_jsonl_record(file, record_type, record_data)
+
+
+def write_project_identity_records(file, export_data):
+    course_data = extract_course_data(export_data.course)
+    write_jsonl_record(
+        file,
+        "course",
+        course_data,
+    )
+    project_data = extract_project_data(export_data.project)
+    write_jsonl_record(
+        file,
+        "project",
+        project_data,
+    )
+
+
+def project_participant_collections(export_data):
+    users = JsonlCollectionData("user", export_data.users, extract_user_data)
+    enrollments = JsonlCollectionData(
+        "enrollment",
+        export_data.enrollments,
+        extract_enrollment_data,
+    )
+    submissions = JsonlCollectionData(
+        "submission",
+        export_data.submissions,
+        extract_submission_data,
+    )
+    return users, enrollments, submissions
+
+
+def project_review_collections(export_data):
+    review_criteria = JsonlCollectionData(
+        "review_criteria",
+        export_data.review_criteria,
+        extract_review_criteria_data,
+    )
+    peer_reviews = JsonlCollectionData(
+        "peer_review",
+        export_data.peer_reviews,
+        extract_peer_review_data,
+    )
+    criteria_responses = JsonlCollectionData(
+        "criteria_response",
+        export_data.criteria_responses,
+        extract_criteria_response_data,
+    )
+    evaluation_scores = JsonlCollectionData(
+        "evaluation_score",
+        export_data.evaluation_scores,
+        extract_evaluation_score_data,
+    )
+    return (
+        review_criteria,
+        peer_reviews,
+        criteria_responses,
+        evaluation_scores,
+    )
+
+
+def project_related_collections(export_data):
+    participant_collections = project_participant_collections(export_data)
+    review_collections = project_review_collections(export_data)
+    return participant_collections + review_collections
+
+
+def write_project_related_records(file, export_data):
+    collections = project_related_collections(export_data)
+    for collection in collections:
+        write_jsonl_collection(
+            file,
+            collection.record_type,
+            collection.items,
+            collection.extractor,
+        )
+
+
+def write_project_export_file(
+    output_file,
+    course_slug,
+    project_slug,
+    export_data,
+):
     print("-" * 80)
     print("Writing data to file...")
-    
-    # Write all data to JSONL file
-    with open(output_file, 'w', encoding='utf-8') as f:
-        # Write metadata
-        f.write(json.dumps({
-            "type": "metadata",
-            "extracted_at": datetime.now().isoformat(),
-            "course_slug": course_slug,
-            "project_slug": project_slug,
-        }) + '\n')
-        
-        # Write course
-        f.write(json.dumps({
-            "type": "course",
-            "data": extract_course_data(course)
-        }) + '\n')
-        
-        # Write project
-        f.write(json.dumps({
-            "type": "project",
-            "data": extract_project_data(project)
-        }) + '\n')
-        
-        # Write users
-        for user in users:
-            f.write(json.dumps({
-                "type": "user",
-                "data": extract_user_data(user)
-            }) + '\n')
-        
-        # Write enrollments
-        for enrollment in enrollments:
-            f.write(json.dumps({
-                "type": "enrollment",
-                "data": extract_enrollment_data(enrollment)
-            }) + '\n')
-        
-        # Write review criteria
-        for criteria in review_criteria:
-            f.write(json.dumps({
-                "type": "review_criteria",
-                "data": extract_review_criteria_data(criteria)
-            }) + '\n')
-        
-        # Write submissions
-        for submission in submissions:
-            f.write(json.dumps({
-                "type": "submission",
-                "data": extract_submission_data(submission)
-            }) + '\n')
-        
-        # Write peer reviews
-        for review in peer_reviews:
-            f.write(json.dumps({
-                "type": "peer_review",
-                "data": extract_peer_review_data(review)
-            }) + '\n')
-        
-        # Write criteria responses
-        for response in criteria_responses:
-            f.write(json.dumps({
-                "type": "criteria_response",
-                "data": extract_criteria_response_data(response)
-            }) + '\n')
-        
-        # Write evaluation scores
-        for score in evaluation_scores:
-            f.write(json.dumps({
-                "type": "evaluation_score",
-                "data": extract_evaluation_score_data(score)
-            }) + '\n')
-    
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        write_metadata(f, course_slug, project_slug)
+        write_project_identity_records(f, export_data)
+        write_project_related_records(f, export_data)
+
+
+def print_export_summary(output_file, export_data):
     print(f"✓ Data successfully written to {output_file}")
     print("\nSummary:")
     print("  - 1 course")
     print("  - 1 project")
-    print(f"  - {users.count()} users")
-    print(f"  - {enrollments.count()} enrollments")
-    print(f"  - {review_criteria.count()} review criteria")
-    print(f"  - {submissions.count()} submissions")
-    print(f"  - {peer_reviews.count()} peer reviews")
-    print(f"  - {criteria_responses.count()} criteria responses")
-    print(f"  - {evaluation_scores.count()} evaluation scores")
+    print(f"  - {export_data.users.count()} users")
+    print(f"  - {export_data.enrollments.count()} enrollments")
+    print(f"  - {export_data.review_criteria.count()} review criteria")
+    print(f"  - {export_data.submissions.count()} submissions")
+    print(f"  - {export_data.peer_reviews.count()} peer reviews")
+    print(f"  - {export_data.criteria_responses.count()} criteria responses")
+    print(f"  - {export_data.evaluation_scores.count()} evaluation scores")
+
+
+def pull_project_data(course_slug, project_slug, output_file=None):
+    """
+    Pull all data associated with a project
+
+    Args:
+        course_slug: The course slug (e.g., 'ml-zoomcamp-2025')
+        project_slug: The project slug (e.g., 'midterm')
+        output_file: Output file path (defaults to data_prod/project_data_{course}_{project}.jsonl)
+    """
+    output_file = resolve_output_file(course_slug, project_slug, output_file)
+    print_pull_header(course_slug, project_slug, output_file)
+
+    course = get_course(course_slug)
+    if course is None:
+        return
+
+    project = get_project(course, project_slug)
+    if project is None:
+        return
+
+    export_data = collect_project_export_data(course, project)
+    write_project_export_file(
+        output_file,
+        course_slug,
+        project_slug,
+        export_data,
+    )
+    print_export_summary(output_file, export_data)
 
 
 def main():

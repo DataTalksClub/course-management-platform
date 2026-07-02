@@ -1,12 +1,38 @@
 from django import forms
 
-from courses.models import (
-    Answer,
-    CourseRegistration,
+from courses.models.course import (
     Enrollment,
     LeaderboardComplaint,
 )
-from courses.registration import region_for_country
+from courses.models.homework import Answer
+
+
+CERTIFICATE_NAME_WIDGET = forms.TextInput(
+    attrs={
+        "class": "form-control",
+        "placeholder": "Your name for certificates",
+    }
+)
+DISPLAY_NAME_WIDGET = forms.TextInput(attrs={"class": "form-control"})
+DISPLAY_PUBLIC_PROFILE_WIDGET = forms.CheckboxInput(
+    attrs={"class": "h-4 w-4"}
+)
+DISPLAY_ON_LEADERBOARD_WIDGET = forms.CheckboxInput(
+    attrs={"class": "h-4 w-4"}
+)
+COMPLAINT_ISSUE_TYPE_WIDGET = forms.Select(
+    attrs={"class": "form-control"}
+)
+COMPLAINT_DESCRIPTION_WIDGET = forms.Textarea(
+    attrs={
+        "class": "form-control",
+        "rows": 5,
+        "placeholder": (
+            "Include the homework, project, or link that looks "
+            "incorrect and why it should be reviewed."
+        ),
+    }
+)
 
 
 class AnswerForm(forms.ModelForm):
@@ -20,12 +46,7 @@ class EnrollmentForm(forms.ModelForm):
         label="Certificate name",
         required=False,
         help_text="Used for certificates across your course enrollments.",
-        widget=forms.TextInput(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Your name for certificates",
-            }
-        ),
+        widget=CERTIFICATE_NAME_WIDGET,
     )
 
     class Meta:
@@ -37,15 +58,9 @@ class EnrollmentForm(forms.ModelForm):
             "display_public_profile",
         ]
         widgets = {
-            "display_name": forms.TextInput(
-                attrs={"class": "form-control"}
-            ),
-            "display_public_profile": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
-            "display_on_leaderboard": forms.CheckboxInput(
-                attrs={"class": "h-4 w-4"}
-            ),
+            "display_name": DISPLAY_NAME_WIDGET,
+            "display_public_profile": DISPLAY_PUBLIC_PROFILE_WIDGET,
+            "display_on_leaderboard": DISPLAY_ON_LEADERBOARD_WIDGET,
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -55,26 +70,43 @@ class EnrollmentForm(forms.ModelForm):
         if self.user is not None and not self.is_bound:
             self.initial["certificate_name"] = self.user.certificate_name
 
-    def save(self, commit=True):
+    def _save_enrollment(self, commit):
         enrollment = super().save(commit=False)
         enrollment.certificate_name = self.enrollment_certificate_name
 
         if commit:
             enrollment.save()
             self.save_m2m()
+        return enrollment
 
-        if self.user is not None:
-            certificate_name = self.cleaned_data.get("certificate_name") or None
-            if self.user.certificate_name != certificate_name:
-                self.user.certificate_name = certificate_name
-                if commit:
-                    self.user.save(update_fields=["certificate_name"])
+    def _submitted_certificate_name(self):
+        certificate_name = self.cleaned_data.get("certificate_name")
+        if certificate_name:
+            return certificate_name
+        return None
+
+    def _sync_user_certificate_name(self, commit):
+        if self.user is None:
+            return
+
+        certificate_name = self._submitted_certificate_name()
+        if self.user.certificate_name == certificate_name:
+            return
+
+        self.user.certificate_name = certificate_name
+        if commit:
+            self.user.save(update_fields=["certificate_name"])
+
+    def save(self, commit=True):
+        enrollment = self._save_enrollment(commit)
+        self._sync_user_certificate_name(commit)
         return enrollment
 
     def is_valid(self):
         valid = super().is_valid()
         if not valid:
-            for field in self.fields:
+            field_names = self.fields
+            for field in field_names:
                 if field in self.errors:
                     attrs = self.fields[field].widget.attrs
                     class_name = attrs.get("class", "")
@@ -91,146 +123,6 @@ class LeaderboardComplaintForm(forms.ModelForm):
             "description": "Describe the issue",
         }
         widgets = {
-            "issue_type": forms.Select(attrs={"class": "form-control"}),
-            "description": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 5,
-                    "placeholder": (
-                        "Include the homework, project, or link that looks "
-                        "incorrect and why it should be reviewed."
-                    ),
-                }
-            ),
+            "issue_type": COMPLAINT_ISSUE_TYPE_WIDGET,
+            "description": COMPLAINT_DESCRIPTION_WIDGET,
         }
-
-
-class CourseRegistrationForm(forms.ModelForm):
-    accepted_newsletter = forms.BooleanField(
-        label=(
-            "I agree to be added to the DataTalks.Club newsletter and "
-            "receive course updates."
-        ),
-        required=True,
-        widget=forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
-    )
-
-    class Meta:
-        model = CourseRegistration
-        fields = [
-            "email",
-            "name",
-            "country",
-            "role",
-            "comment",
-            "accepted_newsletter",
-        ]
-        widgets = {
-            "email": forms.EmailInput(attrs={"class": "form-control"}),
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "country": forms.Select(attrs={"class": "form-control"}),
-            "role": forms.Select(attrs={"class": "form-control"}),
-            "comment": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 4,
-                    "placeholder": "Anything you would like to add?",
-                }
-            ),
-        }
-
-    def __init__(self, *args, campaign=None, user=None, **kwargs):
-        self.campaign = campaign
-        self.user = user
-        super().__init__(*args, **kwargs)
-        for field_name in ("name", "country", "role", "comment"):
-            self.fields[field_name].required = False
-        self.fields["country"].widget = forms.TextInput(
-            attrs={
-                "class": "form-control",
-                "autocomplete": "country-name",
-                "placeholder": "Start typing your country",
-                "data-country-combobox-input": "",
-            }
-        )
-        self.fields["role"].choices = [
-            ("", "Select role")
-        ] + list(CourseRegistration.Role.choices)
-
-        if user is not None and user.is_authenticated:
-            self.fields["email"].initial = user.email
-            self.fields["email"].disabled = True
-            self.fields["email"].help_text = "Using your account email."
-            if not self.is_bound:
-                self.initial["name"] = (
-                    user.certificate_name
-                    or user.get_full_name()
-                    or ""
-                )
-                self.initial["country"] = user.country
-                self.initial["role"] = user.registration_role
-
-    def clean_email(self):
-        if self.user is not None and self.user.is_authenticated:
-            email = self.user.email
-        else:
-            email = self.cleaned_data["email"]
-
-        email_normalized = (email or "").strip().lower()
-        if CourseRegistration.objects.filter(
-            campaign=self.campaign,
-            email_normalized=email_normalized,
-        ).exists():
-            raise forms.ValidationError(
-                "You have already registered for this course."
-            )
-        return email_normalized
-
-    def clean_country(self):
-        country = self.cleaned_data["country"]
-        if not country:
-            return ""
-        if not region_for_country(country):
-            raise forms.ValidationError("Select a valid country.")
-        return country
-
-    def clean_accepted_newsletter(self):
-        accepted_newsletter = self.cleaned_data["accepted_newsletter"]
-        if not accepted_newsletter:
-            raise forms.ValidationError("This field is required.")
-        return accepted_newsletter
-
-    def save(self, commit=True):
-        registration = super().save(commit=False)
-        registration.campaign = self.campaign
-        registration.course = self.campaign.current_course
-        registration.region = region_for_country(registration.country)
-        if self.user is not None and self.user.is_authenticated:
-            registration.user = self.user
-            registration.email = self.user.email
-        if commit:
-            registration.save()
-            self.save_user_profile(registration)
-        return registration
-
-    def save_user_profile(self, registration):
-        if self.user is None or not self.user.is_authenticated:
-            return
-
-        update_fields = []
-        certificate_name = registration.name.strip()
-        if certificate_name and self.user.certificate_name != certificate_name:
-            self.user.certificate_name = certificate_name
-            update_fields.append("certificate_name")
-
-        for user_field, value in (
-            ("country", registration.country),
-            ("region", registration.region),
-            ("registration_role", registration.role),
-        ):
-            if value and getattr(self.user, user_field) != value:
-                setattr(self.user, user_field, value)
-                update_fields.append(user_field)
-
-        if update_fields:
-            self.user.save(update_fields=update_fields)

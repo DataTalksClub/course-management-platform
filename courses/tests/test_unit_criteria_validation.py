@@ -35,13 +35,15 @@ class CriteriaValidationTestCase(TestCase):
         }
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("must be a list", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("must be a list", error_text)
 
     def test_empty_list(self):
         """Test that empty list raises ValidationError."""
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options([])
-        self.assertIn("cannot be empty", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("cannot be empty", error_text)
 
     def test_option_not_dict(self):
         """Test that non-dict option raises ValidationError."""
@@ -51,7 +53,8 @@ class CriteriaValidationTestCase(TestCase):
         ]
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("must be a dictionary", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("must be a dictionary", error_text)
 
     def test_missing_criteria_key(self):
         """Test that missing 'criteria' key raises ValidationError."""
@@ -61,7 +64,8 @@ class CriteriaValidationTestCase(TestCase):
         ]
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("missing required key 'criteria'", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("missing required key 'criteria'", error_text)
 
     def test_missing_score_key(self):
         """Test that missing 'score' key raises ValidationError."""
@@ -71,7 +75,8 @@ class CriteriaValidationTestCase(TestCase):
         ]
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("missing required key 'score'", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("missing required key 'score'", error_text)
 
     def test_criteria_not_string(self):
         """Test that non-string criteria raises ValidationError."""
@@ -80,7 +85,8 @@ class CriteriaValidationTestCase(TestCase):
         ]
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("'criteria' must be a string", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("'criteria' must be a string", error_text)
 
     def test_score_not_int(self):
         """Test that non-integer score raises ValidationError."""
@@ -89,7 +95,8 @@ class CriteriaValidationTestCase(TestCase):
         ]
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("'score' must be an integer", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("'score' must be an integer", error_text)
 
     def test_empty_criteria_text(self):
         """Test that empty criteria text raises ValidationError."""
@@ -98,7 +105,8 @@ class CriteriaValidationTestCase(TestCase):
         ]
         with self.assertRaises(ValidationError) as context:
             validate_review_criteria_options(invalid_options)
-        self.assertIn("'criteria' cannot be empty", str(context.exception))
+        error_text = str(context.exception)
+        self.assertIn("'criteria' cannot be empty", error_text)
 
     def test_valid_with_extra_fields(self):
         """Test that extra fields are allowed."""

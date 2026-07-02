@@ -1,0 +1,186 @@
+from django.urls import reverse
+
+from courses.models import (
+    PeerReview,
+    ProjectState,
+    ProjectSubmission,
+)
+from courses.tests.project_eval_base import (
+    ProjectEvaluationTestBase,
+    credentials,
+)
+
+
+class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
+    def open_peer_review_without_submission(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        self.submission.delete()
+
+    def create_volunteer_review(self):
+        volunteer_submission = ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/example/volunteer",
+            commit_id="abcdef1",
+            volunteer_review_only=True,
+        )
+        PeerReview.objects.create(
+            submission_under_evaluation=self.other_submission,
+            reviewer=volunteer_submission,
+            note_to_peer="",
+            optional=True,
+        )
+
+    def get_authenticated_eval_view(self):
+        self.client.login(**credentials)
+        eval_url = self.eval_view_url()
+        return self.client.get(eval_url)
+
+    def assert_optional_reviews_visible_without_submission(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["has_submission"])
+        self.assertContains(response, "Selected reviews")
+        self.assertContains(
+            response,
+            "these reviews are for practice and feedback",
+        )
+        self.assertContains(response, self.other_enrollment.display_name)
+        self.assertNotContains(response, "Review progress")
+
+    def test_eval_view_authenticated_no_submission(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        self.submission.delete()
+
+        self.client.login(**credentials)
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        self.assertFalse(response.context["has_submission"])
+        self.assertContains(
+            response,
+            "you can still volunteer to evaluate submissions",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Review progress",
+            status_code=200,
+        )
+
+    def test_eval_view_shows_optional_reviews_without_submission(self):
+        self.open_peer_review_without_submission()
+        self.create_volunteer_review()
+
+        response = self.get_authenticated_eval_view()
+
+        self.assert_optional_reviews_visible_without_submission(response)
+
+    def test_eval_view_authenticated_with_submission(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        self.client.login(**credentials)
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        self.assertTrue(response.context["has_submission"])
+        self.assertNotContains(
+            response,
+            "you did not submit your project",
+            status_code=200,
+        )
+        self.assertContains(
+            response,
+            "Evaluate",
+            status_code=200,
+        )
+
+    def test_eval_view_separates_assigned_and_selected_reviews(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+        PeerReview.objects.create(
+            submission_under_evaluation=self.other_submission,
+            reviewer=self.submission,
+            note_to_peer="",
+            optional=True,
+        )
+
+        self.client.login(**credentials)
+        eval_url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+        response = self.client.get(eval_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Review progress")
+        self.assertContains(response, "Selected reviews")
+        assigned_reviews_count = len(response.context["assigned_reviews"])
+        selected_reviews_count = len(response.context["selected_reviews"])
+        self.assertEqual(assigned_reviews_count, 1)
+        self.assertEqual(selected_reviews_count, 1)
+
+    def test_eval_view_shows_closed_message_when_project_is_not_peer_reviewing(
+        self,
+    ):
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
+        self.client.login(**credentials)
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        self.assertContains(
+            response,
+            "Peer review form is closed.",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Review progress",
+            status_code=200,
+        )
+
+    def test_eval_view_shows_no_submission_closed_message_when_completed(self):
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
+        self.submission.delete()
+        self.client.login(**credentials)
+        url = reverse(
+            "projects_eval",
+            args=[self.course.slug, self.project.slug],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects/eval.html")
+        self.assertContains(
+            response,
+            "submission window is closed",
+            status_code=200,
+        )
+        self.assertNotContains(
+            response,
+            "Submission details",
+            status_code=200,
+        )

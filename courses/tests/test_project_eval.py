@@ -1,226 +1,50 @@
-import logging
-
 from django.urls import reverse
-from django.test import TestCase, Client
-from django.utils import timezone
-from datetime import timedelta
 
 from courses.models import (
-    User,
-    Course,
-    Project,
-    ProjectSubmission,
-    Enrollment,
-    PeerReview,
     PeerReviewState,
     CriteriaResponse,
-    ReviewCriteria,
-    ReviewCriteriaTypes,
     ProjectState,
     ProjectVote,
 )
-
-
-logger = logging.getLogger(__name__)
-
-
-def fetch_fresh(obj):
-    return obj.__class__.objects.get(pk=obj.id)
-
-
-credentials = dict(
-    username="test@test.com",
-    email="test@test.com",
-    password="12345",
+from courses.tests.project_eval_base import (
+    ProjectEvaluationTestBase,
+    credentials,
+    fetch_fresh,
 )
 
 
-class ProjectEvaluationTestCase(TestCase):
-    def setUp(self):
-        self.client = Client()
+def close_project_reviews(project):
+    project.state = ProjectState.COMPLETED.value
+    project.save()
 
-        self.user = User.objects.create_user(**credentials)
 
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
-
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=timezone.now() - timedelta(hours=1),
-            peer_review_due_date=timezone.now() + timedelta(hours=1),
-            state=ProjectState.PEER_REVIEWING.value,
-        )
-
-        self.submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/user/project",
-            commit_id="1234567",
-        )
-
-        self.other_user = User.objects.create_user(
-            username="student",
-            email="email@email.com",
-            password="12345",
-        )
-
-        self.other_enrollment = Enrollment.objects.create(
-            student=self.other_user,
-            course=self.course,
-        )
-
-        self.other_submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.other_user,
-            enrollment=self.other_enrollment,
-            github_link="https://github.com/other_student/project",
-            commit_id="1234567",
-        )
-
-        self.peer_review = PeerReview.objects.create(
-            submission_under_evaluation=self.other_submission,
-            reviewer=self.submission,
-            optional=False,
-        )
-
-        self.criteria1 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Code quality",
-            options=[
-                {"criteria": "Poor", "score": 0},
-                {"criteria": "Satisfactory", "score": 1},
-                {"criteria": "Good", "score": 2},
-                {"criteria": "Excellent", "score": 3},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
-
-        self.criteria2 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Project documentation",
-            options=[
-                {"criteria": "None", "score": 0},
-                {"criteria": "Basic", "score": 1},
-                {"criteria": "Complete", "score": 2},
-                {"criteria": "In-depth", "score": 3},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
-        )
-
-        self.criteria3 = ReviewCriteria.objects.create(
-            course=self.course,
-            description="Best practices",
-            options=[
-                {"criteria": "Coding standards", "score": 1},
-                {"criteria": "Tests", "score": 1},
-                {"criteria": "Logging", "score": 1},
-                {"criteria": "Version control", "score": 1},
-                {"criteria": "CI/CD", "score": 1},
-            ],
-            review_criteria_type=ReviewCriteriaTypes.CHECKBOXES.value,
-        )
-
-        self.criteria = [self.criteria1, self.criteria2, self.criteria3]
-
+class ProjectEvaluationSubmitAuthTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_not_authenticated(self):
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.get(url)
+        eval_submit_url = self.eval_submit_url()
+        response = self.client.get(eval_submit_url)
         self.assertEqual(response.status_code, 302)
 
-    def test_eval_submit_get_authenticated_not_submitted_accepting_responses(
-        self,
-    ):
-        self.client.login(**credentials)
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
 
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-        context = response.context
-
+class ProjectEvaluationSubmitGetTestCase(ProjectEvaluationTestBase):
+    def assert_eval_submit_accepting_context(self, context):
         self.assertTrue(context["accepting_submissions"])
         self.assertFalse(context["disabled"])
-
-        course = context["course"]
-        self.assertEqual(course, self.course)
-
-        project = context["project"]
-        self.assertEqual(project, self.project)
-
+        self.assertEqual(context["course"], self.course)
+        self.assertEqual(context["project"], self.project)
         review = context["review"]
         self.assertEqual(review, self.peer_review)
         self.assertEqual(review.state, PeerReviewState.TO_REVIEW.value)
-
-        submission = context["submission"]
         self.assertEqual(
-            submission, self.peer_review.submission_under_evaluation
+            context["submission"],
+            self.peer_review.submission_under_evaluation,
         )
 
-        criteria_response_pairs = context["criteria_response_pairs"]
-
-        self.assertEqual(len(criteria_response_pairs), 3)
-        c1, r1 = criteria_response_pairs[0]
-        self.assertEqual(c1, self.criteria1)
-        self.assertEqual(r1, None)
-
-        c2, r2 = criteria_response_pairs[1]
-        self.assertEqual(c2, self.criteria2)
-        self.assertEqual(r2, None)
-
-        c3, r3 = criteria_response_pairs[2]
-        self.assertEqual(c3, self.criteria3)
-        self.assertEqual(r3, None)
-
-        submission = context["submission"]
-        self.assertEqual(
-            submission, self.peer_review.submission_under_evaluation
+    def assert_empty_review_pairs(self, context):
+        self.assert_empty_criteria_response_pairs(
+            context["criteria_response_pairs"]
         )
 
-    def test_eval_submit_get_authenticated_not_submitted_not_accepting_responses(
-        self,
-    ):
-        self.project.state = ProjectState.COMPLETED.value
-        self.project.save()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+    def assert_eval_submit_closed_copy(self, response):
         self.assertContains(
             response,
             "Peer review form is closed.",
@@ -232,54 +56,61 @@ class ProjectEvaluationTestCase(TestCase):
             status_code=200,
         )
 
-        context = response.context
-
+    def assert_eval_submit_closed_context(self, context):
         self.assertFalse(context["accepting_submissions"])
         self.assertTrue(context["disabled"])
+        self.assertEqual(context["review"], self.peer_review)
+
+    def test_eval_submit_get_authenticated_not_submitted_accepting_responses(
+        self,
+    ):
+        response = self.get_eval_submit_response()
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+        self.assert_eval_submit_accepting_context(context)
+        self.assert_empty_review_pairs(context)
+
+    def test_eval_submit_get_authenticated_not_submitted_not_accepting_responses(
+        self,
+    ):
+        close_project_reviews(self.project)
+
+        response = self.get_eval_submit_response()
+        self.assertEqual(response.status_code, 200)
+        self.assert_eval_submit_closed_copy(response)
+
+        context = response.context
+        self.assert_eval_submit_closed_context(context)
+        self.assert_empty_review_pairs(context)
+
+    def test_eval_submit_get_authenticated_submitted(self):
+        criteria_responses = self.create_criteria_responses()
+        self.mark_peer_review_submitted()
+
+        response = self.get_eval_submit_response()
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+
+        self.assertTrue(context["accepting_submissions"])
 
         review = context["review"]
         self.assertEqual(review, self.peer_review)
+        self.assertEqual(review.state, PeerReviewState.SUBMITTED.value)
 
-        criteria_response_pairs = context["criteria_response_pairs"]
+        self.assert_submitted_criteria_response_pairs(
+            context["criteria_response_pairs"],
+            criteria_responses,
+        )
 
-        self.assertEqual(len(criteria_response_pairs), 3)
-        c1, r1 = criteria_response_pairs[0]
-        self.assertEqual(c1, self.criteria1)
-        self.assertEqual(r1, None)
 
-        c2, r2 = criteria_response_pairs[1]
-        self.assertEqual(c2, self.criteria2)
-        self.assertEqual(r2, None)
-
-        c3, r3 = criteria_response_pairs[2]
-        self.assertEqual(c3, self.criteria3)
-        self.assertEqual(r3, None)
-
+class ProjectEvaluationSubmitPostTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_post_not_accepting_responses(self):
-        self.project.state = ProjectState.COMPLETED.value
-        self.project.save()
+        close_project_reviews(self.project)
 
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.post(
-            url,
-            {
-                "note_to_peer": "Well done!",
-                "time_spent_reviewing": "3",
-                f"answer_{self.criteria1.id}": "1",
-                f"answer_{self.criteria2.id}": "2",
-                f"answer_{self.criteria3.id}": "1,3",
-            },
-        )
+        post_data = self.review_post_data()
+        response = self.post_eval_submit(post_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -292,417 +123,85 @@ class ProjectEvaluationTestCase(TestCase):
         self.assertEqual(self.peer_review.state, PeerReviewState.TO_REVIEW.value)
         self.assertEqual(self.peer_review.note_to_peer, "")
         self.assertIsNone(self.peer_review.submitted_at)
-        self.assertFalse(
-            CriteriaResponse.objects.filter(review=self.peer_review).exists()
-        )
-
-    def test_eval_submit_get_authenticated_submitted(self):
-        r1 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria1,
-            answer="1",
-        )
-
-        r2 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria2,
-            answer="2",
-        )
-
-        r3 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria3,
-            answer="1,3",
-        )
-
-        self.peer_review.state = PeerReviewState.SUBMITTED.value
-        self.peer_review.save()
-
-        self.client.login(**credentials)
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-        context = response.context
-
-        self.assertTrue(context["accepting_submissions"])
-
-        review = context["review"]
-        self.assertEqual(review, self.peer_review)
-        self.assertEqual(review.state, PeerReviewState.SUBMITTED.value)
-
-        criteria_response_pairs = context["criteria_response_pairs"]
-        print(criteria_response_pairs)
-
-        self.assertEqual(len(criteria_response_pairs), 3)
-        c1, r1_actual = criteria_response_pairs[0]
-        self.assertEqual(c1, self.criteria1)
-        self.assertEqual(r1_actual, r1)
-
-        expected_options1 = [
-            {
-                "criteria": "Poor",
-                "score": 0,
-                "index": 1,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Satisfactory",
-                "score": 1,
-                "index": 2,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Good",
-                "score": 2,
-                "index": 3,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Excellent",
-                "score": 3,
-                "index": 4,
-                "is_selected": False,
-            },
-        ]
-
-        self.assertEqual(c1.options, expected_options1)
-
-        c2, r2_actual = criteria_response_pairs[1]
-        self.assertEqual(c2, self.criteria2)
-        self.assertEqual(r2_actual, r2)
-
-        expected_options2 = [
-            {
-                "criteria": "None",
-                "score": 0,
-                "index": 1,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Basic",
-                "score": 1,
-                "index": 2,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Complete",
-                "score": 2,
-                "index": 3,
-                "is_selected": False,
-            },
-            {
-                "criteria": "In-depth",
-                "score": 3,
-                "index": 4,
-                "is_selected": False,
-            },
-        ]
-
-        self.assertEqual(c2.options, expected_options2)
-
-        c3, r3_actual = criteria_response_pairs[2]
-        self.assertEqual(c3, self.criteria3)
-        self.assertEqual(r3_actual, r3)
-
-        expected_options3 = [
-            {
-                "criteria": "Coding standards",
-                "score": 1,
-                "index": 1,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Tests",
-                "score": 1,
-                "index": 2,
-                "is_selected": False,
-            },
-            {
-                "criteria": "Logging",
-                "score": 1,
-                "index": 3,
-                "is_selected": True,
-            },
-            {
-                "criteria": "Version control",
-                "score": 1,
-                "index": 4,
-                "is_selected": False,
-            },
-            {
-                "criteria": "CI/CD",
-                "score": 1,
-                "index": 5,
-                "is_selected": False,
-            },
-        ]
-
-        self.assertEqual(c3.options, expected_options3)
-
-    def test_eval_submit_post_not_submitted(self):
-        self.client.login(**credentials)
-
-        criteria_responses = CriteriaResponse.objects.filter(
+        criteria_response_exists = CriteriaResponse.objects.filter(
             review=self.peer_review
-        )
-        self.assertEqual(criteria_responses.count(), 0)
+        ).exists()
+        self.assertFalse(criteria_response_exists)
 
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
+    def learning_in_public_review_links(self):
+        return [
+            "http://example.com/page",
+            "http://example.com/page2",
+        ]
 
-        response = self.client.post(
-            url,
-            {
-                "note_to_peer": "Well done!",
-                "time_spent_reviewing": "3",
-                f"answer_{self.criteria1.id}": "1",
-                f"answer_{self.criteria2.id}": "2",
-                f"answer_{self.criteria3.id}": "1,3",
-                "learning_in_public_links[]": [
-                    "http://example.com/page",
-                    "http://example.com/page2",
-                ],
-                "problems_comments": "No problems"
-            },
+    def review_post_data_with_learning_links(self):
+        learning_links = self.learning_in_public_review_links()
+        extra_fields = {
+            "learning_in_public_links[]": learning_links,
+        }
+        return self.review_post_data(
+            **extra_fields,
+            problems_comments="No problems",
         )
 
-        self.assertEqual(response.status_code, 302)
-
-        self.peer_review = fetch_fresh(self.peer_review)
-
-        self.assertEqual(
-            self.peer_review.state, PeerReviewState.SUBMITTED.value
-        )
-        self.assertEqual(self.peer_review.note_to_peer, "Well done!")
-        self.assertEqual(self.peer_review.problems_comments, "No problems")
-
+    def assert_learning_in_public_links_saved(self, expected_links):
         learning_in_public_links = (
             self.peer_review.learning_in_public_links
         )
+        saved_links_count = len(learning_in_public_links)
+        expected_links_count = len(expected_links)
+        self.assertEqual(saved_links_count, expected_links_count)
+        for index, expected_link in enumerate(expected_links):
+            self.assertEqual(
+                learning_in_public_links[index],
+                expected_link,
+            )
 
-        self.assertEqual(len(learning_in_public_links), 2)
-        self.assertEqual(
-            learning_in_public_links[0],
-            "http://example.com/page",
-        )
-        self.assertEqual(
-            learning_in_public_links[1],
-            "http://example.com/page2",
-        )
+    def test_eval_submit_post_not_submitted(self):
+        criteria_responses = self.criteria_responses()
+        criteria_response_count = criteria_responses.count()
+        self.assertEqual(criteria_response_count, 0)
 
-        self.assertEqual(self.peer_review.time_spent_reviewing, 3.0)
-
-        self.assertEqual(criteria_responses.count(), 3)
-
-        c1 = criteria_responses.get(criteria=self.criteria1)
-        self.assertEqual(c1.answer, "1")
-
-        c2 = criteria_responses.get(criteria=self.criteria2)
-        self.assertEqual(c2.answer, "2")
-
-        c3 = criteria_responses.get(criteria=self.criteria3)
-        self.assertEqual(c3.answer, "1,3")
-
-    def test_eval_submit_post_already_submitted(self):
-        c1 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria1,
-            answer="1",
-        )
-
-        c2 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria2,
-            answer="2",
-        )
-
-        c3 = CriteriaResponse.objects.create(
-            review=self.peer_review,
-            criteria=self.criteria3,
-            answer="1,3",
-        )
-
-        self.peer_review.state = PeerReviewState.SUBMITTED.value
-        self.peer_review.save()
-
-        self.client.login(**credentials)
-
-        criteria_responses = CriteriaResponse.objects.filter(
-            review=self.peer_review
-        )
-        self.assertEqual(criteria_responses.count(), 3)
-
-        url = reverse(
-            "projects_eval_submit",
-            args=[
-                self.course.slug,
-                self.project.slug,
-                self.peer_review.id,
-            ],
-        )
-
-        response = self.client.post(
-            url,
-            {
-                "note_to_peer": "Well done!",
-                "time_spent_reviewing": "3",
-                f"answer_{self.criteria1.id}": "2",
-                f"answer_{self.criteria2.id}": "3",
-                f"answer_{self.criteria3.id}": "1,2,3",
-                "learning_in_public_links[]": [],
-            },
-        )
+        post_data = self.review_post_data_with_learning_links()
+        response = self.post_eval_submit(post_data)
 
         self.assertEqual(response.status_code, 302)
+        expected_answers = {
+            self.criteria1: "1",
+            self.criteria2: "2",
+            self.criteria3: "1,3",
+        }
+        self.assert_review_saved(expected_answers)
+        self.assertEqual(self.peer_review.problems_comments, "No problems")
 
-        self.assertEqual(criteria_responses.count(), 3)
+        expected_links = self.learning_in_public_review_links()
+        self.assert_learning_in_public_links_saved(expected_links)
 
-        c1 = fetch_fresh(c1)
+    def test_eval_submit_post_already_submitted(self):
+        criteria_response_map = self.create_criteria_responses()
+        self.mark_peer_review_submitted()
+        criteria_responses = self.criteria_responses()
+        criteria_response_count = criteria_responses.count()
+        self.assertEqual(criteria_response_count, 3)
+
+        post_data = self.updated_review_post_data()
+        response = self.post_eval_submit(post_data)
+
+        self.assertEqual(response.status_code, 302)
+        updated_criteria_response_count = criteria_responses.count()
+        self.assertEqual(updated_criteria_response_count, 3)
+
+        c1 = fetch_fresh(criteria_response_map[self.criteria1])
         self.assertEqual(c1.answer, "2")
 
-        c2 = fetch_fresh(c2)
+        c2 = fetch_fresh(criteria_response_map[self.criteria2])
         self.assertEqual(c2.answer, "3")
 
-        c3 = fetch_fresh(c3)
+        c3 = fetch_fresh(criteria_response_map[self.criteria3])
         self.assertEqual(c3.answer, "1,2,3")
 
-    def test_eval_view_authenticated_no_submission(self):
-        """Test that eval view offers voluntary reviews without submission."""
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
 
-        self.submission.delete()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/eval.html")
-        
-        self.assertFalse(response.context["has_submission"])
-        
-        self.assertContains(
-            response,
-            "you can still volunteer to evaluate submissions",
-            status_code=200,
-        )
-        self.assertNotContains(
-            response,
-            "Review progress",
-            status_code=200,
-        )
-
-    def test_eval_view_shows_optional_reviews_without_submission(self):
-        """Voluntary reviewers see selected optional reviews on eval page."""
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-        self.submission.delete()
-        volunteer_submission = ProjectSubmission.objects.create(
-            project=self.project,
-            student=self.user,
-            enrollment=self.enrollment,
-            github_link="https://github.com/example/volunteer",
-            commit_id="abcdef1",
-            volunteer_review_only=True,
-        )
-        PeerReview.objects.create(
-            submission_under_evaluation=self.other_submission,
-            reviewer=volunteer_submission,
-            note_to_peer="",
-            optional=True,
-        )
-
-        self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "projects_eval",
-                args=[self.course.slug, self.project.slug],
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["has_submission"])
-        self.assertContains(response, "Selected reviews")
-        self.assertContains(
-            response,
-            "these reviews are for practice and feedback",
-        )
-        self.assertContains(response, self.other_enrollment.display_name)
-        self.assertNotContains(response, "Review progress")
-
-    def test_eval_view_authenticated_with_submission(self):
-        """Test that eval view shows reviews when user has submitted their project"""
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/eval.html")
-        
-        self.assertTrue(response.context["has_submission"])
-        
-        self.assertNotContains(
-            response,
-            "you did not submit your project",
-            status_code=200,
-        )
-        self.assertContains(
-            response,
-            "Evaluate",
-            status_code=200,
-        )
-
-    def test_eval_view_separates_assigned_and_selected_reviews(self):
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-        PeerReview.objects.create(
-            submission_under_evaluation=self.other_submission,
-            reviewer=self.submission,
-            note_to_peer="",
-            optional=True,
-        )
-
-        self.client.login(**credentials)
-        response = self.client.get(
-            reverse(
-                "projects_eval",
-                args=[self.course.slug, self.project.slug],
-            )
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Review progress")
-        self.assertContains(response, "Selected reviews")
-        self.assertEqual(len(response.context["assigned_reviews"]), 1)
-        self.assertEqual(len(response.context["selected_reviews"]), 1)
-
+class ProjectEvaluationSubmitVoteTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_page_can_vote_for_reviewed_submission(self):
         self.client.login(**credentials)
 
@@ -719,175 +218,8 @@ class ProjectEvaluationTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            ProjectVote.objects.filter(
-                voter=self.user,
-                submission=self.other_submission,
-            ).exists()
-        )
-
-    def test_eval_view_shows_closed_message_when_project_is_not_peer_reviewing(self):
-        """Test that eval view stays on page with closed peer-review message."""
-        self.project.state = ProjectState.COMPLETED.value
-        self.project.save()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/eval.html")
-        self.assertContains(
-            response,
-            "Peer review form is closed.",
-            status_code=200,
-        )
-        self.assertNotContains(
-            response,
-            "Review progress",
-            status_code=200,
-        )
-
-    def test_eval_view_shows_no_submission_closed_message_when_completed(self):
-        """Test direct eval URL explains why non-submitters cannot evaluate."""
-        self.project.state = ProjectState.COMPLETED.value
-        self.project.save()
-        self.submission.delete()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "projects_eval",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/eval.html")
-        self.assertContains(
-            response,
-            "submission window is closed",
-            status_code=200,
-        )
-        self.assertNotContains(
-            response,
-            "Submission details",
-            status_code=200,
-        )
-
-    def test_list_view_authenticated_no_submission(self):
-        """Test that list view allows voluntary evaluation without submission."""
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-
-        self.submission.delete()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "project_list",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/list.html")
-        
-        self.assertFalse(response.context["has_submission"])
-        self.assertContains(
-            response,
-            'aria-label="Add to evaluation"',
-            status_code=200,
-        )
-        self.assertNotContains(response, "Other submissions")
-
-    def test_list_view_authenticated_with_submission(self):
-        """Test that list view shows Add to Evaluation button when user has submitted their project"""
-        self.project.state = ProjectState.PEER_REVIEWING.value
-        self.project.save()
-
-        self.peer_review.delete()
-
-        self.client.login(**credentials)
-
-        url = reverse(
-            "project_list",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "projects/list.html")
-        
-        self.assertTrue(response.context["has_submission"])
-        self.assertContains(
-            response,
-            'aria-label="Add to evaluation"',
-            status_code=200,
-        )
-
-    def test_project_list_links_student_to_repository(self):
-        """Project list links student names to repositories and leaderboard stays linked."""
-        url = reverse(
-            "project_list",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            reverse(
-                "leaderboard_score_breakdown",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "enrollment_id": self.enrollment.id,
-                },
-            ),
-        )
-        self.assertContains(response, self.submission.github_link)
-        self.assertContains(response, 'aria-label="Open repository"')
-        self.assertContains(
-            response,
-            reverse("list_all_project_submissions", args=[self.course.slug]),
-        )
-
-    def test_project_list_view_is_paginated(self):
-        """Test that the project submissions list limits results per page."""
-        for index in range(30):
-            user = User.objects.create_user(
-                username=f"student-{index}",
-                email=f"student-{index}@example.com",
-                password="12345",
-            )
-            enrollment = Enrollment.objects.create(
-                student=user,
-                course=self.course,
-                display_name=f"Student {index}",
-            )
-            ProjectSubmission.objects.create(
-                project=self.project,
-                student=user,
-                enrollment=enrollment,
-                github_link=f"https://github.com/student-{index}/project",
-                commit_id="1234567",
-            )
-
-        url = reverse(
-            "project_list",
-            args=[self.course.slug, self.project.slug],
-        )
-
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["submissions_page"].paginator.count, 32)
-        self.assertEqual(len(response.context["submissions"]), 25)
-        self.assertTrue(response.context["submissions_page"].has_next())
+        vote_exists = ProjectVote.objects.filter(
+            voter=self.user,
+            submission=self.other_submission,
+        ).exists()
+        self.assertTrue(vote_exists)

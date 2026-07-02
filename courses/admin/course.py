@@ -1,24 +1,35 @@
 from django import forms
 from django.contrib import admin
-from django.utils import timezone
+from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.widgets import (
     UnfoldAdminTextInputWidget,
     UnfoldAdminTextareaWidget,
 )
 
-from django.contrib import messages
-
-from courses.models import (
+from courses.models.course import (
     Course,
     CourseRegistration,
     LeaderboardComplaint,
     RegistrationCampaign,
+)
+from courses.models.project import (
     ReviewCriteria,
 )
-from courses.scoring import update_leaderboard
-from courses.validators import validate_review_criteria_options
+from courses.leaderboard import update_leaderboard
+from courses.validators.criteria_validators import (
+    validate_review_criteria_options,
+)
+
+
+CRITERIA_DESCRIPTION_WIDGET = UnfoldAdminTextInputWidget(
+    attrs={"size": "60"}
+)
+CRITERIA_OPTIONS_WIDGET = UnfoldAdminTextareaWidget(
+    attrs={"cols": 60, "rows": 4}
+)
 
 
 class CriteriaForm(forms.ModelForm):
@@ -26,38 +37,33 @@ class CriteriaForm(forms.ModelForm):
         model = ReviewCriteria
         fields = "__all__"
         widgets = {
-            "description": UnfoldAdminTextInputWidget(
-                attrs={"size": "60"}
-            ),
-            "options": UnfoldAdminTextareaWidget(
-                attrs={"cols": 60, "rows": 4}
-            ),
+            "description": CRITERIA_DESCRIPTION_WIDGET,
+            "options": CRITERIA_OPTIONS_WIDGET,
         }
-    
+
     def clean_options(self):
         """Validate the options field to ensure it has the correct structure."""
-        options = self.cleaned_data.get('options')
-        
+        options = self.cleaned_data.get("options")
+
         if options is None:
             raise ValidationError("Options field cannot be empty.")
-        
-        # Run the validator
+
         try:
             validate_review_criteria_options(options)
-        except ValidationError as e:
-            # Extract error message properly for modern Django
-            if hasattr(e, 'messages') and e.messages:
-                error_msg = e.messages[0]
+        except ValidationError as exc:
+            error_messages = getattr(exc, "messages", None)
+            if error_messages:
+                error_msg = error_messages[0]
             else:
-                error_msg = str(e)
-            
+                error_msg = str(exc)
+
             raise ValidationError(
                 f"Invalid options format. {error_msg}\n\n"
                 f"Expected format:\n"
                 f'[{{"criteria": "Poor", "score": 0}}, '
                 f'{{"criteria": "Good", "score": 1}}, ...]'
-            )
-        
+            ) from exc
+
         return options
 
 
@@ -84,55 +90,62 @@ def duplicate_course(modeladmin, request, queryset):
     current_year = timezone.now().year
 
     for course in queryset:
-        # Create a new course instance
-        old_title = course.title
-        new_title = old_title.replace(
-            str(current_year - 1), str(current_year)
-        )
-        if str(current_year - 1) not in old_title:
-            new_title = f"{old_title} {current_year}"
-
-        old_slug = course.slug
-        new_slug = old_slug.replace(
-            str(current_year - 1), str(current_year)
-        )
-        if str(current_year - 1) not in old_slug:
-            new_slug = f"{old_slug}-{current_year}"
-
-        # Create new course with updated fields
-        new_course = Course.objects.create(
-            title=new_title,
-            slug=new_slug,
-            description=course.description,
-            start_date=course.start_date,
-            end_date=course.end_date,
-            registration_url=course.registration_url,
-            github_repo_url=course.github_repo_url,
-            social_media_hashtag=course.social_media_hashtag,
-            first_homework_scored=False,
-            finished=False,
-            faq_document_url=course.faq_document_url,
-            project_passing_score=course.project_passing_score,
-            visible=course.visible,
-        )
-
-        # Copy review criteria with all fields
-        for criteria in course.reviewcriteria_set.all():
-            ReviewCriteria.objects.create(
-                course=new_course,
-                description=criteria.description,
-                options=criteria.options,
-                review_criteria_type=criteria.review_criteria_type,
-            )
-
+        new_course = _duplicate_course(course, current_year)
         modeladmin.message_user(
             request,
-            f"Course '{old_title}' was duplicated to '{new_title}'",
+            f"Course '{course.title}' was duplicated to "
+            f"'{new_course.title}'",
             level=messages.SUCCESS,
         )
 
 
 duplicate_course.short_description = "Duplicate selected courses"
+
+
+def _duplicate_course(course, current_year):
+    duplicate_fields = _course_duplicate_fields(course, current_year)
+    new_course = Course.objects.create(**duplicate_fields)
+    _copy_review_criteria(course, new_course)
+    return new_course
+
+
+def _course_duplicate_fields(course, current_year):
+    title = _year_rollover_value(course.title, current_year, " ")
+    slug = _year_rollover_value(course.slug, current_year, "-")
+    return {
+        "title": title,
+        "slug": slug,
+        "description": course.description,
+        "start_date": course.start_date,
+        "end_date": course.end_date,
+        "registration_url": course.registration_url,
+        "github_repo_url": course.github_repo_url,
+        "social_media_hashtag": course.social_media_hashtag,
+        "first_homework_scored": False,
+        "finished": False,
+        "faq_document_url": course.faq_document_url,
+        "project_passing_score": course.project_passing_score,
+        "visible": course.visible,
+    }
+
+
+def _year_rollover_value(value, current_year, separator):
+    previous_year = str(current_year - 1)
+    current_year_text = str(current_year)
+    if previous_year in value:
+        return value.replace(previous_year, current_year_text)
+    return f"{value}{separator}{current_year}"
+
+
+def _copy_review_criteria(source_course, target_course):
+    review_criteria = source_course.reviewcriteria_set.all()
+    for criteria in review_criteria:
+        ReviewCriteria.objects.create(
+            course=target_course,
+            description=criteria.description,
+            options=criteria.options,
+            review_criteria_type=criteria.review_criteria_type,
+        )
 
 
 @admin.register(Course)

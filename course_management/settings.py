@@ -37,7 +37,6 @@ extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"] + extra_allowed_hosts_parsed
 
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
-print(f"IS_LOCAL={IS_LOCAL}")
 
 CSRF_TRUSTED_ORIGINS = []
 
@@ -170,9 +169,6 @@ is_test = (
     or ("test_coverage" in sys.argv)
 )
 
-print(sys.argv)
-print(f"Is test: {is_test}")
-
 if is_test:
     STATICFILES_STORAGE = (
         "django.contrib.staticfiles.storage.StaticFilesStorage"
@@ -200,8 +196,11 @@ DATAMAILER_IMPORT_S3_BUCKET = os.getenv("DATAMAILER_IMPORT_S3_BUCKET", "")
 DATAMAILER_IMPORT_S3_PREFIX = os.getenv(
     "DATAMAILER_IMPORT_S3_PREFIX", "datamailer-imports"
 ).strip("/")
+DATAMAILER_IMPORT_URL_EXPIRES_SECONDS_VALUE = os.getenv(
+    "DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", "3600"
+)
 DATAMAILER_IMPORT_URL_EXPIRES_SECONDS = int(
-    os.getenv("DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", "3600")
+    DATAMAILER_IMPORT_URL_EXPIRES_SECONDS_VALUE
 )
 DATAMAILER_IMPORT_S3_REGION = os.getenv("DATAMAILER_IMPORT_S3_REGION", "")
 DATAMAILER_SYNC_ON_USER_CREATE = (
@@ -223,7 +222,8 @@ AUTHENTICATION_BACKENDS = (
     # "django.contrib.auth.backends.ModelBackend",
 )
 
-SITE_ID = int(os.getenv("SITE_ID", "2"))
+SITE_ID_VALUE = os.getenv("SITE_ID", "2")
+SITE_ID = int(SITE_ID_VALUE)
 
 ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_AUTHENTICATION_METHOD = "username_email"
@@ -360,9 +360,12 @@ def can_login_as(request, target_user):
 CAN_LOGIN_AS = can_login_as
 
 # Unfold Configurations
+UNFOLD_SITE_HEADER = _("Course Management")
+UNFOLD_SITE_TITLE = _("Course Management")
+
 UNFOLD = {
-    "SITE_HEADER": _("Course Management"),
-    "SITE_TITLE": _("Course Management"),
+    "SITE_HEADER": UNFOLD_SITE_HEADER,
+    "SITE_TITLE": UNFOLD_SITE_TITLE,
     "SITE_SYMBOL": "school",
 }
 

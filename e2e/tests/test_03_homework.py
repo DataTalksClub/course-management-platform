@@ -8,11 +8,11 @@
 * Leaderboard reflects the score.
 """
 
-from __future__ import annotations
-
 import pytest
 
-from e2e.mock_inbox import InboxDisabled
+from e2e.api_client import ApiRequestData
+from e2e.browser import HomeworkSubmissionData
+from e2e.mock_inbox import InboxDisabled, MessageMatchCriteria, MessageWaitRequest
 
 pytestmark = pytest.mark.homework
 
@@ -29,12 +29,14 @@ def hw_answers():
 
 
 def _questions_via_api(api, run_state, hw_id) -> dict[str, int]:
-    resp = api._request(  # internal helper reuse, read-only GET
-        "GET",
-        f"/api/courses/{run_state.course.slug}/homeworks/{hw_id}/questions/",
+    request_data = ApiRequestData(
+        method="GET",
+        path=f"/api/courses/{run_state.course.slug}/homeworks/{hw_id}/questions/",
         expected=(200,),
     )
-    questions = resp.json().get("questions", [])
+    resp = api._request(request_data)  # internal helper reuse, read-only GET
+    body = resp.json()
+    questions = body.get("questions", [])
     mapping: dict[str, int] = {}
     for q in questions:
         text = q.get("text", "").lower()
@@ -49,40 +51,67 @@ def _questions_via_api(api, run_state, hw_id) -> dict[str, int]:
     return mapping
 
 
-def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
+def _assert_homework_flow_ready(run_state):
     assert run_state.student_user_id, "Student/impersonation required first."
     assert run_state.course and run_state.course.homework_slug
 
-    qmap = _questions_via_api(api, run_state, run_state.course.homework_id)
-    assert {"free_form", "checkboxes", "multiple_choice"} <= set(qmap), (
-        f"Could not resolve all question ids: {qmap}"
-    )
 
-    answers = {
-        qmap["free_form"]: hw_answers["free_form"],
-        qmap["checkboxes"]: hw_answers["checkboxes"],
-        qmap["multiple_choice"]: hw_answers["multiple_choice"],
-    }
+def _assert_required_homework_questions(qmap):
+    required_questions = ("free_form", "checkboxes", "multiple_choice")
+    for question_key in required_questions:
+        assert question_key in qmap, (
+            f"Could not resolve all question ids: {qmap}"
+        )
+
+
+def _homework_question_ids(api, run_state):
+    qmap = _questions_via_api(api, run_state, run_state.course.homework_id)
+    _assert_required_homework_questions(qmap)
+    return qmap
+
+
+def _homework_answers_by_question(qmap, hw_answers):
+    answers = {}
+    answers[qmap["free_form"]] = hw_answers["free_form"]
+    answers[qmap["checkboxes"]] = hw_answers["checkboxes"]
+    answers[qmap["multiple_choice"]] = hw_answers["multiple_choice"]
     if "long_free_form" in qmap:
         answers[qmap["long_free_form"]] = hw_answers["long_free_form"]
+    return answers
 
-    admin_session.submit_homework(
-        run_state.course.slug,
-        run_state.course.homework_slug,
-        answers,
+
+def _homework_submission_data(run_state, answers):
+    learning_links = [
+        f"https://twitter.com/e2e/{run_state.namespace}-hw"
+    ]
+    return HomeworkSubmissionData(
+        course_slug=run_state.course.slug,
+        homework_slug=run_state.course.homework_slug,
+        answers=answers,
         homework_url="https://github.com/DataTalksClub/course-management-platform",
-        learning_in_public_links=[
-            f"https://twitter.com/e2e/{run_state.namespace}-hw"
-        ],
+        learning_in_public_links=learning_links,
         time_spent_lectures=2,
         time_spent_homework=3,
     )
-    run_state.homework_submitted = True
 
+
+def _assert_homework_submission_confirmation(admin_session):
     body = admin_session.homework_confirmation_text()
     assert "Thank you for submitting your homework" in body, (
         "Homework confirmation message not shown after submission."
     )
+
+
+def test_submit_homework_via_ui(admin_session, api, run_state, hw_answers):
+    _assert_homework_flow_ready(run_state)
+    qmap = _homework_question_ids(api, run_state)
+    answers = _homework_answers_by_question(qmap, hw_answers)
+    submission_data = _homework_submission_data(run_state, answers)
+
+    admin_session.submit_homework(submission_data)
+    run_state.homework_submitted = True
+
+    _assert_homework_submission_confirmation(admin_session)
 
 
 def test_homework_submission_recorded_in_api(api, run_state):
@@ -91,12 +120,25 @@ def test_homework_submission_recorded_in_api(api, run_state):
         run_state.course.slug, run_state.course.homework_slug
     )
     submissions = data.get("submissions", [])
-    assert any(
-        s.get("student_id") == run_state.student_user_id
-        or s.get("student", {}).get("email") == run_state.student_email
-        or run_state.student_email in str(s)
-        for s in submissions
-    ), f"No submission found for {run_state.student_email}: {submissions!r}"
+    assert _has_homework_submission(submissions, run_state), (
+        f"No submission found for {run_state.student_email}: {submissions!r}"
+    )
+
+
+def _has_homework_submission(submissions, run_state):
+    for submission in submissions:
+        if _homework_submission_matches_student(submission, run_state):
+            return True
+    return False
+
+
+def _homework_submission_matches_student(submission, run_state):
+    if submission.get("student_id") == run_state.student_user_id:
+        return True
+    student = submission.get("student", {})
+    if student.get("email") == run_state.student_email:
+        return True
+    return run_state.student_email in str(submission)
 
 
 # Confirmation-email contract (from courses/views/homework.py, read-only):
@@ -112,13 +154,17 @@ def _assert_homework_confirmation(backend, run_state):
     expected_template = (
         HOMEWORK_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
     )
-    message = backend.wait_for_message(
-        run_state.student_email,
+    criteria = MessageMatchCriteria(
         template_key=expected_template,
         subject="Homework submission saved",
+    )
+    request = MessageWaitRequest(
+        address=run_state.student_email,
+        criteria=criteria,
         # Real SES inbound is eventually consistent (~5-15s); give it headroom.
         timeout=120,
     )
+    message = backend.wait_for_message(request)
     assert "E2E Homework 1" in message.subject
     if expected_template:
         assert message.template_key == expected_template
@@ -173,9 +219,16 @@ def test_score_homework(api, run_state):
     submissions = data.get("submissions", [])
     assert submissions, "No submissions to score."
     # At least one submission now has a numeric score.
-    assert any(
-        _has_score(s) for s in submissions
-    ), f"No scored submission after scoring: {submissions!r}"
+    assert _has_scored_submission(submissions), (
+        f"No scored submission after scoring: {submissions!r}"
+    )
+
+
+def _has_scored_submission(submissions):
+    for submission in submissions:
+        if _has_score(submission):
+            return True
+    return False
 
 
 def test_leaderboard_reflects_score(api, run_state):
@@ -192,9 +245,11 @@ def _has_score(submission: dict) -> bool:
             return True
     # Nested under a homework_submission object in some exports.
     nested = submission.get("homework_submission") or {}
-    return any(
-        isinstance(nested.get(k), (int, float)) for k in ("total_score", "score")
-    )
+    for key in ("total_score", "score"):
+        value = nested.get(key)
+        if isinstance(value, (int, float)):
+            return True
+    return False
 
 
 def require_submitted(run_state):

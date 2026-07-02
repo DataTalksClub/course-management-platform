@@ -1,16 +1,12 @@
-import logging
-
 from unittest import TestCase
 
 from courses.validators.custom_url_validators import (
     URL_VALIDATION_TIMEOUT,
+    clean_faq_contribution_url,
     validate_url_200,
     get_error_message,
 )
 from django.core.exceptions import ValidationError
-
-
-logger = logging.getLogger(__name__)
 
 
 class MockResponse:
@@ -18,8 +14,54 @@ class MockResponse:
         self.status_code = status_code
 
 
-class UrlValidationTestCase(TestCase):
+class FaqContributionUrlValidationTestCase(TestCase):
+    def test_clean_faq_contribution_url_strips_valid_issue_url(self):
+        url = " https://github.com/DataTalksClub/faq/issues/281 "
 
+        cleaned = clean_faq_contribution_url(url)
+
+        self.assertEqual(
+            cleaned, "https://github.com/DataTalksClub/faq/issues/281"
+        )
+
+    def test_clean_faq_contribution_url_accepts_pull_url(self):
+        url = "https://github.com/DataTalksClub/faq/pull/266"
+
+        cleaned = clean_faq_contribution_url(url)
+
+        self.assertEqual(cleaned, url)
+
+    def test_clean_faq_contribution_url_rejects_non_https_url(self):
+        url = "http://github.com/DataTalksClub/faq/issues/281"
+
+        with self.assertRaises(ValidationError) as context:
+            clean_faq_contribution_url(url)
+
+        self.assertEqual(
+            context.exception.message_dict["faq_contribution_url"],
+            [
+                "FAQ contribution must be a valid HTTPS GitHub issue "
+                "or pull request URL."
+            ],
+        )
+
+    def test_clean_faq_contribution_url_rejects_other_github_urls(self):
+        url = "https://gist.github.com/Sanjomwa/hash"
+
+        with self.assertRaises(ValidationError) as context:
+            clean_faq_contribution_url(url)
+
+        self.assertEqual(
+            context.exception.message_dict["faq_contribution_url"],
+            [
+                "FAQ contribution must be a DataTalksClub/faq issue "
+                "or pull request URL, for example "
+                "https://github.com/DataTalksClub/faq/issues/281."
+            ],
+        )
+
+
+class UrlStatusValidationTestCase(TestCase):
     def test_validation_code_200_github_mock(self):
         def mock_get(url, **kwargs):
             return MockResponse(200)
@@ -36,6 +78,28 @@ class UrlValidationTestCase(TestCase):
         with self.assertRaises(ValidationError):
             validate_url_200(url, mock_get)
 
+    def test_timeout_is_passed_to_request(self):
+        captured = {}
+
+        def mock_get(url, **kwargs):
+            captured.update(kwargs)
+            return MockResponse(200)
+
+        validate_url_200("https://example.com/", mock_get)
+        self.assertIn("timeout", captured)
+        self.assertEqual(captured["timeout"], URL_VALIDATION_TIMEOUT)
+
+    def test_non_requests_exception_becomes_validation_error(self):
+        # e.g. UnicodeError / LocationParseError from a malformed host -
+        # must not escape as an uncaught 500.
+        def mock_get(url, **kwargs):
+            raise UnicodeError("label too long")
+
+        with self.assertRaises(ValidationError):
+            validate_url_200("https://example.com/", mock_get)
+
+
+class UrlErrorMessageTestCase(TestCase):
     def test_error_message_404_github(self):
         url = "https://github.com/DataTalksClub/non-existing-repo"
         error = get_error_message(404, url)
@@ -59,26 +123,6 @@ class UrlValidationTestCase(TestCase):
         error = get_error_message(404, url)
         expected_error = f"The submitted link {url} does not exist."
         self.assertEqual(error, expected_error)
-
-    def test_timeout_is_passed_to_request(self):
-        captured = {}
-
-        def mock_get(url, **kwargs):
-            captured.update(kwargs)
-            return MockResponse(200)
-
-        validate_url_200("https://example.com/", mock_get)
-        self.assertIn("timeout", captured)
-        self.assertEqual(captured["timeout"], URL_VALIDATION_TIMEOUT)
-
-    def test_non_requests_exception_becomes_validation_error(self):
-        # e.g. UnicodeError / LocationParseError from a malformed host -
-        # must not escape as an uncaught 500.
-        def mock_get(url, **kwargs):
-            raise UnicodeError("label too long")
-
-        with self.assertRaises(ValidationError):
-            validate_url_200("https://example.com/", mock_get)
 
     def test_error_message_400(self):
         url = "https://www.linkedin.com/whatever"

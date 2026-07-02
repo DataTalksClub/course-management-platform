@@ -7,13 +7,22 @@ from unfold.widgets import (
 )
 from django.contrib import messages
 
-from courses.models import Homework, Question, HomeworkState
+from courses.models.homework import Homework, HomeworkState, Question
 
-from courses.scoring import (
-    score_homework_submissions,
-    fill_correct_answers,
+from courses.assignment_statistics import calculate_homework_statistics
+from courses.homework_correct_answers import (
     clear_correct_answers,
-    calculate_homework_statistics,
+    fill_correct_answers,
+)
+from courses.scoring import score_homework_submissions
+
+
+QUESTION_TEXT_WIDGET = UnfoldAdminTextInputWidget(attrs={"size": "60"})
+QUESTION_POSSIBLE_ANSWERS_WIDGET = UnfoldAdminTextareaWidget(
+    attrs={"cols": 60, "rows": 4}
+)
+QUESTION_CORRECT_ANSWER_WIDGET = UnfoldAdminTextInputWidget(
+    attrs={"size": "20"}
 )
 
 
@@ -22,13 +31,9 @@ class QuestionForm(forms.ModelForm):
         model = Question
         fields = "__all__"
         widgets = {
-            "text": UnfoldAdminTextInputWidget(attrs={"size": "60"}),
-            "possible_answers": UnfoldAdminTextareaWidget(
-                attrs={"cols": 60, "rows": 4}
-            ),
-            "correct_answer": UnfoldAdminTextInputWidget(
-                attrs={"size": "20"}
-            ),
+            "text": QUESTION_TEXT_WIDGET,
+            "possible_answers": QUESTION_POSSIBLE_ANSWERS_WIDGET,
+            "correct_answer": QUESTION_CORRECT_ANSWER_WIDGET,
         }
 
 

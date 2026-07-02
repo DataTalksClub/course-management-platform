@@ -44,7 +44,11 @@ class WrappedStatistics(models.Model):
         ordering = ['-year']
     
     def __str__(self):
-        return f"Wrapped {self.year} ({'Visible' if self.is_visible else 'Hidden'})"
+        if self.is_visible:
+            visibility_label = "Visible"
+        else:
+            visibility_label = "Hidden"
+        return f"Wrapped {self.year} ({visibility_label})"
 
 
 class UserWrappedStatistics(models.Model):

@@ -1,15 +1,11 @@
 """Deadline computation and formatting for notifications.
 
 `ceil_to_next_hour` is used to derive auto-set deadlines (e.g. peer review
-opens for 7 days, rounded up to a whole hour). `format_deadline_for_email`
-renders a single deadline instant in the recipient's saved timezone, falling
-back to UTC.
+opens for 7 days, rounded up to a whole hour).
 """
 
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-
-from accounts.services.timezones import format_deadline_for_user
 
 UTC = ZoneInfo("UTC")
 
@@ -25,12 +21,3 @@ def ceil_to_next_hour(value: datetime) -> datetime:
         return value
     truncated = value.replace(minute=0, second=0, microsecond=0)
     return truncated + timedelta(hours=1)
-
-
-def format_deadline_for_email(value: datetime, user=None) -> dict:
-    """Render a deadline instant for an email.
-
-    Returns the weekday, date and time as separate pieces plus a ready-to-use
-    ``deadline_summary`` line, e.g. "Thursday, 2 July 2026, 20:00 Europe/Berlin".
-    """
-    return format_deadline_for_user(value, user)

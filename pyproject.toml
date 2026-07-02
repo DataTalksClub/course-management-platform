@@ -43,6 +43,12 @@ extend-exclude = ["notebooks", "**/migrations"]
 # Utility scripts call django.setup() before importing project modules.
 "scripts/*.py" = ["E402"]
 
+[tool.pyrefly]
+# Notebooks are exploratory artifacts; type-check maintained Python modules.
+preset = "basic"
+project-includes = ["**/*.py"]
+project-excludes = ["notebooks/**"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "course_management.settings"
 python_files = ["test_*.py"]

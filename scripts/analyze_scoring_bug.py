@@ -9,9 +9,13 @@ the impact on scoring.
 import os
 import sys
 import django
+from collections import defaultdict
+from pathlib import Path
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+project_root_path = str(project_root)
+sys.path.insert(0, project_root_path)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "course_management.settings")
 django.setup()
@@ -19,39 +23,42 @@ django.setup()
 from courses.models import Project, ProjectSubmission, PeerReview
 
 
-def analyze_scoring_bug(course_slug, project_slug):
-    """
-    Analyze the scoring bug for a specific project
-    """
+def get_project(course_slug, project_slug):
     try:
-        project = Project.objects.get(
+        return Project.objects.get(
             course__slug=course_slug,
             slug=project_slug
         )
     except Project.DoesNotExist:
         print(f"Project not found: {course_slug}/{project_slug}")
         print("Please run pull_project_data.py and load_project_data.py first")
-        return
-    
+        return None
+
+
+def print_bug_header(project):
     print("=" * 80)
     print(f"BUG ANALYSIS: {project.course.slug}/{project.slug}")
     print("=" * 80)
     print()
-    
+
+
+def print_bug_location():
     print("BUG LOCATION:")
     print("  File: courses/projects.py")
     print("  Function: score_project()")
     print("  Line: 286")
     print()
-    
+
     print("BUGGY CODE:")
     print("  reviewed = reviews_by_reviewer.get(submission_id)")
     print()
-    
+
     print("CORRECT CODE:")
     print("  reviewed = reviews_by_reviewer.get(submission.id)")
     print()
-    
+
+
+def print_bug_explanation():
     print("EXPLANATION:")
     print("  The bug occurs in the loop that processes each submission.")
     print("  At line 284: for submission_id, submission in submissions.items():")
@@ -75,58 +82,100 @@ def analyze_scoring_bug(course_slug, project_slug):
     print("  think they're the same, but the bug manifests because of the logic")
     print("  flow and how the variables are used in context.")
     print()
-    
-    # Show actual impact
-    submissions = ProjectSubmission.objects.filter(project=project)
-    peer_reviews = PeerReview.objects.filter(
+
+
+def print_bug_details(project):
+    print_bug_header(project)
+    print_bug_location()
+    print_bug_explanation()
+
+
+def project_reviews(project):
+    return PeerReview.objects.filter(
         submission_under_evaluation__project=project
     )
-    
-    print("IMPACT ON THIS PROJECT:")
-    print(f"  Total submissions: {submissions.count()}")
-    print(f"  Total peer reviews: {peer_reviews.count()}")
-    print(f"  Expected reviews per person: {project.number_of_peers_to_evaluate}")
-    print()
-    
-    # Count submitted reviews
-    submitted_reviews = peer_reviews.filter(state='SU')
-    print(f"  Submitted reviews: {submitted_reviews.count()}")
-    print()
-    
-    # Analyze review distribution
-    from collections import defaultdict
+
+
+def review_counts_by_reviewer(submitted_reviews):
     reviews_by_reviewer = defaultdict(int)
-    
     for review in submitted_reviews:
         reviews_by_reviewer[review.reviewer.id] += 1
-    
+    return reviews_by_reviewer
+
+
+def print_submission_review_completion(project, submissions, submitted_reviews):
+    reviews_by_reviewer = review_counts_by_reviewer(submitted_reviews)
+
     print("  Review completion by students:")
-    for sub in submissions.order_by('id')[:10]:  # Show first 10
+    ordered_submissions = submissions.order_by('id')
+    limited_submissions = ordered_submissions[:10]
+    for sub in limited_submissions:
         count = reviews_by_reviewer.get(sub.id, 0)
         expected = project.number_of_peers_to_evaluate
         status = "✓" if count >= expected else "✗"
         print(f"    {status} Submission {sub.id}: {count}/{expected} reviews completed")
-    
-    if submissions.count() > 10:
-        print(f"    ... and {submissions.count() - 10} more")
-    
+
+    submission_count = submissions.count()
+    if submission_count > 10:
+        remaining_count = submission_count - 10
+        print(f"    ... and {remaining_count} more")
+
+
+def print_project_impact(project):
+    submissions = ProjectSubmission.objects.filter(project=project)
+    peer_reviews = project_reviews(project)
+
+    print("IMPACT ON THIS PROJECT:")
+    submission_count = submissions.count()
+    peer_review_count = peer_reviews.count()
+    print(f"  Total submissions: {submission_count}")
+    print(f"  Total peer reviews: {peer_review_count}")
+    print(f"  Expected reviews per person: {project.number_of_peers_to_evaluate}")
     print()
+
+    submitted_reviews = peer_reviews.filter(state='SU')
+    print(f"  Submitted reviews: {submitted_reviews.count()}")
+    print()
+
+    print_submission_review_completion(project, submissions, submitted_reviews)
+    print()
+
+
+def print_fix_footer():
     print("To fix this bug, change line 286 in courses/projects.py")
     print("=" * 80)
 
 
-if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) == 3:
-        course_slug = sys.argv[1]
-        project_slug = sys.argv[2]
-    else:
-        # Default to ml-zoomcamp-2025 midterm project
-        course_slug = "ml-zoomcamp-2025"
-        project_slug = "midterm"
-        print(f"Usage: python {sys.argv[0]} <course-slug> <project-slug>")
-        print(f"Using default: {course_slug}/{project_slug}")
-        print()
-    
+def analyze_scoring_bug(course_slug, project_slug):
+    """
+    Analyze the scoring bug for a specific project
+    """
+    project = get_project(course_slug, project_slug)
+    if project is None:
+        return
+
+    print_bug_details(project)
+    print_project_impact(project)
+    print_fix_footer()
+
+
+def parse_args(argv):
+    if len(argv) == 3:
+        return argv[1], argv[2]
+
+    course_slug = "ml-zoomcamp-2025"
+    project_slug = "midterm"
+    print(f"Usage: python {argv[0]} <course-slug> <project-slug>")
+    print(f"Using default: {course_slug}/{project_slug}")
+    print()
+    return course_slug, project_slug
+
+
+def main(argv=None):
+    argv = argv or sys.argv
+    course_slug, project_slug = parse_args(argv)
     analyze_scoring_bug(course_slug, project_slug)
+
+
+if __name__ == "__main__":
+    main()

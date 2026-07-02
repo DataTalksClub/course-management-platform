@@ -15,16 +15,21 @@ import sys
 import argparse
 import time
 import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
-# Add parent directory to path so Django can find course_management module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to path so Django can find course_management module.
+project_root = Path(__file__).resolve().parent.parent
+project_root_path = str(project_root)
+sys.path.insert(0, project_root_path)
 
 # Parse .envrc file
-envrc_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.envrc')
+envrc_path = project_root / ".envrc"
 env_vars = {}
 
 if os.path.exists(envrc_path):
-    with open(envrc_path, 'r') as f:
+    with open(envrc_path, "r") as f:
         for line in f:
             line = line.strip()
             if line.startswith('export '):
@@ -59,24 +64,35 @@ import django
 django.setup()
 
 from courses.models import Project, ProjectSubmission
-from courses.projects import score_project
+from courses.project_scoring import score_project
 
 
-def score_and_display(course_slug, project_slug):
-    """
-    Score a project and display detailed results with timing
-    """
+@dataclass(frozen=True)
+class ProjectScoringResult:
+    status: Any
+    message: str
+    elapsed: float
+
+
+def get_project(course_slug, project_slug):
     try:
-        project = Project.objects.get(course__slug=course_slug, slug=project_slug)
+        return Project.objects.get(
+            course__slug=course_slug,
+            slug=project_slug,
+        )
     except Project.DoesNotExist:
         print(f"✗ Project not found: {course_slug}/{project_slug}")
-        return
+        return None
 
+
+def print_project_header(project):
     print("=" * 80)
     print(f"SCORING PROJECT (DEV): {project.course.slug}/{project.slug}")
     print("=" * 80)
     print()
 
+
+def print_project_details(project):
     print(f"Project: {project.title}")
     print(f"State: {project.state}")
     print(f"Points to pass: {project.points_to_pass}")
@@ -84,6 +100,8 @@ def score_and_display(course_slug, project_slug):
     print(f"Points for peer review: {project.points_for_peer_review}")
     print()
 
+
+def confirm_peer_review_state(project):
     if project.state != "PR":
         print(f"⚠ WARNING: Project state is '{project.state}', should be 'PR' (PEER_REVIEWING)")
         print("  Update the state manually in the database first:")
@@ -91,41 +109,62 @@ def score_and_display(course_slug, project_slug):
         print()
         response = input("Continue anyway? (y/n): ")
         if response.lower() != 'y':
-            return
+            return False
+    return True
 
-    # Count submissions before scoring
+
+def print_submission_count(project):
     submissions = ProjectSubmission.objects.filter(project=project)
     print(f"Total submissions: {submissions.count()}")
     print()
 
-    # Run scoring with timing
+
+def run_project_scoring(project):
     print("Running score_project()...")
     print("-" * 80)
-    
+
     start_time = time.time()
     status, message = score_project(project)
     end_time = time.time()
-    
+
     print("-" * 80)
     print()
+    elapsed = end_time - start_time
+    return ProjectScoringResult(
+        status=status,
+        message=message,
+        elapsed=elapsed,
+    )
 
-    print(f"Status: {status.value}")
-    print(f"Message: {message}")
-    print(f"Time taken: {end_time - start_time:.2f} seconds")
+
+def print_scoring_status(result):
+    print(f"Status: {result.status.value}")
+    print(f"Message: {result.message}")
+    print(f"Time taken: {result.elapsed:.2f} seconds")
     print()
 
-    # Display results
-    submissions = ProjectSubmission.objects.filter(project=project).order_by("-total_score")
 
+def scored_submissions(project):
+    return ProjectSubmission.objects.filter(project=project).order_by(
+        "-total_score"
+    )
+
+
+def print_results_header():
     print("=" * 80)
     print("SCORING RESULTS")
     print("=" * 80)
     print()
 
+
+def print_passed_count(submissions):
     passed_count = submissions.filter(passed=True).count()
-    print(f"Passed: {passed_count}/{submissions.count()}")
+    submission_count = submissions.count()
+    print(f"Passed: {passed_count}/{submission_count}")
     print()
 
+
+def print_submission_table_header():
     print("Top 10 submissions:")
     print()
     print(
@@ -133,20 +172,55 @@ def score_and_display(course_slug, project_slug):
     )
     print("-" * 80)
 
-    for sub in submissions[:10]:
-        print(
-            f"{sub.id:<6} {sub.project_score:>5} {sub.project_faq_score:>4} "
-            f"{sub.project_learning_in_public_score:>4} {sub.peer_review_score:>8} "
-            f"{sub.peer_review_learning_in_public_score:>8} {sub.total_score:>6} "
-            f"{'Yes' if sub.reviewed_enough_peers else 'No':>10} "
-            f"{'Yes' if sub.passed else 'No':>7}"
-        )
 
-    if submissions.count() > 10:
-        print(f"\n... and {submissions.count() - 10} more submissions")
+def print_submission_row(sub):
+    print(
+        f"{sub.id:<6} {sub.project_score:>5} {sub.project_faq_score:>4} "
+        f"{sub.project_learning_in_public_score:>4} {sub.peer_review_score:>8} "
+        f"{sub.peer_review_learning_in_public_score:>8} {sub.total_score:>6} "
+        f"{'Yes' if sub.reviewed_enough_peers else 'No':>10} "
+        f"{'Yes' if sub.passed else 'No':>7}"
+    )
 
+
+def print_submission_table(submissions):
+    print_submission_table_header()
+    top_submissions = submissions[:10]
+    for sub in top_submissions:
+        print_submission_row(sub)
+
+    submission_count = submissions.count()
+    if submission_count > 10:
+        remaining_count = submission_count - 10
+        print(f"\n... and {remaining_count} more submissions")
+
+
+def print_scoring_results(project):
+    submissions = scored_submissions(project)
+    print_results_header()
+    print_passed_count(submissions)
+    print_submission_table(submissions)
     print()
     print("=" * 80)
+
+
+def score_and_display(course_slug, project_slug):
+    """
+    Score a project and display detailed results with timing
+    """
+    project = get_project(course_slug, project_slug)
+    if project is None:
+        return
+
+    print_project_header(project)
+    print_project_details(project)
+    if not confirm_peer_review_state(project):
+        return
+
+    print_submission_count(project)
+    result = run_project_scoring(project)
+    print_scoring_status(result)
+    print_scoring_results(project)
 
 
 def main():
