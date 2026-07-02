@@ -18,7 +18,6 @@ def queue_certificate_notifications(
     enrollments_to_notify,
     notification_sender,
 ):
-    notification_enrollments = enrollments_to_notify.values()
-    for enrollment in notification_enrollments:
+    for enrollment in enrollments_to_notify.values():
         send_notification = partial(notification_sender, enrollment)
         transaction.on_commit(send_notification)

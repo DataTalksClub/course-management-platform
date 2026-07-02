@@ -96,8 +96,7 @@ class InboxMessage:
 
     def _context_strings(self) -> list[str]:
         strings = []
-        context_values = (self.context or {}).values()
-        for value in context_values:
+        for value in (self.context or {}).values():
             value_strings = context_value_strings(value)
             strings.extend(value_strings)
         return strings

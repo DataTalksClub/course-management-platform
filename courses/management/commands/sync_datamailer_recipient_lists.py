@@ -159,8 +159,7 @@ def recipient_list_batches(kind, options):
 
 def write_batch_summary(write_line, batches):
     total_members = 0
-    payloads = batches.values()
-    for payload in payloads:
+    for payload in batches.values():
         total_members += len(payload["members"])
     write_line(
         f"Prepared {len(batches)} recipient list(s), {total_members} member(s)."

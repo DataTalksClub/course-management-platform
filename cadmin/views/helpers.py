@@ -40,8 +40,7 @@ def redirect_after_action(request, default_view_name, **kwargs):
 
 
 def first_form_error(form):
-    form_error_values = form.errors.values()
-    for errors in form_error_values:
+    for errors in form.errors.values():
         if errors:
             return errors[0]
     return "Invalid form data"

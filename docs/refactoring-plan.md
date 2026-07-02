@@ -4335,6 +4335,19 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed remaining one-off `.values()` loop aliases that did
+  not add domain meaning in certificate notifications, form error extraction,
+  recipient-list command summaries, and E2E mock inbox context scanning.
+  Verification:
+  `uv run python manage.py test data.tests.test_enrollment_certificate_notifications courses.tests.test_datamailer_recipient_lists cadmin.tests.test_homework_submission_edit_views cadmin.tests.test_project_submission_edit_views`,
+  `uv run pytest e2e/tests/test_06_mock_inbox_client.py`,
+  `uv run ruff check api/views/enrollment_certificate_delivery.py cadmin/views/helpers.py courses/management/commands/sync_datamailer_recipient_lists.py e2e/mock_inbox.py`,
+  `uvx pyrefly check`, one-off loop alias scan, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
@@ -4365,7 +4378,7 @@ These are lower priority than the phases above.
   intended as maintained commands.
 - [ ] Audit `courses/static/courses.css` for component grouping after backend
   refactors, but only when UI work is planned.
-- [ ] Replace cleanup-introduced one-off loop aliases with direct loop iterables
+- [x] Replace cleanup-introduced one-off loop aliases with direct loop iterables
   when the alias adds no domain meaning.
 - [ ] Replace tuple/list record construction that still inlines meaningful
   function calls with named local variables.
