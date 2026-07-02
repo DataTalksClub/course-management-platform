@@ -1,7 +1,7 @@
 # Refactoring Plan
 
 Created: 2026-06-28
-Updated: 2026-07-01
+Updated: 2026-07-02
 
 This plan captures the current code-structure findings and a staged path for
 simplifying the codebase without changing user-visible behavior. The goal is to
@@ -3008,6 +3008,10 @@ Steps:
   size-threshold violations, append-construction violations, tuple-unpacking
   violations, and wide positional calls with the 30-line production threshold
   and 60-line test threshold, `uvx pyrefly check`, and `git diff --check`.
+- [x] Split cadmin campaign tests into shared campaign fixtures, registration
+  landing-page admin tests, and Datamailer campaign action tests. Verification:
+  `uv run ruff check cadmin/tests/campaign_view_base.py cadmin/tests/test_campaign_views.py cadmin/tests/test_campaign_datamailer_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_campaign_views cadmin.tests.test_campaign_datamailer_views`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
