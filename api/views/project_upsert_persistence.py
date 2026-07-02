@@ -79,15 +79,6 @@ def apply_project_instructions_url(project, data):
     return None
 
 
-def project_generic_patch_data(data):
-    handled = {"title", "name", "description", "instructions_url"}
-    patch_data = {}
-    for key, value in data.items():
-        if key in PROJECT_PATCH_FIELDS and key not in handled:
-            patch_data[key] = value
-    return patch_data
-
-
 def apply_project_data(project, data):
     name = data.get("name")
     title = data.get("title", name)
@@ -101,7 +92,12 @@ def apply_project_data(project, data):
     if error:
         return error
 
-    patch_data = project_generic_patch_data(data)
+    handled = {"title", "name", "description", "instructions_url"}
+    patch_data = {}
+    for key, value in data.items():
+        if key in PROJECT_PATCH_FIELDS and key not in handled:
+            patch_data[key] = value
+
     return apply_patch_fields(
         project,
         patch_data,

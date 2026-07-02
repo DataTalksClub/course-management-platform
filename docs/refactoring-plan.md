@@ -2035,6 +2035,20 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use project-upsert generic patch-data
+  helper. `apply_project_data` now builds the generic patch payload directly
+  after title, description, and instructions URL handling, while
+  `apply_patch_fields` remains the shared patch boundary. Verification:
+  `uv run ruff check api/views/project_upsert_persistence.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/project_upsert_persistence.py`,
+  `uv run python manage.py test api.tests.test_project_updates api.tests.test_project_creation api.tests.test_projects`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] 2026-07-02: Removed the single-use homework-upsert text-field assignment
   helper. The title/name fallback and optional description assignment now live
   directly in `apply_homework_data`, before validated fields and direct update
