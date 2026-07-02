@@ -3204,6 +3204,11 @@ Steps:
   keeping the concrete integration test case stable. Verification:
   `uv run ruff check courses/tests/test_project_statistics_integration.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_statistics_integration`.
+- [x] Split cadmin homework view tests into focused submission-view,
+  action-redirect, search, and scoring-action scenario classes while reusing
+  the shared cadmin homework base. Verification:
+  `uv run ruff check cadmin/tests/test_homework_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_homework_views`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

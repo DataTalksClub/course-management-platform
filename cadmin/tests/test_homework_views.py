@@ -13,8 +13,7 @@ from courses.models import (
 from cadmin.tests.homework_view_base import HomeworkCadminViewTestBase
 
 
-class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
-
+class HomeworkCadminSubmissionViewTests(HomeworkCadminViewTestBase):
     def test_homework_submissions_redirect_from_courses(self):
         """Test that homework submissions view redirects to cadmin"""
         self.client.login(
@@ -78,6 +77,8 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         self.assertEqual(response.status_code, 200)
         self.assert_homework_submission_actions(response)
 
+
+class HomeworkCadminActionRedirectTests(HomeworkCadminViewTestBase):
     def test_homework_actions_can_redirect_back_to_homework_submissions(
         self,
     ):
@@ -113,6 +114,8 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         course_url = self.cadmin_course_url()
         self.assertRedirects(response, course_url)
 
+
+class HomeworkCadminSearchTests(HomeworkCadminViewTestBase):
     def test_enrollments_search_finds_records_beyond_first_page(self):
         """Enrollment search is server-side, not limited to the visible page."""
         for index in range(30):
@@ -162,6 +165,8 @@ class HomeworkCadminViewTests(HomeworkCadminViewTestBase):
         self.assertContains(response, "hw-student-29@example.com")
         self.assertNotContains(response, "hw-student-00@example.com")
 
+
+class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
     @patch("cadmin.views.homework.send_homework_score_notification")
     def test_homework_score_shows_message(
         self, send_score_notification
