@@ -3789,6 +3789,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed course leaderboard course, homework, project,
+  leaderboard-data, request, assertion, and score-breakdown mixins into the
+  focused `CourseLeaderboardViewTestBase`. The leaderboard, score-breakdown,
+  and complaint tests keep the same shared setup API without a mixin
+  inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_course_leaderboard courses.tests.test_course_leaderboard_score_breakdown courses.tests.test_course_leaderboard_complaints`,
+  `uv run ruff check courses/tests/course_leaderboard_base.py courses/tests/test_course_leaderboard.py courses/tests/test_course_leaderboard_score_breakdown.py courses/tests/test_course_leaderboard_complaints.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

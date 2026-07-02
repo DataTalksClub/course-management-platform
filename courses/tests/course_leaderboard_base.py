@@ -44,7 +44,7 @@ class ProjectFixtureData:
     submission_days: int
 
 
-class CourseLeaderboardCourseFixtureMixin:
+class CourseLeaderboardViewTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course-2"
@@ -56,8 +56,6 @@ class CourseLeaderboardCourseFixtureMixin:
             course=self.course,
         )
 
-
-class CourseLeaderboardHomeworkFixtureMixin:
     def create_homework(self, data: HomeworkFixtureData):
         due_date = timezone.now() + timezone.timedelta(days=data.days_due)
         return Homework.objects.create(
@@ -127,8 +125,6 @@ class CourseLeaderboardHomeworkFixtureMixin:
             total_score=0,
         )
 
-
-class CourseLeaderboardProjectFixtureMixin:
     def create_project(self, data: ProjectFixtureData):
         submission_due_date = timezone.now() + timezone.timedelta(
             days=data.submission_days
@@ -174,8 +170,6 @@ class CourseLeaderboardProjectFixtureMixin:
             github_link="https://github.com/test/repo2",
         )
 
-
-class CourseLeaderboardFixtureMixin:
     def create_leaderboard_enrollment(
         self, name, total_score, position_on_leaderboard=None
     ):
@@ -214,8 +208,6 @@ class CourseLeaderboardFixtureMixin:
         self.enrollment.position_on_leaderboard = position
         self.enrollment.save()
 
-
-class CourseLeaderboardRequestMixin:
     def leaderboard_response(self, *, login=False):
         if login:
             self.client.login(**credentials)
@@ -240,8 +232,6 @@ class CourseLeaderboardRequestMixin:
         }
         return reverse("leaderboard_complaint", kwargs=kwargs)
 
-
-class CourseLeaderboardAssertionsMixin:
     def assert_leaderboard_order(self, response, expected_order):
         enrollments = response.context["enrollments"]
         actual_order = []
@@ -282,8 +272,6 @@ class CourseLeaderboardAssertionsMixin:
         self.assertContains(response, "Bob")
         self.assertContains(response, "Charlie")
 
-
-class CourseLeaderboardScoreBreakdownMixin:
     def set_homework_score_breakdown_fixture(self):
         self.submission1.questions_score = 7
         self.submission1.faq_score = 2
@@ -362,17 +350,6 @@ class CourseLeaderboardScoreBreakdownMixin:
         self.assertContains(response, "Bob")
         self.assertContains(response, "Charlie")
 
-
-class CourseLeaderboardViewTestBase(
-    CourseLeaderboardCourseFixtureMixin,
-    CourseLeaderboardHomeworkFixtureMixin,
-    CourseLeaderboardProjectFixtureMixin,
-    CourseLeaderboardFixtureMixin,
-    CourseLeaderboardRequestMixin,
-    CourseLeaderboardAssertionsMixin,
-    CourseLeaderboardScoreBreakdownMixin,
-    TestCase,
-):
     def setUp(self):
         cache.clear()
         self.client = Client()
