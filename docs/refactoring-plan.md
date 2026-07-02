@@ -3367,6 +3367,11 @@ Steps:
   orchestration. Verification:
   `uv run ruff check courses/management/commands/sync_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`.
+- [x] 2026-07-02: Split Datamailer contact sync batching, dry-run output,
+  import payload construction, sync execution, and result formatting out of the
+  command class as module-level functions. Verification:
+  `uv run ruff check courses/management/commands/sync_datamailer_contacts.py courses/tests/test_datamailer_contact_backfill.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_contact_backfill`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
