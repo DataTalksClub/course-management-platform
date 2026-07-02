@@ -41,7 +41,13 @@ def apply_homework_submission_fields(field_data):
         )
     apply_learning_in_public_links(field_data)
     apply_time_spent_fields(field_data)
-    apply_problems_comments_field(field_data)
+    if field_data.course.homework_problems_comments_field:
+        field_data.submission.problems_comments = (
+            field_data.request.POST.get(
+                "problems_comments",
+                "",
+            ).strip()
+        )
     apply_faq_contribution_field(field_data)
 
 
@@ -103,16 +109,6 @@ def apply_time_spent_field(data):
     )
     if time_spent is not None:
         setattr(data.submission, data.model_field, time_spent)
-
-
-def apply_problems_comments_field(field_data):
-    if field_data.course.homework_problems_comments_field:
-        field_data.submission.problems_comments = (
-            field_data.request.POST.get(
-                "problems_comments",
-                "",
-            ).strip()
-        )
 
 
 def apply_faq_contribution_field(field_data):

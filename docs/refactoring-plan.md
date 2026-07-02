@@ -5095,6 +5095,21 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use homework problems/comments field
+  helper. The comments guard and assignment now live in
+  `apply_homework_submission_fields`, while learning-link validation,
+  time-spent parsing, and FAQ URL validation remain named helpers.
+  Verification:
+  `uv run ruff check courses/views/homework_submission_fields.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/homework_submission_fields.py`,
+  `uv run python manage.py test courses.tests.test_homework_optional_fields courses.tests.test_homework_submission_integrations`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
