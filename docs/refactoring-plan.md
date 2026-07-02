@@ -3226,6 +3226,11 @@ Steps:
   graduate-count scenario classes. Verification:
   `uv run ruff check courses/tests/test_dashboard_project_stats.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_dashboard_project_stats`.
+- [x] Split Datamailer peer-review tests into shared fixture and assertion
+  mixins plus focused payload, preview-command, and notification-send scenario
+  classes. Verification:
+  `uv run ruff check courses/tests/test_datamailer_peer_review.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_peer_review`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

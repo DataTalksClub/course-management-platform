@@ -35,7 +35,7 @@ DATAMAILER_SETTINGS = {
 }
 
 
-class DatamailerPeerReviewTest(TestCase):
+class DatamailerPeerReviewFixtureMixin:
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -135,6 +135,8 @@ class DatamailerPeerReviewTest(TestCase):
         project.refresh_from_db()
         return project
 
+
+class DatamailerPeerReviewPayloadAssertionsMixin:
     def assert_peer_review_assignment_payload(self, payload, project):
         self.assertEqual(payload["template_key"], "peer-review-assignment")
         self.assertEqual(payload["category_tag"], "submission-results")
@@ -183,6 +185,8 @@ class DatamailerPeerReviewTest(TestCase):
             has_secure_eval_url = item["eval_url"].startswith("https://")
             self.assertTrue(has_secure_eval_url)
 
+
+class DatamailerPeerReviewSendAssertionsMixin:
     def assert_peer_review_send_audit(self):
         audit = DatamailerSendAudit.objects.get()
         self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
@@ -191,6 +195,12 @@ class DatamailerPeerReviewTest(TestCase):
         self.assertEqual(audit.intended_count, 4)
         self.assertEqual(audit.enqueued_count, 4)
 
+
+class DatamailerPeerReviewPayloadTest(
+    DatamailerPeerReviewFixtureMixin,
+    DatamailerPeerReviewPayloadAssertionsMixin,
+    TestCase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -208,6 +218,11 @@ class DatamailerPeerReviewTest(TestCase):
         self.assert_peer_review_assignment_payload(payload, project)
         self.assert_berlin_reviewer_assignments(payload)
 
+
+class DatamailerPeerReviewPreviewCommandTest(
+    DatamailerPeerReviewFixtureMixin,
+    TestCase,
+):
     @override_settings(PUBLIC_BASE_URL="https://courses.example.com")
     def test_preview_peer_review_email_prints_submission_previews(self):
         project = self.create_peer_review_assignment_fixture()
@@ -231,6 +246,12 @@ class DatamailerPeerReviewTest(TestCase):
         self.assertIn("(project: https://github.com/example/p1)", output)
         self.assertIn("4 recipient(s) would be emailed.", output)
 
+
+class DatamailerPeerReviewNotificationSendTest(
+    DatamailerPeerReviewFixtureMixin,
+    DatamailerPeerReviewSendAssertionsMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.send_recipient_list_transactional"
