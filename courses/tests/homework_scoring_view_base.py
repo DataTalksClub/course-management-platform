@@ -235,7 +235,8 @@ class HomeworkScoringViewBase(TestCase):
         self.assertEqual(answer["options"], expected_options)
 
     def assert_scored_question_answers(self, question_answers):
-        self.assertEqual(len(question_answers), 6)
+        question_answer_count = len(question_answers)
+        self.assertEqual(question_answer_count, 6)
         self.assert_first_scored_answer(question_answers[0])
         self.assertEqual(question_answers[1][0], self.question2)
         self.assert_scored_text_answer(question_answers[1][1], "Some text")

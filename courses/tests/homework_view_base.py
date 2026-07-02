@@ -323,7 +323,9 @@ class HomeworkDetailViewTestBase(TestCase):
 
     def assert_submission_answers(self, submission, expected_answers):
         answers = Answer.objects.filter(submission=submission)
-        self.assertEqual(len(answers), len(expected_answers))
+        answer_count = len(answers)
+        expected_answer_count = len(expected_answers)
+        self.assertEqual(answer_count, expected_answer_count)
         for question, expected_answer in expected_answers.items():
             answer = answers.get(question=question)
             self.assertEqual(answer.answer_text, expected_answer)
@@ -336,7 +338,8 @@ class HomeworkDetailViewTestBase(TestCase):
         return context
 
     def assert_empty_question_answers(self, question_answers):
-        self.assertEqual(len(question_answers), 6)
+        question_answer_count = len(question_answers)
+        self.assertEqual(question_answer_count, 6)
         self.assertEqual(question_answers[0][0], self.question1)
         question1_options = self.unselected_options(
             ["Paris", "London", "Berlin"]
@@ -369,7 +372,8 @@ class HomeworkDetailViewTestBase(TestCase):
         )
 
     def assert_saved_question_answers(self, question_answers):
-        self.assertEqual(len(question_answers), 6)
+        question_answer_count = len(question_answers)
+        self.assertEqual(question_answer_count, 6)
         self.assertEqual(question_answers[0][0], self.question1)
         question1_options = self.selected_options(
             ["Paris", "London", "Berlin"], {3}

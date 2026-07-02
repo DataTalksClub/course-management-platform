@@ -175,7 +175,8 @@ class HomeworkSubmissionsViewTestBase(TestCase):
     def assert_compact_submission_context(self, response):
         self.assertNotIn("questions", response.context)
         submissions_data = response.context["submissions_data"]
-        self.assertEqual(len(submissions_data), 1)
+        submission_count = len(submissions_data)
+        self.assertEqual(submission_count, 1)
         item = submissions_data[0]
         self.assertEqual(item["submission"], self.submission)
         self.assertNotIn("answers", item)
