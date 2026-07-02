@@ -37,7 +37,7 @@ class RecipientListAuditTarget:
     member_payload: RecipientListMemberPayload
 
 
-class DatamailerRecipientListAuditTest(TestCase):
+class DatamailerRecipientListAuditFixtureMixin:
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -68,6 +68,8 @@ class DatamailerRecipientListAuditTest(TestCase):
             member_payload=member_payload,
         )
 
+
+class DatamailerRecipientListAuditCommandMixin:
     def audit_enrollment_recipient_list(
         self,
         course,
@@ -89,6 +91,8 @@ class DatamailerRecipientListAuditTest(TestCase):
         call_command(*command_args, stdout=out)
         return out.getvalue()
 
+
+class DatamailerRecipientListAuditMemberMixin:
     def configure_matching_recipient_list_member(
         self,
         recipient_list_members,
@@ -120,6 +124,8 @@ class DatamailerRecipientListAuditTest(TestCase):
             ],
         }
 
+
+class DatamailerRecipientListAuditRepairAssertionsMixin:
     def assert_recipient_list_audit_repaired(self, expectation):
         expectation.reconcile.assert_called_once()
         self.assertEqual(
@@ -142,6 +148,13 @@ class DatamailerRecipientListAuditTest(TestCase):
         )
         self.assertIn("drifted=1", expectation.output)
 
+
+class DatamailerRecipientListAuditNoDriftTest(
+    DatamailerRecipientListAuditFixtureMixin,
+    DatamailerRecipientListAuditCommandMixin,
+    DatamailerRecipientListAuditMemberMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
@@ -173,6 +186,14 @@ class DatamailerRecipientListAuditTest(TestCase):
         self.assertIn("missing=0 unexpected=0", output)
         self.assertIn("drifted=0", output)
 
+
+class DatamailerRecipientListAuditRepairTest(
+    DatamailerRecipientListAuditFixtureMixin,
+    DatamailerRecipientListAuditCommandMixin,
+    DatamailerRecipientListAuditMemberMixin,
+    DatamailerRecipientListAuditRepairAssertionsMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.reconcile_recipient_list_members"
@@ -205,6 +226,12 @@ class DatamailerRecipientListAuditTest(TestCase):
         )
         self.assert_recipient_list_audit_repaired(expectation)
 
+
+class DatamailerRecipientListAuditListingErrorTest(
+    DatamailerRecipientListAuditFixtureMixin,
+    DatamailerRecipientListAuditCommandMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.recipient_list_members"
@@ -248,6 +275,8 @@ class DatamailerRecipientListAuditTest(TestCase):
         ):
             self.audit_enrollment_recipient_list(target.enrollment.course)
 
+
+class DatamailerRecipientListAuditOptionValidationTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     def test_recipient_list_audit_rejects_invalid_options(self):
         for args, message in (

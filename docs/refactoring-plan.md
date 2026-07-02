@@ -3243,6 +3243,11 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/homework_scoring_view_base.py courses/tests/test_homework_scoring_view.py courses/tests/test_homework_scoring_view_warnings.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_homework_scoring_view courses.tests.test_homework_scoring_view_warnings`.
+- [x] Split Datamailer recipient-list audit command tests into shared fixture,
+  command, member-response, and repair-assertion helpers plus focused no-drift,
+  repair, listing-error, and option-validation scenario classes. Verification:
+  `uv run ruff check courses/tests/test_datamailer_recipient_list_audit.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_list_audit`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
