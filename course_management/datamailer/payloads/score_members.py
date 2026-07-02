@@ -13,7 +13,9 @@ def homework_score_notification_members(
     list_data = homework_score_notification_list_data(homework)
     members = []
     seen_students = set()
-    submissions = homework_score_notification_submissions(homework)
+    submissions = homework.submission_set.select_related(
+        "student", "homework__course"
+    ).order_by("student_id", "-submitted_at", "-id")
     for submission in submissions:
         if submission.student_id in seen_students:
             continue
@@ -41,19 +43,15 @@ def homework_score_notification_list_data(homework) -> dict[str, Any]:
     }
 
 
-def homework_score_notification_submissions(homework):
-    return homework.submission_set.select_related(
-        "student", "homework__course"
-    ).order_by("student_id", "-submitted_at", "-id")
-
-
 def project_score_notification_members(
     project,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     list_data = project_score_notification_list_data(project)
     members = []
     seen_students = set()
-    submissions = project_score_notification_submissions(project)
+    submissions = project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
     for submission in submissions:
         if submission.student_id in seen_students:
             continue
@@ -79,9 +77,3 @@ def project_score_notification_list_data(project) -> dict[str, Any]:
             "project_slug": project.slug,
         },
     }
-
-
-def project_score_notification_submissions(project):
-    return project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")

@@ -793,6 +793,18 @@ testable service functions.
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Remove single-use Datamailer score-notification submission
+  queryset wrappers and keep the named querysets directly beside their dedupe
+  loops. Verification:
+  `uv run ruff check course_management/datamailer/payloads/score_members.py docs/refactoring-plan.md`,
+  `python -m py_compile course_management/datamailer/payloads/score_members.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_homework_score_send courses.tests.test_datamailer_project_outcomes`,
+  wrapper scan for the removed helpers, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 
