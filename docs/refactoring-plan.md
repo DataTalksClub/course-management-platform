@@ -3193,6 +3193,12 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/project_view_base.py courses/tests/project_submission_view_base.py courses/tests/test_project_view.py courses/tests/test_project_submission_view.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_view courses.tests.test_project_submission_view`.
+- [x] Split the shared project score test base into focused fixture,
+  peer-review fixture, score submission, scoring assertion, reverse-review,
+  checkbox, and results-view mixins while keeping the public base class stable.
+  Verification:
+  `uv run ruff check courses/tests/project_score_base.py courses/tests/test_project_score.py courses/tests/test_project_score_bonus.py courses/tests/test_project_results.py courses/tests/test_project_score_outcomes.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_score courses.tests.test_project_score_bonus courses.tests.test_project_results courses.tests.test_project_score_outcomes`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
