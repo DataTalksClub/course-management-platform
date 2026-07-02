@@ -3662,6 +3662,19 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed Datamailer recipient-list command fixture,
+  bulk-upsert assertion, import setup, registration-import assertion, and
+  import-polling assertion mixins into the focused
+  `DatamailerRecipientListCommandTestBase`. Recipient-list command and import
+  tests keep the same helper API without a mixin inheritance chain.
+  Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports`,
+  `uv run ruff check courses/tests/datamailer_recipient_lists_base.py courses/tests/test_datamailer_recipient_lists.py courses/tests/test_datamailer_recipient_list_imports.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
