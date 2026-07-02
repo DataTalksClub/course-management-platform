@@ -22,29 +22,7 @@ from courses.models import (
 )
 
 
-class CadminViewModelTests(TestCase):
-    def setUp(self):
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
-        self.homework = Homework.objects.create(
-            course=self.course,
-            slug="test-homework",
-            title="Test Homework",
-            due_date=timezone.now() + timedelta(days=7),
-            state=HomeworkState.OPEN.value,
-        )
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=timezone.now() + timedelta(days=7),
-            peer_review_due_date=timezone.now() + timedelta(days=14),
-            state=ProjectState.COLLECTING_SUBMISSIONS.value,
-        )
-
+class CadminViewModelFixtureMixin:
     def create_user(self, username):
         return User.objects.create_user(
             username=username,
@@ -83,6 +61,8 @@ class CadminViewModelTests(TestCase):
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
+
+class CadminViewModelAssertionMixin:
     def assert_item_ids(self, items, expected_items):
         item_ids = []
         for item in items:
@@ -95,6 +75,36 @@ class CadminViewModelTests(TestCase):
             expected_item_ids,
         )
 
+
+class CadminViewModelBase(
+    CadminViewModelFixtureMixin,
+    CadminViewModelAssertionMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.course = Course.objects.create(
+            slug="test-course",
+            title="Test Course",
+            description="Test Course Description",
+        )
+        self.homework = Homework.objects.create(
+            course=self.course,
+            slug="test-homework",
+            title="Test Homework",
+            due_date=timezone.now() + timedelta(days=7),
+            state=HomeworkState.OPEN.value,
+        )
+        self.project = Project.objects.create(
+            course=self.course,
+            slug="test-project",
+            title="Test Project",
+            submission_due_date=timezone.now() + timedelta(days=7),
+            peer_review_due_date=timezone.now() + timedelta(days=14),
+            state=ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
+
+
+class CadminProjectSubmissionViewModelTests(CadminViewModelBase):
     def create_project_submission_status_examples(self):
         incomplete_enrollment = self.create_enrollment("incomplete")
         incomplete = self.create_project_submission(incomplete_enrollment)
@@ -159,6 +169,8 @@ class CadminViewModelTests(TestCase):
             examples["not_passed"],
         )
 
+
+class CadminEnrollmentViewModelTests(CadminViewModelBase):
     def create_enrollment_status_examples(self):
         lip_disabled = self.create_enrollment(
             "lip-disabled",

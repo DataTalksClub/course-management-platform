@@ -3313,6 +3313,11 @@ Steps:
   without a compatibility umbrella. Verification:
   `uv run ruff check courses/tests/homework_submission_confirmation_helpers.py courses/tests/test_homework_submission_integrations.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_homework_submission_integrations`.
+- [x] 2026-07-02: Split cadmin view-model tests into shared fixture/assertion
+  mixins plus focused project-submission and enrollment status-filter scenario
+  classes. Verification:
+  `uv run ruff check cadmin/tests/test_view_models.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_view_models`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
