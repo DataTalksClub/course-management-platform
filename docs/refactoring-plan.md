@@ -3237,6 +3237,12 @@ Steps:
   building the return dictionary. Verification:
   `uv run ruff check cadmin/tests/test_datamailer_views.py docs/refactoring-plan.md`,
   `uv run python manage.py test cadmin.tests.test_datamailer_views`.
+- [x] Split the shared homework scoring view test base into focused
+  course/homework fixture, question fixture, request, submission/scoring, and
+  scored-answer assertion mixins while keeping the public base class stable.
+  Verification:
+  `uv run ruff check courses/tests/homework_scoring_view_base.py courses/tests/test_homework_scoring_view.py courses/tests/test_homework_scoring_view_warnings.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_scoring_view courses.tests.test_homework_scoring_view_warnings`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -44,7 +44,7 @@ class QuestionData:
     answer_type: str | None = None
 
 
-class HomeworkScoringViewBase(TestCase):
+class HomeworkScoringCourseFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course"
@@ -62,6 +62,8 @@ class HomeworkScoringViewBase(TestCase):
             slug="test-homework",
         )
 
+
+class HomeworkScoringQuestionFixtureMixin:
     def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -137,13 +139,8 @@ class HomeworkScoringViewBase(TestCase):
             "1,2,3",
         )
 
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.homework = self.create_homework()
-        self.create_questions()
 
+class HomeworkScoringRequestMixin:
     def homework_url(self):
         kwargs = {
             "course_slug": self.course.slug,
@@ -164,6 +161,8 @@ class HomeworkScoringViewBase(TestCase):
         self.assertTrue(context["is_authenticated"])
         return context
 
+
+class HomeworkScoringSubmissionFixtureMixin:
     def create_enrollment(self):
         self.enrollment = Enrollment.objects.create(
             student=self.user,
@@ -206,6 +205,8 @@ class HomeworkScoringViewBase(TestCase):
         self.create_answers(answers_by_question)
         self.score_homework()
 
+
+class HomeworkScoringAnswerAssertionsMixin:
     def assert_scored_text_answer(self, answer, text):
         self.assertEqual(answer["text"], text)
         self.assertEqual(
@@ -275,3 +276,19 @@ class HomeworkScoringViewBase(TestCase):
             self.question6: "1,2,3",
         }
         return answers_by_question
+
+
+class HomeworkScoringViewBase(
+    HomeworkScoringCourseFixtureMixin,
+    HomeworkScoringQuestionFixtureMixin,
+    HomeworkScoringRequestMixin,
+    HomeworkScoringSubmissionFixtureMixin,
+    HomeworkScoringAnswerAssertionsMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.create_questions()
