@@ -60,7 +60,7 @@ class OpenHomeworkExpectation:
     days_until_due: int
 
 
-class CourseFixtureMixin:
+class CourseDetailViewTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course-2"
@@ -73,8 +73,6 @@ class CourseFixtureMixin:
             course=self.course,
         )
 
-
-class CourseHomeworkFixtureMixin:
     def create_homework(self, data: HomeworkFixtureData):
         due_date = timezone.now() + timezone.timedelta(days=data.days_due)
         return Homework.objects.create(
@@ -144,7 +142,6 @@ class CourseHomeworkFixtureMixin:
         )
 
 
-class CourseProjectFixtureMixin:
     def create_project(self, data: ProjectFixtureData):
         submission_due_date = timezone.now() + timezone.timedelta(
             days=data.submission_days
@@ -190,8 +187,6 @@ class CourseProjectFixtureMixin:
             github_link="https://github.com/test/repo2",
         )
 
-
-class CourseRequestMixin:
     def course_url(self):
         return reverse("course", kwargs={"course_slug": self.course.slug})
 
@@ -201,8 +196,6 @@ class CourseRequestMixin:
         course_url = self.course_url()
         return self.client.get(course_url)
 
-
-class CourseHomeworkAssertionsMixin:
     def homeworks_by_slug(self, response):
         homeworks_by_slug = {}
         homeworks = response.context["homeworks"]
@@ -245,7 +238,6 @@ class CourseHomeworkAssertionsMixin:
         self.assertEqual(homework.submissions, [])
 
 
-class CourseEnrollmentAssertionsMixin:
     def assert_enrollment_profile_links(self, response):
         self.assertContains(response, "account timezone")
         account_settings_url = (
@@ -285,7 +277,6 @@ class CourseEnrollmentAssertionsMixin:
         self.assert_enrollment_profile_links(response)
 
 
-class CourseHomeworkSummaryAssertionsMixin:
     def assert_authenticated_homework_summary(self, response):
         homeworks = self.homeworks_by_slug(response)
         scored_expectation = ScoredHomeworkExpectation(
@@ -332,7 +323,6 @@ class CourseHomeworkSummaryAssertionsMixin:
         self.assert_unsubmitted_open_homework(unscored_homework)
 
 
-class CourseHomeworkOrderingFixtureMixin:
     def create_due_homework(self, slug, title, days_due):
         homework_data = HomeworkFixtureData(
             slug=slug,
@@ -370,7 +360,6 @@ class CourseHomeworkOrderingFixtureMixin:
         self.assertLess(middle_pos, late_pos)
 
 
-class CourseProjectReviewFixtureMixin:
     def create_peer_review_project(self):
         submission_due_date = timezone.now() - timezone.timedelta(days=1)
         peer_review_due_date = timezone.now() + timezone.timedelta(days=7)
@@ -409,19 +398,6 @@ class CourseProjectReviewFixtureMixin:
         formatted_deadline = deadline.strftime("%Y-%m-%d")
         self.assertIn(formatted_deadline, content)
 
-
-class CourseDetailViewTestBase(
-    CourseFixtureMixin,
-    CourseHomeworkFixtureMixin,
-    CourseProjectFixtureMixin,
-    CourseRequestMixin,
-    CourseHomeworkAssertionsMixin,
-    CourseEnrollmentAssertionsMixin,
-    CourseHomeworkSummaryAssertionsMixin,
-    CourseHomeworkOrderingFixtureMixin,
-    CourseProjectReviewFixtureMixin,
-    TestCase,
-):
     def setUp(self):
         cache.clear()
         self.client = Client()

@@ -3907,6 +3907,20 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed course detail fixture, homework fixture, project
+  fixture, request, homework assertion, enrollment assertion, homework-summary,
+  ordering, and project-review mixins into the focused
+  `CourseDetailViewTestBase`. The course detail, calendar, certificate,
+  dashboard-link, enrollment, homework-display, links, and project display
+  tests keep their existing concrete test classes and shared setup without a
+  mixin chain. Verification:
+  `uv run python manage.py test courses.tests.test_course courses.tests.test_course_calendar courses.tests.test_course_certificates courses.tests.test_course_dashboard_link courses.tests.test_course_enrollment courses.tests.test_course_homework_display courses.tests.test_course_links courses.tests.test_course_projects`,
+  `uv run ruff check courses/tests/course_view_base.py courses/tests/test_course.py courses/tests/test_course_calendar.py courses/tests/test_course_certificates.py courses/tests/test_course_dashboard_link.py courses/tests/test_course_enrollment.py courses/tests/test_course_homework_display.py courses/tests/test_course_links.py courses/tests/test_course_projects.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
