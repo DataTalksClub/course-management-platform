@@ -3248,6 +3248,11 @@ Steps:
   repair, listing-error, and option-validation scenario classes. Verification:
   `uv run ruff check courses/tests/test_datamailer_recipient_list_audit.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_recipient_list_audit`.
+- [x] Split the shared dashboard homework stats test base into focused
+  dashboard fixture, submission-stat, formatted-time, and difficulty mixins
+  while keeping the public base class stable. Verification:
+  `uv run ruff check courses/tests/dashboard_homework_base.py courses/tests/test_dashboard_homework_stats.py courses/tests/test_dashboard_homework_difficulty.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_dashboard_homework_stats courses.tests.test_dashboard_homework_difficulty`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
