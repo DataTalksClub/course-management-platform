@@ -57,7 +57,7 @@ credentials = dict(
 )
 
 
-class HomeworkCadminUserFixtureMixin:
+class HomeworkCadminViewTestBase(TestCase):
     def create_test_users(self):
         self.user = User.objects.create_user(**credentials)
         self.admin_user = User.objects.create_user(
@@ -70,8 +70,6 @@ class HomeworkCadminUserFixtureMixin:
     def login_admin(self):
         self.client.login(username="admin@test.com", password="admin123")
 
-
-class HomeworkCadminCourseFixtureMixin:
     def create_course_work_items(self):
         self.course = Course.objects.create(
             slug="test-course",
@@ -126,7 +124,6 @@ class HomeworkCadminCourseFixtureMixin:
             self.create_homework_search_submission(index)
 
 
-class HomeworkCadminQuestionFixtureMixin:
     def create_free_form_question(self, score=1):
         return Question.objects.create(
             homework=self.homework,
@@ -203,7 +200,6 @@ class HomeworkCadminQuestionFixtureMixin:
         return submission
 
 
-class HomeworkCadminEditFixtureMixin:
     def homework_submission_edit_url(self, submission):
         return reverse(
             "cadmin_homework_submission_edit",
@@ -301,7 +297,6 @@ class HomeworkCadminEditFixtureMixin:
         return response
 
 
-class HomeworkCadminEditAssertionsMixin:
     def assert_homework_submission_edit_page(self, response, fixture):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit Homework Submission")
@@ -342,7 +337,6 @@ class HomeworkCadminEditAssertionsMixin:
             self.assertIn(expected_link, submission.learning_in_public_links)
 
 
-class HomeworkCadminActionMixin:
     def cadmin_homework_submissions_url(self):
         return reverse(
             "cadmin_homework_submissions",
@@ -417,16 +411,6 @@ class HomeworkCadminActionMixin:
             },
         )
 
-
-class HomeworkCadminViewTestBase(
-    HomeworkCadminUserFixtureMixin,
-    HomeworkCadminCourseFixtureMixin,
-    HomeworkCadminQuestionFixtureMixin,
-    HomeworkCadminEditFixtureMixin,
-    HomeworkCadminEditAssertionsMixin,
-    HomeworkCadminActionMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.create_test_users()

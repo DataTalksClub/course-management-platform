@@ -25,7 +25,8 @@ testable service functions.
   scenarios for the same behavior area. Split test classes only when they cover
   different behavior areas, need different setup, or the shared helpers make
   the tests harder to read. Large case groups can stay together when they test
-  the same feature with the same setup.
+  the same feature with the same setup. Do not extract or split those focused
+  case groups just to make the file or class shorter.
 - Keep tests simple. Do not add test inheritance, base classes, or mixins just
   to reduce line counts. Prefer direct setup in the focused test case and
   small helper functions only when they remove real duplication.
@@ -3866,6 +3867,17 @@ Steps:
   inheritance chain. Verification:
   `uv run python manage.py test cadmin.tests.test_project_views cadmin.tests.test_project_submission_edit_views cadmin.tests.test_project_action_views`,
   `uv run ruff check cadmin/tests/project_view_base.py cadmin/tests/test_project_views.py cadmin/tests/test_project_submission_edit_views.py cadmin/tests/test_project_action_views.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
+- [x] 2026-07-02: Collapsed cadmin homework user, course, question, edit,
+  assertion, and action mixins into the focused `HomeworkCadminViewTestBase`.
+  The homework view and homework submission edit tests keep the same shared
+  setup API without introducing smaller inherited test classes. Verification:
+  `uv run python manage.py test cadmin.tests.test_homework_views cadmin.tests.test_homework_submission_edit_views`,
+  `uv run ruff check cadmin/tests/homework_view_base.py cadmin/tests/test_homework_views.py cadmin/tests/test_homework_submission_edit_views.py`,
   `uvx pyrefly check`, repository AST cleanup scan
   (`forbidden_comprehensions=0`, `threshold_violations=0`,
   `append_constructed=0`, `wide_tuple_unpacking=0`,
