@@ -46,7 +46,7 @@ class HomeworkSubmissionFixtureData:
     faq_url: str = ""
 
 
-class WrappedModelFactoryMixin:
+class WrappedStatisticsTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             slug="wrapped-course", title="Wrapped Course"
@@ -84,8 +84,6 @@ class WrappedModelFactoryMixin:
             certificate_url=data.certificate_url,
         )
 
-
-class WrappedSubmissionFactoryMixin:
     def create_homework_submission(
         self,
         data: HomeworkSubmissionFixtureData,
@@ -113,11 +111,6 @@ class WrappedSubmissionFactoryMixin:
             submitted_at=submitted_at,
         )
 
-
-class WrappedActivityFixtureMixin(
-    WrappedModelFactoryMixin,
-    WrappedSubmissionFactoryMixin,
-):
     def create_alice_activity(self):
         self.alice = self.create_user("alice@test.com")
         enrollment_data = EnrollmentFixtureData(
@@ -154,8 +147,6 @@ class WrappedActivityFixtureMixin(
         )
         self.create_homework_submission(submission_data)
 
-
-class WrappedStatisticsTestBase(WrappedActivityFixtureMixin, TestCase):
     def setUp(self):
         self.course = self.create_course()
         self.homework = self.create_homework()
