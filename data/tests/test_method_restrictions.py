@@ -41,43 +41,51 @@ class DataEndpointMethodRestrictionTest(TestCase):
         )
 
     def get_only_routes(self):
+        health_url = reverse("api_health")
+        criteria_url = reverse(
+            "api_course_criteria_yaml",
+            kwargs={"course_slug": self.course.slug},
+        )
+        leaderboard_url = reverse(
+            "api_course_leaderboard",
+            kwargs={"course_slug": self.course.slug},
+        )
+        graduates_url = reverse(
+            "api_course_graduates",
+            kwargs={"course_slug": self.course.slug},
+        )
+        homework_export_url = reverse(
+            "api_homework_submissions_export",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        project_export_url = reverse(
+            "api_project_submissions_export",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
         return [
-            reverse("api_health"),
-            reverse(
-                "api_course_criteria_yaml",
-                kwargs={"course_slug": self.course.slug},
-            ),
-            reverse(
-                "api_course_leaderboard",
-                kwargs={"course_slug": self.course.slug},
-            ),
-            reverse(
-                "api_course_graduates",
-                kwargs={"course_slug": self.course.slug},
-            ),
-            reverse(
-                "api_homework_submissions_export",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "homework_slug": self.homework.slug,
-                },
-            ),
-            reverse(
-                "api_project_submissions_export",
-                kwargs={
-                    "course_slug": self.course.slug,
-                    "project_slug": self.project.slug,
-                },
-            ),
+            health_url,
+            criteria_url,
+            leaderboard_url,
+            graduates_url,
+            homework_export_url,
+            project_export_url,
         ]
 
     def post_only_routes(self):
+        certificates_url = reverse(
+            "api_course_certificates",
+            kwargs={"course_slug": self.course.slug},
+        )
+        datamailer_events_url = reverse("api_datamailer_events")
         return [
-            reverse(
-                "api_course_certificates",
-                kwargs={"course_slug": self.course.slug},
-            ),
-            reverse("api_datamailer_events"),
+            certificates_url,
+            datamailer_events_url,
         ]
 
     def assert_method_rejected(self, method, url, allowed_method):

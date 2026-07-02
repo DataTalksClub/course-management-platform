@@ -40,14 +40,23 @@ class LoadRdsExportScriptTest(SimpleTestCase):
         )
 
     def target_course_column_info(self):
+        id_column = column_info("id", pk=True)
+        slug_column = column_info("slug", notnull=True)
+        title_column = column_info("title", notnull=True)
+        visible_column = column_info("visible", notnull=True)
+        nullable_local_column = column_info("nullable_local")
+        db_default_local_column = column_info(
+            "db_default_local", notnull=True, default="'x'"
+        )
+        required_local_column = column_info("required_local", notnull=True)
         return [
-            column_info("id", pk=True),
-            column_info("slug", notnull=True),
-            column_info("title", notnull=True),
-            column_info("visible", notnull=True),
-            column_info("nullable_local"),
-            column_info("db_default_local", notnull=True, default="'x'"),
-            column_info("required_local", notnull=True),
+            id_column,
+            slug_column,
+            title_column,
+            visible_column,
+            nullable_local_column,
+            db_default_local_column,
+            required_local_column,
         ]
 
     def course_column_copy_data(self, plan, defaults_used):
@@ -114,13 +123,11 @@ class LoadRdsExportScriptTest(SimpleTestCase):
             "UPDATE sqlite_sequence SET seq=1 WHERE name='imported'"
         )
 
-        refresh_sqlite_sequences(
-            cursor,
-            [
-                ImportedTable("imported", 2, 2),
-                ImportedTable("keyed", 0, 1),
-            ],
-        )
+        imported_table = ImportedTable("imported", 2, 2)
+        keyed_table = ImportedTable("keyed", 0, 1)
+        imported_tables = [imported_table, keyed_table]
+
+        refresh_sqlite_sequences(cursor, imported_tables)
 
         sequence = cursor.execute(
             "SELECT seq FROM sqlite_sequence WHERE name='imported'"

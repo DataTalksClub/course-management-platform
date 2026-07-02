@@ -254,15 +254,19 @@ def test_disabled_deployment_raises_inbox_disabled():
 
 
 def test_retries_on_transport_error_then_succeeds():
-    client = _client(
-        [requests.ConnectionError("boom"), FakeResponse(200, {"messages": []})]
-    )
+    connection_error = requests.ConnectionError("boom")
+    success_response = FakeResponse(200, {"messages": []})
+    responses = [connection_error, success_response]
+    client = _client(responses)
     assert client.list_messages("e2e+run@mailbox.test") == []
     assert len(client._session.calls) == 2
 
 
 def test_retries_on_5xx_then_succeeds():
-    client = _client([FakeResponse(503), FakeResponse(200, {"messages": []})])
+    server_error = FakeResponse(503)
+    success_response = FakeResponse(200, {"messages": []})
+    responses = [server_error, success_response]
+    client = _client(responses)
     assert client.list_messages("e2e+run@mailbox.test") == []
     assert len(client._session.calls) == 2
 
@@ -387,12 +391,10 @@ def test_real_get_message_for_scopes_by_address_and_loads_bodies():
 def test_real_wait_for_message_matches_subject_and_fetches_detail():
     summary = _real_summary()
     detail = _real_summary(text_body="link https://x/homework/hw-1/")
-    client = _real_client(
-        [
-            FakeResponse(200, {"count": 1, "messages": [summary]}),  # list
-            FakeResponse(200, {"message": detail}),  # address-scoped detail
-        ]
-    )
+    list_response = FakeResponse(200, {"count": 1, "messages": [summary]})
+    detail_response = FakeResponse(200, {"message": detail})
+    responses = [list_response, detail_response]
+    client = _real_client(responses)
     criteria = MessageMatchCriteria(
         subject="Homework submission saved",
         body_contains="/homework/",

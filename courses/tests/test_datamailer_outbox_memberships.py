@@ -46,9 +46,11 @@ class DatamailerOutboxProcessingTest(DatamailerOutboxTestBase):
         upsert_contact,
         upsert_member,
     ):
+        network_error = requests.RequestException("network error")
+        successful_response = {"ok": True}
         upsert_member.side_effect = [
-            requests.RequestException("network error"),
-            {"ok": True},
+            network_error,
+            successful_response,
         ]
         enrollment = self.create_student_enrollment_for_ml_course()
         sync_enrollment_to_datamailer(enrollment)

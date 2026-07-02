@@ -52,12 +52,10 @@ def client_with(responses):
 def test_request_retries_network_errors(monkeypatch):
     sleeps = []
     monkeypatch.setattr("e2e.api_client.time.sleep", sleeps.append)
-    client = client_with(
-        [
-            requests.ConnectionError("temporary"),
-            FakeResponse(200, {"ok": True}),
-        ]
-    )
+    connection_error = requests.ConnectionError("temporary")
+    success_response = FakeResponse(200, {"ok": True})
+    responses = [connection_error, success_response]
+    client = client_with(responses)
 
     request_data = ApiRequestData(method="GET", path="/api/health/")
     response = client._request(request_data)
@@ -70,12 +68,10 @@ def test_request_retries_network_errors(monkeypatch):
 def test_request_retries_transient_server_errors(monkeypatch):
     sleeps = []
     monkeypatch.setattr("e2e.api_client.time.sleep", sleeps.append)
-    client = client_with(
-        [
-            FakeResponse(503, {"error": "busy"}),
-            FakeResponse(200, {"status": "ok"}),
-        ]
-    )
+    server_error = FakeResponse(503, {"error": "busy"})
+    success_response = FakeResponse(200, {"status": "ok"})
+    responses = [server_error, success_response]
+    client = client_with(responses)
 
     request_data = ApiRequestData(method="GET", path="/api/health/")
     response = client._request(request_data)

@@ -4308,6 +4308,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named sequence-construction values in touched test fixtures:
+  Datamailer retry side effects, RDS column/table fixtures, method-restriction
+  route URLs, and E2E retry response sequences are now assigned before building
+  lists. Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_outbox_memberships courses.tests.test_load_rds_export_script data.tests.test_method_restrictions`,
+  `uv run ruff check courses/tests/test_datamailer_outbox_memberships.py courses/tests/test_load_rds_export_script.py data/tests/test_method_restrictions.py e2e/tests/test_06_mock_inbox_client.py e2e/tests/test_07_api_client.py`,
+  `uvx pyrefly check`, sequence-construction scan, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
