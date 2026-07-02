@@ -48,7 +48,7 @@ class ProjectScoreListSendExpectation:
     submission: ProjectSubmission
 
 
-class DatamailerProjectScoreFixtureMixin:
+class DatamailerProjectScoreTestBase(TestCase):
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -91,8 +91,6 @@ class DatamailerProjectScoreFixtureMixin:
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
-
-class DatamailerProjectScorePayloadAssertionsMixin:
     def assert_score_payload_common(self, expectation):
         payload = expectation.payload
         self.assertEqual(payload["template_key"], expectation.template_key)
@@ -175,8 +173,6 @@ class DatamailerProjectScorePayloadAssertionsMixin:
         )
         self.assertEqual(member["metadata"]["total_score"], 90)
 
-
-class DatamailerProjectScoreScenarioFixtureMixin:
     def create_passed_and_failed_project_submissions(self):
         project = self.create_project()
         passed_user = self.create_user("passed@example.com")
@@ -238,8 +234,6 @@ class DatamailerProjectScoreScenarioFixtureMixin:
         )
         return project, submission
 
-
-class DatamailerProjectScoreListSendAssertionsMixin:
     def assert_project_score_list_send(self, expectation):
         self.assertEqual(expectation.result, {"enqueued_count": 1})
         self.assertEqual(expectation.bulk_upsert.call_count, 2)
@@ -272,13 +266,3 @@ class DatamailerProjectScoreListSendAssertionsMixin:
             passed_payload["members"][0]["metadata"]["outcome"],
             "project_passed",
         )
-
-
-class DatamailerProjectScoreTestBase(
-    DatamailerProjectScoreFixtureMixin,
-    DatamailerProjectScorePayloadAssertionsMixin,
-    DatamailerProjectScoreScenarioFixtureMixin,
-    DatamailerProjectScoreListSendAssertionsMixin,
-    TestCase,
-):
-    pass

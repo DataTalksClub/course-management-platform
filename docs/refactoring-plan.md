@@ -3651,6 +3651,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed Datamailer project-score fixture,
+  payload-assertion, scenario-fixture, and list-send assertion mixins into the
+  focused `DatamailerProjectScoreTestBase`. Project score and outcome tests
+  keep the same helper API without a mixin inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_project_scores courses.tests.test_datamailer_project_outcomes`,
+  `uv run ruff check courses/tests/datamailer_project_score_base.py courses/tests/test_datamailer_project_scores.py courses/tests/test_datamailer_project_outcomes.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
