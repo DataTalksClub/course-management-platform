@@ -3,7 +3,18 @@ from typing import Any
 from .client_types import DatamailerRequest, DatamailerRequestData
 
 
-class DatamailerRecipientListClient:
+class DatamailerRecipientListClients:
+    def __init__(
+        self,
+        config: Any,
+        request: DatamailerRequest,
+    ):
+        self.members = DatamailerRecipientListMemberClient(config, request)
+        self.imports = DatamailerRecipientListImportClient(config, request)
+        self.sends = DatamailerRecipientListSendClient(config, request)
+
+
+class DatamailerRecipientListMemberClient:
     def __init__(
         self,
         config: Any,
@@ -12,7 +23,7 @@ class DatamailerRecipientListClient:
         self.config = config
         self.request = request
 
-    def upsert_recipient_list_member(
+    def upsert(
         self,
         list_key: str,
         source_object_key: str,
@@ -25,7 +36,7 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def remove_recipient_list_member(
+    def remove(
         self,
         list_key: str,
         source_object_key: str,
@@ -40,7 +51,7 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def recipient_list_members(
+    def list_members(
         self,
         list_key: str,
         *,
@@ -63,7 +74,7 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def bulk_upsert_recipient_list_members(
+    def bulk_upsert(
         self,
         list_key: str,
         payload: dict[str, Any],
@@ -75,7 +86,7 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def reconcile_recipient_list_members(
+    def reconcile(
         self,
         list_key: str,
         payload: dict[str, Any],
@@ -87,7 +98,17 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def create_recipient_list_import(
+
+class DatamailerRecipientListImportClient:
+    def __init__(
+        self,
+        config: Any,
+        request: DatamailerRequest,
+    ):
+        self.config = config
+        self.request = request
+
+    def create(
         self,
         list_key: str,
         payload: dict[str, Any],
@@ -103,7 +124,7 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def recipient_list_import(
+    def get(
         self,
         list_key: str,
         job_id: int,
@@ -118,7 +139,17 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def send_recipient_list_transactional(
+
+class DatamailerRecipientListSendClient:
+    def __init__(
+        self,
+        config: Any,
+        request: DatamailerRequest,
+    ):
+        self.config = config
+        self.request = request
+
+    def send_to_list(
         self,
         list_key: str,
         payload: dict[str, Any],
@@ -130,7 +161,7 @@ class DatamailerRecipientListClient:
         )
         return self.request(request_data)
 
-    def send_transient_recipient_list_transactional(
+    def send_to_transient_list(
         self,
         payload: dict[str, Any],
     ) -> dict[str, Any] | None:

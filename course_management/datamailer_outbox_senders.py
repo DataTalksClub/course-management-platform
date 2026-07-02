@@ -12,7 +12,7 @@ def send_recipient_list_member_upsert_event(client, payload):
     list_key = payload["list_key"]
     source_object_key = payload["source_object_key"]
     member_payload = payload["member_payload"]
-    return client.recipient_lists.upsert_recipient_list_member(
+    return client.recipient_lists.members.upsert(
         list_key,
         source_object_key,
         member_payload,
@@ -22,7 +22,7 @@ def send_recipient_list_member_upsert_event(client, payload):
 def send_recipient_list_member_remove_event(client, payload):
     list_key = payload["list_key"]
     source_object_key = payload["source_object_key"]
-    return client.recipient_lists.remove_recipient_list_member(
+    return client.recipient_lists.members.remove(
         list_key,
         source_object_key,
     )
@@ -31,7 +31,7 @@ def send_recipient_list_member_remove_event(client, payload):
 def send_recipient_list_members_bulk_upsert_event(client, payload):
     list_key = payload["list_key"]
     member_sync_payload = payload["member_sync_payload"]
-    return client.recipient_lists.bulk_upsert_recipient_list_members(
+    return client.recipient_lists.members.bulk_upsert(
         list_key,
         member_sync_payload,
     )

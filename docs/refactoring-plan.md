@@ -3390,6 +3390,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Split `DatamailerClient.recipient_lists` into member,
+  import, and send endpoint clients so the former recipient-list client no
+  longer carries unrelated endpoint groups in one large class. Production
+  callers now use `client.recipient_lists.members`,
+  `client.recipient_lists.imports`, and `client.recipient_lists.sends`
+  directly, without forwarding methods. Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_client courses.tests.test_datamailer_recipient_lists courses.tests.test_datamailer_recipient_list_imports courses.tests.test_datamailer_recipient_list_audit courses.tests.test_datamailer_membership courses.tests.test_datamailer_membership_outcomes courses.tests.test_datamailer_membership_removals courses.tests.test_datamailer_outbox_memberships courses.tests.test_datamailer_outbox_status_commands courses.tests.test_datamailer_certificates courses.tests.test_datamailer_peer_review courses.tests.test_datamailer_project_outcomes courses.tests.test_datamailer_homework_score_send courses.tests.test_datamailer_registration courses.tests.test_deadline_reminder_dry_run courses.tests.test_deadline_reminder_homework courses.tests.test_deadline_reminder_peer_review courses.tests.test_deadline_reminder_project`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), production large-class
+  scan now reports only `CourseRegistrationForm`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

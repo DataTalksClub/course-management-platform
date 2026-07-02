@@ -31,7 +31,7 @@ class DatamailerRecipientListBulkUpsertTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_recipient_list_backfill_command_bulk_upserts_registrations(
         self,
@@ -59,7 +59,7 @@ class DatamailerRecipientListBulkUpsertTest(
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_recipient_list_backfill_command_bulk_upserts_enrollments(
         self,
@@ -95,7 +95,7 @@ class DatamailerRecipientListProjectPassedTest(
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.reconcile_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.reconcile"
     )
     def test_recipient_list_backfill_command_reconciles_project_passed_outcomes(
         self,
@@ -160,7 +160,7 @@ class DatamailerRecipientListGraduateTest(
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_recipient_list_backfill_command_bulk_upserts_graduates(
         self,
@@ -192,7 +192,7 @@ class DatamailerRecipientListDryRunTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_recipient_list_backfill_command_dry_run_does_not_call_datamailer(
         self,

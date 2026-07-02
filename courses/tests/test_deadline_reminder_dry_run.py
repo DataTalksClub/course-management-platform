@@ -14,7 +14,7 @@ from courses.tests.deadline_reminder_base import (
 class DeadlineReminderDryRunCommandTest(DeadlineReminderTestBase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_transient_list"
     )
     def test_deadline_reminder_dry_run_does_not_call_datamailer(
         self,

@@ -41,7 +41,7 @@ class DatamailerRecipientListImportCreationTest(
         DATAMAILER_IMPORT_URL_EXPIRES_SECONDS=900,
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.create_recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.create"
     )
     @patch(
         "course_management.datamailer.recipient_list_imports.boto3.client"
@@ -89,10 +89,10 @@ class DatamailerRecipientListImportSuccessTest(
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.get"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.create_recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.create"
     )
     @patch(
         "course_management.datamailer.recipient_list_imports.boto3.client"
@@ -136,10 +136,10 @@ class DatamailerRecipientListImportFailureTest(
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.get"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.create_recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.create"
     )
     @patch(
         "course_management.datamailer.recipient_list_imports.boto3.client"
@@ -219,10 +219,10 @@ class DatamailerRecipientListImportTimeoutTest(
         DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.get"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.create_recipient_list_import"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.create"
     )
     @patch(
         "course_management.datamailer.recipient_list_imports.boto3.client"

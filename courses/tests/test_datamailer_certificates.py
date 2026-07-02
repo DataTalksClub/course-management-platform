@@ -193,7 +193,7 @@ class DatamailerCertificateSendTestCase(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_certificate_availability_notification_uses_datamailer_preference_category(
         self,
@@ -221,7 +221,7 @@ class DatamailerCertificateSendTestCase(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_send_certificate_availability_notification_uses_transactional_send(
         self,

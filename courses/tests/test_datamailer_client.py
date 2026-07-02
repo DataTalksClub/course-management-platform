@@ -59,7 +59,9 @@ class DatamailerClientEndpointTest(TestCase):
         client = DatamailerClient(config, session=session)
 
         kwargs = method_case.kwargs or {}
-        endpoint = getattr(client, method_case.endpoint_name)
+        endpoint = client
+        for endpoint_part in method_case.endpoint_name.split("."):
+            endpoint = getattr(endpoint, endpoint_part)
         method = getattr(endpoint, method_case.method_name)
         result = method(
             *method_case.args,

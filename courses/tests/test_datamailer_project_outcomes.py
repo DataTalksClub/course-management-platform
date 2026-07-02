@@ -49,10 +49,10 @@ class DatamailerProjectOutcomeTest(DatamailerProjectScoreTestBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_send_project_score_notification_bulk_upserts_passed_outcome_before_send(
         self,

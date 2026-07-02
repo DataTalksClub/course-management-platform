@@ -56,7 +56,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
@@ -86,7 +86,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
@@ -117,7 +117,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.upsert_recipient_list_member"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"

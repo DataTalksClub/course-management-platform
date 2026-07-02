@@ -24,10 +24,10 @@ class DatamailerHomeworkScoreSendSuccessTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_send_homework_score_notification_uses_list_send(
         self,
@@ -65,10 +65,10 @@ class DatamailerHomeworkScoreSendFailureTest(
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.bulk_upsert_recipient_list_members"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
     def test_score_notification_does_not_send_without_metadata_ack(
         self,

@@ -20,7 +20,7 @@ class PeerReviewDeadlineReminderCommandTest(
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
-        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListClient.send_transient_recipient_list_transactional"
+        "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_transient_list"
     )
     def test_peer_review_deadline_reminder_targets_unfinished_reviewers(
         self,

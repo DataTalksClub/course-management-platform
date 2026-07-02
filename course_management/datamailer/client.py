@@ -7,7 +7,7 @@ from django.conf import settings
 
 from .client_campaigns import DatamailerCampaignClient
 from .client_contacts import DatamailerContactClient
-from .client_recipient_lists import DatamailerRecipientListClient
+from .client_recipient_lists import DatamailerRecipientListClients
 from .client_transactional import DatamailerTransactionalClient
 from .client_types import DatamailerRequestData
 
@@ -53,7 +53,7 @@ class DatamailerClient:
         self.config = config
         self.session = session or requests.Session()
         self.contacts = DatamailerContactClient(config, self.request)
-        self.recipient_lists = DatamailerRecipientListClient(
+        self.recipient_lists = DatamailerRecipientListClients(
             config,
             self.request,
         )
