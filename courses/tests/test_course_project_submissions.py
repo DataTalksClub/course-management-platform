@@ -27,7 +27,7 @@ class ProjectFixtureData:
     submission_days: int
 
 
-class CourseProjectSubmissionFixtureMixin:
+class CourseProjectSubmissionsViewBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course-2"
@@ -89,11 +89,6 @@ class CourseProjectSubmissionFixtureMixin:
             github_link="https://github.com/test/repo2",
         )
 
-
-class CourseProjectSubmissionsViewBase(
-    CourseProjectSubmissionFixtureMixin,
-    TestCase,
-):
     def setUp(self):
         cache.clear()
         self.client = Client()
@@ -103,8 +98,6 @@ class CourseProjectSubmissionsViewBase(
         self.create_projects()
         self.create_project_submissions()
 
-
-class CourseProjectSubmissionRequestMixin:
     def submissions_url(self):
         return reverse(
             "list_all_project_submissions", args=[self.course.slug]
@@ -116,8 +109,6 @@ class CourseProjectSubmissionRequestMixin:
         submissions_url = self.submissions_url()
         return self.client.get(submissions_url)
 
-
-class CourseProjectSubmissionPaginationMixin:
     def create_paginated_submissions(self):
         for index in range(30):
             user = User.objects.create_user(
@@ -134,8 +125,6 @@ class CourseProjectSubmissionPaginationMixin:
                 github_link=f"https://github.com/test/repo-{index}",
             )
 
-
-class CourseProjectSubmissionAssertionMixin:
     def user_submissions_by_project(self, submissions):
         user_submissions = {}
         for submission in submissions:
@@ -190,12 +179,7 @@ class CourseProjectSubmissionAssertionMixin:
         self.assertEqual(submission.enrollment.student, self.user)
 
 
-class CourseProjectSubmissionsPageTestCase(
-    CourseProjectSubmissionPaginationMixin,
-    CourseProjectSubmissionAssertionMixin,
-    CourseProjectSubmissionRequestMixin,
-    CourseProjectSubmissionsViewBase,
-):
+class CourseProjectSubmissionsPageTestCase(CourseProjectSubmissionsViewBase):
     def test_list_all_submissions_view(self):
         response = self.get_submissions_response(login=True)
 
@@ -222,11 +206,7 @@ class CourseProjectSubmissionsPageTestCase(
         self.assertEqual(response.status_code, 200)
 
 
-class CourseProjectSubmissionsLinkTestCase(
-    CourseProjectSubmissionAssertionMixin,
-    CourseProjectSubmissionRequestMixin,
-    CourseProjectSubmissionsViewBase,
-):
+class CourseProjectSubmissionsLinkTestCase(CourseProjectSubmissionsViewBase):
     def test_list_all_submissions_links_student_to_repository(self):
         response = self.get_submissions_response()
 
@@ -242,11 +222,7 @@ class CourseProjectSubmissionsLinkTestCase(
         self.assert_project_links(response)
 
 
-class CourseProjectSubmissionsDisplayTestCase(
-    CourseProjectSubmissionAssertionMixin,
-    CourseProjectSubmissionRequestMixin,
-    CourseProjectSubmissionsViewBase,
-):
+class CourseProjectSubmissionsDisplayTestCase(CourseProjectSubmissionsViewBase):
     def test_submissions_display_format(self):
         response = self.get_submissions_response(login=True)
         self.assertEqual(response.status_code, 200)

@@ -3744,6 +3744,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed course project-submission fixture, request,
+  pagination, and assertion mixins into the focused
+  `CourseProjectSubmissionsViewBase`. The page, link, and display scenario
+  classes now inherit only from that base. Verification:
+  `uv run python manage.py test courses.tests.test_course_project_submissions`,
+  `uv run ruff check courses/tests/test_course_project_submissions.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
