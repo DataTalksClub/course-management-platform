@@ -3335,6 +3335,11 @@ Steps:
   evaluation tests. Verification:
   `uv run ruff check courses/tests/project_assign_base.py courses/tests/test_project_assign.py courses/tests/test_project_optional_eval.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_assign courses.tests.test_project_optional_eval`.
+- [x] 2026-07-02: Split Datamailer status command output rendering into a
+  dedicated status-output module so the management command only coordinates
+  arguments, configuration checks, and Datamailer lookups. Verification:
+  `uv run ruff check courses/management/commands/datamailer_status.py course_management/datamailer/status_output.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_status`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
