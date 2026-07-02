@@ -114,17 +114,13 @@ def handle_project_submission_edit_post(data):
     return response
 
 
-def project_submission_edit_context(data):
-    return {
+def project_submission_edit_response(data):
+    context = {
         "course": data.course,
         "project": data.project,
         "submission": data.submission,
         "criteria_with_scores": data.criteria_with_scores,
     }
-
-
-def project_submission_edit_response(data):
-    context = project_submission_edit_context(data)
     response = render(
         data.request, "cadmin/project_submission_edit.html", context
     )

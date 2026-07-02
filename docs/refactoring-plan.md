@@ -20,16 +20,16 @@ testable service functions.
 - Keep production and application-support functions within one screen. Use 30
   lines as the active-code scan threshold outside tests, and allow test methods
   and test helpers up to 60 lines when the scenario remains readable.
-- Do not split a test class only because it is long. A long test class is
-  acceptable when it has one focused subject, one coherent setup, and related
-  scenarios for the same behavior area. Split test classes only when they cover
-  different behavior areas, need different setup, or the shared helpers make
-  the tests harder to read. Large case groups can stay together when they test
-  the same feature with the same setup, even if the class is longer than the
-  normal threshold. The right cleanup for a long but focused test class is
-  usually to leave the class together and simplify the assertions inside it.
-  Do not extract or split those focused case groups just to make the file or
-  class shorter.
+- Do not split a test class or large case group only because it is long. A long
+  test class is acceptable when it has one focused subject, one coherent setup,
+  and related scenarios for the same behavior area. Split test classes only
+  when they cover different behavior areas, need different setup, or the shared
+  helpers make the tests harder to read. Large case groups should stay together
+  when they test the same feature with the same setup, even if the class is
+  longer than the normal threshold. The right cleanup for a long but focused
+  test class is usually to leave the class together and simplify the assertions
+  inside it. Do not extract or split those focused case groups just to make the
+  file or class shorter.
 - Keep tests simple. Do not add test inheritance, base classes, or mixins just
   to reduce line counts. Prefer direct setup in the focused test case and
   small helper functions only when they remove real duplication. When setup is
@@ -4899,6 +4899,21 @@ Steps:
   `uv run ruff check courses/assignment_statistics.py docs/refactoring-plan.md`,
   `python -m py_compile courses/assignment_statistics.py`,
   `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_project_statistics_model courses.tests.test_dashboard_project_stats`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Clarified the test-structure rule for large focused case
+  groups: do not split a long test class or case group when the scenarios share
+  the same feature, subject, and setup; simplify inside the class instead of
+  introducing inheritance, bases, or mixins for size management. Removed the
+  single-use `project_submission_edit_context` wrapper and kept the render
+  context next to the render response. Verification:
+  `uv run ruff check cadmin/views/project_submission_edit.py docs/refactoring-plan.md`,
+  `python -m py_compile cadmin/views/project_submission_edit.py`,
+  `uv run python manage.py test cadmin.tests.test_project_submission_edit_views`,
   removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
   scan excluding migrations (`forbidden_comprehensions=0`,
   `threshold_violations=0`, `append_constructed=0`,
