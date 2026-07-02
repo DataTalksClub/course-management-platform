@@ -60,10 +60,6 @@ def pattern_for_url_name(url_name):
     raise LookupError(f"No documented URL pattern named {url_name}")
 
 
-def view_for_url_name(url_name):
-    return pattern_for_url_name(url_name).callback
-
-
 def parameter_schema_for_converter(converter):
     if converter.regex == "[0-9]+":
         return {"type": "integer"}
@@ -107,7 +103,8 @@ def apply_inspected_operation_metadata(url_name, operation):
     result = deepcopy(operation)
     result = operation_with_inspected_parameters(url_name, result)
 
-    view = view_for_url_name(url_name)
+    pattern = pattern_for_url_name(url_name)
+    view = pattern.callback
     if getattr(view, "requires_token_auth", False):
         result = auth_required(result)
 

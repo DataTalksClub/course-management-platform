@@ -914,6 +914,17 @@ testable service functions.
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Remove the single-use OpenAPI view callback wrapper and get the
+  callback directly from the documented URL pattern during metadata inspection.
+  Verification: `uv run ruff check api/openapi/spec.py docs/refactoring-plan.md`,
+  `python -m py_compile api/openapi/spec.py`,
+  `uv run python manage.py test api.tests.test_openapi`, wrapper scan for the
+  removed helper, `uvx pyrefly check`, repository AST cleanup scan excluding
+  migrations (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 
 ## Current Findings
 
