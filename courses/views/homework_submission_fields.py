@@ -48,7 +48,12 @@ def apply_homework_submission_fields(field_data):
                 "",
             ).strip()
         )
-    apply_faq_contribution_field(field_data)
+    if field_data.homework.faq_contribution_field:
+        posted_url = field_data.request.POST.get("faq_contribution_url", "")
+        faq_contribution_url = clean_faq_contribution_url(posted_url)
+        field_data.submission.faq_contribution_url = (
+            faq_contribution_url.strip()
+        )
 
 
 def apply_learning_in_public_links(field_data):
@@ -109,12 +114,3 @@ def apply_time_spent_field(data):
     )
     if time_spent is not None:
         setattr(data.submission, data.model_field, time_spent)
-
-
-def apply_faq_contribution_field(field_data):
-    if field_data.homework.faq_contribution_field:
-        posted_url = field_data.request.POST.get("faq_contribution_url", "")
-        faq_contribution_url = clean_faq_contribution_url(posted_url)
-        field_data.submission.faq_contribution_url = (
-            faq_contribution_url.strip()
-        )
