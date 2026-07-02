@@ -3835,6 +3835,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed project-statistics fixture, submission-fixture,
+  model-fixture, model-assertion, raw-fixture, raw-assertion, and
+  incomplete-project mixins into the focused `ProjectStatisticsTestBase`.
+  The raw-statistics and model-statistics tests keep the same shared setup API
+  without a mixin inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_project_statistics courses.tests.test_project_statistics_model`,
+  `uv run ruff check courses/tests/project_statistics_base.py courses/tests/test_project_statistics.py courses/tests/test_project_statistics_model.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -31,7 +31,7 @@ class RawStatExpectation:
     average: float
 
 
-class ProjectStatisticsFixtureMixin:
+class ProjectStatisticsTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -63,8 +63,6 @@ class ProjectStatisticsFixtureMixin:
             self.users.append(user)
             self.enrollments.append(enrollment)
 
-
-class ProjectStatisticsSubmissionFixtureMixin:
     def create_project_submission(self, user, enrollment, scores=None):
         if scores is None:
             scores = {
@@ -99,8 +97,6 @@ class ProjectStatisticsSubmissionFixtureMixin:
             submissions.append(submission)
         return ProjectSubmission.objects.bulk_create(submissions)
 
-
-class ProjectStatisticsModelFixtureMixin:
     def create_model_method_submissions(self):
         for i in range(3):
             scores = {
@@ -138,8 +134,6 @@ class ProjectStatisticsModelFixtureMixin:
             submissions_data.append(scores)
         return submissions_data
 
-
-class ProjectStatisticsModelAssertionsMixin:
     def assert_statistics_values(self, stats):
         min_project_score = stats.get_value("project_score", "min")
         self.assertEqual(min_project_score, 10)
@@ -172,8 +166,6 @@ class ProjectStatisticsModelAssertionsMixin:
         str_representation = str(stats)
         self.assertIn(self.project.slug, str_representation)
 
-
-class ProjectStatisticsRawFixtureMixin:
     def create_basic_raw_statistics_submissions(self):
         submissions_data = [
             {"project_score": 8, "total_score": 15, "time_spent": 8.0},
@@ -238,8 +230,6 @@ class ProjectStatisticsRawFixtureMixin:
                 self.users[i], self.enrollments[i], scores
             )
 
-
-class ProjectStatisticsRawAssertionsMixin:
     def assert_non_null_time_spent_stats(self, stats):
         self.assertEqual(stats["time_spent"]["min"], 8.0)
         self.assertEqual(stats["time_spent"]["max"], 12.0)
@@ -249,8 +239,6 @@ class ProjectStatisticsRawAssertionsMixin:
         self.assertEqual(stats["project_score"]["min"], 8)
         self.assertEqual(stats["project_score"]["max"], 12)
 
-
-class ProjectStatisticsIncompleteProjectMixin:
     def create_incomplete_project(self):
         return Project.objects.create(
             course=self.course,
@@ -262,17 +250,6 @@ class ProjectStatisticsIncompleteProjectMixin:
             state=ProjectState.COLLECTING_SUBMISSIONS.value,
         )
 
-
-class ProjectStatisticsTestBase(
-    ProjectStatisticsFixtureMixin,
-    ProjectStatisticsSubmissionFixtureMixin,
-    ProjectStatisticsModelFixtureMixin,
-    ProjectStatisticsModelAssertionsMixin,
-    ProjectStatisticsRawFixtureMixin,
-    ProjectStatisticsRawAssertionsMixin,
-    ProjectStatisticsIncompleteProjectMixin,
-    TestCase,
-):
     def setUp(self):
         self.user = User.objects.create_user(**credentials)
         self.course = self.create_course()
