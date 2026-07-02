@@ -3135,6 +3135,10 @@ Steps:
   threshold checks, and boundary checks. Verification:
   `uv run ruff check data/tests/enrollment_passed_base.py data/tests/test_enrollment_passed.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_enrollment_passed`.
+- [x] Split URL validation unit tests into FAQ contribution, status validation,
+  and error-message classes while removing unused logging setup. Verification:
+  `uv run ruff check courses/tests/test_unit_url_validation.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_unit_url_validation`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
