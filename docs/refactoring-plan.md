@@ -3318,6 +3318,12 @@ Steps:
   classes. Verification:
   `uv run ruff check cadmin/tests/test_view_models.py docs/refactoring-plan.md`,
   `uv run python manage.py test cadmin.tests.test_view_models`.
+- [x] 2026-07-02: Split the shared Datamailer membership test base into
+  fixture, outcome-fixture, upsert-assertion, and removal-assertion mixins while
+  keeping the existing public base class stable for current test modules.
+  Verification:
+  `uv run ruff check courses/tests/datamailer_membership_base.py courses/tests/test_datamailer_membership.py courses/tests/test_datamailer_membership_outcomes.py courses/tests/test_datamailer_membership_removals.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_membership courses.tests.test_datamailer_membership_outcomes courses.tests.test_datamailer_membership_removals`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
