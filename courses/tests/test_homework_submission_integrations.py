@@ -6,12 +6,18 @@ from courses.tests.homework_submission_integration_base import (
     HomeworkSubmissionIntegrationBase,
 )
 from courses.tests.homework_submission_confirmation_helpers import (
-    HomeworkSubmissionConfirmationMixin,
+    HomeworkSubmissionConfirmationAnswerExpectationMixin,
+    HomeworkSubmissionConfirmationFieldExpectationMixin,
+    HomeworkSubmissionConfirmationPayloadAssertionMixin,
+    HomeworkSubmissionConfirmationPostDataMixin,
 )
 
 
 class HomeworkSubmissionConfirmationTest(
-    HomeworkSubmissionConfirmationMixin,
+    HomeworkSubmissionConfirmationPostDataMixin,
+    HomeworkSubmissionConfirmationPayloadAssertionMixin,
+    HomeworkSubmissionConfirmationFieldExpectationMixin,
+    HomeworkSubmissionConfirmationAnswerExpectationMixin,
     HomeworkSubmissionIntegrationBase,
 ):
     @override_settings(PUBLIC_BASE_URL="")

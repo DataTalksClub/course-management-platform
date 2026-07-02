@@ -3307,6 +3307,12 @@ Steps:
   send-flow test classes. Verification:
   `uv run ruff check courses/tests/test_datamailer_certificates.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_certificates`.
+- [x] 2026-07-02: Split homework submission-confirmation helper mixin into
+  direct post-data, payload-assertion, field-expectation, and answer-
+  expectation mixins, and updated the integration test to import them directly
+  without a compatibility umbrella. Verification:
+  `uv run ruff check courses/tests/homework_submission_confirmation_helpers.py courses/tests/test_homework_submission_integrations.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework_submission_integrations`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

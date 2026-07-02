@@ -1,7 +1,7 @@
 from courses.models import QuestionTypes
 
 
-class HomeworkSubmissionConfirmationMixin:
+class HomeworkSubmissionConfirmationPostDataMixin:
     def confirmation_post_data(self):
         return {
             f"answer_{self.multiple_choice_question.id}": ["2"],
@@ -32,6 +32,8 @@ class HomeworkSubmissionConfirmationMixin:
             "learning_in_public_links[]": [],
         }
 
+
+class HomeworkSubmissionConfirmationPayloadAssertionMixin:
     def assert_confirmation_payload_basics(self, payload, submission):
         self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(
@@ -75,6 +77,18 @@ class HomeworkSubmissionConfirmationMixin:
             "Your homework submission for Homework 1 in Course was saved.",
         )
 
+    def assert_confirmation_summary(self, payload):
+        self.assertIn(
+            "Time spent on lectures: 2.5 hours",
+            payload["context"]["submission_summary_text"],
+        )
+        self.assertIn(
+            "Pick all matching options: 1. Alpha, 3. Gamma",
+            payload["context"]["submitted_answers_text"],
+        )
+
+
+class HomeworkSubmissionConfirmationFieldExpectationMixin:
     def expected_learning_in_public_field(self):
         return {
             "key": "learning_in_public_links",
@@ -132,6 +146,8 @@ class HomeworkSubmissionConfirmationMixin:
             expected_fields,
         )
 
+
+class HomeworkSubmissionConfirmationAnswerExpectationMixin:
     def multiple_choice_answer_record(self):
         selected_options = []
         option = {"index": 2, "value": "Second option"}
@@ -185,14 +201,4 @@ class HomeworkSubmissionConfirmationMixin:
         self.assertEqual(
             payload["context"]["submitted_answers"],
             expected_answers,
-        )
-
-    def assert_confirmation_summary(self, payload):
-        self.assertIn(
-            "Time spent on lectures: 2.5 hours",
-            payload["context"]["submission_summary_text"],
-        )
-        self.assertIn(
-            "Pick all matching options: 1. Alpha, 3. Gamma",
-            payload["context"]["submitted_answers_text"],
         )
