@@ -25,7 +25,7 @@ credentials = dict(
 )
 
 
-class DashboardHomeworkFixtureMixin:
+class DashboardHomeworkStatsTestBase(TestCase):
     def create_dashboard_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -63,8 +63,6 @@ class DashboardHomeworkFixtureMixin:
             course=self.course,
         )
 
-
-class DashboardHomeworkSubmissionStatsMixin:
     def create_homework_submission(self, user, enrollment, scores=None):
         if scores is None:
             scores = {
@@ -164,8 +162,6 @@ class DashboardHomeworkSubmissionStatsMixin:
         self.assertEqual(hw_stat["submissions_count"], 4)
         self.assertIsNotNone(hw_stat["time_lecture_median"])
 
-
-class DashboardHomeworkFormattedTimeMixin:
     def create_formatted_time_submissions(self):
         scores = {
             "time_spent_lectures": 3.0,
@@ -195,8 +191,6 @@ class DashboardHomeworkFormattedTimeMixin:
         self.assertIn("time_homework_median_formatted", hw_stat)
         self.assertIn("time_total_median_formatted", hw_stat)
 
-
-class DashboardHomeworkDifficultyMixin:
     def add_questions(self, homework, count):
         questions = []
         for i in range(count):
@@ -250,14 +244,6 @@ class DashboardHomeworkDifficultyMixin:
         self.assertEqual(difficulty_stats[1]["difficulty_rank"], 2)
         self.assertEqual(difficulty_stats[1]["score_ratio_pct"], 100.0)
 
-
-class DashboardHomeworkStatsTestBase(
-    DashboardHomeworkFixtureMixin,
-    DashboardHomeworkSubmissionStatsMixin,
-    DashboardHomeworkFormattedTimeMixin,
-    DashboardHomeworkDifficultyMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
