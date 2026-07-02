@@ -23,6 +23,30 @@ credentials = {
 
 
 class ProjectListViewTestBase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment(self.user)
+        self.project = self.create_project()
+        self.submission = self.create_project_submission(
+            self.user,
+            self.enrollment,
+            "https://github.com/user/project",
+        )
+        self.other_user = User.objects.create_user(
+            username="student",
+            email="email@email.com",
+            password="12345",
+        )
+        self.other_enrollment = self.create_enrollment(self.other_user)
+        self.other_submission = self.create_project_submission(
+            self.other_user,
+            self.other_enrollment,
+            "https://github.com/other_student/project",
+        )
+        self.peer_review = self.create_peer_review()
+
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -65,34 +89,6 @@ class ProjectListViewTestBase(TestCase):
             optional=False,
         )
 
-
-class ProjectListViewSetupMixin(ProjectListViewTestBase):
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.enrollment = self.create_enrollment(self.user)
-        self.project = self.create_project()
-        self.submission = self.create_project_submission(
-            self.user,
-            self.enrollment,
-            "https://github.com/user/project",
-        )
-        self.other_user = User.objects.create_user(
-            username="student",
-            email="email@email.com",
-            password="12345",
-        )
-        self.other_enrollment = self.create_enrollment(self.other_user)
-        self.other_submission = self.create_project_submission(
-            self.other_user,
-            self.other_enrollment,
-            "https://github.com/other_student/project",
-        )
-        self.peer_review = self.create_peer_review()
-
-
-class ProjectListViewRequestMixin(ProjectListViewSetupMixin):
     def project_list_url(self):
         return reverse(
             "project_list",

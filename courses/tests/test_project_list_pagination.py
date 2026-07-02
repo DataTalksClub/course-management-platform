@@ -1,9 +1,9 @@
 from courses.models import ProjectSubmission, User
 
-from .project_list_view_base import ProjectListViewRequestMixin
+from .project_list_view_base import ProjectListViewTestBase
 
 
-class ProjectListPaginationViewTests(ProjectListViewRequestMixin):
+class ProjectListPaginationViewTests(ProjectListViewTestBase):
     def create_paginated_submissions(self):
         for index in range(30):
             user = User.objects.create_user(

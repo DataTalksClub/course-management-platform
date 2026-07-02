@@ -1,9 +1,9 @@
 from django.urls import reverse
 
-from .project_list_view_base import ProjectListViewRequestMixin
+from .project_list_view_base import ProjectListViewTestBase
 
 
-class ProjectListViewTests(ProjectListViewRequestMixin):
+class ProjectListViewTests(ProjectListViewTestBase):
     def test_list_view_authenticated_no_submission(self):
         self.submission.delete()
 
@@ -24,7 +24,7 @@ class ProjectListViewTests(ProjectListViewRequestMixin):
         self.assert_add_to_evaluation_visible(response)
 
 
-class ProjectListLinkViewTests(ProjectListViewRequestMixin):
+class ProjectListLinkViewTests(ProjectListViewTestBase):
     def test_project_list_links_student_to_repository(self):
         response = self.get_project_list_response()
 
