@@ -97,15 +97,6 @@ def project_create_dates(input_data):
     return dates, None
 
 
-def project_create_attrs(course, project_data):
-    values, error = project_create_values(course, project_data)
-    if error:
-        return None, error
-
-    attrs = project_model_attrs(project_data, values)
-    return attrs, None
-
-
 def project_create_values(course, project_data):
     input_data, error = project_create_input(project_data)
     if error:
@@ -147,10 +138,11 @@ def project_model_attrs(project_data, values):
 
 
 def create_project(course, project_data):
-    attrs, error = project_create_attrs(course, project_data)
+    values, error = project_create_values(course, project_data)
     if error:
         return None, error
 
+    attrs = project_model_attrs(project_data, values)
     project = Project.objects.create(
         course=course,
         **attrs,

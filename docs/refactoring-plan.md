@@ -2915,6 +2915,20 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use project creation attributes wrapper.
+  `create_project` now calls `project_create_values` and `project_model_attrs`
+  directly before `Project.objects.create`, keeping validation and payload
+  construction named without a pass-through layer. Verification:
+  `uv run ruff check api/views/project_create.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/project_create.py`,
+  `uv run python manage.py test api.tests.test_project_creation api.tests.test_projects`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Split Datamailer campaign action data construction out of the campaign
   action handler so the handler only resolves the client, builds action data,
   and runs the guarded action. Verification:
