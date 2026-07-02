@@ -3031,6 +3031,10 @@ Steps:
   tests. Verification:
   `uv run ruff check courses/tests/dashboard_view_base.py courses/tests/test_dashboard.py courses/tests/test_dashboard_empty.py courses/tests/dashboard_homework_base.py courses/tests/test_dashboard_homework_stats.py courses/tests/test_dashboard_homework_difficulty.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_dashboard courses.tests.test_dashboard_empty courses.tests.test_dashboard_homework_stats courses.tests.test_dashboard_homework_difficulty`.
+- [x] Split project API tests into focused list/detail, create, update/upsert,
+  and deletion modules. Verification:
+  `uv run ruff check api/tests/test_projects.py api/tests/test_project_creation.py api/tests/test_project_updates.py api/tests/test_project_deletion.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_projects api.tests.test_project_creation api.tests.test_project_updates api.tests.test_project_deletion`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
