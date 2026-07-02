@@ -3340,6 +3340,12 @@ Steps:
   arguments, configuration checks, and Datamailer lookups. Verification:
   `uv run ruff check courses/management/commands/datamailer_status.py course_management/datamailer/status_output.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_status`.
+- [x] 2026-07-02: Split the shared Datamailer homework-score test base into
+  fixture, payload-assertion, scored-submission fixture, and send-assertion
+  mixins while keeping the existing base class stable for payload and send
+  tests. Verification:
+  `uv run ruff check courses/tests/datamailer_homework_score_base.py courses/tests/test_datamailer_homework_scores.py courses/tests/test_datamailer_homework_score_send.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_homework_scores courses.tests.test_datamailer_homework_score_send`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
