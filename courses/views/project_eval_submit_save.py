@@ -30,9 +30,16 @@ def project_eval_post_submission(
     )
     apply_review_learning_in_public_links(request, project, review)
     apply_review_time_spent(request, project, review)
-    apply_review_problems_comments(request, project, review)
-    apply_review_note_to_peer(request, review)
-    submit_project_review(review)
+    if project.problems_comments_field:
+        problems_comments = request.POST.get("problems_comments", "")
+        review.problems_comments = problems_comments.strip()
+
+    note_to_peer = request.POST.get("note_to_peer", "")
+    review.note_to_peer = note_to_peer.strip()
+
+    review.submitted_at = timezone.now()
+    review.state = PeerReviewState.SUBMITTED.value
+    review.save()
 
     messages.success(
         request,
@@ -87,20 +94,3 @@ def apply_review_time_spent(request, project, review):
     time_spent_reviewing = request.POST.get("time_spent_reviewing")
     if time_spent_reviewing is not None and time_spent_reviewing != "":
         review.time_spent_reviewing = float(time_spent_reviewing)
-
-
-def apply_review_problems_comments(request, project, review):
-    if project.problems_comments_field:
-        problems_comments = request.POST.get("problems_comments", "")
-        review.problems_comments = problems_comments.strip()
-
-
-def apply_review_note_to_peer(request, review):
-    note_to_peer = request.POST.get("note_to_peer", "")
-    review.note_to_peer = note_to_peer.strip()
-
-
-def submit_project_review(review):
-    review.submitted_at = timezone.now()
-    review.state = PeerReviewState.SUBMITTED.value
-    review.save()

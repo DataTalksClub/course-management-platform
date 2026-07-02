@@ -4780,6 +4780,21 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed three single-use project-evaluation submit helpers.
+  The problems/comments assignment, peer note assignment, and final submitted
+  state/save now live directly in `project_eval_post_submission`, which remains
+  at the active-code threshold. Learning-link cleanup and time-spent parsing
+  stay named because they own guarded parsing/normalization. Verification:
+  `uv run ruff check courses/views/project_eval_submit_save.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/project_eval_submit_save.py`,
+  `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] 2026-07-02: Removed the single-use certificate update success-record
   wrapper. The apply step now names the `updated` response record directly
   before building `CertificateApplyResult`, keeping the API response fields
