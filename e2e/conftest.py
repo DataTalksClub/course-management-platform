@@ -115,10 +115,11 @@ def due_dates() -> dict:
     """ISO dates used for scoreable homework/project fixtures."""
     past = time.gmtime(time.time() - 24 * 3600)
     fmt = "%Y-%m-%d"
+    past_date = time.strftime(fmt, past)
     return {
-        "homework_due": time.strftime(fmt, past),
-        "project_due": time.strftime(fmt, past),
-        "peer_review_due": time.strftime(fmt, past),
+        "homework_due": past_date,
+        "project_due": past_date,
+        "peer_review_due": past_date,
     }
 
 

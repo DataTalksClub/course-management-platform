@@ -168,36 +168,44 @@ def _base_url() -> str:
 def _mock_inbox_settings() -> dict:
     # Base URL is the Datamailer service root; the client appends
     # /api/mock-inbox/... Fall back to the datamailer settings in repo .env.
+    mock_inbox_url = _first_env("E2E_MOCK_INBOX_URL", "DATAMAILER_URL")
+    mock_inbox_api_key = _first_env(
+        "E2E_MOCK_INBOX_API_KEY", "DATAMAILER_API_KEY"
+    )
+    mock_inbox_domain = (
+        _first_env("E2E_MOCK_INBOX_DOMAIN", "MOCK_INBOX_DOMAIN")
+        or "mailbox.test"
+    )
+    mock_inbox_tag = (
+        _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
+    )
     return {
-        "mock_inbox_url": _first_env("E2E_MOCK_INBOX_URL", "DATAMAILER_URL"),
-        "mock_inbox_api_key": _first_env(
-            "E2E_MOCK_INBOX_API_KEY", "DATAMAILER_API_KEY"
-        ),
-        "mock_inbox_domain": (
-            _first_env("E2E_MOCK_INBOX_DOMAIN", "MOCK_INBOX_DOMAIN")
-            or "mailbox.test"
-        ),
-        "mock_inbox_tag": (
-            _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
-        ),
+        "mock_inbox_url": mock_inbox_url,
+        "mock_inbox_api_key": mock_inbox_api_key,
+        "mock_inbox_domain": mock_inbox_domain,
+        "mock_inbox_tag": mock_inbox_tag,
     }
 
 
 def _real_inbox_settings() -> dict:
     # Real SES-inbound backend: Datamailer sends via SES and reads the
     # inbound S3 object back over HTTP. URL/key fall back to DATAMAILER_*.
+    real_inbox_url = _first_env("E2E_REAL_INBOX_URL", "DATAMAILER_URL")
+    real_inbox_api_key = _first_env(
+        "E2E_REAL_INBOX_API_KEY", "DATAMAILER_API_KEY"
+    )
+    real_inbox_domain = (
+        _first_env("E2E_REAL_INBOX_DOMAIN", "REAL_INBOX_DOMAIN")
+        or "mailer.dtcdev.click"
+    )
+    real_inbox_tag = (
+        _first_env("E2E_REAL_INBOX_TAG", "REAL_INBOX_PLUS_TAG") or "e2e"
+    )
     return {
-        "real_inbox_url": _first_env("E2E_REAL_INBOX_URL", "DATAMAILER_URL"),
-        "real_inbox_api_key": _first_env(
-            "E2E_REAL_INBOX_API_KEY", "DATAMAILER_API_KEY"
-        ),
-        "real_inbox_domain": (
-            _first_env("E2E_REAL_INBOX_DOMAIN", "REAL_INBOX_DOMAIN")
-            or "mailer.dtcdev.click"
-        ),
-        "real_inbox_tag": (
-            _first_env("E2E_REAL_INBOX_TAG", "REAL_INBOX_PLUS_TAG") or "e2e"
-        ),
+        "real_inbox_url": real_inbox_url,
+        "real_inbox_api_key": real_inbox_api_key,
+        "real_inbox_domain": real_inbox_domain,
+        "real_inbox_tag": real_inbox_tag,
     }
 
 

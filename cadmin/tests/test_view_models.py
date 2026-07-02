@@ -53,8 +53,9 @@ class CadminViewModelBase(TestCase):
         )
 
     def create_enrollment(self, username, **overrides):
+        student = self.create_user(username)
         defaults = {
-            "student": self.create_user(username),
+            "student": student,
             "course": self.course,
             "display_name": username,
             "total_score": 10,

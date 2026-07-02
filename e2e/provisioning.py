@@ -165,6 +165,7 @@ class Provisioner:
     def add_homework(
         self, course: ProvisionedCourse, *, due_date: str, open_now: bool = True
     ) -> None:
+        questions = default_questions()
         hw = self.api.create_homework(
             course.slug,
             {
@@ -176,7 +177,7 @@ class Provisioner:
                 "homework_url_field": True,
                 "time_spent_lectures_field": True,
                 "time_spent_homework_field": True,
-                "questions": default_questions(),
+                "questions": questions,
             },
         )
         course.homework_id = hw["id"]

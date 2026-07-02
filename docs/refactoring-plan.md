@@ -4295,6 +4295,19 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named remaining record-construction values in touched
+  tests and E2E settings/provisioning: created users, ISO timestamps, integer
+  column flags, formatted due dates, environment-derived inbox settings, and
+  default homework questions are now assigned before building dictionaries or
+  argument lists. Verification:
+  `uv run python manage.py test cadmin.tests.test_view_models courses.tests.test_deadline_reminder_homework courses.tests.test_load_rds_export_script`,
+  `uv run ruff check cadmin/tests/test_view_models.py courses/tests/deadline_reminder_base.py courses/tests/test_load_rds_export_script.py e2e/config.py e2e/conftest.py e2e/provisioning.py`,
+  `uvx pyrefly check`, record-construction scan, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

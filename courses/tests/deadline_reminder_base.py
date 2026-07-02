@@ -46,7 +46,8 @@ class DeadlineReminderTestBase(TestCase):
         )
 
     def run_deadline_reminders(self, now, stdout=None, dry_run=False):
-        args = ["send_deadline_reminders", "--now", now.isoformat()]
+        now_value = now.isoformat()
+        args = ["send_deadline_reminders", "--now", now_value]
         if dry_run:
             args.append("--dry-run")
         call_command(*args, stdout=stdout)

@@ -20,11 +20,13 @@ from scripts.load_rds_export import (
 
 
 def column_info(name, *, notnull=False, default=None, pk=False):
+    notnull_value = int(notnull)
+    pk_value = int(pk)
     return {
         "name": name,
-        "notnull": int(notnull),
+        "notnull": notnull_value,
         "dflt_value": default,
-        "pk": int(pk),
+        "pk": pk_value,
     }
 
 
