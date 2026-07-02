@@ -3629,6 +3629,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed Datamailer membership fixture, outcome-fixture,
+  upsert-assertion, and removal-assertion mixins into the focused
+  `DatamailerMembershipBase`. Membership, outcome, and removal tests keep the
+  same helper API without a mixin inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_membership courses.tests.test_datamailer_membership_outcomes courses.tests.test_datamailer_membership_removals`,
+  `uv run ruff check courses/tests/datamailer_membership_base.py courses/tests/test_datamailer_membership.py courses/tests/test_datamailer_membership_outcomes.py courses/tests/test_datamailer_membership_removals.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -37,7 +37,7 @@ class UpsertedRecipientMemberExpectation:
     list_type: str
 
 
-class DatamailerMembershipFixtureMixin:
+class DatamailerMembershipBase(TestCase):
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -100,8 +100,6 @@ class DatamailerMembershipFixtureMixin:
         defaults.update(overrides)
         return ProjectSubmission.objects.create(**defaults)
 
-
-class DatamailerMembershipOutcomeFixtureMixin:
     def create_project_submission_removal_fixture(self):
         project = self.create_project()
         user = self.create_user("student@example.com")
@@ -124,8 +122,6 @@ class DatamailerMembershipOutcomeFixtureMixin:
         )
         return project, submission
 
-
-class DatamailerMembershipUpsertAssertionMixin:
     def assert_upserted_recipient_member(self, expectation):
         expectation.upsert_member.assert_called_once()
         self.assertEqual(
@@ -155,8 +151,6 @@ class DatamailerMembershipUpsertAssertionMixin:
             "project_passed",
         )
 
-
-class DatamailerMembershipRemovalAssertionMixin:
     def assert_project_passed_member_removed(
         self,
         remove_member,
@@ -237,13 +231,3 @@ class DatamailerMembershipRemovalAssertionMixin:
             f"enrollment:{enrollment.pk}",
         ]
         self.assertEqual(source_object_keys, expected_source_object_keys)
-
-
-class DatamailerMembershipBase(
-    DatamailerMembershipFixtureMixin,
-    DatamailerMembershipOutcomeFixtureMixin,
-    DatamailerMembershipUpsertAssertionMixin,
-    DatamailerMembershipRemovalAssertionMixin,
-    TestCase,
-):
-    pass
