@@ -24,7 +24,7 @@ DATAMAILER_SETTINGS = {
 }
 
 
-class DatamailerCertificateTest(TestCase):
+class DatamailerCertificateFixtureMixin:
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -62,6 +62,8 @@ class DatamailerCertificateTest(TestCase):
             certificate_url="/certificates/student.pdf",
         )
 
+
+class CertificateAvailabilityAssertionMixin:
     def assert_certificate_availability_identity(self, payload, enrollment):
         self.assertEqual(payload["email"], "student@example.com")
         self.assertEqual(payload["audience"], "dtc-courses")
@@ -113,11 +115,21 @@ class DatamailerCertificateTest(TestCase):
         self.assert_certificate_availability_metadata(payload)
         self.assert_certificate_availability_copy(payload)
 
-    def assert_course_graduate_recipient_payload(self, list_key, payload, enrollment):
+
+class CourseGraduateRecipientAssertionMixin:
+    def assert_course_graduate_recipient_payload(
+        self,
+        list_key,
+        payload,
+        enrollment,
+    ):
         expected_list_key = course_graduates_list_key(enrollment.course)
         self.assertEqual(list_key, expected_list_key)
         self.assertEqual(payload["list"]["type"], "custom")
-        self.assertEqual(payload["list"]["metadata"]["outcome"], "course_graduated")
+        self.assertEqual(
+            payload["list"]["metadata"]["outcome"],
+            "course_graduated",
+        )
         self.assertEqual(len(payload["members"]), 1)
         member = payload["members"][0]
         self.assertEqual(member["email"], "student@example.com")
@@ -131,6 +143,13 @@ class DatamailerCertificateTest(TestCase):
             "https://courses.example.com/certificates/student.pdf",
         )
 
+
+class DatamailerCertificatePayloadTestCase(
+    DatamailerCertificateFixtureMixin,
+    CertificateAvailabilityAssertionMixin,
+    CourseGraduateRecipientAssertionMixin,
+    TestCase,
+):
     @override_settings(
         **DATAMAILER_SETTINGS,
         DATAMAILER_FROM_EMAIL="courses",
@@ -164,6 +183,11 @@ class DatamailerCertificateTest(TestCase):
             enrollment,
         )
 
+
+class DatamailerCertificateSendTestCase(
+    DatamailerCertificateFixtureMixin,
+    TestCase,
+):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client.DatamailerClient.send_transactional"

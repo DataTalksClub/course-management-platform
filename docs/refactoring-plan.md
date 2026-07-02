@@ -3302,6 +3302,11 @@ Steps:
   the scenario tests stay small. Verification:
   `uv run ruff check courses/tests/test_course_project_submissions.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_course_project_submissions`.
+- [x] 2026-07-02: Split Datamailer certificate tests into focused fixture,
+  certificate-availability assertion, course-graduate assertion, payload, and
+  send-flow test classes. Verification:
+  `uv run ruff check courses/tests/test_datamailer_certificates.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_certificates`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
