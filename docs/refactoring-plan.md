@@ -853,6 +853,18 @@ testable service functions.
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Remove the single-use API registration-campaign registrations
+  queryset wrapper and keep the base queryset in `filtered_registrations`.
+  Verification:
+  `uv run ruff check api/views/registration_campaign_registrations.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/registration_campaign_registrations.py`,
+  `uv run python manage.py test api.tests.test_registration_campaigns api.tests.test_registration_campaign_auth`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 

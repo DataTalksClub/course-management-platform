@@ -20,19 +20,15 @@ def registration_campaign_registrations_payload(campaign, params):
 
 
 def filtered_registrations(campaign, params):
-    registrations = campaign_registrations_queryset(campaign)
+    registrations = CourseRegistration.objects.filter(
+        campaign=campaign
+    ).select_related("campaign", "course")
     search_query = params.get("q", "")
     registrations = apply_registration_search(
         registrations,
         search_query,
     )
     return apply_registration_exact_filters(registrations, params)
-
-
-def campaign_registrations_queryset(campaign):
-    return CourseRegistration.objects.filter(
-        campaign=campaign
-    ).select_related("campaign", "course")
 
 
 def apply_registration_search(queryset, search):
