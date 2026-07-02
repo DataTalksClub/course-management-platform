@@ -29,29 +29,7 @@ def fetch_fresh(obj):
     return obj.__class__.objects.get(pk=obj.id)
 
 
-class ProjectActionsTestBase(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = Course.objects.create(
-            slug="test-course",
-            title="Test Course",
-            description="Test Course Description",
-        )
-        self.enrollment = Enrollment.objects.create(
-            student=self.user,
-            course=self.course,
-        )
-        submission_due_date = timezone.now() - timedelta(hours=1)
-        peer_review_due_date = timezone.now() + timedelta(hours=1)
-        self.project = Project.objects.create(
-            course=self.course,
-            slug="test-project",
-            title="Test Project",
-            submission_due_date=submission_due_date,
-            peer_review_due_date=peer_review_due_date,
-        )
-
+class ProjectSubmissionFixtureMixin:
     def generate_submissions(self, num_submissions):
         submissions = []
         for i in range(num_submissions):
@@ -83,6 +61,8 @@ class ProjectActionsTestBase(TestCase):
             github_link=github_link,
         )
 
+
+class ProjectAssignmentAssertionMixin:
     def assign_peer_reviews(self):
         return assign_peer_reviews_for_project(self.project)
 
@@ -131,6 +111,8 @@ class ProjectActionsTestBase(TestCase):
                 self.project.number_of_peers_to_evaluate,
             )
 
+
+class ProjectActionUrlMixin:
     def project_list_url(self):
         return reverse(
             "project_list",
@@ -166,6 +148,8 @@ class ProjectActionsTestBase(TestCase):
             ],
         )
 
+
+class ProjectOptionalEvaluationMixin:
     def find_optional_eval_candidate_id(self):
         url = self.project_list_url()
         list_response = self.client.get(url)
@@ -220,3 +204,33 @@ class ProjectActionsTestBase(TestCase):
         reviews = PeerReview.objects.filter(id=peer_review.id)
         peer_review_exists = reviews.exists()
         self.assertTrue(peer_review_exists)
+
+
+class ProjectActionsTestBase(
+    ProjectSubmissionFixtureMixin,
+    ProjectAssignmentAssertionMixin,
+    ProjectActionUrlMixin,
+    ProjectOptionalEvaluationMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = Course.objects.create(
+            slug="test-course",
+            title="Test Course",
+            description="Test Course Description",
+        )
+        self.enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+        )
+        submission_due_date = timezone.now() - timedelta(hours=1)
+        peer_review_due_date = timezone.now() + timedelta(hours=1)
+        self.project = Project.objects.create(
+            course=self.course,
+            slug="test-project",
+            title="Test Project",
+            submission_due_date=submission_due_date,
+            peer_review_due_date=peer_review_due_date,
+        )

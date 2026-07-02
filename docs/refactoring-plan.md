@@ -3329,6 +3329,12 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/test_project_voting.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_voting`.
+- [x] 2026-07-02: Split the shared project assignment test base into
+  submission fixture, assignment assertion, URL, and optional-evaluation mixins
+  while keeping the existing base class stable for assignment and optional
+  evaluation tests. Verification:
+  `uv run ruff check courses/tests/project_assign_base.py courses/tests/test_project_assign.py courses/tests/test_project_optional_eval.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_assign courses.tests.test_project_optional_eval`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
