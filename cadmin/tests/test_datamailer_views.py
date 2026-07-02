@@ -31,7 +31,7 @@ class ContactEventData:
     duplicate_count: int = 0
 
 
-class DatamailerCadminViewTests(TestCase):
+class DatamailerCadminViewTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         User.objects.create_user(**credentials)
@@ -51,6 +51,8 @@ class DatamailerCadminViewTests(TestCase):
     def datamailer_events_url(self):
         return reverse("cadmin_datamailer_events")
 
+
+class DatamailerOperationsFixtureMixin:
     def create_datamailer_operations_records(self):
         DatamailerOutboxEvent.objects.create(
             event_id="evt-outbox-failed",
@@ -81,6 +83,8 @@ class DatamailerCadminViewTests(TestCase):
             error="Datamailer failed",
         )
 
+
+class DatamailerOperationsAssertionsMixin:
     def assert_datamailer_operations_content(self, response):
         self.assertContains(response, "Datamailer operations")
         self.assertContains(response, "network error")
@@ -109,6 +113,8 @@ class DatamailerCadminViewTests(TestCase):
         self.assertEqual(response.context["send_totals"]["skipped_count"], 1)
         self.assertEqual(response.context["send_totals"]["failed"], 1)
 
+
+class DatamailerOutboxRequeueMixin:
     def create_datamailer_outbox_event(self, event_id, status, last_error):
         return DatamailerOutboxEvent.objects.create(
             event_id=event_id,
@@ -119,22 +125,25 @@ class DatamailerCadminViewTests(TestCase):
         )
 
     def create_requeue_outbox_events(self):
+        failed_event = self.create_datamailer_outbox_event(
+            "evt-failed",
+            DatamailerOutboxStatus.FAILED,
+            "network error",
+        )
+        dead_event = self.create_datamailer_outbox_event(
+            "evt-dead",
+            DatamailerOutboxStatus.DEAD,
+            "permanent error",
+        )
+        acked_event = self.create_datamailer_outbox_event(
+            "evt-acked",
+            DatamailerOutboxStatus.ACKED,
+            "old error",
+        )
         return {
-            "failed": self.create_datamailer_outbox_event(
-                "evt-failed",
-                DatamailerOutboxStatus.FAILED,
-                "network error",
-            ),
-            "dead": self.create_datamailer_outbox_event(
-                "evt-dead",
-                DatamailerOutboxStatus.DEAD,
-                "permanent error",
-            ),
-            "acked": self.create_datamailer_outbox_event(
-                "evt-acked",
-                DatamailerOutboxStatus.ACKED,
-                "old error",
-            ),
+            "failed": failed_event,
+            "dead": dead_event,
+            "acked": acked_event,
         }
 
     def post_datamailer_requeue(self):
@@ -155,6 +164,8 @@ class DatamailerCadminViewTests(TestCase):
         self.assertEqual(event.status, status)
         self.assertEqual(event.last_error, last_error)
 
+
+class DatamailerContactEventFixtureMixin:
     def create_contact_event(self, data: ContactEventData):
         return DatamailerContactEvent.objects.create(
             event_id=data.event_id,
@@ -165,6 +176,8 @@ class DatamailerCadminViewTests(TestCase):
             duplicate_count=data.duplicate_count,
         )
 
+
+class DatamailerOperationsAccessTest(DatamailerCadminViewTestCase):
     def test_datamailer_operations_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")
         operations_url = self.datamailer_operations_url()
@@ -172,6 +185,12 @@ class DatamailerCadminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
 
+
+class DatamailerOperationsPageTest(
+    DatamailerOperationsFixtureMixin,
+    DatamailerOperationsAssertionsMixin,
+    DatamailerCadminViewTestCase,
+):
     def test_datamailer_operations_staff_allowed(self):
         self.create_datamailer_operations_records()
 
@@ -183,6 +202,11 @@ class DatamailerCadminViewTests(TestCase):
         self.assert_datamailer_operations_content(response)
         self.assert_datamailer_send_totals(response)
 
+
+class DatamailerOperationsRequeueTest(
+    DatamailerOutboxRequeueMixin,
+    DatamailerCadminViewTestCase,
+):
     def test_datamailer_operations_requeues_failed_and_dead_outbox_events(self):
         events = self.create_requeue_outbox_events()
 
@@ -198,6 +222,8 @@ class DatamailerCadminViewTests(TestCase):
             "old error",
         )
 
+
+class DatamailerEventsAccessTest(DatamailerCadminViewTestCase):
     def test_datamailer_events_non_staff_denied(self):
         self.client.login(username="test@test.com", password="12345")
         events_url = self.datamailer_events_url()
@@ -205,6 +231,11 @@ class DatamailerCadminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
 
+
+class DatamailerEventsPageTest(
+    DatamailerContactEventFixtureMixin,
+    DatamailerCadminViewTestCase,
+):
     def test_datamailer_events_staff_allowed(self):
         hard_bounce = ContactEventData(
             event_id="evt-hard-bounce",
@@ -233,6 +264,11 @@ class DatamailerCadminViewTests(TestCase):
         self.assertEqual(response.context["metrics"]["total"], 2)
         self.assertEqual(response.context["metrics"]["duplicates"], 2)
 
+
+class DatamailerEventsFilterTest(
+    DatamailerContactEventFixtureMixin,
+    DatamailerCadminViewTestCase,
+):
     def test_datamailer_events_filters_by_type_and_search(self):
         hard_bounce = ContactEventData(
             event_id="evt-hard-bounce",

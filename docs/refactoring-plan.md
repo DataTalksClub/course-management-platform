@@ -3231,6 +3231,12 @@ Steps:
   classes. Verification:
   `uv run ruff check courses/tests/test_datamailer_peer_review.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_peer_review`.
+- [x] Split cadmin Datamailer view tests into shared operations, requeue, and
+  contact-event helpers plus focused operations access/page/requeue and events
+  access/page/filter scenario classes. Also named requeue event records before
+  building the return dictionary. Verification:
+  `uv run ruff check cadmin/tests/test_datamailer_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_datamailer_views`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
