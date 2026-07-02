@@ -46,26 +46,15 @@ def project_create_instructions_url(project_data):
     return instructions_url, None
 
 
-def project_slug(project_data, name):
+def project_create_slug(course, project_data, name):
     slug = project_data.get("slug")
-    if slug:
-        return slug
-    generated_slug = slugify(name)
-    return generated_slug
+    if not slug:
+        slug = slugify(name)
 
-
-def project_duplicate_error(course, slug):
     matching_project = Project.objects.filter(course=course, slug=slug)
     slug_exists = matching_project.exists()
     if slug_exists:
-        return f"Project with slug '{slug}' already exists"
-    return None
-
-
-def project_create_slug(course, project_data, name):
-    slug = project_slug(project_data, name)
-    error = project_duplicate_error(course, slug)
-    if error:
+        error = f"Project with slug '{slug}' already exists"
         return None, error
 
     return slug, None
