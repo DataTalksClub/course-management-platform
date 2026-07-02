@@ -7,14 +7,12 @@ from courses.tests.deadline_reminder_base import (
     DeadlineReminderTestBase,
 )
 from courses.tests.deadline_reminder_peer_review import (
-    PeerReviewReminderTestMixin,
+    assert_peer_review_reminder_payload,
+    create_peer_review_reminder_fixture,
 )
 
 
-class PeerReviewDeadlineReminderCommandTest(
-    PeerReviewReminderTestMixin,
-    DeadlineReminderTestBase,
-):
+class PeerReviewDeadlineReminderCommandTest(DeadlineReminderTestBase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -28,13 +26,14 @@ class PeerReviewDeadlineReminderCommandTest(
     ):
         now = self.reminder_run_time()
         send_transient.return_value = {"enqueued_count": 1}
-        fixture = self.create_peer_review_reminder_fixture(now)
+        fixture = create_peer_review_reminder_fixture(self, now)
 
         self.run_deadline_reminders(now)
 
         send_transient.assert_called_once()
         payload = send_transient.call_args.args[0]
-        self.assert_peer_review_reminder_payload(
+        assert_peer_review_reminder_payload(
+            self,
             payload,
             fixture,
         )

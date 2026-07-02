@@ -24,7 +24,8 @@ testable service functions.
   acceptable when it has one focused subject, one coherent setup, and related
   scenarios for the same behavior area. Split test classes only when they cover
   different behavior areas, need different setup, or the shared helpers make
-  the tests harder to read.
+  the tests harder to read. Large case groups can stay together when they test
+  the same feature with the same setup.
 - Keep tests simple. Do not add test inheritance, base classes, or mixins just
   to reduce line counts. Prefer direct setup in the focused test case and
   small helper functions only when they remove real duplication.
@@ -3501,6 +3502,17 @@ Steps:
   module helpers, leaving the concrete command test with only the
   deadline-reminder base. Verification:
   `uv run python manage.py test courses.tests.test_deadline_reminder_homework`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
+- [x] 2026-07-02: Removed the peer-review deadline-reminder test mixin by
+  moving peer-review reminder fixtures and payload assertions to module
+  helpers, leaving the concrete command test with only the deadline-reminder
+  base. Verification:
+  `uv run python manage.py test courses.tests.test_deadline_reminder_peer_review`,
+  `uv run ruff check courses/tests/deadline_reminder_peer_review.py courses/tests/test_deadline_reminder_peer_review.py docs/refactoring-plan.md`,
   `uvx pyrefly check`, repository AST cleanup scan
   (`forbidden_comprehensions=0`, `threshold_violations=0`,
   `append_constructed=0`, `wide_tuple_unpacking=0`,
