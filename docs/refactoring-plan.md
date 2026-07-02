@@ -3221,6 +3221,11 @@ Steps:
   setup. Verification:
   `uv run ruff check courses/tests/test_datamailer_recipient_list_imports.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_recipient_list_imports`.
+- [x] Split dashboard project statistics tests into shared fixture/submission
+  helpers plus focused statistics, completion-rate, enrollment-score, and
+  graduate-count scenario classes. Verification:
+  `uv run ruff check courses/tests/test_dashboard_project_stats.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_dashboard_project_stats`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

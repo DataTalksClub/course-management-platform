@@ -32,7 +32,7 @@ class ProjectSubmissionFixtureData:
     passed: bool = True
 
 
-class DashboardProjectStatsTestCase(TestCase):
+class DashboardProjectFixtureMixin:
     @classmethod
     def create_dashboard_user(cls):
         cls.user = User.objects.create_user(**credentials)
@@ -83,18 +83,8 @@ class DashboardProjectStatsTestCase(TestCase):
             enrollment_data
         )
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.create_dashboard_user()
-        cls.create_dashboard_course()
-        cls.create_dashboard_project()
-        cls.create_project_users()
-        cls.create_project_enrollments()
 
-    def setUp(self):
-        self.client = Client()
-
+class DashboardProjectSubmissionMixin:
     def create_project_submission(self, data: ProjectSubmissionFixtureData):
         scores = data.scores
         if not scores:
@@ -123,32 +113,6 @@ class DashboardProjectStatsTestCase(TestCase):
             )
             submissions.append(submission)
         return ProjectSubmission.objects.bulk_create(submissions)
-
-    def test_project_statistics_calculation(self):
-        submission_data = [
-            {"total_score": 90, "time_spent": 8.0, "passed": True},
-            {"total_score": 85, "time_spent": 10.0, "passed": True},
-            {"total_score": 75, "time_spent": 12.0, "passed": True},
-            {"total_score": 60, "time_spent": 6.0, "passed": False},
-            {"total_score": 55, "time_spent": 5.0, "passed": False},
-        ]
-
-        self.create_bulk_project_submissions(submission_data)
-
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["project_pass_count"], 3)
-        self.assertEqual(response.context["project_fail_count"], 2)
-        expected_completion = (5 / 6) * 100
-        self.assertAlmostEqual(
-            response.context["project_completion_rate"],
-            expected_completion,
-            places=1,
-        )
-        self.assertIsNotNone(response.context["project_score_median"])
-        self.assertIsNotNone(response.context["project_time_median"])
 
     def create_completed_second_project(self):
         submission_due_date = timezone.now() + timedelta(days=7)
@@ -181,6 +145,14 @@ class DashboardProjectStatsTestCase(TestCase):
                 time_spent=10.0,
             )
 
+
+class DashboardProjectRequestMixin:
+    def dashboard_response(self):
+        url = reverse("dashboard", args=[self.course.slug])
+        return self.client.get(url)
+
+
+class DashboardProjectStatsAssertionsMixin:
     def assert_distinct_student_completion_rate(self, response):
         self.assertAlmostEqual(
             response.context["project_completion_rate"],
@@ -188,18 +160,55 @@ class DashboardProjectStatsTestCase(TestCase):
             places=1,
         )
 
-    def test_completion_rate_with_multiple_projects(self):
-        project = self.create_completed_second_project()
-        self.create_overlapping_project_submissions(project)
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
+class DashboardProjectStatsTestCase(
+    DashboardProjectFixtureMixin,
+    DashboardProjectSubmissionMixin,
+    DashboardProjectRequestMixin,
+    DashboardProjectStatsAssertionsMixin,
+    TestCase,
+):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.create_dashboard_user()
+        cls.create_dashboard_course()
+        cls.create_dashboard_project()
+        cls.create_project_users()
+        cls.create_project_enrollments()
 
-        self.assert_distinct_student_completion_rate(response)
+    def setUp(self):
+        self.client = Client()
+
+
+class DashboardProjectStatisticsCalculationTest(DashboardProjectStatsTestCase):
+    def test_project_statistics_calculation(self):
+        submission_data = [
+            {"total_score": 90, "time_spent": 8.0, "passed": True},
+            {"total_score": 85, "time_spent": 10.0, "passed": True},
+            {"total_score": 75, "time_spent": 12.0, "passed": True},
+            {"total_score": 60, "time_spent": 6.0, "passed": False},
+            {"total_score": 55, "time_spent": 5.0, "passed": False},
+        ]
+
+        self.create_bulk_project_submissions(submission_data)
+
+        response = self.dashboard_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["project_pass_count"], 3)
+        self.assertEqual(response.context["project_fail_count"], 2)
+        expected_completion = (5 / 6) * 100
+        self.assertAlmostEqual(
+            response.context["project_completion_rate"],
+            expected_completion,
+            places=1,
+        )
+        self.assertIsNotNone(response.context["project_score_median"])
+        self.assertIsNotNone(response.context["project_time_median"])
 
     def test_project_statistics_with_no_submissions(self):
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
+        response = self.dashboard_response()
 
         self.assertEqual(response.context["project_pass_count"], 0)
         self.assertEqual(response.context["project_fail_count"], 0)
@@ -208,19 +217,6 @@ class DashboardProjectStatsTestCase(TestCase):
         )
         self.assertIsNone(response.context["project_score_q25"])
         self.assertIsNone(response.context["project_time_q25"])
-
-    def test_avg_total_score_calculation(self):
-        for index, enrollment in enumerate(self.enrollments):
-            enrollment.total_score = 100 + index * 10
-            enrollment.save()
-
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
-
-        expected_avg = (100 + 110 + 120 + 130 + 140 + 150) / 6
-        self.assertAlmostEqual(
-            response.context["avg_total_score"], expected_avg, places=1
-        )
 
     def test_project_total_submissions(self):
         submission_data = [
@@ -233,8 +229,7 @@ class DashboardProjectStatsTestCase(TestCase):
 
         self.create_bulk_project_submissions(submission_data)
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
+        response = self.dashboard_response()
 
         self.assertIn("project_total_submissions", response.context)
         self.assertIn("project_pass_count", response.context)
@@ -243,14 +238,39 @@ class DashboardProjectStatsTestCase(TestCase):
         self.assertEqual(response.context["project_fail_count"], 2)
         self.assertEqual(response.context["project_total_submissions"], 5)
 
+
+class DashboardProjectCompletionRateTest(DashboardProjectStatsTestCase):
+    def test_completion_rate_with_multiple_projects(self):
+        project = self.create_completed_second_project()
+        self.create_overlapping_project_submissions(project)
+
+        response = self.dashboard_response()
+
+        self.assert_distinct_student_completion_rate(response)
+
+
+class DashboardProjectEnrollmentScoreTest(DashboardProjectStatsTestCase):
+    def test_avg_total_score_calculation(self):
+        for index, enrollment in enumerate(self.enrollments):
+            enrollment.total_score = 100 + index * 10
+            enrollment.save()
+
+        response = self.dashboard_response()
+
+        expected_avg = (100 + 110 + 120 + 130 + 140 + 150) / 6
+        self.assertAlmostEqual(
+            response.context["avg_total_score"], expected_avg, places=1
+        )
+
+
+class DashboardProjectGraduateCountTest(DashboardProjectStatsTestCase):
     def test_graduates_count(self):
         first_enrollments = self.enrollments[:3]
         for index, enrollment in enumerate(first_enrollments):
             enrollment.certificate_url = f"https://example.com/cert{index}.pdf"
             enrollment.save()
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
+        response = self.dashboard_response()
 
         self.assertIn("graduates_count", response.context)
         self.assertEqual(response.context["graduates_count"], 3)
@@ -261,8 +281,7 @@ class DashboardProjectStatsTestCase(TestCase):
         self.enrollments[1].certificate_url = ""
         self.enrollments[1].save()
 
-        url = reverse("dashboard", args=[self.course.slug])
-        response = self.client.get(url)
+        response = self.dashboard_response()
 
         self.assertIn("graduates_count", response.context)
         self.assertEqual(response.context["graduates_count"], 1)
