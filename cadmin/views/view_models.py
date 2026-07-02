@@ -1,4 +1,3 @@
-from collections import defaultdict
 from operator import attrgetter
 
 from django.db.models import Count, Q
@@ -78,25 +77,29 @@ def project_submission_list_data(project, search_query, status_filter):
     return filtered_submissions, filter_counts
 
 
-def _empty_peer_review_counts():
-    return {"completed": 0, "total": 0}
-
-
 def _attach_project_review_counts(project, submissions):
     peer_reviews = PeerReview.objects.filter(
         reviewer__project=project
     ).select_related("reviewer")
 
-    review_counts = defaultdict(_empty_peer_review_counts)
+    review_counts = {}
     for review in peer_reviews:
         if review.optional:
             continue
-        review_counts[review.reviewer_id]["total"] += 1
+        counts = review_counts.get(review.reviewer_id)
+        if counts is None:
+            counts = {"completed": 0, "total": 0}
+            review_counts[review.reviewer_id] = counts
+        counts["total"] += 1
         if review.state == PeerReviewState.SUBMITTED.value:
-            review_counts[review.reviewer_id]["completed"] += 1
+            counts["completed"] += 1
 
     for submission in submissions:
-        counts = review_counts[submission.id]
+        counts = review_counts.get(submission.id)
+        if counts is None:
+            submission.peer_reviews_completed = 0
+            submission.peer_reviews_total = 0
+            continue
         submission.peer_reviews_completed = counts["completed"]
         submission.peer_reviews_total = counts["total"]
 

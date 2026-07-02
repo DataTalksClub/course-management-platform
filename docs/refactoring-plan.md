@@ -4741,6 +4741,19 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the cadmin project-submission review-count
+  `defaultdict` factory helper. The review-count attachment loop now initializes
+  and updates a named local count record explicitly, and submissions without
+  reviews get zero counts directly. Verification:
+  `uv run ruff check cadmin/views/view_models.py docs/refactoring-plan.md`,
+  `python -m py_compile cadmin/views/view_models.py`,
+  `uv run python manage.py test cadmin.tests.test_view_models`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
