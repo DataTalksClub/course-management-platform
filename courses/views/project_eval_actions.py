@@ -41,25 +41,6 @@ def _project_eval_student_submission(course, project, user):
     return student_submission
 
 
-def _submission_under_project_evaluation(project, submission_id):
-    return ProjectSubmission.objects.get(
-        id=submission_id,
-        project=project,
-        volunteer_review_only=False,
-    )
-
-
-def _create_optional_peer_review(
-    student_submission,
-    submission_under_evaluation,
-):
-    PeerReview.objects.get_or_create(
-        submission_under_evaluation=submission_under_evaluation,
-        reviewer=student_submission,
-        optional=True,
-    )
-
-
 def _create_optional_peer_review_if_allowed(
     course,
     project,
@@ -75,13 +56,15 @@ def _create_optional_peer_review_if_allowed(
     if student_submission.id == submission_id:
         return
 
-    submission_under_evaluation = _submission_under_project_evaluation(
-        project,
-        submission_id,
+    submission_under_evaluation = ProjectSubmission.objects.get(
+        id=submission_id,
+        project=project,
+        volunteer_review_only=False,
     )
-    _create_optional_peer_review(
-        student_submission,
-        submission_under_evaluation,
+    PeerReview.objects.get_or_create(
+        submission_under_evaluation=submission_under_evaluation,
+        reviewer=student_submission,
+        optional=True,
     )
 
 

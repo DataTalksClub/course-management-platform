@@ -4767,6 +4767,19 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed two single-use optional-evaluation action wrappers.
+  The guarded optional-review operation now performs the evaluated-submission
+  lookup and `PeerReview.objects.get_or_create(...)` directly after the
+  self-review guard. Verification:
+  `uv run ruff check courses/views/project_eval_actions.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/project_eval_actions.py`,
+  `uv run python manage.py test courses.tests.test_project_optional_eval`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
