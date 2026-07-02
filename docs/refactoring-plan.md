@@ -770,6 +770,17 @@ testable service functions.
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Remove single-use Datamailer outbox status query wrappers and
+  keep the status summary explicit with named local querysets. Verification:
+  `uv run ruff check course_management/datamailer_outbox_status.py docs/refactoring-plan.md`,
+  `python -m py_compile course_management/datamailer_outbox_status.py`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox_status_commands`,
+  wrapper scan for the removed helpers, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 
