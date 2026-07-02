@@ -13,17 +13,23 @@ from courses.tests.project_eval_base import (
 )
 
 
-class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
+class ProjectEvaluationClosedStateMixin:
+    def close_project_reviews(self):
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
 
+
+class ProjectEvaluationSubmitAuthTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_not_authenticated(self):
         eval_submit_url = self.eval_submit_url()
         response = self.client.get(eval_submit_url)
         self.assertEqual(response.status_code, 302)
 
-    def close_project_reviews(self):
-        self.project.state = ProjectState.COMPLETED.value
-        self.project.save()
 
+class ProjectEvaluationSubmitGetTestCase(
+    ProjectEvaluationClosedStateMixin,
+    ProjectEvaluationTestBase,
+):
     def assert_eval_submit_accepting_context(self, context):
         self.assertTrue(context["accepting_submissions"])
         self.assertFalse(context["disabled"])
@@ -82,6 +88,31 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
         self.assert_eval_submit_closed_context(context)
         self.assert_empty_review_pairs(context)
 
+    def test_eval_submit_get_authenticated_submitted(self):
+        criteria_responses = self.create_criteria_responses()
+        self.mark_peer_review_submitted()
+
+        response = self.get_eval_submit_response()
+        self.assertEqual(response.status_code, 200)
+
+        context = response.context
+
+        self.assertTrue(context["accepting_submissions"])
+
+        review = context["review"]
+        self.assertEqual(review, self.peer_review)
+        self.assertEqual(review.state, PeerReviewState.SUBMITTED.value)
+
+        self.assert_submitted_criteria_response_pairs(
+            context["criteria_response_pairs"],
+            criteria_responses,
+        )
+
+
+class ProjectEvaluationSubmitPostTestCase(
+    ProjectEvaluationClosedStateMixin,
+    ProjectEvaluationTestBase,
+):
     def test_eval_submit_post_not_accepting_responses(self):
         self.close_project_reviews()
 
@@ -103,26 +134,6 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
             review=self.peer_review
         ).exists()
         self.assertFalse(criteria_response_exists)
-
-    def test_eval_submit_get_authenticated_submitted(self):
-        criteria_responses = self.create_criteria_responses()
-        self.mark_peer_review_submitted()
-
-        response = self.get_eval_submit_response()
-        self.assertEqual(response.status_code, 200)
-
-        context = response.context
-
-        self.assertTrue(context["accepting_submissions"])
-
-        review = context["review"]
-        self.assertEqual(review, self.peer_review)
-        self.assertEqual(review.state, PeerReviewState.SUBMITTED.value)
-
-        self.assert_submitted_criteria_response_pairs(
-            context["criteria_response_pairs"],
-            criteria_responses,
-        )
 
     def learning_in_public_review_links(self):
         return [
@@ -194,6 +205,8 @@ class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
         c3 = fetch_fresh(criteria_response_map[self.criteria3])
         self.assertEqual(c3.answer, "1,2,3")
 
+
+class ProjectEvaluationSubmitVoteTestCase(ProjectEvaluationTestBase):
     def test_eval_submit_page_can_vote_for_reviewed_submission(self):
         self.client.login(**credentials)
 

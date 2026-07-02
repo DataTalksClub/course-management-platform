@@ -3292,6 +3292,11 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/test_peer_review_badge.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_peer_review_badge`.
+- [x] 2026-07-02: Split project-evaluation submit tests into focused auth,
+  GET-context, POST-persistence, and voting test cases while keeping shared
+  fixtures in the existing project-evaluation base. Verification:
+  `uv run ruff check courses/tests/test_project_eval.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_eval`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
