@@ -3813,6 +3813,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed project assignment submission-fixture,
+  assignment-assertion, URL, and optional-evaluation mixins into the focused
+  `ProjectActionsTestBase`. The assignment and optional-evaluation tests keep
+  the same shared setup API without a mixin inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_project_assign courses.tests.test_project_optional_eval`,
+  `uv run ruff check courses/tests/project_assign_base.py courses/tests/test_project_assign.py courses/tests/test_project_optional_eval.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

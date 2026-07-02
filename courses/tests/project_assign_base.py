@@ -29,7 +29,7 @@ def fetch_fresh(obj):
     return obj.__class__.objects.get(pk=obj.id)
 
 
-class ProjectSubmissionFixtureMixin:
+class ProjectActionsTestBase(TestCase):
     def generate_submissions(self, num_submissions):
         submissions = []
         for i in range(num_submissions):
@@ -61,8 +61,6 @@ class ProjectSubmissionFixtureMixin:
             github_link=github_link,
         )
 
-
-class ProjectAssignmentAssertionMixin:
     def assign_peer_reviews(self):
         return assign_peer_reviews_for_project(self.project)
 
@@ -111,8 +109,6 @@ class ProjectAssignmentAssertionMixin:
                 self.project.number_of_peers_to_evaluate,
             )
 
-
-class ProjectActionUrlMixin:
     def project_list_url(self):
         return reverse(
             "project_list",
@@ -148,8 +144,6 @@ class ProjectActionUrlMixin:
             ],
         )
 
-
-class ProjectOptionalEvaluationMixin:
     def find_optional_eval_candidate_id(self):
         url = self.project_list_url()
         list_response = self.client.get(url)
@@ -205,14 +199,6 @@ class ProjectOptionalEvaluationMixin:
         peer_review_exists = reviews.exists()
         self.assertTrue(peer_review_exists)
 
-
-class ProjectActionsTestBase(
-    ProjectSubmissionFixtureMixin,
-    ProjectAssignmentAssertionMixin,
-    ProjectActionUrlMixin,
-    ProjectOptionalEvaluationMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
