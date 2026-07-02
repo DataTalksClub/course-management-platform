@@ -3402,6 +3402,16 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), production large-class
   scan now reports only `CourseRegistrationForm`, and `git diff --check`.
+- [x] 2026-07-02: Moved course-registration form field setup,
+  authenticated-user setup, email normalization, duplicate lookup, and profile
+  save support into module helpers so `CourseRegistrationForm` keeps only the
+  Django form hooks and save orchestration. Verification:
+  `uv run python manage.py test courses.tests.test_registration_campaigns courses.tests.test_registration_campaign_notifications courses.tests.test_registration_campaign_course_page api.tests.test_registration_campaigns api.tests.test_registration_campaign_auth`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), production large-class
+  scan reports `production_large_classes=0`, and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

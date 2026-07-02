@@ -28,6 +28,71 @@ COUNTRY_COMBOBOX_WIDGET_ATTRS = {
     "placeholder": "Start typing your country",
     "data-country-combobox-input": "",
 }
+OPTIONAL_REGISTRATION_FIELDS = ("name", "country", "role", "comment")
+
+
+def configure_registration_form_fields(form):
+    for field_name in OPTIONAL_REGISTRATION_FIELDS:
+        form.fields[field_name].required = False
+
+    country_widget = forms.TextInput(attrs=COUNTRY_COMBOBOX_WIDGET_ATTRS)
+    form.fields["country"].widget = country_widget
+
+    role_choices = [("", "Select role")]
+    for role_choice in CourseRegistration.Role.choices:
+        role_choices.append(role_choice)
+    form.fields["role"].choices = role_choices
+
+
+def has_authenticated_registration_user(user):
+    return user is not None and user.is_authenticated
+
+
+def authenticated_registration_initial_values(user):
+    name = user.certificate_name or user.get_full_name() or ""
+    return {
+        "name": name,
+        "country": user.country,
+        "role": user.registration_role,
+    }
+
+
+def configure_authenticated_registration_user(form, user):
+    if not has_authenticated_registration_user(user):
+        return
+
+    form.fields["email"].initial = user.email
+    form.fields["email"].disabled = True
+    form.fields["email"].help_text = "Using your account email."
+
+    if not form.is_bound:
+        initial_values = authenticated_registration_initial_values(user)
+        form.initial.update(initial_values)
+
+
+def normalized_registration_email(email):
+    raw_email = email or ""
+    email_stripped = raw_email.strip()
+    return email_stripped.lower()
+
+
+def registration_email_taken(campaign, email_normalized):
+    return CourseRegistration.objects.filter(
+        campaign=campaign,
+        email_normalized=email_normalized,
+    ).exists()
+
+
+def save_registration_user_profile(user, registration):
+    if not can_update_registration_user_profile(user):
+        return
+
+    update_fields = update_user_profile_from_registration(
+        user,
+        registration,
+    )
+    if update_fields:
+        user.save(update_fields=update_fields)
 
 
 class CourseRegistrationForm(forms.ModelForm):
@@ -62,65 +127,17 @@ class CourseRegistrationForm(forms.ModelForm):
         self.campaign = kwargs.pop("campaign", None)
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
-        self.configure_optional_fields()
-        self.configure_country_field()
-        self.configure_role_choices()
-        self.configure_authenticated_user()
-
-    def configure_optional_fields(self):
-        for field_name in ("name", "country", "role", "comment"):
-            self.fields[field_name].required = False
-
-    def configure_country_field(self):
-        country_widget = forms.TextInput(attrs=COUNTRY_COMBOBOX_WIDGET_ATTRS)
-        self.fields["country"].widget = country_widget
-
-    def configure_role_choices(self):
-        role_choices = list(CourseRegistration.Role.choices)
-        self.fields["role"].choices = [("", "Select role")] + role_choices
-
-    def has_authenticated_user(self):
-        return self.user is not None and self.user.is_authenticated
-
-    def configure_authenticated_email_field(self):
-        self.fields["email"].initial = self.user.email
-        self.fields["email"].disabled = True
-        self.fields["email"].help_text = "Using your account email."
-
-    def authenticated_user_initial_values(self):
-        name = (
-            self.user.certificate_name
-            or self.user.get_full_name()
-            or ""
-        )
-        return {
-            "name": name,
-            "country": self.user.country,
-            "role": self.user.registration_role,
-        }
-
-    def configure_authenticated_user(self):
-        if not self.has_authenticated_user():
-            return
-
-        self.configure_authenticated_email_field()
-        if not self.is_bound:
-            initial_values = self.authenticated_user_initial_values()
-            self.initial.update(initial_values)
+        configure_registration_form_fields(self)
+        configure_authenticated_registration_user(self, self.user)
 
     def clean_email(self):
-        if self.user is not None and self.user.is_authenticated:
+        if has_authenticated_registration_user(self.user):
             email = self.user.email
         else:
             email = self.cleaned_data["email"]
 
-        raw_email = email or ""
-        email_stripped = raw_email.strip()
-        email_normalized = email_stripped.lower()
-        if CourseRegistration.objects.filter(
-            campaign=self.campaign,
-            email_normalized=email_normalized,
-        ).exists():
+        email_normalized = normalized_registration_email(email)
+        if registration_email_taken(self.campaign, email_normalized):
             raise forms.ValidationError(
                 "You have already registered for this course."
             )
@@ -145,21 +162,10 @@ class CourseRegistrationForm(forms.ModelForm):
         registration.campaign = self.campaign
         registration.course = self.campaign.current_course
         registration.region = region_for_country(registration.country)
-        if self.user is not None and self.user.is_authenticated:
+        if has_authenticated_registration_user(self.user):
             registration.user = self.user
             registration.email = self.user.email
         if commit:
             registration.save()
-            self.save_user_profile(registration)
+            save_registration_user_profile(self.user, registration)
         return registration
-
-    def save_user_profile(self, registration):
-        if not can_update_registration_user_profile(self.user):
-            return
-
-        update_fields = update_user_profile_from_registration(
-            self.user,
-            registration,
-        )
-        if update_fields:
-            self.user.save(update_fields=update_fields)
