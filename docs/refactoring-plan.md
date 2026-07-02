@@ -3095,6 +3095,10 @@ Steps:
   expectation, and assertion helpers plus a focused endpoint test. Verification:
   `uv run ruff check data/tests/homework_base.py data/tests/test_homework.py docs/refactoring-plan.md`,
   `uv run python manage.py test data.tests.test_homework`.
+- [x] Split cadmin impersonation tests into shared setup, login-as, stop/banner,
+  CSRF, and enrollment-button modules. Verification:
+  `uv run ruff check cadmin/tests/impersonation_base.py cadmin/tests/test_impersonation_views.py cadmin/tests/test_impersonation_stop_views.py cadmin/tests/test_impersonation_enrollment_views.py docs/refactoring-plan.md`,
+  `uv run python manage.py test cadmin.tests.test_impersonation_views cadmin.tests.test_impersonation_stop_views cadmin.tests.test_impersonation_enrollment_views`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
