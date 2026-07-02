@@ -49,7 +49,8 @@ def homework_create_slug(course, homework_data, input_data):
     matching_homework = Homework.objects.filter(course=course, slug=slug)
     slug_exists = matching_homework.exists()
     if slug_exists:
-        return None, f"Homework with slug '{slug}' already exists"
+        error = f"Homework with slug '{slug}' already exists"
+        return None, error
 
     return slug, None
 

@@ -4397,6 +4397,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Named the duplicate-slug error before returning the homework
+  creation validation tuple, removing the remaining production inline tuple
+  record found by the targeted scan. Verification:
+  `uv run ruff check api/views/homework_create.py`,
+  `python -m py_compile api/views/homework_create.py`,
+  `uv run python manage.py test api.tests.test_homeworks api.tests.test_homework_mutations api.tests.test_homework_upserts`,
+  production inline tuple/list record scan, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
