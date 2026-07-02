@@ -4714,6 +4714,21 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Clarified the test cleanup rule in practice: long focused test
+  case groups stay together when they share one subject and setup, and cleanup
+  must not introduce inheritance, base classes, or mixins for line-count
+  reduction. Removed two single-use project-evaluation queryset wrappers while
+  keeping the query steps visible as named locals in the context builder.
+  Verification:
+  `uv run ruff check courses/views/project_eval.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/views/project_eval.py`,
+  `uv run python manage.py test courses.tests.test_project_eval_view`,
+  removed-helper reference scan, `uvx pyrefly check`, repository AST cleanup
+  scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

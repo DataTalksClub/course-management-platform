@@ -28,17 +28,6 @@ def anonymous_project_eval_context(course, project, eval_closed):
     }
 
 
-def student_project_submissions(project, user):
-    return ProjectSubmission.objects.filter(project=project, student=user)
-
-
-def project_eval_reviews(project, student_submissions):
-    return PeerReview.objects.filter(
-        reviewer__in=student_submissions,
-        submission_under_evaluation__project=project,
-    ).order_by("optional")
-
-
 def split_project_eval_reviews(reviews):
     assigned_reviews = []
     selected_reviews = []
@@ -60,11 +49,17 @@ def split_project_eval_reviews(reviews):
 
 
 def student_project_eval_context(course, project, user, eval_closed):
-    student_submissions = student_project_submissions(project, user)
+    student_submissions = ProjectSubmission.objects.filter(
+        project=project,
+        student=user,
+    )
     project_submissions = student_submissions.filter(
         volunteer_review_only=False,
     )
-    reviews = project_eval_reviews(project, student_submissions)
+    reviews = PeerReview.objects.filter(
+        reviewer__in=student_submissions,
+        submission_under_evaluation__project=project,
+    ).order_by("optional")
     review_groups = split_project_eval_reviews(reviews)
     has_submission = project_submissions.exists()
 
