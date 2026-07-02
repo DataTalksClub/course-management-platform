@@ -18,11 +18,6 @@ class HomeworkCreateInput:
     due_date_str: str
 
 
-def create_questions(homework, questions_data):
-    for question_data in questions_data:
-        create_question(homework, question_data)
-
-
 def homework_create_instructions_url(homework_data):
     instructions_url = homework_data.get("instructions_url")
     if not instructions_url:
@@ -108,7 +103,8 @@ def create_homework(course, homework_data):
     )
 
     questions_data = homework_data.get("questions", [])
-    create_questions(homework, questions_data)
+    for question_data in questions_data:
+        create_question(homework, question_data)
 
     homework_record = homework_to_dict(homework)
     return homework_record, None
