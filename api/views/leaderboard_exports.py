@@ -43,25 +43,10 @@ def _get_cache_version(course):
     return cache.get(version_key, 1)
 
 
-def _leaderboard_yaml_cache_key(course, cache_version, page):
-    return (
-        f"leaderboard_yaml:{course.id}:v{cache_version}:"
-        f"page:{page}"
-    )
-
-
-def _leaderboard_data_cache_key(course, cache_version, page):
-    return (
+def _cached_leaderboard_data(course, page, cache_version):
+    data_cache_key = (
         f"leaderboard_data:{course.id}:v{cache_version}:"
         f"page:{page}"
-    )
-
-
-def _cached_leaderboard_data(course, page, cache_version):
-    data_cache_key = _leaderboard_data_cache_key(
-        course,
-        cache_version,
-        page,
     )
     data = cache.get(data_cache_key)
     if data is not None:
@@ -75,10 +60,9 @@ def _cached_leaderboard_data(course, page, cache_version):
 
 
 def _cached_leaderboard_yaml(course, page, cache_version):
-    yaml_cache_key = _leaderboard_yaml_cache_key(
-        course,
-        cache_version,
-        page,
+    yaml_cache_key = (
+        f"leaderboard_yaml:{course.id}:v{cache_version}:"
+        f"page:{page}"
     )
     yaml_content = cache.get(yaml_cache_key)
     if yaml_content is not None:

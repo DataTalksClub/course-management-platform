@@ -902,6 +902,18 @@ testable service functions.
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Remove single-use leaderboard export cache-key wrappers and
+  keep the named cache-key strings local to the cache get/set functions.
+  Verification:
+  `uv run ruff check api/views/leaderboard_exports.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/leaderboard_exports.py`,
+  `uv run python manage.py test data.tests.test_leaderboard data.tests.test_leaderboard_cache data.tests.test_leaderboard_pagination`,
+  wrapper scan for the removed helpers, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 
