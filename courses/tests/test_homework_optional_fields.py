@@ -40,7 +40,7 @@ class AnswerPostData:
     question6_answers: list[str] | None = None
 
 
-class HomeworkOptionalCourseFixtureMixin:
+class HomeworkOptionalFieldsBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course"
@@ -56,8 +56,6 @@ class HomeworkOptionalCourseFixtureMixin:
             slug="test-homework",
         )
 
-
-class HomeworkOptionalQuestionFixtureMixin:
     def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -133,8 +131,6 @@ class HomeworkOptionalQuestionFixtureMixin:
             "1,2,3",
         )
 
-
-class HomeworkOptionalRequestMixin:
     def homework_url(self):
         return reverse(
             "homework",
@@ -171,8 +167,6 @@ class HomeworkOptionalRequestMixin:
         post_data = self.answer_post_data(data, **extra_fields)
         return post_data
 
-
-class HomeworkOptionalSetupMixin:
     def mock_successful_url_checks(self, mock_get, mock_head):
         mock_response = mock.Mock()
         mock_response.status_code = 200
@@ -199,8 +193,6 @@ class HomeworkOptionalSetupMixin:
         self.homework.faq_contribution_field = True
         self.homework.save()
 
-
-class HomeworkOptionalPostDataMixin:
     def full_optional_post_data(self):
         learning_links = [
             "https://httpbin.org/status/200",
@@ -232,8 +224,6 @@ class HomeworkOptionalPostDataMixin:
         )
         return post_data
 
-
-class HomeworkOptionalAssertionMixin:
     def get_saved_submission(self):
         return Submission.objects.get(
             student=self.user,
@@ -285,16 +275,6 @@ class HomeworkOptionalAssertionMixin:
         self.assertEqual(submission.problems_comments, "")
         self.assertEqual(submission.faq_contribution_url, "")
 
-
-class HomeworkOptionalFieldsBase(
-    HomeworkOptionalCourseFixtureMixin,
-    HomeworkOptionalQuestionFixtureMixin,
-    HomeworkOptionalRequestMixin,
-    HomeworkOptionalSetupMixin,
-    HomeworkOptionalPostDataMixin,
-    HomeworkOptionalAssertionMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)

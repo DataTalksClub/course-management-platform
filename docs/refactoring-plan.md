@@ -3709,6 +3709,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed homework optional-field course, question,
+  request, setup, post-data, and assertion mixins into the focused
+  `HomeworkOptionalFieldsBase`. The full-field and empty-field tests keep one
+  shared setup base without a mixin inheritance chain. Verification:
+  `uv run python manage.py test courses.tests.test_homework_optional_fields`,
+  `uv run ruff check courses/tests/test_homework_optional_fields.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
