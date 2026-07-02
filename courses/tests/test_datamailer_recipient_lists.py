@@ -18,16 +18,14 @@ from courses.tests.datamailer_recipient_lists_base import (
 )
 
 
-class DatamailerRecipientListCommandMixin:
-    def run_recipient_list_command(self, *args):
-        out = StringIO()
-        call_command("sync_datamailer_recipient_lists", *args, stdout=out)
-        return out
+def run_recipient_list_command(*args):
+    out = StringIO()
+    call_command("sync_datamailer_recipient_lists", *args, stdout=out)
+    return out
 
 
 class DatamailerRecipientListBulkUpsertTest(
-    DatamailerRecipientListCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -41,7 +39,7 @@ class DatamailerRecipientListBulkUpsertTest(
         registration = self.create_registration()
         course = registration.course
 
-        out = self.run_recipient_list_command(
+        out = run_recipient_list_command(
             "registrations",
             "--course-slug",
             course.slug,
@@ -69,7 +67,7 @@ class DatamailerRecipientListBulkUpsertTest(
         enrollment = self.create_enrolled_student()
         course = enrollment.course
 
-        out = self.run_recipient_list_command(
+        out = run_recipient_list_command(
             "enrollments",
             "--course-slug",
             course.slug,
@@ -87,8 +85,7 @@ class DatamailerRecipientListBulkUpsertTest(
 
 
 class DatamailerRecipientListProjectPassedTest(
-    DatamailerRecipientListCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -106,7 +103,7 @@ class DatamailerRecipientListProjectPassedTest(
             self.create_passed_and_failed_project_submissions()
         )
 
-        out = self.run_recipient_list_command(
+        out = run_recipient_list_command(
             "project-passed",
             "--project-slug",
             project.slug,
@@ -152,8 +149,7 @@ class DatamailerRecipientListProjectPassedTest(
 
 
 class DatamailerRecipientListGraduateTest(
-    DatamailerRecipientListCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
         **DATAMAILER_SETTINGS,
@@ -169,7 +165,7 @@ class DatamailerRecipientListGraduateTest(
         self.configure_bulk_upsert_success(bulk_upsert)
         course, enrollment = self.create_graduate_and_non_graduate()
 
-        out = self.run_recipient_list_command(
+        out = run_recipient_list_command(
             "graduates",
             "--course-slug",
             course.slug,
@@ -187,8 +183,7 @@ class DatamailerRecipientListGraduateTest(
 
 
 class DatamailerRecipientListDryRunTest(
-    DatamailerRecipientListCommandMixin,
-    DatamailerRecipientListCommandTestBase,
+    DatamailerRecipientListCommandTestBase
 ):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -200,7 +195,7 @@ class DatamailerRecipientListDryRunTest(
     ):
         self.create_registration()
 
-        out = self.run_recipient_list_command(
+        out = run_recipient_list_command(
             "registrations",
             "--dry-run",
         )
