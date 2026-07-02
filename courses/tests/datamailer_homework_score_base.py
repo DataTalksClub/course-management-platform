@@ -42,7 +42,7 @@ class HomeworkScoreListSendExpectation:
     homework: Homework
 
 
-class DatamailerHomeworkScoreFixtureMixin:
+class DatamailerHomeworkScoreTestBase(TestCase):
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",
@@ -82,8 +82,6 @@ class DatamailerHomeworkScoreFixtureMixin:
         defaults.update(overrides)
         return Submission.objects.create(**defaults)
 
-
-class DatamailerHomeworkScorePayloadAssertionMixin:
     def assert_score_payload_common(self, expectation):
         payload = expectation.payload
         self.assertEqual(payload["template_key"], expectation.template_key)
@@ -142,8 +140,6 @@ class DatamailerHomeworkScorePayloadAssertionMixin:
         self.assertEqual(len(payload["members"]), 1)
         return payload["members"][0]
 
-
-class DatamailerHomeworkScoreSubmissionFixtureMixin:
     def create_scored_homework_submission(self):
         homework = self.create_homework()
         user = self.create_user("learner@example.com")
@@ -188,8 +184,6 @@ class DatamailerHomeworkScoreSubmissionFixtureMixin:
         )
         return homework, latest_submission
 
-
-class DatamailerHomeworkScoreSendAssertionMixin:
     def assert_homework_score_list_send(self, expectation):
         self.assertEqual(expectation.result["enqueued_count"], 1)
         self.assert_homework_score_client_calls(expectation)
@@ -236,13 +230,3 @@ class DatamailerHomeworkScoreSendAssertionMixin:
             event.payload["list_key"],
             expected_list_key,
         )
-
-
-class DatamailerHomeworkScoreTestBase(
-    DatamailerHomeworkScoreFixtureMixin,
-    DatamailerHomeworkScorePayloadAssertionMixin,
-    DatamailerHomeworkScoreSubmissionFixtureMixin,
-    DatamailerHomeworkScoreSendAssertionMixin,
-    TestCase,
-):
-    pass
