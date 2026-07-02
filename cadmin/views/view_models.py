@@ -1,4 +1,5 @@
 from collections import defaultdict
+from operator import attrgetter
 
 from django.db.models import Count, Q
 
@@ -100,10 +101,6 @@ def _attach_project_review_counts(project, submissions):
         submission.peer_reviews_total = counts["total"]
 
 
-def _enrollment_has_lip_disabled(enrollment):
-    return enrollment.disable_learning_in_public
-
-
 def _enrollment_has_zero_score(enrollment):
     return enrollment.total_score == 0
 
@@ -112,22 +109,18 @@ def _enrollment_is_hidden(enrollment):
     return not enrollment.display_on_leaderboard
 
 
-def _enrollment_has_no_submissions(enrollment):
-    return enrollment.has_no_submissions
-
-
 ENROLLMENT_STATUS_FILTERS = {
-    "lip-disabled": _enrollment_has_lip_disabled,
+    "lip-disabled": attrgetter("disable_learning_in_public"),
     "zero-score": _enrollment_has_zero_score,
     "hidden": _enrollment_is_hidden,
-    "no-submissions": _enrollment_has_no_submissions,
+    "no-submissions": attrgetter("has_no_submissions"),
 }
 
 ENROLLMENT_FILTER_COUNTS = {
-    "lip_disabled": _enrollment_has_lip_disabled,
+    "lip_disabled": attrgetter("disable_learning_in_public"),
     "zero_score": _enrollment_has_zero_score,
     "hidden": _enrollment_is_hidden,
-    "no_submissions": _enrollment_has_no_submissions,
+    "no_submissions": attrgetter("has_no_submissions"),
 }
 
 
