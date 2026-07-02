@@ -61,18 +61,13 @@ def base_project_badge(state):
     return ProjectBadgeData("Not submitted", "bg-secondary")
 
 
-def submitted_mandatory_review_count(submission):
-    return PeerReview.objects.filter(
+def peer_review_project_badge(project, submission):
+    completed_reviews = PeerReview.objects.filter(
         reviewer=submission,
         optional=False,
         state=PeerReviewState.SUBMITTED.value,
-    ).count()
-
-
-def peer_review_project_badge(project, submission):
-    completed_reviews_count = submitted_mandatory_review_count(
-        submission
     )
+    completed_reviews_count = completed_reviews.count()
     if completed_reviews_count >= project.number_of_peers_to_evaluate:
         return ProjectBadgeData("Review completed", "bg-success")
 
