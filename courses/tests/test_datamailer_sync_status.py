@@ -9,7 +9,7 @@ from course_management.datamailer.sync.status import (
     get_transactional_message_status,
 )
 
-from .datamailer_status_base import DATAMAILER_SETTINGS
+from .datamailer_settings import DATAMAILER_SETTINGS
 
 
 class DatamailerContactSyncStatusTest(TestCase):

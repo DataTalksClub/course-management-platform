@@ -3094,9 +3094,9 @@ Steps:
   metadata, assignment-panel, and registration modules. Verification:
   `uv run ruff check courses/tests/course_list_base.py courses/tests/test_course_list.py courses/tests/test_course_list_metadata.py courses/tests/test_course_list_assignments.py courses/tests/test_course_list_registration.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_course_list courses.tests.test_course_list_metadata courses.tests.test_course_list_assignments courses.tests.test_course_list_registration`.
-- [x] Split Datamailer status tests into shared fixtures, preference, sync, and
+- [x] Split Datamailer status tests into shared settings, preference, sync, and
   status-command modules. Verification:
-  `uv run ruff check courses/tests/datamailer_status_base.py courses/tests/test_datamailer_preferences.py courses/tests/test_datamailer_sync_status.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
+  `uv run ruff check courses/tests/datamailer_settings.py courses/tests/test_datamailer_preferences.py courses/tests/test_datamailer_sync_status.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_status courses.tests.test_datamailer_preferences courses.tests.test_datamailer_sync_status`.
 - [x] Split Datamailer webhook tests into shared webhook fixtures, auth/contact,
   preference, event, and callback-status modules. Verification:
@@ -4067,6 +4067,20 @@ Steps:
   `uv run python manage.py test api.tests.test_courses api.tests.test_homeworks api.tests.test_homework_upserts api.tests.test_project_creation api.tests.test_projects api.tests.test_question_creation api.tests.test_questions`,
   `uv run ruff check api/tests/test_courses.py api/tests/test_homeworks.py api/tests/test_homework_upserts.py api/tests/test_project_creation.py api/tests/test_projects.py api/tests/test_question_creation.py api/tests/test_questions.py`,
   touched-file inline-assertion scan (`touched_inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
+- [x] 2026-07-02: Removed the remaining multiple-inheritance test classes from
+  Datamailer preference/status tests. The tests now inherit directly from
+  `TestCase`, keep setup visible inside the concrete scenarios, and share only
+  a small Datamailer settings constant plus a command-runner helper.
+  Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_preferences courses.tests.test_datamailer_status courses.tests.test_datamailer_sync_status`,
+  `uv run ruff check courses/tests/datamailer_settings.py courses/tests/test_datamailer_preferences.py courses/tests/test_datamailer_status.py courses/tests/test_datamailer_sync_status.py`,
+  multiple-inheritance test scan (`multiple_inheritance_test_classes=0`),
   `uvx pyrefly check`, repository AST cleanup scan
   (`forbidden_comprehensions=0`, `threshold_violations=0`,
   `append_constructed=0`, `wide_tuple_unpacking=0`,
