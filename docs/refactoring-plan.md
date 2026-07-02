@@ -759,6 +759,17 @@ testable service functions.
   `uv run python manage.py test courses.tests.test_project_submission_view`,
   touched-file helper scans report no five-argument helpers, and repo cleanup
   gates still allow tests up to 60 lines.
+- [x] 2026-07-02: Remove the single-use project scorable submission count wrapper
+  and name the peer-review querysets directly in the project action responses.
+  Verification: `uv run ruff check api/views/project_actions.py`,
+  `python -m py_compile api/views/project_actions.py`,
+  `uv run python manage.py test api.tests.test_project_actions api.tests.test_project_scoring`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 

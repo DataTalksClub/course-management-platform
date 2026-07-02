@@ -20,13 +20,12 @@ def project_action_base(project, status, message):
 
 
 def project_assign_reviews_response(project):
-    before_count = PeerReview.objects.filter(
+    peer_reviews = PeerReview.objects.filter(
         submission_under_evaluation__project=project,
-    ).count()
+    )
+    before_count = peer_reviews.count()
     status, message = assign_peer_reviews_for_project(project)
-    after_count = PeerReview.objects.filter(
-        submission_under_evaluation__project=project,
-    ).count()
+    after_count = peer_reviews.count()
     if status == ProjectActionStatus.OK:
         assigned_peer_reviews_count = after_count - before_count
         response_status = 200
@@ -40,26 +39,18 @@ def project_assign_reviews_response(project):
             "assigned_peer_reviews_count": assigned_peer_reviews_count,
         }
     )
-    response = JsonResponse(
-        data,
-        status=response_status,
-    )
+    response = JsonResponse(data, status=response_status)
     return response
 
 
-def project_scorable_submissions_count(project):
-    return (
-        PeerReview.objects.filter(
-            submission_under_evaluation__project=project,
-        )
-        .values("submission_under_evaluation")
-        .distinct()
-        .count()
-    )
-
-
 def project_score_response(project):
-    scorable_submissions_count = project_scorable_submissions_count(project)
+    peer_reviews = PeerReview.objects.filter(
+        submission_under_evaluation__project=project,
+    )
+    scorable_submissions = (
+        peer_reviews.values("submission_under_evaluation").distinct()
+    )
+    scorable_submissions_count = scorable_submissions.count()
     status, message = score_project(project)
     submissions = project.projectsubmission_set.all()
     response_status = 400
@@ -79,8 +70,5 @@ def project_score_response(project):
             "passed_submissions_count": passed_count,
         }
     )
-    response = JsonResponse(
-        data,
-        status=response_status,
-    )
+    response = JsonResponse(data, status=response_status)
     return response
