@@ -105,13 +105,6 @@ def _complete_scored_project(
     update_leaderboard(project.course)
 
 
-def _project_score_success_message(project, passed, passed_ratio):
-    return (
-        f"Project {project.id} scored and state updated to "
-        f"'COMPLETED'. {passed} passed ({passed_ratio:.2f})."
-    )
-
-
 def _project_scoreable_peer_reviews(project):
     error = _validate_project_scoreable(project)
     if error is not None:
@@ -133,11 +126,12 @@ def _score_project_with_reviews(project, peer_reviews):
         calculation,
     )
 
-    return _project_score_success_message(
-        project,
-        calculation.passed_count,
-        passed_ratio,
+    success_message = (
+        f"Project {project.id} scored and state updated to "
+        f"'COMPLETED'. {calculation.passed_count} passed "
+        f"({passed_ratio:.2f})."
     )
+    return success_message
 
 
 def score_project(

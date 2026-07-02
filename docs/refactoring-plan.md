@@ -925,6 +925,17 @@ testable service functions.
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Remove the single-use project scoring success-message wrapper
+  and keep the named success message inside the scoring flow. Verification:
+  `uv run ruff check courses/project_scoring.py docs/refactoring-plan.md`,
+  `python -m py_compile courses/project_scoring.py`,
+  `uv run python manage.py test courses.tests.test_project_score api.tests.test_project_scoring`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 
 ## Current Findings
 
