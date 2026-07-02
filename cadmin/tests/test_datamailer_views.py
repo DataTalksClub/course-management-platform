@@ -52,7 +52,27 @@ class DatamailerCadminViewTestCase(TestCase):
         return reverse("cadmin_datamailer_events")
 
 
-class DatamailerOperationsFixtureMixin:
+def create_contact_event(data: ContactEventData):
+    return DatamailerContactEvent.objects.create(
+        event_id=data.event_id,
+        event_type=data.event_type,
+        email=data.email,
+        client="dtc-courses",
+        audience=data.audience,
+        duplicate_count=data.duplicate_count,
+    )
+
+
+class DatamailerOperationsAccessTest(DatamailerCadminViewTestCase):
+    def test_datamailer_operations_non_staff_denied(self):
+        self.client.login(username="test@test.com", password="12345")
+        operations_url = self.datamailer_operations_url()
+        response = self.client.get(operations_url)
+
+        self.assertEqual(response.status_code, 302)
+
+
+class DatamailerOperationsPageTest(DatamailerCadminViewTestCase):
     def create_datamailer_operations_records(self):
         DatamailerOutboxEvent.objects.create(
             event_id="evt-outbox-failed",
@@ -83,8 +103,6 @@ class DatamailerOperationsFixtureMixin:
             error="Datamailer failed",
         )
 
-
-class DatamailerOperationsAssertionsMixin:
     def assert_datamailer_operations_content(self, response):
         self.assertContains(response, "Datamailer operations")
         self.assertContains(response, "network error")
@@ -113,8 +131,19 @@ class DatamailerOperationsAssertionsMixin:
         self.assertEqual(response.context["send_totals"]["skipped_count"], 1)
         self.assertEqual(response.context["send_totals"]["failed"], 1)
 
+    def test_datamailer_operations_staff_allowed(self):
+        self.create_datamailer_operations_records()
 
-class DatamailerOutboxRequeueMixin:
+        self.login_admin()
+        operations_url = self.datamailer_operations_url()
+        response = self.client.get(operations_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_datamailer_operations_content(response)
+        self.assert_datamailer_send_totals(response)
+
+
+class DatamailerOperationsRequeueTest(DatamailerCadminViewTestCase):
     def create_datamailer_outbox_event(self, event_id, status, last_error):
         return DatamailerOutboxEvent.objects.create(
             event_id=event_id,
@@ -164,49 +193,6 @@ class DatamailerOutboxRequeueMixin:
         self.assertEqual(event.status, status)
         self.assertEqual(event.last_error, last_error)
 
-
-class DatamailerContactEventFixtureMixin:
-    def create_contact_event(self, data: ContactEventData):
-        return DatamailerContactEvent.objects.create(
-            event_id=data.event_id,
-            event_type=data.event_type,
-            email=data.email,
-            client="dtc-courses",
-            audience=data.audience,
-            duplicate_count=data.duplicate_count,
-        )
-
-
-class DatamailerOperationsAccessTest(DatamailerCadminViewTestCase):
-    def test_datamailer_operations_non_staff_denied(self):
-        self.client.login(username="test@test.com", password="12345")
-        operations_url = self.datamailer_operations_url()
-        response = self.client.get(operations_url)
-
-        self.assertEqual(response.status_code, 302)
-
-
-class DatamailerOperationsPageTest(
-    DatamailerOperationsFixtureMixin,
-    DatamailerOperationsAssertionsMixin,
-    DatamailerCadminViewTestCase,
-):
-    def test_datamailer_operations_staff_allowed(self):
-        self.create_datamailer_operations_records()
-
-        self.login_admin()
-        operations_url = self.datamailer_operations_url()
-        response = self.client.get(operations_url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assert_datamailer_operations_content(response)
-        self.assert_datamailer_send_totals(response)
-
-
-class DatamailerOperationsRequeueTest(
-    DatamailerOutboxRequeueMixin,
-    DatamailerCadminViewTestCase,
-):
     def test_datamailer_operations_requeues_failed_and_dead_outbox_events(self):
         events = self.create_requeue_outbox_events()
 
@@ -232,10 +218,7 @@ class DatamailerEventsAccessTest(DatamailerCadminViewTestCase):
         self.assertEqual(response.status_code, 302)
 
 
-class DatamailerEventsPageTest(
-    DatamailerContactEventFixtureMixin,
-    DatamailerCadminViewTestCase,
-):
+class DatamailerEventsPageTest(DatamailerCadminViewTestCase):
     def test_datamailer_events_staff_allowed(self):
         hard_bounce = ContactEventData(
             event_id="evt-hard-bounce",
@@ -244,13 +227,13 @@ class DatamailerEventsPageTest(
             audience="ml-zoomcamp",
             duplicate_count=2,
         )
-        self.create_contact_event(hard_bounce)
+        create_contact_event(hard_bounce)
         opened = ContactEventData(
             event_id="evt-opened",
             event_type="message.opened",
             email="other@example.com",
         )
-        self.create_contact_event(opened)
+        create_contact_event(opened)
 
         self.login_admin()
         events_url = self.datamailer_events_url()
@@ -265,10 +248,7 @@ class DatamailerEventsPageTest(
         self.assertEqual(response.context["metrics"]["duplicates"], 2)
 
 
-class DatamailerEventsFilterTest(
-    DatamailerContactEventFixtureMixin,
-    DatamailerCadminViewTestCase,
-):
+class DatamailerEventsFilterTest(DatamailerCadminViewTestCase):
     def test_datamailer_events_filters_by_type_and_search(self):
         hard_bounce = ContactEventData(
             event_id="evt-hard-bounce",
@@ -276,13 +256,13 @@ class DatamailerEventsFilterTest(
             email="student@example.com",
             audience="ml-zoomcamp",
         )
-        self.create_contact_event(hard_bounce)
+        create_contact_event(hard_bounce)
         opened = ContactEventData(
             event_id="evt-opened",
             event_type="message.opened",
             email="other@example.com",
         )
-        self.create_contact_event(opened)
+        create_contact_event(opened)
 
         self.login_admin()
         events_url = self.datamailer_events_url()
