@@ -7,14 +7,12 @@ from courses.tests.deadline_reminder_base import (
     DeadlineReminderTestBase,
 )
 from courses.tests.deadline_reminder_project import (
-    ProjectSubmissionReminderTestMixin,
+    assert_project_reminder_payloads,
+    create_project_submission_reminder_fixture,
 )
 
 
-class ProjectSubmissionDeadlineReminderCommandTest(
-    ProjectSubmissionReminderTestMixin,
-    DeadlineReminderTestBase,
-):
+class ProjectSubmissionDeadlineReminderCommandTest(DeadlineReminderTestBase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -25,11 +23,11 @@ class ProjectSubmissionDeadlineReminderCommandTest(
     def test_project_deadline_reminders_use_7d_and_24h_windows(
         self,
         send_transient,
-    ):
+        ):
         now = self.reminder_run_time()
         send_transient.return_value = {"enqueued_count": 1}
-        self.create_project_submission_reminder_fixture(now)
+        create_project_submission_reminder_fixture(self, now)
 
         self.run_deadline_reminders(now)
 
-        self.assert_project_reminder_payloads(send_transient)
+        assert_project_reminder_payloads(self, send_transient)
