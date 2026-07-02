@@ -32,7 +32,7 @@ class ProjectSubmissionFixtureData:
     passed: bool = True
 
 
-class DashboardProjectFixtureMixin:
+class DashboardProjectStatsTestCase(TestCase):
     @classmethod
     def create_dashboard_user(cls):
         cls.user = User.objects.create_user(**credentials)
@@ -83,8 +83,6 @@ class DashboardProjectFixtureMixin:
             enrollment_data
         )
 
-
-class DashboardProjectSubmissionMixin:
     def create_project_submission(self, data: ProjectSubmissionFixtureData):
         scores = data.scores
         if not scores:
@@ -145,14 +143,10 @@ class DashboardProjectSubmissionMixin:
                 time_spent=10.0,
             )
 
-
-class DashboardProjectRequestMixin:
     def dashboard_response(self):
         url = reverse("dashboard", args=[self.course.slug])
         return self.client.get(url)
 
-
-class DashboardProjectStatsAssertionsMixin:
     def assert_distinct_student_completion_rate(self, response):
         self.assertAlmostEqual(
             response.context["project_completion_rate"],
@@ -160,14 +154,6 @@ class DashboardProjectStatsAssertionsMixin:
             places=1,
         )
 
-
-class DashboardProjectStatsTestCase(
-    DashboardProjectFixtureMixin,
-    DashboardProjectSubmissionMixin,
-    DashboardProjectRequestMixin,
-    DashboardProjectStatsAssertionsMixin,
-    TestCase,
-):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
