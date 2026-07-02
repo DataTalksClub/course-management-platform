@@ -35,18 +35,14 @@ class HomeworkTimeSpentFieldData:
 
 
 def apply_homework_submission_fields(field_data):
-    apply_homework_url_field(field_data)
-    apply_learning_in_public_links(field_data)
-    apply_time_spent_fields(field_data)
-    apply_problems_comments_field(field_data)
-    apply_faq_contribution_field(field_data)
-
-
-def apply_homework_url_field(field_data):
     if field_data.homework.homework_url_field:
         field_data.submission.homework_link = (
             field_data.request.POST.get("homework_url")
         )
+    apply_learning_in_public_links(field_data)
+    apply_time_spent_fields(field_data)
+    apply_problems_comments_field(field_data)
+    apply_faq_contribution_field(field_data)
 
 
 def apply_learning_in_public_links(field_data):
