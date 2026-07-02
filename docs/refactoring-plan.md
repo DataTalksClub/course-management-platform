@@ -3180,6 +3180,12 @@ Steps:
   post-data, and assertion mixins. Verification:
   `uv run ruff check courses/tests/test_homework_optional_fields.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_homework_optional_fields`.
+- [x] Split project submissions view tests into focused access, display,
+  admin-link, peer-review, and copy-email scenario classes with shared fixture,
+  request, data, and peer-review helper mixins. Also removed unused logging and
+  local model imports. Verification:
+  `uv run ruff check courses/tests/test_project_submissions_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_submissions_view`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
