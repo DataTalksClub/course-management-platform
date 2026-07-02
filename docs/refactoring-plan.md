@@ -2049,6 +2049,20 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the single-use homework-upsert question replacement
+  wrapper. The transaction now checks for a `questions` payload directly before
+  calling `replace_homework_questions`, keeping the actual replacement behavior
+  behind its named boundary. Verification:
+  `uv run ruff check api/views/homework_upsert_save.py docs/refactoring-plan.md`,
+  `python -m py_compile api/views/homework_upsert_save.py`,
+  `uv run python manage.py test api.tests.test_homework_upserts api.tests.test_homework_mutations api.tests.test_homeworks`,
+  removed-helper reference scan, touched-function line-threshold scan,
+  `uvx pyrefly check`, repository AST cleanup scan excluding migrations
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Replace deadline reminder spec factory functions with named static spec
   values and constants so reminder event planning no longer uses trivial
   pass-through factories or nine-field constructor calls. Verification:

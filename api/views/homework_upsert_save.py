@@ -26,12 +26,13 @@ def save_homework_upsert(upsert):
 
         homework.save()
 
-        error = replace_homework_questions_if_present(
-            homework,
-            upsert.data,
-        )
-        if error:
-            return homework, error
+        if "questions" in upsert.data:
+            error = replace_homework_questions(
+                homework,
+                upsert.data["questions"],
+            )
+            if error:
+                return homework, error
 
     return homework, None
 
@@ -123,9 +124,3 @@ def apply_homework_direct_fields(homework, data):
         if field not in data:
             continue
         setattr(homework, field, data[field])
-
-
-def replace_homework_questions_if_present(homework, data):
-    if "questions" not in data:
-        return None
-    return replace_homework_questions(homework, data["questions"])
