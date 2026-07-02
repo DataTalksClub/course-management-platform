@@ -35,179 +35,192 @@ DATAMAILER_SETTINGS = {
 }
 
 
-class DatamailerPeerReviewFixtureMixin:
-    def create_ml_course(self):
-        return Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
+def create_ml_course():
+    return Course.objects.create(
+        slug="ml-zoomcamp-2026",
+        title="ML Zoomcamp 2026",
+        description="Machine learning",
+    )
 
-    def create_project(self, course=None, **overrides):
-        defaults = {
-            "course": course or self.create_ml_course(),
-            "slug": "project-1",
-            "title": "Project 1",
-            "submission_due_date": "2026-01-01T00:00:00Z",
-            "peer_review_due_date": "2026-01-08T00:00:00Z",
-        }
-        defaults.update(overrides)
-        return Project.objects.create(**defaults)
 
-    def create_user(self, email):
-        return CustomUser.objects.create_user(
-            username=email,
-            email=email,
-            password="test",
-        )
+def create_project(course=None, **overrides):
+    defaults = {
+        "course": course or create_ml_course(),
+        "slug": "project-1",
+        "title": "Project 1",
+        "submission_due_date": "2026-01-01T00:00:00Z",
+        "peer_review_due_date": "2026-01-08T00:00:00Z",
+    }
+    defaults.update(overrides)
+    return Project.objects.create(**defaults)
 
-    def create_enrollment(self, user, course):
-        return Enrollment.objects.create(student=user, course=course)
 
-    def create_project_submission(self, project, user, **overrides):
-        enrollment = self.create_enrollment(user, project.course)
-        defaults = {
-            "project": project,
-            "student": user,
-            "enrollment": enrollment,
-            "github_link": "https://github.com/example/project",
-            "commit_id": "abc123",
-        }
-        defaults.update(overrides)
-        return ProjectSubmission.objects.create(**defaults)
+def create_user(email):
+    return CustomUser.objects.create_user(
+        username=email,
+        email=email,
+        password="test",
+    )
 
-    def create_peer_review_assignment_project(self):
-        return self.create_project(
-            state=ProjectState.PEER_REVIEWING.value,
-            number_of_peers_to_evaluate=3,
-            # Summer instant: PT 15:00, Berlin 00:00 next day.
-            peer_review_due_date="2026-07-02T22:00:00Z",
-        )
 
-    def create_peer_review_assignment_submission(self, project, index):
-        user = self.create_user(f"learner-{index}@example.com")
-        if index == 0:
-            user.preferred_timezone = "Europe/Berlin"
-            user.save(update_fields=["preferred_timezone"])
-        return self.create_project_submission(
+def create_enrollment(user, course):
+    return Enrollment.objects.create(student=user, course=course)
+
+
+def create_project_submission(project, user, **overrides):
+    enrollment = create_enrollment(user, project.course)
+    defaults = {
+        "project": project,
+        "student": user,
+        "enrollment": enrollment,
+        "github_link": "https://github.com/example/project",
+        "commit_id": "abc123",
+    }
+    defaults.update(overrides)
+    return ProjectSubmission.objects.create(**defaults)
+
+
+def create_peer_review_assignment_project():
+    return create_project(
+        state=ProjectState.PEER_REVIEWING.value,
+        number_of_peers_to_evaluate=3,
+        # Summer instant: PT 15:00, Berlin 00:00 next day.
+        peer_review_due_date="2026-07-02T22:00:00Z",
+    )
+
+
+def create_peer_review_assignment_submission(project, index):
+    user = create_user(f"learner-{index}@example.com")
+    if index == 0:
+        user.preferred_timezone = "Europe/Berlin"
+        user.save(update_fields=["preferred_timezone"])
+    return create_project_submission(
+        project,
+        user,
+        github_link=f"https://github.com/example/p{index}",
+    )
+
+
+def create_peer_review_assignment_submissions(project):
+    submissions = []
+    for index in range(4):
+        submission = create_peer_review_assignment_submission(
             project,
-            user,
-            github_link=f"https://github.com/example/p{index}",
+            index,
         )
+        submissions.append(submission)
+    return submissions
 
-    def create_peer_review_assignment_submissions(self, project):
-        submissions = []
-        for index in range(4):
-            submission = self.create_peer_review_assignment_submission(
-                project,
-                index,
-            )
-            submissions.append(submission)
-        return submissions
 
-    def create_peer_review_assignment(self, reviewer, target, optional):
-        PeerReview.objects.create(
-            reviewer=reviewer,
-            submission_under_evaluation=target,
-            note_to_peer="",
-            optional=optional,
-        )
+def create_peer_review_assignment(reviewer, target, optional):
+    PeerReview.objects.create(
+        reviewer=reviewer,
+        submission_under_evaluation=target,
+        note_to_peer="",
+        optional=optional,
+    )
 
-    def create_reviewer_assignments(self, submissions):
-        reviewer = submissions[0]
-        targets = submissions[1:]
-        for target in targets:
-            self.create_peer_review_assignment(
-                reviewer,
-                target,
-                optional=False,
-            )
-        self.create_peer_review_assignment(
+
+def create_reviewer_assignments(submissions):
+    reviewer = submissions[0]
+    targets = submissions[1:]
+    for target in targets:
+        create_peer_review_assignment(
             reviewer,
-            targets[0],
-            optional=True,
+            target,
+            optional=False,
         )
-
-    def create_peer_review_assignment_fixture(self):
-        project = self.create_peer_review_assignment_project()
-        submissions = self.create_peer_review_assignment_submissions(project)
-        self.create_reviewer_assignments(submissions)
-        project.refresh_from_db()
-        return project
+    create_peer_review_assignment(
+        reviewer,
+        targets[0],
+        optional=True,
+    )
 
 
-class DatamailerPeerReviewPayloadAssertionsMixin:
-    def assert_peer_review_assignment_payload(self, payload, project):
-        self.assertEqual(payload["template_key"], "peer-review-assignment")
-        self.assertEqual(payload["category_tag"], "submission-results")
-        self.assertEqual(
-            payload["idempotency_key"],
-            "peer-review-assignment:ml-zoomcamp-2026:project-1",
+def create_peer_review_assignment_fixture():
+    project = create_peer_review_assignment_project()
+    submissions = create_peer_review_assignment_submissions(project)
+    create_reviewer_assignments(submissions)
+    project.refresh_from_db()
+    return project
+
+
+def assert_peer_review_assignment_payload(test_case, payload, project):
+    test_case.assertEqual(payload["template_key"], "peer-review-assignment")
+    test_case.assertEqual(payload["category_tag"], "submission-results")
+    test_case.assertEqual(
+        payload["idempotency_key"],
+        "peer-review-assignment:ml-zoomcamp-2026:project-1",
+    )
+    test_case.assertEqual(
+        payload["metadata"]["event"],
+        "peer_review_assignment",
+    )
+    context = payload["context"]
+    test_case.assertEqual(context["number_of_peers_to_evaluate"], 3)
+    peer_review_due_at = project.peer_review_due_date.isoformat()
+    test_case.assertEqual(
+        context["peer_review_due_at"],
+        peer_review_due_at,
+    )
+    test_case.assertEqual(context["deadline_weekday"], "Thursday")
+    test_case.assertEqual(context["deadline_time"], "22:00")
+    test_case.assertEqual(
+        context["deadline_summary"], "Thursday, 2 July 2026, 22:00 UTC"
+    )
+
+
+def assert_berlin_reviewer_assignments(test_case, payload):
+    members_by_email = {}
+    members = payload["members"]
+    for member in members:
+        email = member["email"]
+        members_by_email[email] = member
+    test_case.assertEqual(len(members_by_email), 4)
+    reviewer_member = members_by_email["learner-0@example.com"]
+    test_case.assertEqual(
+        reviewer_member["metadata"]["deadline_summary"],
+        "Friday, 3 July 2026, 00:00 Europe/Berlin",
+    )
+    test_case.assertEqual(
+        reviewer_member["metadata"]["deadline_timezone"],
+        "Europe/Berlin",
+    )
+    assigned = reviewer_member["metadata"]["assigned_reviews"]
+    test_case.assertEqual(
+        reviewer_member["metadata"]["assigned_reviews_count"],
+        3,
+    )
+    test_case.assertEqual(len(assigned), 3)
+    for item in assigned:
+        test_case.assertIn(
+            f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
+            item["eval_url"],
         )
-        self.assertEqual(payload["metadata"]["event"], "peer_review_assignment")
-        context = payload["context"]
-        self.assertEqual(context["number_of_peers_to_evaluate"], 3)
-        peer_review_due_at = project.peer_review_due_date.isoformat()
-        self.assertEqual(
-            context["peer_review_due_at"],
-            peer_review_due_at,
-        )
-        self.assertEqual(context["deadline_weekday"], "Thursday")
-        self.assertEqual(context["deadline_time"], "22:00")
-        self.assertEqual(
-            context["deadline_summary"], "Thursday, 2 July 2026, 22:00 UTC"
-        )
-
-    def assert_berlin_reviewer_assignments(self, payload):
-        members_by_email = {}
-        members = payload["members"]
-        for member in members:
-            email = member["email"]
-            members_by_email[email] = member
-        self.assertEqual(len(members_by_email), 4)
-        reviewer_member = members_by_email["learner-0@example.com"]
-        self.assertEqual(
-            reviewer_member["metadata"]["deadline_summary"],
-            "Friday, 3 July 2026, 00:00 Europe/Berlin",
-        )
-        self.assertEqual(
-            reviewer_member["metadata"]["deadline_timezone"],
-            "Europe/Berlin",
-        )
-        assigned = reviewer_member["metadata"]["assigned_reviews"]
-        self.assertEqual(reviewer_member["metadata"]["assigned_reviews_count"], 3)
-        self.assertEqual(len(assigned), 3)
-        for item in assigned:
-            self.assertIn(
-                f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
-                item["eval_url"],
-            )
-            has_secure_eval_url = item["eval_url"].startswith("https://")
-            self.assertTrue(has_secure_eval_url)
+        has_secure_eval_url = item["eval_url"].startswith("https://")
+        test_case.assertTrue(has_secure_eval_url)
 
 
-class DatamailerPeerReviewSendAssertionsMixin:
-    def assert_peer_review_send_audit(self):
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(audit.send_type, DatamailerSendAuditType.RECIPIENT_LIST)
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.event, "peer_review_assignment")
-        self.assertEqual(audit.intended_count, 4)
-        self.assertEqual(audit.enqueued_count, 4)
+def assert_peer_review_send_audit(test_case):
+    audit = DatamailerSendAudit.objects.get()
+    test_case.assertEqual(
+        audit.send_type,
+        DatamailerSendAuditType.RECIPIENT_LIST,
+    )
+    test_case.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+    test_case.assertEqual(audit.event, "peer_review_assignment")
+    test_case.assertEqual(audit.intended_count, 4)
+    test_case.assertEqual(audit.enqueued_count, 4)
 
 
-class DatamailerPeerReviewPayloadTest(
-    DatamailerPeerReviewFixtureMixin,
-    DatamailerPeerReviewPayloadAssertionsMixin,
-    TestCase,
-):
+class DatamailerPeerReviewPayloadTest(TestCase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
         DATAMAILER_FROM_EMAIL="courses",
     )
     def test_peer_review_assignment_payload_includes_links_and_deadline(self):
-        project = self.create_peer_review_assignment_fixture()
+        project = create_peer_review_assignment_fixture()
         list_key, payload = peer_review_assignment_notification_payload(
             project
         )
@@ -215,17 +228,14 @@ class DatamailerPeerReviewPayloadTest(
         expected_list_key = project_submitters_list_key(project)
         self.assertEqual(list_key, expected_list_key)
         self.assertEqual(payload["from_email"], "courses")
-        self.assert_peer_review_assignment_payload(payload, project)
-        self.assert_berlin_reviewer_assignments(payload)
+        assert_peer_review_assignment_payload(self, payload, project)
+        assert_berlin_reviewer_assignments(self, payload)
 
 
-class DatamailerPeerReviewPreviewCommandTest(
-    DatamailerPeerReviewFixtureMixin,
-    TestCase,
-):
+class DatamailerPeerReviewPreviewCommandTest(TestCase):
     @override_settings(PUBLIC_BASE_URL="https://courses.example.com")
     def test_preview_peer_review_email_prints_submission_previews(self):
-        project = self.create_peer_review_assignment_fixture()
+        project = create_peer_review_assignment_fixture()
 
         out = StringIO()
         call_command(
@@ -247,11 +257,7 @@ class DatamailerPeerReviewPreviewCommandTest(
         self.assertIn("4 recipient(s) would be emailed.", output)
 
 
-class DatamailerPeerReviewNotificationSendTest(
-    DatamailerPeerReviewFixtureMixin,
-    DatamailerPeerReviewSendAssertionsMixin,
-    TestCase,
-):
+class DatamailerPeerReviewNotificationSendTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
@@ -269,7 +275,7 @@ class DatamailerPeerReviewNotificationSendTest(
             "recipient_list": {"active_member_count": 4},
             "enqueued_count": 4,
         }
-        project = self.create_peer_review_assignment_fixture()
+        project = create_peer_review_assignment_fixture()
 
         result = send_peer_review_assignment_notification(project)
 
@@ -288,4 +294,4 @@ class DatamailerPeerReviewNotificationSendTest(
         )
         self.assertNotIn("members", send_list.call_args.args[1])
         self.assertNotIn("list", send_list.call_args.args[1])
-        self.assert_peer_review_send_audit()
+        assert_peer_review_send_audit(self)
