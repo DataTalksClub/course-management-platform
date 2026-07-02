@@ -39,7 +39,7 @@ credentials = dict(
 )
 
 
-class ProjectEvaluationTestBase(TestCase):
+class ProjectEvaluationFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -78,6 +78,8 @@ class ProjectEvaluationTestBase(TestCase):
             optional=False,
         )
 
+
+class ProjectReviewCriteriaFixtureMixin:
     def create_review_criteria(
         self, description, options, review_criteria_type
     ):
@@ -134,31 +136,31 @@ class ProjectEvaluationTestBase(TestCase):
         self.criteria3 = self.create_best_practices_criteria()
         self.criteria = [self.criteria1, self.criteria2, self.criteria3]
 
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.enrollment = self.create_enrollment(self.user)
-        self.project = self.create_project()
-        self.submission = self.create_project_submission(
-            self.user,
-            self.enrollment,
-            "https://github.com/user/project",
+    def create_criteria_responses(self):
+        first_response = CriteriaResponse.objects.create(
+            review=self.peer_review,
+            criteria=self.criteria1,
+            answer="1",
         )
-        self.other_user = User.objects.create_user(
-            username="student",
-            email="email@email.com",
-            password="12345",
+        second_response = CriteriaResponse.objects.create(
+            review=self.peer_review,
+            criteria=self.criteria2,
+            answer="2",
         )
-        self.other_enrollment = self.create_enrollment(self.other_user)
-        self.other_submission = self.create_project_submission(
-            self.other_user,
-            self.other_enrollment,
-            "https://github.com/other_student/project",
+        third_response = CriteriaResponse.objects.create(
+            review=self.peer_review,
+            criteria=self.criteria3,
+            answer="1,3",
         )
-        self.peer_review = self.create_peer_review()
-        self.create_review_criteria_set()
+        responses = {
+            self.criteria1: first_response,
+            self.criteria2: second_response,
+            self.criteria3: third_response,
+        }
+        return responses
 
+
+class ProjectEvaluationRequestMixin:
     def eval_submit_url(self):
         return reverse(
             "projects_eval_submit",
@@ -192,44 +194,27 @@ class ProjectEvaluationTestBase(TestCase):
         return data
 
     def updated_review_post_data(self):
-        return self.review_post_data(
-            **{
-                f"answer_{self.criteria1.id}": "2",
-                f"answer_{self.criteria2.id}": "3",
-                f"answer_{self.criteria3.id}": "1,2,3",
-                "learning_in_public_links[]": [],
-            }
-        )
+        updated_answers = {
+            f"answer_{self.criteria1.id}": "2",
+            f"answer_{self.criteria2.id}": "3",
+            f"answer_{self.criteria3.id}": "1,2,3",
+            "learning_in_public_links[]": [],
+        }
+        return self.review_post_data(**updated_answers)
 
     def post_eval_submit(self, post_data):
         self.client.login(**credentials)
         eval_submit_url = self.eval_submit_url()
         return self.client.post(eval_submit_url, post_data)
 
-    def create_criteria_responses(self):
-        responses = {
-            self.criteria1: CriteriaResponse.objects.create(
-                review=self.peer_review,
-                criteria=self.criteria1,
-                answer="1",
-            ),
-            self.criteria2: CriteriaResponse.objects.create(
-                review=self.peer_review,
-                criteria=self.criteria2,
-                answer="2",
-            ),
-            self.criteria3: CriteriaResponse.objects.create(
-                review=self.peer_review,
-                criteria=self.criteria3,
-                answer="1,3",
-            ),
-        }
-        return responses
 
+class ProjectReviewStateMixin:
     def mark_peer_review_submitted(self):
         self.peer_review.state = PeerReviewState.SUBMITTED.value
         self.peer_review.save()
 
+
+class ProjectCriteriaExpectationMixin:
     def selected_options(self, rows, selected_indexes):
         options = []
         for index, row in enumerate(rows, start=1):
@@ -323,6 +308,8 @@ class ProjectEvaluationTestBase(TestCase):
     def criteria_responses(self):
         return CriteriaResponse.objects.filter(review=self.peer_review)
 
+
+class ProjectReviewAssertionsMixin:
     def assert_review_saved(self, expected_answers):
         self.peer_review = fetch_fresh(self.peer_review)
         self.assertEqual(
@@ -337,3 +324,38 @@ class ProjectEvaluationTestBase(TestCase):
         for criteria, expected_answer in expected_answers.items():
             response = criteria_responses.get(criteria=criteria)
             self.assertEqual(response.answer, expected_answer)
+
+
+class ProjectEvaluationTestBase(
+    ProjectEvaluationFixtureMixin,
+    ProjectReviewCriteriaFixtureMixin,
+    ProjectEvaluationRequestMixin,
+    ProjectReviewStateMixin,
+    ProjectCriteriaExpectationMixin,
+    ProjectReviewAssertionsMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment(self.user)
+        self.project = self.create_project()
+        self.submission = self.create_project_submission(
+            self.user,
+            self.enrollment,
+            "https://github.com/user/project",
+        )
+        self.other_user = User.objects.create_user(
+            username="student",
+            email="email@email.com",
+            password="12345",
+        )
+        self.other_enrollment = self.create_enrollment(self.other_user)
+        self.other_submission = self.create_project_submission(
+            self.other_user,
+            self.other_enrollment,
+            "https://github.com/other_student/project",
+        )
+        self.peer_review = self.create_peer_review()
+        self.create_review_criteria_set()

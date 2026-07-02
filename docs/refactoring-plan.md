@@ -3161,6 +3161,13 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/course_leaderboard_base.py courses/tests/test_course_leaderboard.py courses/tests/test_course_leaderboard_score_breakdown.py courses/tests/test_course_leaderboard_complaints.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_course_leaderboard courses.tests.test_course_leaderboard_score_breakdown courses.tests.test_course_leaderboard_complaints`.
+- [x] Split the shared project evaluation test base into focused project
+  fixture, review criteria, request, review state, criteria expectation, and
+  review assertion mixins while keeping the public base class stable. Also
+  named criteria responses and updated-answer data before dictionary
+  construction. Verification:
+  `uv run ruff check courses/tests/project_eval_base.py courses/tests/test_project_eval.py courses/tests/test_project_eval_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_eval courses.tests.test_project_eval_view`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
