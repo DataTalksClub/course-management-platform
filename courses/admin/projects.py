@@ -88,6 +88,4 @@ class ProjectAdmin(ModelAdmin):
     list_filter = ["course__slug"]
 
 
-@admin.register(ReviewCriteria)
-class ReviewCriteriaAdmin(ModelAdmin):
-    pass
+admin.site.register(ReviewCriteria, ModelAdmin)
