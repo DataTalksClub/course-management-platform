@@ -3895,6 +3895,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed public project view fixture, request,
+  submission-persistence, submission assertion, confirmation-email assertion,
+  and field assertion mixins into the focused `ProjectViewTestBase`. The
+  project view and submission tests keep their existing concrete test classes
+  and shared setup without a mixin chain. Verification:
+  `uv run python manage.py test courses.tests.test_project_view courses.tests.test_project_submission_view courses.tests.test_project_submission_invalid courses.tests.test_project_submission_confirmation`,
+  `uv run ruff check courses/tests/project_view_base.py courses/tests/project_submission_view_base.py courses/tests/test_project_view.py courses/tests/test_project_submission_view.py courses/tests/test_project_submission_invalid.py courses/tests/test_project_submission_confirmation.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

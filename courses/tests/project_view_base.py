@@ -26,7 +26,7 @@ credentials = dict(
 )
 
 
-class ProjectViewFixtureMixin:
+class ProjectViewTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             slug="test-course",
@@ -51,8 +51,6 @@ class ProjectViewFixtureMixin:
             peer_review_due_date=peer_review_due_date,
         )
 
-
-class ProjectViewRequestMixin:
     def project_url(self):
         return reverse("project", args=[self.course.slug, self.project.slug])
 
@@ -128,8 +126,6 @@ class ProjectViewRequestMixin:
         response = self.client.get(project_url)
         return response
 
-
-class ProjectSubmissionPersistenceMixin:
     def get_project_submission(self):
         return ProjectSubmission.objects.get(
             student=self.user,
@@ -157,8 +153,6 @@ class ProjectSubmissionPersistenceMixin:
             **data,
         )
 
-
-class ProjectSubmissionAssertionsMixin:
     def assert_project_submission_matches(self, submission, data):
         self.assertEqual(submission.github_link, data["github_link"])
         self.assertEqual(submission.commit_id, data["commit_id"])
@@ -186,8 +180,6 @@ class ProjectSubmissionAssertionsMixin:
         self.assertNotEqual(submission.commit_id, data["commit_id"])
         self.assertNotEqual(submission.learning_in_public_links, links)
 
-
-class ProjectConfirmationEmailAssertionsMixin:
     def assert_project_confirmation_payload(self, payload, submission):
         self.assertEqual(payload["email"], "test@test.com")
         self.assertEqual(
@@ -237,7 +229,6 @@ class ProjectConfirmationEmailAssertionsMixin:
         )
 
 
-class ProjectSubmissionFieldAssertionsMixin:
     def expected_project_repository_fields(self):
         fields = []
         github_field = {
@@ -306,16 +297,6 @@ class ProjectSubmissionFieldAssertionsMixin:
             ),
         )
 
-
-class ProjectViewTestBase(
-    ProjectViewFixtureMixin,
-    ProjectViewRequestMixin,
-    ProjectSubmissionPersistenceMixin,
-    ProjectSubmissionAssertionsMixin,
-    ProjectConfirmationEmailAssertionsMixin,
-    ProjectSubmissionFieldAssertionsMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
