@@ -48,10 +48,13 @@ def sync_recipient_list_batches(data, write):
 
 def sync_recipient_list_batch(data, list_key, payload, write):
     if data.import_by_reference:
-        import_data = recipient_list_import_job_data(
-            data,
-            list_key,
-            payload,
+        import_data = ImportJobData(
+            client=data.client,
+            config=data.config,
+            kind=data.kind,
+            list_key=list_key,
+            payload=payload,
+            options=data.import_options,
         )
         create_import_job(import_data, write)
         return
@@ -62,17 +65,6 @@ def sync_recipient_list_batch(data, list_key, payload, write):
         payload,
     )
     write_sync_result(result_data, write)
-
-
-def recipient_list_import_job_data(data, list_key, payload):
-    return ImportJobData(
-        client=data.client,
-        config=data.config,
-        kind=data.kind,
-        list_key=list_key,
-        payload=payload,
-        options=data.import_options,
-    )
 
 
 def sync_inline_recipient_list_batch(data, list_key, payload):
