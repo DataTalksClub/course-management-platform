@@ -148,7 +148,9 @@ def peer_review_assignment_notification_members(
     list_data = peer_review_assignment_list_data(project)
     members = []
     seen_students = set()
-    submissions = peer_review_assignment_submissions(project)
+    submissions = project.projectsubmission_set.select_related(
+        "student", "project__course"
+    ).order_by("student_id", "-submitted_at", "-id")
     for submission in submissions:
         if submission.student_id in seen_students:
             continue
@@ -174,9 +176,3 @@ def peer_review_assignment_list_data(project) -> dict[str, Any]:
             "project_slug": project.slug,
         },
     }
-
-
-def peer_review_assignment_submissions(project):
-    return project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
