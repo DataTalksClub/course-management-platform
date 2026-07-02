@@ -4432,6 +4432,17 @@ Steps:
   `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
   `wide_function_args=0`, `nested_wide_for_unpacking=0`,
   `range_len_loops=0`), and `git diff --check`.
+- [x] 2026-07-02: Removed the single-use leaderboard YAML serialization wrapper
+  and kept `yaml.safe_dump(...)` assigned to `yaml_content` before caching.
+  Verification: `uv run ruff check api/views/leaderboard_exports.py`,
+  `python -m py_compile api/views/leaderboard_exports.py`,
+  `uv run python manage.py test data.tests.test_leaderboard data.tests.test_leaderboard_pagination data.tests.test_leaderboard_homework data.tests.test_leaderboard_projects`,
+  wrapper scan for the removed helper, `uvx pyrefly check`, repository AST
+  cleanup scan excluding migrations (`forbidden_comprehensions=0`,
+  `threshold_violations=0`, `append_constructed=0`,
+  `wide_tuple_unpacking=0`, `wide_positional_calls=0`,
+  `wide_function_args=0`, `nested_wide_for_unpacking=0`,
+  `range_len_loops=0`), and `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

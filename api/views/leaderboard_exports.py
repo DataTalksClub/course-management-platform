@@ -74,16 +74,6 @@ def _cached_leaderboard_data(course, page, cache_version):
     return data
 
 
-def _leaderboard_yaml_content(data):
-    yaml_content = yaml.safe_dump(
-        data,
-        default_flow_style=False,
-        allow_unicode=True,
-        sort_keys=False,
-    )
-    return yaml_content
-
-
 def _cached_leaderboard_yaml(course, page, cache_version):
     yaml_cache_key = _leaderboard_yaml_cache_key(
         course,
@@ -96,7 +86,12 @@ def _cached_leaderboard_yaml(course, page, cache_version):
         return yaml_content
 
     data = _cached_leaderboard_data(course, page, cache_version)
-    yaml_content = _leaderboard_yaml_content(data)
+    yaml_content = yaml.safe_dump(
+        data,
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
     cache.set(yaml_cache_key, yaml_content, LEADERBOARD_YAML_CACHE_TTL)
     return yaml_content
 
