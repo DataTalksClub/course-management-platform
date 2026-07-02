@@ -44,7 +44,7 @@ class ProjectFixtureData:
     submission_days: int
 
 
-class CourseLeaderboardViewTestBase(TestCase):
+class CourseLeaderboardCourseFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course-2"
@@ -56,6 +56,8 @@ class CourseLeaderboardViewTestBase(TestCase):
             course=self.course,
         )
 
+
+class CourseLeaderboardHomeworkFixtureMixin:
     def create_homework(self, data: HomeworkFixtureData):
         due_date = timezone.now() + timezone.timedelta(days=data.days_due)
         return Homework.objects.create(
@@ -99,13 +101,10 @@ class CourseLeaderboardViewTestBase(TestCase):
         ]
 
     def create_questions_for_homeworks(self):
-        homeworks = self.homeworks
-        for homework in homeworks:
+        possible_answers = join_possible_answers(["A", "B", "C", "D"])
+        for homework in self.homeworks:
             for index in range(1, 4):
                 question_text = f"Question {index} of {homework.title}"
-                possible_answers = join_possible_answers(
-                    ["A", "B", "C", "D"]
-                )
                 Question.objects.create(
                     homework=homework,
                     text=question_text,
@@ -128,6 +127,8 @@ class CourseLeaderboardViewTestBase(TestCase):
             total_score=0,
         )
 
+
+class CourseLeaderboardProjectFixtureMixin:
     def create_project(self, data: ProjectFixtureData):
         submission_due_date = timezone.now() + timezone.timedelta(
             days=data.submission_days
@@ -173,18 +174,8 @@ class CourseLeaderboardViewTestBase(TestCase):
             github_link="https://github.com/test/repo2",
         )
 
-    def setUp(self):
-        cache.clear()
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.enrollment = self.create_enrollment()
-        self.create_homeworks()
-        self.create_questions_for_homeworks()
-        self.create_homework_submissions()
-        self.create_projects()
-        self.create_project_submissions()
 
+class CourseLeaderboardFixtureMixin:
     def create_leaderboard_enrollment(
         self, name, total_score, position_on_leaderboard=None
     ):
@@ -204,12 +195,17 @@ class CourseLeaderboardViewTestBase(TestCase):
         self.create_leaderboard_enrollment("Charlie", 80, 3)
 
     def create_new_enrollment_leaderboard(self):
+        first_enrollment = self.create_leaderboard_enrollment("e1", 0, None)
+        second_enrollment = self.create_leaderboard_enrollment("e2", 90, 1)
+        third_enrollment = self.create_leaderboard_enrollment("e3", 80, 2)
+        fourth_enrollment = self.create_leaderboard_enrollment("e4", 70, 3)
+        fifth_enrollment = self.create_leaderboard_enrollment("e5", 0, None)
         leaderboard = {
-            "e1": self.create_leaderboard_enrollment("e1", 0, None),
-            "e2": self.create_leaderboard_enrollment("e2", 90, 1),
-            "e3": self.create_leaderboard_enrollment("e3", 80, 2),
-            "e4": self.create_leaderboard_enrollment("e4", 70, 3),
-            "e5": self.create_leaderboard_enrollment("e5", 0, None),
+            "e1": first_enrollment,
+            "e2": second_enrollment,
+            "e3": third_enrollment,
+            "e4": fourth_enrollment,
+            "e5": fifth_enrollment,
         }
         return leaderboard
 
@@ -218,6 +214,8 @@ class CourseLeaderboardViewTestBase(TestCase):
         self.enrollment.position_on_leaderboard = position
         self.enrollment.save()
 
+
+class CourseLeaderboardRequestMixin:
     def leaderboard_response(self, *, login=False):
         if login:
             self.client.login(**credentials)
@@ -242,6 +240,8 @@ class CourseLeaderboardViewTestBase(TestCase):
         }
         return reverse("leaderboard_complaint", kwargs=kwargs)
 
+
+class CourseLeaderboardAssertionsMixin:
     def assert_leaderboard_order(self, response, expected_order):
         enrollments = response.context["enrollments"]
         actual_order = []
@@ -282,6 +282,8 @@ class CourseLeaderboardViewTestBase(TestCase):
         self.assertContains(response, "Bob")
         self.assertContains(response, "Charlie")
 
+
+class CourseLeaderboardScoreBreakdownMixin:
     def set_homework_score_breakdown_fixture(self):
         self.submission1.questions_score = 7
         self.submission1.faq_score = 2
@@ -359,3 +361,26 @@ class CourseLeaderboardViewTestBase(TestCase):
         self.assertContains(response, "Alice")
         self.assertContains(response, "Bob")
         self.assertContains(response, "Charlie")
+
+
+class CourseLeaderboardViewTestBase(
+    CourseLeaderboardCourseFixtureMixin,
+    CourseLeaderboardHomeworkFixtureMixin,
+    CourseLeaderboardProjectFixtureMixin,
+    CourseLeaderboardFixtureMixin,
+    CourseLeaderboardRequestMixin,
+    CourseLeaderboardAssertionsMixin,
+    CourseLeaderboardScoreBreakdownMixin,
+    TestCase,
+):
+    def setUp(self):
+        cache.clear()
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.enrollment = self.create_enrollment()
+        self.create_homeworks()
+        self.create_questions_for_homeworks()
+        self.create_homework_submissions()
+        self.create_projects()
+        self.create_project_submissions()

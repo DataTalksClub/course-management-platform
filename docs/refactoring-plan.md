@@ -3154,6 +3154,13 @@ Steps:
   review mixins while keeping the public base class stable. Verification:
   `uv run ruff check courses/tests/course_view_base.py courses/tests/test_course.py courses/tests/test_course_projects.py courses/tests/test_course_homework_display.py courses/tests/test_course_dashboard_link.py courses/tests/test_course_calendar.py courses/tests/test_course_links.py courses/tests/test_course_enrollment.py courses/tests/test_course_certificates.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_course courses.tests.test_course_projects courses.tests.test_course_homework_display courses.tests.test_course_dashboard_link courses.tests.test_course_calendar courses.tests.test_course_links courses.tests.test_course_enrollment courses.tests.test_course_certificates`.
+- [x] Split the shared course leaderboard view test base into focused course,
+  homework, project, leaderboard, request, assertion, and score-breakdown
+  mixins while keeping the public base class stable. Also removed a one-off
+  loop alias and named leaderboard records before dictionary construction.
+  Verification:
+  `uv run ruff check courses/tests/course_leaderboard_base.py courses/tests/test_course_leaderboard.py courses/tests/test_course_leaderboard_score_breakdown.py courses/tests/test_course_leaderboard_complaints.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_course_leaderboard courses.tests.test_course_leaderboard_score_breakdown courses.tests.test_course_leaderboard_complaints`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
