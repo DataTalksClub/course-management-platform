@@ -3062,6 +3062,10 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/project_submission_view_base.py courses/tests/test_project_submission_view.py courses/tests/test_project_submission_confirmation.py courses/tests/test_project_submission_invalid.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_project_submission_view courses.tests.test_project_submission_confirmation courses.tests.test_project_submission_invalid`.
+- [x] Split question API tests into shared question fixtures, list/detail,
+  creation, update, deletion, and mutation-auth modules. Verification:
+  `uv run ruff check api/tests/question_api_base.py api/tests/test_questions.py api/tests/test_question_creation.py api/tests/test_question_updates.py api/tests/test_question_deletion.py api/tests/test_question_auth.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_questions api.tests.test_question_creation api.tests.test_question_updates api.tests.test_question_deletion api.tests.test_question_auth`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
