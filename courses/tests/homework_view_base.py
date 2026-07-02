@@ -42,7 +42,7 @@ class AnswerPostData:
     question6_answers: list[str] | None = None
 
 
-class HomeworkViewFixtureMixin:
+class HomeworkDetailViewTestBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course"
@@ -59,8 +59,6 @@ class HomeworkViewFixtureMixin:
             slug="test-homework",
         )
 
-
-class HomeworkQuestionFactoryMixin:
     def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -150,8 +148,6 @@ class HomeworkQuestionFactoryMixin:
             self.question6,
         ]
 
-
-class HomeworkRequestMixin:
     def homework_url(self):
         return reverse(
             "homework",
@@ -177,8 +173,6 @@ class HomeworkRequestMixin:
         self.course.homework_problems_comments_field = True
         self.course.save()
 
-
-class HomeworkOptionExpectationMixin:
     def option(self, value, index, is_selected=False):
         return {
             "value": value,
@@ -201,8 +195,6 @@ class HomeworkOptionExpectationMixin:
             options.append(option)
         return options
 
-
-class HomeworkDisplayAssertionsMixin:
     def assert_unauthenticated_submission_preview(self, response):
         self.assertContains(response, "Log in to submit this homework")
         self.assertContains(response, "Log in to submit", count=2)
@@ -221,8 +213,6 @@ class HomeworkDisplayAssertionsMixin:
         self.assertNotContains(response, "Problems or comments")
         self.assertNotContains(response, "FAQ contribution")
 
-
-class HomeworkSubmissionFixtureMixin:
     def create_enrollment(self):
         self.enrollment = Enrollment.objects.create(
             student=self.user,
@@ -301,7 +291,6 @@ class HomeworkSubmissionFixtureMixin:
         return self.client.post(url, post_data)
 
 
-class HomeworkSubmissionAssertionsMixin:
     def assert_redirects_to_homework(self, response):
         self.assertEqual(response.status_code, 302)
         url = self.homework_url()
@@ -339,8 +328,6 @@ class HomeworkSubmissionAssertionsMixin:
             answer = answers.get(question=question)
             self.assertEqual(answer.answer_text, expected_answer)
 
-
-class HomeworkContextAssertionsMixin:
     def assert_homework_context(self, response, is_authenticated):
         context = response.context
         self.assertEqual(context["course"], self.course)
@@ -418,18 +405,6 @@ class HomeworkContextAssertionsMixin:
             question6_options,
         )
 
-
-class HomeworkDetailViewTestBase(
-    HomeworkViewFixtureMixin,
-    HomeworkQuestionFactoryMixin,
-    HomeworkRequestMixin,
-    HomeworkOptionExpectationMixin,
-    HomeworkDisplayAssertionsMixin,
-    HomeworkSubmissionFixtureMixin,
-    HomeworkSubmissionAssertionsMixin,
-    HomeworkContextAssertionsMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)

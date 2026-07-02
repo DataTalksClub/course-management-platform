@@ -3883,6 +3883,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed public homework view fixture, question factory,
+  request, option, display assertion, submission fixture, submission assertion,
+  and context assertion mixins into the focused `HomeworkDetailViewTestBase`.
+  The homework detail and submission tests keep the same shared setup API
+  without splitting focused test classes. Verification:
+  `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_submission_view`,
+  `uv run ruff check courses/tests/homework_view_base.py courses/tests/test_homework.py courses/tests/test_homework_submission_view.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
