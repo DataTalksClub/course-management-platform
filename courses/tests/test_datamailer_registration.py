@@ -33,188 +33,194 @@ DATAMAILER_SETTINGS = {
 }
 
 
-class DatamailerRegistrationFixtureMixin:
-    def create_ml_course(self):
-        return Course.objects.create(
-            slug="ml-zoomcamp-2026",
-            title="ML Zoomcamp 2026",
-            description="Machine learning",
-        )
-
-    def create_registration(self, course=None, **overrides):
-        course = course or self.create_ml_course()
-        campaign = RegistrationCampaign.objects.create(
-            slug="ml-zoomcamp",
-            title="ML Zoomcamp",
-            current_course=course,
-        )
-        defaults = {
-            "campaign": campaign,
-            "course": course,
-            "email": "Student@Example.com",
-            "name": "Student One",
-            "country": "Germany",
-            "region": "Europe",
-            "role": CourseRegistration.Role.DATA_ENGINEER,
-            "accepted_newsletter": True,
-        }
-        defaults.update(overrides)
-        return CourseRegistration.objects.create(**defaults)
-
-    def create_llm_registration_for_confirmation(self):
-        course = Course.objects.create(
-            slug="llm-zoomcamp-2026",
-            title="LLM Zoomcamp 2026",
-            description="LLM course",
-        )
-        campaign = RegistrationCampaign.objects.create(
-            slug="llm-zoomcamp",
-            title="LLM Zoomcamp",
-            current_course=course,
-        )
-        return CourseRegistration.objects.create(
-            campaign=campaign,
-            course=course,
-            email="Student@Example.com",
-            name="Student One",
-            country="Germany",
-            region="Europe",
-            role=CourseRegistration.Role.DATA_ENGINEER,
-            accepted_newsletter=True,
-        )
+def create_ml_course():
+    return Course.objects.create(
+        slug="ml-zoomcamp-2026",
+        title="ML Zoomcamp 2026",
+        description="Machine learning",
+    )
 
 
-class DatamailerRegistrationConfirmationAssertionsMixin:
-    def configure_registration_confirmation_send_success(self, send):
-        send.return_value = {
-            "message": {
-                "id": "message-id",
-                "status": "queued",
-                "template_key": "registration-confirmation",
-            },
-            "enqueued": True,
-        }
-
-    def assert_registration_confirmation_payload(self, payload, registration):
-        self.assertEqual(payload["email"], "student@example.com")
-        self.assertEqual(payload["template_key"], "registration-confirmation")
-        self.assertEqual(payload["category_tag"], "course-updates")
-        self.assertEqual(
-            payload["idempotency_key"],
-            f"registration-confirmation:{registration.pk}",
-        )
-        self.assertEqual(
-            payload["context"]["registration_url"],
-            "https://courses.example.com/register/llm-zoomcamp/",
-        )
-        self.assertEqual(
-            payload["context"]["course_url"],
-            "https://courses.example.com/llm-zoomcamp-2026/",
-        )
-        self.assertEqual(payload["metadata"]["event"], "course_registration")
-        self.assertEqual(
-            payload["metadata"]["preference_key"],
-            "email_course_updates",
-        )
-
-    def assert_registration_confirmation_audit(self):
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(
-            audit.send_type,
-            DatamailerSendAuditType.TRANSACTIONAL,
-        )
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(audit.template_key, "registration-confirmation")
-        self.assertEqual(audit.category_tag, "course-updates")
-        self.assertEqual(audit.event, "course_registration")
+def create_registration(course=None, **overrides):
+    course = course or create_ml_course()
+    campaign = RegistrationCampaign.objects.create(
+        slug="ml-zoomcamp",
+        title="ML Zoomcamp",
+        current_course=course,
+    )
+    defaults = {
+        "campaign": campaign,
+        "course": course,
+        "email": "Student@Example.com",
+        "name": "Student One",
+        "country": "Germany",
+        "region": "Europe",
+        "role": CourseRegistration.Role.DATA_ENGINEER,
+        "accepted_newsletter": True,
+    }
+    defaults.update(overrides)
+    return CourseRegistration.objects.create(**defaults)
 
 
-class DatamailerRegistrationSyncAssertionsMixin:
-    def assert_registration_contact_synced(self, upsert_contact):
-        upsert_contact.assert_called_once()
-        self.assertEqual(
-            upsert_contact.call_args.args[0]["tags"],
-            ["course-ml-zoomcamp", "course-cohort-ml-zoomcamp-2026"],
-        )
-
-    def assert_registration_member_synced(self, upsert_member, registration):
-        upsert_member.assert_called_once()
-        expected_list_key = registration_list_key(registration)
-        self.assertEqual(
-            upsert_member.call_args.args[0],
-            expected_list_key,
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[1],
-            f"registration:{registration.pk}",
-        )
-        self.assertEqual(
-            upsert_member.call_args.args[2]["member"]["email"],
-            "student@example.com",
-        )
-
-    def assert_registration_outbox_event(self, registration):
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(
-            event.event_type,
-            "recipient_list.member_upsert",
-        )
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(event.ordering_key, "email:student@example.com")
-        expected_list_key = registration_list_key(registration)
-        self.assertEqual(
-            event.payload["list_key"], expected_list_key
-        )
-        self.assertEqual(
-            event.payload["source_object_key"],
-            f"registration:{registration.pk}",
-        )
-
-    def assert_registration_member_removed(self, remove_member, registration):
-        remove_member.assert_called_once()
-        expected_list_key = registration_list_key(registration)
-        self.assertEqual(
-            remove_member.call_args.args[0],
-            expected_list_key,
-        )
-        self.assertEqual(
-            remove_member.call_args.args[1],
-            f"registration:{registration.pk}",
-        )
-        event = DatamailerOutboxEvent.objects.get()
-        self.assertEqual(
-            event.event_type,
-            "recipient_list.member_remove",
-        )
-        self.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
-        self.assertEqual(
-            event.payload["member_payload"]["member"]["status"],
-            "removed",
-        )
+def create_llm_registration_for_confirmation():
+    course = Course.objects.create(
+        slug="llm-zoomcamp-2026",
+        title="LLM Zoomcamp 2026",
+        description="LLM course",
+    )
+    campaign = RegistrationCampaign.objects.create(
+        slug="llm-zoomcamp",
+        title="LLM Zoomcamp",
+        current_course=course,
+    )
+    return CourseRegistration.objects.create(
+        campaign=campaign,
+        course=course,
+        email="Student@Example.com",
+        name="Student One",
+        country="Germany",
+        region="Europe",
+        role=CourseRegistration.Role.DATA_ENGINEER,
+        accepted_newsletter=True,
+    )
 
 
-class DatamailerRegistrationConfirmationPayloadTest(
-    DatamailerRegistrationFixtureMixin,
-    DatamailerRegistrationConfirmationAssertionsMixin,
-    TestCase,
+def configure_registration_confirmation_send_success(send):
+    send.return_value = {
+        "message": {
+            "id": "message-id",
+            "status": "queued",
+            "template_key": "registration-confirmation",
+        },
+        "enqueued": True,
+    }
+
+
+def assert_registration_confirmation_payload(
+    test_case,
+    payload,
+    registration,
 ):
+    test_case.assertEqual(payload["email"], "student@example.com")
+    test_case.assertEqual(payload["template_key"], "registration-confirmation")
+    test_case.assertEqual(payload["category_tag"], "course-updates")
+    test_case.assertEqual(
+        payload["idempotency_key"],
+        f"registration-confirmation:{registration.pk}",
+    )
+    test_case.assertEqual(
+        payload["context"]["registration_url"],
+        "https://courses.example.com/register/llm-zoomcamp/",
+    )
+    test_case.assertEqual(
+        payload["context"]["course_url"],
+        "https://courses.example.com/llm-zoomcamp-2026/",
+    )
+    test_case.assertEqual(payload["metadata"]["event"], "course_registration")
+    test_case.assertEqual(
+        payload["metadata"]["preference_key"],
+        "email_course_updates",
+    )
+
+
+def assert_registration_confirmation_audit(test_case):
+    audit = DatamailerSendAudit.objects.get()
+    test_case.assertEqual(
+        audit.send_type,
+        DatamailerSendAuditType.TRANSACTIONAL,
+    )
+    test_case.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+    test_case.assertEqual(audit.template_key, "registration-confirmation")
+    test_case.assertEqual(audit.category_tag, "course-updates")
+    test_case.assertEqual(audit.event, "course_registration")
+
+
+def assert_registration_contact_synced(test_case, upsert_contact):
+    upsert_contact.assert_called_once()
+    test_case.assertEqual(
+        upsert_contact.call_args.args[0]["tags"],
+        ["course-ml-zoomcamp", "course-cohort-ml-zoomcamp-2026"],
+    )
+
+
+def assert_registration_member_synced(
+    test_case,
+    upsert_member,
+    registration,
+):
+    upsert_member.assert_called_once()
+    expected_list_key = registration_list_key(registration)
+    test_case.assertEqual(
+        upsert_member.call_args.args[0],
+        expected_list_key,
+    )
+    test_case.assertEqual(
+        upsert_member.call_args.args[1],
+        f"registration:{registration.pk}",
+    )
+    test_case.assertEqual(
+        upsert_member.call_args.args[2]["member"]["email"],
+        "student@example.com",
+    )
+
+
+def assert_registration_outbox_event(test_case, registration):
+    event = DatamailerOutboxEvent.objects.get()
+    test_case.assertEqual(
+        event.event_type,
+        "recipient_list.member_upsert",
+    )
+    test_case.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+    test_case.assertEqual(event.ordering_key, "email:student@example.com")
+    expected_list_key = registration_list_key(registration)
+    test_case.assertEqual(event.payload["list_key"], expected_list_key)
+    test_case.assertEqual(
+        event.payload["source_object_key"],
+        f"registration:{registration.pk}",
+    )
+
+
+def assert_registration_member_removed(
+    test_case,
+    remove_member,
+    registration,
+):
+    remove_member.assert_called_once()
+    expected_list_key = registration_list_key(registration)
+    test_case.assertEqual(
+        remove_member.call_args.args[0],
+        expected_list_key,
+    )
+    test_case.assertEqual(
+        remove_member.call_args.args[1],
+        f"registration:{registration.pk}",
+    )
+    event = DatamailerOutboxEvent.objects.get()
+    test_case.assertEqual(
+        event.event_type,
+        "recipient_list.member_remove",
+    )
+    test_case.assertEqual(event.status, DatamailerOutboxStatus.ACKED)
+    test_case.assertEqual(
+        event.payload["member_payload"]["member"]["status"],
+        "removed",
+    )
+
+
+class DatamailerRegistrationConfirmationPayloadTest(TestCase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_registration_confirmation_payload(self):
-        registration = self.create_llm_registration_for_confirmation()
+        registration = create_llm_registration_for_confirmation()
 
         payload = registration_confirmation_payload(registration)
 
-        self.assert_registration_confirmation_payload(payload, registration)
+        assert_registration_confirmation_payload(self, payload, registration)
 
 
-class DatamailerRegistrationConfirmationSendTest(
-    DatamailerRegistrationFixtureMixin,
-    DatamailerRegistrationConfirmationAssertionsMixin,
-    TestCase,
-):
+class DatamailerRegistrationConfirmationSendTest(TestCase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -225,25 +231,22 @@ class DatamailerRegistrationConfirmationSendTest(
     def test_send_registration_confirmation_email_uses_transactional_send(
         self, send
     ):
-        self.configure_registration_confirmation_send_success(send)
-        registration = self.create_llm_registration_for_confirmation()
+        configure_registration_confirmation_send_success(send)
+        registration = create_llm_registration_for_confirmation()
 
         result = send_registration_confirmation_email(registration)
 
         self.assertEqual(result["message"]["id"], "message-id")
         send.assert_called_once()
-        self.assert_registration_confirmation_payload(
+        assert_registration_confirmation_payload(
+            self,
             send.call_args.args[0],
             registration,
         )
-        self.assert_registration_confirmation_audit()
+        assert_registration_confirmation_audit(self)
 
 
-class DatamailerRegistrationMembershipSyncTest(
-    DatamailerRegistrationFixtureMixin,
-    DatamailerRegistrationSyncAssertionsMixin,
-    TestCase,
-):
+class DatamailerRegistrationMembershipSyncTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
@@ -256,20 +259,16 @@ class DatamailerRegistrationMembershipSyncTest(
         upsert_contact,
         upsert_member,
     ):
-        registration = self.create_registration()
+        registration = create_registration()
 
         sync_registration_to_datamailer(registration)
 
-        self.assert_registration_contact_synced(upsert_contact)
-        self.assert_registration_member_synced(upsert_member, registration)
-        self.assert_registration_outbox_event(registration)
+        assert_registration_contact_synced(self, upsert_contact)
+        assert_registration_member_synced(self, upsert_member, registration)
+        assert_registration_outbox_event(self, registration)
 
 
-class DatamailerRegistrationMembershipRemovalTest(
-    DatamailerRegistrationFixtureMixin,
-    DatamailerRegistrationSyncAssertionsMixin,
-    TestCase,
-):
+class DatamailerRegistrationMembershipRemovalTest(TestCase):
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.remove"
@@ -278,8 +277,8 @@ class DatamailerRegistrationMembershipRemovalTest(
         self,
         remove_member,
     ):
-        registration = self.create_registration()
+        registration = create_registration()
 
         remove_registration_from_datamailer(registration)
 
-        self.assert_registration_member_removed(remove_member, registration)
+        assert_registration_member_removed(self, remove_member, registration)

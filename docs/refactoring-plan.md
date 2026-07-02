@@ -3449,6 +3449,16 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed local Datamailer registration test mixins by moving
+  registration fixtures, confirmation assertions, and membership assertions to
+  module helpers, leaving concrete registration tests as direct `TestCase`
+  subclasses. Verification:
+  `uv run python manage.py test courses.tests.test_datamailer_registration`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
