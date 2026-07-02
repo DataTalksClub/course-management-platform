@@ -3066,6 +3066,11 @@ Steps:
   creation, update, deletion, and mutation-auth modules. Verification:
   `uv run ruff check api/tests/question_api_base.py api/tests/test_questions.py api/tests/test_question_creation.py api/tests/test_question_updates.py api/tests/test_question_deletion.py api/tests/test_question_auth.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_questions api.tests.test_question_creation api.tests.test_question_updates api.tests.test_question_deletion api.tests.test_question_auth`.
+- [x] Split Datamailer outbox tests into shared outbox fixtures, retry-status,
+  contact erase, membership processing, and status-command modules.
+  Verification:
+  `uv run ruff check courses/tests/datamailer_outbox_base.py courses/tests/test_datamailer_outbox.py courses/tests/test_datamailer_outbox_contacts.py courses/tests/test_datamailer_outbox_memberships.py courses/tests/test_datamailer_outbox_status_commands.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_datamailer_outbox courses.tests.test_datamailer_outbox_contacts courses.tests.test_datamailer_outbox_memberships courses.tests.test_datamailer_outbox_status_commands`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
