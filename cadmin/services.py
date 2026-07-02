@@ -75,7 +75,10 @@ def update_project_submission_from_admin(submission, cleaned_data):
             cleaned_data["criteria_scores"],
         )
         apply_project_submission_admin_scores(submission, cleaned_data)
-        apply_project_submission_admin_status(submission, cleaned_data)
+        submission.reviewed_enough_peers = cleaned_data[
+            "reviewed_enough_peers"
+        ]
+        submission.passed = cleaned_data["passed"]
         submission.total_score = (
             submission.project_score
             + submission.project_faq_score
@@ -107,8 +110,3 @@ def apply_project_submission_admin_scores(submission, cleaned_data):
     submission.peer_review_learning_in_public_score = cleaned_data[
         "peer_review_learning_in_public_score"
     ]
-
-
-def apply_project_submission_admin_status(submission, cleaned_data):
-    submission.reviewed_enough_peers = cleaned_data["reviewed_enough_peers"]
-    submission.passed = cleaned_data["passed"]
