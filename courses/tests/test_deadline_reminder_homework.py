@@ -8,14 +8,13 @@ from courses.tests.deadline_reminder_base import (
     DeadlineReminderTestBase,
 )
 from courses.tests.deadline_reminder_homework import (
-    HomeworkReminderTestMixin,
+    assert_homework_reminder_audit,
+    assert_homework_reminder_payload,
+    create_homework_reminder_fixture,
 )
 
 
-class HomeworkDeadlineReminderCommandTest(
-    HomeworkReminderTestMixin,
-    DeadlineReminderTestBase,
-):
+class HomeworkDeadlineReminderCommandTest(DeadlineReminderTestBase):
     @override_settings(
         **DATAMAILER_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
@@ -26,10 +25,10 @@ class HomeworkDeadlineReminderCommandTest(
     def test_homework_deadline_reminder_sends_transient_eligible_learners(
         self,
         send_transient,
-    ):
+        ):
         now = self.reminder_run_time()
         send_transient.return_value = {"enqueued_count": 1}
-        fixture = self.create_homework_reminder_fixture(now)
+        fixture = create_homework_reminder_fixture(self, now)
 
         out = StringIO()
         self.run_deadline_reminders(now, stdout=out)
@@ -41,8 +40,9 @@ class HomeworkDeadlineReminderCommandTest(
         )
         send_transient.assert_called_once()
         payload = send_transient.call_args.args[0]
-        self.assert_homework_reminder_payload(
+        assert_homework_reminder_payload(
+            self,
             payload,
             fixture,
         )
-        self.assert_homework_reminder_audit(fixture.homework)
+        assert_homework_reminder_audit(self, fixture.homework)

@@ -30,164 +30,178 @@ class HomeworkReminderEnrollments:
     opted_out_enrollment: Enrollment
 
 
-class HomeworkReminderTestMixin:
-    def create_homework(self, course, now):
-        return Homework.objects.create(
-            course=course,
-            slug="homework-1",
-            title="Homework 1",
-            due_date=now + timedelta(days=1, hours=14),
-        )
+def create_homework(course, now):
+    return Homework.objects.create(
+        course=course,
+        slug="homework-1",
+        title="Homework 1",
+        due_date=now + timedelta(days=1, hours=14),
+    )
 
-    def create_homework_reminder_users(self):
-        eligible_user = self.create_user(
-            "eligible",
-            "eligible@example.com",
-            preferred_timezone="Europe/Berlin",
-        )
-        submitted_user = self.create_user(
-            "submitted",
-            "submitted@example.com",
-        )
-        opted_out_user = self.create_user(
-            "opted-out",
-            "opted-out@example.com",
-        )
-        return HomeworkReminderUsers(
-            eligible_user=eligible_user,
-            submitted_user=submitted_user,
-            opted_out_user=opted_out_user,
-        )
 
-    def create_homework_reminder_enrollments(self, course, users):
-        eligible_enrollment = self.create_enrollment(
-            users.eligible_user,
-            course,
-        )
-        submitted_enrollment = self.create_enrollment(
-            users.submitted_user,
-            course,
-        )
-        opted_out_enrollment = self.create_enrollment(
-            users.opted_out_user,
-            course,
-        )
-        return HomeworkReminderEnrollments(
-            eligible_enrollment=eligible_enrollment,
-            submitted_enrollment=submitted_enrollment,
-            opted_out_enrollment=opted_out_enrollment,
-        )
+def create_homework_reminder_users(test_case):
+    eligible_user = test_case.create_user(
+        "eligible",
+        "eligible@example.com",
+        preferred_timezone="Europe/Berlin",
+    )
+    submitted_user = test_case.create_user(
+        "submitted",
+        "submitted@example.com",
+    )
+    opted_out_user = test_case.create_user(
+        "opted-out",
+        "opted-out@example.com",
+    )
+    return HomeworkReminderUsers(
+        eligible_user=eligible_user,
+        submitted_user=submitted_user,
+        opted_out_user=opted_out_user,
+    )
 
-    def create_submitted_homework(self, homework, user, enrollment):
-        Submission.objects.create(
-            homework=homework,
-            student=user,
-            enrollment=enrollment,
-        )
 
-    def create_homework_reminder_fixture(self, now):
-        course = self.create_course()
-        homework = self.create_homework(course, now)
-        users = self.create_homework_reminder_users()
-        enrollments = self.create_homework_reminder_enrollments(
-            course,
-            users,
-        )
-        self.create_submitted_homework(
-            homework,
-            users.submitted_user,
-            enrollments.submitted_enrollment,
-        )
-        return HomeworkReminderFixture(
-            homework=homework,
-            eligible_enrollment=enrollments.eligible_enrollment,
-            opted_out_enrollment=enrollments.opted_out_enrollment,
-        )
+def create_homework_reminder_enrollments(test_case, course, users):
+    eligible_enrollment = test_case.create_enrollment(
+        users.eligible_user,
+        course,
+    )
+    submitted_enrollment = test_case.create_enrollment(
+        users.submitted_user,
+        course,
+    )
+    opted_out_enrollment = test_case.create_enrollment(
+        users.opted_out_user,
+        course,
+    )
+    return HomeworkReminderEnrollments(
+        eligible_enrollment=eligible_enrollment,
+        submitted_enrollment=submitted_enrollment,
+        opted_out_enrollment=opted_out_enrollment,
+    )
 
-    def assert_homework_reminder_list(self, payload):
-        self.assertEqual(
-            payload["list"]["key"],
-            "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
-        )
-        self.assertEqual(
-            payload["list"]["name"],
-            "ML Zoomcamp 2026 Homework 1 24h deadline reminders",
-        )
-        self.assertEqual(
-            payload["list"]["metadata"]["deadline_kind"],
-            "homework",
-        )
 
-    def assert_homework_reminder_members(
-        self,
+def create_submitted_homework(homework, user, enrollment):
+    Submission.objects.create(
+        homework=homework,
+        student=user,
+        enrollment=enrollment,
+    )
+
+
+def create_homework_reminder_fixture(test_case, now):
+    course = test_case.create_course()
+    homework = create_homework(course, now)
+    users = create_homework_reminder_users(test_case)
+    enrollments = create_homework_reminder_enrollments(
+        test_case,
+        course,
+        users,
+    )
+    create_submitted_homework(
+        homework,
+        users.submitted_user,
+        enrollments.submitted_enrollment,
+    )
+    return HomeworkReminderFixture(
+        homework=homework,
+        eligible_enrollment=enrollments.eligible_enrollment,
+        opted_out_enrollment=enrollments.opted_out_enrollment,
+    )
+
+
+def assert_homework_reminder_list(test_case, payload):
+    test_case.assertEqual(
+        payload["list"]["key"],
+        "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
+    )
+    test_case.assertEqual(
+        payload["list"]["name"],
+        "ML Zoomcamp 2026 Homework 1 24h deadline reminders",
+    )
+    test_case.assertEqual(
+        payload["list"]["metadata"]["deadline_kind"],
+        "homework",
+    )
+
+
+def assert_homework_reminder_members(
+    test_case,
+    members_by_email,
+    expectation,
+):
+    expected_emails = {"eligible@example.com", "opted-out@example.com"}
+    test_case.assertEqual(set(members_by_email), expected_emails)
+    eligible_member = members_by_email["eligible@example.com"]
+    opted_out_member = members_by_email["opted-out@example.com"]
+    test_case.assertEqual(
+        eligible_member["source_object_key"],
+        f"enrollment:{expectation.eligible_enrollment.pk}",
+    )
+    test_case.assertEqual(
+        opted_out_member["source_object_key"],
+        f"enrollment:{expectation.opted_out_enrollment.pk}",
+    )
+
+
+def assert_homework_reminder_idempotency(test_case, payload, expectation):
+    test_case.assertEqual(
+        payload["idempotency_key"],
+        f"deadline-reminder:homework:{expectation.homework.pk}:24h",
+    )
+
+
+def assert_homework_reminder_payload(test_case, payload, expectation):
+    assert_homework_reminder_list(test_case, payload)
+    members_by_email = test_case.members_by_email(payload)
+    assert_homework_reminder_members(
+        test_case,
         members_by_email,
         expectation,
-    ):
-        expected_emails = {"eligible@example.com", "opted-out@example.com"}
-        self.assertEqual(set(members_by_email), expected_emails)
-        eligible_member = members_by_email["eligible@example.com"]
-        opted_out_member = members_by_email["opted-out@example.com"]
-        self.assertEqual(
-            eligible_member["source_object_key"],
-            f"enrollment:{expectation.eligible_enrollment.pk}",
-        )
-        self.assertEqual(
-            opted_out_member["source_object_key"],
-            f"enrollment:{expectation.opted_out_enrollment.pk}",
-        )
+    )
+    assert_homework_reminder_context(test_case, payload, members_by_email)
+    assert_homework_reminder_idempotency(test_case, payload, expectation)
 
-    def assert_homework_reminder_idempotency(self, payload, expectation):
-        self.assertEqual(
-            payload["idempotency_key"],
-            f"deadline-reminder:homework:{expectation.homework.pk}:24h",
-        )
 
-    def assert_homework_reminder_payload(self, payload, expectation):
-        self.assert_homework_reminder_list(payload)
-        members_by_email = self.members_by_email(payload)
-        self.assert_homework_reminder_members(members_by_email, expectation)
-        self.assert_homework_reminder_context(payload, members_by_email)
-        self.assert_homework_reminder_idempotency(payload, expectation)
+def assert_homework_reminder_context(test_case, payload, members_by_email):
+    test_case.assertEqual(
+        members_by_email["eligible@example.com"]["metadata"]["deadline_at"],
+        "Thursday, 18 June 2026, 01:00 Europe/Berlin",
+    )
+    test_case.assertEqual(
+        members_by_email["eligible@example.com"]["metadata"][
+            "deadline_timezone"
+        ],
+        "Europe/Berlin",
+    )
+    test_case.assertEqual(payload["template_key"], "deadline-reminder")
+    test_case.assertEqual(payload["category_tag"], "deadline-reminders")
+    test_case.assertEqual(
+        payload["context"]["action_url"],
+        "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
+    )
+    test_case.assertEqual(
+        payload["context"]["deadline_at"],
+        "Wednesday, 17 June 2026, 23:00 UTC",
+    )
 
-    def assert_homework_reminder_context(self, payload, members_by_email):
-        self.assertEqual(
-            members_by_email["eligible@example.com"]["metadata"]["deadline_at"],
-            "Thursday, 18 June 2026, 01:00 Europe/Berlin",
-        )
-        self.assertEqual(
-            members_by_email["eligible@example.com"]["metadata"][
-                "deadline_timezone"
-            ],
-            "Europe/Berlin",
-        )
-        self.assertEqual(payload["template_key"], "deadline-reminder")
-        self.assertEqual(payload["category_tag"], "deadline-reminders")
-        self.assertEqual(
-            payload["context"]["action_url"],
-            "https://courses.example.com/ml-zoomcamp-2026/homework/homework-1",
-        )
-        self.assertEqual(
-            payload["context"]["deadline_at"],
-            "Wednesday, 17 June 2026, 23:00 UTC",
-        )
 
-    def assert_homework_reminder_audit(self, homework):
-        audit = DatamailerSendAudit.objects.get()
-        self.assertEqual(
-            audit.send_type,
-            DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
-        )
-        self.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
-        self.assertEqual(
-            audit.idempotency_key,
-            f"deadline-reminder:homework:{homework.pk}:24h",
-        )
-        self.assertEqual(audit.template_key, "deadline-reminder")
-        self.assertEqual(audit.category_tag, "deadline-reminders")
-        self.assertEqual(audit.event, "deadline_reminder")
-        self.assertEqual(
-            audit.list_key,
-            "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
-        )
-        self.assertEqual(audit.intended_count, 2)
-        self.assertEqual(audit.enqueued_count, 1)
+def assert_homework_reminder_audit(test_case, homework):
+    audit = DatamailerSendAudit.objects.get()
+    test_case.assertEqual(
+        audit.send_type,
+        DatamailerSendAuditType.TRANSIENT_RECIPIENT_LIST,
+    )
+    test_case.assertEqual(audit.status, DatamailerSendAuditStatus.SUCCEEDED)
+    test_case.assertEqual(
+        audit.idempotency_key,
+        f"deadline-reminder:homework:{homework.pk}:24h",
+    )
+    test_case.assertEqual(audit.template_key, "deadline-reminder")
+    test_case.assertEqual(audit.category_tag, "deadline-reminders")
+    test_case.assertEqual(audit.event, "deadline_reminder")
+    test_case.assertEqual(
+        audit.list_key,
+        "deadline-reminders:homework:ml-zoomcamp-2026:homework-1:24h",
+    )
+    test_case.assertEqual(audit.intended_count, 2)
+    test_case.assertEqual(audit.enqueued_count, 1)

@@ -3496,6 +3496,16 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the homework deadline-reminder test mixin by moving
+  homework reminder fixtures, payload assertions, and audit assertions to
+  module helpers, leaving the concrete command test with only the
+  deadline-reminder base. Verification:
+  `uv run python manage.py test courses.tests.test_deadline_reminder_homework`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
