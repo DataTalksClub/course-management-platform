@@ -61,35 +61,3 @@ class CourseCriteriaYAMLTestBase(TestCase):
         self.assertEqual(content_type, "text/plain; charset=utf-8")
         content = response.content.decode("utf-8")
         return yaml.safe_load(content)
-
-
-class CourseCriteriaYAMLAssertionMixin:
-    def assert_course_data(self, parsed_data, course):
-        course_data = parsed_data["course"]
-        self.assertEqual(course_data["slug"], course.slug)
-        self.assertEqual(course_data["title"], course.title)
-
-    def assert_code_quality_criteria(self, criteria):
-        self.assertEqual(criteria["description"], "Code Quality")
-        self.assertEqual(criteria["type"], "Radio Buttons")
-        self.assertEqual(criteria["review_criteria_type"], "RB")
-        self.assertEqual(len(criteria["options"]), 3)
-        self.assertEqual(criteria["options"][0]["criteria"], "Poor")
-        self.assertEqual(criteria["options"][0]["score"], 0)
-
-    def assert_features_criteria(self, criteria):
-        self.assertEqual(criteria["description"], "Features Implemented")
-        self.assertEqual(criteria["type"], "Checkboxes")
-        self.assertEqual(criteria["review_criteria_type"], "CB")
-        self.assertEqual(len(criteria["options"]), 3)
-
-    def assert_yaml_structure(self, parsed_data):
-        self.assertIn("course", parsed_data)
-        self.assertIn("review_criteria", parsed_data)
-
-
-class CourseCriteriaYAMLViewTestBase(
-    CourseCriteriaYAMLAssertionMixin,
-    CourseCriteriaYAMLTestBase,
-):
-    """Shared base for course criteria YAML endpoint tests."""

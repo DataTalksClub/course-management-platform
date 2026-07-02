@@ -5,10 +5,10 @@ from django.urls import reverse
 
 from courses.models import Course
 
-from .course_criteria_base import CourseCriteriaYAMLViewTestBase
+from .course_criteria_base import CourseCriteriaYAMLTestBase
 
 
-class CourseCriteriaYAMLEdgeViewTestCase(CourseCriteriaYAMLViewTestBase):
+class CourseCriteriaYAMLEdgeViewTestCase(CourseCriteriaYAMLTestBase):
     def test_course_criteria_yaml_view_no_criteria(self):
         empty_course = Course.objects.create(
             title="Empty Course",

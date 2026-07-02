@@ -3584,6 +3584,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Removed the course-criteria YAML assertion mixin and the
+  now-trivial view-test base wrapper. Course criteria tests now use the real
+  YAML setup/request base directly, with endpoint-specific assertions kept in
+  the concrete test module. Verification:
+  `uv run python manage.py test data.tests.test_course data.tests.test_course_criteria_yaml_edges`,
+  `uv run ruff check data/tests/course_criteria_base.py data/tests/test_course.py data/tests/test_course_criteria_yaml_edges.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
