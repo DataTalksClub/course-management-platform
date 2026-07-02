@@ -3057,6 +3057,11 @@ Steps:
   access, list, admin-link, and hidden-answer modules. Verification:
   `uv run ruff check courses/tests/homework_submissions_base.py courses/tests/test_homework_submissions.py courses/tests/test_homework_submissions_list.py courses/tests/test_homework_submissions_admin_link.py courses/tests/test_homework_submissions_hidden_answers.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_homework_submissions courses.tests.test_homework_submissions_list courses.tests.test_homework_submissions_admin_link courses.tests.test_homework_submissions_hidden_answers`.
+- [x] Split project submission view tests into shared project-submission
+  helpers, save/update/delete, confirmation, and invalid/closed modules.
+  Verification:
+  `uv run ruff check courses/tests/project_submission_view_base.py courses/tests/test_project_submission_view.py courses/tests/test_project_submission_confirmation.py courses/tests/test_project_submission_invalid.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_project_submission_view courses.tests.test_project_submission_confirmation courses.tests.test_project_submission_invalid`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
