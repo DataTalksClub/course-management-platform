@@ -8,13 +8,6 @@ def visible_wrapped_statistics(year: int) -> WrappedStatistics | None:
         return None
 
 
-def wrapped_no_data_context(year: int) -> dict:
-    return {
-        "year": year,
-        "no_data": True,
-    }
-
-
 def platform_stats_context(wrapped_stats: WrappedStatistics) -> dict:
     course_stats = wrapped_stats.course_stats[:4]
     if not wrapped_stats.course_stats:
@@ -81,17 +74,6 @@ def wrapped_page_context(request, year: int, wrapped_stats) -> dict:
     )
     context.update(current_user_context)
     return context
-
-
-def user_wrapped_no_activity_context(year: int, user) -> dict:
-    display_name = user.get_username()
-    return {
-        "year": year,
-        "user": user,
-        "viewed_user": user,
-        "display_name": display_name,
-        "no_activity": True,
-    }
 
 
 def get_user_wrapped_statistics(year: int, user):

@@ -5,9 +5,7 @@ from django.shortcuts import render, get_object_or_404
 from courses.views.wrapped_context import (
     get_user_wrapped_statistics,
     shareable_user_wrapped_context,
-    user_wrapped_no_activity_context,
     visible_wrapped_statistics,
-    wrapped_no_data_context,
     wrapped_page_context,
 )
 
@@ -23,7 +21,10 @@ def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
     """
     wrapped_stats = visible_wrapped_statistics(year)
     if wrapped_stats is None:
-        context = wrapped_no_data_context(year)
+        context = {
+            "year": year,
+            "no_data": True,
+        }
         response = render(
             request,
             "courses/wrapped.html",
@@ -43,13 +44,19 @@ def wrapped_view(request: HttpRequest, year: int) -> HttpResponse:
 def user_wrapped_view(
     request: HttpRequest, year: int, student_id: int
 ) -> HttpResponse:
-    """Individual user wrapped page for sharing on social media - only shows pre-calculated data"""
     User = get_user_model()
     user = get_object_or_404(User, id=student_id)
 
     user_wrapped = get_user_wrapped_statistics(year, user)
     if user_wrapped is None:
-        context = user_wrapped_no_activity_context(year, user)
+        display_name = user.get_username()
+        context = {
+            "year": year,
+            "user": user,
+            "viewed_user": user,
+            "display_name": display_name,
+            "no_activity": True,
+        }
         response = render(
             request,
             "courses/user_wrapped.html",
