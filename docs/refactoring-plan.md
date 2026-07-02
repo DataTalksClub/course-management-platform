@@ -3048,6 +3048,11 @@ Steps:
   detail, update, and mutation-auth modules. Verification:
   `uv run ruff check api/tests/course_api_base.py api/tests/test_courses.py api/tests/test_course_creation.py api/tests/test_course_detail.py api/tests/test_course_updates.py api/tests/test_course_auth.py docs/refactoring-plan.md`,
   `uv run python manage.py test api.tests.test_courses api.tests.test_course_creation api.tests.test_course_detail api.tests.test_course_updates api.tests.test_course_auth`.
+- [x] Split leaderboard tests into shared leaderboard fixtures, score/cache,
+  pagination, current-student, and score-breakdown admin modules.
+  Verification:
+  `uv run ruff check courses/tests/leaderboard_base.py courses/tests/test_leaderboard.py courses/tests/test_leaderboard_pagination.py courses/tests/test_leaderboard_current_student.py courses/tests/test_leaderboard_score_breakdown_admin.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_leaderboard courses.tests.test_leaderboard_pagination courses.tests.test_leaderboard_current_student courses.tests.test_leaderboard_score_breakdown_admin`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
