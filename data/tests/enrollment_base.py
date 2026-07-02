@@ -57,13 +57,11 @@ class CertificateNotificationScenario:
     second_enrollment: Enrollment
 
 
-class EnrollmentCourseFixtureMixin:
+class EnrollmentDataAPIBase(TestCase):
     def require_two_projects_to_pass(self):
         self.course.min_projects_to_pass = 2
         self.course.save()
 
-
-class EnrollmentUserFixtureMixin:
     def configure_certificate_user(self):
         self.user.email = "student1@example.com"
         self.user.certificate_name = "Student One"
@@ -97,8 +95,6 @@ class EnrollmentUserFixtureMixin:
             password="password",
         )
 
-
-class EnrollmentProjectFixtureMixin:
     def create_saved_project(self, slug, title):
         now = timezone.now()
         submission_due_date = now + timezone.timedelta(days=7)
@@ -165,8 +161,6 @@ class EnrollmentProjectFixtureMixin:
             course=self.course,
         )
 
-
-class EnrollmentURLMixin:
     def graduates_url(self):
         return reverse(
             "api_course_graduates",
@@ -179,8 +173,6 @@ class EnrollmentURLMixin:
             kwargs={"course_slug": self.course.slug},
         )
 
-
-class EnrollmentCertificateRequestMixin:
     def post_certificates(self, data):
         url = self.certificate_url()
         body = json.dumps(data)
@@ -242,8 +234,6 @@ class EnrollmentCertificateRequestMixin:
             response = self.post_certificates(data)
         return response
 
-
-class EnrollmentCertificateAssertionsMixin:
     def assert_certificate_update_result(
         self,
         data: CertificateUpdateExpectation,
@@ -257,16 +247,6 @@ class EnrollmentCertificateAssertionsMixin:
         enrollment.refresh_from_db()
         self.assertEqual(enrollment.certificate_url, certificate_url)
 
-
-class EnrollmentDataAPIBase(
-    EnrollmentCourseFixtureMixin,
-    EnrollmentUserFixtureMixin,
-    EnrollmentProjectFixtureMixin,
-    EnrollmentURLMixin,
-    EnrollmentCertificateRequestMixin,
-    EnrollmentCertificateAssertionsMixin,
-    TestCase,
-):
     def setUp(self):
         self.user = CustomUser.objects.create(
             username="testuser",

@@ -3617,6 +3617,18 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed enrollment data API course, user, project, URL,
+  certificate-request, and certificate-assertion mixins into the focused
+  `EnrollmentDataAPIBase`. Enrollment graduate, certificate, notification, and
+  passed-enrollment tests keep the same helper API without a mixin inheritance
+  chain. Verification:
+  `uv run python manage.py test data.tests.test_enrollment data.tests.test_enrollment_passed data.tests.test_enrollment_certificates data.tests.test_enrollment_certificate_notifications`,
+  `uv run ruff check data/tests/enrollment_base.py data/tests/test_enrollment.py data/tests/test_enrollment_passed.py data/tests/test_enrollment_certificates.py data/tests/test_enrollment_certificate_notifications.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
