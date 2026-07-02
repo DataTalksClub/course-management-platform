@@ -44,7 +44,7 @@ class QuestionData:
     answer_type: str | None = None
 
 
-class HomeworkScoringCourseFixtureMixin:
+class HomeworkScoringViewBase(TestCase):
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course"
@@ -62,8 +62,6 @@ class HomeworkScoringCourseFixtureMixin:
             slug="test-homework",
         )
 
-
-class HomeworkScoringQuestionFixtureMixin:
     def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -139,8 +137,6 @@ class HomeworkScoringQuestionFixtureMixin:
             "1,2,3",
         )
 
-
-class HomeworkScoringRequestMixin:
     def homework_url(self):
         kwargs = {
             "course_slug": self.course.slug,
@@ -161,8 +157,6 @@ class HomeworkScoringRequestMixin:
         self.assertTrue(context["is_authenticated"])
         return context
 
-
-class HomeworkScoringSubmissionFixtureMixin:
     def create_enrollment(self):
         self.enrollment = Enrollment.objects.create(
             student=self.user,
@@ -205,8 +199,6 @@ class HomeworkScoringSubmissionFixtureMixin:
         self.create_answers(answers_by_question)
         self.score_homework()
 
-
-class HomeworkScoringAnswerAssertionsMixin:
     def assert_scored_text_answer(self, answer, text):
         self.assertEqual(answer["text"], text)
         self.assertEqual(
@@ -277,15 +269,6 @@ class HomeworkScoringAnswerAssertionsMixin:
         }
         return answers_by_question
 
-
-class HomeworkScoringViewBase(
-    HomeworkScoringCourseFixtureMixin,
-    HomeworkScoringQuestionFixtureMixin,
-    HomeworkScoringRequestMixin,
-    HomeworkScoringSubmissionFixtureMixin,
-    HomeworkScoringAnswerAssertionsMixin,
-    TestCase,
-):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(**credentials)
