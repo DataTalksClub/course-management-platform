@@ -4181,6 +4181,18 @@ Steps:
   `wide_positional_calls=0`, `wide_function_args=0`,
   `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Cleared the remaining concrete test inline assertion calls
+  by naming cadmin impersonation session IDs, Datamailer peer-review counts,
+  Datamailer template keys, and project-statistics error text. Verification:
+  `uv run python manage.py test cadmin.tests.test_impersonation_views courses.tests.test_datamailer_peer_review courses.tests.test_datamailer_templates courses.tests.test_project_statistics_model`,
+  `uv run ruff check cadmin/tests/test_impersonation_views.py courses/tests/test_datamailer_peer_review.py courses/tests/test_datamailer_templates.py courses/tests/test_project_statistics_model.py`,
+  repository inline-assertion scan (`inline_assert_calls=0`),
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`,
+  `nested_wide_for_unpacking=0`, `range_len_loops=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

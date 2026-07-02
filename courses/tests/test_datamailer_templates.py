@@ -18,7 +18,8 @@ EXPECTED_KEYS = {
 
 class DatamailerTemplatesTest(TestCase):
     def test_covers_every_cmp_template_key(self):
-        self.assertEqual(set(TEMPLATES), EXPECTED_KEYS)
+        template_keys = set(TEMPLATES)
+        self.assertEqual(template_keys, EXPECTED_KEYS)
         # Every key CMP references as a constant has a definition here.
         for key in (
             email_templates.REGISTRATION_CONFIRMATION,

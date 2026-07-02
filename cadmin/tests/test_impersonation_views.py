@@ -23,9 +23,10 @@ class LoginAsUserCadminViewTests(ImpersonationCadminViewTestBase):
         url = self.login_as_user_url()
 
         self.client.login(**admin_credentials)
+        admin_user_id = str(self.admin_user.id)
         self.assertEqual(
             self.client.session["_auth_user_id"],
-            str(self.admin_user.id),
+            admin_user_id,
         )
         response = self.client.post(url)
 

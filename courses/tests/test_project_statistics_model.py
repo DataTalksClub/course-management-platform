@@ -38,9 +38,10 @@ class ProjectStatisticsModelTestCase(ProjectStatisticsTestBase):
         with self.assertRaises(ValueError) as context:
             calculate_project_statistics(incomplete_project)
 
+        error_text = str(context.exception)
         self.assertIn(
             "Cannot calculate statistics for uncompleted project",
-            str(context.exception),
+            error_text,
         )
 
     def test_project_statistics_model_methods(self):

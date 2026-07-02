@@ -176,7 +176,8 @@ def assert_berlin_reviewer_assignments(test_case, payload):
     for member in members:
         email = member["email"]
         members_by_email[email] = member
-    test_case.assertEqual(len(members_by_email), 4)
+    members_by_email_count = len(members_by_email)
+    test_case.assertEqual(members_by_email_count, 4)
     reviewer_member = members_by_email["learner-0@example.com"]
     test_case.assertEqual(
         reviewer_member["metadata"]["deadline_summary"],
@@ -191,7 +192,8 @@ def assert_berlin_reviewer_assignments(test_case, payload):
         reviewer_member["metadata"]["assigned_reviews_count"],
         3,
     )
-    test_case.assertEqual(len(assigned), 3)
+    assigned_count = len(assigned)
+    test_case.assertEqual(assigned_count, 3)
     for item in assigned:
         test_case.assertIn(
             f"/ml-zoomcamp-2026/project/project-1/eval/{item['review_id']}",
@@ -287,7 +289,9 @@ class DatamailerPeerReviewNotificationSendTest(TestCase):
             bulk_upsert.call_args.args[0],
             expected_list_key,
         )
-        self.assertEqual(len(bulk_upsert.call_args.args[1]["members"]), 4)
+        bulk_upsert_payload = bulk_upsert.call_args.args[1]
+        members_count = len(bulk_upsert_payload["members"])
+        self.assertEqual(members_count, 4)
         self.assertEqual(
             send_list.call_args.args[0],
             expected_list_key,
