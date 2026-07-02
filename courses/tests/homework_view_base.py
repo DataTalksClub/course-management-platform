@@ -42,7 +42,7 @@ class AnswerPostData:
     question6_answers: list[str] | None = None
 
 
-class HomeworkDetailViewTestBase(TestCase):
+class HomeworkViewFixtureMixin:
     def create_course(self):
         return Course.objects.create(
             title="Test Course", slug="test-course"
@@ -59,6 +59,8 @@ class HomeworkDetailViewTestBase(TestCase):
             slug="test-homework",
         )
 
+
+class HomeworkQuestionFactoryMixin:
     def create_question(self, data):
         return Question.objects.create(
             homework=self.homework,
@@ -148,13 +150,8 @@ class HomeworkDetailViewTestBase(TestCase):
             self.question6,
         ]
 
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(**credentials)
-        self.course = self.create_course()
-        self.homework = self.create_homework()
-        self.create_questions()
 
+class HomeworkRequestMixin:
     def homework_url(self):
         return reverse(
             "homework",
@@ -180,24 +177,8 @@ class HomeworkDetailViewTestBase(TestCase):
         self.course.homework_problems_comments_field = True
         self.course.save()
 
-    def assert_unauthenticated_submission_preview(self, response):
-        self.assertContains(response, "Log in to submit this homework")
-        self.assertContains(response, "Log in to submit", count=2)
-        self.assertContains(response, "You can preview the questions")
-        self.assertNotContains(
-            response, "Log in</a> to see the status of your submission."
-        )
 
-    def assert_submission_fields_hidden(self, response):
-        self.assertNotContains(response, "Submission details")
-        self.assertNotContains(response, "Homework URL")
-        self.assertNotContains(response, "Learning in public links")
-        self.assertNotContains(response, "No learning in public links submitted")
-        self.assertNotContains(response, "Time spent on lectures")
-        self.assertNotContains(response, "Time spent on homework")
-        self.assertNotContains(response, "Problems or comments")
-        self.assertNotContains(response, "FAQ contribution")
-
+class HomeworkOptionExpectationMixin:
     def option(self, value, index, is_selected=False):
         return {
             "value": value,
@@ -220,6 +201,28 @@ class HomeworkDetailViewTestBase(TestCase):
             options.append(option)
         return options
 
+
+class HomeworkDisplayAssertionsMixin:
+    def assert_unauthenticated_submission_preview(self, response):
+        self.assertContains(response, "Log in to submit this homework")
+        self.assertContains(response, "Log in to submit", count=2)
+        self.assertContains(response, "You can preview the questions")
+        self.assertNotContains(
+            response, "Log in</a> to see the status of your submission."
+        )
+
+    def assert_submission_fields_hidden(self, response):
+        self.assertNotContains(response, "Submission details")
+        self.assertNotContains(response, "Homework URL")
+        self.assertNotContains(response, "Learning in public links")
+        self.assertNotContains(response, "No learning in public links submitted")
+        self.assertNotContains(response, "Time spent on lectures")
+        self.assertNotContains(response, "Time spent on homework")
+        self.assertNotContains(response, "Problems or comments")
+        self.assertNotContains(response, "FAQ contribution")
+
+
+class HomeworkSubmissionFixtureMixin:
     def create_enrollment(self):
         self.enrollment = Enrollment.objects.create(
             student=self.user,
@@ -297,6 +300,8 @@ class HomeworkDetailViewTestBase(TestCase):
         url = self.homework_url()
         return self.client.post(url, post_data)
 
+
+class HomeworkSubmissionAssertionsMixin:
     def assert_redirects_to_homework(self, response):
         self.assertEqual(response.status_code, 302)
         url = self.homework_url()
@@ -334,6 +339,8 @@ class HomeworkDetailViewTestBase(TestCase):
             answer = answers.get(question=question)
             self.assertEqual(answer.answer_text, expected_answer)
 
+
+class HomeworkContextAssertionsMixin:
     def assert_homework_context(self, response, is_authenticated):
         context = response.context
         self.assertEqual(context["course"], self.course)
@@ -410,3 +417,22 @@ class HomeworkDetailViewTestBase(TestCase):
             question_answers[5][1]["options"],
             question6_options,
         )
+
+
+class HomeworkDetailViewTestBase(
+    HomeworkViewFixtureMixin,
+    HomeworkQuestionFactoryMixin,
+    HomeworkRequestMixin,
+    HomeworkOptionExpectationMixin,
+    HomeworkDisplayAssertionsMixin,
+    HomeworkSubmissionFixtureMixin,
+    HomeworkSubmissionAssertionsMixin,
+    HomeworkContextAssertionsMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(**credentials)
+        self.course = self.create_course()
+        self.homework = self.create_homework()
+        self.create_questions()

@@ -3139,6 +3139,11 @@ Steps:
   and error-message classes while removing unused logging setup. Verification:
   `uv run ruff check courses/tests/test_unit_url_validation.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_unit_url_validation`.
+- [x] Split the shared homework detail view test base into focused fixture,
+  request, option, submission, and assertion mixins while keeping the public
+  base class stable. Verification:
+  `uv run ruff check courses/tests/homework_view_base.py courses/tests/test_homework.py courses/tests/test_homework_submission_view.py docs/refactoring-plan.md`,
+  `uv run python manage.py test courses.tests.test_homework courses.tests.test_homework_submission_view`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
