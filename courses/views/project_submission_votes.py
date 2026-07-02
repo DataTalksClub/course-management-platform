@@ -18,7 +18,8 @@ def project_vote_response(request, course, project):
 
     submission = _apply_project_vote(request, project)
 
-    if _is_ajax_request(request):
+    requested_with = request.headers.get("x-requested-with")
+    if requested_with == "XMLHttpRequest":
         payload = _project_vote_payload(
             request.user,
             course,
@@ -34,10 +35,6 @@ def project_vote_response(request, course, project):
         project_slug=project.slug,
     )
     return response
-
-
-def _is_ajax_request(request):
-    return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
 
 def _apply_project_vote(request, project):
