@@ -3079,6 +3079,10 @@ Steps:
   status-command modules. Verification:
   `uv run ruff check courses/tests/datamailer_status_base.py courses/tests/test_datamailer_preferences.py courses/tests/test_datamailer_sync_status.py courses/tests/test_datamailer_status.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_datamailer_status courses.tests.test_datamailer_preferences courses.tests.test_datamailer_sync_status`.
+- [x] Split Datamailer webhook tests into shared webhook fixtures, auth/contact,
+  preference, event, and callback-status modules. Verification:
+  `uv run ruff check data/tests/datamailer_webhook_base.py data/tests/test_datamailer_webhook.py data/tests/test_datamailer_webhook_events.py data/tests/test_datamailer_webhook_preferences.py data/tests/test_datamailer_callback_status.py docs/refactoring-plan.md`,
+  `uv run python manage.py test data.tests.test_datamailer_webhook data.tests.test_datamailer_webhook_events data.tests.test_datamailer_webhook_preferences data.tests.test_datamailer_callback_status`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
