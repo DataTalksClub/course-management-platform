@@ -3044,6 +3044,10 @@ Steps:
   Verification:
   `uv run ruff check courses/tests/test_unit_scoring.py courses/tests/test_unit_scoring_choice.py courses/tests/test_unit_scoring_free_form_strings.py courses/tests/test_unit_scoring_free_form_numeric.py courses/tests/test_unit_scoring_free_form_any.py courses/tests/test_unit_scoring_free_form_long.py docs/refactoring-plan.md`,
   `uv run python manage.py test courses.tests.test_unit_scoring courses.tests.test_unit_scoring_choice courses.tests.test_unit_scoring_free_form_strings courses.tests.test_unit_scoring_free_form_numeric courses.tests.test_unit_scoring_free_form_any courses.tests.test_unit_scoring_free_form_long`.
+- [x] Split course API tests into shared course fixtures, list/auth, create,
+  detail, update, and mutation-auth modules. Verification:
+  `uv run ruff check api/tests/course_api_base.py api/tests/test_courses.py api/tests/test_course_creation.py api/tests/test_course_detail.py api/tests/test_course_updates.py api/tests/test_course_auth.py docs/refactoring-plan.md`,
+  `uv run python manage.py test api.tests.test_courses api.tests.test_course_creation api.tests.test_course_detail api.tests.test_course_updates api.tests.test_course_auth`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 
