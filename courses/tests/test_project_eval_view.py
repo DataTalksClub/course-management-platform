@@ -129,8 +129,10 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Review progress")
         self.assertContains(response, "Selected reviews")
-        self.assertEqual(len(response.context["assigned_reviews"]), 1)
-        self.assertEqual(len(response.context["selected_reviews"]), 1)
+        assigned_reviews_count = len(response.context["assigned_reviews"])
+        selected_reviews_count = len(response.context["selected_reviews"])
+        self.assertEqual(assigned_reviews_count, 1)
+        self.assertEqual(selected_reviews_count, 1)
 
     def test_eval_view_shows_closed_message_when_project_is_not_peer_reviewing(
         self,

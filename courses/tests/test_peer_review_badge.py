@@ -93,7 +93,8 @@ class PeerReviewBadgeTests(TestCase):
         response = self.client.get(course_url)
         self.assertEqual(response.status_code, 200)
         projects = response.context["projects"]
-        self.assertEqual(len(projects), 1)
+        projects_count = len(projects)
+        self.assertEqual(projects_count, 1)
         return projects[0]
 
     def assert_project_badge(self, expected_class, expected_name):
@@ -245,7 +246,8 @@ class PeerReviewBadgeEndToEndTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         projects = response.context["projects"]
-        self.assertEqual(len(projects), 1)
+        projects_count = len(projects)
+        self.assertEqual(projects_count, 1)
         project = projects[0]
 
         return project.badge_css_class, project.badge_state_name

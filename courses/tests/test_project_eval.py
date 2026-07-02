@@ -148,7 +148,9 @@ class ProjectEvaluationSubmitPostTestCase(ProjectEvaluationTestBase):
         learning_in_public_links = (
             self.peer_review.learning_in_public_links
         )
-        self.assertEqual(len(learning_in_public_links), len(expected_links))
+        saved_links_count = len(learning_in_public_links)
+        expected_links_count = len(expected_links)
+        self.assertEqual(saved_links_count, expected_links_count)
         for index, expected_link in enumerate(expected_links):
             self.assertEqual(
                 learning_in_public_links[index],

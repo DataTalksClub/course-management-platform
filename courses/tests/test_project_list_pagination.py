@@ -30,6 +30,7 @@ class ProjectListPaginationViewTests(ProjectListViewTestBase):
         self.assertEqual(response.status_code, 200)
         submissions_page = response.context["submissions_page"]
         self.assertEqual(submissions_page.paginator.count, 32)
-        self.assertEqual(len(response.context["submissions"]), 25)
+        submissions_count = len(response.context["submissions"])
+        self.assertEqual(submissions_count, 25)
         has_next_page = submissions_page.has_next()
         self.assertTrue(has_next_page)
