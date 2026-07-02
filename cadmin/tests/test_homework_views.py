@@ -192,7 +192,8 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
 
         # Check that a message was added
         messages = list(response.context["messages"])
-        self.assertEqual(len(messages), 1)
+        messages_count = len(messages)
+        self.assertEqual(messages_count, 1)
         send_score_notification.assert_called_once_with(self.homework)
 
     def test_course_admin_shows_most_frequent_answer_action(self):
@@ -227,7 +228,8 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         question.refresh_from_db()
         self.assertEqual(question.correct_answer, "2")
         messages = list(response.context["messages"])
-        self.assertEqual(len(messages), 1)
+        messages_count = len(messages)
+        self.assertEqual(messages_count, 1)
 
     def test_homework_clear_correct_answers_removes_all_correct_answers(
         self,
@@ -260,4 +262,5 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         self.assertEqual(first_question.correct_answer, "")
         self.assertEqual(second_question.correct_answer, "")
         messages = list(response.context["messages"])
-        self.assertEqual(len(messages), 1)
+        messages_count = len(messages)
+        self.assertEqual(messages_count, 1)
