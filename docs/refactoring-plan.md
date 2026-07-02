@@ -3767,6 +3767,17 @@ Steps:
   `append_constructed=0`, `wide_tuple_unpacking=0`,
   `wide_positional_calls=0`, `wide_function_args=0`), and
   `git diff --check`.
+- [x] 2026-07-02: Collapsed peer-review badge end-to-end fixture,
+  assignment-fixture, review-submission, state-assertion, and scoring mixins
+  into the focused `PeerReviewBadgeEndToEndTests`. The simpler badge state
+  tests remain a separate direct `TestCase`. Verification:
+  `uv run python manage.py test courses.tests.test_peer_review_badge`,
+  `uv run ruff check courses/tests/test_peer_review_badge.py`,
+  `uvx pyrefly check`, repository AST cleanup scan
+  (`forbidden_comprehensions=0`, `threshold_violations=0`,
+  `append_constructed=0`, `wide_tuple_unpacking=0`,
+  `wide_positional_calls=0`, `wide_function_args=0`), and
+  `git diff --check`.
 - [x] Run focused tests for cadmin, Datamailer, registration, and OpenAPI.
 - [x] Run the full Django test suite before committing.
 

@@ -126,7 +126,9 @@ class PeerReviewBadgeTests(TestCase):
         self.assert_project_badge("bg-secondary", "Not submitted")
 
 
-class PeerReviewBadgeEndToEndFixtureMixin:
+class PeerReviewBadgeEndToEndTests(TestCase):
+    """End-to-end test for peer review badge showing progression from red to green"""
+
     def create_main_user(self):
         return User.objects.create_user(
             username="main@test.com",
@@ -165,8 +167,6 @@ class PeerReviewBadgeEndToEndFixtureMixin:
             commit_id="main123",
         )
 
-
-class PeerReviewBadgeAssignmentFixtureMixin:
     def create_other_user(self, index):
         return User.objects.create_user(
             username=f"student{index}@test.com",
@@ -211,8 +211,6 @@ class PeerReviewBadgeAssignmentFixtureMixin:
             submitted_at=submitted_at,
         )
 
-
-class PeerReviewBadgeReviewSubmissionMixin:
     def create_review_criteria(self):
         return ReviewCriteria.objects.create(
             course=self.course,
@@ -237,8 +235,6 @@ class PeerReviewBadgeReviewSubmissionMixin:
         peer_review.submitted_at = timezone.now()
         peer_review.save()
 
-
-class PeerReviewBadgeStateAssertionsMixin:
     def get_badge_state(self):
         """Helper to get current badge state from course view"""
         self.client.login(username="main@test.com", password="12345")
@@ -269,8 +265,6 @@ class PeerReviewBadgeStateAssertionsMixin:
             message,
         )
 
-
-class PeerReviewBadgeScoringMixin:
     def move_peer_review_deadline_to_past(self):
         self.project.peer_review_due_date = (
             timezone.now() - timezone.timedelta(hours=1)
@@ -295,17 +289,6 @@ class PeerReviewBadgeScoringMixin:
             ProjectState.COMPLETED.value,
             "Project should be in COMPLETED state after scoring",
         )
-
-
-class PeerReviewBadgeEndToEndTests(
-    PeerReviewBadgeEndToEndFixtureMixin,
-    PeerReviewBadgeAssignmentFixtureMixin,
-    PeerReviewBadgeReviewSubmissionMixin,
-    PeerReviewBadgeStateAssertionsMixin,
-    PeerReviewBadgeScoringMixin,
-    TestCase,
-):
-    """End-to-end test for peer review badge showing progression from red to green"""
 
     def setUp(self):
         self.client = Client()
