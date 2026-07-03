@@ -84,7 +84,9 @@ def _persist_scored_homework_submissions(homework_id, submissions, answers):
 
 
 def _homework_scoring_batch(homework_id):
-    submissions = Submission.objects.filter(homework__id=homework_id)
+    submissions = Submission.objects.filter(
+        homework__id=homework_id
+    ).select_related("enrollment")
     answers = Answer.objects.filter(
         submission__in=submissions
     ).select_related("question", "submission")
