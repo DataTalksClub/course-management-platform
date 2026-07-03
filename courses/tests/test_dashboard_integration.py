@@ -168,3 +168,28 @@ class DashboardIntegrationTestCase(TestCase):
         self.assert_complete_dashboard_counts(response)
         self.assert_complete_homework_stats(response)
         self.assert_complete_dashboard_content(response)
+
+    def test_dashboard_overall_completion_rate(self):
+        self.create_complete_dashboard_fixture()
+
+        response = self.client.get(self.dashboard_url())
+
+        # hw1: 4/4 = 100%, hw2: 3/4 = 75%; mean = 87.5%
+        self.assertEqual(
+            response.context["overall_completion_rate"], 87.5
+        )
+        self.assertContains(response, "Overall completion rate")
+
+    def test_dashboard_total_score_distribution(self):
+        self.create_complete_dashboard_fixture()
+
+        response = self.client.get(self.dashboard_url())
+
+        # enrollment total scores: 80, 90, 100, 110
+        self.assertEqual(response.context["total_score_q25"], 82.5)
+        self.assertEqual(response.context["total_score_median"], 95.0)
+        self.assertEqual(response.context["total_score_q75"], 107.5)
+        self.assertEqual(
+            response.context["total_score_median_formatted"], "95"
+        )
+        self.assertContains(response, "Median total score")

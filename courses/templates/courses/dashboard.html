@@ -46,6 +46,22 @@
           <dt class="app-muted">Average total score</dt>
           <dd class="font-semibold app-heading">{{ avg_total_score }}</dd>
         </div>
+        {% if total_score_median %}
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3">
+            <dt class="app-muted">Median total score</dt>
+            <dd class="font-semibold app-heading">
+              <span title="Most students scored between {{ total_score_q25|floatformat:0 }} and {{ total_score_q75|floatformat:0 }}">
+                {{ total_score_median_formatted }}
+              </span>
+            </dd>
+          </div>
+        {% endif %}
+        {% if overall_completion_rate is not None %}
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3">
+            <dt class="app-muted">Overall completion rate</dt>
+            <dd class="font-semibold app-heading">{{ overall_completion_rate }}%</dd>
+          </div>
+        {% endif %}
         {% if graduates_count > 0 %}
           <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3">
             <dt class="app-muted">Graduates</dt>

@@ -6,6 +6,7 @@ from courses.views.dashboard_homeworks import (
     dashboard_homework_submissions,
     dashboard_homeworks,
 )
+from courses.views.dashboard_metrics import quartile_fields
 from courses.views.dashboard_projects import dashboard_project_stats
 
 
@@ -20,6 +21,8 @@ def dashboard_context(course):
     )
     raw_avg_total_score = dashboard_avg_total_score(course)
     avg_total_score = round(raw_avg_total_score, 1)
+    overall_completion_rate = dashboard_overall_completion_rate(homework_stats)
+    total_score_distribution = dashboard_total_score_distribution(course)
     graduates_count = dashboard_graduates_count(course)
     project_stats = dashboard_project_stats(course, total_enrollments)
 
@@ -27,12 +30,32 @@ def dashboard_context(course):
         "course": course,
         "total_enrollments": total_enrollments,
         "avg_total_score": avg_total_score,
+        "overall_completion_rate": overall_completion_rate,
         "project_passing_score": course.project_passing_score,
         "graduates_count": graduates_count,
         "homework_stats": homework_stats,
         "homework_difficulty_stats": homework_difficulty_stats,
+        **total_score_distribution,
         **project_stats,
     }
+
+
+def dashboard_overall_completion_rate(homework_stats):
+    completion_rates = [
+        hw_stat["completion_rate"] for hw_stat in homework_stats
+    ]
+    if not completion_rates:
+        return None
+    return round(statistics.mean(completion_rates), 1)
+
+
+def dashboard_total_score_distribution(course):
+    total_scores = list(
+        Enrollment.objects.filter(
+            course=course, total_score__isnull=False
+        ).values_list("total_score", flat=True)
+    )
+    return quartile_fields("total_score", total_scores)
 
 
 def dashboard_avg_total_score(course):
