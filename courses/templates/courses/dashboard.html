@@ -239,6 +239,49 @@
     </section>
   {% endif %}
 
+  {% if question_difficulty %}
+    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+      <div class="border-b app-border app-surface-muted px-4 py-3">
+        <h2 class="text-base font-semibold app-heading">Question difficulty</h2>
+        <p class="mt-1 text-sm app-muted">
+          Share of submitted answers that were correct, per question. A lower
+          percentage points to a harder or more confusing question.
+          Participation-only questions are excluded.
+        </p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
+            <tr>
+              <th class="px-3 py-2">Homework</th>
+              <th class="px-3 py-2">Question</th>
+              <th class="px-3 py-2 text-right">Correct</th>
+              <th class="px-3 py-2 text-right">Answers</th>
+              <th class="px-3 py-2 text-right">% correct</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y app-divide">
+            {% for group in question_difficulty %}
+              {% for question in group.questions %}
+                <tr>
+                  <td class="min-w-40 px-3 py-2 app-muted">
+                    {% if forloop.first %}{{ group.homework_title }}{% endif %}
+                  </td>
+                  <td class="min-w-64 px-3 py-2 app-heading">{{ question.text }}</td>
+                  <td class="px-3 py-2 text-right">{{ question.correct }}</td>
+                  <td class="px-3 py-2 text-right">{{ question.total }}</td>
+                  <td class="px-3 py-2 text-right font-semibold app-heading">
+                    {% if question.pct_correct is not None %}{{ question.pct_correct }}%{% else %}-{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
   {% if graduates_count > 0 %}
     <section class="mt-6 border-t app-border pt-5">
       <h2 class="text-base font-semibold app-heading">Graduates</h2>

@@ -8,6 +8,7 @@ from courses.views.dashboard_homeworks import (
 )
 from courses.views.dashboard_metrics import quartile_fields
 from courses.views.dashboard_projects import dashboard_project_stats
+from courses.views.dashboard_questions import dashboard_question_difficulty
 
 
 def dashboard_context(course):
@@ -23,6 +24,7 @@ def dashboard_context(course):
     avg_total_score = round(raw_avg_total_score, 1)
     overall_completion_rate = dashboard_overall_completion_rate(homework_stats)
     total_score_distribution = dashboard_total_score_distribution(course)
+    question_difficulty = dashboard_question_difficulty(course)
     graduates_count = dashboard_graduates_count(course)
     project_stats = dashboard_project_stats(course, total_enrollments)
 
@@ -35,6 +37,7 @@ def dashboard_context(course):
         "graduates_count": graduates_count,
         "homework_stats": homework_stats,
         "homework_difficulty_stats": homework_difficulty_stats,
+        "question_difficulty": question_difficulty,
         **total_score_distribution,
         **project_stats,
     }
