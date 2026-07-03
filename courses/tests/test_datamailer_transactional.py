@@ -106,3 +106,32 @@ class DatamailerTransactionalTest(DatamailerContactBase):
             "from_email": "no-reply",
         }
         send.assert_called_once_with(expected_payload)
+
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        DATAMAILER_FROM_EMAIL="courses",
+        DATAMAILER_TRANSACTIONAL_DRY_RUN=True,
+    )
+    @patch(
+        "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
+    )
+    def test_send_transactional_email_adds_dry_run_when_configured(self, send):
+        # In a dry-run deployment (e2e) the prod send path runs unchanged; only
+        # the dry_run flag is added so Datamailer renders without delivering.
+        send.return_value = {"id": "message-id"}
+        payload = {
+            "template_key": "welcome",
+            "email": "student@example.com",
+        }
+
+        send_transactional_email(payload)
+
+        expected_payload = {
+            "audience": "dtc-courses",
+            "client": "dtc-courses",
+            "template_key": "welcome",
+            "email": "student@example.com",
+            "from_email": "courses",
+            "dry_run": True,
+        }
+        send.assert_called_once_with(expected_payload)
