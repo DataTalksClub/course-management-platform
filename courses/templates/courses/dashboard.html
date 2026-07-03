@@ -282,6 +282,31 @@
     </section>
   {% endif %}
 
+  {% if submission_timing %}
+    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+      <div class="border-b app-border app-surface-muted px-4 py-3">
+        <h2 class="text-base font-semibold app-heading">Submission timing</h2>
+        <p class="mt-1 text-sm app-muted">
+          When homework submissions arrive relative to the deadline, across all
+          assignments.
+        </p>
+      </div>
+      <dl class="divide-y app-divide text-sm">
+        {% for bucket in submission_timing %}
+          <div class="px-4 py-3">
+            <div class="flex items-baseline justify-between gap-4">
+              <dt class="app-heading">{{ bucket.label }}</dt>
+              <dd class="app-muted">{{ bucket.count }} ({{ bucket.pct }}%)</dd>
+            </div>
+            <div class="mt-2 h-2 w-full overflow-hidden rounded app-surface-muted">
+              <div class="h-full rounded" style="width: {{ bucket.pct }}%; background: var(--link-color)"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </dl>
+    </section>
+  {% endif %}
+
   {% if graduates_count > 0 %}
     <section class="mt-6 border-t app-border pt-5">
       <h2 class="text-base font-semibold app-heading">Graduates</h2>
