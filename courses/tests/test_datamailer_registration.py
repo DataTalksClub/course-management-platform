@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.utils.dateparse import parse_date
 from django.test import TestCase, override_settings
 
 from data.models import (
@@ -67,6 +68,7 @@ def create_llm_registration_for_confirmation():
         slug="llm-zoomcamp-2026",
         title="LLM Zoomcamp 2026",
         description="LLM course",
+        start_date=parse_date("2026-09-14"),
     )
     campaign = RegistrationCampaign.objects.create(
         slug="llm-zoomcamp",
@@ -115,6 +117,17 @@ def assert_registration_confirmation_payload(
     test_case.assertEqual(
         payload["context"]["course_url"],
         "https://courses.example.com/llm-zoomcamp-2026/",
+    )
+    test_case.assertEqual(
+        payload["context"]["course_start_date"],
+        "September 14, 2026",
+    )
+    test_case.assertEqual(
+        payload["context"]["next_steps_text"],
+        (
+            "Closer to the start, we will send you another email with "
+            "more information about the course."
+        ),
     )
     test_case.assertEqual(payload["metadata"]["event"], "course_registration")
     test_case.assertEqual(

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+from django.utils.dateformat import format as format_date
+
 from course_management import email_templates
 
 from ..client import DatamailerConfig
@@ -56,10 +58,16 @@ def registration_confirmation_course_context(course):
     context = {
         "course_title": "",
         "course_slug": "",
+        "course_start_date": "",
     }
     if course is not None:
         context["course_title"] = course.title
         context["course_slug"] = course.slug
+        if course.start_date:
+            context["course_start_date"] = format_date(
+                course.start_date,
+                "F j, Y",
+            )
     return context
 
 
@@ -76,6 +84,10 @@ def registration_confirmation_context(registration, campaign, course, urls):
         "profile_url": profile_url,
         "intro_text": (
             f"Your registration for {campaign.title} is confirmed."
+        ),
+        "next_steps_text": (
+            "Closer to the start, we will send you another email with "
+            "more information about the course."
         ),
         "notification_category": "course-related emails",
         "notification_footer": (
