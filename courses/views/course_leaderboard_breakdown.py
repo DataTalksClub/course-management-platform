@@ -21,7 +21,7 @@ def leaderboard_score_breakdown_context(enrollment, user):
     project_submissions = ProjectSubmission.objects.filter(
         enrollment=enrollment,
         volunteer_review_only=False,
-    )
+    ).select_related("project")
     project_submissions = project_submissions.order_by("project__id")
 
     return {
@@ -34,7 +34,9 @@ def leaderboard_score_breakdown_context(enrollment, user):
 
 
 def leaderboard_homework_submissions(enrollment):
-    submissions = Submission.objects.filter(enrollment=enrollment)
+    submissions = Submission.objects.filter(
+        enrollment=enrollment
+    ).select_related("homework")
     state_order = leaderboard_homework_state_order()
     return submissions.order_by(state_order, "homework__id")
 
