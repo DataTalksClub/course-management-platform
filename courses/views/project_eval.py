@@ -50,6 +50,8 @@ def student_project_eval_context(course, project, user, eval_closed):
     reviews = PeerReview.objects.filter(
         reviewer__in=student_submissions,
         submission_under_evaluation__project=project,
+    ).select_related(
+        "submission_under_evaluation__enrollment",
     ).order_by("optional")
     review_groups = split_project_eval_reviews(reviews)
     has_submission = project_submissions.exists()
