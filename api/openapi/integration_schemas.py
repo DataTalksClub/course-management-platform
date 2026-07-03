@@ -117,4 +117,29 @@ INTEGRATION_SCHEMAS = {
             "preference_updated": {"type": "boolean"},
         },
     },
+    "DatamailerSendAudit": {
+        "type": "object",
+        "properties": {
+            "send_type": {"type": "string"},
+            "status": {"type": "string"},
+            "template_key": {"type": "string"},
+            "idempotency_key": {"type": "string"},
+            "occurred_at": {
+                "type": ["string", "null"],
+                "format": "date-time",
+            },
+            "would_deliver": {"type": ["boolean", "null"]},
+            "rendered": JSON,
+            "message": JSON,
+            "response_payload": JSON,
+        },
+    },
+    "DatamailerSendAudits": {
+        "type": "object",
+        "required": ["audits", "count"],
+        "properties": {
+            "audits": array_of(ref("DatamailerSendAudit")),
+            "count": {"type": "integer"},
+        },
+    },
 }

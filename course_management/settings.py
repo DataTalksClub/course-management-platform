@@ -191,6 +191,13 @@ DATAMAILER_CLIENT = os.getenv("DATAMAILER_CLIENT", "")
 DATAMAILER_AUDIENCE = os.getenv("DATAMAILER_AUDIENCE", "")
 DATAMAILER_FROM_EMAIL = os.getenv("DATAMAILER_FROM_EMAIL", "")
 DATAMAILER_STRICT = os.getenv("DATAMAILER_STRICT", "0") == "1"
+# When enabled, transactional sends carry Datamailer's "dry_run" flag: the full
+# prod send path runs (outbox -> dispatch -> /api/transactional/send -> audit) but
+# Datamailer renders the email and returns it inline without delivering. Used by
+# the e2e smoke suite (and any non-delivering deployment) to mimic prod safely.
+DATAMAILER_TRANSACTIONAL_DRY_RUN = (
+    os.getenv("DATAMAILER_TRANSACTIONAL_DRY_RUN", "0") == "1"
+)
 DATAMAILER_WEBHOOK_TOKEN = os.getenv("DATAMAILER_WEBHOOK_TOKEN", "")
 DATAMAILER_IMPORT_S3_BUCKET = os.getenv("DATAMAILER_IMPORT_S3_BUCKET", "")
 DATAMAILER_IMPORT_S3_PREFIX = os.getenv(

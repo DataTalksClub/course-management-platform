@@ -45,6 +45,8 @@ def transactional_payload_with_config_defaults(config, payload):
         payload = payload | {"client": config.client}
     if config.from_email and "from_email" not in payload:
         payload = payload | {"from_email": config.from_email}
+    if config.transactional_dry_run and "dry_run" not in payload:
+        payload = payload | {"dry_run": True}
     return payload
 
 

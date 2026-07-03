@@ -23,6 +23,7 @@ class DatamailerConfig:
     audience: str
     from_email: str = ""
     strict: bool = False
+    transactional_dry_run: bool = False
 
     @classmethod
     def from_settings(cls) -> "DatamailerConfig | None":
@@ -36,6 +37,9 @@ class DatamailerConfig:
             return None
 
         strict = getattr(settings, "DATAMAILER_STRICT", False)
+        transactional_dry_run = getattr(
+            settings, "DATAMAILER_TRANSACTIONAL_DRY_RUN", False
+        )
         normalized_url = url.rstrip("/")
         return cls(
             url=normalized_url,
@@ -44,6 +48,7 @@ class DatamailerConfig:
             audience=audience,
             from_email=from_email,
             strict=strict,
+            transactional_dry_run=transactional_dry_run,
         )
 
 

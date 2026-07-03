@@ -3,6 +3,7 @@ from django.urls import path
 from .openapi.spec import openapi_json_view
 from .views import course_exports
 from .views import courses
+from .views import datamailer_send_audits
 from .views import enrollment_certificates
 from .views import enrollment_graduates
 from .views import health
@@ -61,6 +62,11 @@ urlpatterns = [
         "datamailer/events",
         webhooks.datamailer_event_webhook,
         name="api_datamailer_events",
+    ),
+    path(
+        "datamailer/send-audits",
+        datamailer_send_audits.datamailer_send_audits_view,
+        name="api_datamailer_send_audits",
     ),
     # Courses
     path(

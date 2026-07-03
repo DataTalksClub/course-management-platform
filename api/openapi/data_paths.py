@@ -182,6 +182,57 @@ DATAMAILER_EVENTS_DATA = OperationData(
 )
 DATAMAILER_EVENTS_OPERATION = operation(DATAMAILER_EVENTS_DATA)
 
+DATAMAILER_SEND_AUDITS_SUCCESS_RESPONSE = schema_response(
+    "Datamailer send audits",
+    "DatamailerSendAudits",
+)
+DATAMAILER_SEND_AUDITS_RESPONSES = {
+    "200": DATAMAILER_SEND_AUDITS_SUCCESS_RESPONSE,
+}
+DATAMAILER_SEND_AUDITS_PARAMETERS = [
+    {
+        "name": "email",
+        "in": "query",
+        "required": False,
+        "schema": {"type": "string"},
+    },
+    {
+        "name": "template_key",
+        "in": "query",
+        "required": False,
+        "schema": {"type": "string"},
+    },
+    {
+        "name": "idempotency_key",
+        "in": "query",
+        "required": False,
+        "schema": {"type": "string"},
+    },
+    {
+        "name": "limit",
+        "in": "query",
+        "required": False,
+        "schema": {"type": "integer", "default": 25, "maximum": 100},
+    },
+]
+DATAMAILER_SEND_AUDITS_DESCRIPTION = (
+    "Lists CMP's own Datamailer send-audit rows (one per send attempt "
+    "through the outbox -> dispatch -> /api/transactional/send pipeline). "
+    "Each row's response_payload carries the message summary and, when the "
+    "send ran with Datamailer's dry_run flag, the rendered subject/bodies. "
+    "Used by the e2e smoke suite to verify the rendered email over HTTP "
+    "without delivering anything. Ordered newest first."
+)
+DATAMAILER_SEND_AUDITS_DATA = OperationData(
+    "api_datamailer_send_audits",
+    ["Datamailer"],
+    "List Datamailer send audits",
+    DATAMAILER_SEND_AUDITS_RESPONSES,
+    parameters=DATAMAILER_SEND_AUDITS_PARAMETERS,
+    description=DATAMAILER_SEND_AUDITS_DESCRIPTION,
+)
+DATAMAILER_SEND_AUDITS_OPERATION = operation(DATAMAILER_SEND_AUDITS_DATA)
+
 DATA_PATHS_BY_URL_NAME = {
     "api_health": {
         "get": API_HEALTH_OPERATION,
@@ -206,5 +257,8 @@ DATA_PATHS_BY_URL_NAME = {
     },
     "api_datamailer_events": {
         "post": DATAMAILER_EVENTS_OPERATION,
+    },
+    "api_datamailer_send_audits": {
+        "get": DATAMAILER_SEND_AUDITS_OPERATION,
     },
 }

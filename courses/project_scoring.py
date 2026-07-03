@@ -51,7 +51,11 @@ def _sync_scored_project_submission_to_datamailer(submission):
 def _peer_reviews_for_project(project):
     return PeerReview.objects.filter(
         submission_under_evaluation__project=project,
-    ).select_related("submission_under_evaluation", "reviewer")
+    ).select_related(
+        "submission_under_evaluation",
+        "submission_under_evaluation__enrollment",
+        "reviewer",
+    )
 
 
 def _bulk_update_project_submissions(submissions_to_update):
