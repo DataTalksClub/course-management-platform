@@ -18,7 +18,7 @@
   function matchingCountries(query) {
     const normalizedQuery = normalize(query);
     if (!normalizedQuery) {
-      return countries.slice(0, 20);
+      return countries.slice();
     }
 
     const startsWith = [];
@@ -90,7 +90,11 @@
 
     activeIndex = (nextIndex + visibleCountries.length) % visibleCountries.length;
     panel.querySelectorAll(".country-combobox-option").forEach((option, index) => {
-      option.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
+      const isActive = index === activeIndex;
+      option.setAttribute("aria-selected", isActive ? "true" : "false");
+      if (isActive) {
+        option.scrollIntoView({ block: "nearest" });
+      }
     });
     input.setAttribute("aria-activedescendant", "country-option-" + activeIndex);
   }
