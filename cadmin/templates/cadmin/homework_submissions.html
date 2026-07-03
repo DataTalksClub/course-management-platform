@@ -62,6 +62,17 @@
                            value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
                     <button type="submit" class="primer-button cadmin-primary">Score submissions</button>
                 </form>
+                {% if homework.is_scored %}
+                <form method="post"
+                      action="{% url 'cadmin_homework_notify_scores' course.slug homework.slug %}"
+                      onsubmit="return confirm('Email score notifications to all students who submitted {{ homework.title }}?');">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="next"
+                           value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
+                    <button type="submit" class="primer-button primer-button-secondary">Notify students of scores</button>
+                </form>
+                {% endif %}
             </div>
         </div>
     </section>

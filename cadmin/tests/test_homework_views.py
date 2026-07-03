@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from courses.models import (
+    HomeworkState,
     User,
     Enrollment,
     Question,
@@ -168,10 +169,14 @@ class HomeworkCadminSearchTests(HomeworkCadminViewTestBase):
 
 class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
     @patch("cadmin.views.homework.send_homework_score_notification")
-    def test_homework_score_shows_message(
+    def test_homework_score_shows_message_without_notifying(
         self, send_score_notification
     ):
-        """Test that scoring homework shows a message on the course admin page"""
+        """Scoring shows a message but does not email students.
+
+        Notifications are a separate action so a slow Datamailer send
+        cannot take the scoring request down with it.
+        """
         self.homework.due_date = timezone.now() - timedelta(hours=1)
         self.homework.save(update_fields=["due_date"])
         self.client.login(
@@ -194,7 +199,53 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         messages = list(response.context["messages"])
         messages_count = len(messages)
         self.assertEqual(messages_count, 1)
+        send_score_notification.assert_not_called()
+
+    @patch("cadmin.views.homework.send_homework_score_notification")
+    def test_homework_notify_scores_sends_notification(
+        self, send_score_notification
+    ):
+        """The notify action emails students for a scored homework."""
+        self.homework.state = HomeworkState.SCORED.value
+        self.homework.save(update_fields=["state"])
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(response, self.cadmin_course_url())
         send_score_notification.assert_called_once_with(self.homework)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+
+    @patch("cadmin.views.homework.send_homework_score_notification")
+    def test_homework_notify_scores_requires_scored_homework(
+        self, send_score_notification
+    ):
+        """Notifying an unscored homework warns and sends nothing."""
+        self.homework.state = HomeworkState.OPEN.value
+        self.homework.save(update_fields=["state"])
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_score_notification.assert_not_called()
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
 
     def test_course_admin_shows_most_frequent_answer_action(self):
         self.create_homework_submission()

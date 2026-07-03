@@ -41,9 +41,40 @@ def homework_score(request, course_slug, homework_slug):
 
     if status == HomeworkScoringStatus.OK:
         messages.success(request, message)
-        send_homework_score_notification(homework)
     else:
         messages.warning(request, message)
+
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
+
+
+@staff_required
+def homework_notify_scores(request, course_slug, homework_slug):
+    """Send score notification emails for an already-scored homework"""
+    if request.method != "POST":
+        response = redirect("cadmin_course", course_slug=course_slug)
+        return response
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+
+    if not homework.is_scored():
+        messages.warning(
+            request,
+            f"{homework.title} is not scored yet. "
+            "Score it before notifying students.",
+        )
+        return redirect_after_action(
+            request, "cadmin_course", course_slug=course_slug
+        )
+
+    send_homework_score_notification(homework)
+    messages.success(
+        request,
+        f"Score notifications for {homework.title} sent to students.",
+    )
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug

@@ -45,6 +45,11 @@ urlpatterns = [
         name="cadmin_homework_score",
     ),
     path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/notify-scores",
+        homework.homework_notify_scores,
+        name="cadmin_homework_notify_scores",
+    ),
+    path(
         "<slug:course_slug>/homework/<slug:homework_slug>/set-correct-answers",
         homework.homework_set_correct_answers,
         name="cadmin_homework_set_correct_answers",

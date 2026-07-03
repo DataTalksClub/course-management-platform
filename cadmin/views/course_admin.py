@@ -46,6 +46,9 @@ def course_homeworks_for_admin(course):
             HomeworkState.OPEN.value,
             HomeworkState.CLOSED.value,
         ]
+        homework.can_notify_scores = (
+            homework.state == HomeworkState.SCORED.value
+        )
     return homeworks
 
 

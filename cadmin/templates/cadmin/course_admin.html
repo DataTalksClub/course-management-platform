@@ -231,6 +231,14 @@
                     </button>
                   </form>
                 {% endif %}
+                {% if hw.can_notify_scores %}
+                  <form method="post" action="{% url 'cadmin_homework_notify_scores' course.slug hw.slug %}" onsubmit="return confirm('Email score notifications to all students who submitted {{ hw.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="cadmin-action-item">
+                      <i class="fas fa-envelope" aria-hidden="true"></i> Notify students of scores
+                    </button>
+                  </form>
+                {% endif %}
               </div>
             </details>
 
