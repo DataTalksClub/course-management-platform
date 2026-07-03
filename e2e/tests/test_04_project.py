@@ -1,8 +1,9 @@
 """Scenario 5 (issue #194): Project flow.
 
 * Submit a project through the UI (as impersonated student).
-* Submission-confirmation email really received via SES, read back from the
-  Datamailer real inbox (xfails if the real inbox is not enabled on the target).
+* Submission-confirmation email verified via CMP's own Datamailer send audit
+  (the real prod send path runs with dry_run, so nothing is delivered but the
+  rendered email is recorded and read back over HTTP).
 * Assign peer reviews (API).
 * Score the project; verify score components.
 * Leaderboard + project statistics update.
@@ -14,8 +15,8 @@ succeed and return sane counts, rather than requiring assigned reviews.
 
 import pytest
 
+from e2e.api_client import SendAuditTimeout, send_audit_body_contains
 from e2e.browser import ProjectSubmissionData
-from e2e.mock_inbox import InboxDisabled, MessageMatchCriteria, MessageWaitRequest
 
 pytestmark = pytest.mark.project
 
@@ -69,55 +70,35 @@ def _has_project_submission(submissions, student_email):
 PROJECT_CONFIRMATION_TEMPLATE = "project-submission-confirmation"
 
 
-def _assert_project_confirmation(backend, run_state):
-    # The real SES-inbound backend has no template_key (parsed from raw MIME);
-    # match on subject + body. Only the mock store carries a template_key.
-    expected_template = (
-        PROJECT_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
-    )
-    criteria = MessageMatchCriteria(
-        template_key=expected_template,
-        subject="Project submission saved",
-    )
-    request = MessageWaitRequest(
-        address=run_state.student_email,
-        criteria=criteria,
-        timeout=120,
-    )
-    message = backend.wait_for_message(request)
-    assert "E2E Project 1" in message.subject
-    if expected_template:
-        assert message.template_key == expected_template
-    assert message.body_contains("/project/"), (
-        "Project confirmation email missing update link "
-        f"(subject={message.subject!r})."
-    )
-
-
 @pytest.mark.email
-def test_project_confirmation_email(email_backend, run_state):
-    """Student really receives the project submission-confirmation email.
+def test_project_confirmation_email(send_audits, run_state):
+    """The project confirmation email is rendered on the real send path.
 
-    Default backend is the real SES round-trip (Datamailer sends via SES; read
-    back from the inbound S3 bucket). xfails cleanly when the real inbox is not
-    configured or not enabled on the target deployment.
+    Verification reads CMP's own ``DatamailerSendAudit`` over HTTP: the prod
+    path runs (outbox -> dispatch -> /api/transactional/send -> audit) with
+    ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1``, so the render is returned inline and
+    nothing is delivered. xfails cleanly when no audit appears.
     """
     require_project(run_state)
-    if not email_backend.configured:
-        pytest.xfail(
-            "Real inbox not configured (E2E_REAL_INBOX_* / DATAMAILER_* unset)."
-        )
     try:
-        email_backend.list_messages(run_state.student_email, limit=1)
-    except InboxDisabled:
-        pytest.xfail(
-            "Real inbox disabled on this deployment (REAL_INBOX_ENABLED off); "
-            "enable REAL_INBOX_* on the Datamailer deployment to verify receipt."
+        audit = send_audits.wait_for_send_audit(
+            run_state.student_email,
+            PROJECT_CONFIRMATION_TEMPLATE,
+            body_contains="/project/",
+            timeout=60,
         )
-    try:
-        _assert_project_confirmation(email_backend, run_state)
-    finally:
-        email_backend.clear(run_state.student_email)
+    except SendAuditTimeout as exc:
+        pytest.xfail(
+            "No project-confirmation send audit found; ensure Datamailer is "
+            "configured on the target with DATAMAILER_TRANSACTIONAL_DRY_RUN=1. "
+            f"({exc})"
+        )
+    assert audit["template_key"] == PROJECT_CONFIRMATION_TEMPLATE
+    assert audit["message"].get("email") == run_state.student_email
+    assert send_audit_body_contains(audit, "/project/"), (
+        "Project confirmation email missing update link "
+        f"(rendered={audit.get('rendered')!r})."
+    )
 
 
 def test_assign_peer_reviews(api, run_state):

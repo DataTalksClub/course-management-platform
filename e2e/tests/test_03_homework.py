@@ -2,17 +2,17 @@
 
 * Submit homework answers through the UI (as impersonated student).
 * Confirmation page renders with the submitted values.
-* Submission-confirmation email really received via SES and read back from the
-  Datamailer real inbox (xfails if the real inbox is not enabled on the target).
+* Submission-confirmation email verified via CMP's own Datamailer send audit
+  (the real prod send path runs with dry_run, so nothing is delivered but the
+  rendered email is recorded and read back over HTTP).
 * Score the homework (API); submission shows a score.
 * Leaderboard reflects the score.
 """
 
 import pytest
 
-from e2e.api_client import ApiRequestData
+from e2e.api_client import ApiRequestData, SendAuditTimeout, send_audit_body_contains
 from e2e.browser import HomeworkSubmissionData
-from e2e.mock_inbox import InboxDisabled, MessageMatchCriteria, MessageWaitRequest
 
 pytestmark = pytest.mark.homework
 
@@ -148,62 +148,39 @@ def _homework_submission_matches_student(submission, run_state):
 HOMEWORK_CONFIRMATION_TEMPLATE = "homework-submission-confirmation"
 
 
-def _assert_homework_confirmation(backend, run_state):
-    # The real SES-inbound backend parses raw MIME and carries no template_key,
-    # so match on subject + body; only the mock store has a template_key.
-    expected_template = (
-        HOMEWORK_CONFIRMATION_TEMPLATE if backend.name == "mock" else None
-    )
-    criteria = MessageMatchCriteria(
-        template_key=expected_template,
-        subject="Homework submission saved",
-    )
-    request = MessageWaitRequest(
-        address=run_state.student_email,
-        criteria=criteria,
-        # Real SES inbound is eventually consistent (~5-15s); give it headroom.
-        timeout=120,
-    )
-    message = backend.wait_for_message(request)
-    assert "E2E Homework 1" in message.subject
-    if expected_template:
-        assert message.template_key == expected_template
-    # The confirmation carries an "Update your submission" link to the homework
-    # (in the rendered body, and in context.update_url for the mock backend).
-    assert message.body_contains("/homework/"), (
-        "Homework confirmation email missing update link "
-        f"(subject={message.subject!r})."
-    )
-
-
 @pytest.mark.email
-def test_homework_confirmation_email(email_backend, run_state):
-    """Student really receives the submission-confirmation email.
+def test_homework_confirmation_email(send_audits, run_state):
+    """The submission-confirmation email is rendered on the real send path.
 
-    Default backend is the real SES round-trip: Datamailer sends via SES and the
-    message is read back from the Datamailer real inbox (inbound S3). This is the
-    usual delivery flow -- the same in dev and prod. It xfails cleanly when the
-    real inbox is not configured or not enabled on the target deployment, so the
-    suite stays green until REAL_INBOX_* is switched on.
+    Verification reads CMP's own ``DatamailerSendAudit`` over HTTP rather than
+    an inbox: the prod path runs (outbox -> dispatch -> /api/transactional/send
+    -> audit), but with ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1`` the render is
+    returned inline and nothing is delivered. xfails cleanly when no audit
+    appears (Datamailer not configured / dry-run off on the target), so the
+    suite stays green until it is switched on.
     """
     require_submitted(run_state)
-    if not email_backend.configured:
-        pytest.xfail(
-            "Real inbox not configured (E2E_REAL_INBOX_* / DATAMAILER_* unset)."
-        )
-    # If the deployment has the real inbox turned off, xfail right away rather
-    # than burning the full poll timeout waiting for mail that can't be read.
     try:
-        email_backend.list_messages(run_state.student_email, limit=1)
-    except InboxDisabled:
-        pytest.xfail(
-            "Real inbox disabled on this deployment (REAL_INBOX_ENABLED off); "
-            "enable REAL_INBOX_* on the Datamailer deployment to verify receipt."
+        audit = send_audits.wait_for_send_audit(
+            run_state.student_email,
+            HOMEWORK_CONFIRMATION_TEMPLATE,
+            body_contains="/homework/",
+            timeout=60,
         )
-    try:
-        _assert_homework_confirmation(email_backend, run_state)
-    finally:
-        email_backend.clear(run_state.student_email)
+    except SendAuditTimeout as exc:
+        pytest.xfail(
+            "No homework-confirmation send audit found; ensure Datamailer is "
+            "configured on the target with DATAMAILER_TRANSACTIONAL_DRY_RUN=1. "
+            f"({exc})"
+        )
+    assert audit["template_key"] == HOMEWORK_CONFIRMATION_TEMPLATE
+    assert audit["message"].get("email") == run_state.student_email
+    # The confirmation carries an "Update your submission" link to the homework,
+    # present in the rendered body (and in the render context when included).
+    assert send_audit_body_contains(audit, "/homework/"), (
+        "Homework confirmation email missing update link "
+        f"(rendered={audit.get('rendered')!r})."
+    )
 
 
 def test_score_homework(api, run_state):

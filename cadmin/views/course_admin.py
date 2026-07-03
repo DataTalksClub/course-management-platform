@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, render
 
 from courses.models.course import (
@@ -9,12 +10,10 @@ from courses.models.course import (
 from courses.models.homework import (
     Homework,
     HomeworkState,
-    Submission,
 )
 from courses.models.project import (
     Project,
     ProjectState,
-    ProjectSubmission,
 )
 from .campaign_metrics import registration_campaign_metrics
 from .helpers import staff_required
@@ -34,14 +33,13 @@ def course_list(request):
 
 
 def course_homeworks_for_admin(course):
-    homework_queryset = Homework.objects.filter(course=course).order_by(
-        "due_date"
+    homework_queryset = (
+        Homework.objects.filter(course=course)
+        .annotate(submissions_count=Count("submission"))
+        .order_by("due_date")
     )
     homeworks = list(homework_queryset)
     for homework in homeworks:
-        homework.submissions_count = Submission.objects.filter(
-            homework=homework
-        ).count()
         homework.can_score = homework.state in [
             HomeworkState.OPEN.value,
             HomeworkState.CLOSED.value,
@@ -53,12 +51,13 @@ def course_homeworks_for_admin(course):
 
 
 def course_projects_for_admin(course):
-    project_queryset = Project.objects.filter(course=course).order_by("id")
+    project_queryset = (
+        Project.objects.filter(course=course)
+        .annotate(submissions_count=Count("projectsubmission"))
+        .order_by("id")
+    )
     projects = list(project_queryset)
     for project in projects:
-        project.submissions_count = ProjectSubmission.objects.filter(
-            project=project
-        ).count()
         project.needs_review_assignment = (
             project.state == ProjectState.COLLECTING_SUBMISSIONS.value
         )
