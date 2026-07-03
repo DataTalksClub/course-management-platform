@@ -1,10 +1,14 @@
 from api.safety import error_response
 from api.views.homework_create import create_question
 from api.views.homework_serializers import homework_delete_blockers
+from api.views.serializer_counts import annotated_or_count
 
 
 def homework_questions_replace_error(homework):
-    delete_blockers = homework_delete_blockers(homework)
+    submissions_count = annotated_or_count(
+        homework, "submission_count", "submission_set"
+    )
+    delete_blockers = homework_delete_blockers(homework, submissions_count)
     if delete_blockers:
         return error_response(
             "Questions can only be replaced for closed homeworks with no submissions",

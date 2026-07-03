@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -26,7 +27,11 @@ def _get_course_and_homework(course_slug, homework_id):
 
 
 def _questions_list_response(homework):
-    questions = Question.objects.filter(homework=homework).order_by("id")
+    questions = (
+        Question.objects.filter(homework=homework)
+        .annotate(answer_count=Count("answer"))
+        .order_by("id")
+    )
     question_records = []
     for question in questions:
         question_record = question_to_dict(question)

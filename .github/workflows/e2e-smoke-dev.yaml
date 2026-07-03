@@ -21,20 +21,20 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
 
+    # Email verification no longer uses a mock/real inbox. The suite reads CMP's
+    # own DatamailerSendAudit rows over HTTP (GET /api/datamailer/send-audits):
+    # the real prod send path runs (outbox -> dispatch -> /api/transactional/send
+    # -> audit), but with Datamailer's dry_run flag the render is returned inline
+    # and nothing is delivered. For this to be SAFE, the dev DEPLOYMENT itself
+    # must run with DATAMAILER_TRANSACTIONAL_DRY_RUN=1 (set on the CMP dev ECS
+    # task definition, provisioned via Terraform in DataTalksClub/infra-terraform
+    # -- it is not configured from this repo). Without it, dev would send real
+    # email during the smoke run; the email tests xfail if no audit appears.
     env:
       E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.courses.datatalks.club' }}
       E2E_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_DEV_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_DEV_ADMIN_PASSWORD }}
-      # Default email backend: Datamailer mock inbox (#194 mock-inbox sub-task).
-      # Set once it is deployed to dev with MOCK_INBOX_ENABLED=1. URL = the
-      # Datamailer service root; the client appends /api/mock-inbox/...
-      E2E_MOCK_INBOX_URL: ${{ secrets.E2E_DEV_MOCK_INBOX_URL }}
-      E2E_MOCK_INBOX_API_KEY: ${{ secrets.E2E_DEV_MOCK_INBOX_API_KEY }}
-      # Real SES-inbound backend (#194 issue-194-ses-inbound). Placeholders;
-      # the real-backend email tests xfail until these are provided.
-      E2E_REAL_INBOX_URL: ${{ secrets.E2E_DEV_REAL_INBOX_URL }}
-      E2E_REAL_INBOX_API_KEY: ${{ secrets.E2E_DEV_REAL_INBOX_API_KEY }}
       E2E_EXPECTED_VERSION: ${{ github.event.inputs.expected_version }}
 
     steps:

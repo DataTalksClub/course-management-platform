@@ -1,5 +1,10 @@
 import json
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
+from accounts.models import CustomUser
+from courses.models import Answer, Enrollment, Submission
 from api.tests.homework_api_base import (
     HOMEWORK_INSTRUCTIONS_URL,
     HomeworkAPITestBase,
@@ -7,6 +12,43 @@ from api.tests.homework_api_base import (
 
 
 class HomeworksAPITestCase(HomeworkAPITestBase):
+    def _seed_homework_with_counts(self, slug):
+        homework = self._create_homework(slug=slug)
+        question = self._create_scored_question(homework)
+        student = CustomUser.objects.create(
+            username=f"student-{slug}",
+            email=f"student-{slug}@example.com",
+            password="x",
+        )
+        enrollment = Enrollment.objects.create(
+            student=student, course=self.course
+        )
+        submission = Submission.objects.create(
+            homework=homework, student=student, enrollment=enrollment
+        )
+        Answer.objects.create(
+            submission=submission, question=question, answer_text="4"
+        )
+
+    def _list_query_count(self):
+        url = f"/api/courses/{self.course.slug}/homeworks/"
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        return len(ctx.captured_queries)
+
+    def test_list_homeworks_query_count_is_constant(self):
+        """The list endpoint must not run counts per homework row."""
+        self._seed_homework_with_counts("hw1")
+        self._seed_homework_with_counts("hw2")
+        baseline = self._list_query_count()
+
+        for index in range(3, 9):
+            self._seed_homework_with_counts(f"hw{index}")
+        grown = self._list_query_count()
+
+        self.assertEqual(baseline, grown)
+
     def test_list_homeworks(self):
         self._create_homework()
         response = self.client.get(

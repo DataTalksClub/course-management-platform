@@ -227,23 +227,20 @@ instead of `localhost` links.
 export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
 ```
 
-## Local Datamailer Capture
+## Non-delivering email verification (dry run)
 
-Use the Compose override to run CMP with a local Datamailer in capture mode:
+To exercise the transactional email path without delivering anything, set
+`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. CMP then adds Datamailer's `dry_run` flag
+to every `POST /api/transactional/send`: the identical prod pipeline runs
+(outbox -> dispatch -> send -> `DatamailerSendAudit`), but Datamailer renders
+the email and returns it inline without sending, queuing, or persisting
+anything.
 
-```bash
-make datamailer_capture
-```
-
-The command expects the Datamailer repository at `../datamailer`, starts
-Datamailer on `http://localhost:8001`, seeds the local `dtc-courses` API key,
-and points CMP at `http://datamailer-web:8000` inside the Compose network.
-CMP remains available at `http://localhost:8000`.
-
-Datamailer captures rendered transactional and campaign messages instead of
-sending real email. Look at captured subject, text, and HTML in Datamailer at
-`/api/testbed/runs`. You can also use the Datamailer UI to review links,
-metadata, and suppression details.
+The rendered subject/bodies land in the audit's `response_payload["rendered"]`,
+which CMP exposes over HTTP at `GET /api/datamailer/send-audits`
+(filter by `email` / `template_key` / `idempotency_key`). The e2e smoke suite
+uses this to verify confirmation emails safely. This replaces the old local
+Datamailer capture/testbed compose stack.
 
 Deadline reminder emails are triggered by a short CMP management command:
 

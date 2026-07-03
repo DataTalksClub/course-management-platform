@@ -1,5 +1,7 @@
 from courses.models.project import ProjectState
 
+from .serializer_counts import annotated_or_count
+
 
 def project_delete_blockers(project, submissions_count):
     blockers = []
@@ -49,7 +51,9 @@ def project_settings_fields(project):
 
 
 def project_deletion_fields(project):
-    submissions_count = project.projectsubmission_set.count()
+    submissions_count = annotated_or_count(
+        project, "submission_count", "projectsubmission_set"
+    )
     delete_blockers = project_delete_blockers(project, submissions_count)
     return {
         "submissions_count": submissions_count,

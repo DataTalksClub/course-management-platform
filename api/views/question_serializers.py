@@ -1,5 +1,10 @@
+from .serializer_counts import annotated_or_count
+
+
 def question_to_dict(question):
-    answers_count = question.answer_set.count()
+    answers_count = annotated_or_count(
+        question, "answer_count", "answer_set"
+    )
     possible_answers = question.get_possible_answers()
     delete_blockers = []
     if answers_count:

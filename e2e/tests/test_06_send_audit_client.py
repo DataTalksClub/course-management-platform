@@ -176,13 +176,13 @@ def test_wait_for_send_audit_polls_until_match(monkeypatch):
     assert sleeps == [1]
 
 
-def test_wait_for_send_audit_times_out_when_body_never_matches(monkeypatch):
-    monkeypatch.setattr("e2e.api_client.time.sleep", lambda *_: None)
+def test_wait_for_send_audit_times_out_when_body_never_matches():
+    # Real (tiny) poll sleeps bound the iteration count under the deadline.
     wrong_body = _audit(
         rendered={"html_body": "no link", "text_body": "no link"},
         response_payload={"context": {}},
     )
-    responses = [FakeResponse(200, {"audits": [wrong_body], "count": 1})] * 50
+    responses = [FakeResponse(200, {"audits": [wrong_body], "count": 1})] * 500
     client = _client(responses)
 
     with pytest.raises(SendAuditTimeout):
@@ -191,20 +191,19 @@ def test_wait_for_send_audit_times_out_when_body_never_matches(monkeypatch):
             "homework-submission-confirmation",
             body_contains="/homework/",
             timeout=0.2,
-            poll_interval=0.01,
+            poll_interval=0.02,
         )
 
 
-def test_wait_for_send_audit_times_out_when_empty(monkeypatch):
-    monkeypatch.setattr("e2e.api_client.time.sleep", lambda *_: None)
-    responses = [FakeResponse(200, {"audits": [], "count": 0})] * 50
+def test_wait_for_send_audit_times_out_when_empty():
+    responses = [FakeResponse(200, {"audits": [], "count": 0})] * 500
     client = _client(responses)
     with pytest.raises(SendAuditTimeout):
         client.wait_for_send_audit(
             "e2e-smoke-1@example.com",
             "homework-submission-confirmation",
             timeout=0.2,
-            poll_interval=0.01,
+            poll_interval=0.02,
         )
 
 

@@ -1,9 +1,10 @@
 from courses.models.homework import HomeworkState
 
+from .serializer_counts import annotated_or_count
 
-def homework_delete_blockers(homework):
+
+def homework_delete_blockers(homework, submissions_count):
     blockers = []
-    submissions_count = homework.submission_set.count()
     if homework.state != HomeworkState.CLOSED.value:
         blockers.append("not_closed")
     if submissions_count > 0:
@@ -12,9 +13,13 @@ def homework_delete_blockers(homework):
 
 
 def homework_to_dict(homework):
-    submissions_count = homework.submission_set.count()
-    questions_count = homework.question_set.count()
-    delete_blockers = homework_delete_blockers(homework)
+    submissions_count = annotated_or_count(
+        homework, "submission_count", "submission_set"
+    )
+    questions_count = annotated_or_count(
+        homework, "question_count", "question_set"
+    )
+    delete_blockers = homework_delete_blockers(homework, submissions_count)
     due_date = homework.due_date.isoformat()
     return {
         "id": homework.id,

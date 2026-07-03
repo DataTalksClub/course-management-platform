@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from django.db.models import Count
 from django.http import JsonResponse
 from django.utils.text import slugify
 
@@ -153,7 +154,11 @@ def create_project(course, project_data):
 
 
 def projects_list_response(course):
-    projects = Project.objects.filter(course=course).order_by("id")
+    projects = (
+        Project.objects.filter(course=course)
+        .annotate(submission_count=Count("projectsubmission"))
+        .order_by("id")
+    )
     project_records = []
     for project in projects:
         project_record = project_to_dict(project)

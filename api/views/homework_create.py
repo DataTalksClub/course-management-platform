@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from django.db.models import Count
 from django.http import JsonResponse
 from django.utils.text import slugify
 
@@ -131,7 +132,14 @@ def create_question(homework, question_data):
 
 
 def homeworks_list_response(course):
-    homeworks = Homework.objects.filter(course=course).order_by("id")
+    homeworks = (
+        Homework.objects.filter(course=course)
+        .annotate(
+            submission_count=Count("submission", distinct=True),
+            question_count=Count("question", distinct=True),
+        )
+        .order_by("id")
+    )
     homework_records = []
     for homework in homeworks:
         homework_record = homework_to_dict(homework)

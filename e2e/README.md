@@ -31,59 +31,48 @@ talks to the remote server over HTTP and a browser.
 | 3. Enrollment & identity (create/find student, impersonate, profile) | `tests/test_02_enrollment.py` | browser (loginas) |
 | 4. Homework flow (submit via UI, confirmation, score, leaderboard) | `tests/test_03_homework.py` | browser + API |
 | 5. Project flow (submit via UI, assign reviews, score, stats) | `tests/test_04_project.py` | browser + API |
-| 6. Email verification (homework + project confirmation emails) | `tests/test_03/04` (`@pytest.mark.email`) + `tests/test_06` (client unit tests) | real SES round-trip (default) / mock-store (opt-in) |
+| 6. Email verification (homework + project confirmation emails) | `tests/test_03/04` (`@pytest.mark.email`) + `tests/test_06` (client unit tests) | CMP send audit (Datamailer dry-run render) |
 | 7. Dashboards & stats render | `tests/test_05_dashboards.py` | browser |
 | 8. Teardown + pre-run sweep + clean assert | `tests/test_99_teardown.py` | browser + API |
 
-### Email verification: two backends behind one interface
+### Email verification: CMP's own send audit (dry-run render)
 
-Email checks go through `mock_inbox.py`, which exposes two backends with the
-same `wait_for_message(address, template_key=..., subject=...) -> InboxMessage`
-interface plus `clear(address)` (teardown):
+Email checks mimic the production path but deliver nothing. CMP's real
+outbox → dispatch → `POST /api/transactional/send` → `DatamailerSendAudit`
+pipeline runs exactly as in prod, except the target deployment sets
+`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. CMP then adds Datamailer's `dry_run` flag
+to every transactional send: Datamailer runs the identical validate/render
+pipeline and returns the rendered email inline **without** sending, queuing, or
+persisting anything.
 
-- **`RealInboxClient` (default).** A real HTTP client for the Datamailer
-  **real-inbox** (SES-inbound) API. The student's address is a *real-inbox
-  address* (`e2e+<tag>@mailer.dtcdev.click`): Datamailer **really sends via
-  SES**, an SES receipt rule writes the raw MIME to S3, and this client reads it
-  back — proving the student genuinely received the email. This is the usual
-  delivery path, identical in dev and prod (there is a single shared
-  Datamailer). Contract (base URL = the Datamailer service root, `Bearer`
-  client key):
-  - `GET /api/inbox/messages?address=<addr>&limit=25` → newest-first summaries (`s3_key`, `from_email`, `to`, `subject`, `received_at`)
-  - `GET /api/inbox/messages/{s3_key}?address=<addr>` → `{message:{…, html_body, text_body, spam_verdict, virus_verdict}}`
-  - `DELETE /api/inbox/messages` `{address}` → `{deleted_count}`
+The suite then verifies the email by reading CMP's **own** audit over HTTP —
+there is no inbox client:
 
-  Received MIME has **no `template_key`** (it's not a Datamailer row), so the
-  email tests match on `subject` + `body_contains` for this backend.
-- **`MockInboxClient` (opt-in).** A real HTTP client for the Datamailer
-  **mock-inbox** API. Sends to a *mock address* (`e2e+<tag>@mailbox.test`) are
-  captured as `TransactionalMessage` rows **without** real delivery, and this
-  client lists / fetches detail / clears them. Use it only via
-  `@pytest.mark.mock_inbox` when you want the fast, no-SES path.
-  - `GET /api/mock-inbox/messages?address=<addr>&limit=25` → newest-first summaries
-  - `GET /api/mock-inbox/messages/{id}` → `{message:{…, html_body, text_body, context, metadata}}`
-  - `DELETE /api/mock-inbox/messages` `{address}` → `{deleted_count}`
+- `GET /api/datamailer/send-audits?email=<addr>&template_key=<key>` → newest-first
+  audit rows. Each row exposes `send_type`, `status`, `template_key`,
+  `idempotency_key`, `occurred_at`, `would_deliver`, `rendered`
+  (`subject`/`html_body`/`text_body`), `message`, and the raw `response_payload`.
+- Auth is the same staff `Authorization: Token <token>` as the rest of the API.
 
-**Backend selector.** The `email_backend` fixture resolves to `real_inbox` by
-default; a test marked `@pytest.mark.mock_inbox` (or parametrized with
-`"mock"`) resolves to `mock_inbox`.
+`CmpApiClient` (`e2e/api_client.py`) exposes `datamailer_send_audits(...)` and a
+short poll helper `wait_for_send_audit(email, template_key, body_contains=...)`.
+The email tests (`test_03/04`) poll for the student's address + the expected
+`template_key` (`homework-submission-confirmation` /
+`project-submission-confirmation`) and assert the rendered body (or render
+context) contains `/homework/` / `/project/`.
 
 **What runs now vs. what's gated.** The client logic is covered by
-`tests/test_06_mock_inbox_client.py` (no-network unit tests — paths, auth,
-params, response shapes, poll/timeout, retries, disabled-deployment 404,
-clear — for **both** backends). The **live** email assertions in `test_03/04`
-need the real inbox **enabled on the Datamailer deployment**
-(`REAL_INBOX_ENABLED=1` + `REAL_INBOX_S3_BUCKET`; `datamailer-infra` provisions
-the SES receipt rule + inbound S3). `E2E_REAL_INBOX_*` falls back to
-`DATAMAILER_URL` / `DATAMAILER_API_KEY`. When unset, or when the deployment has
-the real inbox off (`404 real_inbox_disabled`), the email tests **xfail** (a
-fast pre-check avoids burning the poll timeout) so the suite stays green until
-the read API is switched on.
+`tests/test_06_send_audit_client.py` (no-network unit tests — path, query
+params, response shape, poll/timeout, body matching). The **live** email
+assertions in `test_03/04` need the target deployment to have Datamailer
+configured **and** `DATAMAILER_TRANSACTIONAL_DRY_RUN=1`; when no matching audit
+appears, they **xfail** (a fast pre-check avoids burning the poll timeout) so
+the suite stays green until dry-run is switched on.
 
-The student email is set to a unique per-run real-inbox address
-(`settings.real_address(namespace)` → `e2e+<namespace>@mailer.dtcdev.click`) and
-the captured messages are cleared via the `DELETE` endpoint in each email test's
-teardown.
+The student email is a unique per-run address
+(`settings.student_address(namespace)` → `<namespace>@example.com`). Nothing is
+delivered and nothing needs clearing — the audit is CMP-side data purged with
+the rest of the run at teardown.
 
 ### Teardown deletes the course via the Django admin UI
 
@@ -154,11 +143,7 @@ secrets. The suite also falls back to the **repo-root `.env`** for
 | `E2E_BASE_URL` | all | Defaults to `https://dev.courses.datatalks.club` (or `PUBLIC_BASE_URL`). |
 | `E2E_API_TOKEN` | provisioning/scoring/teardown | Staff token. Falls back to `DEV_AUTH_TOKEN`. |
 | `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | browser flows + teardown | Staff account; logs in via the admin form (no OAuth). Teardown deletes the course through the admin UI with this session; without it, teardown only parks the course hidden. |
-| `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `e2e+<namespace>@mailer.dtcdev.click` real-inbox student is created admin-side (really receives the email via SES). |
-| `E2E_REAL_INBOX_URL` / `E2E_REAL_INBOX_API_KEY` | email checks (default) | Datamailer service root + client key. Fall back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`. Email tests xfail when the real inbox is unset or disabled on the deployment. |
-| `E2E_REAL_INBOX_DOMAIN` / `E2E_REAL_INBOX_TAG` | optional | Real-inbox address shape; default `mailer.dtcdev.click` / `e2e`. Must match the datamailer `REAL_INBOX_*` settings. |
-| `E2E_MOCK_INBOX_URL` / `E2E_MOCK_INBOX_API_KEY` | email checks (opt-in `@pytest.mark.mock_inbox`) | Datamailer service root + client key. Fall back to `DATAMAILER_URL` / `DATAMAILER_API_KEY`. |
-| `E2E_MOCK_INBOX_DOMAIN` / `E2E_MOCK_INBOX_TAG` | optional | Mock-address shape; default `mailbox.test` / `e2e`. Must match the datamailer `MOCK_INBOX_*` settings. |
+| `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `<namespace>@example.com` student is created admin-side. With dry-run nothing is delivered, so no special address is needed. |
 | `E2E_EXPECTED_VERSION` | optional | If set, asserts `/api/health/` version matches the just-deployed build. |
 | `E2E_HEADLESS` | optional | `0` to watch the browser locally. |
 

@@ -1663,257 +1663,37 @@ Rules:
   sample context rather than production learners.
 - CMP should keep template keys as code constants, not environment variables.
 
-## Render testbed
+## Non-delivering verification (dry run)
 
-Datamailer should provide a testbed where CMP developers send the **same API
-request to the same endpoint** CMP would normally use, but mark it as render-only.
-Datamailer runs the same production code path, stores the generated result, and
-returns a `testbed_run_id` instead of enqueueing delivery. A developer then fetches
-that run to inspect the generated subject, text, HTML, merged context, link
-diagnostics, validation result, and delivery/suppression decision.
+CMP verifies the transactional email path without delivering anything by using
+Datamailer's `dry_run` flag on `POST /api/transactional/send`. When
+`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`, CMP adds `"dry_run": true` to every
+transactional send. Datamailer runs the **identical** validate/render pipeline
+(template lookup, context merge, required-field validation, category and
+suppression checks, render) and returns the rendered email inline **without**
+sending, queuing, or persisting anything. The response is a strict superset of
+a normal send response, adding a `rendered` block (`subject`, `html_body`,
+`text_body`), `would_deliver`, and `delivery_decision`.
 
-This is not a separate renderer or mock pipeline: it uses the real template lookup,
-context merge, required-field validation, category checks, suppression checks, and
-render code. The only disabled step is enqueueing or handing the message to the
-delivery provider.
+This is not a separate renderer or mock pipeline, and CMP does not branch on a
+"testbed mode": the same code path runs as in production through the final
+rendered message. The only disabled step is delivery. Any difference between a
+dry-run render and a production render is a bug.
 
-There are two entry modes:
+CMP records each send attempt (dry-run or real) in a `DatamailerSendAudit` row
+whose `response_payload` carries the Datamailer response, including the
+`rendered` block for dry runs. CMP exposes these over HTTP at
+`GET /api/datamailer/send-audits` (filter by `email`, `template_key`, or
+`idempotency_key`), so the e2e smoke suite can drive the real flows and assert
+on the rendered subject/bodies and delivery decision without any email being
+delivered.
 
-- **Per-request render-only mode:** send the normal Datamailer API request with
-  `X-Datamailer-Mode: render-only`.
-- **Environment-level capture mode:** run Datamailer in a local/sandbox mode where
-  every normal send request is captured and rendered, but no email is delivered.
-  CMP does not need special testbed code in this mode; it points at Datamailer and
-  behaves normally.
-
-Use cases:
-
-- Verify what a transactional request would render before wiring it into CMP.
-- Debug missing template fields, bad links, wrong metadata precedence, or category
-  selection.
-- Test category preferences and unsubscribe behavior: send a request for someone
-  opted out of that category and confirm Datamailer returns `would_send: false`
-  with the expected suppression reason.
-- Test global unsubscribe and deliverability suppression without sending email to
-  the suppressed contact.
-- Verify absolute links in both text and HTML output, including leaderboard, score,
-  profile, update, review, certificate, and unsubscribe/preferences links.
-- Inspect one representative recipient from a node send without emailing the whole
-  node.
-- Save fixtures for template contract tests.
-
-### Local E2E capture mode
-
-The main CMP testing workflow should be end-to-end:
-
-1. Run CMP and Datamailer together, for example with Docker Compose.
-2. Configure CMP with normal Datamailer settings:
-   `DATAMAILER_URL`, `DATAMAILER_API_KEY`, `DATAMAILER_CLIENT`,
-   `DATAMAILER_AUDIENCE`, and `DATAMAILER_FROM_EMAIL`.
-3. Configure Datamailer itself with delivery disabled and capture enabled.
-4. Use CMP normally: register, submit homework, publish scores, assign peer
-   reviews, run deadline reminders, publish certificates, or queue announcements.
-5. Inspect captured Datamailer runs through an API or UI.
-
-Example compose-style environment:
-
-```text
-CMP:
-  DATAMAILER_URL=http://datamailer:8000
-  DATAMAILER_API_KEY=dev-token
-  DATAMAILER_CLIENT=dtc-courses
-  DATAMAILER_AUDIENCE=dtc-courses
-  DATAMAILER_FROM_EMAIL=courses
-
-Datamailer:
-  DATAMAILER_DELIVERY_MODE=capture
-  DATAMAILER_CAPTURE_UI=1
-```
-
-In capture mode, CMP sends the exact same requests it would send in a real
-environment. Datamailer stores each rendered message and returns normal API
-responses to CMP, but marks the message as captured rather than queued for
-provider delivery.
-
-For local E2E capture, the only intended difference is Datamailer configuration:
-set Datamailer's delivery mode to `capture`. CMP code, CMP endpoints, and CMP
-payloads stay unchanged. CMP should not branch on "testbed mode"; it should behave
-as if it were talking to a normal Datamailer deployment.
-
-Capture inspection API:
-
-```text
-GET /api/testbed/runs
-GET /api/testbed/runs?source=course-management-platform&event=homework_submission
-GET /api/testbed/runs/{testbed_run_id}
-GET /api/testbed/runs/{testbed_run_id}/messages/{message_id}
-DELETE /api/testbed/runs
-```
-
-The UI should support the same basic workflow: list captured runs, filter by
-email/template/course/event, open a message, switch between text and HTML, inspect
-merged context, check suppression reasons, and inspect link diagnostics.
-
-Normal send endpoints, testbed mode:
-
-```text
-POST /api/transactional/send
-POST /api/recipient-lists/{list_key}/transactional-send
-POST /api/campaigns/{external_key}/queue
-X-Datamailer-Mode: render-only
-```
-
-The request body is the same as the normal production request. The only difference
-is the render-only header. Datamailer should also accept an equivalent query
-parameter for manual cURL/browser testing, e.g. `?mode=render-only`.
-
-Retrieval endpoints:
-
-```text
-GET /api/testbed/runs/{testbed_run_id}
-GET /api/testbed/runs/{testbed_run_id}/messages/{message_id}
-```
-
-Example direct-send testbed request:
-
-```text
-POST /api/transactional/send
-X-Datamailer-Mode: render-only
-```
-
-```json
-{
-  "client": "dtc-courses",
-  "audience": "dtc-courses",
-  "email": "learner@example.com",
-  "template_key": "homework-submission-confirmation",
-  "category_tag": "submission-results",
-  "context": {
-    "course_title": "Machine Learning Zoomcamp",
-    "homework_title": "Homework 1",
-    "update_url": "https://courses.datatalks.club/course/homework/homework-1",
-    "profile_url": "https://courses.datatalks.club/accounts/settings/"
-  },
-  "metadata": {
-    "source": "course-management-platform",
-    "event": "homework_submission",
-    "submission_id": 123
-  }
-}
-```
-
-Immediate response:
-
-```json
-{
-  "mode": "render-only",
-  "testbed_run_id": "testbed-run:abc123",
-  "delivery_enqueued": false,
-  "result_url": "/api/testbed/runs/testbed-run:abc123"
-}
-```
-
-Example retrieved run:
-
-```json
-{
-  "testbed_run_id": "testbed-run:abc123",
-  "source_endpoint": "POST /api/transactional/send",
-  "template_key": "homework-submission-confirmation",
-  "category_tag": "submission-results",
-  "messages": [
-    {
-      "message_id": "testbed-message:1",
-      "email": "learner@example.com",
-      "subject": "Homework 1 submitted",
-      "text": "Your Homework 1 submission for Machine Learning Zoomcamp was recorded...",
-      "html": "<p>Your Homework 1 submission for Machine Learning Zoomcamp was recorded...</p>",
-      "merged_context": {
-        "course_title": "Machine Learning Zoomcamp",
-        "homework_title": "Homework 1",
-        "update_url": "https://courses.datatalks.club/course/homework/homework-1",
-        "profile_url": "https://courses.datatalks.club/accounts/settings/"
-      },
-      "validation": {
-        "ok": true,
-        "missing_fields": [],
-        "warnings": []
-      },
-      "delivery_decision": {
-        "would_send": true,
-        "suppressed": false,
-        "reasons": []
-      },
-      "links": {
-        "absolute": true,
-        "urls": [
-          "https://courses.datatalks.club/course/homework/homework-1",
-          "https://courses.datatalks.club/accounts/settings/"
-        ],
-        "warnings": []
-      }
-    }
-  ]
-}
-```
-
-Rules:
-
-- Render-only mode never enqueues email and never hands email to SES/provider
-  delivery.
-- It uses the same production code path as real sends through the final rendered
-  message. Any difference between testbed rendering and production rendering is a
-  bug.
-- It may create a non-delivery audit/testbed record, but must not create a normal
-  transactional message that can be retried or delivered later.
-- For node/list renders, the request may either pick one `source_object_key` or
-  pass explicit sample member metadata. Datamailer should not render every member
-  by default.
-- The response should include both `text` and `html`, even when one is generated
-  from the other.
-- The response should expose **why** Datamailer would or would not send:
-  category opt-out, global unsubscribe, hard bounce, complaint, unknown contact,
-  missing required context, or template/category validation error.
-- The response should include link diagnostics: all URLs found in `text` and
-  `html`, whether each is absolute, and warnings for empty hosts, `localhost`,
-  unsupported schemes, or missing unsubscribe/preferences links where required.
-- Testbed requests should be auditable but should not pollute normal message
-  history or idempotency state.
-
-Suppression test examples:
-
-```json
-{
-  "email": "learner@example.com",
-  "category_tag": "deadline-reminders",
-  "delivery_decision": {
-    "would_send": false,
-    "suppressed": true,
-    "reasons": [
-      {
-        "code": "category_opted_out",
-        "category_tag": "deadline-reminders"
-      }
-    ]
-  }
-}
-```
-
-```json
-{
-  "email": "learner@example.com",
-  "category_tag": "course-updates",
-  "delivery_decision": {
-    "would_send": false,
-    "suppressed": true,
-    "reasons": [
-      {
-        "code": "global_unsubscribed"
-      }
-    ]
-  }
-}
-```
+For a local or CI end-to-end run, point CMP at a Datamailer deployment with
+normal settings (`DATAMAILER_URL`, `DATAMAILER_API_KEY`, `DATAMAILER_CLIENT`,
+`DATAMAILER_AUDIENCE`, `DATAMAILER_FROM_EMAIL`) and set
+`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. Use CMP normally (register, submit
+homework, publish scores, and so on) and inspect the rendered results through
+`GET /api/datamailer/send-audits`.
 
 ## Preferences API
 
@@ -2175,10 +1955,10 @@ Target cadmin surfaces:
   callback events, suppression state, and Datamailer message ids.
 - **Template preview/test:** render a template or campaign with sample context and
   optionally send it to operator/test addresses.
-- **Production-path testbed:** paste or replay a CMP send payload, run it through
-  the real Datamailer render pipeline without delivery, and inspect subject, text,
-  HTML, merged context, validation, unsubscribe/category suppression decisions, and
-  link diagnostics.
+- **Production-path dry run:** replay a CMP send payload through the real
+  Datamailer render pipeline with `dry_run` set (no delivery), and inspect the
+  returned subject, text, HTML, merged context, validation, unsubscribe/category
+  suppression decisions, and link diagnostics.
 
 Datamailer should return stable ids and status URLs/message ids where possible so
 CMP can link operator screens to Datamailer support detail.
@@ -2294,14 +2074,14 @@ Target tests before relying on the integration:
   and node send.
 - **Template contract tests:** each CMP template receives all required fields and
   rendered links are absolute.
-- **Render testbed tests:** the testbed and real send path produce the same subject,
-  text, HTML, merged context, validation result, category/global-unsubscribe
-  suppression decision, and link diagnostics for the same request, while the
-  testbed never enqueues provider delivery.
-- **Local E2E capture tests:** run CMP and Datamailer together, e.g. with Docker
-  Compose, with Datamailer in capture mode. Use CMP normally to register, submit,
-  publish scores, assign peer reviews, send deadline reminders, publish
-  certificates, and create/queue/cancel a campaign. Assert on captured text/HTML,
-  suppression decisions, and links.
+- **Dry-run render tests:** a `dry_run` send and a real send produce the same
+  subject, text, HTML, merged context, validation result,
+  category/global-unsubscribe suppression decision, and link diagnostics for the
+  same request, while the dry run never enqueues provider delivery.
+- **Local E2E dry-run tests:** run CMP against a Datamailer deployment with
+  `DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. Use CMP normally to register, submit,
+  publish scores, assign peer reviews, send deadline reminders, and publish
+  certificates. Assert on the rendered text/HTML, suppression decisions, and
+  links read back from `GET /api/datamailer/send-audits`.
 - **Drift audit tests:** intentionally remove or alter a Datamailer membership and
   verify the audit reports or repairs the difference.
