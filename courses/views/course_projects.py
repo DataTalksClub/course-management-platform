@@ -1,11 +1,10 @@
 from dataclasses import dataclass
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 
 from courses.models.course import Course, User
 from courses.models.project import (
-    PeerReview,
     PeerReviewState,
     Project,
     ProjectState,
@@ -24,7 +23,17 @@ def get_projects_for_course(
     course: Course, user: User
 ) -> list[Project]:
     if user.is_authenticated:
-        queryset = ProjectSubmission.objects.filter(student=user)
+        queryset = ProjectSubmission.objects.filter(
+            student=user
+        ).annotate(
+            completed_reviews_count=Count(
+                "reviewers",
+                filter=Q(
+                    reviewers__optional=False,
+                    reviewers__state=PeerReviewState.SUBMITTED.value,
+                ),
+            )
+        )
     else:
         queryset = ProjectSubmission.objects.none()
 
@@ -62,12 +71,7 @@ def base_project_badge(state):
 
 
 def peer_review_project_badge(project, submission):
-    completed_reviews = PeerReview.objects.filter(
-        reviewer=submission,
-        optional=False,
-        state=PeerReviewState.SUBMITTED.value,
-    )
-    completed_reviews_count = completed_reviews.count()
+    completed_reviews_count = submission.completed_reviews_count
     if completed_reviews_count >= project.number_of_peers_to_evaluate:
         return ProjectBadgeData("Review completed", "bg-success")
 

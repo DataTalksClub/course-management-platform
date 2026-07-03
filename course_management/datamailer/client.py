@@ -6,13 +6,13 @@ from urllib.parse import urljoin, urlparse
 import requests
 from django.conf import settings
 
-logger = logging.getLogger(__name__)
-
 from .client_campaigns import DatamailerCampaignClient
 from .client_contacts import DatamailerContactClient
 from .client_recipient_lists import DatamailerRecipientListClients
 from .client_transactional import DatamailerTransactionalClient
 from .client_types import DatamailerRequestData
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,6 @@
+from django.db import connection
 from django.test import TestCase, Client
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -125,6 +127,44 @@ class PeerReviewBadgeTests(TestCase):
     def test_peer_review_badge_secondary_when_not_submitted(self):
         """Test that the badge is secondary (gray) when project is not submitted"""
         self.assert_project_badge("bg-secondary", "Not submitted")
+
+    def _add_peer_review_project(self, slug):
+        project = Project.objects.create(
+            course=self.course,
+            title=slug,
+            slug=slug,
+            state=ProjectState.PEER_REVIEWING.value,
+            submission_due_date=timezone.now() - timezone.timedelta(days=1),
+            peer_review_due_date=timezone.now()
+            + timezone.timedelta(days=7),
+        )
+        ProjectSubmission.objects.create(
+            project=project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/test/repo",
+        )
+
+    def _course_page_query_count(self):
+        self.client.login(username="test@test.com", password="12345")
+        course_url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(course_url)
+        self.assertEqual(response.status_code, 200)
+        return len(ctx.captured_queries)
+
+    def test_course_page_query_count_constant_across_projects(self):
+        """Rendering the course page must not count reviews per project."""
+        self.create_submission(self.user, self.enrollment)
+        baseline = self._course_page_query_count()
+
+        for index in range(4):
+            self._add_peer_review_project(f"pr-extra-{index}")
+        grown = self._course_page_query_count()
+
+        self.assertEqual(baseline, grown)
 
 
 class PeerReviewBadgeEndToEndTests(TestCase):
