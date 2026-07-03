@@ -1,6 +1,9 @@
 from typing import Any
 
+from django.db.models import Prefetch
+
 from accounts.services.timezones import format_deadline_for_user
+from courses.models.project import PeerReview
 
 from ..keys import project_submitters_list_key
 from .base import (
@@ -13,14 +16,34 @@ from .base import (
 from .urls import public_route_url
 
 
-def assigned_review_links(submission) -> list[dict[str, Any]]:
-    project = submission.project
-    course = project.course
-    reviews = (
+ASSIGNED_REVIEWS_ATTR = "assigned_reviews"
+
+
+def _assigned_reviews(submission):
+    prefetched = getattr(submission, ASSIGNED_REVIEWS_ATTR, None)
+    if prefetched is not None:
+        return prefetched
+    return (
         submission.reviewers.filter(optional=False)
         .select_related("submission_under_evaluation")
         .order_by("id")
     )
+
+
+def assigned_reviews_prefetch() -> Prefetch:
+    return Prefetch(
+        "reviewers",
+        queryset=PeerReview.objects.filter(optional=False)
+        .select_related("submission_under_evaluation")
+        .order_by("id"),
+        to_attr=ASSIGNED_REVIEWS_ATTR,
+    )
+
+
+def assigned_review_links(submission) -> list[dict[str, Any]]:
+    project = submission.project
+    course = project.course
+    reviews = _assigned_reviews(submission)
     items = []
     for review in reviews:
         item = assigned_review_link_item(review, course, project)
@@ -148,9 +171,13 @@ def peer_review_assignment_notification_members(
     list_data = peer_review_assignment_list_data(project)
     members = []
     seen_students = set()
-    submissions = project.projectsubmission_set.select_related(
-        "student", "project__course"
-    ).order_by("student_id", "-submitted_at", "-id")
+    submissions = (
+        project.projectsubmission_set.select_related(
+            "student", "project__course"
+        )
+        .prefetch_related(assigned_reviews_prefetch())
+        .order_by("student_id", "-submitted_at", "-id")
+    )
     for submission in submissions:
         if submission.student_id in seen_students:
             continue

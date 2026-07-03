@@ -85,42 +85,19 @@ class Settings:
     admin_password: str | None
     student_email: str | None
     student_password: str | None
-    mock_inbox_url: str | None
-    mock_inbox_api_key: str | None
-    mock_inbox_domain: str
-    mock_inbox_tag: str
-    real_inbox_url: str | None
-    real_inbox_api_key: str | None
-    real_inbox_domain: str
-    real_inbox_tag: str
     request_timeout: float
     ui_timeout_ms: int
     expected_version: str | None
 
-    def real_address(self, label: str) -> str:
-        """Build a plus-tagged address on the datamailer real-inbox domain.
+    def student_address(self, label: str) -> str:
+        """Build a unique, namespaced student address for a run.
 
-        Shape: ``<tag>+<label>@<domain>`` (e.g.
-        ``e2e+e2e-smoke-123@mailer.dtcdev.click``). Datamailer recognises an
-        address as a *real-inbox* address when its domain (ignoring the ``+tag``
-        sub-address) equals ``REAL_INBOX_DOMAIN``; such mail always takes the
-        real SES send path and is received back out of the inbound S3 bucket.
-        The unique ``+<label>`` isolates this run, since real capture is scoped
-        only to the recipient address.
+        With Datamailer's ``dry_run`` flag there are no special mock/real
+        inbox addresses: nothing is delivered, so any normal address works.
+        Email verification reads CMP's own send audit, keyed on this address.
         """
         clean = _address_label(label)
-        return f"{self.real_inbox_tag}+{clean}@{self.real_inbox_domain}"
-
-    def mock_address(self, label: str) -> str:
-        """Build a plus-tagged mock address the Datamailer mock inbox captures.
-
-        Shape: ``<tag>+<label>@<domain>`` (e.g. ``e2e+e2e-smoke-123@mailbox.test``).
-        The datamailer side recognises an address as "mock" when its domain is
-        ``MOCK_INBOX_DOMAIN`` *or* its local part carries ``MOCK_INBOX_PLUS_TAG``.
-        Using both keeps it a mock address regardless of which check fires.
-        """
-        clean = _address_label(label)
-        return f"{self.mock_inbox_tag}+{clean}@{self.mock_inbox_domain}"
+        return f"{clean}@example.com"
 
     def require_api_token(self) -> str:
         if not self.api_token:
@@ -165,50 +142,6 @@ def _base_url() -> str:
     return base_url.rstrip("/")
 
 
-def _mock_inbox_settings() -> dict:
-    # Base URL is the Datamailer service root; the client appends
-    # /api/mock-inbox/... Fall back to the datamailer settings in repo .env.
-    mock_inbox_url = _first_env("E2E_MOCK_INBOX_URL", "DATAMAILER_URL")
-    mock_inbox_api_key = _first_env(
-        "E2E_MOCK_INBOX_API_KEY", "DATAMAILER_API_KEY"
-    )
-    mock_inbox_domain = (
-        _first_env("E2E_MOCK_INBOX_DOMAIN", "MOCK_INBOX_DOMAIN")
-        or "mailbox.test"
-    )
-    mock_inbox_tag = (
-        _first_env("E2E_MOCK_INBOX_TAG", "MOCK_INBOX_PLUS_TAG") or "e2e"
-    )
-    return {
-        "mock_inbox_url": mock_inbox_url,
-        "mock_inbox_api_key": mock_inbox_api_key,
-        "mock_inbox_domain": mock_inbox_domain,
-        "mock_inbox_tag": mock_inbox_tag,
-    }
-
-
-def _real_inbox_settings() -> dict:
-    # Real SES-inbound backend: Datamailer sends via SES and reads the
-    # inbound S3 object back over HTTP. URL/key fall back to DATAMAILER_*.
-    real_inbox_url = _first_env("E2E_REAL_INBOX_URL", "DATAMAILER_URL")
-    real_inbox_api_key = _first_env(
-        "E2E_REAL_INBOX_API_KEY", "DATAMAILER_API_KEY"
-    )
-    real_inbox_domain = (
-        _first_env("E2E_REAL_INBOX_DOMAIN", "REAL_INBOX_DOMAIN")
-        or "mailer.dtcdev.click"
-    )
-    real_inbox_tag = (
-        _first_env("E2E_REAL_INBOX_TAG", "REAL_INBOX_PLUS_TAG") or "e2e"
-    )
-    return {
-        "real_inbox_url": real_inbox_url,
-        "real_inbox_api_key": real_inbox_api_key,
-        "real_inbox_domain": real_inbox_domain,
-        "real_inbox_tag": real_inbox_tag,
-    }
-
-
 def load_settings() -> Settings:
     _ensure_env_loaded()
 
@@ -218,8 +151,6 @@ def load_settings() -> Settings:
     admin_password = _first_env("E2E_ADMIN_PASSWORD")
     student_email = _first_env("E2E_STUDENT_EMAIL")
     student_password = _first_env("E2E_STUDENT_PASSWORD")
-    mock_inbox_settings = _mock_inbox_settings()
-    real_inbox_settings = _real_inbox_settings()
     request_timeout = _float_env("E2E_REQUEST_TIMEOUT", "30")
     ui_timeout_ms = _int_env("E2E_UI_TIMEOUT_MS", "20000")
     expected_version = _first_env("E2E_EXPECTED_VERSION")
@@ -231,8 +162,6 @@ def load_settings() -> Settings:
         admin_password=admin_password,
         student_email=student_email,
         student_password=student_password,
-        **mock_inbox_settings,
-        **real_inbox_settings,
         request_timeout=request_timeout,
         ui_timeout_ms=ui_timeout_ms,
         expected_version=expected_version,

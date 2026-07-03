@@ -12,6 +12,7 @@ import json
 import time
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlencode
 
 import requests
 
@@ -21,6 +22,10 @@ class ApiError(RuntimeError):
         self.status = status
         self.body = body
         super().__init__(message)
+
+
+class SendAuditTimeout(AssertionError):
+    """Raised when no matching Datamailer send audit appears in time."""
 
 
 @dataclass(frozen=True)
@@ -336,6 +341,120 @@ class CmpApiClient:
         )
         resp = self._request(request_data)
         return resp.text
+
+    # -- datamailer send audits -----------------------------------------
+    def datamailer_send_audits(
+        self,
+        *,
+        email: str | None = None,
+        template_key: str | None = None,
+        idempotency_key: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict]:
+        """List CMP's own Datamailer send-audit rows (newest first).
+
+        Mirrors the production email path: every send goes outbox -> dispatch
+        -> ``/api/transactional/send`` -> ``DatamailerSendAudit``. With
+        ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1`` on the target, the audit's
+        ``response_payload`` carries the rendered subject/bodies without
+        anything being delivered.
+        """
+        params: list[tuple[str, str]] = []
+        if email:
+            params.append(("email", email))
+        if template_key:
+            params.append(("template_key", template_key))
+        if idempotency_key:
+            params.append(("idempotency_key", idempotency_key))
+        if limit is not None:
+            params.append(("limit", str(limit)))
+        path = "/api/datamailer/send-audits"
+        if params:
+            path = f"{path}?{urlencode(params)}"
+        request_data = ApiRequestData(
+            method="GET",
+            path=path,
+            expected=(200,),
+        )
+        resp = self._request(request_data)
+        body = resp.json()
+        return body.get("audits", [])
+
+    def wait_for_send_audit(
+        self,
+        email: str,
+        template_key: str,
+        *,
+        body_contains: str | None = None,
+        timeout: float = 30.0,
+        poll_interval: float = 2.0,
+    ) -> dict:
+        """Poll the send-audit endpoint until a matching audit appears.
+
+        The outbox dispatch is normally synchronous, so the audit is usually
+        present on the first poll; the short retry only smooths over dispatch
+        latency. Raises :class:`SendAuditTimeout` if nothing matches in time.
+        """
+        deadline = time.monotonic() + timeout
+        seen: list[dict] = []
+        while True:
+            audits = self.datamailer_send_audits(
+                email=email,
+                template_key=template_key,
+            )
+            match = _first_matching_audit(audits, body_contains)
+            if match is not None:
+                return match
+            seen = audits
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(poll_interval)
+
+        raise SendAuditTimeout(
+            f"No Datamailer send audit for {email!r} with "
+            f"template_key={template_key!r} / body~={body_contains!r} within "
+            f"{timeout}s. Seen: {[a.get('idempotency_key') for a in seen]!r}. "
+            "Is Datamailer configured on the target with "
+            "DATAMAILER_TRANSACTIONAL_DRY_RUN=1?"
+        )
+
+
+def send_audit_body_contains(audit: dict, needle: str) -> bool:
+    """True if ``needle`` appears in the audit's rendered bodies or context.
+
+    Checks ``rendered.html_body`` / ``rendered.text_body`` and, when present,
+    the stringified values of ``response_payload.context`` (confirmation links
+    live in the render context as well as the rendered HTML).
+    """
+    for haystack in _audit_haystacks(audit):
+        if needle in haystack:
+            return True
+    return False
+
+
+def _audit_haystacks(audit: dict) -> list[str]:
+    rendered = audit.get("rendered") or {}
+    haystacks = [
+        rendered.get("html_body") or "",
+        rendered.get("text_body") or "",
+    ]
+    payload = audit.get("response_payload") or {}
+    context = payload.get("context") or {}
+    if isinstance(context, dict):
+        for value in context.values():
+            haystacks.append(str(value))
+    return haystacks
+
+
+def _first_matching_audit(
+    audits: list[dict],
+    body_contains: str | None,
+) -> dict | None:
+    for audit in audits:
+        if body_contains and not send_audit_body_contains(audit, body_contains):
+            continue
+        return audit
+    return None
 
 
 def _safe_json(resp: requests.Response) -> Any:

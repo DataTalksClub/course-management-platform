@@ -2,7 +2,9 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 
 from accounts.models import CustomUser
 from data.models import (
@@ -232,6 +234,43 @@ class DatamailerPeerReviewPayloadTest(TestCase):
         self.assertEqual(payload["from_email"], "courses")
         assert_peer_review_assignment_payload(self, payload, project)
         assert_berlin_reviewer_assignments(self, payload)
+
+
+class DatamailerPeerReviewMembersQueryTest(TestCase):
+    def _add_submitters(self, project, count):
+        for index in range(count):
+            user = create_user(f"extra-{index}@example.com")
+            create_project_submission(
+                project,
+                user,
+                github_link=f"https://github.com/example/extra{index}",
+            )
+
+    def _peerreview_query_count(self, project):
+        from course_management.datamailer.payloads.peer_review_members import (  # noqa: E501
+            peer_review_assignment_notification_members,
+        )
+
+        with CaptureQueriesContext(connection) as ctx:
+            peer_review_assignment_notification_members(project)
+        return len(
+            [
+                q
+                for q in ctx.captured_queries
+                if 'FROM "courses_peerreview"' in q["sql"]
+            ]
+        )
+
+    def test_reviewers_are_prefetched_not_queried_per_submitter(self):
+        """Building the member list must not query reviewers per submitter."""
+        project = create_peer_review_assignment_fixture()
+        self._add_submitters(project, 20)
+
+        peerreview_queries = self._peerreview_query_count(project)
+
+        # The reviewers relation is prefetched in a single query, so the
+        # count stays constant instead of growing with the submitter count.
+        self.assertLessEqual(peerreview_queries, 1)
 
 
 class DatamailerPeerReviewPreviewCommandTest(TestCase):

@@ -21,7 +21,6 @@ sys.path.insert(0, repo_root_path)
 
 from e2e.api_client import CmpApiClient  # noqa: E402
 from e2e.config import load_settings, Settings  # noqa: E402
-from e2e.mock_inbox import InboxClientConfig, MockInboxClient, RealInboxClient  # noqa: E402
 from e2e.provisioning import (  # noqa: E402
     ProvisionedCourse,
     Provisioner,
@@ -62,46 +61,17 @@ def provisioner(api: CmpApiClient) -> Provisioner:
 
 
 @pytest.fixture(scope="session")
-def mock_inbox(settings: Settings) -> MockInboxClient:
-    config = InboxClientConfig(
-        base_url=settings.mock_inbox_url,
-        api_key=settings.mock_inbox_api_key,
-    )
-    return MockInboxClient(config)
+def send_audits(api: CmpApiClient) -> CmpApiClient:
+    """Reader for CMP's own Datamailer send audits.
 
-
-@pytest.fixture(scope="session")
-def real_inbox(settings: Settings) -> RealInboxClient:
-    config = InboxClientConfig(
-        base_url=settings.real_inbox_url,
-        api_key=settings.real_inbox_api_key,
-    )
-    return RealInboxClient(config)
-
-
-@pytest.fixture(scope="session")
-def email_backend(request):
-    """Resolve the email-verification backend for a test.
-
-    Default = the **real** SES round-trip backend (``real_inbox``): Datamailer
-    really sends via SES and the message is read back from the inbound S3
-    bucket, so the student genuinely receives the email -- the usual flow, the
-    same in dev and prod. A test can opt back into the fast mock-store backend
-    by marking itself ``@pytest.mark.mock_inbox``. Either way, the test gets one
-    object implementing the same interface.
+    Email verification no longer polls a mock/real inbox. Instead it reads
+    CMP's ``DatamailerSendAudit`` rows over HTTP: the real prod path runs
+    (outbox -> dispatch -> /api/transactional/send -> audit), but with
+    ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1`` the render is returned inline and
+    nothing is delivered. This fixture is the same ``CmpApiClient`` used for
+    provisioning; it exposes ``datamailer_send_audits`` / ``wait_for_send_audit``.
     """
-    backend = getattr(request, "param", None)
-    if backend is None:
-        marker = request.node.get_closest_marker("mock_inbox")
-        if marker:
-            backend = "mock"
-        else:
-            backend = "real"
-    if backend == "real":
-        fixture_name = "real_inbox"
-    else:
-        fixture_name = "mock_inbox"
-    return request.getfixturevalue(fixture_name)
+    return api
 
 
 @pytest.fixture(scope="session")

@@ -1,6 +1,6 @@
 """Scenario 3 (issue #194): Enrollment & identity.
 
-* A test student (admin-side, email at the Datamailer mock address) exists.
+* A test student (admin-side) exists.
 * Admin impersonates the student (django-loginas -- no OAuth).
 * Student profile / settings page renders.
 
@@ -18,11 +18,11 @@ pytestmark = pytest.mark.enrollment
 def _student_email(settings, run_state) -> str:
     if settings.student_email:
         return settings.student_email
-    # Per-run, recognizable, and routed at the Datamailer *real-inbox* address
-    # (e2e+<namespace>@mailer.dtcdev.click) so the confirmation email is really
-    # sent via SES and received back from the inbound S3 bucket -- the usual
-    # delivery path, identical in dev and prod. Unique tag per run isolates it.
-    return settings.real_address(run_state.namespace)
+    # Per-run, recognizable, unique address. With Datamailer's dry_run flag
+    # nothing is delivered, so a plain namespaced address works; the
+    # confirmation email is verified by reading CMP's own send audit keyed on
+    # this address (see test_03/test_04).
+    return settings.student_address(run_state.namespace)
 
 
 def test_test_student_exists(admin_session, settings, run_state):
