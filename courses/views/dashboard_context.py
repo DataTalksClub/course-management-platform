@@ -8,6 +8,7 @@ from courses.views.dashboard_homeworks import (
 )
 from courses.views.dashboard_metrics import quartile_fields
 from courses.views.dashboard_projects import dashboard_project_stats
+from courses.views.dashboard_engagement import dashboard_engagement_trend
 from courses.views.dashboard_questions import dashboard_question_difficulty
 from courses.views.dashboard_timing import dashboard_submission_timing
 
@@ -27,6 +28,7 @@ def dashboard_context(course):
     total_score_distribution = dashboard_total_score_distribution(course)
     question_difficulty = dashboard_question_difficulty(course)
     submission_timing = dashboard_submission_timing(course)
+    engagement_trend = dashboard_engagement_trend(course)
     graduates_count = dashboard_graduates_count(course)
     project_stats = dashboard_project_stats(course, total_enrollments)
 
@@ -41,6 +43,7 @@ def dashboard_context(course):
         "homework_difficulty_stats": homework_difficulty_stats,
         "question_difficulty": question_difficulty,
         "submission_timing": submission_timing,
+        "engagement_trend": engagement_trend,
         **total_score_distribution,
         **project_stats,
     }

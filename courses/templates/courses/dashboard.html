@@ -307,6 +307,29 @@
     </section>
   {% endif %}
 
+  {% if engagement_trend %}
+    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+      <div class="border-b app-border app-surface-muted px-4 py-3">
+        <h2 class="text-base font-semibold app-heading">Engagement over time</h2>
+        <p class="mt-1 text-sm app-muted">
+          Homework submissions per week, across all assignments. Bars are scaled
+          to the busiest week.
+        </p>
+      </div>
+      <dl class="divide-y app-divide text-sm">
+        {% for week in engagement_trend %}
+          <div class="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2">
+            <dt class="app-muted">{{ week.label }}</dt>
+            <dd class="h-2 w-full overflow-hidden rounded app-surface-muted">
+              <div class="h-full rounded" style="width: {{ week.bar_pct }}%; background: var(--link-color)"></div>
+            </dd>
+            <dd class="text-right font-semibold app-heading">{{ week.count }}</dd>
+          </div>
+        {% endfor %}
+      </dl>
+    </section>
+  {% endif %}
+
   {% if graduates_count > 0 %}
     <section class="mt-6 border-t app-border pt-5">
       <h2 class="text-base font-semibold app-heading">Graduates</h2>
