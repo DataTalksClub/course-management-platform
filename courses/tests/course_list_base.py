@@ -190,8 +190,15 @@ class CourseListViewTestBase(TestCase):
 
     def visible_course_slugs(self, response):
         active_courses = response.context["active_courses"]
+        open_registration_courses = response.context[
+            "open_registration_courses"
+        ]
         finished_courses = response.context["finished_courses"]
-        all_courses = list(active_courses) + list(finished_courses)
+        all_courses = (
+            list(active_courses)
+            + list(open_registration_courses)
+            + list(finished_courses)
+        )
         course_slugs = []
         for course in all_courses:
             course_slugs.append(course.slug)

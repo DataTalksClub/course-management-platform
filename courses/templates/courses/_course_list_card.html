@@ -1,0 +1,72 @@
+{% load custom_filters %}
+<article class="grid cursor-pointer gap-4 rounded-md py-4 md:py-5"
+         role="link"
+         tabindex="0"
+         onclick="if (!event.target.closest('a, button')) window.location.href='{% url 'course' course.slug %}'"
+         onkeydown="if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('a, button')) { event.preventDefault(); window.location.href='{% url 'course' course.slug %}'; }">
+    <div>
+        <span class="inline-flex rounded-md {{ badge_class|default:'app-badge-success' }} px-2 py-0.5 text-xs font-semibold uppercase">{{ badge_label|default:'Active' }}</span>
+        {% if course.is_enrolled %}
+            <span class="ml-2 inline-flex rounded-md app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Enrolled</span>
+        {% endif %}
+        <h3 class="mt-2 text-xl font-semibold md:text-2xl">
+            <a href="{% url 'course' course.slug %}" class="app-link">{{ course.title }}</a>
+        </h3>
+        <p class="mt-1 max-w-3xl text-sm leading-6 app-text md:text-base">{{ course.home_outcome }}</p>
+    </div>
+    {% if course.start_date or course.github_repo_url %}
+        <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm app-muted">
+            {% if course.start_date %}
+                <span>
+                    {{ course.start_date|date:"M j, Y" }}
+                    {% if course.end_date %}
+                        - {{ course.end_date|date:"M j, Y" }}
+                        {% if course.home_duration_label != "TBA" %}({{ course.home_duration_label }}){% endif %}
+                    {% endif %}
+                </span>
+            {% endif %}
+            {% if course.start_date and course.github_repo_url %}
+                <span aria-hidden="true">&middot;</span>
+            {% endif %}
+            {% if course.github_repo_url %}
+                <a href="{{ course.github_repo_url }}"
+                   class="inline-flex items-center gap-1 app-link">
+                    <i class="fab fa-github" aria-hidden="true"></i>
+                    <span>GitHub</span>
+                </a>
+            {% endif %}
+        </p>
+    {% endif %}
+    {% if course.home_current_assignment or course.registration_campaign or course.home_registration_open %}
+        <div class="grid gap-3 text-sm">
+            {% if course.home_current_assignment %}
+                <div>
+                    <p class="text-xs font-semibold uppercase app-muted">{{ course.home_current_assignment_label }}</p>
+                    <p class="mt-1 font-semibold app-heading">
+                        {{ course.home_current_assignment.label }}: {{ course.home_current_assignment.title }}
+                    </p>
+                    <p class="mt-1 app-muted">
+                        Due {{ course.home_current_assignment.due_date|user_datetime:request }}
+                    </p>
+                </div>
+            {% endif %}
+            {% if course.registration_campaign and not course.is_enrolled and not course.is_registered %}
+                <div class="flex flex-wrap gap-3">
+                    <a href="{% url 'registration_campaign' course.registration_campaign.slug %}"
+                       class="primer-button primer-button-secondary whitespace-nowrap">
+                        <i class="fas fa-user-plus"></i>
+                        Register
+                    </a>
+                </div>
+            {% elif course.home_registration_open and not course.is_enrolled %}
+                <div class="flex flex-wrap gap-3">
+                    <a href="{{ course.registration_url }}"
+                       class="primer-button primer-button-secondary whitespace-nowrap">
+                        <i class="fas fa-user-plus"></i>
+                        Register
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</article>

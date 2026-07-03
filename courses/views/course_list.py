@@ -18,6 +18,7 @@ from courses.views.course_list_user_state import (
 class CourseListCourses:
     courses: list
     active_courses: list
+    open_registration_courses: list
     finished_courses: list
     archive_courses_by_year: dict
 
@@ -38,6 +39,7 @@ def visible_course_list_queryset():
 
 def split_courses_by_status(courses, now):
     active_courses = []
+    open_registration_courses = []
     finished_courses = []
     archive_courses_by_year = defaultdict(list)
 
@@ -47,12 +49,15 @@ def split_courses_by_status(courses, now):
         if course.finished:
             finished_courses.append(course)
             archive_courses_by_year[course.home_year].append(course)
+        elif course.home_registration_open:
+            open_registration_courses.append(course)
         else:
             active_courses.append(course)
 
     return CourseListCourses(
         courses=courses,
         active_courses=active_courses,
+        open_registration_courses=open_registration_courses,
         finished_courses=finished_courses,
         archive_courses_by_year=archive_courses_by_year,
     )
@@ -151,6 +156,7 @@ def course_list_context(user):
 
     return {
         "active_courses": course_groups.active_courses,
+        "open_registration_courses": course_groups.open_registration_courses,
         "archive_groups": archive_groups,
         "featured_course": selected_featured_course,
         "finished_courses": course_groups.finished_courses,
