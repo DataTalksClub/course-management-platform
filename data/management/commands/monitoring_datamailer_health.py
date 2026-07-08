@@ -1,12 +1,11 @@
 import json
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from course_management.datamailer_outbox_status import (
     datamailer_outbox_status_summary,
 )
-from course_management.observability import ping_check, record_event
+from course_management.observability import record_event
 from data.management.commands.datamailer_callback_status import (
     callback_event_aggregate,
     callback_event_counts,
@@ -17,10 +16,7 @@ from data.management.commands.datamailer_send_status import (
 
 
 class Command(BaseCommand):
-    help = (
-        "Emit a compact Datamailer health event and optionally ping "
-        "Healthchecks.io."
-    )
+    help = "Emit compact Datamailer health observability events."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -30,23 +26,10 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        healthcheck_url = getattr(
-            settings,
-            "HEALTHCHECKS_DATAMAILER_HEALTH_URL",
-            "",
-        )
-        ping_check(healthcheck_url, status="start")
-        try:
-            payload = datamailer_health_payload()
-            record_event("datamailer.health_checked", properties=payload)
-            ping_check(
-                healthcheck_url,
-                status="success",
-                message=json.dumps(payload, default=str),
-            )
-        except Exception as exc:
-            ping_check(healthcheck_url, status="fail", message=str(exc))
-            raise
+        payload = datamailer_health_payload()
+        record_event("datamailer.health_checked", properties=payload)
+        if payload["status"] != "ok":
+            record_event("datamailer.health_warning", properties=payload)
 
         if options["json"]:
             self.stdout.write(json.dumps(payload, default=str, indent=2))

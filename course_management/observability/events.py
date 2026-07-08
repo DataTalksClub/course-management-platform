@@ -6,13 +6,25 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+LOG_RECORD_PROPERTY_KEYS = set(
+    logging.LogRecord(
+        name="observability",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="",
+        args=(),
+        exc_info=None,
+    ).__dict__
+) | {"asctime", "message"}
+
 RESERVED_PROPERTY_KEYS = {
     "event",
     "environment",
     "release",
     "schema_version",
     "distinct_id",
-}
+} | LOG_RECORD_PROPERTY_KEYS
 
 
 @dataclass(frozen=True)
@@ -94,7 +106,11 @@ def report_exception(
         user=user,
         properties=properties,
     )
-    capture_exception_with_error_tracker(exc, properties or {})
+    logger.exception(
+        "observability exception reported",
+        exc_info=(type(exc), exc, exc.__traceback__),
+        extra=safe_logging_extra(properties or {}),
+    )
 
 
 def resolved_distinct_id(
@@ -150,14 +166,12 @@ def event_backend(name: str) -> EventBackend | None:
         return NoopEventBackend()
     if normalized_name == "log":
         return LogEventBackend()
-    if normalized_name == "posthog":
-        from course_management.observability.posthog import PostHogEventBackend
+    if normalized_name == "cloudwatch":
+        from course_management.observability.cloudwatch import (
+            CloudWatchMetricsEventBackend,
+        )
 
-        return PostHogEventBackend()
-    if normalized_name == "sentry":
-        from course_management.observability.sentry import SentryEventBackend
-
-        return SentryEventBackend()
+        return CloudWatchMetricsEventBackend()
 
     logger.warning("Unknown observability event backend: %s", name)
     return None
@@ -175,10 +189,11 @@ class NoopEventBackend:
         return
 
 
-def capture_exception_with_error_tracker(
-    exc: BaseException,
-    properties: dict[str, Any],
-) -> None:
-    from course_management.observability.sentry import capture_exception
-
-    capture_exception(exc, properties=properties)
+def safe_logging_extra(properties: dict[str, Any]) -> dict[str, Any]:
+    safe = {}
+    for key, value in properties.items():
+        if key in LOG_RECORD_PROPERTY_KEYS:
+            safe[f"app_{key}"] = value
+            continue
+        safe[key] = value
+    return safe
