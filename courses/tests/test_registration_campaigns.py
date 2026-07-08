@@ -16,6 +16,7 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertContains(response, "LLM Zoomcamp")
         self.assertContains(response, "Build useful apps")
         self.assertContains(response, "Register")
+        self.assertContains(response, "Company name")
 
     @override_settings(
         DATAMAILER_URL="",
@@ -42,6 +43,23 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertEqual(registration.course, self.course)
         self.assertEqual(registration.region, "Europe")
         self.assertIsNone(registration.user)
+
+    @override_settings(
+        DATAMAILER_URL="",
+        DATAMAILER_API_KEY="",
+        DATAMAILER_CLIENT="",
+        DATAMAILER_AUDIENCE="",
+    )
+    def test_registration_stores_optional_company_name(self):
+        url = self.campaign_url()
+        payload = self.registration_payload()
+        payload["company_name"] = "Acme Data"
+
+        response = self.client.post(url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        self.assertEqual(registration.company_name, "Acme Data")
 
     def test_duplicate_registration_shows_message(self):
         CourseRegistration.objects.create(
@@ -87,6 +105,7 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
             registration.email_normalized, "email-only@example.com"
         )
         self.assertEqual(registration.name, "")
+        self.assertEqual(registration.company_name, "")
         self.assertEqual(registration.country, "")
         self.assertEqual(registration.region, "")
         self.assertEqual(registration.role, "")

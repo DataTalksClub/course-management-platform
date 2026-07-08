@@ -12,6 +12,9 @@ ACCEPTED_NEWSLETTER_WIDGET = forms.CheckboxInput(
 )
 EMAIL_WIDGET = forms.EmailInput(attrs={"class": "form-control"})
 NAME_WIDGET = forms.TextInput(attrs={"class": "form-control"})
+COMPANY_NAME_WIDGET = forms.TextInput(
+    attrs={"class": "form-control", "autocomplete": "organization"}
+)
 COUNTRY_SELECT_WIDGET = forms.Select(attrs={"class": "form-control"})
 ROLE_WIDGET = forms.Select(attrs={"class": "form-control"})
 COMMENT_WIDGET = forms.Textarea(
@@ -27,7 +30,13 @@ COUNTRY_COMBOBOX_WIDGET_ATTRS = {
     "placeholder": "Start typing your country",
     "data-country-combobox-input": "",
 }
-OPTIONAL_REGISTRATION_FIELDS = ("name", "country", "role", "comment")
+OPTIONAL_REGISTRATION_FIELDS = (
+    "name",
+    "company_name",
+    "country",
+    "role",
+    "comment",
+)
 
 
 def configure_registration_form_fields(form):
@@ -109,6 +118,7 @@ class CourseRegistrationForm(forms.ModelForm):
         fields = [
             "email",
             "name",
+            "company_name",
             "country",
             "role",
             "comment",
@@ -117,6 +127,7 @@ class CourseRegistrationForm(forms.ModelForm):
         widgets = {
             "email": EMAIL_WIDGET,
             "name": NAME_WIDGET,
+            "company_name": COMPANY_NAME_WIDGET,
             "country": COUNTRY_SELECT_WIDGET,
             "role": ROLE_WIDGET,
             "comment": COMMENT_WIDGET,

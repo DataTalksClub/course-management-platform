@@ -75,6 +75,7 @@ class DatamailerRecipientListCommandTestBase(TestCase):
             "course": course,
             "email": "Student@Example.com",
             "name": "Student One",
+            "company_name": "Acme Data",
             "country": "Germany",
             "region": "Europe",
             "role": CourseRegistration.Role.DATA_ENGINEER,
@@ -215,6 +216,7 @@ class DatamailerRecipientListCommandTestBase(TestCase):
             f"registration:{registration.pk}",
         )
         self.assertEqual(rows[0]["email"], "student@example.com")
+        self.assertEqual(rows[0]["metadata"]["company_name"], "Acme Data")
         return put_kwargs["Key"]
 
     def assert_presigned_import_url_created(self, s3, key):

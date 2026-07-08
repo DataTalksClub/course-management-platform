@@ -206,12 +206,13 @@ class CourseRegistrationAdmin(ModelAdmin):
         "email_normalized",
         "campaign",
         "course",
+        "company_name",
         "country",
         "region",
         "role",
         "created_at",
     ]
-    search_fields = ["email", "email_normalized", "name"]
+    search_fields = ["email", "email_normalized", "name", "company_name"]
     list_filter = [
         "campaign",
         "course",
@@ -234,6 +235,7 @@ class CourseRegistrationAdmin(ModelAdmin):
                     "email",
                     "email_normalized",
                     "name",
+                    "company_name",
                     "country",
                     "region",
                     "role",

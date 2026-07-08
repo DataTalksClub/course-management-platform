@@ -48,6 +48,7 @@ def apply_campaign_registration_search(registrations, search_query):
     return registrations.filter(
         Q(email_normalized__icontains=search_query)
         | Q(name__icontains=search_query)
+        | Q(company_name__icontains=search_query)
     )
 
 

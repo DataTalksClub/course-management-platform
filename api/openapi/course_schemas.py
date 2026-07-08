@@ -142,6 +142,7 @@ COURSE_REGISTRATION_SCHEMA = model_object_schema(
         "id",
         "email",
         "name",
+        "company_name",
         "country",
         "region",
         "role",

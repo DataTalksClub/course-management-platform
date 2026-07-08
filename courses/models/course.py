@@ -183,6 +183,7 @@ class CourseRegistration(models.Model):
     email = models.EmailField()
     email_normalized = models.EmailField(editable=False)
     name = models.CharField(max_length=255)
+    company_name = models.CharField(max_length=255, blank=True)
     country = models.CharField(max_length=100)
     region = models.CharField(max_length=100)
     role = models.CharField(max_length=40, choices=Role.choices)

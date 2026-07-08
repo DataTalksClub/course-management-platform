@@ -33,6 +33,7 @@ def registration_to_dict(registration):
         "id": registration.id,
         "email": registration.email_normalized,
         "name": registration.name,
+        "company_name": registration.company_name,
         "campaign": registration.campaign.slug,
         "course": course_slug,
         "country": registration.country,

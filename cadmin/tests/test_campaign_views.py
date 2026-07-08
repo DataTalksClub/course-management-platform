@@ -20,6 +20,7 @@ class CampaignCadminViewTests(CampaignCadminViewBase):
             course=self.course,
             email="student@example.com",
             name="Student One",
+            company_name="Acme Data",
             country="Germany",
             region="Europe",
             role=CourseRegistration.Role.DATA_ENGINEER,
@@ -36,6 +37,7 @@ class CampaignCadminViewTests(CampaignCadminViewBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "LLM Zoomcamp")
         self.assertContains(response, "student@example.com")
+        self.assertContains(response, "Acme Data")
         self.assertContains(response, "Europe")
 
     def test_campaign_create_staff_allowed(self):

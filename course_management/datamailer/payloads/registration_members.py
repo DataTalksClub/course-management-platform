@@ -60,6 +60,7 @@ def registration_recipient_metadata(registration) -> dict[str, Any]:
         "course_slug": course_slug,
         "user_id": registration.user_id,
         "registered_at": registered_at,
+        "company_name": registration.company_name,
         "country": registration.country,
         "region": registration.region,
         "role": registration.role,

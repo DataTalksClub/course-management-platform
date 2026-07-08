@@ -54,6 +54,7 @@ def create_registration(course=None, **overrides):
         "course": course,
         "email": "Student@Example.com",
         "name": "Student One",
+        "company_name": "Acme Data",
         "country": "Germany",
         "region": "Europe",
         "role": CourseRegistration.Role.DATA_ENGINEER,
@@ -80,6 +81,7 @@ def create_llm_registration_for_confirmation():
         course=course,
         email="Student@Example.com",
         name="Student One",
+        company_name="Acme Data",
         country="Germany",
         region="Europe",
         role=CourseRegistration.Role.DATA_ENGINEER,
@@ -174,6 +176,12 @@ def assert_registration_member_synced(
     test_case.assertEqual(
         upsert_member.call_args.args[2]["member"]["email"],
         "student@example.com",
+    )
+    test_case.assertEqual(
+        upsert_member.call_args.args[2]["member"]["metadata"][
+            "company_name"
+        ],
+        "Acme Data",
     )
 
 

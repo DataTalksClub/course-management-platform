@@ -90,7 +90,7 @@
            name="q"
            value="{{ search_query }}"
            class="form-control"
-           placeholder="Search email or name">
+           placeholder="Search email, name, or company">
     <button type="submit" class="primer-button primer-button-secondary">Search</button>
   </form>
 
@@ -114,6 +114,9 @@
         <div class="min-w-0">
           <p class="truncate font-medium app-heading">{{ registration.name }}</p>
           <p class="truncate app-muted">{{ registration.email_normalized }}</p>
+          {% if registration.company_name %}
+            <p class="truncate app-muted">{{ registration.company_name }}</p>
+          {% endif %}
           {% if registration.comment %}
             <p class="mt-1 line-clamp-2 app-text">{{ registration.comment }}</p>
           {% endif %}

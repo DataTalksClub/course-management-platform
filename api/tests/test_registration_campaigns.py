@@ -45,3 +45,7 @@ class RegistrationCampaignAPITestCase(RegistrationCampaignAPITestBase):
             data["registrations"][0]["email"],
             "student@example.com",
         )
+        self.assertEqual(
+            data["registrations"][0]["company_name"],
+            "Acme Data",
+        )

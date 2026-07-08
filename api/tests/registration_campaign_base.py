@@ -35,6 +35,7 @@ class RegistrationCampaignAPITestBase(TestCase):
             course=self.course,
             email="student@example.com",
             name="Student",
+            company_name="Acme Data",
             country="Germany",
             region="Europe",
             accepted_newsletter=True,
