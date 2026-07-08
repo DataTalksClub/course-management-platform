@@ -7,6 +7,7 @@ from django.utils import timezone
 from course_management.datamailer.sync.memberships import (
     sync_project_submission_to_datamailer,
 )
+from course_management.observability import record_event
 from courses.models.course import Enrollment, User
 from courses.models.project import Project, ProjectSubmission
 from courses.views.homework_learning_links import (
@@ -37,9 +38,26 @@ def project_submission_from_post(
 
 
 def project_submit_post(request: HttpRequest, project: Project) -> None:
+    is_update = ProjectSubmission.objects.filter(
+        project=project,
+        student=request.user,
+        volunteer_review_only=False,
+    ).exists()
     project_submission = project_submission_from_post(request, project)
     project_submission.full_clean()
     project_submission.save()
+    record_event(
+        "project.submitted",
+        request=request,
+        properties={
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+            "project_id": project.id,
+            "submission_id": project_submission.id,
+            "enrollment_id": project_submission.enrollment_id,
+            "is_update": is_update,
+        },
+    )
     update_url = build_project_update_url(
         request, project.course, project
     )
@@ -72,7 +90,20 @@ def project_delete_submission(
     ).first()
 
     if project_submission:
+        submission_id = project_submission.id
+        enrollment_id = project_submission.enrollment_id
         project_submission.delete()
+        record_event(
+            "project.deleted",
+            request=request,
+            properties={
+                "course_slug": project.course.slug,
+                "project_slug": project.slug,
+                "project_id": project.id,
+                "submission_id": submission_id,
+                "enrollment_id": enrollment_id,
+            },
+        )
 
 
 def project_submission_for_update(

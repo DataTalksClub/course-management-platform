@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import HttpRequest
 from django.utils import timezone
 
+from course_management.observability import record_event
 from courses.models.project import (
     CriteriaResponse,
     PeerReview,
@@ -40,6 +41,20 @@ def project_eval_post_submission(
     review.submitted_at = timezone.now()
     review.state = PeerReviewState.SUBMITTED.value
     review.save()
+    criteria_count = len(review_criteria)
+    record_event(
+        "project.review_submitted",
+        request=request,
+        properties={
+            "course_slug": project.course.slug,
+            "project_slug": project.slug,
+            "project_id": project.id,
+            "review_id": review.id,
+            "reviewer_submission_id": review.reviewer_id,
+            "submission_id": review.submission_under_evaluation_id,
+            "criteria_count": criteria_count,
+        },
+    )
 
     messages.success(
         request,

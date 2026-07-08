@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from django.db import transaction
 
+from course_management.observability import record_event
+
 from . import assignment_statistics, leaderboard
 from .homework_score_calculation import update_score
 
@@ -150,11 +152,37 @@ def score_homework_submissions(
         logger.info(f"Scoring submissions for homework {homework_id}")
 
         homework = Homework.objects.get(pk=homework_id)
+        record_event(
+            "homework.scoring_started",
+            properties={
+                "course_slug": homework.course.slug,
+                "homework_slug": homework.slug,
+                "homework_id": homework.id,
+            },
+        )
 
         if error := _homework_scoring_error(homework, homework_id):
+            record_event(
+                "homework.scoring_failed",
+                properties={
+                    "course_slug": homework.course.slug,
+                    "homework_slug": homework.slug,
+                    "homework_id": homework.id,
+                    "reason": error,
+                },
+            )
             return (HomeworkScoringStatus.FAIL, error)
 
         _score_and_persist_homework_submissions(homework_id)
         _mark_homework_scored(homework)
+        record_event(
+            "homework.scored",
+            properties={
+                "course_slug": homework.course.slug,
+                "homework_slug": homework.slug,
+                "homework_id": homework.id,
+                "duration_ms": int((time() - t0) * 1000),
+            },
+        )
 
         return _homework_scoring_success(homework_id, t0)

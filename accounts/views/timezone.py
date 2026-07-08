@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
+from course_management.observability import record_event
 from accounts.services.timezones import get_timezone_label, is_valid_timezone
 
 
@@ -77,4 +78,12 @@ def update_timezone_preference(request):
 
     user.preferred_timezone = timezone_name
     user.save(update_fields=["preferred_timezone"])
+    record_event(
+        "account.timezone_updated",
+        request=request,
+        properties={
+            "timezone_set": bool(user.preferred_timezone),
+            "passive": bool(passive_update),
+        },
+    )
     return _timezone_preference_response(user.preferred_timezone)

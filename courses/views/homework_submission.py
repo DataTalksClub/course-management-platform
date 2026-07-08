@@ -10,6 +10,7 @@ from django.utils import timezone
 from course_management.datamailer.sync.memberships import (
     sync_homework_submission_to_datamailer,
 )
+from course_management.observability import record_event
 from courses.models.course import Course, Enrollment
 from courses.models.homework import (
     Answer,
@@ -147,7 +148,21 @@ def save_homework_submission_data(data):
 
 
 def process_homework_submission(data: HomeworkPostData):
+    is_update = data.submission is not None
     submission = save_homework_submission_data(data)
+    record_event(
+        "homework.submitted",
+        request=data.request,
+        properties={
+            "course_slug": data.course.slug,
+            "homework_slug": data.homework.slug,
+            "homework_id": data.homework.id,
+            "submission_id": submission.id,
+            "enrollment_id": submission.enrollment_id,
+            "is_update": is_update,
+            "question_count": len(data.questions),
+        },
+    )
     register_homework_submission_callbacks(data, submission)
     return homework_submission_success_response(
         data.request,

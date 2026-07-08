@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
+from course_management.observability import record_event
 from course_management.datamailer.preferences import (
     get_email_preferences_for_user,
     update_email_preferences_for_user,
@@ -76,6 +77,14 @@ def _account_email_preferences_update_response(request):
     )
     if not datamailer_synced:
         return _email_preferences_unavailable_response()
+    record_event(
+        "account.email_preference_updated",
+        request=request,
+        properties={
+            "field": update.field,
+            "enabled": update.enabled,
+        },
+    )
 
     payload = {
         "field": update.field,

@@ -7,6 +7,7 @@ from time import time
 from django.db import transaction
 from django.utils import timezone
 
+from course_management.observability import record_event
 from course_management.deadlines import ceil_to_next_hour
 
 from courses.models.project import (
@@ -126,10 +127,37 @@ def assign_peer_reviews_for_project(
             data.num_evaluations,
         )
         if failure is not None:
+            _, message = failure
+            record_event(
+                "project.peer_reviews_assignment_failed",
+                properties={
+                    "course_slug": project.course.slug,
+                    "project_slug": project.slug,
+                    "project_id": project.id,
+                    "submissions_count": submissions_count,
+                    "num_evaluations": data.num_evaluations,
+                    "reason": message,
+                },
+            )
             return failure
 
         _assign_peer_reviews(data)
         _log_peer_review_assignment(data)
+        assigned_count = PeerReview.objects.filter(
+            submission_under_evaluation__project=project,
+        ).count()
+        record_event(
+            "project.peer_reviews_assigned",
+            properties={
+                "course_slug": project.course.slug,
+                "project_slug": project.slug,
+                "project_id": project.id,
+                "submissions_count": submissions_count,
+                "assigned_count": assigned_count,
+                "num_evaluations": data.num_evaluations,
+                "duration_ms": int((time() - data.started_at) * 1000),
+            },
+        )
 
     message = (
         f"Peer reviews assigned for project {project.id} and state updated to "

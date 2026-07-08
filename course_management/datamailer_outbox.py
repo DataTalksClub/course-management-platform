@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from django.utils import timezone
 
+from course_management.observability import record_event
 from data.models import (
     DatamailerOutboxEvent,
     DatamailerOutboxStatus,
@@ -38,6 +39,16 @@ def enqueue_datamailer_outbox_event(
         payload=data.payload,
         occurred_at=now,
         next_attempt_at=now,
+    )
+    record_event(
+        "datamailer.outbox_enqueued",
+        properties={
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "outbox_event_id": event.id,
+            "status": event.status,
+            "dispatch_immediately": data.dispatch_immediately,
+        },
     )
 
     if data.dispatch_immediately and event.status in RETRYABLE_STATUSES:

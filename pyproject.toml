@@ -20,6 +20,7 @@ dependencies = [
     "mistune>=3.1.3",
     "bleach>=6.2.0",
     "boto3>=1.43.33",
+    "sentry-sdk>=2.63.0",
 ]
 
 [dependency-groups]

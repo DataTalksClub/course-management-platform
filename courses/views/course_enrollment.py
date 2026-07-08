@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from course_management.observability import record_event
 from courses.models.course import Course, Enrollment
 
 from .course_leaderboard_data import invalidate_leaderboard_cache
@@ -28,10 +29,12 @@ class EnrollmentToggleUpdate:
 @require_POST
 def update_enrollment_toggle(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
-    enrollment, _ = Enrollment.objects.get_or_create(
+    enrollment, created = Enrollment.objects.get_or_create(
         student=request.user,
         course=course,
     )
+    if created:
+        record_enrollment_created(request, course, enrollment)
 
     toggle_update = enrollment_toggle_update_from_post(
         request,
@@ -44,6 +47,16 @@ def update_enrollment_toggle(request, course_slug):
         return response
 
     update_enrollment_toggle_value(toggle_update)
+    record_event(
+        "enrollment.toggle_updated",
+        request=request,
+        properties={
+            "course_slug": course.slug,
+            "enrollment_id": enrollment.id,
+            "field": toggle_update.field,
+            "enabled": toggle_update.enabled,
+        },
+    )
 
     payload = {
         "field": toggle_update.field,
@@ -107,6 +120,17 @@ def _save_enrollment_form(form, course, enrollment) -> None:
         invalidate_leaderboard_cache(course.id)
 
 
+def record_enrollment_created(request, course, enrollment):
+    record_event(
+        "enrollment.created",
+        request=request,
+        properties={
+            "course_slug": course.slug,
+            "enrollment_id": enrollment.id,
+        },
+    )
+
+
 def _handle_enrollment_post(request, course, enrollment, course_slug):
     form = EnrollmentForm(
         request.POST,
@@ -115,6 +139,14 @@ def _handle_enrollment_post(request, course, enrollment, course_slug):
     )
     if form.is_valid():
         _save_enrollment_form(form, course, enrollment)
+        record_event(
+            "enrollment.updated",
+            request=request,
+            properties={
+                "course_slug": course.slug,
+                "enrollment_id": enrollment.id,
+            },
+        )
         response = redirect("course", course_slug=course_slug)
         return response
 
@@ -125,10 +157,12 @@ def _handle_enrollment_post(request, course, enrollment, course_slug):
 def enrollment_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
 
-    enrollment, _ = Enrollment.objects.get_or_create(
+    enrollment, created = Enrollment.objects.get_or_create(
         student=request.user,
         course=course,
     )
+    if created:
+        record_enrollment_created(request, course, enrollment)
 
     if request.method == "POST":
         return _handle_enrollment_post(

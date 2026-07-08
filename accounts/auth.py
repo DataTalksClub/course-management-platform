@@ -12,6 +12,8 @@ from django.contrib.auth import get_user_model
 
 from django.http import JsonResponse
 
+from course_management.observability import record_event
+
 from .models import Token
 
 
@@ -209,10 +211,20 @@ def token_required(f):
                 token = Token.objects.get(key=token_key)
                 request.user = token.user
             except Token.DoesNotExist:
+                record_event(
+                    "api.auth_failed",
+                    request=request,
+                    properties={"reason": "invalid_token"},
+                )
                 payload = {"error": "Invalid token"}
                 response = JsonResponse(payload, status=401)
                 return response
         else:
+            record_event(
+                "api.auth_failed",
+                request=request,
+                properties={"reason": "missing_token"},
+            )
             payload = {"error": "Authentication token required"}
             response = JsonResponse(payload, status=401)
             return response

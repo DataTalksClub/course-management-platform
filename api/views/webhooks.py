@@ -5,6 +5,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from course_management.observability import record_event
 from api.views.datamailer_webhook_validation import (
     datamailer_webhook_data,
     preference_key_from_payload,
@@ -87,5 +88,16 @@ def datamailer_event_webhook(request):
     fields = data.fields
 
     event, created = record_datamailer_event(payload, fields)
+    record_event(
+        "datamailer.callback_received",
+        properties={
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "created": created,
+            "duplicate_count": event.duplicate_count,
+            "client": event.client,
+            "audience": event.audience,
+        },
+    )
     response = datamailer_event_response(event, created)
     return response

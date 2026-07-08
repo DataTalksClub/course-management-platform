@@ -12,6 +12,7 @@ from course_management.datamailer.sync.memberships import (
 from course_management.datamailer.sync.notifications import (
     send_registration_confirmation_email,
 )
+from course_management.observability import record_event
 from courses.models.course import CourseRegistration, RegistrationCampaign
 from courses.models.homework import Homework
 from courses.models.project import Project
@@ -143,6 +144,21 @@ def registration_campaign_view(
     registration = None
     if request.method == "POST":
         registration = _save_registration_if_valid(form)
+        if registration is not None:
+            course_slug = ""
+            if registration.course_id:
+                course_slug = registration.course.slug
+            record_event(
+                "registration.submitted",
+                request=request,
+                user=request.user,
+                properties={
+                    "campaign_slug": campaign.slug,
+                    "course_slug": course_slug,
+                    "registration_id": registration.id,
+                    "accepted_newsletter": registration.accepted_newsletter,
+                },
+            )
 
     context = _registration_context(
         campaign,

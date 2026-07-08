@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 
+from course_management.observability import record_event
 from courses.models.course import Course, Enrollment
 from courses.models.project import PeerReview, Project, ProjectSubmission
 
@@ -61,11 +62,12 @@ def _create_optional_peer_review_if_allowed(
         project=project,
         volunteer_review_only=False,
     )
-    PeerReview.objects.get_or_create(
+    review, created = PeerReview.objects.get_or_create(
         submission_under_evaluation=submission_under_evaluation,
         reviewer=student_submission,
         optional=True,
     )
+    return review, created
 
 
 @login_required
@@ -76,12 +78,26 @@ def projects_eval_add(
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
-    _create_optional_peer_review_if_allowed(
+    result = _create_optional_peer_review_if_allowed(
         course,
         project,
         request.user,
         submission_id,
     )
+    if result is not None:
+        review, created = result
+        record_event(
+            "project.optional_review_added",
+            request=request,
+            properties={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+                "project_id": project.id,
+                "review_id": review.id,
+                "submission_id": submission_id,
+                "created": created,
+            },
+        )
 
     response = redirect(
         "project_list",
@@ -105,11 +121,22 @@ def projects_eval_delete(request, course_slug, project_slug, review_id):
         student=user,
     )
 
-    PeerReview.objects.filter(
+    deleted_count, _ = PeerReview.objects.filter(
         id=review_id,
         reviewer=student_submission,
         optional=True,
     ).delete()
+    if deleted_count:
+        record_event(
+            "project.optional_review_deleted",
+            request=request,
+            properties={
+                "course_slug": course_slug,
+                "project_slug": project_slug,
+                "project_id": project.id,
+                "review_id": review_id,
+            },
+        )
 
     response = redirect(
         "projects_eval",

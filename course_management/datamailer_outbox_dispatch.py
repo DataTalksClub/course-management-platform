@@ -4,6 +4,7 @@ import requests
 from django.db import transaction
 from django.utils import timezone
 
+from course_management.observability import record_event
 from course_management.datamailer_outbox import RETRYABLE_STATUSES
 from course_management.datamailer_outbox_senders import send_event
 from course_management.datamailer_outbox_retry import (
@@ -99,6 +100,14 @@ def mark_acked(event, response_payload):
         response_payload=response_data,
         updated_at=now,
     )
+    record_event(
+        "datamailer.outbox_acked",
+        properties={
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "outbox_event_id": event.id,
+        },
+    )
 
 
 def mark_retry_or_failed(event, exc):
@@ -115,6 +124,16 @@ def mark_retry_or_failed(event, exc):
         retry_delta = retry_delay(event.attempt_count)
         updates["next_attempt_at"] = now + retry_delta
     DatamailerOutboxEvent.objects.filter(id=event.id).update(**updates)
+    record_event(
+        "datamailer.outbox_dispatch_failed",
+        properties={
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "outbox_event_id": event.id,
+            "status": status,
+            "attempt_count": event.attempt_count,
+        },
+    )
 
 
 def mark_failed(event, message):
@@ -123,6 +142,16 @@ def mark_failed(event, message):
         status=DatamailerOutboxStatus.FAILED,
         last_error=message,
         updated_at=now,
+    )
+    record_event(
+        "datamailer.outbox_failed",
+        properties={
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "outbox_event_id": event.id,
+            "status": DatamailerOutboxStatus.FAILED,
+            "reason": message,
+        },
     )
 
 

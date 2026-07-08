@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.exceptions import ValidationError
 
+from course_management.observability import record_event
 from courses.models.course import Course
 from courses.models.project import Project
 from courses.views.project_page_context import (
@@ -102,6 +103,16 @@ def save_project_submission_response(
     try:
         project_submit_post(request, project)
     except ValidationError as error:
+        record_event(
+            "project.validation_failed",
+            request=request,
+            properties={
+                "course_slug": course.slug,
+                "project_slug": project.slug,
+                "project_id": project.id,
+                "error_count": len(error.messages),
+            },
+        )
         return project_validation_error_response(
             request,
             course,

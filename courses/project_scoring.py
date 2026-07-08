@@ -6,6 +6,7 @@ from time import time
 from django.db import transaction
 from django.utils import timezone
 
+from course_management.observability import record_event
 from course_management.datamailer.sync.memberships import (
     sync_project_passed_outcome_to_datamailer,
     sync_project_submission_to_datamailer,
@@ -146,6 +147,15 @@ def score_project(
 
         peer_reviews, error = _project_scoreable_peer_reviews(project)
         if error is not None:
+            record_event(
+                "project.scoring_failed",
+                properties={
+                    "course_slug": project.course.slug,
+                    "project_slug": project.slug,
+                    "project_id": project.id,
+                    "reason": error,
+                },
+            )
             return (project_assignment.ProjectActionStatus.FAIL, error)
 
         success_message = _score_project_with_reviews(project, peer_reviews)
@@ -154,6 +164,21 @@ def score_project(
 
         logger.info(
             f"Project {project.id} scored in {t_end - t0:.2f} seconds."
+        )
+        submissions_count = project.projectsubmission_set.count()
+        passed_count = project.projectsubmission_set.filter(
+            passed=True,
+        ).count()
+        record_event(
+            "project.scored",
+            properties={
+                "course_slug": project.course.slug,
+                "project_slug": project.slug,
+                "project_id": project.id,
+                "submissions_count": submissions_count,
+                "passed_count": passed_count,
+                "duration_ms": int((t_end - t0) * 1000),
+            },
         )
 
     return (project_assignment.ProjectActionStatus.OK, success_message)

@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
+from course_management.observability import record_event
 from courses.models.course import Course
 from courses.models.project import (
     PeerReview,
@@ -27,6 +28,17 @@ def project_eval_vote_response(request, course_slug, project_slug, review):
         request.user,
         review.submission_under_evaluation,
         action=action,
+    )
+    record_event(
+        "project.vote_updated",
+        request=request,
+        properties={
+            "course_slug": course_slug,
+            "project_slug": project_slug,
+            "review_id": review.id,
+            "submission_id": review.submission_under_evaluation_id,
+            "action": action,
+        },
     )
     response = redirect(
         "projects_eval_submit",
@@ -137,6 +149,15 @@ def projects_eval_submit(request, course_slug, project_slug, review_id):
     review = get_object_or_404(PeerReview, id=review_id)
 
     if review.reviewer.student != request.user:
+        record_event(
+            "project.review_unauthorized",
+            request=request,
+            properties={
+                "course_slug": course_slug,
+                "project_slug": project_slug,
+                "review_id": review.id,
+            },
+        )
         response = project_eval_unauthorized_response(
             request,
             course_slug,

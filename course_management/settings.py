@@ -185,6 +185,61 @@ VERSION = os.getenv(
 )
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
+
+def env_float(name, default):
+    raw_value = os.getenv(name, str(default))
+    return float(raw_value)
+
+
+def env_bool(name, default=False):
+    default_value = "1" if default else "0"
+    return os.getenv(name, default_value) == "1"
+
+
+def env_list(name, default):
+    raw_value = os.getenv(name, default)
+    return [
+        item.strip()
+        for item in raw_value.split(",")
+        if item.strip()
+    ]
+
+
+OBSERVABILITY_ENVIRONMENT = os.getenv(
+    "OBSERVABILITY_ENVIRONMENT",
+    "local" if IS_LOCAL or DEBUG else "production",
+)
+OBSERVABILITY_EVENT_SCHEMA_VERSION = os.getenv(
+    "OBSERVABILITY_EVENT_SCHEMA_VERSION",
+    "1",
+)
+POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY", "")
+POSTHOG_HOST = os.getenv("POSTHOG_HOST", "https://us.i.posthog.com")
+POSTHOG_TIMEOUT_SECONDS = env_float("POSTHOG_TIMEOUT_SECONDS", 2.0)
+POSTHOG_STRICT = env_bool("POSTHOG_STRICT", False)
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+DEFAULT_OBSERVABILITY_BACKENDS = ["noop" if is_test else "log"]
+if POSTHOG_API_KEY:
+    DEFAULT_OBSERVABILITY_BACKENDS.append("posthog")
+if SENTRY_DSN:
+    DEFAULT_OBSERVABILITY_BACKENDS.append("sentry")
+DEFAULT_OBSERVABILITY_EVENT_BACKENDS = ",".join(
+    DEFAULT_OBSERVABILITY_BACKENDS
+)
+OBSERVABILITY_EVENT_BACKENDS = env_list(
+    "OBSERVABILITY_EVENT_BACKENDS",
+    DEFAULT_OBSERVABILITY_EVENT_BACKENDS,
+)
+SENTRY_TRACES_SAMPLE_RATE = env_float("SENTRY_TRACES_SAMPLE_RATE", 0.0)
+SENTRY_PROFILES_SAMPLE_RATE = env_float("SENTRY_PROFILES_SAMPLE_RATE", 0.0)
+SENTRY_SEND_DEFAULT_PII = env_bool("SENTRY_SEND_DEFAULT_PII", False)
+HEALTHCHECKS_DATAMAILER_HEALTH_URL = os.getenv(
+    "HEALTHCHECKS_DATAMAILER_HEALTH_URL", ""
+)
+HEALTHCHECKS_TIMEOUT_SECONDS = env_float(
+    "HEALTHCHECKS_TIMEOUT_SECONDS", 2.0
+)
+
 DATAMAILER_URL = os.getenv("DATAMAILER_URL", "")
 DATAMAILER_API_KEY = os.getenv("DATAMAILER_API_KEY", "")
 DATAMAILER_CLIENT = os.getenv("DATAMAILER_CLIENT", "")
@@ -377,3 +432,12 @@ UNFOLD = {
 }
 
 SHOW_WRAPPED = False
+
+
+def configure_observability():
+    from course_management.observability.sentry import configure_sentry
+
+    configure_sentry()
+
+
+configure_observability()
