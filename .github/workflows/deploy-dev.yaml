@@ -34,6 +34,9 @@ jobs:
     - name: Run tests
       run: make tests
 
+    - name: Run typecheck
+      run: make typecheck
+
   deploy:
     runs-on: ubuntu-latest
     needs: test
