@@ -23,6 +23,7 @@ class DatamailerOutboxContactTest(DatamailerOutboxTestBase):
         )
 
         erase_contact_from_datamailer(user)
+        self.process_due_outbox()
 
         erase_contact.assert_called_once_with("student@example.com")
         event = DatamailerOutboxEvent.objects.get()
@@ -34,6 +35,7 @@ class DatamailerOutboxContactTest(DatamailerOutboxTestBase):
         self, erase_contact
     ):
         erase_contact_from_datamailer(email=" Student@Example.com ")
+        self.process_due_outbox()
 
         erase_contact.assert_called_once_with("student@example.com")
         event = DatamailerOutboxEvent.objects.get()

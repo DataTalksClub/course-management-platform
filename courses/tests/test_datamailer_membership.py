@@ -71,6 +71,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
         enrollment = self.create_enrollment(user, course)
 
         sync_enrollment_to_datamailer(enrollment)
+        self.process_due_outbox()
 
         upsert_contact.assert_called_once()
         upsert_member.assert_called_once()
@@ -104,6 +105,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
         )
 
         sync_homework_submission_to_datamailer(submission)
+        self.process_due_outbox()
 
         upsert_contact.assert_called_once()
         list_key = homework_submitters_list_key(homework)
@@ -136,6 +138,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
         )
 
         sync_project_submission_to_datamailer(submission)
+        self.process_due_outbox()
 
         upsert_contact.assert_called_once()
         list_key = project_submitters_list_key(project)

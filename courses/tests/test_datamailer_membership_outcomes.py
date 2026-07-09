@@ -27,6 +27,7 @@ class DatamailerMembershipOutcomeTest(DatamailerMembershipBase):
         project, passed_submission = self.create_project_submission_removal_fixture()
 
         sync_project_passed_outcome_to_datamailer(passed_submission)
+        self.process_due_outbox()
 
         upsert_contact.assert_called_once()
         self.assert_project_passed_member_upserted(upsert_member, project)
@@ -44,6 +45,7 @@ class DatamailerMembershipOutcomeTest(DatamailerMembershipBase):
         )
 
         sync_project_passed_outcome_to_datamailer(submission)
+        self.process_due_outbox()
 
         self.assert_project_passed_member_removed(
             remove_member,

@@ -22,7 +22,7 @@ class DatamailerOutboxEventData:
     idempotency_key: str
     ordering_key: str
     payload: dict[str, Any]
-    dispatch_immediately: bool = True
+    dispatch_immediately: bool = False
 
 
 def enqueue_datamailer_outbox_event(

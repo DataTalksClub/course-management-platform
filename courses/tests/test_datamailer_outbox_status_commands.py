@@ -36,7 +36,7 @@ class DatamailerOutboxStatusCommandTest(DatamailerOutboxTestBase):
         self.assertIn("retrying: 1", output)
         self.assertIn("due: 1", output)
         self.assertIn(event.event_id, output)
-        self.assertIn("last_successful_run: none", output)
+        self.assertIn("last_successful_run:", output)
         self.assertIn("last_datamailer_error:", output)
         self.assertIn("network error", output)
 

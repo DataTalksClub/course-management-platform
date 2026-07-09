@@ -37,6 +37,11 @@ def enqueue_recipient_list_bulk_upsert(data):
             "list_key": data.list_key,
             "member_sync_payload": member_sync_payload,
         },
+        # Bulk upsert is called before a recipient-list send (campaigns,
+        # certificates), which needs the ACKED status synchronously to decide
+        # whether to proceed. All other outbox events are deferred to the
+        # scheduled processor so request-time submissions are not blocked.
+        dispatch_immediately=True,
     )
     return enqueue_datamailer_outbox_event(event_data)
 

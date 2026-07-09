@@ -54,6 +54,7 @@ class DatamailerOutboxProcessingTest(DatamailerOutboxTestBase):
         ]
         enrollment = self.create_student_enrollment_for_ml_course()
         sync_enrollment_to_datamailer(enrollment)
+        self.process_due_outbox()
         event = self.mark_outbox_event_due()
 
         out = StringIO()

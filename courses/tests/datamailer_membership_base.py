@@ -38,6 +38,13 @@ class UpsertedRecipientMemberExpectation:
 
 
 class DatamailerMembershipBase(TestCase):
+    def process_due_outbox(self):
+        from course_management.datamailer_outbox_runs import (
+            process_due_datamailer_outbox,
+        )
+
+        process_due_datamailer_outbox()
+
     def create_ml_course(self):
         return Course.objects.create(
             slug="ml-zoomcamp-2026",

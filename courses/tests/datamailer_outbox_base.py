@@ -37,6 +37,13 @@ class DatamailerOutboxTestBase(TestCase):
 
     def outbox_attempt(self, attempt_count=1, max_attempts=3):
         return Mock(attempt_count=attempt_count, max_attempts=max_attempts)
+ 
+    def process_due_outbox(self):
+        from course_management.datamailer_outbox_runs import (
+            process_due_datamailer_outbox,
+        )
+ 
+        process_due_datamailer_outbox()
 
     def create_ml_course(self):
         return Course.objects.create(
@@ -67,6 +74,7 @@ class DatamailerOutboxTestBase(TestCase):
         enrollment = self.create_enrollment(user, course)
 
         sync_enrollment_to_datamailer(enrollment)
+        self.process_due_outbox()
 
         event = DatamailerOutboxEvent.objects.get()
         return event, user
@@ -78,7 +86,7 @@ class DatamailerOutboxTestBase(TestCase):
         return event
 
     def assert_successful_outbox_dispatch_run(self):
-        run = DatamailerOutboxDispatchRun.objects.get()
+        run = DatamailerOutboxDispatchRun.objects.order_by("-id").first()
         self.assertEqual(run.status, DatamailerOutboxDispatchRunStatus.SUCCESS)
         self.assertIsNotNone(run.finished_at)
         self.assertEqual(run.processed_count, 1)
