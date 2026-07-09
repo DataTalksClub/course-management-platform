@@ -1259,6 +1259,38 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
   padding: 0.65rem 0.75rem;
 }
 
+.cloudwatch-graphs-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.cloudwatch-graph-card {
+  padding: 0.9rem;
+}
+
+.cloudwatch-chart {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: #315f8f;
+  height: 5rem;
+  overflow: hidden;
+}
+
+.cloudwatch-chart svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.cloudwatch-empty-chart {
+  align-items: center;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+}
+
 .cadmin-count-badge {
   align-items: center;
   background: var(--bg-subtle);
@@ -2127,6 +2159,10 @@ body.dark-mode .cadmin-shell .primer-button-success {
   background: #21262d;
   border-color: #30363d;
   color: #c9d1d9;
+}
+
+body.dark-mode .cloudwatch-chart {
+  color: #8bb7df;
 }
 
 body.dark-mode .cadmin-shell table tbody tr:hover {

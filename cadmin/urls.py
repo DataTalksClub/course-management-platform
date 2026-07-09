@@ -5,6 +5,7 @@ from .views import course_admin
 from .views import datamailer
 from .views import enrollment
 from .views import homework
+from .views import observability
 from .views import projects
 
 urlpatterns = [
@@ -33,6 +34,11 @@ urlpatterns = [
         "datamailer/events/",
         datamailer.datamailer_events,
         name="cadmin_datamailer_events",
+    ),
+    path(
+        "cloudwatch/",
+        observability.cloudwatch_dashboard,
+        name="cadmin_cloudwatch_dashboard",
     ),
     path(
         "<slug:course_slug>/",

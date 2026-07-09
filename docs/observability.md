@@ -67,6 +67,19 @@ CLOUDWATCH_APP_METRIC_NAMESPACE=CourseManagement/App
 
 Use `OBSERVABILITY_ENVIRONMENT=production` in production.
 
+## Cadmin Dashboard
+
+Staff can view the CloudWatch event graphs at:
+
+```text
+/cadmin/cloudwatch/
+```
+
+The page reads the existing `AppEventCount` metrics with `GetMetricData`; it
+does not create more metrics and it does not add a CloudWatch dashboard
+resource. Configure the AWS region with `CLOUDWATCH_APP_METRIC_REGION`, or let
+the app fall back to `AWS_REGION` / `AWS_DEFAULT_REGION`.
+
 ## CloudWatch Metrics
 
 The `cloudwatch` backend emits one low-cardinality metric:
