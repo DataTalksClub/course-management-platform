@@ -25,20 +25,12 @@ from course_management.datamailer.sync.notifications import (
 )
 from courses.models import Course, CourseRegistration, RegistrationCampaign
 
-
-def process_due_outbox():
-    from course_management.datamailer_outbox_runs import (
-        process_due_datamailer_outbox,
-    )
-
-    process_due_datamailer_outbox()
-
-
 DATAMAILER_SETTINGS = {
     "DATAMAILER_URL": "https://datamailer.example.com",
     "DATAMAILER_API_KEY": "secret-token",
     "DATAMAILER_CLIENT": "dtc-courses",
     "DATAMAILER_AUDIENCE": "dtc-courses",
+    "DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY": True,
 }
 
 
@@ -291,7 +283,6 @@ class DatamailerRegistrationMembershipSyncTest(TestCase):
         registration = create_registration()
 
         sync_registration_to_datamailer(registration)
-        process_due_outbox()
 
         assert_registration_contact_synced(self, upsert_contact)
         assert_registration_member_synced(self, upsert_member, registration)
@@ -310,6 +301,5 @@ class DatamailerRegistrationMembershipRemovalTest(TestCase):
         registration = create_registration()
 
         remove_registration_from_datamailer(registration)
-        process_due_outbox()
 
         assert_registration_member_removed(self, remove_member, registration)

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
+from django.conf import settings
 from django.utils import timezone
 
 from course_management.observability import record_event
@@ -22,12 +23,17 @@ class DatamailerOutboxEventData:
     idempotency_key: str
     ordering_key: str
     payload: dict[str, Any]
-    dispatch_immediately: bool = False
+    dispatch_immediately: bool | None = None
 
 
 def enqueue_datamailer_outbox_event(
     data: DatamailerOutboxEventData,
 ) -> DatamailerOutboxEvent:
+    should_dispatch = (
+        data.dispatch_immediately
+        if data.dispatch_immediately is not None
+        else getattr(settings, "DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY", False)
+    )
     event_uuid = uuid4()
     event_id = f"cmp-datamailer-event:{event_uuid}"
     now = timezone.now()
@@ -47,11 +53,11 @@ def enqueue_datamailer_outbox_event(
             "event_type": event.event_type,
             "outbox_event_id": event.id,
             "status": event.status,
-            "dispatch_immediately": data.dispatch_immediately,
+            "dispatch_immediately": should_dispatch,
         },
     )
 
-    if data.dispatch_immediately and event.status in RETRYABLE_STATUSES:
+    if should_dispatch and event.status in RETRYABLE_STATUSES:
         from course_management.datamailer_outbox_dispatch import (
             dispatch_datamailer_outbox_event,
         )

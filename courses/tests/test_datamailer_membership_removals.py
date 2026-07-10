@@ -34,7 +34,6 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
         )
 
         remove_enrollment_from_datamailer(enrollment)
-        self.process_due_outbox()
 
         self.assert_enrollment_members_removed(remove_member, course, enrollment)
 
@@ -54,7 +53,6 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
         )
 
         remove_homework_submission_from_datamailer(submission)
-        self.process_due_outbox()
 
         self.assert_homework_submission_member_removed(
             remove_member,
@@ -73,7 +71,6 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
         project, submission = self.create_project_submission_removal_fixture()
 
         remove_project_submission_from_datamailer(submission)
-        self.process_due_outbox()
 
         self.assert_project_submission_members_removed(
             remove_member,

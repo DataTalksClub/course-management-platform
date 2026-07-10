@@ -259,6 +259,12 @@ DATAMAILER_IMPORT_S3_REGION = os.getenv("DATAMAILER_IMPORT_S3_REGION", "")
 DATAMAILER_SYNC_ON_USER_CREATE = (
     os.getenv("DATAMAILER_SYNC_ON_USER_CREATE", "1") == "1"
 )
+# Dispatch outbox events inline (True) or defer to the scheduled processor
+# (False, the production default). Tests set this to True so sync helpers fire
+# without an explicit process_due_datamailer_outbox call.
+DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY = (
+    os.getenv("DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY", "0") == "1"
+)
 
 # Cache configuration
 CACHES = {

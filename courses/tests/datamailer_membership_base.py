@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from unittest.mock import Mock
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from accounts.models import CustomUser
 from course_management.datamailer.keys import (
@@ -37,6 +37,7 @@ class UpsertedRecipientMemberExpectation:
     list_type: str
 
 
+@override_settings(DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY=True)
 class DatamailerMembershipBase(TestCase):
     def process_due_outbox(self):
         from course_management.datamailer_outbox_runs import (

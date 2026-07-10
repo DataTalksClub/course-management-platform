@@ -34,6 +34,7 @@ class DatamailerOutboxMembershipTest(DatamailerOutboxTestBase):
 
 
 class DatamailerOutboxProcessingTest(DatamailerOutboxTestBase):
+    @override_settings(DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY=False)
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"

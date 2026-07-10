@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import requests
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import CustomUser
@@ -29,6 +29,7 @@ DATAMAILER_SETTINGS = {
 }
 
 
+@override_settings(DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY=True, **DATAMAILER_SETTINGS)
 class DatamailerOutboxTestBase(TestCase):
     def http_error(self, status_code):
         exc = requests.HTTPError("request failed")
@@ -74,7 +75,6 @@ class DatamailerOutboxTestBase(TestCase):
         enrollment = self.create_enrollment(user, course)
 
         sync_enrollment_to_datamailer(enrollment)
-        self.process_due_outbox()
 
         event = DatamailerOutboxEvent.objects.get()
         return event, user
