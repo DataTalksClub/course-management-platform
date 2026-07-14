@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from django.db.models import Sum
 
-from courses.models.homework import Homework, Submission
+from courses.models.homework import Homework, HomeworkState, Submission
 from courses.views.dashboard_metrics import (
     quartile_fields,
     safe_quartiles,
@@ -188,7 +188,11 @@ def _homework_difficulty_sort_key(hw_stat):
 def dashboard_homework_difficulty_stats(homework_stats):
     difficulty_stats = []
     for hw_stat in homework_stats:
-        if hw_stat["score_ratio"] is not None:
+        homework = hw_stat["homework"]
+        if (
+            hw_stat["score_ratio"] is not None
+            and homework.state == HomeworkState.SCORED.value
+        ):
             difficulty_stats.append(hw_stat)
     difficulty_stats.sort(key=_homework_difficulty_sort_key)
     for rank, hw_stat in enumerate(difficulty_stats, start=1):

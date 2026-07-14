@@ -1,6 +1,6 @@
 from django.db.models import Count, Q
 
-from courses.models.homework import Answer, AnswerTypes
+from courses.models.homework import Answer, AnswerTypes, HomeworkState
 
 
 def dashboard_question_difficulty(course):
@@ -13,6 +13,7 @@ def dashboard_question_difficulty(course):
     rows = (
         Answer.objects
         .filter(question__homework__course=course)
+        .filter(question__homework__state=HomeworkState.SCORED.value)
         .exclude(question__answer_type=AnswerTypes.ANY.value)
         .values(
             "question_id",

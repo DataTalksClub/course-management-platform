@@ -113,3 +113,47 @@ class DashboardQuestionDifficultyTestCase(TestCase):
 
         self.assertEqual(response.context["question_difficulty"], [])
         self.assertNotContains(response, "Question difficulty")
+
+    def test_question_difficulty_excludes_unscored_homework(self):
+        self.create_answers([True, False])
+
+        unscored = Homework.objects.create(
+            course=self.course,
+            slug="hw2",
+            title="Homework 2",
+            due_date=timezone.now() + timedelta(days=14),
+            state=HomeworkState.OPEN.value,
+        )
+        unscored_question = Question.objects.create(
+            homework=unscored,
+            text="Unscored question?",
+            question_type=QuestionTypes.MULTIPLE_CHOICE.value,
+            answer_type=AnswerTypes.INTEGER.value,
+            scores_for_correct_answer=1,
+        )
+        user = User.objects.create_user(
+            username="unscored_student@test.com",
+            email="unscored_student@test.com",
+            password="12345",
+        )
+        enrollment = Enrollment.objects.create(
+            student=user, course=self.course
+        )
+        submission = Submission.objects.create(
+            homework=unscored,
+            student=user,
+            enrollment=enrollment,
+        )
+        Answer.objects.create(
+            submission=submission,
+            question=unscored_question,
+            answer_text="1",
+            is_correct=False,
+        )
+
+        response = self.client.get(self.dashboard_url())
+
+        groups = response.context["question_difficulty"]
+        homework_titles = [g["homework_title"] for g in groups]
+        self.assertIn("Homework 1", homework_titles)
+        self.assertNotIn("Homework 2", homework_titles)
