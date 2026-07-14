@@ -1,5 +1,9 @@
-from django.urls import reverse
+from datetime import timedelta
 
+from django.urls import reverse
+from django.utils import timezone
+
+from courses.models import Homework, HomeworkState, Submission
 from courses.tests.dashboard_homework_base import (
     DashboardHomeworkStatsTestBase,
 )
@@ -56,3 +60,31 @@ class DashboardHomeworkStatsTestCase(DashboardHomeworkStatsTestBase):
         hw_stat = hw_stats[0]
 
         self.assert_formatted_time_fields(hw_stat)
+
+    def test_homework_statistics_excludes_unscored_homework(self):
+        self.create_homework_stat_submissions()
+
+        unscored = Homework.objects.create(
+            course=self.course,
+            slug="hw2",
+            title="Homework 2",
+            due_date=timezone.now() + timedelta(days=14),
+            state=HomeworkState.OPEN.value,
+        )
+        for i in range(3):
+            Submission.objects.create(
+                homework=unscored,
+                student=self.users[i],
+                enrollment=self.enrollments[i],
+                time_spent_lectures=2.0,
+                time_spent_homework=3.0,
+                total_score=50,
+            )
+
+        url = reverse("dashboard", args=[self.course.slug])
+        response = self.client.get(url)
+
+        hw_stats = response.context["homework_stats"]
+        titles = [hw_stat["homework"].title for hw_stat in hw_stats]
+        self.assertIn("Homework 1", titles)
+        self.assertNotIn("Homework 2", titles)

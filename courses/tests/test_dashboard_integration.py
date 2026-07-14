@@ -47,7 +47,7 @@ class DashboardIntegrationTestCase(TestCase):
             slug="hw2",
             title="Homework 2",
             due_date=timezone.now() + timedelta(days=14),
-            state=HomeworkState.OPEN.value,
+            state=HomeworkState.SCORED.value,
         )
         self.project = Project.objects.create(
             course=self.course,

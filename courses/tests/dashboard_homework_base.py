@@ -39,7 +39,7 @@ class DashboardHomeworkStatsTestBase(TestCase):
             slug="hw1",
             title="Homework 1",
             due_date=timezone.now() + timedelta(days=7),
-            state=HomeworkState.OPEN.value,
+            state=HomeworkState.SCORED.value,
         )
 
     def create_dashboard_enrollments(self, count):
@@ -209,7 +209,7 @@ class DashboardHomeworkStatsTestBase(TestCase):
             slug=slug,
             title=title,
             due_date=timezone.now() + timedelta(days=days_until_due),
-            state=HomeworkState.OPEN.value,
+            state=HomeworkState.SCORED.value,
         )
         return homework
 

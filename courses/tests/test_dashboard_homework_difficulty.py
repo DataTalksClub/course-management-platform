@@ -9,15 +9,11 @@ from courses.tests.dashboard_homework_base import (
 class DashboardHomeworkDifficultyTestCase(DashboardHomeworkStatsTestBase):
     def test_homework_difficulty_ranking(self):
         self.add_questions(self.homework, 3)
-        self.homework.state = HomeworkState.SCORED.value
-        self.homework.save()
         harder_homework = self.create_homework_for_difficulty(
             "hw2",
             "Homework 2",
             14,
         )
-        harder_homework.state = HomeworkState.SCORED.value
-        harder_homework.save()
         self.add_questions(harder_homework, 10)
         self.create_difficulty_submissions(harder_homework)
 
@@ -30,13 +26,13 @@ class DashboardHomeworkDifficultyTestCase(DashboardHomeworkStatsTestBase):
 
     def test_difficulty_excludes_unscored_homework(self):
         self.add_questions(self.homework, 3)
-        self.homework.state = HomeworkState.SCORED.value
-        self.homework.save()
         unscored = self.create_homework_for_difficulty(
             "hw2",
             "Homework 2",
             14,
         )
+        unscored.state = HomeworkState.OPEN.value
+        unscored.save()
         self.add_questions(unscored, 3)
         self.create_difficulty_submissions(unscored)
 

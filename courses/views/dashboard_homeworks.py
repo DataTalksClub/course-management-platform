@@ -20,6 +20,7 @@ class HomeworkScoreRatio:
 
 def dashboard_homeworks(course):
     homeworks = Homework.objects.filter(course=course)
+    homeworks = homeworks.filter(state=HomeworkState.SCORED.value)
     homeworks = homeworks.order_by("id")
     max_questions_score = Sum("question__scores_for_correct_answer")
     return homeworks.annotate(
