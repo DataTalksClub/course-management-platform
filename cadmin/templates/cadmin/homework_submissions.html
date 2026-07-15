@@ -91,9 +91,6 @@
     <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
       <div class="border-b app-border app-surface-muted px-4 py-3">
         <h2 class="text-base font-semibold app-heading">Correct answers</h2>
-        <p class="mt-0.5 text-sm app-muted">
-          For choice questions, enter the 1-based option index (comma-separated for checkboxes).
-        </p>
       </div>
       <form method="post" action="{% url 'cadmin_homework_save_answers' course.slug homework.slug %}">
         {% csrf_token %}
@@ -102,26 +99,41 @@
           {% for question in questions %}
             <div class="px-4 py-3">
               <p class="text-sm font-medium app-heading">{{ forloop.counter }}. {{ question.text }}</p>
-              <p class="mt-1 text-xs app-muted">
-                {{ question.get_question_type_display }}
-                {% if question.possible_answers %}&middot; {{ question.possible_answers|linebreaksbr }}{% endif %}
-              </p>
-              <div class="mt-2 flex flex-wrap items-center gap-3">
-                <div class="flex items-center gap-2">
-                  <label class="text-xs font-semibold uppercase app-muted" for="correct_answer_{{ question.id }}">Answer</label>
-                  <input type="text" name="correct_answer_{{ question.id }}" id="correct_answer_{{ question.id }}"
-                         value="{{ question.correct_answer|default:'' }}" class="form-control w-40">
+
+              {% if question.has_choice_answers %}
+                <input type="hidden" name="correct_answer_{{ question.id }}" value="" id="hidden_correct_{{ question.id }}">
+                <div class="mt-2 space-y-1">
+                  {% for option in question.get_possible_answers %}
+                    {% with forloop.counter as opt_index %}
+                      <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox"
+                               name="correct_answer_{{ question.id }}"
+                               value="{{ opt_index }}"
+                               class="form-check-input"
+                               {% if opt_index in question.get_correct_answer_indices %}checked{% endif %}>
+                        <span class="app-text">{{ opt_index }}. {{ option }}</span>
+                      </label>
+                    {% endwith %}
+                  {% endfor %}
                 </div>
-                <div class="flex items-center gap-2">
-                  <label class="text-xs font-semibold uppercase app-muted" for="answer_type_{{ question.id }}">Type</label>
-                  <select name="answer_type_{{ question.id }}" id="answer_type_{{ question.id }}" class="form-control">
-                    <option value="">---</option>
-                    {% for value, label in question.ANSWER_TYPES %}
-                      <option value="{{ value }}" {% if question.answer_type == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
+              {% else %}
+                <div class="mt-2 flex flex-wrap items-center gap-3">
+                  <div class="flex items-center gap-2">
+                    <label class="text-xs font-semibold uppercase app-muted" for="correct_answer_{{ question.id }}">Correct answer</label>
+                    <input type="text" name="correct_answer_{{ question.id }}" id="correct_answer_{{ question.id }}"
+                           value="{{ question.correct_answer|default:'' }}" class="form-control w-48">
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <label class="text-xs font-semibold uppercase app-muted" for="answer_type_{{ question.id }}">Type</label>
+                    <select name="answer_type_{{ question.id }}" id="answer_type_{{ question.id }}" class="form-control">
+                      <option value="">---</option>
+                      {% for value, label in question.ANSWER_TYPES %}
+                        <option value="{{ value }}" {% if question.answer_type == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              {% endif %}
             </div>
           {% endfor %}
         </div>

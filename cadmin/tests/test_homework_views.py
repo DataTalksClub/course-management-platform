@@ -446,3 +446,50 @@ class HomeworkCadminInlineAnswersTests(HomeworkCadminViewTestBase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
         self.assertIn("updated", messages[0].message.lower())
+
+    def test_submissions_page_renders_checkboxes_for_choice_question(self):
+        self.login_admin()
+        response = self.client.get(self.submissions_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'type="checkbox"')
+        self.assertContains(response, "London")
+        self.assertContains(response, "Paris")
+        self.assertContains(response, "Berlin")
+
+    def test_submissions_page_pre_checks_correct_choice(self):
+        self.question2.correct_answer = "2"
+        self.question2.save()
+        self.login_admin()
+        response = self.client.get(self.submissions_url())
+        self.assertContains(response, 'value="2"')
+        self.assertContains(response, "2. Paris")
+        self.assertContains(response, "checked")
+
+    def test_save_choice_answers_with_multiple_selections(self):
+        cb_question = Question.objects.create(
+            homework=self.homework,
+            text="Select all that apply",
+            question_type=QuestionTypes.CHECKBOXES.value,
+            possible_answers="Alpha\nBeta\nGamma",
+            correct_answer="",
+            scores_for_correct_answer=1,
+        )
+        self.login_admin()
+        save_url = reverse(
+            "cadmin_homework_save_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.post(save_url, {
+            f"correct_answer_{self.question1.id}": "4",
+            f"answer_type_{self.question1.id}": "INT",
+            f"correct_answer_{self.question2.id}": "2",
+            f"correct_answer_{cb_question.id}": ["1", "3"],
+        }, follow=True)
+
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
+        cb_question.refresh_from_db()
+        self.assertEqual(cb_question.correct_answer, "1,3")

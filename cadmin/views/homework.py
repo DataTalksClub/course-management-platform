@@ -205,9 +205,12 @@ def homework_save_answers(request, course_slug, homework_slug):
         Question.objects.filter(homework=homework).order_by("id")
     )
     for question in questions:
-        correct_answer = request.POST.get(
-            f"correct_answer_{question.id}", ""
-        )
+        field_name = f"correct_answer_{question.id}"
+        if question.has_choice_answers():
+            indices = request.POST.getlist(field_name)
+            correct_answer = ",".join(indices)
+        else:
+            correct_answer = request.POST.get(field_name, "")
         answer_type = request.POST.get(
             f"answer_type_{question.id}", ""
         )
