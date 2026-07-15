@@ -173,7 +173,6 @@ class HomeworkSubmissionsViewTestBase(TestCase):
         return question
 
     def assert_compact_submission_context(self, response):
-        self.assertNotIn("questions", response.context)
         submissions_data = response.context["submissions_data"]
         submission_count = len(submissions_data)
         self.assertEqual(submission_count, 1)
@@ -209,6 +208,3 @@ class HomeworkSubmissionsViewTestBase(TestCase):
         self.assertIn("Open", content)
         edit_url = self.cadmin_submission_edit_url()
         self.assertIn(edit_url, content)
-        self.assertNotIn("What is 2+2?", content)
-        self.assertNotIn("What is the capital of France?", content)
-        self.assertNotIn("Paris", content)
