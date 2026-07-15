@@ -37,7 +37,7 @@ class HomeworkScoringBatch:
     answers_by_submission_id: dict
 
 
-def _homework_scoring_error(homework, homework_id):
+def _homework_scoring_error(homework, homework_id, force=False):
     if homework.due_date > timezone.now():
         return (
             "The due date for "
@@ -48,7 +48,10 @@ def _homework_scoring_error(homework, homework_id):
             f"Homework {homework_id} is closed. "
             "Update the state to OPEN to score."
         )
-    if homework.state == HomeworkState.SCORED.value:
+    if (
+        homework.state == HomeworkState.SCORED.value
+        and not force
+    ):
         return f"Homework {homework_id} is already scored."
     return None
 
@@ -146,6 +149,7 @@ def _score_and_persist_homework_submissions(homework_id):
 
 def score_homework_submissions(
     homework_id: str,
+    force: bool = False,
 ) -> tuple[HomeworkScoringStatus, str]:
     with transaction.atomic():
         t0 = time()
@@ -161,7 +165,7 @@ def score_homework_submissions(
             },
         )
 
-        if error := _homework_scoring_error(homework, homework_id):
+        if error := _homework_scoring_error(homework, homework_id, force):
             record_event(
                 "homework.scoring_failed",
                 properties={

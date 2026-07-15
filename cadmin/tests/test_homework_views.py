@@ -315,3 +315,161 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         messages = list(response.context["messages"])
         messages_count = len(messages)
         self.assertEqual(messages_count, 1)
+
+
+class HomeworkCadminRescoreTests(HomeworkCadminViewTestBase):
+    def setUp(self):
+        super().setUp()
+        self.homework.due_date = timezone.now() - timedelta(hours=1)
+        self.homework.state = HomeworkState.SCORED.value
+        self.homework.save()
+        self.create_free_form_question()
+
+    def test_course_admin_shows_rescore_for_scored_homework(self):
+        response = self.cadmin_course_response()
+        self.assertEqual(response.status_code, 200)
+        rescore_url = self.homework_action_url("cadmin_homework_rescore")
+        self.assertContains(response, rescore_url)
+        self.assertContains(response, "rescore")
+
+    def test_course_admin_hides_rescore_for_unscored_homework(self):
+        self.homework.state = HomeworkState.OPEN.value
+        self.homework.save()
+
+        response = self.cadmin_course_response()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Rescore")
+
+    def test_course_admin_shows_edit_answers_link(self):
+        response = self.cadmin_course_response()
+        self.assertEqual(response.status_code, 200)
+        answers_url = self.homework_action_url("cadmin_homework_answers")
+        self.assertContains(response, answers_url)
+        self.assertContains(response, "Edit answers")
+
+    def test_rescore_reruns_scoring(self):
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_rescore",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.post(url, follow=True)
+
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertIn("scored", messages[0].message.lower())
+
+    def test_rescore_warns_for_unscored_homework(self):
+        self.homework.state = HomeworkState.OPEN.value
+        self.homework.save()
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_rescore",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.post(url, follow=True)
+
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertIn("not scored", messages[0].message.lower())
+
+
+class HomeworkCadminAnswersTests(HomeworkCadminViewTestBase):
+    def setUp(self):
+        super().setUp()
+        self.question1 = self.create_free_form_question()
+        self.question2 = self.create_multiple_choice_question()
+
+    def test_answers_page_renders(self):
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Answers: Test Homework")
+        self.assertContains(response, self.question1.text)
+        self.assertContains(response, self.question2.text)
+        self.assertContains(response, "Correct answer")
+        self.assertContains(response, "Answer type")
+
+    def test_answers_page_shows_rescore_button_for_scored_homework(self):
+        self.homework.state = HomeworkState.SCORED.value
+        self.homework.save()
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+        self.assertContains(response, "rescore")
+
+    def test_answers_page_hides_rescore_button_for_unscored_homework(self):
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+        self.assertNotContains(response, "Rescore")
+
+    def test_answers_page_shows_empty_state(self):
+        Question.objects.filter(homework=self.homework).delete()
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.get(url)
+        self.assertContains(response, "No questions found")
+
+    def test_answers_update_saves_correct_answers(self):
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_answers",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+        response = self.client.post(url, {
+            f"correct_answer_{self.question1.id}": "99",
+            f"answer_type_{self.question1.id}": "INT",
+            f"correct_answer_{self.question2.id}": "3",
+            f"answer_type_{self.question2.id}": "",
+        }, follow=True)
+
+        course_url = self.cadmin_course_url()
+        self.assertRedirects(response, course_url)
+        self.question1.refresh_from_db()
+        self.question2.refresh_from_db()
+        self.assertEqual(self.question1.correct_answer, "99")
+        self.assertEqual(self.question1.answer_type, "INT")
+        self.assertEqual(self.question2.correct_answer, "3")
+        self.assertIsNone(self.question2.answer_type)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertIn("updated", messages[0].message.lower())
