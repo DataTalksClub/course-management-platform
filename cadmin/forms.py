@@ -1,7 +1,6 @@
 from django import forms
 
 from courses.models.course import RegistrationCampaign
-from courses.models.homework import Question
 
 
 REGISTRATION_CAMPAIGN_TITLE_WIDGET = forms.TextInput(
@@ -111,56 +110,6 @@ class ProjectSubmissionEditForm(forms.Form):
             criteria_scores.append(criteria_score)
         cleaned_data["criteria_scores"] = criteria_scores
         return cleaned_data
-
-
-class HomeworkAnswersForm(forms.Form):
-    """Edit correct answers and answer types per question.
-
-    For choice questions (MC/CB) the correct_answer field holds
-    1-based option indices. For free-form questions it holds the
-    expected text value.
-    """
-
-    def __init__(self, *args, **kwargs):
-        questions = kwargs.pop("questions")
-        super().__init__(*args, **kwargs)
-        self.questions = list(questions)
-
-        for question in self.questions:
-            self.fields[f"correct_answer_{question.id}"] = forms.CharField(
-                required=False,
-                initial=question.correct_answer or "",
-                widget=forms.TextInput(
-                    attrs={"class": "form-control"}
-                ),
-            )
-            self.fields[f"answer_type_{question.id}"] = forms.ChoiceField(
-                required=False,
-                choices=[("", "---")] + list(Question.ANSWER_TYPES),
-                initial=question.answer_type or "",
-                widget=forms.Select(
-                    attrs={"class": "form-control"}
-                ),
-            )
-
-    def question_fields(self, question):
-        """Return (correct_answer_field, answer_type_field) bound fields."""
-        return (
-            self[f"correct_answer_{question.id}"],
-            self[f"answer_type_{question.id}"],
-        )
-
-    def save(self):
-        for question in self.questions:
-            correct_answer = self.cleaned_data.get(
-                f"correct_answer_{question.id}", ""
-            )
-            answer_type = self.cleaned_data.get(
-                f"answer_type_{question.id}", ""
-            )
-            question.correct_answer = correct_answer
-            question.answer_type = answer_type or None
-            question.save(update_fields=["correct_answer", "answer_type"])
 
 
 class RegistrationCampaignForm(forms.ModelForm):

@@ -5,8 +5,7 @@ from course_management.datamailer.sync.score_notifications import (
     send_homework_score_notification,
 )
 from courses.models.course import Course
-from courses.models.homework import Homework, Question
-from cadmin.forms import HomeworkAnswersForm
+from courses.models.homework import Homework, HomeworkState, Question
 from courses.homework_correct_answers import (
     clear_correct_answers,
     fill_correct_answers,
@@ -52,7 +51,10 @@ def homework_score(request, course_slug, homework_slug):
 
 @staff_required
 def homework_rescore(request, course_slug, homework_slug):
-    """Re-score an already scored homework"""
+    """Re-score an already scored homework.
+
+    Resets the homework to OPEN so the normal scoring logic applies.
+    """
     if request.method != "POST":
         return redirect("cadmin_course", course_slug=course_slug)
     course = get_object_or_404(Course, slug=course_slug)
@@ -70,9 +72,10 @@ def homework_rescore(request, course_slug, homework_slug):
             request, "cadmin_course", course_slug=course_slug
         )
 
-    status, message = score_homework_submissions(
-        homework.id, force=True
-    )
+    homework.state = HomeworkState.OPEN.value
+    homework.save(update_fields=["state"])
+
+    status, message = score_homework_submissions(homework.id)
 
     if status == HomeworkScoringStatus.OK:
         messages.success(request, message)
@@ -163,58 +166,6 @@ def homework_clear_correct_answers(request, course_slug, homework_slug):
 
 
 @staff_required
-def homework_answers(request, course_slug, homework_slug):
-    """Edit correct answers for all questions in a homework"""
-    course = get_object_or_404(Course, slug=course_slug)
-    homework = get_object_or_404(
-        Homework, course=course, slug=homework_slug
-    )
-    questions = list(
-        Question.objects.filter(homework=homework).order_by("id")
-    )
-
-    if request.method == "POST":
-        form = HomeworkAnswersForm(
-            request.POST, questions=questions
-        )
-        if form.is_valid():
-            form.save()
-            messages.success(
-                request,
-                f"Correct answers for {homework.title} updated.",
-            )
-            return redirect_after_action(
-                request, "cadmin_course", course_slug=course_slug
-            )
-        error_message = form.errors and "; ".join(
-            f"{k}: {v[0]}" for k, v in form.errors.items()
-        ) or "Invalid form data"
-        messages.error(request, error_message)
-    else:
-        form = HomeworkAnswersForm(questions=questions)
-
-    question_rows = [
-        {
-            "question": question,
-            "correct_answer_field": form[
-                f"correct_answer_{question.id}"
-            ],
-            "answer_type_field": form[
-                f"answer_type_{question.id}"
-            ],
-        }
-        for question in questions
-    ]
-    context = {
-        "course": course,
-        "homework": homework,
-        "form": form,
-        "question_rows": question_rows,
-    }
-    return render(request, "cadmin/homework_answers.html", context)
-
-
-@staff_required
 def homework_submissions(request, course_slug, homework_slug):
     """View all submissions for a homework"""
     course = get_object_or_404(Course, slug=course_slug)
@@ -233,8 +184,44 @@ def homework_submissions(request, course_slug, homework_slug):
         search_query=search_query,
     )
     context = homework_submissions_context(context_data)
+    questions = list(
+        Question.objects.filter(homework=homework).order_by("id")
+    )
+    context["questions"] = questions
     response = render(request, "cadmin/homework_submissions.html", context)
     return response
+
+
+@staff_required
+def homework_save_answers(request, course_slug, homework_slug):
+    """Save correct answers from the submissions page"""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+    questions = list(
+        Question.objects.filter(homework=homework).order_by("id")
+    )
+    for question in questions:
+        correct_answer = request.POST.get(
+            f"correct_answer_{question.id}", ""
+        )
+        answer_type = request.POST.get(
+            f"answer_type_{question.id}", ""
+        )
+        question.correct_answer = correct_answer
+        question.answer_type = answer_type or None
+        question.save(update_fields=["correct_answer", "answer_type"])
+
+    messages.success(
+        request,
+        f"Correct answers for {homework.title} updated.",
+    )
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
 
 
 @staff_required
