@@ -3,6 +3,7 @@ from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
 from courses.assignment_statistics import calculate_homework_statistics
+from courses.homework_question_stats import homework_question_stats
 from courses.models.course import Course
 from courses.models.homework import Homework
 
@@ -31,10 +32,12 @@ def scored_homework_statistics_response(
     homework: Homework,
 ):
     stats = calculate_homework_statistics(homework, force=False)
+    question_stats = homework_question_stats(homework)
     context = {
         "course": course,
         "homework": homework,
         "stats": stats,
+        "question_stats": question_stats,
     }
 
     response = render(request, "homework/stats.html", context)

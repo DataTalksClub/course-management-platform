@@ -190,6 +190,78 @@
     </div>
   </section>
 
+  {% if question_stats %}
+    <section class="mt-8">
+      <h2 class="text-lg font-semibold app-heading">Question breakdown</h2>
+      <p class="mt-1 text-sm app-muted">
+        Correctness and answer distribution per question.
+      </p>
+
+      <div class="mt-4 space-y-6">
+        {% for q in question_stats %}
+          <div class="border-t app-border pt-4">
+            <div class="flex items-start justify-between gap-4">
+              <h3 class="text-sm font-medium app-heading">
+                {{ forloop.counter }}. {{ q.text }}
+              </h3>
+              <span class="shrink-0 whitespace-nowrap text-sm app-muted">
+                {% if q.pct_correct is not None %}
+                  {{ q.correct }} / {{ q.total }} correct
+                  <span class="font-semibold app-heading">({{ q.pct_correct }}%)</span>
+                {% else %}
+                  {{ q.total }} answers
+                {% endif %}
+              </span>
+            </div>
+
+            {% if q.choice_options %}
+              <div class="mt-3 space-y-1">
+                {% for opt in q.choice_options %}
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="w-5 shrink-0 text-right app-muted">{{ opt.index }}</span>
+                    <span class="min-w-0 flex-1 truncate {% if opt.is_correct %}font-semibold app-heading{% else %}app-text{% endif %}">
+                      {{ opt.label }}
+                      {% if opt.is_correct %}<i class="fas fa-check app-muted text-xs" aria-label="Correct answer"></i>{% endif %}
+                    </span>
+                    <span class="shrink-0 w-32">
+                      <span class="block h-2 w-full overflow-hidden rounded app-surface-muted">
+                        <span class="block h-full rounded" style="width: {{ opt.pct }}%; background: var(--link-color)"></span>
+                      </span>
+                    </span>
+                    <span class="shrink-0 w-16 text-right app-muted">
+                      {{ opt.count }} ({{ opt.pct }}%)
+                    </span>
+                  </div>
+                {% endfor %}
+              </div>
+            {% elif q.free_form_values %}
+              <div class="mt-3 overflow-x-auto rounded-md border app-border">
+                <table class="min-w-full text-sm">
+                  <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
+                    <tr>
+                      <th class="px-3 py-2">Answer</th>
+                      <th class="px-3 py-2 text-right">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y app-divide">
+                    {% for value, count in q.free_form_values %}
+                      <tr>
+                        <td class="px-3 py-2 app-heading break-all">{{ value }}</td>
+                        <td class="px-3 py-2 text-right app-muted">{{ count }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="mt-2 text-sm app-muted">No answers submitted.</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
   <p class="mt-4 text-sm app-muted">
     Calculated:
     <span class="local-date" data-timestamp="{{ stats.last_calculated|date:'U' }}">
