@@ -19,18 +19,6 @@
       },
       theme: {
         extend: {
-          colors: {
-            brand: {
-              blue: "#0057ff",
-              ink: "#0a0a0a",
-              muted: "#4b5563",
-              line: "#e5e7eb",
-              canvas: "#fafafa",
-              dark: "#070d14",
-              darkPanel: "#0b1118",
-              darkLine: "#263241",
-            },
-          },
           fontFamily: {
             sans: [
               "Inter",
@@ -52,7 +40,7 @@
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="{% static 'courses.css' %}">
     </head>
-    <body class="flex min-h-screen flex-col app-surface font-sans app-heading antialiased {% block body_class %}{% endblock %} {% if DARK_MODE %}dark dark-mode{% endif %}"
+    <body class="flex min-h-screen flex-col app-surface font-sans antialiased {% block body_class %}{% endblock %} {% if DARK_MODE %}dark dark-mode{% endif %}"
           data-dark-mode="{% if DARK_MODE %}true{% else %}false{% endif %}"
           data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}"
           {% if user.is_authenticated %}
@@ -94,7 +82,7 @@
         <header id="header-container" class="border-b app-border app-surface">
             <nav class="app-content-shell mx-auto flex items-center justify-between gap-3 px-4 py-3 md:px-8 md:py-5">
                 <a href="{% url 'course_list' %}"
-                   class="shrink-0 text-xl font-semibold tracking-normal app-heading app-heading md:text-2xl">
+                   class="shrink-0 text-xl font-semibold tracking-normal app-heading md:text-2xl">
                     DataTalks.Club
                 </a>
                 <div class="flex min-w-0 items-center gap-3 text-sm md:gap-7 md:text-base">

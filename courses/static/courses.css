@@ -108,6 +108,10 @@ body {
   color: var(--success-text);
 }
 
+.app-warning-text {
+  color: var(--warning-text);
+}
+
 .registration-markdown h2,
 .registration-markdown h3 {
   color: var(--text-heading);
@@ -1876,11 +1880,6 @@ body.dark-mode [class*="text-red-700"] {
   border-bottom: none; /* remove border for the last row */
 }
 
-/* Highlighting for the current student's row */
-.bg-info {
-  background-color: #d1ecf1 !important; /* Adjust color as needed */
-}
-
 .tooltip-icon {
   margin-left: 4px; /* Adjust as needed */
 }
@@ -1976,7 +1975,7 @@ body.dark-mode .form-help-icon:focus::after {
 .question input.is-invalid,
 .question textarea.is-invalid,
 .question select.is-invalid {
-  border-color: #dc3545;
+  border-color: var(--danger-text);
 }
 
 .social-icon {
@@ -2316,28 +2315,6 @@ body.dark-mode .card-header {
   background-color: #0d1117;
   border-color: #30363d;
   color: #e6edf3;
-}
-
-/* Badges in dark mode */
-body.dark-mode .badge {
-  color: #e6edf3;
-}
-
-body.dark-mode .badge.bg-secondary {
-  background-color: #21262d !important;
-}
-
-body.dark-mode .badge.bg-success {
-  background-color: #238636 !important;
-}
-
-body.dark-mode .badge.bg-info {
-  background-color: #4d7fa8 !important;
-}
-
-body.dark-mode .badge.bg-warning {
-  background-color: #9a6700 !important;
-  color: #ffffff;
 }
 
 /* Border colors */
