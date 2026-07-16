@@ -11,15 +11,17 @@
 {% block content %}
   <section class="border-b app-border pb-5">
     <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
-    <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div class="mt-2 flex flex-col gap-3">
       <div>
         <h1 class="text-2xl font-semibold app-heading md:text-3xl">{{ course.title }} Dashboard</h1>
         <p class="mt-1 text-sm app-muted">Course-level participation, homework, and project statistics.</p>
       </div>
       {% if course.first_homework_scored %}
-        <a href="{% url 'leaderboard' course.slug %}" class="primer-button w-fit">
-          <i class="fas fa-trophy"></i> View Leaderboard
-        </a>
+        <div class="flex flex-wrap gap-2">
+          <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary w-fit">
+            <i class="fas fa-trophy"></i> View Leaderboard
+          </a>
+        </div>
       {% endif %}
     </div>
   </section>

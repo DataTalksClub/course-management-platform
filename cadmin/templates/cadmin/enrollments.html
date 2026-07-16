@@ -46,14 +46,14 @@
 
 {% if enrollments or search_query or status_filter != 'all' %}
 <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
-  <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex flex-col gap-3 border-b app-border app-surface-muted px-4 py-3">
     <div>
       <h2 class="text-base font-semibold app-heading">Student records</h2>
       <p class="mt-0.5 text-sm app-muted">
         {{ total_enrollments }} result{{ total_enrollments|pluralize }}{% if search_query %} for "{{ search_query }}"{% endif %}
       </p>
     </div>
-    <form method="get" class="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row">
+    <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-end">
       {% if status_filter != 'all' %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
       <input
         type="search"
@@ -62,10 +62,12 @@
         class="form-control w-full sm:w-80"
         placeholder="Search by email, username, or display name..."
       >
-      <button type="submit" class="primer-button w-fit">Search</button>
-      {% if search_query %}
-        <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
-      {% endif %}
+      <div class="flex flex-wrap gap-2">
+        <button type="submit" class="primer-button w-fit">Search</button>
+        {% if search_query %}
+          <a href="?{% if status_filter != 'all' %}status={{ status_filter }}{% endif %}" class="primer-button primer-button-secondary">Clear</a>
+        {% endif %}
+      </div>
     </form>
   </div>
 

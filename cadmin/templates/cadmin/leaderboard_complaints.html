@@ -37,7 +37,7 @@
     {% with enrollment=row.enrollment %}
       <article class="overflow-hidden rounded-md border app-border app-surface">
         <div class="border-b app-border app-surface-muted px-4 py-3">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div class="flex flex-col gap-3">
             <div>
               <h2 class="font-semibold app-heading">{{ enrollment.display_name }}</h2>
               <p class="mt-1 text-sm app-muted">
@@ -57,7 +57,7 @@
         <div class="divide-y app-divide">
           {% for complaint in row.complaints %}
             <div class="px-4 py-4">
-              <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div class="flex flex-col gap-3">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium app-heading">{{ complaint.get_issue_type_display }}</span>
@@ -80,9 +80,9 @@
                   {% endif %}
                 </div>
                 {% if not complaint.resolved %}
-                  <form method="post" action="{% url 'cadmin_leaderboard_complaint_resolve' course.slug complaint.id %}">
+                  <form method="post" action="{% url 'cadmin_leaderboard_complaint_resolve' course.slug complaint.id %}" class="flex flex-wrap gap-2">
                     {% csrf_token %}
-                    <button type="submit" class="primer-button">Mark resolved</button>
+                    <button type="submit" class="primer-button w-fit">Mark resolved</button>
                   </form>
                 {% endif %}
               </div>

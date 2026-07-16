@@ -18,7 +18,7 @@
 
 {% if current_student_enrollment %}
 <section class="mt-6 rounded-md border app-alert-info p-4">
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex flex-col gap-3">
     <div>
       <h2 class="text-base font-semibold app-heading">Your Record</h2>
       <p class="mt-1 text-sm app-text">
@@ -33,11 +33,13 @@
       {% endif %}
     </div>
     {% if current_student_enrollment.display_on_leaderboard %}
-      {% if current_student_page_number %}
-        <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
-      {% else %}
-        <a href="#record-{{ current_student_enrollment.id }}" class="primer-button w-fit">Jump to my record</a>
-      {% endif %}
+      <div class="flex flex-wrap gap-2">
+        {% if current_student_page_number %}
+          <a href="?page={{ current_student_page_number }}#record-{{ current_student_enrollment.id }}" class="primer-button primer-button-secondary w-fit">Jump to my record</a>
+        {% else %}
+          <a href="#record-{{ current_student_enrollment.id }}" class="primer-button primer-button-secondary w-fit">Jump to my record</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 </section>
