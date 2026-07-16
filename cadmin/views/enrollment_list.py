@@ -23,11 +23,15 @@ def enrollments_list_context(request, course):
     enrollments_page = paginate_queryset(request, enrollments)
     total_enrollments = len(enrollments)
     querystring = pagination_querystring(request)
+    page_range = enrollments_page.paginator.get_elided_page_range(
+        enrollments_page.number
+    )
 
     return {
         "course": course,
         "enrollments": enrollments_page.object_list,
         "enrollments_page": enrollments_page,
+        "page_range": page_range,
         "total_enrollments": total_enrollments,
         "enrollment_filter_counts": enrollment_filter_counts,
         "search_query": search_query,

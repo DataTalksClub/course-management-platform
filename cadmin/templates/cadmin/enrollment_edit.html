@@ -25,7 +25,7 @@ Edit Enrollment - {{ course.title }}
 </form>
 <a href="{% url 'leaderboard_score_breakdown' course_slug=course.slug enrollment_id=enrollment.id %}" class="primer-button primer-button-secondary">View Score Breakdown</a>
 <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">View Leaderboard</a>
-<a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button">Back to Enrollments</a>
+<a href="{% url 'cadmin_enrollments' course.slug %}" class="primer-button primer-button-secondary">Back to Enrollments</a>
 </div>
 </section>
 <section class="cadmin-meta-grid mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">

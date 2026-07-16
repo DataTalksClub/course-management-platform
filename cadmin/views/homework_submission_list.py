@@ -38,11 +38,15 @@ def homework_submissions_context(data):
         data.submissions_page.object_list
     )
     querystring = pagination_querystring(data.request)
+    page_range = data.submissions_page.paginator.get_elided_page_range(
+        data.submissions_page.number
+    )
     return {
         "course": data.course,
         "homework": data.homework,
         "submissions_data": submissions_data,
         "submissions_page": data.submissions_page,
+        "page_range": page_range,
         "search_query": data.search_query,
         "pagination_querystring": querystring,
     }

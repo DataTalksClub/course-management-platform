@@ -22,7 +22,7 @@
 {% endif %}
 <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="primer-button primer-button-secondary">See all projects</a>
 {% if project.state == 'CO' %}
-<a href="{% url 'project_statistics' course.slug project.slug %}" class="primer-button">Project statistics</a>
+<a href="{% url 'project_statistics' course.slug project.slug %}" class="primer-button primer-button-secondary">Project statistics</a>
 {% endif %}
 </div>
 </div>

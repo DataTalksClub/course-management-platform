@@ -17,7 +17,7 @@
   </div>
   <div class="mt-3 flex flex-wrap gap-2">
     <a href="{% url 'cadmin_course' course.slug %}" class="primer-button primer-button-secondary">Back to Course Admin</a>
-    <a href="{% url 'leaderboard' course.slug %}" class="primer-button">View Leaderboard</a>
+    <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary">View Leaderboard</a>
   </div>
 
   <div class="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
@@ -199,19 +199,7 @@
     </table>
   </div>
 </section>
-{% if enrollments_page.paginator.num_pages > 1 %}
-<nav class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm app-text" aria-label="Enrollment pages">
-  <span class="app-muted">Page {{ enrollments_page.number }} of {{ enrollments_page.paginator.num_pages }}</span>
-  <div class="flex flex-wrap gap-2">
-    {% if enrollments_page.has_previous %}
-      <a class="primer-button primer-button-secondary" href="?page={{ enrollments_page.previous_page_number }}{{ pagination_querystring }}">Previous</a>
-    {% endif %}
-    {% if enrollments_page.has_next %}
-      <a class="primer-button" href="?page={{ enrollments_page.next_page_number }}{{ pagination_querystring }}">Next</a>
-    {% endif %}
-  </div>
-</nav>
-{% endif %}
+{% include 'include/pagination.html' with pagination_page=enrollments_page pagination_range=page_range pagination_querystring=pagination_querystring pagination_label='Enrollment pages' %}
 
 <script>
 const MISSING_VALUE = -999;
