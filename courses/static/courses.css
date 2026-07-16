@@ -1173,7 +1173,6 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 /* Buttons */
-.btn,
 .primer-button {
   align-items: center;
   border-radius: 6px;
@@ -1355,18 +1354,6 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
   background: #244d78;
   border-color: #244d78;
   color: #ffffff;
-}
-
-.cadmin-shell .primer-button-success {
-  background: #f6f8fa;
-  border-color: #d0d7de;
-  color: #24292f;
-}
-
-.cadmin-shell .primer-button-success:hover {
-  background: #eef1f4;
-  border-color: #d0d7de;
-  color: #24292f;
 }
 
 .cadmin-row-actions form {
@@ -1733,28 +1720,6 @@ body.dark-mode [class*="text-red-700"] {
     min-height: 36px;
     min-width: 36px;
   }
-}
-
-.btn-outline-secondary {
-  border-color: #d0d7de;
-  color: #24292f;
-}
-
-.btn-outline-secondary:hover {
-  background-color: #f6f8fa;
-  border-color: #d0d7de;
-  color: #24292f;
-}
-
-.btn-primary {
-  background-color: #315f8f;
-  border-color: #315f8f;
-  box-shadow: none;
-}
-
-.btn-primary:hover {
-  background-color: #244d78;
-  border-color: #244d78;
 }
 
 /* Adjustments for smaller screens */
@@ -2150,12 +2115,6 @@ body.dark-mode .cadmin-shell .primer-button.cadmin-primary:hover {
   color: #ffffff;
 }
 
-body.dark-mode .cadmin-shell .primer-button-success {
-  background: #21262d;
-  border-color: #30363d;
-  color: #c9d1d9;
-}
-
 body.dark-mode .cloudwatch-chart {
   color: #8bb7df;
 }
@@ -2264,51 +2223,6 @@ body.dark-mode .table-bordered {
 body.dark-mode .table-bordered td,
 body.dark-mode .table-bordered th {
   border-color: #30363d;
-}
-
-body.dark-mode .btn-outline-secondary {
-  color: #c9d1d9;
-  border-color: #30363d;
-}
-
-body.dark-mode .btn-outline-secondary:hover {
-  background-color: #30363d;
-  color: #ffffff;
-}
-
-body.dark-mode .btn-secondary {
-  background-color: #21262d;
-  border-color: #30363d;
-  color: #c9d1d9;
-}
-
-body.dark-mode .btn-secondary:hover {
-  background-color: #30363d;
-  border-color: #8b949e;
-}
-
-body.dark-mode .btn-primary {
-  background-color: #4d7fa8;
-  border-color: #4d7fa8;
-  color: #ffffff;
-}
-
-body.dark-mode .btn-primary:hover {
-  background-color: #6d99c2;
-  border-color: #6d99c2;
-  color: #ffffff;
-}
-
-body.dark-mode .btn-info {
-  background-color: #4d7fa8;
-  border-color: #4d7fa8;
-  color: #ffffff;
-}
-
-body.dark-mode .btn-info:hover {
-  background-color: #6d99c2;
-  border-color: #6d99c2;
-  color: #ffffff;
 }
 
 body.dark-mode .card-header {

@@ -205,13 +205,7 @@ Learning in public is currently disabled for this student. All their learning in
 Disabling learning in public will zero homework/project LiP scores, recalculate the leaderboard, and prevent future LiP submissions from counting.
 {% endif %}
 </p>
-<button type="submit" class="primer-button mt-3
-{% if enrollment.disable_learning_in_public %}
-primer-button-success
-{% else %}
-primer-button-secondary
-{% endif %}
-">
+<button type="submit" class="primer-button primer-button-secondary mt-3">
 {% if enrollment.disable_learning_in_public %}
 Enable LiP
 {% else %}
