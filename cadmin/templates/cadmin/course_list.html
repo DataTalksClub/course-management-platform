@@ -1,101 +1,101 @@
 {% extends 'cadmin/base.html' %}
 {% block breadcrumbs_nav %}{% endblock %}
 {% block cadmin_content %}
-<section class="border-b app-border pb-5">
-<h1 class="text-2xl font-semibold app-heading md:text-3xl">Course admin</h1>
-<div class="mt-3 flex flex-wrap gap-2">
-<a href="{% url 'cadmin_campaign_create' %}" class="primer-button cadmin-primary">
-<i class="fas fa-plus" aria-hidden="true"></i> New landing page
-</a>
-<a href="{% url 'cadmin_datamailer_operations' %}" class="primer-button primer-button-secondary">
-<i class="fas fa-envelope-open-text" aria-hidden="true"></i> Datamailer ops
-</a>
-<a href="{% url 'cadmin_cloudwatch_dashboard' %}" class="primer-button primer-button-secondary">
-<i class="fas fa-chart-line" aria-hidden="true"></i> CloudWatch
-</a>
-</div>
-</section>
-<section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
-<div class="divide-y app-divide md:hidden">
-{% for course in courses %}
-<article class="px-4 py-4">
-<div class="flex items-center gap-2">
-<a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a>
-<a href="{% url 'course' course.slug %}" class="app-link text-sm" title="Open student view" aria-label="Open student view">
-<i class="fas fa-external-link-alt"></i>
-<span class="sr-only">Student view</span>
-</a>
-<a href="/admin/courses/course/{{ course.id }}/change/" class="app-link text-sm" title="Edit in Django Admin" aria-label="Edit in Django Admin">
-<i class="fas fa-edit"></i>
-<span class="sr-only">Django admin</span>
-</a>
-</div>
-<p class="mt-1 text-xs app-muted">{{ course.slug }}</p>
-<div class="mt-3 flex flex-wrap gap-2">
-{% if course.visible %}
-<span class="app-badge app-badge-success">Visible</span>
-{% else %}
-<span class="app-badge app-badge-neutral">Hidden</span>
-{% endif %}
-{% if course.finished %}
-<span class="app-badge app-badge-info">Finished</span>
-{% else %}
-<span class="app-badge app-badge-warning">In progress</span>
-{% endif %}
-</div>
-</article>
-{% empty %}
-<p class="px-4 py-8 text-center text-sm app-muted">No courses found</p>
-{% endfor %}
-</div>
-<div class="hidden overflow-x-auto md:block">
-<table class="min-w-full text-sm">
-<thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
-<tr>
-<th class="px-4 py-3">Course</th>
-<th class="px-4 py-3">Visible</th>
-<th class="px-4 py-3">Finished</th>
-</tr>
-</thead>
-<tbody class="divide-y app-divide">
-{% for course in courses %}
-<tr class="align-top">
-<td class="px-4 py-3">
-<div class="flex items-center gap-2">
-<a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a>
-<a href="{% url 'course' course.slug %}" class="app-link text-xs" title="Open student view" aria-label="Open student view">
-<i class="fas fa-external-link-alt"></i>
-<span class="sr-only">Student view</span>
-</a>
-<a href="/admin/courses/course/{{ course.id }}/change/" class="app-link text-xs" title="Edit in Django Admin" aria-label="Edit in Django Admin">
-<i class="fas fa-edit"></i>
-<span class="sr-only">Django admin</span>
-</a>
-</div>
-<div class="mt-1 text-xs app-muted">{{ course.slug }}</div>
-</td>
-<td class="px-4 py-3">
-{% if course.visible %}
-<span class="app-badge app-badge-success">Yes</span>
-{% else %}
-<span class="app-badge app-badge-neutral">No</span>
-{% endif %}
-</td>
-<td class="px-4 py-3">
-{% if course.finished %}
-<span class="app-badge app-badge-info">Yes</span>
-{% else %}
-<span class="app-badge app-badge-warning">No</span>
-{% endif %}
-</td>
-</tr>
-{% empty %}
-<tr>
-<td colspan="3" class="px-4 py-8 text-center text-sm app-muted">No courses found</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
-</div>
-</section>
+  <section class="border-b app-border pb-5">
+    <h1 class="text-2xl font-semibold app-heading md:text-3xl">Course admin</h1>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <a href="{% url 'cadmin_campaign_create' %}" class="primer-button cadmin-primary">
+        <i class="fas fa-plus" aria-hidden="true"></i> New landing page
+      </a>
+      <a href="{% url 'cadmin_datamailer_operations' %}" class="primer-button primer-button-secondary">
+        <i class="fas fa-envelope-open-text" aria-hidden="true"></i> Datamailer ops
+      </a>
+      <a href="{% url 'cadmin_cloudwatch_dashboard' %}" class="primer-button primer-button-secondary">
+        <i class="fas fa-chart-line" aria-hidden="true"></i> CloudWatch
+      </a>
+    </div>
+  </section>
+  <section class="mt-6 overflow-hidden rounded-md border app-border app-surface ">
+    <div class="divide-y app-divide md:hidden">
+      {% for course in courses %}
+        <article class="px-4 py-4">
+          <div class="flex items-center gap-2">
+            <a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a>
+            <a href="{% url 'course' course.slug %}" class="app-link text-sm" title="Open student view" aria-label="Open student view">
+              <i class="fas fa-external-link-alt"></i>
+              <span class="sr-only">Student view</span>
+            </a>
+            <a href="/admin/courses/course/{{ course.id }}/change/" class="app-link text-sm" title="Edit in Django Admin" aria-label="Edit in Django Admin">
+              <i class="fas fa-edit"></i>
+              <span class="sr-only">Django admin</span>
+            </a>
+          </div>
+          <p class="mt-1 text-xs app-muted">{{ course.slug }}</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% if course.visible %}
+              <span class="app-badge app-badge-success">Visible</span>
+            {% else %}
+              <span class="app-badge app-badge-neutral">Hidden</span>
+            {% endif %}
+            {% if course.finished %}
+              <span class="app-badge app-badge-info">Finished</span>
+            {% else %}
+              <span class="app-badge app-badge-warning">In progress</span>
+            {% endif %}
+          </div>
+        </article>
+      {% empty %}
+        <p class="px-4 py-8 text-center text-sm app-muted">No courses found</p>
+      {% endfor %}
+    </div>
+    <div class="hidden overflow-x-auto md:block">
+      <table class="min-w-full text-sm">
+        <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted ">
+          <tr>
+            <th class="px-4 py-3">Course</th>
+            <th class="px-4 py-3">Visible</th>
+            <th class="px-4 py-3">Finished</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y app-divide">
+          {% for course in courses %}
+            <tr class="align-top">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <a href="{% url 'cadmin_course' course.slug %}" class="font-medium app-link hover:underline ">{{ course.title }}</a>
+                  <a href="{% url 'course' course.slug %}" class="app-link text-xs" title="Open student view" aria-label="Open student view">
+                    <i class="fas fa-external-link-alt"></i>
+                    <span class="sr-only">Student view</span>
+                  </a>
+                  <a href="/admin/courses/course/{{ course.id }}/change/" class="app-link text-xs" title="Edit in Django Admin" aria-label="Edit in Django Admin">
+                    <i class="fas fa-edit"></i>
+                    <span class="sr-only">Django admin</span>
+                  </a>
+                </div>
+                <div class="mt-1 text-xs app-muted">{{ course.slug }}</div>
+              </td>
+              <td class="px-4 py-3">
+                {% if course.visible %}
+                  <span class="app-badge app-badge-success">Yes</span>
+                {% else %}
+                  <span class="app-badge app-badge-neutral">No</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3">
+                {% if course.finished %}
+                  <span class="app-badge app-badge-info">Yes</span>
+                {% else %}
+                  <span class="app-badge app-badge-warning">No</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="3" class="px-4 py-8 text-center text-sm app-muted">No courses found</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 {% endblock %}

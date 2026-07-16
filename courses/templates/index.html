@@ -1,2 +1,16 @@
-{% extends 'base.html' %} {% block content %} {% if user.is_authenticated %} <h2>Welcome, {{ user.username }}!</h2> {% else %} <h2>Welcome to the Course Management Platform!</h2> <p>Please <a href="{% url 'login' %}">log in</a> to access your courses.</p> {% endif %}
+{% extends 'base.html' %}
+
+{% block content %}
+  {% if user.is_authenticated %}
+    <section>
+      <h1 class="text-2xl font-semibold app-heading md:text-3xl">Welcome, {{ user.username }}!</h1>
+    </section>
+  {% else %}
+    <section>
+      <h1 class="text-2xl font-semibold app-heading md:text-3xl">Welcome to the Course Management Platform!</h1>
+      <p class="mt-1 text-sm app-muted">
+        Please <a href="{% url 'login' %}" class="app-link hover:underline">log in</a> to access your courses.
+      </p>
+    </section>
+  {% endif %}
 {% endblock %}

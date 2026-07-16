@@ -1,108 +1,108 @@
 {% extends 'base.html' %}
 {% block meta_robots %}
-<meta name="robots" content="noindex">
+  <meta name="robots" content="noindex">
 {% endblock %}
 {% block breadcrumbs %}
-<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-<li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
-<li>Evaluations</li>
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+  <li>Evaluations</li>
 {% endblock %}
 {% block content %}
-{% if messages %}
-<div class="mb-4 space-y-3">
-{% for message in messages %}
-<div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div>
-{% endfor %}
-</div>
-{% endif %}
-<section class="pb-5">
-<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
-<div class="mt-2 flex flex-col gap-3">
-<div>
-<h1 class="text-2xl font-semibold app-heading">Peer Evaluations</h1>
-<p class="mt-1 max-w-2xl text-sm app-muted">Complete the required reviews for this project.</p>
-</div>
-<div class="flex flex-wrap gap-2">
-{% if user.is_staff %}
-<a href="{% url 'project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary">
-<i class="fas fa-users"></i> All submissions </a>
-{% endif %}
-<a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="primer-button primer-button-secondary">See all projects</a>
-</div>
-</div>
-</section>
-{% if not is_authenticated %}
-<div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm app-text "> Please <a href="{% url 'login' %}" class="font-medium app-link hover:underline ">log in</a> to see the projects you need to evaluate.
-</div>
-{% elif eval_closed and not has_submission %}
-<div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">You didn't submit this project, and the submission window is closed.</div>
-{% elif eval_closed %}
-<div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">Peer review form is closed.</div>
-{% elif not has_submission %}
-<div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm">
-You did not submit this project, but you can still volunteer to evaluate submissions.
-<a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="font-medium underline">Choose a project to evaluate</a>.
-</div>
-{% if selected_reviews %}
-<section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
-<div class="border-b app-border app-surface-muted px-4 py-3">
-<p class="text-xs font-semibold uppercase app-muted">Selected reviews</p>
-<p class="mt-1 text-sm app-muted">You did not submit this project, so these reviews are for practice and feedback.</p>
-</div>
-<div class="divide-y app-divide">
-{% for review in selected_reviews %}
-<a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
-<span class="font-medium">Review {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
-<span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
-</a>
-{% endfor %}
-</div>
-</section>
-{% endif %}
-{% else %}
-<section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
-<div class="border-b app-border app-surface-muted px-4 py-3">
-<div class="flex flex-col gap-2">
-<div>
-<p class="text-xs font-semibold uppercase app-muted">Review progress</p>
-<p class="mt-1 text-sm app-muted">Finish the assigned evaluations to pass this project.</p>
-</div>
-<div class="flex w-fit items-center gap-2">
-<span class="text-sm font-semibold app-heading">{{ number_of_completed_evaluation }} / {{ project.number_of_peers_to_evaluate }}</span>
-{% if number_of_completed_evaluation == project.number_of_peers_to_evaluate %}
-<span class="app-badge app-badge-success">Complete</span>
-{% endif %}
-</div>
-</div>
-</div>
-{% if assigned_reviews %}
-<div class="divide-y app-divide">
-{% for review in assigned_reviews %}
-<a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
-<span class="font-medium"> Evaluate {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
-<span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
-</a>
-{% endfor %}
-</div>
-{% else %}
-<p class="px-4 py-6 text-sm app-muted">No evaluations assigned yet.</p>
-{% endif %}
-</section>
-{% if selected_reviews %}
-<section class="mt-4 overflow-hidden rounded-md border app-border app-surface">
-<div class="border-b app-border app-surface-muted px-4 py-3">
-<p class="text-xs font-semibold uppercase app-muted">Selected reviews</p>
-<p class="mt-1 text-sm app-muted">These reviews do not count toward the required progress above.</p>
-</div>
-<div class="divide-y app-divide">
-{% for review in selected_reviews %}
-<a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
-<span class="font-medium"> Evaluate {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
-<span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
-</a>
-{% endfor %}
-</div>
-</section>
-{% endif %}
-{% endif %}
+  {% if messages %}
+    <div class="mb-4 space-y-3">
+      {% for message in messages %}
+        <div class="rounded-md border app-alert-warning px-4 py-3 text-sm  ">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <section class="pb-5">
+    <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ project.title }}</p>
+    <div class="mt-2 flex flex-col gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold app-heading">Peer Evaluations</h1>
+        <p class="mt-1 max-w-2xl text-sm app-muted">Complete the required reviews for this project.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if user.is_staff %}
+          <a href="{% url 'project_submissions' course.slug project.slug %}" class="primer-button primer-button-secondary">
+            <i class="fas fa-users"></i> All submissions </a>
+        {% endif %}
+        <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="primer-button primer-button-secondary">See all projects</a>
+      </div>
+    </div>
+  </section>
+  {% if not is_authenticated %}
+    <div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm app-text "> Please <a href="{% url 'login' %}" class="font-medium app-link hover:underline ">log in</a> to see the projects you need to evaluate.
+    </div>
+  {% elif eval_closed and not has_submission %}
+    <div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">You didn't submit this project, and the submission window is closed.</div>
+  {% elif eval_closed %}
+    <div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">Peer review form is closed.</div>
+  {% elif not has_submission %}
+    <div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm">
+      You did not submit this project, but you can still volunteer to evaluate submissions.
+      <a href="{% url 'project_list' course_slug=course.slug project_slug=project.slug %}" class="font-medium underline">Choose a project to evaluate</a>.
+    </div>
+    {% if selected_reviews %}
+      <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+        <div class="border-b app-border app-surface-muted px-4 py-3">
+          <p class="text-xs font-semibold uppercase app-muted">Selected reviews</p>
+          <p class="mt-1 text-sm app-muted">You did not submit this project, so these reviews are for practice and feedback.</p>
+        </div>
+        <div class="divide-y app-divide">
+          {% for review in selected_reviews %}
+            <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
+              <span class="font-medium">Review {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
+              <span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% else %}
+    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+      <div class="border-b app-border app-surface-muted px-4 py-3">
+        <div class="flex flex-col gap-2">
+          <div>
+            <p class="text-xs font-semibold uppercase app-muted">Review progress</p>
+            <p class="mt-1 text-sm app-muted">Finish the assigned evaluations to pass this project.</p>
+          </div>
+          <div class="flex w-fit items-center gap-2">
+            <span class="text-sm font-semibold app-heading">{{ number_of_completed_evaluation }} / {{ project.number_of_peers_to_evaluate }}</span>
+            {% if number_of_completed_evaluation == project.number_of_peers_to_evaluate %}
+              <span class="app-badge app-badge-success">Complete</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% if assigned_reviews %}
+        <div class="divide-y app-divide">
+          {% for review in assigned_reviews %}
+            <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
+              <span class="font-medium"> Evaluate {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
+              <span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="px-4 py-6 text-sm app-muted">No evaluations assigned yet.</p>
+      {% endif %}
+    </section>
+    {% if selected_reviews %}
+      <section class="mt-4 overflow-hidden rounded-md border app-border app-surface">
+        <div class="border-b app-border app-surface-muted px-4 py-3">
+          <p class="text-xs font-semibold uppercase app-muted">Selected reviews</p>
+          <p class="mt-1 text-sm app-muted">These reviews do not count toward the required progress above.</p>
+        </div>
+        <div class="divide-y app-divide">
+          {% for review in selected_reviews %}
+            <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
+              <span class="font-medium"> Evaluate {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
+              <span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% endif %}
 {% endblock %}

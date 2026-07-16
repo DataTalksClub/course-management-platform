@@ -2,175 +2,175 @@
 {% load static %}
 {% load custom_filters %}
 {% block meta_robots %}
-<meta name="robots" content="noindex">
+  <meta name="robots" content="noindex">
 {% endblock %}
 {% block breadcrumbs %}
-<li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
-<li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
-<li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluations</a></li>
-<li>Evaluate submission</li>
+  <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
+  <li><a href="{% url 'project' course_slug=course.slug project_slug=project.slug %}">{{ project.title }}</a></li>
+  <li><a href="{% url 'projects_eval' course.slug project.slug %}">Evaluations</a></li>
+  <li>Evaluate submission</li>
 {% endblock %}
 {% block content %}
-<section class="content-narrow">
-<div class="mb-6 md:mb-8">
-<h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">Evaluate {{ project.title }}</h1>
-</div>
-{% if messages or errors %}
-<div class="mb-6 space-y-3">
-{% for message in messages %}
-<div class="rounded-md border app-alert-info p-4 app-heading {{ message.tags }}">{{ message }}</div>
-{% endfor %}
-{% for error in errors %}
-<div class="rounded-md border app-alert-danger p-4">{{ error }}</div>
-{% endfor %}
-</div>
-{% endif %}
-<div class="border-b app-border pb-6">
-<p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
-<div class="mt-4 space-y-1 text-sm app-text">
-<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-<span class="text-xs font-semibold uppercase app-muted">Deadline:</span>
-<span class="font-medium app-heading">
-<span>{{ project.peer_review_due_date|user_datetime:request }}</span>
-</span>
-</div>
-<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-<span class="time-left app-muted" data-deadline="{{ project.peer_review_due_date|date:"c" }}" data-prefix="false"></span>
-<span aria-hidden="true" class="app-muted">&middot;</span>
-{% if is_authenticated %}
-<span class="app-muted">
-Shown in your
-<a href="{% url 'account_settings' %}#display-preferences-section" class="app-link">account timezone</a>.
-</span>
-{% else %}
-<span class="app-muted">Shown in your timezone.</span>
-{% endif %}
-</div>
-<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 pt-3">
-<span class="text-xs font-semibold uppercase app-muted">Repository:</span>
-<a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="break-all font-medium app-link hover:underline">{{ submission.github_link }}</a>
-</div>
-<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-<span class="text-xs font-semibold uppercase app-muted">Commit:</span>
-<code>{{ submission.commit_id }}</code>
-</div>
-</div>
-<div class="mt-5 flex flex-wrap items-center gap-2">
-<form method="post" class="m-0">
-{% csrf_token %}
-<input type="hidden" name="form_action" value="vote">
-<input type="hidden" name="submission_id" value="{{ submission.id }}">
-{% if submission.id in voted_submission_ids %}
-<input type="hidden" name="action" value="remove">
-<button type="submit" class="submission-action-button">
-<i class="fas fa-thumbs-up"></i> Voted
-</button>
-{% else %}
-<button type="submit" class="submission-action-button" {% if vote_limit_reached %}disabled{% endif %}>
-<i class="far fa-thumbs-up"></i> Vote
-</button>
-{% if vote_limit_reached %}
-<span class="text-xs app-muted">Limit reached for this project</span>
-{% endif %}
-{% endif %}
-</form>
-{% if review.optional %}
-<button type="button" onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="submission-action-button submission-action-button-danger">
-<i class="fas fa-minus"></i> Remove review
-</button>
-{% endif %}
-</div>
-{% if review.optional %}
-<p class="mt-3 text-sm app-muted">You selected this review. You can remove it if you do not have time.</p>
-{% endif %}
-<div class="mt-5">
-<a href="{% url 'projects_eval' course.slug project.slug %}" class="inline-flex items-center font-medium app-link">
-Back to evaluations
-</a>
-</div>
-</div>
-<form method="post" class="needs-validation mt-7 md:mt-8" novalidate>
-{% csrf_token %}
-<section>
-<div class="mb-4 md:mb-5">
-<h2 class="text-2xl font-semibold">Review criteria</h2>
-<p class="mt-2 hidden md:block app-text">Score the submission against each criterion.</p>
-</div>
-<div class="space-y-5">
-{% for criteria, response in criteria_response_pairs %}
-<fieldset class="question py-2">
-<legend class="question-text mb-4 font-medium">{{ forloop.counter }}. {{ criteria.description }}</legend>
-<div class="mt-3 space-y-2">
-{% for option in criteria.options %}
-<div class="form-check">
-<input class="form-check-input"
-       id="radio-{{ criteria.id }}-{{ option.index }}"
-       type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
-       name="answer_{{ criteria.id }}"
-       value="{{ option.index }}"
-       {% if option.is_selected %}checked{% endif %}
-       {% if disabled %}disabled{% endif %} />
-<label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">
-{{ option.criteria }} <span class="app-muted">({{ option.score }} {{ option.score|pluralize:"point,points" }})</span>
-</label>
-</div>
-{% endfor %}
-</div>
-</fieldset>
-{% endfor %}
-</div>
-</section>
-<section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
-<h2 class="text-2xl font-semibold">Review details</h2>
-<div class="mt-5 space-y-5">
-<div class="question">
-<label for="note_to_peer" class="question-text font-medium">Review comments</label>
-<p class="mt-1 text-sm app-muted">Notes or suggestions for your peer.</p>
-<textarea class="form-control mt-2" name="note_to_peer" id="note_to_peer" rows="5"
-{% if disabled %}
-disabled
-{% endif %}
->{{ review.note_to_peer|default:'' }}</textarea>
-</div>
-{% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions disable_learning_in_public=disable_learning_in_public %}
-{% if project.time_spent_evaluation_field %}
-<div class="question">
-<label for="time_spent_reviewing" class="question-text font-medium">Time spent reviewing <span class="app-muted">(optional)</span></label>
-<input type="number" class="form-control mt-2" name="time_spent_reviewing" id="time_spent_reviewing" min="0" value="{{ review.time_spent_reviewing|default:'' }}"
-{% if disabled %}
-disabled
-{% endif %}
->
-</div>
-{% endif %}
-</div>
-</section>
-{% if project.state == 'PR' %}
-<div class="mt-6 flex flex-wrap gap-2 border-t app-border pt-5">
-<button id="submit-button" type="submit" class="primer-button">
-{% if review.state == 'TR' %}
-Submit
-{% else %}
-Update
-{% endif %}
-</button>
-<a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
-</div>
-{% else %}
-<p class="mt-6 rounded-md border app-alert-warning p-4">Peer review form is closed.</p>
-{% endif %}
-</form>
-{% if review.state == 'SU' and review.submitted_at %}
-<p class="mt-4 text-sm app-muted">
-Last submission at:
-<span>{{ review.submitted_at|user_datetime:request }}</span>
-</p>
-{% endif %}
-</section>
-<script src="{% static 'learning_in_public.js' %}"></script>
-<script src="{% static 'homework.js' %}"></script>
-<script>
-function confirmRemove(url) { if (confirm('Are you sure you want to remove this project from your evaluation list?')) { window.location.href = url; }
-}
-</script>
+  <section class="content-narrow">
+    <div class="mb-6 md:mb-8">
+      <h1 class="text-3xl font-semibold leading-tight tracking-normal md:text-4xl">Evaluate {{ project.title }}</h1>
+    </div>
+    {% if messages or errors %}
+      <div class="mb-6 space-y-3">
+        {% for message in messages %}
+          <div class="rounded-md border app-alert-info p-4 app-heading {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+        {% for error in errors %}
+          <div class="rounded-md border app-alert-danger p-4">{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="border-b app-border pb-6">
+      <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
+      <div class="mt-4 space-y-1 text-sm app-text">
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span class="text-xs font-semibold uppercase app-muted">Deadline:</span>
+          <span class="font-medium app-heading">
+            <span>{{ project.peer_review_due_date|user_datetime:request }}</span>
+          </span>
+        </div>
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span class="time-left app-muted" data-deadline="{{ project.peer_review_due_date|date:"c" }}" data-prefix="false"></span>
+          <span aria-hidden="true" class="app-muted">&middot;</span>
+          {% if is_authenticated %}
+            <span class="app-muted">
+              Shown in your
+              <a href="{% url 'account_settings' %}#display-preferences-section" class="app-link">account timezone</a>.
+            </span>
+          {% else %}
+            <span class="app-muted">Shown in your timezone.</span>
+          {% endif %}
+        </div>
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 pt-3">
+          <span class="text-xs font-semibold uppercase app-muted">Repository:</span>
+          <a href="{{ submission.github_link }}" target="_blank" rel="noopener noreferrer" class="break-all font-medium app-link hover:underline">{{ submission.github_link }}</a>
+        </div>
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span class="text-xs font-semibold uppercase app-muted">Commit:</span>
+          <code>{{ submission.commit_id }}</code>
+        </div>
+      </div>
+      <div class="mt-5 flex flex-wrap items-center gap-2">
+        <form method="post" class="m-0">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="vote">
+          <input type="hidden" name="submission_id" value="{{ submission.id }}">
+          {% if submission.id in voted_submission_ids %}
+            <input type="hidden" name="action" value="remove">
+            <button type="submit" class="submission-action-button">
+              <i class="fas fa-thumbs-up"></i> Voted
+            </button>
+          {% else %}
+            <button type="submit" class="submission-action-button" {% if vote_limit_reached %}disabled{% endif %}>
+              <i class="far fa-thumbs-up"></i> Vote
+            </button>
+            {% if vote_limit_reached %}
+              <span class="text-xs app-muted">Limit reached for this project</span>
+            {% endif %}
+          {% endif %}
+        </form>
+        {% if review.optional %}
+          <button type="button" onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="submission-action-button submission-action-button-danger">
+            <i class="fas fa-minus"></i> Remove review
+          </button>
+        {% endif %}
+      </div>
+      {% if review.optional %}
+        <p class="mt-3 text-sm app-muted">You selected this review. You can remove it if you do not have time.</p>
+      {% endif %}
+      <div class="mt-5">
+        <a href="{% url 'projects_eval' course.slug project.slug %}" class="inline-flex items-center font-medium app-link">
+          Back to evaluations
+        </a>
+      </div>
+    </div>
+    <form method="post" class="needs-validation mt-7 md:mt-8" novalidate>
+      {% csrf_token %}
+      <section>
+        <div class="mb-4 md:mb-5">
+          <h2 class="text-2xl font-semibold">Review criteria</h2>
+          <p class="mt-2 hidden md:block app-text">Score the submission against each criterion.</p>
+        </div>
+        <div class="space-y-5">
+          {% for criteria, response in criteria_response_pairs %}
+            <fieldset class="question py-2">
+              <legend class="question-text mb-4 font-medium">{{ forloop.counter }}. {{ criteria.description }}</legend>
+              <div class="mt-3 space-y-2">
+                {% for option in criteria.options %}
+                  <div class="form-check">
+                    <input class="form-check-input"
+                           id="radio-{{ criteria.id }}-{{ option.index }}"
+                           type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
+                           name="answer_{{ criteria.id }}"
+                           value="{{ option.index }}"
+                           {% if option.is_selected %}checked{% endif %}
+                           {% if disabled %}disabled{% endif %} />
+                    <label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">
+                      {{ option.criteria }} <span class="app-muted">({{ option.score }} {{ option.score|pluralize:"point,points" }})</span>
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+            </fieldset>
+          {% endfor %}
+        </div>
+      </section>
+      <section class="mt-8 border-t app-border pt-6 md:mt-10 md:pt-8">
+        <h2 class="text-2xl font-semibold">Review details</h2>
+        <div class="mt-5 space-y-5">
+          <div class="question">
+            <label for="note_to_peer" class="question-text font-medium">Review comments</label>
+            <p class="mt-1 text-sm app-muted">Notes or suggestions for your peer.</p>
+            <textarea class="form-control mt-2" name="note_to_peer" id="note_to_peer" rows="5"
+                      {% if disabled %}
+                        disabled
+                      {% endif %}
+            >{{ review.note_to_peer|default:'' }}</textarea>
+          </div>
+          {% include 'include/learning_in_public_links.html' with course=course learning_in_public_cap=project.learning_in_public_cap_review learning_in_public_links=review.learning_in_public_links disabled=disabled accepting_submissions=accepting_submissions disable_learning_in_public=disable_learning_in_public %}
+          {% if project.time_spent_evaluation_field %}
+            <div class="question">
+              <label for="time_spent_reviewing" class="question-text font-medium">Time spent reviewing <span class="app-muted">(optional)</span></label>
+              <input type="number" class="form-control mt-2" name="time_spent_reviewing" id="time_spent_reviewing" min="0" value="{{ review.time_spent_reviewing|default:'' }}"
+                     {% if disabled %}
+                       disabled
+                     {% endif %}
+              >
+            </div>
+          {% endif %}
+        </div>
+      </section>
+      {% if project.state == 'PR' %}
+        <div class="mt-6 flex flex-wrap gap-2 border-t app-border pt-5">
+          <button id="submit-button" type="submit" class="primer-button">
+            {% if review.state == 'TR' %}
+              Submit
+            {% else %}
+              Update
+            {% endif %}
+          </button>
+          <a href="{% url 'projects_eval' course.slug project.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+        </div>
+      {% else %}
+        <p class="mt-6 rounded-md border app-alert-warning p-4">Peer review form is closed.</p>
+      {% endif %}
+    </form>
+    {% if review.state == 'SU' and review.submitted_at %}
+      <p class="mt-4 text-sm app-muted">
+        Last submission at:
+        <span>{{ review.submitted_at|user_datetime:request }}</span>
+      </p>
+    {% endif %}
+  </section>
+  <script src="{% static 'learning_in_public.js' %}"></script>
+  <script src="{% static 'homework.js' %}"></script>
+  <script>
+    function confirmRemove(url) { if (confirm('Are you sure you want to remove this project from your evaluation list?')) { window.location.href = url; }
+    }
+  </script>
 {% endblock %}
