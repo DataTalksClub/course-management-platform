@@ -751,6 +751,70 @@ body.dark-mode .app-badge-neutral {
   color: #a12834;
 }
 
+/* Wrapped (year in review). Shared by wrapped.html and user_wrapped.html;
+   colours come from tokens so dark mode needs no separate rules. */
+.wrapped-hero {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.wrapped-stat {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  padding: 1.25rem;
+}
+
+.wrapped-stat-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.wrapped-stat-number {
+  color: var(--text-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-top: 0.35rem;
+}
+
+.wrapped-rank {
+  align-items: center;
+  border-radius: 9999px;
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 600;
+  height: 1.75rem;
+  justify-content: center;
+  width: 1.75rem;
+}
+
+.wrapped-rank-1 {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.wrapped-rank-2 {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+.wrapped-rank-3 {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.wrapped-rank-other {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
 body.dark-mode .leaderboard-project-star-1 {
   background: rgba(187, 128, 9, 0.22);
   color: #f0d98c;
