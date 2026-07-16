@@ -102,21 +102,18 @@ Back to evaluations
 <legend class="question-text mb-4 font-medium">{{ forloop.counter }}. {{ criteria.description }}</legend>
 <div class="mt-3 space-y-2">
 {% for option in criteria.options %}
-<label class="flex gap-3 text-sm app-text" for="radio-{{ criteria.id }}-{{ option.index }}">
-<input class="mt-1"
+<div class="form-check">
+<input class="form-check-input"
        id="radio-{{ criteria.id }}-{{ option.index }}"
        type="{% if criteria.review_criteria_type == 'RB' %}radio{% else %}checkbox{% endif %}"
        name="answer_{{ criteria.id }}"
        value="{{ option.index }}"
-{% if option.is_selected %}
-checked
-{% endif %}
-{% if disabled %}
-disabled
-{% endif %}
->
-<span>{{ option.criteria }} <span class="app-muted">({{ option.score }} {{ option.score|pluralize:"point,points" }})</span></span>
+       {% if option.is_selected %}checked{% endif %}
+       {% if disabled %}disabled{% endif %} />
+<label class="form-check-label" for="radio-{{ criteria.id }}-{{ option.index }}">
+{{ option.criteria }} <span class="app-muted">({{ option.score }} {{ option.score|pluralize:"point,points" }})</span>
 </label>
+</div>
 {% endfor %}
 </div>
 </fieldset>

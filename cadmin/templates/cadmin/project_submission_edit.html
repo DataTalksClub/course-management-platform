@@ -87,11 +87,11 @@
 {% else %}
 <p class="py-6 text-sm app-muted">No review criteria defined for this course.</p>
 {% endif %}
-<div class="mt-4">
-<label class="mb-2 block text-sm font-semibold app-heading" for="project_score">Total Project Score (from criteria above)</label>
-<input type="number" class="form-control" id="project_score" name="project_score" value="{{ submission.project_score }}" readonly>
-<p class="mt-2 text-sm app-muted">This is automatically calculated from the criteria scores above.</p>
-</div>
+<dl class="mt-4">
+<dt class="text-sm font-semibold app-heading">Total Project Score</dt>
+<dd class="mt-1 text-lg font-semibold app-heading" id="project_score">{{ submission.project_score }}</dd>
+<dd class="mt-1 text-sm app-muted">Automatically calculated from the criteria scores above.</dd>
+</dl>
 </section>
 <section>
 <h2 class="text-base font-semibold app-heading">Additional Project Scores</h2>
@@ -123,26 +123,30 @@
 </div>
 </div>
 </section>
-<section>
+<section class="border-t app-border pt-6">
 <h2 class="text-base font-semibold app-heading">Overall Results</h2>
-<div class="mt-3 grid gap-4 md:grid-cols-3">
-<div>
-<label class="mb-2 block text-sm font-semibold app-heading" for="total_score">Total Score (automatically calculated)</label>
-<input type="number" class="form-control" id="total_score" name="total_score" value="{{ submission.total_score }}" readonly>
-<p class="mt-2 text-sm app-muted">Calculated from the individual scores above.</p>
-</div>
-<label class="flex items-center gap-2 text-sm font-medium app-heading">
-<input type="checkbox" class="form-check-input" id="reviewed_enough_peers" name="reviewed_enough_peers"
+<dl class="mt-3">
+<dt class="text-sm font-semibold app-heading">Total Score</dt>
+<dd class="mt-1 text-2xl font-semibold app-heading" id="total_score">{{ submission.total_score }}</dd>
+<dd class="mt-1 text-sm app-muted">Calculated from the individual scores above.</dd>
+</dl>
+<div class="mt-4 space-y-3">
+<div class="checkbox-row">
+<input type="checkbox" id="reviewed_enough_peers" name="reviewed_enough_peers"
 {% if submission.reviewed_enough_peers %}
 checked
 {% endif %}
-> Reviewed Enough Peers </label>
-<label class="flex items-center gap-2 text-sm font-medium app-heading">
-<input type="checkbox" class="form-check-input" id="passed" name="passed"
+>
+<label class="checkbox-label" for="reviewed_enough_peers">Reviewed enough peers</label>
+</div>
+<div class="checkbox-row">
+<input type="checkbox" id="passed" name="passed"
 {% if submission.passed %}
 checked
 {% endif %}
-> Passed </label>
+>
+<label class="checkbox-label" for="passed">Passed</label>
+</div>
 </div>
 </section>
 <div class="flex flex-wrap gap-2 border-t app-border pt-5">
@@ -167,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const projectScoreField = document.getElementById('project_score');
         if (projectScoreField) {
-            projectScoreField.value = projectScore;
+            projectScoreField.textContent = projectScore;
         }
         return projectScore;
     }
@@ -185,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const totalField = document.getElementById('total_score');
         if (totalField) {
-            totalField.value = total;
+            totalField.textContent = total;
         }
         if (passedCheckbox) {
             passedCheckbox.checked = total >= passingThreshold;

@@ -22,8 +22,9 @@ class ProjectSubmissionEditViewTests(ProjectCadminViewTestBase):
         self.assertContains(response, self.user.username)
         self.assertContains(response, "Problem Description")
         self.assertContains(response, "Code Quality")
-        self.assertContains(response, 'value="6"')
-        self.assertContains(response, 'value="23"')
+        # The computed scores are read-only meta rows, not input boxes.
+        self.assertContains(response, 'id="project_score">6<')
+        self.assertContains(response, 'id="total_score">23<')
 
     def test_project_submission_edit_post_calculates_total(self):
         submission = self.create_project_submission()

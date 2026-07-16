@@ -52,14 +52,16 @@
     {% include 'cadmin/include/campaign_field.html' with field=form.slug %}
     {% include 'cadmin/include/campaign_field.html' with field=form.edition_label %}
     {% include 'cadmin/include/campaign_field.html' with field=form.current_course %}
-    <div class="lg:col-span-2">
-      <label class="flex items-center gap-2 text-sm font-medium app-heading">
+    <div>
+      <div class="checkbox-row">
         {{ form.is_active }}
-        <span>{{ form.is_active.label }}</span>
-      </label>
-      {% if form.is_active.help_text %}
-        <p class="mt-1 text-xs app-muted">{{ form.is_active.help_text }}</p>
-      {% endif %}
+        <div>
+          <label class="checkbox-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+          {% if form.is_active.help_text %}
+            <p class="checkbox-help">{{ form.is_active.help_text }}</p>
+          {% endif %}
+        </div>
+      </div>
       {% if form.is_active.errors %}
         <div class="mt-1 text-sm app-danger-text">{{ form.is_active.errors }}</div>
       {% endif %}
