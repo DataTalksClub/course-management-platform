@@ -303,7 +303,9 @@ class HomeworkCadminViewTestBase(TestCase):
         self.assertContains(response, self.user.username)
         self.assertContains(response, fixture.question1.text)
         self.assertContains(response, fixture.question2.text)
-        self.assertContains(response, 'value="3"')
+        # Total score is shown as a read-only meta row, not an input.
+        self.assertContains(response, "Total Score")
+        self.assertContains(response, ">3</dd>")
         self.assertContains(response, "Manage enrollment")
         enrollment_url = reverse(
             "cadmin_enrollment_edit",

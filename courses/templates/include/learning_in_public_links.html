@@ -22,27 +22,39 @@
         </p>
 
         <div id="learning-in-public-links" class="mt-2 space-y-2">
-            {% for link in learning_in_public_links %}
-                <input type="url"
-                       class="form-control"
-                       name="learning_in_public_links[]"
-                       value="{{ link }}"
-                       autocomplete="url"
-                       inputmode="url"
-                       {% if disabled or not user.is_authenticated %}disabled{% endif %}>
-            {% empty %}
-                {% if disabled %}
+            {% if disabled %}
+                {% for link in learning_in_public_links %}
+                    <div class="readonly-value">
+                        <span class="readonly-value-label">Link {{ forloop.counter }}</span>
+                        <span class="readonly-value-content">
+                            <a href="{{ link }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="break-all app-link hover:underline">{{ link }}</a>
+                        </span>
+                    </div>
+                {% empty %}
                     <p class="mt-2 text-sm app-muted">No learning in public links submitted.</p>
-                {% endif %}
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                {% for link in learning_in_public_links %}
+                    <input type="url"
+                           class="form-control"
+                           name="learning_in_public_links[]"
+                           value="{{ link }}"
+                           autocomplete="url"
+                           inputmode="url"
+                           {% if not user.is_authenticated %}disabled{% endif %}>
+                {% endfor %}
 
-            {% if learning_in_public_links|length < learning_in_public_cap and not disabled %}
-                <input type="url"
-                       class="form-control"
-                       name="learning_in_public_links[]"
-                       autocomplete="url"
-                       inputmode="url"
-                       {% if disabled or not user.is_authenticated %}disabled{% endif %}>
+                {% if learning_in_public_links|length < learning_in_public_cap %}
+                    <input type="url"
+                           class="form-control"
+                           name="learning_in_public_links[]"
+                           autocomplete="url"
+                           inputmode="url"
+                           {% if not user.is_authenticated %}disabled{% endif %}>
+                {% endif %}
             {% endif %}
         </div>
 
