@@ -104,6 +104,10 @@ body {
   color: var(--danger-text);
 }
 
+.app-success-text {
+  color: var(--success-text);
+}
+
 .registration-markdown h2,
 .registration-markdown h3 {
   color: var(--text-heading);

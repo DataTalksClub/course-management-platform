@@ -26,12 +26,10 @@
         </section>
     {% endif %}
     <div id="courses" class="border-t app-border pt-8">
-        <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-            <div>
-                <p class="text-sm font-semibold uppercase tracking-wide app-muted">Start now</p>
-                <h2 class="mt-2 text-2xl font-semibold md:text-3xl">Active courses</h2>
-                <p class="mt-1 text-sm app-muted">Courses listed here are open for participation and assignment submissions.</p>
-            </div>
+        <section>
+            <p class="text-sm font-semibold uppercase tracking-wide app-muted">Start now</p>
+            <h2 class="mt-2 text-2xl font-semibold md:text-3xl">Active courses</h2>
+            <p class="mt-1 text-sm app-muted">Courses listed here are open for participation and assignment submissions.</p>
         </section>
 
         {% if active_courses %}
@@ -45,12 +43,10 @@
         {% endif %}
 
         {% if open_registration_courses %}
-            <section class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-                <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide app-muted">Enroll now</p>
-                    <h2 class="mt-2 text-2xl font-semibold md:text-3xl">Open registration</h2>
-                    <p class="mt-1 text-sm app-muted">These courses haven't started yet and are open for registration.</p>
-                </div>
+            <section class="mt-10">
+                <p class="text-sm font-semibold uppercase tracking-wide app-muted">Enroll now</p>
+                <h2 class="mt-2 text-2xl font-semibold md:text-3xl">Open registration</h2>
+                <p class="mt-1 text-sm app-muted">These courses haven't started yet and are open for registration.</p>
             </section>
             <section class="mt-6 divide-y app-divide">
                 {% for course in open_registration_courses %}
@@ -61,11 +57,9 @@
 
         {% if archive_groups %}
             <section class="mt-8 border-t app-border pt-8">
-                <div class="flex flex-col gap-2">
-                    <div>
-                        <h2 class="text-xl font-semibold md:text-2xl">Course archive</h2>
-                        <p class="mt-1 text-sm app-muted">Past cohorts remain open for self check; late submissions are not possible.</p>
-                    </div>
+                <div>
+                    <h2 class="text-xl font-semibold md:text-2xl">Course archive</h2>
+                    <p class="mt-1 text-sm app-muted">Past cohorts remain open for self check; late submissions are not possible.</p>
                 </div>
                 <div class="mt-5 space-y-7">
                     {% for group in archive_groups %}
