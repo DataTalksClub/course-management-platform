@@ -88,13 +88,7 @@
                   </p>
                 </div>
                 {% if item.answer %}
-                  <span class="w-fit rounded-full px-2 py-0.5 text-xs font-medium
-                               {% if item.answer.is_correct %}
-                                 app-badge-success
-                               {% else %}
-                                 app-badge-danger
-                               {% endif %}
-                              ">
+                  <span class="app-badge {% if item.answer.is_correct %}app-badge-success{% else %}app-badge-danger{% endif %}">
                     {% if item.answer.is_correct %}
                       Correct
                     {% else %}
