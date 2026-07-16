@@ -23,12 +23,12 @@
         type="text"
         name="environment"
         value="{{ environment }}"
-        class="form-control mt-1 w-40 rounded-md border app-border app-surface px-2 py-1 text-sm"
+        class="form-control mt-1 w-40"
       >
     </label>
     <label class="block">
       <span class="block text-xs font-semibold uppercase app-muted">Range</span>
-      <select name="hours" class="form-control mt-1 rounded-md border app-border app-surface px-2 py-1 text-sm">
+      <select name="hours" class="form-control mt-1">
         <option value="6" {% if hours == 6 %}selected{% endif %}>6 hours</option>
         <option value="24" {% if hours == 24 %}selected{% endif %}>24 hours</option>
         <option value="72" {% if hours == 72 %}selected{% endif %}>3 days</option>

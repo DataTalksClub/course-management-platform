@@ -55,7 +55,7 @@
                         Shown on leaderboards and public score pages.
                     </p>
                     {% if form.display_name.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.display_name.errors|join:" " }}
                         </div>
@@ -71,7 +71,7 @@
                         Saved to your account and used across course certificates.
                     </p>
                     {% if form.certificate_name.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.certificate_name.errors|join:" " }}
                         </div>

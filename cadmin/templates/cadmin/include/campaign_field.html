@@ -1,10 +1,10 @@
 <div>
-  <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-semibold app-heading">
+  <label for="{{ field.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">
     {{ field.label }}
   </label>
   {{ field }}
   {% if field.help_text %}
-    <p class="mt-1 text-xs app-muted">{{ field.help_text }}</p>
+    <p class="settings-helper mt-1 text-xs leading-5">{{ field.help_text }}</p>
   {% endif %}
   {% if field.errors %}
     <div class="mt-1 text-sm app-danger-text">{{ field.errors }}</div>

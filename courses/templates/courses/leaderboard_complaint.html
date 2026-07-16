@@ -22,18 +22,18 @@
 <form method="post" class="mt-6 max-w-2xl space-y-5">
   {% csrf_token %}
   <div>
-    <label for="{{ form.issue_type.id_for_label }}" class="mb-2 block text-sm font-semibold app-heading">{{ form.issue_type.label }}</label>
+    <label for="{{ form.issue_type.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">{{ form.issue_type.label }}</label>
     {{ form.issue_type }}
     {% if form.issue_type.errors %}
-      <p class="mt-2 text-sm font-medium">{{ form.issue_type.errors|join:" " }}</p>
+      <p class="mt-2 text-sm font-medium app-danger-text">{{ form.issue_type.errors|join:" " }}</p>
     {% endif %}
   </div>
   <div>
-    <label for="{{ form.description.id_for_label }}" class="mb-2 block text-sm font-semibold app-heading">{{ form.description.label }}</label>
+    <label for="{{ form.description.id_for_label }}" class="settings-label mb-2 block text-sm font-semibold">{{ form.description.label }}</label>
     {{ form.description }}
-    <p class="mt-1 text-xs app-muted">Flags are visible to course staff only.</p>
+    <p class="settings-helper mt-1 text-xs leading-5">Flags are visible to course staff only.</p>
     {% if form.description.errors %}
-      <p class="mt-2 text-sm font-medium">{{ form.description.errors|join:" " }}</p>
+      <p class="mt-2 text-sm font-medium app-danger-text">{{ form.description.errors|join:" " }}</p>
     {% endif %}
   </div>
   <div class="flex flex-wrap gap-2 border-t app-border pt-5">
