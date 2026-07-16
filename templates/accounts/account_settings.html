@@ -38,7 +38,7 @@
                     {{ form.certificate_name }}
                     <p class="settings-helper mt-1 text-xs leading-5">{{ form.certificate_name.help_text }}</p>
                     {% if form.certificate_name.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.certificate_name.errors|join:" " }}
                         </div>
@@ -51,7 +51,7 @@
                     </label>
                     {{ form.github_url }}
                     {% if form.github_url.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.github_url.errors|join:" " }}
                         </div>
@@ -64,7 +64,7 @@
                     </label>
                     {{ form.linkedin_url }}
                     {% if form.linkedin_url.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.linkedin_url.errors|join:" " }}
                         </div>
@@ -77,7 +77,7 @@
                     </label>
                     {{ form.personal_website_url }}
                     {% if form.personal_website_url.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.personal_website_url.errors|join:" " }}
                         </div>
@@ -90,7 +90,7 @@
                     </label>
                     {{ form.about_me }}
                     {% if form.about_me.errors %}
-                        <div class="mt-2 text-sm font-medium">
+                        <div class="mt-2 text-sm font-medium app-danger-text">
                             <i class="fas fa-exclamation-triangle"></i>
                             {{ form.about_me.errors|join:" " }}
                         </div>
@@ -100,23 +100,6 @@
             <p class="settings-section-copy text-sm leading-6">
                 Public profile details can be shown on course leaderboard records when enabled per enrollment.
             </p>
-            <div class="flex flex-wrap gap-2 pt-1">
-                <button type="submit" class="primer-button">Save profile</button>
-            </div>
-        </section>
-
-        <section class="settings-section space-y-4 border-t pt-6">
-            <div>
-                <h2 class="settings-section-title text-lg font-semibold">Appearance</h2>
-                <p class="settings-section-copy mt-1 text-sm leading-6">Choose the default theme for your account.</p>
-            </div>
-            <div class="toggle-row js-immediate-toggle-row"
-                 data-toggle-url="{% url 'update_account_toggle' %}">
-                {{ form.dark_mode }}
-                <span class="toggle-copy">
-                    <span class="toggle-label">{{ form.dark_mode.label }}</span>
-                </span>
-            </div>
         </section>
 
         <section class="settings-section space-y-4 border-t pt-6" id="display-preferences-section">
@@ -146,122 +129,131 @@
                     {{ form.preferred_timezone.help_text }}
                 </p>
                 {% if form.preferred_timezone.errors %}
-                    <div class="mt-2 text-sm font-medium">
+                    <div class="mt-2 text-sm font-medium app-danger-text">
                         <i class="fas fa-exclamation-triangle"></i>
                         {{ form.preferred_timezone.errors|join:" " }}
                     </div>
                 {% endif %}
             </div>
-            <div class="flex flex-wrap gap-2 pt-1">
-                <button type="submit" class="primer-button">Save display preferences</button>
+            <div class="toggle-row js-immediate-toggle-row"
+                 data-toggle-url="{% url 'update_account_toggle' %}">
+                {{ form.dark_mode }}
+                <span class="toggle-copy">
+                    <span class="toggle-label">{{ form.dark_mode.label }}</span>
+                    <span class="toggle-help">Choose the default theme for your account.</span>
+                </span>
             </div>
         </section>
 
-        <section class="settings-section space-y-4 border-t pt-6"
-                 data-email-preferences-url="{% url 'account_email_preferences' %}">
-            <div>
-                <h2 class="settings-section-title text-lg font-semibold">Email subscriptions</h2>
-                <p class="settings-section-copy mt-1 text-sm leading-6">
-                    Choose which course workflow emails you want to receive.
-                </p>
-            </div>
-            <p class="settings-helper js-email-preferences-status text-xs leading-5"
-               role="status">
-                Loading email subscriptions...
-            </p>
-            <div class="space-y-4">
-                <div>
-                    <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
-                         data-toggle-url="{% url 'account_email_preferences' %}">
-                        <input type="checkbox"
-                               name="email_submission_confirmations"
-                               id="id_email_submission_confirmations"
-                               class="js-email-preference-toggle"
-                               disabled>
-                        <span class="toggle-copy">
-                            <label for="id_email_submission_confirmations"
-                                   class="toggle-label">
-                                {{ email_preference_categories.email_submission_confirmations.label }}
-                            </label>
-                            <span class="toggle-help">
-                                {{ email_preference_categories.email_submission_confirmations.description }}
-                            </span>
-                        </span>
-                    </div>
-                </div>
-                <div>
-                    <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
-                         data-toggle-url="{% url 'account_email_preferences' %}">
-                        <input type="checkbox"
-                               name="email_deadline_reminders"
-                               id="id_email_deadline_reminders"
-                               class="js-email-preference-toggle"
-                               disabled>
-                        <span class="toggle-copy">
-                            <label for="id_email_deadline_reminders"
-                                   class="toggle-label">
-                                {{ email_preference_categories.email_deadline_reminders.label }}
-                            </label>
-                            <span class="toggle-help">
-                                {{ email_preference_categories.email_deadline_reminders.description }}
-                            </span>
-                        </span>
-                    </div>
-                </div>
-                <div>
-                    <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
-                         data-toggle-url="{% url 'account_email_preferences' %}">
-                        <input type="checkbox"
-                               name="email_course_updates"
-                               id="id_email_course_updates"
-                               class="js-email-preference-toggle"
-                               disabled>
-                        <span class="toggle-copy">
-                            <label for="id_email_course_updates"
-                                   class="toggle-label">
-                                {{ email_preference_categories.email_course_updates.label }}
-                            </label>
-                            <span class="toggle-help">
-                                {{ email_preference_categories.email_course_updates.description }}
-                            </span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="settings-section space-y-4 border-t pt-6">
-            <div>
-                <h2 class="settings-section-title text-lg font-semibold">Courses enrolled</h2>
-                <p class="settings-section-copy mt-1 text-sm leading-6">Course-specific profile details can still be edited per course.</p>
-            </div>
-            <div class="overflow-hidden rounded-md border app-border app-surface">
-                {% if enrollments %}
-                    <div class="divide-y app-divide">
-                        {% for enrollment in enrollments %}
-                            <article class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="min-w-0">
-                                    <a href="{% url 'course' enrollment.course.slug %}"
-                                       class="font-medium app-link">
-                                        {{ enrollment.course.title }}
-                                    </a>
-                                    <p class="mt-1 truncate text-xs app-muted">
-                                        Leaderboard: {{ enrollment.display_name }}
-                                    </p>
-                                </div>
-                                <a href="{% url 'enrollment' enrollment.course.slug %}"
-                                   class="primer-button primer-button-secondary w-fit">
-                                    Edit course profile
-                                </a>
-                            </article>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="px-4 py-5 text-sm app-muted">You are not enrolled in any courses yet.</p>
-                {% endif %}
-            </div>
-        </section>
+        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+            <button type="submit" class="primer-button">Save changes</button>
+        </div>
     </form>
+
+    <section class="settings-section mt-8 space-y-4 border-t pt-6"
+             data-email-preferences-url="{% url 'account_email_preferences' %}">
+        <div>
+            <h2 class="settings-section-title text-lg font-semibold">Email subscriptions</h2>
+            <p class="settings-section-copy mt-1 text-sm leading-6">
+                Choose which course workflow emails you want to receive.
+            </p>
+        </div>
+        <p class="settings-helper js-email-preferences-status text-xs leading-5"
+           role="status">
+            Loading email subscriptions...
+        </p>
+        <div class="space-y-4">
+            <div>
+                <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
+                     data-toggle-url="{% url 'account_email_preferences' %}">
+                    <input type="checkbox"
+                           name="email_submission_confirmations"
+                           id="id_email_submission_confirmations"
+                           class="js-email-preference-toggle"
+                           disabled>
+                    <span class="toggle-copy">
+                        <label for="id_email_submission_confirmations"
+                               class="toggle-label">
+                            {{ email_preference_categories.email_submission_confirmations.label }}
+                        </label>
+                        <span class="toggle-help">
+                            {{ email_preference_categories.email_submission_confirmations.description }}
+                        </span>
+                    </span>
+                </div>
+            </div>
+            <div>
+                <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
+                     data-toggle-url="{% url 'account_email_preferences' %}">
+                    <input type="checkbox"
+                           name="email_deadline_reminders"
+                           id="id_email_deadline_reminders"
+                           class="js-email-preference-toggle"
+                           disabled>
+                    <span class="toggle-copy">
+                        <label for="id_email_deadline_reminders"
+                               class="toggle-label">
+                            {{ email_preference_categories.email_deadline_reminders.label }}
+                        </label>
+                        <span class="toggle-help">
+                            {{ email_preference_categories.email_deadline_reminders.description }}
+                        </span>
+                    </span>
+                </div>
+            </div>
+            <div>
+                <div class="toggle-row js-immediate-toggle-row js-email-preference-row"
+                     data-toggle-url="{% url 'account_email_preferences' %}">
+                    <input type="checkbox"
+                           name="email_course_updates"
+                           id="id_email_course_updates"
+                           class="js-email-preference-toggle"
+                           disabled>
+                    <span class="toggle-copy">
+                        <label for="id_email_course_updates"
+                               class="toggle-label">
+                            {{ email_preference_categories.email_course_updates.label }}
+                        </label>
+                        <span class="toggle-help">
+                            {{ email_preference_categories.email_course_updates.description }}
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="settings-section space-y-4 border-t pt-6">
+        <div>
+            <h2 class="settings-section-title text-lg font-semibold">Courses enrolled</h2>
+            <p class="settings-section-copy mt-1 text-sm leading-6">Course-specific profile details can still be edited per course.</p>
+        </div>
+        <div class="overflow-hidden rounded-md border app-border app-surface">
+            {% if enrollments %}
+                <div class="divide-y app-divide">
+                    {% for enrollment in enrollments %}
+                        <article class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <a href="{% url 'course' enrollment.course.slug %}"
+                                   class="font-medium app-link">
+                                    {{ enrollment.course.title }}
+                                </a>
+                                <p class="mt-1 truncate text-xs app-muted">
+                                    Leaderboard: {{ enrollment.display_name }}
+                                </p>
+                            </div>
+                            <a href="{% url 'enrollment' enrollment.course.slug %}"
+                               class="primer-button primer-button-secondary w-fit">
+                                Edit course profile
+                            </a>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="px-4 py-5 text-sm app-muted">You are not enrolled in any courses yet.</p>
+            {% endif %}
+        </div>
+    </section>
 {% endblock %}
 
 {% block extra_js %}

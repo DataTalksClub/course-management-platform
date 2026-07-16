@@ -13,7 +13,8 @@ class AccountSettingsTimezoneViewTestCase(AccountSettingsViewTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Display preferences")
         self.assertContains(response, "Deadlines and notification emails")
-        self.assertContains(response, "Save display preferences")
+        # The form has a single footer action, not a per-section save.
+        self.assertContains(response, "Save changes")
         self.assertContains(response, "Europe/Berlin")
 
     def test_account_settings_shows_browser_timezone_cookie_fallback(self):
