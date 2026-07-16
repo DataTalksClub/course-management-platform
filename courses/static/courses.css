@@ -23,6 +23,7 @@
   --info-bg: #edf5ff;
   --info-text: #315f8f;
   --info-border: rgba(49, 95, 143, 0.22);
+  --focus-ring: rgba(49, 95, 143, 0.4);
 }
 
 body.dark-mode {
@@ -50,6 +51,7 @@ body.dark-mode {
   --info-bg: rgba(77, 127, 168, 0.22);
   --info-text: #8bb7df;
   --info-border: rgba(77, 127, 168, 0.42);
+  --focus-ring: rgba(139, 183, 223, 0.4);
 }
 
 body {
@@ -1242,7 +1244,7 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 .cadmin-support-strip {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-muted);
   padding-bottom: 1rem;
 }
 
@@ -1253,8 +1255,8 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 .cadmin-metric {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-muted);
   border-radius: 6px;
   padding: 0.65rem 0.75rem;
 }
@@ -1270,8 +1272,8 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 .cloudwatch-chart {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-muted);
   border-radius: 6px;
   color: #315f8f;
   height: 5rem;
@@ -1293,8 +1295,8 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 
 .cadmin-count-badge {
   align-items: center;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-muted);
   border-radius: 999px;
   color: var(--text-muted);
   display: inline-flex;
@@ -1314,7 +1316,7 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 .cadmin-list-row:hover {
-  background: var(--bg-subtle);
+  background: var(--surface-muted);
 }
 
 .cadmin-shell article {
@@ -1407,17 +1409,17 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 
 .cadmin-actions-toggle:hover,
 .cadmin-actions-menu[open] .cadmin-actions-toggle {
-  background: color-mix(in srgb, var(--bg-subtle) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 70%, transparent);
   border-color: transparent;
   opacity: 1;
 }
 
 .cadmin-actions-panel {
-  background: var(--bg-primary);
-  background: color-mix(in srgb, var(--bg-primary) 94%, transparent);
+  background: var(--surface-bg);
+  background: color-mix(in srgb, var(--surface-bg) 94%, transparent);
   backdrop-filter: blur(8px);
-  border: 1px solid var(--border-color);
-  border-color: color-mix(in srgb, var(--border-color) 75%, transparent);
+  border: 1px solid var(--border-muted);
+  border-color: color-mix(in srgb, var(--border-muted) 75%, transparent);
   border-radius: 6px;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
   min-width: 13.5rem;
@@ -1450,7 +1452,7 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 .cadmin-action-item:hover {
-  background: color-mix(in srgb, var(--bg-subtle) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 78%, transparent);
   color: var(--text-primary);
   text-decoration: none;
 }
@@ -1488,7 +1490,7 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
   aspect-ratio: 4 / 3;
   background:
     linear-gradient(135deg, rgba(49, 95, 143, 0.1), rgba(31, 111, 66, 0.1)),
-    var(--bg-subtle);
+    var(--surface-muted);
   color: var(--text-muted);
   display: flex;
   font-size: 1.5rem;
@@ -1503,7 +1505,7 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
 }
 
 .metric-row + .metric-row {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-muted);
   padding-top: 0.75rem;
 }
 
