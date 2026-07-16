@@ -147,9 +147,9 @@
           <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <h3 class="font-medium app-heading">{{ submission.project.title }}</h3>
             {% if submission.passed %}
-              <span class="inline-flex w-fit rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Passed</span>
+              <span class="app-badge app-badge-success">Passed</span>
             {% else %}
-              <span class="inline-flex w-fit rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium">Failed</span>
+              <span class="app-badge app-badge-danger">Failed</span>
             {% endif %}
           </div>
           <p class="mt-3 text-sm app-text">

@@ -5,9 +5,9 @@
          onclick="if (!event.target.closest('a, button')) window.location.href='{% url 'course' course.slug %}'"
          onkeydown="if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('a, button')) { event.preventDefault(); window.location.href='{% url 'course' course.slug %}'; }">
     <div>
-        <span class="inline-flex rounded-md {{ badge_class|default:'app-badge-success' }} px-2 py-0.5 text-xs font-semibold uppercase">{{ badge_label|default:'Active' }}</span>
+        <span class="app-badge app-badge-upper {{ badge_class|default:'app-badge-success' }}">{{ badge_label|default:'Active' }}</span>
         {% if course.is_enrolled %}
-            <span class="ml-2 inline-flex rounded-md app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Enrolled</span>
+            <span class="ml-2 app-badge app-badge-upper app-badge-info">Enrolled</span>
         {% endif %}
         <h3 class="mt-2 text-xl font-semibold md:text-2xl">
             <a href="{% url 'course' course.slug %}" class="app-link">{{ course.title }}</a>

@@ -47,8 +47,8 @@
               </p>
             </div>
             <div class="flex flex-wrap gap-2">
-              <span class="rounded-md app-badge-danger px-2 py-1 text-sm font-semibold">{{ enrollment.open_complaints }} open</span>
-              <span class="rounded-md app-badge-neutral px-2 py-1 text-sm font-semibold">{{ enrollment.total_complaints }} total</span>
+              <span class="app-badge app-badge-danger">{{ enrollment.open_complaints }} open</span>
+              <span class="app-badge app-badge-neutral">{{ enrollment.total_complaints }} total</span>
               <a href="{% url 'leaderboard_score_breakdown' course.slug enrollment.id %}" class="primer-button primer-button-secondary">Scores</a>
               <a href="{% url 'cadmin_enrollment_edit' course.slug enrollment.id %}" class="primer-button primer-button-secondary">Manage</a>
             </div>
@@ -62,9 +62,9 @@
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium app-heading">{{ complaint.get_issue_type_display }}</span>
                     {% if complaint.resolved %}
-                      <span class="rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Resolved</span>
+                      <span class="app-badge app-badge-success">Resolved</span>
                     {% else %}
-                      <span class="rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Open</span>
+                      <span class="app-badge app-badge-warning">Open</span>
                     {% endif %}
                   </div>
                   <p class="mt-1 text-xs app-muted">

@@ -33,14 +33,14 @@
 <p class="mt-1 text-xs app-muted">{{ course.slug }}</p>
 <div class="mt-3 flex flex-wrap gap-2">
 {% if course.visible %}
-<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Visible</span>
+<span class="app-badge app-badge-success">Visible</span>
 {% else %}
-<span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-muted ">Hidden</span>
+<span class="app-badge app-badge-neutral">Hidden</span>
 {% endif %}
 {% if course.finished %}
-<span class="inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link ">Finished</span>
+<span class="app-badge app-badge-info">Finished</span>
 {% else %}
-<span class="inline-flex rounded-full app-alert-warning px-2 py-0.5 text-xs font-medium  ">In progress</span>
+<span class="app-badge app-badge-warning">In progress</span>
 {% endif %}
 </div>
 </article>
@@ -76,16 +76,16 @@
 </td>
 <td class="px-4 py-3">
 {% if course.visible %}
-<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium  ">Yes</span>
+<span class="app-badge app-badge-success">Yes</span>
 {% else %}
-<span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-muted ">No</span>
+<span class="app-badge app-badge-neutral">No</span>
 {% endif %}
 </td>
 <td class="px-4 py-3">
 {% if course.finished %}
-<span class="inline-flex rounded-full app-alert-info px-2 py-0.5 text-xs font-medium app-link ">Yes</span>
+<span class="app-badge app-badge-info">Yes</span>
 {% else %}
-<span class="inline-flex rounded-full app-alert-warning px-2 py-0.5 text-xs font-medium  ">No</span>
+<span class="app-badge app-badge-warning">No</span>
 {% endif %}
 </td>
 </tr>

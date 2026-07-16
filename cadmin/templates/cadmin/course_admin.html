@@ -170,13 +170,13 @@
               </div>
               <div class="shrink-0 md:hidden">
                 {% if hw.state == 'OP' %}
-                  <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Open</span>
+                  <span class="app-badge app-badge-success">Open</span>
                 {% elif hw.state == 'CL' %}
-                  <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+                  <span class="app-badge app-badge-neutral">Closed</span>
                 {% elif hw.state == 'SC' %}
-                  <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Scored</span>
+                  <span class="app-badge app-badge-info">Scored</span>
                 {% else %}
-                  <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">{{ hw.get_state_display }}</span>
+                  <span class="app-badge app-badge-warning">{{ hw.get_state_display }}</span>
                 {% endif %}
               </div>
             </div>
@@ -187,13 +187,13 @@
 
             <div class="hidden md:block md:text-right">
               {% if hw.state == 'OP' %}
-                <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Open</span>
+                <span class="app-badge app-badge-success">Open</span>
               {% elif hw.state == 'CL' %}
-                <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+                <span class="app-badge app-badge-neutral">Closed</span>
               {% elif hw.state == 'SC' %}
-                <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Scored</span>
+                <span class="app-badge app-badge-info">Scored</span>
               {% else %}
-                <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">{{ hw.get_state_display }}</span>
+                <span class="app-badge app-badge-warning">{{ hw.get_state_display }}</span>
               {% endif %}
             </div>
 
@@ -275,15 +275,15 @@
               </div>
               <div class="shrink-0 md:hidden">
                 {% if proj.state == 'CL' %}
-                  <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+                  <span class="app-badge app-badge-neutral">Closed</span>
                 {% elif proj.state == 'CS' %}
-                  <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Collecting</span>
+                  <span class="app-badge app-badge-success">Collecting</span>
                 {% elif proj.state == 'PR' %}
-                  <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Peer Review</span>
+                  <span class="app-badge app-badge-warning">Peer Review</span>
                 {% elif proj.state == 'CO' %}
-                  <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Completed</span>
+                  <span class="app-badge app-badge-info">Completed</span>
                 {% else %}
-                  <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">{{ proj.get_state_display }}</span>
+                  <span class="app-badge app-badge-info">{{ proj.get_state_display }}</span>
                 {% endif %}
               </div>
             </div>
@@ -295,15 +295,15 @@
 
             <div class="hidden md:block md:text-right">
               {% if proj.state == 'CL' %}
-                <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">Closed</span>
+                <span class="app-badge app-badge-neutral">Closed</span>
               {% elif proj.state == 'CS' %}
-                <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Collecting</span>
+                <span class="app-badge app-badge-success">Collecting</span>
               {% elif proj.state == 'PR' %}
-                <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Peer Review</span>
+                <span class="app-badge app-badge-warning">Peer Review</span>
               {% elif proj.state == 'CO' %}
-                <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">Completed</span>
+                <span class="app-badge app-badge-info">Completed</span>
               {% else %}
-                <span class="inline-flex rounded-full app-badge-info px-2 py-0.5 text-xs font-medium">{{ proj.get_state_display }}</span>
+                <span class="app-badge app-badge-info">{{ proj.get_state_display }}</span>
               {% endif %}
             </div>
 

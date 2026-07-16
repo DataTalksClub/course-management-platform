@@ -138,7 +138,7 @@
                                                 {% endif %}
                                             </a>
                                         {% elif submission.own %}
-                                            <span class="submission-status-chip submission-status-chip-neutral">Your project</span>
+                                            <span class="app-badge app-badge-neutral">Your project</span>
                                         {% else %}
                                             <button type="button"
                                                     onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')"
@@ -150,8 +150,10 @@
                                         {% endif %}
                                     {% elif project.state == 'CO' %}
                                         <span class="text-sm font-semibold app-heading">{{ submission.project_score }} score</span>
-                                        {% if not submission.passed %}
-                                            <span class="text-sm app-muted">Not passed</span>
+                                        {% if submission.passed %}
+                                            <span class="app-badge app-badge-success">Passed</span>
+                                        {% else %}
+                                            <span class="app-badge app-badge-danger">Not passed</span>
                                         {% endif %}
                                     {% endif %}
                                 </div>

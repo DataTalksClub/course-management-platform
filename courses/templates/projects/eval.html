@@ -53,7 +53,7 @@ You did not submit this project, but you can still volunteer to evaluate submiss
 {% for review in selected_reviews %}
 <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
 <span class="font-medium">Review {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
-<span class="w-fit rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-text">{{ review.get_state_display }}</span>
+<span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
 </a>
 {% endfor %}
 </div>
@@ -70,7 +70,7 @@ You did not submit this project, but you can still volunteer to evaluate submiss
 <div class="flex w-fit items-center gap-2">
 <span class="text-sm font-semibold app-heading">{{ number_of_completed_evaluation }} / {{ project.number_of_peers_to_evaluate }}</span>
 {% if number_of_completed_evaluation == project.number_of_peers_to_evaluate %}
-<span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Complete</span>
+<span class="app-badge app-badge-success">Complete</span>
 {% endif %}
 </div>
 </div>
@@ -80,7 +80,7 @@ You did not submit this project, but you can still volunteer to evaluate submiss
 {% for review in assigned_reviews %}
 <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
 <span class="font-medium"> Evaluate {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
-<span class="w-fit rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-text ">{{ review.get_state_display }}</span>
+<span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
 </a>
 {% endfor %}
 </div>
@@ -98,7 +98,7 @@ You did not submit this project, but you can still volunteer to evaluate submiss
 {% for review in selected_reviews %}
 <a href="{% url 'projects_eval_submit' course_slug=course.slug project_slug=project.slug review_id=review.id %}" class="flex flex-col gap-2 px-4 py-3 app-heading no-underline app-hover-muted sm:flex-row sm:items-center sm:justify-between">
 <span class="font-medium"> Evaluate {{ review.submission_under_evaluation.enrollment.display_name }}'s submission</span>
-<span class="w-fit rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium app-text ">{{ review.get_state_display }}</span>
+<span class="app-badge app-badge-neutral">{{ review.get_state_display }}</span>
 </a>
 {% endfor %}
 </div>

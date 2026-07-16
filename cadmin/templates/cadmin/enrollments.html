@@ -94,15 +94,15 @@
           <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text">HW {{ enrollment.homework_count }}</span>
           <span class="rounded-md app-surface-muted px-2 py-1 font-medium app-text">Projects {{ enrollment.project_count }}</span>
           {% if enrollment.disable_learning_in_public %}
-            <span class="inline-flex rounded-full app-badge-danger px-2 py-1 font-medium">LiP disabled</span>
+            <span class="app-badge app-badge-danger">LiP disabled</span>
           {% else %}
-            <span class="inline-flex rounded-full app-badge-success px-2 py-1 font-medium">LiP enabled</span>
+            <span class="app-badge app-badge-success">LiP enabled</span>
           {% endif %}
           {% if not enrollment.display_on_leaderboard %}
-            <span class="inline-flex rounded-full app-badge-warning px-2 py-1 font-medium">Hidden</span>
+            <span class="app-badge app-badge-warning">Hidden</span>
           {% endif %}
           {% if enrollment.has_no_submissions %}
-            <span class="inline-flex rounded-full app-badge-neutral px-2 py-1 font-medium">No submissions</span>
+            <span class="app-badge app-badge-neutral">No submissions</span>
           {% endif %}
         </div>
 
@@ -165,13 +165,13 @@
             <td class="px-2 py-2">
               <div class="flex flex-wrap gap-1">
                 {% if enrollment.disable_learning_in_public %}
-                  <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium">LiP disabled</span>
+                  <span class="app-badge app-badge-danger">LiP disabled</span>
                 {% endif %}
                 {% if not enrollment.display_on_leaderboard %}
-                  <span class="inline-flex rounded-full app-badge-warning px-2 py-0.5 text-xs font-medium">Hidden</span>
+                  <span class="app-badge app-badge-warning">Hidden</span>
                 {% endif %}
                 {% if enrollment.has_no_submissions %}
-                  <span class="inline-flex rounded-full app-badge-neutral px-2 py-0.5 text-xs font-medium">No submissions</span>
+                  <span class="app-badge app-badge-neutral">No submissions</span>
                 {% endif %}
                 {% if not enrollment.has_support_flags %}
                   <span class="app-muted">-</span>

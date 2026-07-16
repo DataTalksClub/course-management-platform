@@ -76,8 +76,12 @@
                                 <span class="font-semibold app-heading">
                                     {% if submission.display_score == -1 %}Score N/A{% else %}{{ submission.display_score }} score{% endif %}
                                 </span>
-                                {% if submission.display_score != -1 and not submission.passed %}
-                                    <span class="app-muted">Not passed</span>
+                                {% if submission.display_score != -1 %}
+                                    {% if submission.passed %}
+                                        <span class="app-badge app-badge-success">Passed</span>
+                                    {% else %}
+                                        <span class="app-badge app-badge-danger">Not passed</span>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>

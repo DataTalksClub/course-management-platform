@@ -582,36 +582,6 @@ input[type="radio"]:disabled {
   width: 76px;
 }
 
-.submission-status-chip {
-  border-radius: 9999px;
-  display: inline-flex;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  padding: 2px 7px;
-  white-space: nowrap;
-}
-
-.submission-status-chip-neutral {
-  background: var(--surface-muted);
-  color: var(--text-muted);
-}
-
-.submission-status-chip-info {
-  background: var(--info-bg);
-  color: var(--info-text);
-}
-
-.submission-status-chip-pending {
-  background: var(--warning-bg);
-  color: var(--warning-text);
-}
-
-.submission-status-chip-done {
-  background: var(--success-bg);
-  color: var(--success-text);
-}
-
 .submission-action-button-danger {
   background: var(--danger-bg);
   border-color: var(--danger-border);
@@ -720,6 +690,26 @@ body.dark-mode .app-badge-neutral {
   letter-spacing: 0;
   line-height: 1.25;
   white-space: nowrap;
+}
+
+/* One pill spec for every status label. Pair with a colour class:
+   <span class="app-badge app-badge-success">Submitted</span> */
+.app-badge {
+  align-items: center;
+  border-radius: 9999px;
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  width: fit-content;
+}
+
+/* Category/kicker labels (ACTIVE, ARCHIVED), not statuses. */
+.app-badge-upper {
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .leaderboard-project-star {

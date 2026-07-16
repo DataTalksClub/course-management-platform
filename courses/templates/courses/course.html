@@ -114,15 +114,15 @@
 
           <div class="md:text-right">
             {% if hw.state == 'CL' %}
-              <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Closed</span>
+              <span class="app-badge app-badge-upper app-badge-neutral">Closed</span>
             {% elif hw.is_scored and hw.submitted %}
-              <span class="inline-flex app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Scored ({{ hw.score }})</span>
+              <span class="app-badge app-badge-upper app-badge-success">Scored ({{ hw.score }})</span>
             {% elif hw.is_scored %}
-              <span class="inline-flex app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Scored</span>
+              <span class="app-badge app-badge-upper app-badge-info">Scored</span>
             {% elif not hw.is_scored and hw.submitted %}
-              <span class="inline-flex app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">Submitted</span>
+              <span class="app-badge app-badge-upper app-badge-success">Submitted</span>
             {% else %}
-              <span class="inline-flex app-badge-warning px-2 py-0.5 text-xs font-semibold uppercase">Open</span>
+              <span class="app-badge app-badge-upper app-badge-warning">Open</span>
             {% endif %}
           </div>
         </div>
@@ -177,13 +177,13 @@
 
           <div class="md:text-right">
             {% if project.badge_css_class == 'bg-success' or project.badge_css_class == 'bg-info' %}
-              <span class="inline-flex app-badge-success px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="app-badge app-badge-upper app-badge-success">{{ project.badge_state_name }}</span>
             {% elif project.badge_css_class == 'bg-warning' %}
-              <span class="inline-flex app-badge-warning px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="app-badge app-badge-upper app-badge-warning">{{ project.badge_state_name }}</span>
             {% elif project.badge_css_class == 'bg-danger' %}
-              <span class="inline-flex app-badge-danger px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="app-badge app-badge-upper app-badge-danger">{{ project.badge_state_name }}</span>
             {% else %}
-              <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">{{ project.badge_state_name }}</span>
+              <span class="app-badge app-badge-upper app-badge-neutral">{{ project.badge_state_name }}</span>
             {% endif %}
           </div>
         </div>

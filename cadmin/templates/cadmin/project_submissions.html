@@ -83,7 +83,7 @@
                         <i class="fas fa-copy"></i> Copy All Emails
                     </button>
                     <span id="copyFeedback"
-                          class="text-sm font-medium app-badge-success "
+                          class="text-sm font-medium app-success-text"
                           style="display: none"> <i class="fas fa-check"></i> Copied! </span>
                 </div>
             </form>
@@ -159,9 +159,9 @@
                                 <dt class="text-xs font-semibold uppercase app-muted">Status</dt>
                                 <dd>
                                     {% if submission.passed %}
-                                        <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Passed</span>
+                                        <span class="app-badge app-badge-success">Passed</span>
                                     {% elif submission.passed is not None %}
-                                        <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium">Not passed</span>
+                                        <span class="app-badge app-badge-danger">Not passed</span>
                                     {% else %}
                                         <span class="app-muted">-</span>
                                     {% endif %}
@@ -237,7 +237,7 @@
                                 <td class="whitespace-nowrap px-3 py-2 app-text">{{ submission.submitted_at|date:"Y-m-d H:i" }}</td>
                                 <td class="px-3 py-2 text-right app-text">
                                     {% if submission.peer_reviews_completed < submission.peer_reviews_total %}
-                                        <span class="inline-flex rounded-md app-badge-warning px-2 py-0.5 text-xs font-semibold">
+                                        <span class="app-badge app-badge-warning">
                                             {{ submission.peer_reviews_completed }} / {{ submission.peer_reviews_total }}
                                         </span>
                                     {% else %}
@@ -260,9 +260,9 @@
                                 </td>
                                 <td class="px-3 py-2">
                                     {% if submission.passed %}
-                                        <span class="inline-flex rounded-full app-badge-success px-2 py-0.5 text-xs font-medium">Passed</span>
+                                        <span class="app-badge app-badge-success">Passed</span>
                                     {% elif submission.passed is not None %}
-                                        <span class="inline-flex rounded-full app-badge-danger px-2 py-0.5 text-xs font-medium">Not passed</span>
+                                        <span class="app-badge app-badge-danger">Not passed</span>
                                     {% else %}
                                         -
                                     {% endif %}

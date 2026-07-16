@@ -75,11 +75,11 @@
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span class="text-xs font-semibold uppercase app-muted">Status:</span>
                         {% if submission.pk %}
-                            <span class="inline-flex rounded-md app-badge-success px-3 py-1 text-xs font-semibold uppercase">Submitted</span>
+                            <span class="app-badge app-badge-upper app-badge-success">Submitted</span>
                         {% elif not accepting_submissions and not homework.is_scored %}
-                            <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Closed</span>
+                            <span class="app-badge app-badge-upper app-badge-neutral">Closed</span>
                         {% else %}
-                            <span class="inline-flex app-badge-neutral px-2 py-0.5 text-xs font-semibold uppercase">Not submitted</span>
+                            <span class="app-badge app-badge-upper app-badge-neutral">Not submitted</span>
                         {% endif %}
                     </div>
                 {% endif %}

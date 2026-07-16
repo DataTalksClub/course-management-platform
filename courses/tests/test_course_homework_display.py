@@ -18,7 +18,7 @@ class CourseHomeworkDisplayTest(CourseDetailViewTestBase):
         self.assertContains(response, "Already scored")
         self.assertContains(
             response,
-            'app-badge-info px-2 py-0.5 text-xs font-semibold uppercase">Scored',
+            'class="app-badge app-badge-upper app-badge-info">Scored',
         )
         self.assertNotContains(response, "Scored:")
         self.assertNotContains(
