@@ -16,12 +16,12 @@
             <strong>Login failed.</strong>
             This could be due to network connectivity, temporary provider unavailability, or account access restrictions.
         </div>
-        <div class="mt-5 flex flex-wrap justify-end gap-2">
-            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
-                <i class="fas fa-home"></i> Go Home
-            </a>
+        <div class="mt-5 flex flex-wrap gap-2 border-t app-border pt-5">
             <a href="{% url 'login' %}" class="primer-button">
                 <i class="fas fa-redo"></i> Try Again
+            </a>
+            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
+                <i class="fas fa-home"></i> Go Home
             </a>
         </div>
     </div>

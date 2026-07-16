@@ -16,12 +16,12 @@
             <i class="fas fa-info-circle"></i>
             You can try logging in again whenever you are ready.
         </div>
-        <div class="mt-5 flex flex-wrap justify-end gap-2">
-            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
-                <i class="fas fa-home"></i> Browse Courses
-            </a>
+        <div class="mt-5 flex flex-wrap gap-2 border-t app-border pt-5">
             <a href="{% url 'login' %}" class="primer-button">
                 <i class="fas fa-sign-in-alt"></i> Try Login Again
+            </a>
+            <a href="{% url 'course_list' %}" class="primer-button primer-button-secondary">
+                <i class="fas fa-home"></i> Browse Courses
             </a>
         </div>
     </div>
