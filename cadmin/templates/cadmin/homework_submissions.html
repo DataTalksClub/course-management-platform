@@ -98,7 +98,10 @@
         <div class="divide-y app-divide">
           {% for question in questions %}
             <div class="px-4 py-3">
-              <p class="text-sm font-medium app-heading">{{ forloop.counter }}. {{ question.text }}</p>
+              <p class="text-sm font-medium app-heading">
+                {{ forloop.counter }}. {{ question.text }}
+                <span class="app-badge app-badge-neutral ml-1 align-middle">{{ question.get_question_type_display }}</span>
+              </p>
 
               {% if question.has_choice_answers %}
                 <input type="hidden" name="correct_answer_{{ question.id }}" value="" id="hidden_correct_{{ question.id }}">

@@ -78,6 +78,27 @@ class HomeworkCadminSubmissionViewTests(HomeworkCadminViewTestBase):
         self.assertEqual(response.status_code, 200)
         self.assert_homework_submission_actions(response)
 
+    def test_correct_answers_panel_labels_the_question_type(self):
+        """Multiple choice and checkbox questions both render as checkboxes in the
+        correct answers panel, so each question must name its own type."""
+        self.create_multiple_choice_question()
+        self.create_multiple_choice_question(
+            text="Which steps did you complete?",
+            question_type=QuestionTypes.CHECKBOXES.value,
+            possible_answers="Loading\nAnalysis\nTraining",
+            correct_answer="1,2",
+        )
+        self.create_free_form_question()
+
+        self.login_admin()
+
+        response = self.client.get(self.cadmin_homework_submissions_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Multiple Choice")
+        self.assertContains(response, "Checkboxes")
+        self.assertContains(response, "Free Form")
+
 
 class HomeworkCadminActionRedirectTests(HomeworkCadminViewTestBase):
     def test_homework_actions_can_redirect_back_to_homework_submissions(
