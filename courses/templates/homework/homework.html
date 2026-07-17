@@ -110,6 +110,14 @@
             </div>
         {% endif %}
         <div class="mt-6 space-y-3">
+            {% if accepting_submissions and deadline_passed %}
+                <div class="deadline-passed-notice rounded-md border app-alert-info p-4 app-heading">
+                    <div class="font-semibold">The deadline has passed, but this homework is still open</div>
+                    <p class="mt-1 mb-0 text-sm app-text">
+                        You can still submit your answers below. Submissions are accepted until the homework is closed for scoring.
+                    </p>
+                </div>
+            {% endif %}
             {% if disabled and not homework.is_scored and not accepting_submissions %}
                 {% if is_authenticated %}
                     {% if submission.pk %}
@@ -385,7 +393,11 @@
                     {% endif %}
                     {% if not homework.is_scored and is_authenticated %}
                         <div class="mt-1">
-                            You can save partial answers and update them until the deadline. Your latest saved version will be scored.
+                            {% if accepting_submissions and deadline_passed %}
+                                You can still save and update your answers until this homework is closed. Your latest saved version will be scored.
+                            {% else %}
+                                You can save partial answers and update them until the deadline. Your latest saved version will be scored.
+                            {% endif %}
                         </div>
                     {% endif %}
                 </div>

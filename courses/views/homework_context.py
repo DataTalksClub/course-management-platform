@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from courses.models.course import Course, Enrollment, User
 from courses.models.homework import (
@@ -36,11 +37,16 @@ class AuthenticatedHomeworkContext:
     enrollment: Enrollment
 
 
+def homework_deadline_passed(homework: Homework) -> bool:
+    return homework.due_date < timezone.now()
+
+
 def homework_state_context(homework: Homework) -> dict[str, bool]:
     accepting_submissions = homework.state == HomeworkState.OPEN.value
     return {
         "disabled": not accepting_submissions,
         "accepting_submissions": accepting_submissions,
+        "deadline_passed": homework_deadline_passed(homework),
     }
 
 
@@ -62,6 +68,7 @@ def homework_detail_build_context_not_authenticated(
         "is_authenticated": False,
         "disabled": True,
         "accepting_submissions": accepting_submissions,
+        "deadline_passed": homework_deadline_passed(homework),
     }
 
     return context
