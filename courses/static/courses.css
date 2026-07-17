@@ -961,16 +961,12 @@ header nav > div:last-child ul li {
   line-height: 1.4;
 }
 
+/* The label is a row, and the help icon flows inline after the last word of the
+   text. It must not be a flex item: when the label wraps, a flex icon is pushed
+   out to the right edge and centred against the whole block. */
 .form-label-with-help {
-  align-items: center;
-  display: inline-flex;
-  gap: 0.25rem;
+  display: block;
   max-width: 100%;
-  min-width: 0;
-}
-
-.form-label-with-help > span:first-child {
-  min-width: 0;
 }
 
 /* Questions */
@@ -1934,9 +1930,23 @@ body.dark-mode [class*="text-red-700"] {
   transform: translateY(-0.04em);
 }
 
-.form-label-with-help .form-help-icon {
-  flex: 0 0 auto;
-  margin-left: 0;
+/* Anchor the tooltip to the label row rather than to the icon: an icon sitting
+   near the right edge would otherwise push its tooltip off-screen. */
+label:has(.form-help-icon) {
+  position: relative;
+}
+
+label:has(.form-help-icon) .form-help-icon {
+  position: static;
+}
+
+label:has(.form-help-icon) .form-help-icon:hover::after,
+label:has(.form-help-icon) .form-help-icon:focus::after {
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  width: auto;
+  max-width: 20rem;
 }
 
 .form-help-icon:focus-visible {
