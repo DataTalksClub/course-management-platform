@@ -24,6 +24,8 @@
   --info-text: #315f8f;
   --info-border: rgba(49, 95, 143, 0.22);
   --focus-ring: rgba(49, 95, 143, 0.4);
+  --control-size: 1.1rem;
+  --control-line-height: 1.35rem;
 }
 
 body.dark-mode {
@@ -246,10 +248,10 @@ input[type="checkbox"] {
   border-radius: 4px;
   box-sizing: border-box;
   cursor: pointer;
-  height: 1.1rem;
+  height: var(--control-size);
   position: relative;
   vertical-align: middle;
-  width: 1.1rem;
+  width: var(--control-size);
 }
 
 input[type="checkbox"]:checked {
@@ -286,10 +288,10 @@ input[type="radio"] {
   border-radius: 50%;
   box-sizing: border-box;
   cursor: pointer;
-  height: 1.1rem;
+  height: var(--control-size);
   position: relative;
   vertical-align: middle;
-  width: 1.1rem;
+  width: var(--control-size);
 }
 
 input[type="radio"]:checked {
@@ -976,7 +978,7 @@ header nav > div:last-child ul li {
   display: inline;
   color: var(--text-primary);
   flex: 1;
-  line-height: 1.35;
+  line-height: var(--control-line-height);
 }
 
 .form-check {
@@ -986,9 +988,12 @@ header nav > div:last-child ul li {
   min-height: 0;
 }
 
+/* Centre the control on the label's first line box. Both sides of this
+   subtraction are shared with the control and label rules, so the two cannot
+   drift apart. */
 .form-check-input {
   flex: 0 0 auto;
-  margin-top: 0.3rem;
+  margin: calc((var(--control-line-height) - var(--control-size)) / 2) 0 0;
 }
 
 .question .space-y-2 > :not([hidden]) ~ :not([hidden]) {
