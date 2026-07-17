@@ -60,6 +60,37 @@ class FaqContributionUrlValidationTestCase(TestCase):
             ],
         )
 
+    def test_clean_faq_contribution_url_rejects_other_datatalksclub_repos(
+        self,
+    ):
+        """A contribution to another DataTalksClub repository is not an FAQ
+        contribution, even though the org and the URL shape both match."""
+        other_repo_urls = [
+            "https://github.com/DataTalksClub/machine-learning-zoomcamp/pull/292",
+            "https://github.com/DataTalksClub/data-engineering-zoomcamp/issues/12",
+            "https://github.com/DataTalksClub/mlops-zoomcamp/pull/1",
+        ]
+
+        for url in other_repo_urls:
+            with self.subTest(url=url):
+                with self.assertRaises(ValidationError) as context:
+                    clean_faq_contribution_url(url)
+
+                self.assertEqual(
+                    context.exception.message_dict["faq_contribution_url"],
+                    [
+                        "FAQ contribution must be a DataTalksClub/faq issue "
+                        "or pull request URL, for example "
+                        "https://github.com/DataTalksClub/faq/issues/281."
+                    ],
+                )
+
+    def test_clean_faq_contribution_url_rejects_faq_repo_in_another_org(self):
+        url = "https://github.com/someone-else/faq/pull/1"
+
+        with self.assertRaises(ValidationError):
+            clean_faq_contribution_url(url)
+
 
 class UrlStatusValidationTestCase(TestCase):
     def test_validation_code_200_github_mock(self):

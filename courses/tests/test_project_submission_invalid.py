@@ -31,6 +31,53 @@ class ProjectSubmissionInvalidExistingViewTestCase(
         self.assert_invalid_project_submission_preserved(expectation)
 
 
+class ProjectSubmissionFaqUrlViewTestCase(ProjectSubmissionViewTestBase):
+    """The project FAQ field must enforce the same DataTalksClub/faq URL rule
+    as the homework FAQ field."""
+
+    def enable_faq_contribution_field(self):
+        self.project.faq_contribution_field = True
+        self.project.save()
+
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_project_submission_rejects_non_faq_contribution_url(
+        self, mock_get, mock_head
+    ):
+        self.mock_url_check_status(mock_get, mock_head, 200)
+        self.enable_faq_contribution_field()
+        faq_url = (
+            "https://gist.github.com/Sanjomwa/"
+            "2dcb7a95baa01c07c10048fbac1a8461"
+        )
+        data = self.project_submission_data(faq_contribution_url=faq_url)
+
+        response = self.post_project(data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "FAQ contribution must be a DataTalksClub/faq issue "
+            "or pull request URL",
+        )
+        self.assertEqual(self.project_submission_count(), 0)
+
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_project_submission_accepts_faq_issue_url(
+        self, mock_get, mock_head
+    ):
+        self.mock_url_check_status(mock_get, mock_head, 200)
+        self.enable_faq_contribution_field()
+        faq_url = "https://github.com/DataTalksClub/faq/issues/281"
+        data = self.project_submission_data(faq_contribution_url=faq_url)
+
+        self.post_project(data)
+
+        submission = self.get_project_submission()
+        self.assertEqual(submission.faq_contribution_url, faq_url)
+
+
 class ProjectSubmissionClosedViewTestCase(ProjectSubmissionViewTestBase):
     def test_project_submission_not_accepting_responses(self):
         self.close_project_submissions()

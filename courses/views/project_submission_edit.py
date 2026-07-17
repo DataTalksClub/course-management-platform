@@ -10,6 +10,9 @@ from course_management.datamailer.sync.memberships import (
 from course_management.observability import record_event
 from courses.models.course import Enrollment, User
 from courses.models.project import Project, ProjectSubmission
+from courses.validators.custom_url_validators import (
+    clean_faq_contribution_url,
+)
 from courses.views.homework_learning_links import (
     clean_learning_in_public_links,
 )
@@ -44,6 +47,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
         volunteer_review_only=False,
     ).exists()
     project_submission = project_submission_from_post(request, project)
+    clean_project_faq_contribution_url(project, project_submission)
     project_submission.full_clean()
     project_submission.save()
     record_event(
@@ -78,6 +82,20 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     )
     transaction.on_commit(sync_callback)
     transaction.on_commit(email_callback)
+
+
+def clean_project_faq_contribution_url(
+    project: Project,
+    project_submission: ProjectSubmission,
+) -> None:
+    """Validated at submit time rather than while reading the POST, so the
+    re-rendered form can still echo back what the student actually typed."""
+    if not project.faq_contribution_field:
+        return
+
+    project_submission.faq_contribution_url = clean_faq_contribution_url(
+        project_submission.faq_contribution_url
+    )
 
 
 def project_delete_submission(
