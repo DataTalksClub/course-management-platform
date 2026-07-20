@@ -24,6 +24,13 @@
       {{ campaign.title }}
     </h1>
 
+    {% if signup_count %}
+      <p class="mt-3 inline-flex items-center gap-2 text-sm font-medium app-muted">
+        <i class="fas fa-users" aria-hidden="true"></i>
+        {{ signup_count }} already registered{% if campaign.edition_label %} for {{ campaign.edition_label }}{% endif %}
+      </p>
+    {% endif %}
+
     {% if course_is_open and start_course_url %}
       <div class="mt-5 rounded-md border app-alert-info px-4 py-3">
         <p class="font-medium app-heading">The course is already open.</p>

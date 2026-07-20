@@ -122,6 +122,7 @@ def _registration_context(
         "campaign": campaign,
         "course": campaign.current_course,
         "course_is_open": course_is_open,
+        "signup_count": campaign.registrations.count(),
         "form": form,
         "registration": registration,
         "marketing_html": marketing_html,

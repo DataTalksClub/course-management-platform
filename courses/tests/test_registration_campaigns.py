@@ -18,6 +18,64 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertContains(response, "Register")
         self.assertContains(response, "Company name")
 
+    def test_registration_page_shows_signup_count_for_cohort(self):
+        CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="a@example.com",
+        )
+        CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="b@example.com",
+        )
+
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2 already registered")
+
+    def test_signup_count_is_specific_to_the_cohort(self):
+        from courses.models import Course, RegistrationCampaign
+
+        CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="a@example.com",
+        )
+
+        other_course = Course.objects.create(
+            slug="llm-zoomcamp-2027",
+            title="LLM Zoomcamp 2027",
+            description="Next edition",
+        )
+        other_campaign = RegistrationCampaign.objects.create(
+            slug="llm-zoomcamp-next",
+            title="LLM Zoomcamp Next",
+            edition_label="2027 cohort",
+            current_course=other_course,
+        )
+        CourseRegistration.objects.create(
+            campaign=other_campaign,
+            course=other_course,
+            email="b@example.com",
+        )
+        CourseRegistration.objects.create(
+            campaign=other_campaign,
+            course=other_course,
+            email="c@example.com",
+        )
+
+        response = self.client.get(self.campaign_url())
+
+        self.assertContains(response, "1 already registered")
+        self.assertNotContains(response, "3 already registered")
+
+    def test_registration_page_hides_count_when_no_signups(self):
+        response = self.client.get(self.campaign_url())
+
+        self.assertNotContains(response, "already registered")
+
     @override_settings(
         DATAMAILER_URL="",
         DATAMAILER_API_KEY="",
