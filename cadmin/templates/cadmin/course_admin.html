@@ -211,6 +211,10 @@
                 <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="cadmin-action-item">
                   <i class="fas fa-list" aria-hidden="true"></i> Submissions
                 </a>
+                {% if hw.can_extend_deadline %}
+                  {% url 'cadmin_homework_extend_deadline' course.slug hw.slug as hw_extend_url %}
+                  {% include 'cadmin/_extend_deadline_menu.html' with extend_url=hw_extend_url title=hw.title deadline_label='the deadline' %}
+                {% endif %}
                 <form method="post" action="{% url 'cadmin_homework_set_correct_answers' course.slug hw.slug %}" onsubmit="return confirm('Set missing correct answers for {{ hw.title }} to the most frequent submitted answers?');">
                   {% csrf_token %}
                   <button type="submit" class="cadmin-action-item">
@@ -321,6 +325,10 @@
                 <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="cadmin-action-item">
                   <i class="fas fa-list" aria-hidden="true"></i> Submissions
                 </a>
+                {% if proj.can_extend_deadline %}
+                  {% url 'cadmin_project_extend_deadline' course.slug proj.slug as proj_extend_url %}
+                  {% include 'cadmin/_extend_deadline_menu.html' with extend_url=proj_extend_url title=proj.title deadline_label=proj.extend_deadline_label %}
+                {% endif %}
                 {% if proj.needs_review_assignment %}
                   <form method="post" action="{% url 'cadmin_project_assign_reviews' course.slug proj.slug %}" onsubmit="return confirm('Assign peer reviews for {{ proj.title }}?');">
                     {% csrf_token %}

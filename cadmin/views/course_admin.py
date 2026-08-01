@@ -15,6 +15,10 @@ from courses.models.project import (
     Project,
     ProjectState,
 )
+from cadmin.deadline_extension import (
+    EXTENSION_OPTIONS,
+    project_extension_plan,
+)
 from .campaign_metrics import registration_campaign_metrics
 from .helpers import staff_required
 
@@ -47,6 +51,9 @@ def course_homeworks_for_admin(course):
         homework.can_notify_scores = (
             homework.state == HomeworkState.SCORED.value
         )
+        homework.can_extend_deadline = (
+            homework.state == HomeworkState.OPEN.value
+        )
     return homeworks
 
 
@@ -64,6 +71,11 @@ def course_projects_for_admin(course):
         project.needs_scoring = (
             project.state == ProjectState.PEER_REVIEWING.value
         )
+        extension_fields, extension_label = project_extension_plan(
+            project
+        )
+        project.can_extend_deadline = extension_fields is not None
+        project.extend_deadline_label = extension_label
     return projects
 
 
@@ -121,6 +133,7 @@ def course_admin_context(course):
             "projects": projects,
             "total_enrollments": total_enrollments,
             "support_metrics": support_metrics,
+            "extension_options": EXTENSION_OPTIONS,
         }
     )
     return context

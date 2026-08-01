@@ -1,0 +1,27 @@
+{% comment %}
+Reusable "Extend deadline" submenu for the cadmin actions dropdown.
+
+Context:
+  extend_url         action URL that applies the extension (POST)
+  title              homework/project title, used in the confirm prompt
+  deadline_label     phrase describing what moves ("the deadline" /
+                     "both deadlines")
+  extension_options  iterable of ExtensionOption(days, label)
+{% endcomment %}
+<details class="cadmin-submenu">
+  <summary class="cadmin-action-item cadmin-submenu-toggle">
+    <i class="fas fa-clock" aria-hidden="true"></i> Extend deadline
+    <i class="fas fa-chevron-down cadmin-submenu-caret" aria-hidden="true"></i>
+  </summary>
+  <div class="cadmin-submenu-panel">
+    {% for option in extension_options %}
+      <form method="post" action="{{ extend_url }}" onsubmit="return confirm('Extend {{ deadline_label }} for {{ title }} by {{ option.label }}?');">
+        {% csrf_token %}
+        <input type="hidden" name="days" value="{{ option.days }}">
+        <button type="submit" class="cadmin-action-item cadmin-submenu-item">
+          <i class="fas fa-plus" aria-hidden="true"></i> {{ option.label }}
+        </button>
+      </form>
+    {% endfor %}
+  </div>
+</details>

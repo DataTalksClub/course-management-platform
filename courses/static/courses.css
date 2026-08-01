@@ -1513,6 +1513,32 @@ body.dark-mode .dark-mode-icon-stack .dark-mode-icon-dark {
   text-align: center;
 }
 
+.cadmin-submenu {
+  width: 100%;
+}
+
+.cadmin-submenu-toggle {
+  list-style: none;
+}
+
+.cadmin-submenu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.cadmin-submenu-caret {
+  margin-left: auto;
+  font-size: 0.7rem;
+  transition: transform 120ms ease;
+}
+
+.cadmin-submenu[open] .cadmin-submenu-caret {
+  transform: rotate(180deg);
+}
+
+.cadmin-submenu-panel {
+  padding-left: 1rem;
+}
+
 .cadmin-active-filter {
   border-color: var(--link-color);
   box-shadow: inset 0 0 0 1px var(--link-color);
