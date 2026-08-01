@@ -11,6 +11,7 @@ from courses.homework_correct_answers import (
     fill_correct_answers,
 )
 from courses.scoring import HomeworkScoringStatus, score_homework_submissions
+from cadmin.deadline_extension import extend_deadlines
 from cadmin.views.homework_submission_edit import (
     homework_submission_edit_response,
 )
@@ -46,6 +47,34 @@ def homework_score(request, course_slug, homework_slug):
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
+    )
+
+
+@staff_required
+def homework_extend_deadline(request, course_slug, homework_slug):
+    """Push the homework due date forward by a fixed amount."""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_object_or_404(
+        Homework, course=course, slug=homework_slug
+    )
+
+    if homework.state != HomeworkState.OPEN.value:
+        messages.warning(
+            request,
+            "Only open homework can have its deadline extended.",
+        )
+        return redirect_after_action(
+            request, "cadmin_course", course_slug=course_slug
+        )
+
+    return extend_deadlines(
+        request,
+        homework,
+        ["due_date"],
+        f"the deadline for {homework.title}",
+        course_slug,
     )
 
 

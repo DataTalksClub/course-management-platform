@@ -56,6 +56,11 @@ urlpatterns = [
         name="cadmin_homework_rescore",
     ),
     path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/extend-deadline",
+        homework.homework_extend_deadline,
+        name="cadmin_homework_extend_deadline",
+    ),
+    path(
         "<slug:course_slug>/homework/<slug:homework_slug>/notify-scores",
         homework.homework_notify_scores,
         name="cadmin_homework_notify_scores",
@@ -89,6 +94,11 @@ urlpatterns = [
         "<slug:course_slug>/project/<slug:project_slug>/assign-reviews",
         projects.project_assign_reviews,
         name="cadmin_project_assign_reviews",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/extend-deadline",
+        projects.project_extend_deadline,
+        name="cadmin_project_extend_deadline",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/score",

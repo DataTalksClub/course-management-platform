@@ -16,6 +16,10 @@ from courses.project_assignment import (
 from courses.project_scoring import (
     score_project,
 )
+from cadmin.deadline_extension import (
+    extend_deadlines,
+    project_extension_plan,
+)
 from .helpers import (
     redirect_after_action,
     staff_required,
@@ -30,6 +34,40 @@ from .project_submission_list import (
     project_submissions_context,
     project_submissions_page_data,
 )
+
+
+@staff_required
+def project_extend_deadline(request, course_slug, project_slug):
+    """Push both project deadlines forward by a fixed amount.
+
+    Extending a project moves the submission deadline and the peer
+    review deadline together so their spacing is preserved.
+    """
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+
+    date_fields, deadline_label = project_extension_plan(project)
+    if date_fields is None:
+        messages.warning(
+            request,
+            "Deadlines can only be extended while a project is open "
+            "for submissions or peer review.",
+        )
+        return redirect_after_action(
+            request, "cadmin_course", course_slug=course_slug
+        )
+
+    return extend_deadlines(
+        request,
+        project,
+        date_fields,
+        f"{deadline_label} for {project.title}",
+        course_slug,
+    )
 
 
 @staff_required

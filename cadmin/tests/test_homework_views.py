@@ -137,6 +137,63 @@ class HomeworkCadminActionRedirectTests(HomeworkCadminViewTestBase):
         self.assertRedirects(response, course_url)
 
 
+class HomeworkCadminExtendDeadlineTests(HomeworkCadminViewTestBase):
+    def extend_deadline_url(self):
+        return self.homework_action_url("cadmin_homework_extend_deadline")
+
+    def test_extend_deadline_moves_due_date(self):
+        self.login_admin()
+        original_due_date = self.homework.due_date
+
+        response = self.client.post(
+            self.extend_deadline_url(), {"days": 3}, follow=True
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        self.homework.refresh_from_db()
+        self.assertEqual(
+            self.homework.due_date,
+            original_due_date + timedelta(days=3),
+        )
+
+    def test_extend_deadline_can_redirect_back_to_submissions(self):
+        self.login_admin()
+        submissions_url = self.cadmin_homework_submissions_url()
+
+        response = self.client.post(
+            self.extend_deadline_url(),
+            {"days": 7, "next": submissions_url},
+        )
+
+        self.assertRedirects(response, submissions_url)
+
+    def test_extend_deadline_rejects_invalid_days(self):
+        self.login_admin()
+        original_due_date = self.homework.due_date
+
+        response = self.client.post(
+            self.extend_deadline_url(), {"days": 5}
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.due_date, original_due_date)
+
+    def test_extend_deadline_not_allowed_when_scored(self):
+        self.homework.state = HomeworkState.SCORED.value
+        self.homework.save(update_fields=["state"])
+        self.login_admin()
+        original_due_date = self.homework.due_date
+
+        response = self.client.post(
+            self.extend_deadline_url(), {"days": 3}
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.due_date, original_due_date)
+
+
 class HomeworkCadminSearchTests(HomeworkCadminViewTestBase):
     def test_enrollments_search_finds_records_beyond_first_page(self):
         """Enrollment search is server-side, not limited to the visible page."""
