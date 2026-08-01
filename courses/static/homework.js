@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return missingMessage;
     }
     if (!isValidCommitId(commitId)) {
-      var invalidMessage = 'Commit ID must be a 7-character hexadecimal string. For example, "468aacb".';
+      var invalidMessage = 'Paste the first 7 characters of the commit ID.';
       setFieldError(commitField, invalidMessage);
       return invalidMessage;
     }

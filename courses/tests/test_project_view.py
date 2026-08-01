@@ -91,6 +91,15 @@ class ProjectViewTestCase(ProjectViewTestBase):
         )
         self.assert_save_submission_copy(response)
 
+    def test_project_detail_explains_which_part_of_commit_id_to_use(self):
+        response = self.authenticated_project_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Paste the first 7 characters of the commit ID.",
+        )
+
     def test_project_detail_authenticated_with_submission_copy(self):
         ProjectSubmission.objects.create(
             project=self.project,
