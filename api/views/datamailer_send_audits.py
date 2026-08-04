@@ -29,6 +29,14 @@ def datamailer_send_audits_view(request):
     if idempotency_key:
         audits = audits.filter(idempotency_key=idempotency_key)
 
+    status = request.GET.get("status")
+    if status:
+        audits = audits.filter(status=status.strip().lower())
+
+    send_type = request.GET.get("send_type")
+    if send_type:
+        audits = audits.filter(send_type=send_type.strip().lower())
+
     limit = _parse_limit(request.GET.get("limit"))
     audits = audits.order_by("-occurred_at")[:limit]
 
@@ -67,7 +75,13 @@ def _serialize_audit(audit) -> dict:
         "status": audit.status,
         "template_key": audit.template_key,
         "idempotency_key": audit.idempotency_key,
+        "list_key": audit.list_key,
         "occurred_at": occurred_at,
+        # Without this a failed send is indistinguishable from a silent
+        # no-op: response_payload is empty when the request never landed.
+        "error": audit.error,
+        "intended_count": audit.intended_count,
+        "enqueued_count": audit.enqueued_count,
         "would_deliver": would_deliver,
         "rendered": rendered,
         "message": message,

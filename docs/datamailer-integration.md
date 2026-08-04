@@ -1683,10 +1683,20 @@ dry-run render and a production render is a bug.
 CMP records each send attempt (dry-run or real) in a `DatamailerSendAudit` row
 whose `response_payload` carries the Datamailer response, including the
 `rendered` block for dry runs. CMP exposes these over HTTP at
-`GET /api/datamailer/send-audits` (filter by `email`, `template_key`, or
-`idempotency_key`), so the e2e smoke suite can drive the real flows and assert
-on the rendered subject/bodies and delivery decision without any email being
-delivered.
+`GET /api/datamailer/send-audits` (filter by `email`, `template_key`,
+`idempotency_key`, `status`, or `send_type`), so the e2e smoke suite can drive
+the real flows and assert on the rendered subject/bodies and delivery decision
+without any email being delivered.
+
+Each record also carries `status`, `error`, `list_key`, `intended_count`, and
+`enqueued_count`. When a send never reaches Datamailer the `response_payload`
+is empty, so `error` is the only record of why it failed — check it first when
+diagnosing missing email:
+
+```bash
+curl -s -H "Authorization: Token $TOKEN" \
+  "https://courses.datatalks.club/api/datamailer/send-audits?status=failed"
+```
 
 For a local or CI end-to-end run, point CMP at a Datamailer deployment with
 normal settings (`DATAMAILER_URL`, `DATAMAILER_API_KEY`, `DATAMAILER_CLIENT`,

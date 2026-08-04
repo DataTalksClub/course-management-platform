@@ -237,6 +237,9 @@ DATAMAILER_CLIENT = os.getenv("DATAMAILER_CLIENT", "")
 DATAMAILER_AUDIENCE = os.getenv("DATAMAILER_AUDIENCE", "")
 DATAMAILER_FROM_EMAIL = os.getenv("DATAMAILER_FROM_EMAIL", "")
 DATAMAILER_STRICT = os.getenv("DATAMAILER_STRICT", "0") == "1"
+DATAMAILER_TIMEOUT_SECONDS = float(
+    os.getenv("DATAMAILER_TIMEOUT_SECONDS", "60")
+)
 # When enabled, transactional sends carry Datamailer's "dry_run" flag: the full
 # prod send path runs (outbox -> dispatch -> /api/transactional/send -> audit) but
 # Datamailer renders the email and returns it inline without delivering. Used by

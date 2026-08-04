@@ -14,6 +14,15 @@ from .client_types import DatamailerRequestData
 
 logger = logging.getLogger(__name__)
 
+# Bulk sends post the whole recipient list inline, so they need far longer
+# than a single transactional message. This is not just a false-failure
+# problem: when we hang up early Datamailer abandons the dispatch it was
+# midway through, and every message it had created but not yet sent stays
+# "queued" forever with no error and no retry. A July 2026 reminder run
+# delivered to exactly one recipient -- the first in the list -- and
+# stranded the rest.
+DEFAULT_TIMEOUT_SECONDS = 60.0
+
 
 @dataclass(frozen=True)
 class DatamailerConfig:
@@ -24,6 +33,7 @@ class DatamailerConfig:
     from_email: str = ""
     strict: bool = False
     transactional_dry_run: bool = False
+    timeout: float = DEFAULT_TIMEOUT_SECONDS
 
     @classmethod
     def from_settings(cls) -> "DatamailerConfig | None":
@@ -40,6 +50,11 @@ class DatamailerConfig:
         transactional_dry_run = getattr(
             settings, "DATAMAILER_TRANSACTIONAL_DRY_RUN", False
         )
+        timeout = getattr(
+            settings,
+            "DATAMAILER_TIMEOUT_SECONDS",
+            DEFAULT_TIMEOUT_SECONDS,
+        )
         normalized_url = url.rstrip("/")
         return cls(
             url=normalized_url,
@@ -49,6 +64,7 @@ class DatamailerConfig:
             from_email=from_email,
             strict=strict,
             transactional_dry_run=transactional_dry_run,
+            timeout=timeout,
         )
 
 
@@ -75,7 +91,7 @@ class DatamailerClient:
         url = f"{self.config.url}{data.path}"
         request_kwargs: dict[str, Any] = {
             "json": data.json,
-            "timeout": 10,
+            "timeout": self.config.timeout,
             "headers": {
                 "Authorization": f"Bearer {self.config.api_key}",
                 "Content-Type": "application/json",

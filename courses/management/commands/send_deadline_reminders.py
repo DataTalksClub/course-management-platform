@@ -51,7 +51,13 @@ def event_send_suffix(response):
     return f"; enqueued={enqueued_count}"
 
 
-def send_reminder_event(client, config, event):
+def send_reminder_event(client, event):
+    """Send one reminder event.
+
+    Returns ``(response, error)``. A transport failure is returned rather
+    than raised so one broken event cannot cancel the reminders queued
+    behind it -- see ``Command.send_events``.
+    """
     payload = transient_recipient_list_send_payload(event)
     try:
         response = client.recipient_lists.sends.send_to_transient_list(
@@ -60,15 +66,18 @@ def send_reminder_event(client, config, event):
     except requests.RequestException as exc:
         error = str(exc)
         record_failed_reminder_send(event, payload, error)
-        if config.strict:
-            raise
-        raise CommandError(
-            f"Datamailer deadline reminder failed for "
-            f"{event.list_key}: {exc}"
-        ) from exc
+        return None, error
 
     record_successful_reminder_send(event, payload, response)
-    return response
+    return response, ""
+
+
+def reminder_failure_summary(failures):
+    lines = []
+    for event, error in failures:
+        lines.append(f"{event.list_key}: {error}")
+    joined = "; ".join(lines)
+    return f"Datamailer deadline reminders failed: {joined}"
 
 
 def record_failed_reminder_send(event, payload, error):
@@ -130,7 +139,7 @@ class Command(BaseCommand):
             return
 
         client = DatamailerClient(config)
-        self.send_events(client, config, events)
+        self.send_events(client, events)
 
     def write_dry_run_events(self, events):
         for event in events:
@@ -138,9 +147,17 @@ class Command(BaseCommand):
                 f"{event.list_key}: {len(event.members)} member(s)"
             )
 
-    def send_events(self, client, config, events):
+    def send_events(self, client, events):
+        failures = []
         for event in events:
-            response = send_reminder_event(client, config, event)
+            response, error = send_reminder_event(client, event)
+            if error:
+                failures.append((event, error))
+                self.stderr.write(
+                    f"Failed {event.list_key}: "
+                    f"{len(event.members)} member(s): {error}"
+                )
+                continue
             suffix = event_send_suffix(response)
             message = (
                 f"Sent {event.list_key}: "
@@ -148,3 +165,13 @@ class Command(BaseCommand):
                 f"{suffix}"
             )
             self.stdout.write(message)
+
+        if not failures:
+            return
+
+        self.stderr.write(
+            f"{len(failures)} of {len(events)} reminder event(s) failed."
+        )
+        # Raise only after every event has been attempted, so the task
+        # still exits non-zero and surfaces in CloudWatch.
+        raise CommandError(reminder_failure_summary(failures))

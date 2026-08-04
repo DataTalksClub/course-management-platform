@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from django.test import TestCase, override_settings
 
 from course_management.datamailer.client import (
+    DEFAULT_TIMEOUT_SECONDS,
     DatamailerClient,
     DatamailerConfig,
     datamailer_enabled,
@@ -38,7 +39,7 @@ class DatamailerClientEndpointTest(TestCase):
         }
         kwargs = {
             "json": expectation.json_payload,
-            "timeout": 10,
+            "timeout": DEFAULT_TIMEOUT_SECONDS,
             "headers": headers,
         }
         if expectation.params is not None:

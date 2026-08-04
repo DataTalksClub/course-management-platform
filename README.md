@@ -258,6 +258,21 @@ The scheduled task exits after reconciling Datamailer recipient lists and
 triggering Datamailer list sends. Datamailer handles per-recipient delivery
 asynchronously.
 
+Every event is attempted even if an earlier one fails; each failure is written
+to stderr and recorded on the `DatamailerSendAudit` row, and the command exits
+non-zero at the end if any event failed. To see why a reminder never arrived:
+
+```bash
+curl -s -H "Authorization: Token $TOKEN" \
+  "https://courses.datatalks.club/api/datamailer/send-audits?template_key=deadline-reminder"
+```
+
+Bulk sends post the whole recipient list inline, so they use a longer HTTP
+timeout than transactional sends (`DATAMAILER_TIMEOUT_SECONDS`, default 60).
+Don't lower it: hanging up mid-request makes Datamailer abandon the dispatch it
+is partway through, stranding every not-yet-sent message at `queued` with no
+error and no retry, while CMP records a failure for work that partly succeeded.
+
 Datamailer transactional template keys are stable code-level constants in CMP.
 Don't configure one environment variable per template.
 

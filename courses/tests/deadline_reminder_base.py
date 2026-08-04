@@ -45,12 +45,18 @@ class DeadlineReminderTestBase(TestCase):
             description="Machine learning",
         )
 
-    def run_deadline_reminders(self, now, stdout=None, dry_run=False):
+    def run_deadline_reminders(
+        self,
+        now,
+        stdout=None,
+        dry_run=False,
+        stderr=None,
+    ):
         now_value = now.isoformat()
         args = ["send_deadline_reminders", "--now", now_value]
         if dry_run:
             args.append("--dry-run")
-        call_command(*args, stdout=stdout)
+        call_command(*args, stdout=stdout, stderr=stderr)
 
     def members_by_email(self, payload):
         members_by_email = {}
