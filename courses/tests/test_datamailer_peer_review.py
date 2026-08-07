@@ -29,11 +29,11 @@ from courses.models import (
 )
 
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
 }
 
 
@@ -219,9 +219,9 @@ def assert_peer_review_send_audit(test_case):
 
 class DatamailerPeerReviewPayloadTest(TestCase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
-        DATAMAILER_FROM_EMAIL="courses",
+        RELAY_FROM_EMAIL="courses",
     )
     def test_peer_review_assignment_payload_includes_links_and_deadline(self):
         project = create_peer_review_assignment_fixture()
@@ -299,7 +299,7 @@ class DatamailerPeerReviewPreviewCommandTest(TestCase):
 
 
 class DatamailerPeerReviewNotificationSendTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )

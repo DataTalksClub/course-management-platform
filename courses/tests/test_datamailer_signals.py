@@ -15,16 +15,16 @@ from courses.models import (
 )
 
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
 }
 
 
 class DatamailerSignalTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.sync_contact")
     def test_new_user_syncs_after_commit(self, sync):
         with self.captureOnCommitCallbacks(execute=True):
@@ -32,7 +32,7 @@ class DatamailerSignalTest(TestCase):
 
         sync.assert_called_once_with(user)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.sync_enrollment_recipient_list")
     def test_new_enrollment_syncs_after_commit(self, sync):
         user = CustomUser.objects.create(email="student@example.com")
@@ -51,7 +51,7 @@ class DatamailerSignalTest(TestCase):
 
         sync.assert_called_once_with(enrollment)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.erase_contact_from_datamailer")
     def test_deleted_user_erases_contact_after_commit(self, erase_contact):
         user = CustomUser.objects.create_user(
@@ -68,7 +68,7 @@ class DatamailerSignalTest(TestCase):
             email="student@example.com",
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.remove_registration_recipient_list")
     def test_deleted_registration_removes_member_after_commit(self, remove):
         course = Course.objects.create(
@@ -94,7 +94,7 @@ class DatamailerSignalTest(TestCase):
         remove.assert_called_once()
         self.assertEqual(remove.call_args.args[0].pk, registration.pk)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.remove_enrollment_recipient_list")
     def test_deleted_enrollment_removes_member_after_commit(self, remove):
         user = CustomUser.objects.create(email="student@example.com")
@@ -112,7 +112,7 @@ class DatamailerSignalTest(TestCase):
         remove.assert_called_once()
         self.assertEqual(remove.call_args.args[0].pk, enrollment.pk)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.remove_homework_submission_recipient_list")
     def test_deleted_homework_submission_removes_member_after_commit(
         self,
@@ -143,7 +143,7 @@ class DatamailerSignalTest(TestCase):
         remove.assert_called_once()
         self.assertEqual(remove.call_args.args[0].pk, submission.pk)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.signals.remove_project_submission_recipient_list")
     def test_deleted_project_submission_removes_member_after_commit(
         self,

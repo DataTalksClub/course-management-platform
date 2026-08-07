@@ -13,7 +13,7 @@ from course_management.datamailer.keys import (
 )
 from courses.tests.datamailer_recipient_lists_base import (
     BulkUpsertMemberExpectation,
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerRecipientListCommandTestBase,
 )
 
@@ -27,7 +27,7 @@ def run_recipient_list_command(*args):
 class DatamailerRecipientListBulkUpsertTest(
     DatamailerRecipientListCommandTestBase
 ):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
@@ -55,7 +55,7 @@ class DatamailerRecipientListBulkUpsertTest(
         self.assert_bulk_upsert_member(expectation)
         self.assert_prepared_one_member(out)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
@@ -88,7 +88,7 @@ class DatamailerRecipientListProjectPassedTest(
     DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
@@ -153,7 +153,7 @@ class DatamailerRecipientListGraduateTest(
     DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
@@ -186,7 +186,7 @@ class DatamailerRecipientListGraduateTest(
 class DatamailerRecipientListDryRunTest(
     DatamailerRecipientListCommandTestBase
 ):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.bulk_upsert"
     )
@@ -212,7 +212,7 @@ class DatamailerRecipientListDryRunTest(
 class DatamailerRecipientListOptionValidationTest(
     DatamailerRecipientListCommandTestBase
 ):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_recipient_list_backfill_command_rejects_invalid_options(self):
         for args, message in (
             (

@@ -51,7 +51,7 @@ def bearer_token(request):
 
 
 def authenticate_webhook(request):
-    expected = getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", "")
+    expected = getattr(settings, "RELAY_WEBHOOK_TOKEN", "")
     if not expected:
         return False
     token = bearer_token(request)
@@ -159,7 +159,7 @@ def load_webhook_fields(data):
 
 
 def validate_webhook_configuration(data):
-    webhook_token = getattr(settings, "DATAMAILER_WEBHOOK_TOKEN", "")
+    webhook_token = getattr(settings, "RELAY_WEBHOOK_TOKEN", "")
     if webhook_token:
         return None
     error = webhook_error(

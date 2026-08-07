@@ -16,11 +16,11 @@ from course_management.datamailer.sync.certificates import (
 from courses.models import Course, Enrollment
 
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
 }
 
 
@@ -151,8 +151,8 @@ def assert_course_graduate_recipient_payload(
 
 class DatamailerCertificatePayloadTestCase(TestCase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_certificate_availability_notification_payload(self):
@@ -165,7 +165,7 @@ class DatamailerCertificatePayloadTestCase(TestCase):
         assert_certificate_availability_payload(self, payload, enrollment)
 
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_course_graduate_recipient_list_payload_targets_graduated_outcome(
@@ -186,7 +186,7 @@ class DatamailerCertificatePayloadTestCase(TestCase):
 
 
 class DatamailerCertificateSendTestCase(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
@@ -214,7 +214,7 @@ class DatamailerCertificateSendTestCase(TestCase):
         bulk_upsert.assert_called_once()
         send.assert_called_once()
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )

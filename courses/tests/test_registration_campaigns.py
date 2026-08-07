@@ -77,10 +77,10 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertNotContains(response, "already registered")
 
     @override_settings(
-        DATAMAILER_URL="",
-        DATAMAILER_API_KEY="",
-        DATAMAILER_CLIENT="",
-        DATAMAILER_AUDIENCE="",
+        RELAY_URL="",
+        RELAY_API_KEY="",
+        RELAY_CLIENT="",
+        RELAY_AUDIENCE="",
     )
     def test_anonymous_registration_creates_independent_registration(
         self,
@@ -103,10 +103,10 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertIsNone(registration.user)
 
     @override_settings(
-        DATAMAILER_URL="",
-        DATAMAILER_API_KEY="",
-        DATAMAILER_CLIENT="",
-        DATAMAILER_AUDIENCE="",
+        RELAY_URL="",
+        RELAY_API_KEY="",
+        RELAY_CLIENT="",
+        RELAY_AUDIENCE="",
     )
     def test_registration_stores_optional_company_name(self):
         url = self.campaign_url()
@@ -144,10 +144,10 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertEqual(registration_count, 1)
 
     @override_settings(
-        DATAMAILER_URL="",
-        DATAMAILER_API_KEY="",
-        DATAMAILER_CLIENT="",
-        DATAMAILER_AUDIENCE="",
+        RELAY_URL="",
+        RELAY_API_KEY="",
+        RELAY_CLIENT="",
+        RELAY_AUDIENCE="",
     )
     def test_registration_requires_only_email_and_newsletter_consent(self):
         url = self.campaign_url()
@@ -218,10 +218,10 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         self.assertNotContains(response, "to use a different email address")
 
     @override_settings(
-        DATAMAILER_URL="",
-        DATAMAILER_API_KEY="",
-        DATAMAILER_CLIENT="",
-        DATAMAILER_AUDIENCE="",
+        RELAY_URL="",
+        RELAY_API_KEY="",
+        RELAY_CLIENT="",
+        RELAY_AUDIENCE="",
     )
     def test_logged_in_registration_blank_optional_fields_keeps_profile(self):
         user = self.create_signed_blank_user()

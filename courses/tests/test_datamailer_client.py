@@ -19,7 +19,7 @@ from courses.tests.datamailer_client_cases import (
 class DatamailerClientEndpointTest(TestCase):
     def datamailer_config(self):
         return DatamailerConfig(
-            url="https://datamailer.example.com",
+            url="https://relay.example.com",
             api_key="secret-token",
             client="dtc-courses",
             audience="dtc-courses",
@@ -44,7 +44,7 @@ class DatamailerClientEndpointTest(TestCase):
         }
         if expectation.params is not None:
             kwargs["params"] = expectation.params
-        expected_url = f"https://datamailer.example.com{expectation.path}"
+        expected_url = f"https://relay.example.com{expectation.path}"
         expectation.session.request.assert_called_once_with(
             expectation.method,
             expected_url,
@@ -82,13 +82,45 @@ class DatamailerClientEndpointTest(TestCase):
 
     def test_missing_env_disables_datamailer(self):
         with override_settings(
-            DATAMAILER_URL="",
-            DATAMAILER_API_KEY="",
-            DATAMAILER_CLIENT="",
-            DATAMAILER_AUDIENCE="",
+            RELAY_URL="",
+            RELAY_API_KEY="",
+            RELAY_CLIENT="",
+            RELAY_AUDIENCE="",
         ):
             enabled = datamailer_enabled()
             self.assertFalse(enabled)
+
+    @override_settings(
+        RELAY_URL="https://relay.example.com",
+        RELAY_API_KEY="relay-token",
+        RELAY_CLIENT="dtc-courses",
+        RELAY_AUDIENCE="dtc-courses",
+        RELAY_FROM_EMAIL="courses",
+        RELAY_STRICT=True,
+    )
+    def test_relay_settings_configure_client(self):
+        config = DatamailerConfig.from_settings()
+
+        self.assertIsNotNone(config)
+        self.assertEqual(config.url, "https://relay.example.com")
+        self.assertEqual(config.api_key, "relay-token")
+        self.assertEqual(config.client, "dtc-courses")
+        self.assertEqual(config.audience, "dtc-courses")
+        self.assertEqual(config.from_email, "courses")
+        self.assertTrue(config.strict)
+
+    @override_settings(
+        RELAY_URL="",
+        RELAY_API_KEY="",
+        RELAY_CLIENT="",
+        RELAY_AUDIENCE="",
+        DATAMAILER_URL="https://datamailer.example.com",
+        DATAMAILER_API_KEY="legacy-token",
+        DATAMAILER_CLIENT="dtc-courses",
+        DATAMAILER_AUDIENCE="dtc-courses",
+    )
+    def test_legacy_datamailer_settings_do_not_configure_client(self):
+        self.assertFalse(datamailer_enabled())
 
     def test_client_methods_use_expected_endpoints_and_scope(self):
         cases = datamailer_method_cases()

@@ -8,13 +8,13 @@ from course_management.datamailer.sync.contacts import (
     erase_contact_from_datamailer,
 )
 from courses.tests.datamailer_outbox_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerOutboxTestBase,
 )
 
 
 class DatamailerOutboxContactTest(DatamailerOutboxTestBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("course_management.datamailer.client_contacts.DatamailerContactClient.erase_contact")
     def test_erase_contact_enqueues_outbox_event(self, erase_contact):
         user = CustomUser.objects.create_user(
@@ -28,7 +28,7 @@ class DatamailerOutboxContactTest(DatamailerOutboxTestBase):
         event = DatamailerOutboxEvent.objects.get()
         self.assert_erase_contact_outbox_event_for_user(event, user)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("course_management.datamailer.client_contacts.DatamailerContactClient.erase_contact")
     def test_erase_contact_enqueues_outbox_event_for_email(
         self, erase_contact

@@ -12,13 +12,13 @@ from course_management.datamailer.sync.transactional import (
     send_transactional_email,
 )
 from courses.tests.datamailer_contact_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerContactBase,
 )
 
 
 class DatamailerTransactionalTest(DatamailerContactBase):
-    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
+    @override_settings(**RELAY_SETTINGS, RELAY_FROM_EMAIL="")
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
@@ -34,7 +34,7 @@ class DatamailerTransactionalTest(DatamailerContactBase):
         self.assert_transactional_send_called(send)
         self.assert_transactional_send_audit()
 
-    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_FROM_EMAIL="")
+    @override_settings(**RELAY_SETTINGS, RELAY_FROM_EMAIL="")
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
     )
@@ -53,8 +53,8 @@ class DatamailerTransactionalTest(DatamailerContactBase):
         self.assertEqual(audit.error, "network error")
 
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
     )
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
@@ -80,8 +80,8 @@ class DatamailerTransactionalTest(DatamailerContactBase):
         send.assert_called_once_with(expected_payload)
 
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
     )
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"
@@ -108,9 +108,9 @@ class DatamailerTransactionalTest(DatamailerContactBase):
         send.assert_called_once_with(expected_payload)
 
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
-        DATAMAILER_TRANSACTIONAL_DRY_RUN=True,
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
+        RELAY_TRANSACTIONAL_DRY_RUN=True,
     )
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.send_transactional"

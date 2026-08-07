@@ -1159,7 +1159,7 @@ as an operational safety net, but do not put reconcile back into every send.
 panel (§5) assumes a contact already exists with sane defaults. Target rules:
 
 - **Contact creation:** CMP creates/upserts a Datamailer contact on course
-  registration, account creation when `DATAMAILER_SYNC_ON_USER_CREATE=1`, and the
+  registration, account creation when `RELAY_SYNC_ON_USER_CREATE=1`, and the
   first enrollment/submission event if the contact does not already exist.
 - **Consent:** course registration remains the explicit newsletter / course email
   consent point. CMP sends `status: subscribed`, `verified: true`, and
@@ -1314,22 +1314,22 @@ Planned, not implemented yet:
 CMP enables Datamailer only when all required settings are present:
 
 ```text
-DATAMAILER_URL
-DATAMAILER_API_KEY
-DATAMAILER_CLIENT
-DATAMAILER_AUDIENCE
+RELAY_URL
+RELAY_API_KEY
+RELAY_CLIENT
+RELAY_AUDIENCE
 ```
 
 CMP may also set:
 
 ```text
-DATAMAILER_FROM_EMAIL
-DATAMAILER_STRICT
-DATAMAILER_WEBHOOK_TOKEN
-DATAMAILER_SYNC_ON_USER_CREATE
+RELAY_FROM_EMAIL
+RELAY_STRICT
+RELAY_WEBHOOK_TOKEN
+RELAY_SYNC_ON_USER_CREATE
 ```
 
-`DATAMAILER_FROM_EMAIL` is a Datamailer sender ID, not a raw email address.
+`RELAY_FROM_EMAIL` is a Datamailer sender ID, not a raw email address.
 Datamailer validates it against the authenticated client sender configuration.
 
 CMP keeps transactional template keys as code-level constants. We don't add one
@@ -1338,8 +1338,8 @@ environment variable per template.
 `PUBLIC_BASE_URL` is a CMP URL-building setting, not a Datamailer API setting.
 CMP uses it when it builds links for email context.
 
-When `DATAMAILER_STRICT=0`, CMP logs Datamailer failures and lets the course
-flow continue. When `DATAMAILER_STRICT=1`, CMP raises the Datamailer API failure
+When `RELAY_STRICT=0`, CMP logs Datamailer failures and lets the course
+flow continue. When `RELAY_STRICT=1`, CMP raises the Datamailer API failure
 to the caller.
 
 ### Where configuration lives — two sides
@@ -1353,7 +1353,7 @@ have **exactly one home**:
   address, the subscription **category tags** (§5), and — a strong candidate — the
   **link base host** (so templates compose `{{ base_url }}/{path}` and CMP never
   repeats it). Pinned here, an empty host is impossible.
-- **CMP-side — settings + per-send context.** Connection config (`DATAMAILER_URL`,
+- **CMP-side — settings + per-send context.** Connection config (`RELAY_URL`,
   `_API_KEY`, `_CLIENT`, `_AUDIENCE`), and the **per-message context** CMP computes:
   course title, slugs, scores, paths. If the base host is *not* a Datamailer
   client-global, then CMP pins `PUBLIC_BASE_URL` and sends fully-qualified URLs.
@@ -1498,7 +1498,7 @@ it upserts registrants into Datamailer.
 
 ```text
 POST /api/contacts
-Authorization: Bearer <DATAMAILER_API_KEY>
+Authorization: Bearer <RELAY_API_KEY>
 ```
 
 ```json
@@ -1544,7 +1544,7 @@ Single-recipient sends (submission confirmations, certificates):
 
 ```text
 POST /api/transactional/send
-Authorization: Bearer <DATAMAILER_API_KEY>
+Authorization: Bearer <RELAY_API_KEY>
 ```
 
 ```json
@@ -1581,7 +1581,7 @@ current computed audience. The send then names the node or transient list:
 
 ```text
 POST /api/recipient-lists/{list_key}/transactional-send
-Authorization: Bearer <DATAMAILER_API_KEY>
+Authorization: Bearer <RELAY_API_KEY>
 ```
 
 ```json
@@ -1667,7 +1667,7 @@ Rules:
 
 CMP verifies the transactional email path without delivering anything by using
 Datamailer's `dry_run` flag on `POST /api/transactional/send`. When
-`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`, CMP adds `"dry_run": true` to every
+`RELAY_TRANSACTIONAL_DRY_RUN=1`, CMP adds `"dry_run": true` to every
 transactional send. Datamailer runs the **identical** validate/render pipeline
 (template lookup, context merge, required-field validation, category and
 suppression checks, render) and returns the rendered email inline **without**
@@ -1699,9 +1699,9 @@ curl -s -H "Authorization: Token $TOKEN" \
 ```
 
 For a local or CI end-to-end run, point CMP at a Datamailer deployment with
-normal settings (`DATAMAILER_URL`, `DATAMAILER_API_KEY`, `DATAMAILER_CLIENT`,
-`DATAMAILER_AUDIENCE`, `DATAMAILER_FROM_EMAIL`) and set
-`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. Use CMP normally (register, submit
+normal settings (`RELAY_URL`, `RELAY_API_KEY`, `RELAY_CLIENT`,
+`RELAY_AUDIENCE`, `RELAY_FROM_EMAIL`) and set
+`RELAY_TRANSACTIONAL_DRY_RUN=1`. Use CMP normally (register, submit
 homework, publish scores, and so on) and inspect the rendered results through
 `GET /api/datamailer/send-audits`.
 
@@ -1841,7 +1841,7 @@ For large lists, CMP can use Datamailer's file-by-reference import jobs instead
 of sending members inline:
 
 ```console
-DATAMAILER_IMPORT_S3_BUCKET=cmp-datamailer-imports \
+RELAY_IMPORT_S3_BUCKET=cmp-datamailer-imports \
   uv run python manage.py sync_datamailer_recipient_lists registrations \
     --course-slug ml-zoomcamp-2026 \
     --import-by-reference \
@@ -1980,7 +1980,7 @@ preferences (conceptually §5):
 
 ```text
 POST /api/datamailer/events
-Authorization: Bearer <DATAMAILER_WEBHOOK_TOKEN>
+Authorization: Bearer <RELAY_WEBHOOK_TOKEN>
 ```
 
 CMP stores each callback in `data_datamailercontactevent` keyed by Datamailer's
@@ -2089,7 +2089,7 @@ Target tests before relying on the integration:
   category/global-unsubscribe suppression decision, and link diagnostics for the
   same request, while the dry run never enqueues provider delivery.
 - **Local E2E dry-run tests:** run CMP against a Datamailer deployment with
-  `DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. Use CMP normally to register, submit,
+  `RELAY_TRANSACTIONAL_DRY_RUN=1`. Use CMP normally to register, submit,
   publish scores, assign peer reviews, send deadline reminders, and publish
   certificates. Assert on the rendered text/HTML, suppression decisions, and
   links read back from `GET /api/datamailer/send-audits`.

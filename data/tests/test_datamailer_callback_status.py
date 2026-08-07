@@ -7,7 +7,7 @@ from .datamailer_webhook_base import DatamailerWebhookTestBase
 
 
 class DatamailerCallbackStatusCommandTest(DatamailerWebhookTestBase):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_callback_status_command_reports_counts_and_duplicates(self):
         failed_payload = {
             "event_id": "evt-1",

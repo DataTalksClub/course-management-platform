@@ -32,7 +32,7 @@ def enqueue_datamailer_outbox_event(
     should_dispatch = (
         data.dispatch_immediately
         if data.dispatch_immediately is not None
-        else getattr(settings, "DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY", False)
+        else getattr(settings, "RELAY_OUTBOX_DISPATCH_IMMEDIATELY", False)
     )
     event_uuid = uuid4()
     event_id = f"cmp-datamailer-event:{event_uuid}"

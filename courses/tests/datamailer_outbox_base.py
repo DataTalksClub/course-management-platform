@@ -21,15 +21,15 @@ from course_management.datamailer.sync.memberships import (
 from courses.models import Course, Enrollment
 
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
 }
 
 
-@override_settings(DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY=True, **DATAMAILER_SETTINGS)
+@override_settings(RELAY_OUTBOX_DISPATCH_IMMEDIATELY=True, **RELAY_SETTINGS)
 class DatamailerOutboxTestBase(TestCase):
     def http_error(self, status_code):
         exc = requests.HTTPError("request failed")

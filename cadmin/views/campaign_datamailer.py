@@ -18,7 +18,7 @@ from course_management.datamailer.payloads.registration_campaigns import (
 )
 
 
-DATAMAILER_CAMPAIGN_UPSERT_ACTIONS = {
+RELAY_CAMPAIGN_UPSERT_ACTIONS = {
     "sync",
     "preview",
     "test_send",
@@ -132,7 +132,7 @@ def cancel_datamailer_campaign_action(request, client, external_key):
     return None, True
 
 
-DATAMAILER_CAMPAIGN_ACTION_HANDLERS = {
+RELAY_CAMPAIGN_ACTION_HANDLERS = {
     "sync": sync_datamailer_campaign_action,
     "preview": preview_datamailer_campaign_action,
     "test_send": test_send_datamailer_campaign_action,
@@ -142,7 +142,7 @@ DATAMAILER_CAMPAIGN_ACTION_HANDLERS = {
 
 
 def run_datamailer_campaign_action(data):
-    handler = DATAMAILER_CAMPAIGN_ACTION_HANDLERS.get(data.action)
+    handler = RELAY_CAMPAIGN_ACTION_HANDLERS.get(data.action)
     if handler:
         return handler(data.request, data.client, data.external_key)
 
@@ -151,7 +151,7 @@ def run_datamailer_campaign_action(data):
 
 
 def upsert_datamailer_campaign_if_needed(data):
-    if data.action not in DATAMAILER_CAMPAIGN_UPSERT_ACTIONS:
+    if data.action not in RELAY_CAMPAIGN_UPSERT_ACTIONS:
         return
 
     payload = registration_campaign_datamailer_payload(data.campaign)

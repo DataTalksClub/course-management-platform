@@ -7,7 +7,7 @@ from django.test import override_settings
 
 from course_management.datamailer.keys import course_enrolled_list_key
 from courses.tests.datamailer_recipient_lists_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerRecipientListCommandTestBase,
     ImportWaitExpectation,
 )
@@ -34,10 +34,10 @@ class DatamailerRecipientListImportCreationTest(
     DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
-        DATAMAILER_IMPORT_S3_PREFIX="datamailer-test",
-        DATAMAILER_IMPORT_URL_EXPIRES_SECONDS=900,
+        **RELAY_SETTINGS,
+        RELAY_IMPORT_S3_BUCKET="cmp-imports",
+        RELAY_IMPORT_S3_PREFIX="datamailer-test",
+        RELAY_IMPORT_URL_EXPIRES_SECONDS=900,
     )
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.create"
@@ -83,8 +83,8 @@ class DatamailerRecipientListImportSuccessTest(
     DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+        **RELAY_SETTINGS,
+        RELAY_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.get"
@@ -129,8 +129,8 @@ class DatamailerRecipientListImportFailureTest(
     DatamailerRecipientListCommandTestBase
 ):
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+        **RELAY_SETTINGS,
+        RELAY_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.get"
@@ -211,8 +211,8 @@ class DatamailerRecipientListImportTimeoutTest(
                 )
 
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_IMPORT_S3_BUCKET="cmp-imports",
+        **RELAY_SETTINGS,
+        RELAY_IMPORT_S3_BUCKET="cmp-imports",
     )
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListImportClient.get"
@@ -241,7 +241,7 @@ class DatamailerRecipientListImportTimeoutTest(
 class DatamailerRecipientListImportValidationTest(
     DatamailerRecipientListCommandTestBase
 ):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_recipient_list_import_by_reference_requires_s3_bucket(self):
         self.create_registration(
             email="student@example.com",
@@ -250,7 +250,7 @@ class DatamailerRecipientListImportValidationTest(
 
         with self.assertRaisesMessage(
             CommandError,
-            "DATAMAILER_IMPORT_S3_BUCKET must be set",
+            "RELAY_IMPORT_S3_BUCKET must be set",
         ):
             call_command(
                 "sync_datamailer_recipient_lists",

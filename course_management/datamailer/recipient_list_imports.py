@@ -38,7 +38,7 @@ def safe_s3_key_part(value):
 
 
 def import_object_key(kind, config, list_key, content_sha256):
-    import_prefix = getattr(settings, "DATAMAILER_IMPORT_S3_PREFIX", "")
+    import_prefix = getattr(settings, "RELAY_IMPORT_S3_PREFIX", "")
     safe_list_key = safe_s3_key_part(list_key)
     parts = [
         import_prefix,
@@ -58,17 +58,17 @@ def import_object_key(kind, config, list_key, content_sha256):
 
 
 def import_s3_bucket():
-    bucket = getattr(settings, "DATAMAILER_IMPORT_S3_BUCKET", "")
+    bucket = getattr(settings, "RELAY_IMPORT_S3_BUCKET", "")
     if not bucket:
         raise CommandError(
-            "DATAMAILER_IMPORT_S3_BUCKET must be set when using "
+            "RELAY_IMPORT_S3_BUCKET must be set when using "
             "--import-by-reference."
         )
     return bucket
 
 
 def import_s3_client():
-    region = getattr(settings, "DATAMAILER_IMPORT_S3_REGION", "")
+    region = getattr(settings, "RELAY_IMPORT_S3_REGION", "")
     s3_kwargs = {}
     if region:
         s3_kwargs["region_name"] = region
@@ -99,7 +99,7 @@ def upload_import_body(upload_body):
 def presigned_import_url(s3, bucket, key):
     params = {"Bucket": bucket, "Key": key}
     expires_in = getattr(
-        settings, "DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", 3600
+        settings, "RELAY_IMPORT_URL_EXPIRES_SECONDS", 3600
     )
     return s3.generate_presigned_url(
         "get_object",

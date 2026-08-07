@@ -15,11 +15,11 @@ from course_management.datamailer.payloads.base import (
 from courses.models import Course, Enrollment
 
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
 }
 
 
@@ -149,7 +149,7 @@ def assert_recipient_list_audit_repaired(test_case, expectation):
 
 
 class DatamailerRecipientListAuditNoDriftTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.reconcile"
     )
@@ -182,7 +182,7 @@ class DatamailerRecipientListAuditNoDriftTest(TestCase):
 
 
 class DatamailerRecipientListAuditRepairTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.reconcile"
     )
@@ -214,7 +214,7 @@ class DatamailerRecipientListAuditRepairTest(TestCase):
 
 
 class DatamailerRecipientListAuditListingErrorTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.list_members"
     )
@@ -236,7 +236,7 @@ class DatamailerRecipientListAuditListingErrorTest(TestCase):
                 extra_args=["--limit", "2"],
             )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.list_members"
     )
@@ -259,7 +259,7 @@ class DatamailerRecipientListAuditListingErrorTest(TestCase):
 
 
 class DatamailerRecipientListAuditOptionValidationTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_recipient_list_audit_rejects_invalid_options(self):
         for args, message in (
             (

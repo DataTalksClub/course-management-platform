@@ -151,18 +151,18 @@ COURSE_CERTIFICATES_DATA = OperationData(
 )
 COURSE_CERTIFICATES_OPERATION = operation(COURSE_CERTIFICATES_DATA)
 
-DATAMAILER_EVENTS_SUCCESS_RESPONSE = schema_response(
+RELAY_EVENTS_SUCCESS_RESPONSE = schema_response(
     "Datamailer event accepted",
     "DatamailerEventAccepted",
 )
-DATAMAILER_EVENTS_RESPONSES = {
-    "200": DATAMAILER_EVENTS_SUCCESS_RESPONSE,
+RELAY_EVENTS_RESPONSES = {
+    "200": RELAY_EVENTS_SUCCESS_RESPONSE,
     "400": INVALID_EVENT_PAYLOAD_RESPONSE,
     "401": INVALID_WEBHOOK_TOKEN_RESPONSE,
     "503": WEBHOOK_NOT_CONFIGURED_RESPONSE,
 }
-DATAMAILER_EVENTS_BODY = schema_request_body("DatamailerEvent")
-DATAMAILER_EVENTS_DESCRIPTION = (
+RELAY_EVENTS_BODY = schema_request_body("DatamailerEvent")
+RELAY_EVENTS_DESCRIPTION = (
     "Webhook used by Datamailer to report hard bounces, "
     "complaints, subscription changes, skipped/failed sends, and "
     "message lifecycle events back to CMP for support and audit "
@@ -171,25 +171,25 @@ DATAMAILER_EVENTS_DESCRIPTION = (
     "configured Datamailer webhook token in the Authorization "
     "bearer token or X-Datamailer-Webhook-Token header."
 )
-DATAMAILER_EVENTS_DATA = OperationData(
+RELAY_EVENTS_DATA = OperationData(
     "api_datamailer_events",
     ["Datamailer"],
     "Receive Datamailer contact event",
-    DATAMAILER_EVENTS_RESPONSES,
-    body=DATAMAILER_EVENTS_BODY,
+    RELAY_EVENTS_RESPONSES,
+    body=RELAY_EVENTS_BODY,
     requires_auth=False,
-    description=DATAMAILER_EVENTS_DESCRIPTION,
+    description=RELAY_EVENTS_DESCRIPTION,
 )
-DATAMAILER_EVENTS_OPERATION = operation(DATAMAILER_EVENTS_DATA)
+RELAY_EVENTS_OPERATION = operation(RELAY_EVENTS_DATA)
 
-DATAMAILER_SEND_AUDITS_SUCCESS_RESPONSE = schema_response(
+RELAY_SEND_AUDITS_SUCCESS_RESPONSE = schema_response(
     "Datamailer send audits",
     "DatamailerSendAudits",
 )
-DATAMAILER_SEND_AUDITS_RESPONSES = {
-    "200": DATAMAILER_SEND_AUDITS_SUCCESS_RESPONSE,
+RELAY_SEND_AUDITS_RESPONSES = {
+    "200": RELAY_SEND_AUDITS_SUCCESS_RESPONSE,
 }
-DATAMAILER_SEND_AUDITS_PARAMETERS = [
+RELAY_SEND_AUDITS_PARAMETERS = [
     {
         "name": "email",
         "in": "query",
@@ -215,7 +215,7 @@ DATAMAILER_SEND_AUDITS_PARAMETERS = [
         "schema": {"type": "integer", "default": 25, "maximum": 100},
     },
 ]
-DATAMAILER_SEND_AUDITS_DESCRIPTION = (
+RELAY_SEND_AUDITS_DESCRIPTION = (
     "Lists CMP's own Datamailer send-audit rows (one per send attempt "
     "through the outbox -> dispatch -> /api/transactional/send pipeline). "
     "Each row's response_payload carries the message summary and, when the "
@@ -223,15 +223,15 @@ DATAMAILER_SEND_AUDITS_DESCRIPTION = (
     "Used by the e2e smoke suite to verify the rendered email over HTTP "
     "without delivering anything. Ordered newest first."
 )
-DATAMAILER_SEND_AUDITS_DATA = OperationData(
+RELAY_SEND_AUDITS_DATA = OperationData(
     "api_datamailer_send_audits",
     ["Datamailer"],
     "List Datamailer send audits",
-    DATAMAILER_SEND_AUDITS_RESPONSES,
-    parameters=DATAMAILER_SEND_AUDITS_PARAMETERS,
-    description=DATAMAILER_SEND_AUDITS_DESCRIPTION,
+    RELAY_SEND_AUDITS_RESPONSES,
+    parameters=RELAY_SEND_AUDITS_PARAMETERS,
+    description=RELAY_SEND_AUDITS_DESCRIPTION,
 )
-DATAMAILER_SEND_AUDITS_OPERATION = operation(DATAMAILER_SEND_AUDITS_DATA)
+RELAY_SEND_AUDITS_OPERATION = operation(RELAY_SEND_AUDITS_DATA)
 
 DATA_PATHS_BY_URL_NAME = {
     "api_health": {
@@ -256,9 +256,9 @@ DATA_PATHS_BY_URL_NAME = {
         "post": COURSE_CERTIFICATES_OPERATION,
     },
     "api_datamailer_events": {
-        "post": DATAMAILER_EVENTS_OPERATION,
+        "post": RELAY_EVENTS_OPERATION,
     },
     "api_datamailer_send_audits": {
-        "get": DATAMAILER_SEND_AUDITS_OPERATION,
+        "get": RELAY_SEND_AUDITS_OPERATION,
     },
 }

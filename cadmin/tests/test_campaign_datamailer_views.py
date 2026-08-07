@@ -4,7 +4,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from cadmin.tests.campaign_view_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     CampaignCadminViewBase,
     admin_credentials,
 )
@@ -12,7 +12,7 @@ from cadmin.tests.campaign_view_base import (
 
 class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
@@ -37,7 +37,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         self.assertRedirects(response, url)
         self.assert_campaign_draft_upserted(upsert_campaign)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.preview_campaign"
     )
@@ -71,7 +71,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         self.assertContains(response, "Preview subject")
         self.assertContains(response, "Preview text")
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.test_send_campaign"
     )
@@ -102,7 +102,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
             expected_recipients,
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign"
     )
@@ -129,7 +129,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
             "cmp-registration-llm-zoomcamp"
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.cancel_campaign"
     )

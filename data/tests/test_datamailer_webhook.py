@@ -17,7 +17,7 @@ class DatamailerWebhookAuthTest(DatamailerWebhookTestBase):
 
         self.assertEqual(response.status_code, 503)
 
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_rejects_invalid_token(self):
         payload = {
             "event_id": "evt-1",
@@ -31,7 +31,7 @@ class DatamailerWebhookAuthTest(DatamailerWebhookTestBase):
 
 
 class DatamailerWebhookContactTest(DatamailerWebhookTestBase):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_contact_event_idempotently(self):
         payload = {
             "event_id": "evt-1",

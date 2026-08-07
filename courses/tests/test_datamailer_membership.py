@@ -16,14 +16,14 @@ from course_management.datamailer.sync.memberships import (
     sync_project_submission_to_datamailer,
 )
 from courses.tests.datamailer_membership_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerMembershipBase,
     UpsertedRecipientMemberExpectation,
 )
 
 
 class DatamailerMembershipTest(DatamailerMembershipBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_enrollment_recipient_list_payload_targets_course_enrolled(
         self,
     ):
@@ -54,7 +54,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
             enrollment.pk,
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
@@ -84,7 +84,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
             f"user:{user.pk}",
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
@@ -115,7 +115,7 @@ class DatamailerMembershipTest(DatamailerMembershipBase):
         )
         self.assert_upserted_recipient_member(expectation)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )

@@ -4,12 +4,12 @@ from django.test import override_settings
 from django.urls import reverse
 
 from accounts.tests_base import (
-    DATAMAILER_DISABLED_SETTINGS,
+    RELAY_DISABLED_SETTINGS,
     AccountCourseTestCase,
 )
 
 
-@override_settings(**DATAMAILER_DISABLED_SETTINGS)
+@override_settings(**RELAY_DISABLED_SETTINGS)
 class AccountTimezonePreferenceTestCase(AccountCourseTestCase):
     def post_timezone_preference(self, payload):
         url = reverse("update_timezone_preference")

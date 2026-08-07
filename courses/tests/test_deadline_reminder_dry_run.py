@@ -6,13 +6,13 @@ from django.test import override_settings
 
 from courses.models import Homework
 from courses.tests.deadline_reminder_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DeadlineReminderTestBase,
 )
 
 
 class DeadlineReminderDryRunCommandTest(DeadlineReminderTestBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_transient_list"
     )

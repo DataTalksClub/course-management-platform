@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Bulk sends post the whole recipient list inline, so they need far longer
 # than a single transactional message. This is not just a false-failure
-# problem: when we hang up early Datamailer abandons the dispatch it was
+# problem: when we hang up early Relay abandons the dispatch it was
 # midway through, and every message it had created but not yet sent stays
 # "queued" forever with no error and no retry. A July 2026 reminder run
 # delivered to exactly one recipient -- the first in the list -- and
@@ -37,22 +37,22 @@ class DatamailerConfig:
 
     @classmethod
     def from_settings(cls) -> "DatamailerConfig | None":
-        url = getattr(settings, "DATAMAILER_URL", "")
-        api_key = getattr(settings, "DATAMAILER_API_KEY", "")
-        client = getattr(settings, "DATAMAILER_CLIENT", "")
-        audience = getattr(settings, "DATAMAILER_AUDIENCE", "")
-        from_email = getattr(settings, "DATAMAILER_FROM_EMAIL", "")
+        url = getattr(settings, "RELAY_URL", "")
+        api_key = getattr(settings, "RELAY_API_KEY", "")
+        client = getattr(settings, "RELAY_CLIENT", "")
+        audience = getattr(settings, "RELAY_AUDIENCE", "")
+        from_email = getattr(settings, "RELAY_FROM_EMAIL", "")
 
         if not all([url, api_key, client, audience]):
             return None
 
-        strict = getattr(settings, "DATAMAILER_STRICT", False)
+        strict = getattr(settings, "RELAY_STRICT", False)
         transactional_dry_run = getattr(
-            settings, "DATAMAILER_TRANSACTIONAL_DRY_RUN", False
+            settings, "RELAY_TRANSACTIONAL_DRY_RUN", False
         )
         timeout = getattr(
             settings,
-            "DATAMAILER_TIMEOUT_SECONDS",
+            "RELAY_TIMEOUT_SECONDS",
             DEFAULT_TIMEOUT_SECONDS,
         )
         normalized_url = url.rstrip("/")

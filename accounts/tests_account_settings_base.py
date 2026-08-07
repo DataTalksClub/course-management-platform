@@ -1,12 +1,12 @@
 from django.test import override_settings
 
 from accounts.tests_base import (
-    DATAMAILER_DISABLED_SETTINGS,
+    RELAY_DISABLED_SETTINGS,
     AccountCourseTestCase,
 )
 
 
-@override_settings(**DATAMAILER_DISABLED_SETTINGS)
+@override_settings(**RELAY_DISABLED_SETTINGS)
 class AccountSettingsViewTestBase(AccountCourseTestCase):
     def account_settings_profile_payload(self):
         payload = {

@@ -6,7 +6,7 @@ These exercise :class:`CmpApiClient`'s ``datamailer_send_audits`` /
 targets (path, query params, auth header, response shape, poll/timeout, and the
 rendered-body matching used by the email tests). The *live* email assertions
 (``test_03/04``) still need a deployed dev target running with
-``DATAMAILER_TRANSACTIONAL_DRY_RUN=1``.
+``RELAY_TRANSACTIONAL_DRY_RUN=1``.
 """
 
 import json

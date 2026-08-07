@@ -154,7 +154,7 @@ def test_homework_confirmation_email(send_audits, run_state):
 
     Verification reads CMP's own ``DatamailerSendAudit`` over HTTP rather than
     an inbox: the prod path runs (outbox -> dispatch -> /api/transactional/send
-    -> audit), but with ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1`` the render is
+    -> audit), but with ``RELAY_TRANSACTIONAL_DRY_RUN=1`` the render is
     returned inline and nothing is delivered. xfails cleanly when no audit
     appears (Datamailer not configured / dry-run off on the target), so the
     suite stays green until it is switched on.
@@ -170,7 +170,7 @@ def test_homework_confirmation_email(send_audits, run_state):
     except SendAuditTimeout as exc:
         pytest.xfail(
             "No homework-confirmation send audit found; ensure Datamailer is "
-            "configured on the target with DATAMAILER_TRANSACTIONAL_DRY_RUN=1. "
+            "configured on the target with RELAY_TRANSACTIONAL_DRY_RUN=1. "
             f"({exc})"
         )
     assert audit["template_key"] == HOMEWORK_CONFIRMATION_TEMPLATE

@@ -36,8 +36,8 @@ def require_datamailer_config():
     config = DatamailerConfig.from_settings()
     if config is None:
         raise CommandError(
-            "Datamailer is not configured. Set DATAMAILER_URL, "
-            "DATAMAILER_API_KEY, DATAMAILER_CLIENT, and DATAMAILER_AUDIENCE."
+            "Datamailer is not configured. Set RELAY_URL, "
+            "RELAY_API_KEY, RELAY_CLIENT, and RELAY_AUDIENCE."
         )
     return config
 
