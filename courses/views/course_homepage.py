@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from courses.models.course import Course
+from courses.models.project import Project, ProjectState, ProjectSubmission
 
 
 ASSIGNMENT_TYPE_ORDER = {
@@ -31,7 +32,11 @@ COURSE_OUTCOMES = {
 }
 
 
-def add_course_homepage_info(course: Course, now) -> None:
+def add_course_homepage_info(
+    course: Course,
+    now,
+    submitted_project_ids: set[int] | None = None,
+) -> None:
     today = timezone.localdate(now)
 
     course.home_outcome = get_course_outcome(course)
@@ -45,7 +50,21 @@ def add_course_homepage_info(course: Course, now) -> None:
     (
         course.home_current_assignment_label,
         course.home_current_assignment,
-    ) = current_assignment_info(course, now)
+    ) = current_assignment_info(course, now, submitted_project_ids)
+
+
+def submitted_project_ids_for_user(courses, user) -> set[int] | None:
+    """Projects the user submitted, or None when there is no user context."""
+    if user is None or not user.is_authenticated:
+        return None
+
+    course_ids = [course.id for course in courses]
+
+    project_ids = ProjectSubmission.objects.filter(
+        student=user,
+        project__course_id__in=course_ids,
+    ).values_list("project_id", flat=True)
+    return set(project_ids)
 
 
 def get_course_outcome(course: Course) -> str:
@@ -85,8 +104,12 @@ def course_duration_label(course: Course) -> str:
     return f"{duration_days} days"
 
 
-def current_assignment_info(course: Course, now) -> tuple[str, dict | None]:
-    assignments = get_course_assignments(course)
+def current_assignment_info(
+    course: Course,
+    now,
+    submitted_project_ids: set[int] | None = None,
+) -> tuple[str, dict | None]:
+    assignments = get_course_assignments(course, submitted_project_ids)
 
     if not assignments:
         return "Current assignment", None
@@ -102,7 +125,10 @@ def current_assignment_info(course: Course, now) -> tuple[str, dict | None]:
     return "Last assignment", assignments[-1]
 
 
-def get_course_assignments(course: Course) -> list[dict]:
+def get_course_assignments(
+    course: Course,
+    submitted_project_ids: set[int] | None = None,
+) -> list[dict]:
     assignments = []
 
     homeworks = course.homework_set.all()
@@ -115,10 +141,29 @@ def get_course_assignments(course: Course) -> list[dict]:
         project_assignment = project_assignment_record(project)
         assignments.append(project_assignment)
 
-        peer_review_assignment = peer_review_assignment_record(project)
-        assignments.append(peer_review_assignment)
+        if show_peer_review_assignment(project, submitted_project_ids):
+            peer_review_assignment = peer_review_assignment_record(project)
+            assignments.append(peer_review_assignment)
 
     return sorted(assignments, key=course_assignment_sort_key)
+
+
+def show_peer_review_assignment(
+    project: Project,
+    submitted_project_ids: set[int] | None,
+) -> bool:
+    """Peer review is only relevant once the student can actually do it."""
+    review_visible_states = {
+        ProjectState.PEER_REVIEWING.value,
+        ProjectState.COMPLETED.value,
+    }
+    if project.state not in review_visible_states:
+        return False
+
+    if submitted_project_ids is None:
+        return True
+
+    return project.id in submitted_project_ids
 
 
 def homework_assignment_record(homework) -> dict:

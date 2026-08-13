@@ -10,7 +10,10 @@ from courses.models.course import (
     RegistrationCampaign,
 )
 from courses.models.project import ProjectState
-from courses.views.course_homepage import add_course_homepage_info
+from courses.views.course_homepage import (
+    add_course_homepage_info,
+    submitted_project_ids_for_user,
+)
 from courses.views.course_homeworks import get_homeworks_for_course
 from courses.views.course_projects import get_projects_for_course
 
@@ -149,7 +152,8 @@ def course_page_context(data: CoursePageData) -> dict:
 def course_page_data(course_slug: str, user) -> CoursePageData:
     course = get_object_or_404(Course, slug=course_slug)
     now = timezone.now()
-    add_course_homepage_info(course, now)
+    submitted_project_ids = submitted_project_ids_for_user([course], user)
+    add_course_homepage_info(course, now, submitted_project_ids)
     homeworks = get_homeworks_for_course(course, user)
     projects = get_projects_for_course(course, user)
     registration_campaign = active_registration_campaign_for_course(

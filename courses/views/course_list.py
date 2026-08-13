@@ -6,7 +6,10 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from courses.models.course import Course
-from courses.views.course_homepage import add_course_homepage_info
+from courses.views.course_homepage import (
+    add_course_homepage_info,
+    submitted_project_ids_for_user,
+)
 from courses.views.course_list_user_state import (
     attach_registration_campaigns,
     mark_enrolled_courses,
@@ -37,14 +40,14 @@ def visible_course_list_queryset():
     return courses.order_by("-id")
 
 
-def split_courses_by_status(courses, now):
+def split_courses_by_status(courses, now, submitted_project_ids=None):
     active_courses = []
     open_registration_courses = []
     finished_courses = []
     archive_courses_by_year = defaultdict(list)
 
     for course in courses:
-        add_course_homepage_info(course, now)
+        add_course_homepage_info(course, now, submitted_project_ids)
 
         if course.finished:
             finished_courses.append(course)
@@ -129,7 +132,12 @@ def prepare_course_list_courses(user):
     visible_courses = visible_course_list_queryset()
     courses = list(visible_courses)
     now = timezone.now()
-    course_groups = split_courses_by_status(courses, now)
+    submitted_project_ids = submitted_project_ids_for_user(courses, user)
+    course_groups = split_courses_by_status(
+        courses,
+        now,
+        submitted_project_ids,
+    )
 
     mark_enrolled_courses(course_groups.courses, user)
     attach_registration_campaigns(course_groups.courses)
