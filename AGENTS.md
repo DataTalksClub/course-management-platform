@@ -33,6 +33,16 @@ When a user reports a bug, first add or update a focused test that reproduces
 the reported failure. Run that test and confirm it fails for the reported
 reason, then implement the fix and rerun the test to confirm it passes.
 
+## Production alert incidents
+
+When asked to inspect a GitHub alert issue, pull CMP dev or production logs,
+diagnose a CloudWatch alarm, or carry an incident fix through deployment, use
+the `cmp-incident-response` skill at
+[`.claude/skills/cmp-incident-response/SKILL.md`](.claude/skills/cmp-incident-response/SKILL.md).
+It is the source of truth for assuming the read-only production investigator
+role, handling sensitive log evidence, TDD reproduction, dev verification, and
+the separately authorized production promotion.
+
 ## Design
 
 If your work involves design — templates, CSS, page layout, forms, buttons, or any user-facing UI — you must read [docs/design-system.md](docs/design-system.md) first and follow it. It is the source of truth for layout (rows over columns), page headers, form structure, button placement, and spacing.

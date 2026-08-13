@@ -1,0 +1,4 @@
+interface:
+  display_name: "CMP Incident Response"
+  short_description: "Investigate and resolve CMP production alerts"
+  default_prompt: "Use $cmp-incident-response to investigate and resolve this CMP alert issue safely."
